@@ -1,5 +1,5 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
-use indexmap::IndexMap;
 
 use crate::check::{CheckState, GenericTemplateId, InducedLifetimeSite, Receiver, WalkState};
 use crate::{CompilerError, CompilerResult};
@@ -125,8 +125,6 @@ impl WalkState<'_, '_> {
 
 impl CheckState<'_> {
     /// Propagate elided lifetime variables into declaration templates.
-    ///
-    /// Induced lifetimes still reachable from declaration types become generic parameters.
     pub(in crate::check) fn propagate_induced_lifetimes(&mut self) -> CompilerResult<()> {
         let sites = self
             .generics
@@ -135,11 +133,15 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
 
         // collect induced lifetimes before mutating generic tables
-        let mut lifetimes = IndexMap::new();
+        let mut lifetimes = FxIndexMap::default();
         for site in sites {
             for variable in self.type_variables(site.ty)? {
                 let role = self.variable_role(variable)?;
                 if role.is_inference() {
+                    continue;
+                }
+                // body-inferred result lifetimes solve from returns, not induction
+                if self.body_lifetimes.contains(&variable) {
                     continue;
                 }
 

@@ -4,14 +4,13 @@ use destack_source::ModuleId;
 use crate::check::{
     CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
     ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericTemplateId,
-    ImplementationCoherenceObligation, InducedLifetimeOwner, Obligation, Origin, Receiver,
-    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, VariableRole, WalkState,
-    Widening,
+    ImplementationCoherenceObligation, InducedLifetimeOwner, Obligation, Origin,
+    ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
+    TypeSubstitution, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
 /// One component template pass: identities declare everywhere before
-/// any bound expression walks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum TemplatePass {
     /// Declare template and parameter identities.
@@ -176,11 +175,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Visit one type-level declaration's template in one pass.
-    ///
-    /// Annotations instantiate these templates while sibling modules
-    /// still walk, so their bounds walk before any module bodies.
-    /// Callable templates instantiate at solve time instead and walk
-    /// with their declarations.
     fn visit_declaration_template(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -200,7 +194,17 @@ impl WalkState<'_, '_> {
         // declare identities first so bounds may reference any template
         if pass == TemplatePass::Declare {
             let template = self.open_generic_template(source, None, Some(symbol), parameters)?;
-            if template.is_none() && !where_clauses.is_empty() {
+
+            // hypotheses need a template: where clauses, heritage
+            //  assumptions, and interfaces assuming their own application
+            let assumes = !where_clauses.is_empty()
+                || self.check.symbol_kind(symbol).is_interface()
+                || self
+                    .tree
+                    .get(id)
+                    .implements_types()
+                    .is_some_and(|types| !types.is_empty());
+            if template.is_none() && assumes {
                 self.check
                     .open_generic_template(source, None, Some(symbol))?;
             }
@@ -406,7 +410,7 @@ impl WalkState<'_, '_> {
                 members,
             })
         } else {
-            self.queue_bind_type(symbol, value);
+            self.bind_symbol_type(symbol, value)?;
 
             dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),
@@ -414,6 +418,11 @@ impl WalkState<'_, '_> {
             })
         };
         self.check.insert_definition(symbol, source, definition)?;
+
+        // nominal values check their declared parameter use
+        if receiver.is_some() {
+            self.queue_parameter_use_obligation(source, symbol)?;
+        }
 
         Ok(())
     }
@@ -444,7 +453,7 @@ impl WalkState<'_, '_> {
 
         // transparent intrinsic aliases reduce when applied
         if self.check.is_transparent_intrinsic_alias(symbol)? {
-            self.queue_bind_type(symbol, value);
+            self.bind_symbol_type(symbol, value)?;
             let definition = dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),
                 value,
@@ -488,47 +497,13 @@ impl WalkState<'_, '_> {
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
-        let mut implements = Vec::new();
-        for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
-            self.push_induced_lifetime_site(induction, ty);
-            if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
-                if self.check.symbol_kind(instance.symbol).is_interface() {
-                    self.relate_heritage_clause(
-                        *implemented_type,
-                        Relation::Implements,
-                        receiver.ty,
-                        ty,
-                    );
-
-                    // members assume this satisfies the implemented interface
-                    if let Some(template) = template {
-                        self.push_this_heritage_predicate(source, template, ty)?;
-                    }
-                    implements.push(dir::NominalHeritage {
-                        source,
-                        symbol: instance.symbol,
-                        arguments: self
-                            .check
-                            .type_ids(ty.module_id, instance.arguments)?
-                            .to_vec(),
-                    });
-                } else {
-                    self.check
-                        .report_implementation_target_not_interface_symbol(
-                            self.check.format_symbol(symbol),
-                            instance.symbol,
-                            source,
-                        );
-                }
-            } else {
-                self.check.report_implementation_target_not_interface_type(
-                    self.check.format_symbol(symbol),
-                    ty,
-                    implemented_type.into_global_any(self.module),
-                );
-            }
-        }
+        let implements = self.walk_nominal_implements(
+            symbol,
+            receiver,
+            template,
+            induction,
+            &declaration.implements_types,
+        )?;
 
         // walk members
         let mut members = Vec::new();
@@ -566,7 +541,8 @@ impl WalkState<'_, '_> {
         }
 
         // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol)?;
+        self.queue_parameter_use_obligation(source, symbol)?;
 
         // concrete structs need one fixed representation
         self.queue_declaration_layout_obligation(symbol, receiver, template)?;
@@ -633,47 +609,13 @@ impl WalkState<'_, '_> {
         }
 
         // walk implemented interfaces
-        let mut implements = Vec::new();
-        for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
-            self.push_induced_lifetime_site(induction, ty);
-            if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
-                if self.check.symbol_kind(instance.symbol).is_interface() {
-                    self.relate_heritage_clause(
-                        *implemented_type,
-                        Relation::Implements,
-                        receiver.ty,
-                        ty,
-                    );
-
-                    // members assume this satisfies the implemented interface
-                    if let Some(template) = template {
-                        self.push_this_heritage_predicate(source, template, ty)?;
-                    }
-                    implements.push(dir::NominalHeritage {
-                        source,
-                        symbol: instance.symbol,
-                        arguments: self
-                            .check
-                            .type_ids(ty.module_id, instance.arguments)?
-                            .to_vec(),
-                    });
-                } else {
-                    self.check
-                        .report_implementation_target_not_interface_symbol(
-                            self.check.format_symbol(symbol),
-                            instance.symbol,
-                            source,
-                        );
-                }
-            } else {
-                self.check.report_implementation_target_not_interface_type(
-                    self.check.format_symbol(symbol),
-                    ty,
-                    implemented_type.into_global_any(self.module),
-                );
-            }
-        }
+        let implements = self.walk_nominal_implements(
+            symbol,
+            receiver,
+            template,
+            induction,
+            &declaration.implements_types,
+        )?;
 
         // members see the superclass through the receiver
         let receiver = Receiver {
@@ -731,7 +673,7 @@ impl WalkState<'_, '_> {
                 constructor_branches.push(FlowBranch::empty());
             }
 
-            let scope = self.check.symbol_template(symbol);
+            let scope = self.check.symbol_template(symbol)?;
             self.check.push_obligation(
                 Obligation::ClassInitialization(ClassInitializationObligation {
                     source,
@@ -744,12 +686,66 @@ impl WalkState<'_, '_> {
         }
 
         // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol)?;
+        self.queue_parameter_use_obligation(source, symbol)?;
 
         // concrete classes need one fixed representation
         self.queue_declaration_layout_obligation(symbol, receiver, template)?;
 
         Ok(())
+    }
+
+    /// Walk one nominal declaration's implemented interfaces.
+    fn walk_nominal_implements(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        receiver: Receiver,
+        template: Option<GenericTemplateId>,
+        induction: InducedLifetimeOwner,
+        implements_types: &[dir::LocalNodeId<dir::TypeExpression>],
+    ) -> CompilerResult<Vec<dir::NominalHeritage>> {
+        let mut implements = Vec::new();
+        for implemented_type in implements_types {
+            let ty = self.walk_type_expression(*implemented_type)?;
+            self.push_induced_lifetime_site(induction, ty);
+
+            // require a written interface instance
+            let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? else {
+                self.check.report_implementation_target_not_interface_type(
+                    self.check.format_symbol(symbol),
+                    ty,
+                    implemented_type.into_global_any(self.module),
+                );
+
+                continue;
+            };
+            if !self.check.symbol_kind(instance.symbol).is_interface() {
+                self.check
+                    .report_implementation_target_not_interface_symbol(
+                        self.check.format_symbol(symbol),
+                        instance.symbol,
+                        source,
+                    );
+
+                continue;
+            }
+            self.relate_heritage_clause(*implemented_type, Relation::Implements, receiver.ty, ty);
+
+            // members assume this satisfies the implemented interface
+            if let Some(template) = template {
+                self.push_this_heritage_predicate(source, template, ty)?;
+            }
+            implements.push(dir::NominalHeritage {
+                source,
+                symbol: instance.symbol,
+                arguments: self
+                    .check
+                    .type_ids(ty.module_id, instance.arguments)?
+                    .to_vec(),
+            });
+        }
+
+        Ok(implements)
     }
 
     /// Return direct construct candidates for one class.
@@ -808,7 +804,7 @@ impl WalkState<'_, '_> {
             return_type: Some(receiver),
             is_generator: false,
         };
-        let ty = self.intern_type(dir::Type::FunctionSignature(function))?;
+        let ty = self.intern_signature(function)?;
 
         Ok(vec![dir::ClassConstructorDefinition {
             constructor: dir::ClassConstructor::Default,
@@ -844,47 +840,13 @@ impl WalkState<'_, '_> {
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
-        let mut implements = Vec::new();
-        for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
-            self.push_induced_lifetime_site(induction, ty);
-            if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
-                if self.check.symbol_kind(instance.symbol).is_interface() {
-                    self.relate_heritage_clause(
-                        *implemented_type,
-                        Relation::Implements,
-                        receiver.ty,
-                        ty,
-                    );
-
-                    // members assume this satisfies the implemented interface
-                    if let Some(template) = template {
-                        self.push_this_heritage_predicate(source, template, ty)?;
-                    }
-                    implements.push(dir::NominalHeritage {
-                        source,
-                        symbol: instance.symbol,
-                        arguments: self
-                            .check
-                            .type_ids(ty.module_id, instance.arguments)?
-                            .to_vec(),
-                    });
-                } else {
-                    self.check
-                        .report_implementation_target_not_interface_symbol(
-                            self.check.format_symbol(symbol),
-                            instance.symbol,
-                            source,
-                        );
-                }
-            } else {
-                self.check.report_implementation_target_not_interface_type(
-                    self.check.format_symbol(symbol),
-                    ty,
-                    implemented_type.into_global_any(self.module),
-                );
-            }
-        }
+        let implements = self.walk_nominal_implements(
+            symbol,
+            receiver,
+            template,
+            induction,
+            &declaration.implements_types,
+        )?;
 
         // walk variants and members
         let mut members = Vec::new();
@@ -925,7 +887,8 @@ impl WalkState<'_, '_> {
         }
 
         // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol)?;
+        self.queue_parameter_use_obligation(source, symbol)?;
 
         // enums need one fixed backing representation
         self.queue_declaration_layout_obligation(symbol, receiver, template)?;
@@ -1011,7 +974,8 @@ impl WalkState<'_, '_> {
         self.check.insert_definition(symbol, source, definition)?;
 
         // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol);
+        self.queue_heritage_obligation(source, symbol)?;
+        self.queue_parameter_use_obligation(source, symbol)?;
 
         Ok(())
     }
@@ -1132,9 +1096,9 @@ impl WalkState<'_, '_> {
             )?;
         }
 
-        self.queue_extension_conformance_obligation(source, symbol);
-        self.queue_implementation_coherence_obligation(source, symbol);
-        self.queue_heritage_obligation(source, symbol);
+        self.queue_extension_conformance_obligation(source, symbol)?;
+        self.queue_implementation_coherence_obligation(source, symbol)?;
+        self.queue_heritage_obligation(source, symbol)?;
 
         Ok(())
     }
@@ -1144,12 +1108,14 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) {
-        let scope = self.check.symbol_template(symbol);
+    ) -> CompilerResult<()> {
+        let scope = self.check.symbol_template(symbol)?;
         self.check.push_obligation(
             Obligation::ExtensionConformance(ExtensionConformanceObligation { source, symbol }),
             scope,
         );
+
+        Ok(())
     }
 
     /// Queue one implementation coherence obligation.
@@ -1157,8 +1123,8 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) {
-        let scope = self.check.symbol_template(symbol);
+    ) -> CompilerResult<()> {
+        let scope = self.check.symbol_template(symbol)?;
         self.check.push_obligation(
             Obligation::ImplementationCoherence(ImplementationCoherenceObligation {
                 source,
@@ -1166,6 +1132,26 @@ impl WalkState<'_, '_> {
             }),
             scope,
         );
+
+        Ok(())
+    }
+
+    /// Queue one generic parameter use obligation.
+    fn queue_parameter_use_obligation(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let scope = self.check.symbol_template(symbol)?;
+        if scope.is_none() {
+            return Ok(());
+        }
+        self.check.push_obligation(
+            Obligation::ParameterUse(ParameterUseObligation { source, symbol }),
+            scope,
+        );
+
+        Ok(())
     }
 
     /// Queue one heritage obligation.
@@ -1173,16 +1159,17 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) {
-        let scope = self.check.symbol_template(symbol);
+    ) -> CompilerResult<()> {
+        let scope = self.check.symbol_template(symbol)?;
         self.check.push_obligation(
             Obligation::DeclarationHeritage(DeclarationHeritageObligation { source, symbol }),
             scope,
         );
+
+        Ok(())
     }
 
     /// Queue one concrete declaration's layout check.
-    /// Generic declarations lay out per instantiation instead.
     fn queue_declaration_layout_obligation(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -1196,7 +1183,7 @@ impl WalkState<'_, '_> {
             .check
             .module(self.module)
             .symbol_declaration_node(symbol.local_id)?;
-        let scope = self.check.symbol_template(symbol);
+        let scope = self.check.symbol_template(symbol)?;
         self.check.push_obligation(
             Obligation::Representation(RepresentationObligation {
                 source: source.into_global(self.module),
@@ -1302,19 +1289,6 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
         let (name, value) = (enum_field.name, enum_field.value);
-
-        if let Some(value) = value {
-            // record the written variant value
-            if let Some(symbol) = self
-                .check
-                .module(self.module)
-                .declaration_symbol(id.into_any())
-            {
-                let written = self.walk_static_term(value)?;
-                self.commit_static_value(symbol, written)?;
-            }
-        }
-
         let Some(symbol) = self
             .check
             .module(self.module)
@@ -1322,6 +1296,12 @@ impl WalkState<'_, '_> {
         else {
             return Ok(None);
         };
+
+        // record the written variant value
+        if let Some(value) = value {
+            let written = self.walk_static_term(value)?;
+            self.commit_static_value(symbol, written)?;
+        }
 
         let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType {
             owner,
@@ -1380,10 +1360,7 @@ impl WalkState<'_, '_> {
         let Some(discriminant) = discriminant else {
             return Ok(None);
         };
-        let Some(key) = self
-            .check
-            .tagged_case_key_from_discriminant(self.module, discriminant)
-        else {
+        let Some(key) = self.check.tagged_case_key_from_discriminant(discriminant) else {
             return Ok(None);
         };
 
@@ -1407,7 +1384,7 @@ impl WalkState<'_, '_> {
         &mut self,
         arm: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let tag_key = self.check.tagged_discriminant_key(self.module);
+        let tag_key = self.check.tagged_discriminant_key();
 
         match self.check.ty(arm)? {
             // structural backing arms declare their tag directly
@@ -1447,11 +1424,11 @@ impl WalkState<'_, '_> {
 
     /// Return one source-declared nominal discriminant.
     fn declared_nominal_discriminant(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
         tag_key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let Some(definition) = self.check.definition(symbol) else {
+        let Some(definition) = self.check.definition(symbol)? else {
             return Ok(None);
         };
 
@@ -1459,7 +1436,7 @@ impl WalkState<'_, '_> {
             dir::DefinitionMember::Field(field)
                 if field.space == dir::MemberSpace::Instance && field.key == tag_key =>
             {
-                Some(field)
+                Some(field.symbol)
             }
             _ => None,
         });
@@ -1467,7 +1444,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        let ty = self.check.require_symbol_type(field.symbol)?;
+        let ty = self.check.require_symbol_type(field)?;
 
         self.declared_discriminant_literal(ty)
     }

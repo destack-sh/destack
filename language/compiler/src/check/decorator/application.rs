@@ -21,7 +21,7 @@ impl CheckState<'_> {
         module: ModuleId,
         decorated: dir::LocalNodeIdAny,
     ) -> Vec<DecoratorApplication> {
-        let view = self.module(module).view();
+        let view = self.module_view(module);
         let decorators = view.get_decorators_any(decorated);
         let mut applications = Vec::with_capacity(decorators.len());
 
@@ -39,7 +39,7 @@ impl CheckState<'_> {
         module: ModuleId,
         decorator: dir::LocalNodeId<dir::Decorator>,
     ) -> DecoratorApplication {
-        let view = self.module(module).view();
+        let view = self.module_view(module);
         let expression = view.get(decorator).expression;
         let (target, arguments) = match view.get(expression) {
             dir::Expression::Call {

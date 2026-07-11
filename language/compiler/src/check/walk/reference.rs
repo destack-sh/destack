@@ -1,6 +1,7 @@
 use destack_dir as dir;
+use smallvec::smallvec;
 
-use crate::check::{Decision, PlaceUse, WalkState};
+use crate::check::{Decision, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -55,7 +56,7 @@ impl WalkState<'_, '_> {
             // conflicting lexical names fail loudly
             Some(dir::Reference::Ambiguous(_)) => {
                 let path = dir::Path {
-                    segments: smallvec::smallvec![name],
+                    segments: smallvec![name],
                 };
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
@@ -66,7 +67,7 @@ impl WalkState<'_, '_> {
             // missing names fail loudly
             Some(dir::Reference::Missing) => {
                 let path = dir::Path {
-                    segments: smallvec::smallvec![name],
+                    segments: smallvec![name],
                 };
                 self.check
                     .report_unresolved_reference(self.module, id.into_any(), &path);
@@ -88,15 +89,10 @@ impl WalkState<'_, '_> {
             }
         }
 
-        self.queue_node_task(id, PlaceUse::Read)?;
-
         Ok(())
     }
 
     /// Walk one member access, deciding name paths and queuing value members.
-    ///
-    /// A member chain that names a declaration decides immediately.
-    /// A value member projection queues selection after the receiver has been walked.
     pub(in crate::check) fn walk_member_expression(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
@@ -166,7 +162,6 @@ impl WalkState<'_, '_> {
             // select value member access
             Some(dir::Reference::Projected { .. }) | None => {
                 self.walk_expression(left, self.tree.get(left))?;
-                self.queue_node_task(id, PlaceUse::Read)?;
             }
         }
 
@@ -181,17 +176,14 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_instantiation_expression(
         &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
+        _id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<()> {
         self.walk_expression(left, self.tree.get(left))?;
 
         // collect written argument types for instantiation selection
-        for argument in generic_arguments {
-            self.walk_generic_arguments(std::slice::from_ref(argument))?;
-        }
-        self.queue_node_task(id, PlaceUse::Read)?;
+        self.walk_generic_arguments(generic_arguments)?;
 
         Ok(())
     }

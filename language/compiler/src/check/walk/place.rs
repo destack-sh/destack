@@ -51,7 +51,7 @@ impl WalkState<'_, '_> {
             }
         }
 
-        self.assigned_member_place(id, access)
+        self.assigned_member_place(id)
     }
 
     /// Return whether one expression has a resolved name reference.
@@ -105,7 +105,6 @@ impl WalkState<'_, '_> {
     fn assigned_member_place(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-        access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let module = self.module;
 
@@ -130,11 +129,7 @@ impl WalkState<'_, '_> {
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
                 ..
-            } => {
-                self.queue_node_task(id, access)?;
-
-                Ok(None)
-            }
+            } => Ok(None),
 
             // other writes do not affect local definite assignment
             dir::Expression::Identifier { .. }

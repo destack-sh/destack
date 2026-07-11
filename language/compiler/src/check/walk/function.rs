@@ -1,10 +1,11 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
-use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, FlowBranch, GenericTemplateId, InducedLifetimeOwner, Origin, ReceiverBinding,
-    Relation, ValueUse, VariableRole, WalkState, Widening,
+    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowBranch, GeneratorTargets,
+    GenericTemplateId, InducedLifetimeOwner, Origin, ReceiverBinding, Relation, ValueUse,
+    VariableRole, WalkState, Widening,
 };
 
 /// Types produced by one parameter header.
@@ -47,7 +48,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let parameters = header.parameters;
         // elision reads the annotated receiver, which carries its borrow;
-        // rung 3 may synthesize a readonly receiver borrow
+        //  rung 3 may synthesize a readonly receiver borrow
         let (return_type, synthesized_this) = self.apply_result_lifetime_elision(
             source,
             header.this_parameter,
@@ -76,13 +77,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
             is_generator: signature.is_generator,
         };
 
-        self.intern_type(dir::Type::FunctionSignature(function))
+        self.intern_signature(function)
     }
 
     /// Apply elided result lifetimes to the receiver or unique input borrow lifetime.
-    ///
-    /// Bodyful signatures leave untied lifetimes to body inference.
-    /// Bodyless signatures must spell unsourced lifetimes explicitly.
     pub(in crate::check) fn apply_result_lifetime_elision(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -98,8 +96,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         // the receiver's lifetime wins over value parameter lifetimes,
-        // de-duplicating aliases introduced by reused annotations
-        let mut seen = IndexSet::new();
+        //  de-duplicating aliases introduced by reused annotations
+        let mut seen = FxIndexSet::default();
         let mut input_lifetimes = Vec::new();
         if let Some(this_parameter) = this_parameter {
             input_lifetimes.extend(self.induced_lifetime_types(this_parameter)?);
@@ -125,8 +123,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
                     dir::Access::Readonly,
                 )))?;
+                let form = self.intern_borrow(lifetime, access)?;
                 let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Borrowed { lifetime, access },
+                    form,
                     value: receiver,
                 }))?;
                 synthesized_this = Some(borrowed);
@@ -143,6 +142,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 for variable in tracked {
                     let error = self.intern_type(dir::Type::Error)?;
                     self.check.commit_solution(variable, error)?;
+                }
+            }
+            // ambiguous inputs leave result lifetimes to body inference
+            else if has_body {
+                let return_lifetimes = self.induced_lifetime_types(return_type)?;
+                for (variable, _) in return_lifetimes {
+                    self.check.body_lifetimes.insert(variable);
+                }
+                for variable in tracked {
+                    self.check.body_lifetimes.insert(variable);
                 }
             }
 
@@ -302,7 +311,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_type,
             is_generator: false,
         };
-        let signature = self.intern_type(dir::Type::FunctionSignature(function))?;
+        let signature = self.intern_signature(function)?;
 
         self.push_function_value_type(signature)
     }
@@ -364,7 +373,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             is_generator: false,
         };
 
-        self.intern_type(dir::Type::FunctionSignature(function))
+        self.intern_signature(function)
     }
 
     /// Return one fat callable value type for a function signature.
@@ -434,9 +443,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let source = body.into_any();
         let origin = Origin::Node(
             body.into_global_any(self.module),
-            self.check.symbol_template(symbol),
+            self.check.symbol_template(symbol)?,
         );
-        let _scope = self.enter_template_scope(self.check.symbol_template(symbol));
+        let template = self.check.symbol_template(symbol)?;
+        let _scope = self.enter_template_scope(template);
         let mut return_target = result;
         let mut yield_target = None;
         let mut resume_target = None;
@@ -497,35 +507,36 @@ impl<'check, 'state> WalkState<'check, 'state> {
             self.mark_bindings_assigned(parameter.into_any());
         }
 
-        // walk body and flow its completion value into the return
-        let expectation = (!Self::is_constructor_signature(signature)
-            && self.expression_can_complete_normally(body))
-        .then(|| Expectation::assignable(return_target, origin, ValueUse::Output));
-        match (self.tree.get(body), expectation) {
-            // queue checked block bodies through the block owner
-            (dir::Expression::Block(block), Some(expectation)) => {
-                self.walk_block(*block, self.tree.get(*block), Some(expectation))?;
-            }
-            // queue checked expression bodies through the expression owner
-            (_, Some(expectation)) => {
-                self.walk_expression(body, self.tree.get(body))?;
-                self.queue_node_check(body, expectation)?;
-            }
-            // unchecked bodies keep ordinary expression ownership
-            (_, None) => {
-                self.walk_expression(body, self.tree.get(body))?;
-            }
-        }
+        // walk the body structurally; the checker owns its judgments
+        let body_node = match self.tree.get(body) {
+            dir::Expression::Block(block) => {
+                self.walk_block(*block, self.tree.get(*block))?;
 
-        self.leave_function_frame()
-    }
+                block.into_any()
+            }
+            _ => {
+                self.walk_expression(body, self.tree.get(body))?;
 
-    /// Return whether one signature is a constructor body.
-    fn is_constructor_signature(signature: &dir::FunctionSignature) -> bool {
-        matches!(
-            signature.role,
-            Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
-        )
+                body.into_any()
+            }
+        };
+
+        // record the body for the checker, in source order
+        let ret = (!signature.is_constructor()).then_some(return_target);
+        let generator = yield_target
+            .zip(resume_target)
+            .map(|(yielded, resumed)| GeneratorTargets { yielded, resumed });
+        self.check.bodies.push(BodyOwner {
+            phase: BodyPhase::Main,
+            module: self.module,
+            body: BodyTarget::Node(body_node),
+            ret: ret.map(ExpectedType::Type),
+            generator,
+            ret_use: ValueUse::Output,
+            binds: None,
+        });
+
+        Ok(self.leave_function_frame())
     }
 
     /// Return the signature slot for one walked runtime parameter.

@@ -162,15 +162,9 @@ impl WalkState<'_, '_> {
         let Some(path) = self.flow_path(value) else {
             return Ok(());
         };
-        let predicate = match branch {
-            ConditionBranch::True => FlowPredicate::Guard {
-                guard: guard.into_global(self.module),
-                is_positive: true,
-            },
-            ConditionBranch::False => FlowPredicate::Guard {
-                guard: guard.into_global(self.module),
-                is_positive: false,
-            },
+        let predicate = FlowPredicate::Guard {
+            guard: guard.into_global(self.module),
+            is_positive: branch == ConditionBranch::True,
         };
 
         self.apply_flow_predicate(path, predicate);
@@ -201,7 +195,7 @@ impl WalkState<'_, '_> {
             ConditionBranch::True => PathPredicate::Is(target),
             ConditionBranch::False => PathPredicate::IsNot(target),
         };
-        self.apply_path_predicate(path, predicate)?;
+        self.apply_path_predicate(path, predicate);
         self.narrow_parent_by_member_predicate(value, predicate)?;
 
         Ok(())

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Decision, GenericArgument, Origin, Receiver, Relation, TypeSubstitution, VariableRole,
-    WalkState, Widening,
+    Decision, GenericArgument, Obligation, Origin, Receiver, Relation, TypeSubstitution,
+    VariableRole, WalkState, WellFormedTypeObligation, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -137,12 +137,12 @@ impl WalkState<'_, '_> {
                 let arguments: Vec<_> = arguments.into_iter().map(|argument| argument.ty).collect();
                 let arguments = self.intern_type_ids(&arguments)?;
 
-                self.intern_type(dir::Type::Member(dir::MemberType {
+                self.intern_member(dir::MemberType {
                     owner,
                     key: dir::StaticKey::Name(name),
                     arguments,
                     qualifier,
-                }))
+                })
             }
             // 0..10
             dir::TypeExpression::Range {
@@ -178,9 +178,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::KeyOf { target_type } => {
                 let target = self.walk_type_expression(*target_type)?;
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::KeyOf(
-                    dir::UnaryType { target },
-                )))
+                self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType { target }))
             }
             // typeof value
             dir::TypeExpression::TypeOf { value } => self.walk_typeof_type(*value),
@@ -194,26 +192,22 @@ impl WalkState<'_, '_> {
                 let nullish = self.normalized_union_type([null, undefined])?;
                 let never = self.intern_type(dir::Type::Never)?;
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::Conditional(
-                    dir::ConditionalType {
-                        left: target,
-                        right: nullish,
-                        then_type: never,
-                        else_type: target,
-                        is_distributive: true,
-                    },
-                )))
+                self.intern_operation(dir::TypeOperation::Conditional(dir::ConditionalType {
+                    left: target,
+                    right: nullish,
+                    then_type: never,
+                    else_type: target,
+                    is_distributive: true,
+                }))
             }
             // !T
             dir::TypeExpression::Not { target_type } => {
                 let target = self.walk_type_expression(*target_type)?;
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::StaticUnary(
-                    dir::StaticUnaryType {
-                        operator: dir::StaticUnaryOperator::Not,
-                        target,
-                    },
-                )))
+                self.intern_operation(dir::TypeOperation::StaticUnary(dir::StaticUnaryType {
+                    operator: dir::StaticUnaryOperator::Not,
+                    target,
+                }))
             }
             // ^T
             dir::TypeExpression::OwnedOf {
@@ -250,10 +244,9 @@ impl WalkState<'_, '_> {
                     self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
                 let lifetime = self.elided_borrow_lifetime(source)?;
 
-                self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Borrowed { lifetime, access },
-                    value,
-                }))
+                let form = self.intern_borrow(lifetime, access)?;
+
+                self.intern_type(dir::Type::Form(dir::FormType { form, value }))
             }
             // *T
             dir::TypeExpression::PointerOf { target_type, .. } => {
@@ -300,15 +293,13 @@ impl WalkState<'_, '_> {
                 let then_type = self.walk_type_expression(then_type)?;
                 let else_type = self.walk_type_expression(else_type)?;
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::Conditional(
-                    dir::ConditionalType {
-                        left,
-                        right,
-                        then_type,
-                        else_type,
-                        is_distributive,
-                    },
-                )))
+                self.intern_operation(dir::TypeOperation::Conditional(dir::ConditionalType {
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                    is_distributive,
+                }))
             }
             // T extends U, T implements U
             dir::TypeExpression::Extends { left, right }
@@ -320,15 +311,13 @@ impl WalkState<'_, '_> {
                 let else_type =
                     self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::Conditional(
-                    dir::ConditionalType {
-                        left,
-                        right,
-                        then_type,
-                        else_type,
-                        is_distributive: false,
-                    },
-                )))
+                self.intern_operation(dir::TypeOperation::Conditional(dir::ConditionalType {
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                    is_distributive: false,
+                }))
             }
             // { [K in keyof T]: T[K] }
             dir::TypeExpression::Mapped {
@@ -341,10 +330,17 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Index { left, index } => {
                 let left = self.walk_type_expression(*left)?;
                 let index = self.walk_type_expression(*index)?;
+                let ty = self
+                    .intern_operation(dir::TypeOperation::Index(dir::IndexType { left, index }))?;
+                self.check.push_obligation(
+                    Obligation::WellFormedType(WellFormedTypeObligation {
+                        source: id.into_global_any(self.module),
+                        ty,
+                    }),
+                    self.flow().template_scope(),
+                );
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::Index(
-                    dir::IndexType { left, index },
-                )))
+                Ok(ty)
             }
             // `get${Name}`
             dir::TypeExpression::TemplateLiteral { strings, spans } => {
@@ -357,9 +353,9 @@ impl WalkState<'_, '_> {
                 let strings = self.intern_strings(&strings)?;
                 let spans = self.intern_type_ids(&span_types)?;
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::TemplateLiteral(
+                self.intern_operation(dir::TypeOperation::TemplateLiteral(
                     dir::TemplateLiteralType { strings, spans },
-                )))
+                ))
             }
             // _, infer T
             dir::TypeExpression::Infer {
@@ -410,13 +406,11 @@ impl WalkState<'_, '_> {
                     None => None,
                 };
 
-                self.intern_type(dir::Type::Operation(dir::TypeOperation::Infer(
-                    dir::InferType {
-                        name,
-                        symbol,
-                        constraint,
-                    },
-                )))
+                self.intern_operation(dir::TypeOperation::Infer(dir::InferType {
+                    name,
+                    symbol,
+                    constraint,
+                }))
             }
         }
     }
@@ -437,11 +431,9 @@ impl WalkState<'_, '_> {
         // record lexical decisions without performing a runtime read
         self.walk_type_query_value(value)?;
 
-        self.intern_type(dir::Type::Operation(dir::TypeOperation::TypeOf(
-            dir::TypeOfType {
-                value: value.into_global_any(self.module),
-            },
-        )))
+        self.intern_operation(dir::TypeOperation::TypeOf(dir::TypeOfType {
+            value: value.into_global_any(self.module),
+        }))
     }
 
     /// Walk the reference path named by one type query operand.
@@ -463,6 +455,7 @@ impl WalkState<'_, '_> {
             dir::Expression::Member {
                 left,
                 name: Some(_),
+                ..
             } => {
                 if self.walk_type_query_reference_path(id)? {
                     Ok(())
@@ -564,9 +557,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one construct target, such as the `Wrap` in `Wrap { value }`.
-    ///
-    /// Construction infers omitted head arguments from its inputs, so
-    /// the head application opens where an annotation would reject.
     pub(in crate::check) fn walk_construct_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
@@ -783,8 +773,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the type identity of one receiver's declaring scope.
-    /// Extensions project by declaration reference, every other scope
-    /// by its self application, which substitutes with the receiver.
     fn receiver_projection_scope(
         &mut self,
         receiver: Option<Receiver>,
@@ -831,35 +819,44 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Parameter(parameter));
         }
 
-        // reject written arguments on non-generic declarations
-        let Some(template) = self.check.symbol_template(symbol) else {
-            if !applied.is_empty() {
+        // reject positional arguments on non-generic declarations
+        let Some(template) = self.check.symbol_template(symbol)? else {
+            let positional = applied
+                .iter()
+                .filter(|argument| argument.name.is_none())
+                .count();
+            if positional > 0 {
                 let name = self.check.format_symbol(symbol);
                 self.check
-                    .report_wrong_generic_arity(self.module, source, name, 0, applied.len());
+                    .report_wrong_generic_arity(self.module, source, name, 0, positional);
 
                 return self.intern_type(dir::Type::Error);
             }
 
             let arguments = self.intern_type_ids(&[])?;
-
-            return self.intern_type(dir::Type::Instance(dir::GenericInstance {
+            let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
                 symbol,
                 arguments,
-            }));
+            }))?;
+
+            return self.apply_named_refinements(ty, applied);
         };
 
         // reject impossible arities before instantiating
         let parameters = self.check.generic_template_parameters(template);
         let written_count = self.check.written_parameter_count(&parameters);
-        if applied.len() > written_count {
+        let positional = applied
+            .iter()
+            .filter(|argument| argument.name.is_none())
+            .count();
+        if positional > written_count {
             let name = self.check.format_symbol(symbol);
             self.check.report_wrong_generic_arity(
                 self.module,
                 source,
                 name,
                 written_count,
-                applied.len(),
+                positional,
             );
 
             return self.intern_type(dir::Type::Error);
@@ -868,6 +865,7 @@ impl WalkState<'_, '_> {
         // bind written arguments and declared defaults
         let written = applied
             .iter()
+            .filter(|argument| argument.name.is_none())
             .map(|argument| argument.ty)
             .collect::<SmallVec<[_; 4]>>();
         let origin = Origin::Node(
@@ -898,11 +896,36 @@ impl WalkState<'_, '_> {
         self.constrain_applied_symbol_arguments(source, symbol, &parameters, &arguments)?;
 
         let arguments = self.intern_type_ids(&arguments)?;
-
-        self.intern_type(dir::Type::Instance(dir::GenericInstance {
+        let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
             symbol,
             arguments,
-        }))
+        }))?;
+
+        self.apply_named_refinements(ty, applied)
+    }
+
+    /// Wrap one application with its named refinements in canonical key order.
+    fn apply_named_refinements(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        applied: &[GenericArgument],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut refinements = applied
+            .iter()
+            .filter_map(|argument| argument.name.map(|name| (name, argument.ty)))
+            .collect::<SmallVec<[_; 2]>>();
+        refinements.sort_by_key(|(name, _)| *name);
+
+        let mut ty = ty;
+        for (name, value) in refinements {
+            ty = self.intern_refined(dir::RefinedType {
+                base: ty,
+                key: dir::StaticKey::Name(name),
+                value,
+            })?;
+        }
+
+        Ok(ty)
     }
 
     /// Constrain applied type arguments by their declared parameter bounds.
@@ -948,8 +971,8 @@ impl WalkState<'_, '_> {
         }
 
         // enqueue declared where predicates, leaving predicates over
-        // this to conformance sites where a receiver is bound
-        let template = self.check.symbol_template(symbol);
+        //  this to conformance sites where a receiver is bound
+        let template = self.check.symbol_template(symbol)?;
         for predicate in self.check.template_predicates(template) {
             if self.check.type_flags(predicate.left)?.has_this() {
                 continue;
@@ -993,12 +1016,12 @@ impl WalkState<'_, '_> {
             };
             let arguments = self.intern_type_ids(&arguments)?;
 
-            ty = self.intern_type(dir::Type::Member(dir::MemberType {
+            ty = self.intern_member(dir::MemberType {
                 owner: ty,
                 key: dir::StaticKey::Name(segment),
                 arguments,
                 qualifier: None,
-            }))?;
+            })?;
         }
 
         Ok(ty)
@@ -1197,29 +1220,59 @@ impl WalkState<'_, '_> {
     /// Return one range type expression from its literal bounds.
     fn walk_range_type(
         &mut self,
-        _id: dir::LocalNodeId<dir::TypeExpression>,
+        id: dir::LocalNodeId<dir::TypeExpression>,
         start: Option<dir::LocalNodeId<dir::TypeExpression>>,
         end: Option<dir::LocalNodeId<dir::TypeExpression>>,
         end_kind: dir::RangeEnd,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let start = match start {
-            Some(start) => self.range_literal_bound(start)?,
-            None => None,
-        };
-        let end = match end {
-            Some(end) => self.range_literal_bound(end)?,
-            None => None,
+        // intervals carry both bounds
+        let (Some(start), Some(end)) = (start, end) else {
+            self.check
+                .report_unbounded_interval_type(self.module, id.into_any());
+
+            return self.intern_type(dir::Type::Error);
         };
 
+        // bounds are integer, bigint, or char literals of one discrete domain
+        let start = self.range_literal_bound(start)?;
+        let end = self.range_literal_bound(end)?;
+        let domains = (
+            start.and_then(Self::interval_bound_domain),
+            end.and_then(Self::interval_bound_domain),
+        );
+        let ((Some(start_domain), Some(end_domain)), Some(start), Some(end)) =
+            (domains, start, end)
+        else {
+            self.check
+                .report_invalid_interval_domain(self.module, id.into_any());
+
+            return self.intern_type(dir::Type::Error);
+        };
+        if start_domain != end_domain {
+            self.check
+                .report_invalid_interval_domain(self.module, id.into_any());
+
+            return self.intern_type(dir::Type::Error);
+        }
+
         self.intern_type(dir::Type::Range(dir::RangeType {
-            start,
-            end,
+            start: Some(start),
+            end: Some(end),
             is_inclusive: end_kind == dir::RangeEnd::Inclusive,
         }))
     }
 
+    /// Return the discrete scalar domain of one interval bound literal.
+    fn interval_bound_domain(literal: dir::ScalarLiteral) -> Option<dir::ScalarDomain> {
+        match literal {
+            dir::ScalarLiteral::Integer(_) => Some(dir::ScalarDomain::Integer),
+            dir::ScalarLiteral::Bigint(_) => Some(dir::ScalarDomain::Bigint),
+            dir::ScalarLiteral::Character(_) => Some(dir::ScalarDomain::Character),
+            _ => None,
+        }
+    }
+
     /// Read one range bound's scalar literal value.
-    /// Leave symbolic bounds uninterpreted in interval types.
     fn range_literal_bound(
         &mut self,
         bound: dir::LocalNodeId<dir::TypeExpression>,
@@ -1286,17 +1339,36 @@ impl WalkState<'_, '_> {
             None => self.intern_type(dir::Type::Unknown)?,
         };
 
-        self.intern_type(dir::Type::Operation(dir::TypeOperation::Mapped(
-            dir::MappedType {
-                parameter: dir::MappedTypeParameter {
-                    name,
-                    parameter: binder,
-                    constraint,
-                    key_remap,
-                },
-                modifiers: dir::MappedTypeModifiers { readonly, optional },
-                value,
+        // capture the modifier-carrying source behind keyof constraints,
+        //  directly written or reached through the key parameter's bound
+        let modifiers_type = match self.check.ty(constraint)? {
+            dir::Type::Operation(operation)
+                if let dir::TypeOperation::KeyOf(unary) =
+                    self.check.type_operation(constraint.module_id, operation)? =>
+            {
+                Some(unary.target)
+            }
+            dir::Type::Parameter(parameter) => self
+                .check
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.constraint)
+                .and_then(|bound| match self.check.operation_head(bound) {
+                    Ok(Some(dir::TypeOperation::KeyOf(unary))) => Some(unary.target),
+                    _ => None,
+                }),
+            _ => None,
+        };
+
+        self.intern_operation(dir::TypeOperation::Mapped(dir::MappedType {
+            parameter: dir::MappedTypeParameter {
+                name,
+                parameter: binder,
+                constraint,
+                key_remap,
+                modifiers_type,
             },
-        )))
+            modifiers: dir::MappedTypeModifiers { readonly, optional },
+            value,
+        }))
     }
 }

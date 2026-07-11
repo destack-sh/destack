@@ -1,7 +1,9 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Decision, StaticIfCondition, VariableRole, WalkState, Widening};
+use crate::check::{
+    Decision, DecoratorApplication, StaticIfCondition, VariableRole, WalkState, Widening,
+};
 use crate::r#static::{StaticContext, StaticError};
 
 /// Source presence decided by closed static gates.
@@ -117,7 +119,7 @@ impl WalkState<'_, '_> {
     fn commit_decorator_application(
         &mut self,
         decorated: dir::GlobalNodeIdAny,
-        application: &crate::check::DecoratorApplication,
+        application: &DecoratorApplication,
     ) {
         let arguments = application
             .arguments
@@ -199,7 +201,7 @@ impl WalkState<'_, '_> {
                 input.module.as_ref(),
                 &input.profile,
                 &input.profile.conditions,
-                &input.strings,
+                self.check.strings(),
             );
 
             context.evaluate_boolean(condition)
@@ -238,7 +240,7 @@ impl WalkState<'_, '_> {
         let source = expression.into_any();
 
         // embed eagerly evaluable subtrees as literals, covering profile
-        // and module metadata like import.meta inside mixed guards
+        //  and module metadata like import.meta inside mixed guards
         let evaluated = {
             let input = self.check.module(self.module);
             let context = StaticContext::new(
@@ -246,7 +248,7 @@ impl WalkState<'_, '_> {
                 input.module.as_ref(),
                 &input.profile,
                 &input.profile.conditions,
-                &input.strings,
+                self.check.strings(),
             );
 
             context.evaluate_expression(expression).ok()
@@ -330,7 +332,7 @@ impl WalkState<'_, '_> {
                 )?;
 
                 // comptime parameters write their parameter type so
-                // instantiation substitution reaches the predicate
+                //  instantiation substitution reaches the predicate
                 if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
                     let ty = self.intern_type(dir::Type::Parameter(parameter))?;
 
@@ -369,7 +371,7 @@ impl WalkState<'_, '_> {
                     left,
                     right,
                 });
-                let ty = self.intern_type(dir::Type::Operation(operation))?;
+                let ty = self.intern_operation(operation)?;
 
                 self.bind_static_term(expression, ty)
             }
@@ -385,7 +387,7 @@ impl WalkState<'_, '_> {
                 let target = self.walk_static_term(*right)?;
                 let operation =
                     dir::TypeOperation::StaticUnary(dir::StaticUnaryType { operator, target });
-                let ty = self.intern_type(dir::Type::Operation(operation))?;
+                let ty = self.intern_operation(operation)?;
 
                 self.bind_static_term(expression, ty)
             }
@@ -393,15 +395,15 @@ impl WalkState<'_, '_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => {
                 let owner = self.walk_static_term(*left)?;
-                let member = dir::Type::Member(dir::MemberType {
+                let ty = self.intern_member(dir::MemberType {
                     owner,
                     key: dir::StaticKey::Name(*name),
                     arguments: dir::TypeListId::EMPTY,
                     qualifier: None,
-                });
-                let ty = self.intern_type(member)?;
+                })?;
 
                 self.bind_static_term(expression, ty)
             }

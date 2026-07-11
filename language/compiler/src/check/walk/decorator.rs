@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::smallvec;
 
 use crate::CompilerResult;
 use crate::check::{Decision, WalkState};
@@ -86,10 +87,16 @@ impl WalkState<'_, '_> {
                 let symbols = self.check.present_symbols(&symbols);
                 match symbols.as_slice() {
                     [symbol] => Some(*symbol),
-                    // a namespace is not itself a decorator
+                    // a decorator names exactly one declaration
                     _ => {
-                        self.check
-                            .report_invalid_decorator_target(self.module, target.into_any());
+                        let path = dir::Path {
+                            segments: smallvec![name],
+                        };
+                        self.check.report_ambiguous_reference(
+                            self.module,
+                            target.into_any(),
+                            &path,
+                        );
 
                         None
                     }
@@ -97,7 +104,7 @@ impl WalkState<'_, '_> {
             }
             Some(dir::Reference::Missing) => {
                 let path = dir::Path {
-                    segments: smallvec::smallvec![name],
+                    segments: smallvec![name],
                 };
                 self.check
                     .report_unresolved_reference(self.module, target.into_any(), &path);
@@ -106,7 +113,7 @@ impl WalkState<'_, '_> {
             }
             Some(dir::Reference::Ambiguous(_)) => {
                 let path = dir::Path {
-                    segments: smallvec::smallvec![name],
+                    segments: smallvec![name],
                 };
                 self.check
                     .report_ambiguous_reference(self.module, target.into_any(), &path);

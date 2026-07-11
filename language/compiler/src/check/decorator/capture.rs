@@ -49,11 +49,11 @@ impl CheckState<'_> {
         let [argument] = arguments else {
             return None;
         };
-        let value = self.module(module).view().get(*argument).value()?;
+        let value = self.module_view(module).get(*argument).value()?;
 
-        match self.module(module).view().get(value) {
+        match self.module_view(module).get(value) {
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) => {
-                let default = self.capture_mode_from_string(module, *name)?;
+                let default = self.capture_mode_from_string(*name)?;
 
                 Some(dir::CaptureDirective {
                     default,
@@ -78,18 +78,18 @@ impl CheckState<'_> {
 
         // read default and binding mode fields
         for property in properties {
-            let dir::Property::Field { key, value, .. } = self.module(module).view().get(*property)
+            let dir::Property::Field { key, value, .. } = self.module_view(module).get(*property)
             else {
                 return None;
             };
-            let view = self.module(module).view();
+            let view = self.module_view(module);
             let key = key.static_key(&view)?;
             let dir::StaticKey::Name(name) = key else {
                 return None;
             };
             let mode = self.capture_mode_from_expression(module, *value)?;
 
-            if self.module(module).strings.get(name) == "default" {
+            if self.strings().get(name) == "default" {
                 default = Some(mode);
             } else {
                 rules.push(dir::CaptureRule { name, mode });
@@ -109,21 +109,17 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::CaptureMode> {
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) =
-            self.module(module).view().get(expression)
+            self.module_view(module).get(expression)
         else {
             return None;
         };
 
-        self.capture_mode_from_string(module, *name)
+        self.capture_mode_from_string(*name)
     }
 
     /// Return the capture mode represented by one string.
-    fn capture_mode_from_string(
-        &self,
-        module: ModuleId,
-        name: dir::StringId,
-    ) -> Option<dir::CaptureMode> {
-        let mode = match self.module(module).strings.get(name) {
+    fn capture_mode_from_string(&self, name: dir::StringId) -> Option<dir::CaptureMode> {
+        let mode = match self.strings().get(name) {
             "manage" => dir::CaptureMode::Manage,
             "borrow" => dir::CaptureMode::Borrow,
             "copy" => dir::CaptureMode::Copy,

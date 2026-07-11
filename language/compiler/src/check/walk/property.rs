@@ -2,8 +2,9 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    Expectation, FlowBranch, FlowState, GenericTemplateId, InducedLifetimeOwner, Origin, Receiver,
-    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowBranch, FlowState, GenericTemplateId,
+    InducedLifetimeOwner, Origin, Receiver, ReceiverBinding, Relation, ValueUse, WalkState,
+    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -16,7 +17,7 @@ pub(in crate::check) struct MemberHeader {
 }
 
 /// Checked method body context.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(in crate::check) struct MethodBody {
     /// The receiver binding visible inside the method body.
     pub(in crate::check) receiver: Option<ReceiverBinding>,
@@ -203,22 +204,14 @@ impl WalkState<'_, '_> {
         induced_owner: Option<InducedLifetimeOwner>,
         is_ambient_scope: bool,
     ) -> CompilerResult<MemberHeader> {
-        let member_receiver = match member {
-            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => None,
-            dir::Member::Field { .. }
-            | dir::Member::Method { .. }
-            | dir::Member::AssociatedType { .. }
-            | dir::Member::AssociatedConst { .. } => receiver_scope,
-            dir::Member::Error => None,
-        };
-
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(MemberHeader {
                 definition: None,
                 body: None,
             });
         }
-        let _receiver = self.enter_receiver_scope(member_receiver);
+        let _receiver =
+            self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
         match member {
             // type Item = T
@@ -366,6 +359,7 @@ impl WalkState<'_, '_> {
                 declared_type,
                 default,
                 is_optional,
+                is_readonly,
                 is_definite,
                 is_static,
                 is_abstract,
@@ -374,6 +368,7 @@ impl WalkState<'_, '_> {
             } => {
                 let (key, declared_type, default, is_optional, is_static) =
                     (*key, *declared_type, *default, *is_optional, *is_static);
+                let is_readonly = *is_readonly;
                 let (is_definite, is_abstract, is_override) =
                     (*is_definite, *is_abstract, *is_override);
                 if declared_type.is_none() && default.is_none() {
@@ -399,11 +394,6 @@ impl WalkState<'_, '_> {
                     Some(declared_type) => {
                         let written = self.walk_type_expression(declared_type)?;
                         let written = self.check.storage_type(self.module, written)?;
-                        let written = if is_optional {
-                            self.optional_value_type(written)?
-                        } else {
-                            written
-                        };
 
                         Some(written)
                     }
@@ -413,7 +403,17 @@ impl WalkState<'_, '_> {
                             self.walk_expression(default, self.tree.get(default))?;
                             self.restore_flow(before_default);
 
-                            self.queue_bind_initializer(symbol, default, Widening::Widen)?;
+                            let index = self.check.bodies.len();
+                            self.check.bodies.push(BodyOwner {
+                                phase: BodyPhase::Main,
+                                module: self.module,
+                                body: BodyTarget::Node(default.into_any()),
+                                ret: None,
+                                generator: None,
+                                ret_use: ValueUse::Store,
+                                binds: Some((symbol, Widening::Widen)),
+                            });
+                            self.check.initializers.insert(symbol, index);
                         }
 
                         None
@@ -431,16 +431,16 @@ impl WalkState<'_, '_> {
                 // check defaults after the field type is known
                 if let (Some(field_type), Some(default)) = (field_type, default) {
                     let before_default = self.fork_flow();
-                    let expectation = Expectation::assignable(
-                        field_type,
-                        Origin::Node(
-                            default.into_global_any(self.module),
-                            self.flow().template_scope(),
-                        ),
-                        ValueUse::Store,
-                    );
                     self.walk_expression(default, self.tree.get(default))?;
-                    self.queue_node_check(default, expectation)?;
+                    self.check.bodies.push(BodyOwner {
+                        phase: BodyPhase::Main,
+                        module: self.module,
+                        body: BodyTarget::Node(default.into_any()),
+                        ret: Some(ExpectedType::Type(field_type)),
+                        generator: None,
+                        ret_use: ValueUse::Store,
+                        binds: None,
+                    });
                     self.restore_flow(before_default);
                 }
 
@@ -462,6 +462,8 @@ impl WalkState<'_, '_> {
                         source: id.into_global_any(self.module),
                         key,
                         initializer: default.map(|default| default.into_global_any(self.module)),
+                        is_optional,
+                        is_readonly,
                         is_definite,
                         is_abstract,
                         is_override,
@@ -550,7 +552,7 @@ impl WalkState<'_, '_> {
 
                 // write the method's function type
                 let receiver_type = receiver
-                    .filter(|_| Self::is_receiver_visible_in_method_type(signature))
+                    .filter(|_| !signature.is_constructor())
                     .map(|receiver| receiver.receiver.ty);
                 let method = self.walk_function_signature_type(
                     id.into_any(),
@@ -619,19 +621,11 @@ impl WalkState<'_, '_> {
         is_ambient_scope: bool,
         method_body: Option<MethodBody>,
     ) -> CompilerResult<Option<FlowBranch>> {
-        let member_receiver = match member {
-            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => None,
-            dir::Member::Field { .. }
-            | dir::Member::Method { .. }
-            | dir::Member::AssociatedType { .. }
-            | dir::Member::AssociatedConst { .. } => receiver_scope,
-            dir::Member::Error => None,
-        };
-
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
         }
-        let _receiver = self.enter_receiver_scope(member_receiver);
+        let _receiver =
+            self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
         match member {
             // method() {}
@@ -719,10 +713,11 @@ impl WalkState<'_, '_> {
                 declared_type,
                 is_static,
                 is_optional,
+                is_readonly,
                 ..
             } => {
-                let (key, declared_type, is_static, is_optional) =
-                    (*key, *declared_type, *is_static, *is_optional);
+                let (key, declared_type, is_static, is_optional, is_readonly) =
+                    (*key, *declared_type, *is_static, *is_optional, *is_readonly);
 
                 if declared_type.is_none() {
                     self.check
@@ -731,12 +726,7 @@ impl WalkState<'_, '_> {
                 let Some(declared_type) = declared_type else {
                     return Ok(None);
                 };
-                let declared_ty = self.walk_type_expression(declared_type)?;
-                let written = if is_optional {
-                    self.optional_value_type(declared_ty)?
-                } else {
-                    declared_ty
-                };
+                let written = self.walk_type_expression(declared_type)?;
 
                 // write the field symbol type
                 let symbol = self
@@ -761,6 +751,8 @@ impl WalkState<'_, '_> {
                     source,
                     key,
                     initializer: None,
+                    is_optional,
+                    is_readonly,
                     is_definite: false,
                     is_abstract: false,
                     is_override: false,
@@ -809,9 +801,14 @@ impl WalkState<'_, '_> {
 
                 let (header, result, tracked) =
                     self.walk_signature_header(id.into_any(), template, signature, body)?;
-                let receiver_type = receiver_scope
-                    .filter(|_| !is_static)
-                    .map(|receiver| receiver.ty);
+                let receiver_type = match receiver_scope.filter(|_| !is_static) {
+                    // written receivers canonicalize this to the receiver type
+                    Some(receiver) => Some(match header.this_parameter {
+                        Some(written) => self.apply_receiver_scope(Some(receiver), written)?,
+                        None => receiver.ty,
+                    }),
+                    None => None,
+                };
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
@@ -884,13 +881,11 @@ impl WalkState<'_, '_> {
                 let key_type = self.walk_type_expression(key_type)?;
                 let value_type = self.walk_type_expression(value_type)?;
 
-                // index signatures write as their value function shape
-                let _ = key_type;
-
                 Ok(Some(dir::DefinitionMember::IndexSignature(
-                    dir::SignatureDefinition {
+                    dir::IndexSignatureDefinition {
                         source,
-                        ty: value_type,
+                        key_type,
+                        value_type,
                     },
                 )))
             }
@@ -1055,14 +1050,6 @@ impl WalkState<'_, '_> {
         }))
     }
 
-    /// Return whether one method type should expose its receiver parameter.
-    fn is_receiver_visible_in_method_type(signature: &dir::FunctionSignature) -> bool {
-        !matches!(
-            signature.role,
-            Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
-        )
-    }
-
     /// Return the name used to report one method body requirement.
     fn method_body_name(
         &self,
@@ -1096,10 +1083,7 @@ impl WalkState<'_, '_> {
         receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
         // use the receiver as the constructor result
-        if matches!(
-            signature.role,
-            Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
-        ) {
+        if signature.is_constructor() {
             return Ok((receiver.map(|receiver| receiver.receiver.ty), Vec::new()));
         }
 

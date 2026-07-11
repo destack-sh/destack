@@ -1,11 +1,8 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
-use indexmap::IndexSet;
 
 use crate::CompilerResult;
-use crate::check::{
-    Expectation, ExpectedType, FlowBranch, FlowSite, FunctionFrame, Origin, ReceiverBinding,
-    Relation, Task, ValueUse, WalkState,
-};
+use crate::check::{FlowBranch, FunctionFrame, ReceiverBinding, VariableRole, WalkState, Widening};
 
 impl WalkState<'_, '_> {
     /// Enter one function body while walking.
@@ -34,7 +31,7 @@ impl WalkState<'_, '_> {
             yield_target,
             resume_target,
             asynchrony,
-            captured_symbols: IndexSet::new(),
+            captured_symbols: FxIndexSet::default(),
             captured_receiver: None,
             capture_directive,
         };
@@ -44,203 +41,59 @@ impl WalkState<'_, '_> {
     }
 
     /// Leave the current function body.
-    pub(in crate::check) fn leave_function_frame(&mut self) -> CompilerResult<FlowBranch> {
+    pub(in crate::check) fn leave_function_frame(&mut self) -> FlowBranch {
         // collect captures and restore outer flow
         let (capture, flow) = self.flow_mut().pop_function();
 
         // store capture result
         self.check.module_mut(self.module).captures.push(capture);
 
-        Ok(flow)
+        flow
     }
 
-    /// Constrain one explicit or implicit return value to the current function.
-    pub(in crate::check) fn constrain_return_value(
+    /// Record one delegated yield's protocol judgment and inner return output.
+    pub(in crate::check) fn record_yield_delegate(
         &mut self,
-        source: dir::LocalNodeIdAny,
-        value: dir::GlobalTypeId,
-    ) {
-        // reject returns outside function bodies
-        let Some(function) = self.flow().current_function() else {
-            self.check
-                .report_return_outside_function(self.module, source);
-
-            return;
-        };
-
-        // constrain value against the active return target
-        let origin = Origin::Node(
-            source.into_global(self.module),
-            self.flow().template_scope(),
-        );
-        let return_target = function.return_target;
-
-        self.relate_value(
-            origin,
-            ValueUse::Output,
-            Relation::Assignable,
-            value,
-            return_target,
-        );
-    }
-
-    /// Constrain one return expression to the current function.
-    pub(in crate::check) fn constrain_return_expression(
-        &mut self,
-        source: dir::LocalNodeIdAny,
+        source: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
-    ) {
-        // reject returns outside function bodies
-        let Some(function) = self.flow().current_function() else {
-            self.check
-                .report_return_outside_function(self.module, source);
-
-            return;
-        };
-
-        // queue the return flow until the expression has a type
-        self.check.queue_task(Task::Check {
-            site: FlowSite {
-                node: value.into_global_any(self.module),
-                flow: self.flow().point(),
-                scope: self.flow().template_scope(),
-            },
-            expected: ExpectedType::Type(function.return_target),
-            relation: Relation::Assignable,
-            origin: Origin::Node(
-                source.into_global(self.module),
-                self.flow().template_scope(),
-            ),
-            use_: ValueUse::Output,
-        });
-    }
-
-    /// Return the expected type for one yielded value expression.
-    pub(in crate::check) fn yield_value_expectation(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        cardinality: dir::YieldCardinality,
-        value: dir::LocalNodeId<dir::Expression>,
-        delegate_return_target: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Option<Expectation>> {
-        // require a surrounding function body
-        let Some(function) = self.flow().current_function() else {
-            self.check
-                .report_yield_outside_generator(self.module, source);
-
-            return Ok(None);
-        };
-
-        // require a generator yield target
-        let Some(yield_target) = function.yield_target else {
-            self.check
-                .report_yield_outside_generator(self.module, source);
-
-            return Ok(None);
-        };
-
-        let resume_target = function.resume_target;
-        let asynchrony = function.asynchrony;
-        let origin = Origin::Node(
-            value.into_global_any(self.module),
-            self.flow().template_scope(),
-        );
-
-        // scalar yield values flow directly to the yield target
-        if cardinality == dir::YieldCardinality::Scalar {
-            return Ok(Some(Expectation::assignable(
-                yield_target,
-                origin,
-                ValueUse::Output,
-            )));
-        }
-
-        // delegated yield values must implement the generator protocol
-        if let (Some(delegate_return_target), Some(resume_target)) =
-            (delegate_return_target, resume_target)
-        {
-            let item = match asynchrony {
-                dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
-                dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
-            };
-            let expected = self.language_type_reference(
-                item,
-                &[yield_target, delegate_return_target, resume_target],
-            )?;
-
-            Ok(Some(Expectation::assignable(
-                expected,
-                origin,
-                ValueUse::Output,
-            )))
-        }
-        // reject malformed delegation
-        else {
-            self.check
-                .report_yield_delegate_missing_value(self.module, source);
-
-            Ok(None)
-        }
-    }
-
-    /// Constrain an omitted yield value to the current generator function.
-    pub(in crate::check) fn constrain_void_yield(
-        &mut self,
-        source: dir::LocalNodeIdAny,
     ) -> CompilerResult<()> {
-        // require a surrounding generator body
+        // read the generator targets, reported absent by the caller
         let Some(function) = self.flow().current_function() else {
-            self.check
-                .report_yield_outside_generator(self.module, source);
-
             return Ok(());
         };
-        let Some(yield_target) = function.yield_target else {
-            self.check
-                .report_yield_outside_generator(self.module, source);
-
+        let (Some(yield_target), Some(resume_target)) =
+            (function.yield_target, function.resume_target)
+        else {
             return Ok(());
         };
+        let asynchrony = function.asynchrony;
 
-        // flow omitted yield as void
-        let origin = Origin::Node(
-            source.into_global(self.module),
-            self.flow().template_scope(),
-        );
-        let value = self.intern_type(dir::Type::Void)?;
-        self.relate_value(
-            origin,
-            ValueUse::Output,
-            Relation::Assignable,
-            value,
-            yield_target,
-        );
+        // the delegate return becomes the yield expression's own output
+        let output =
+            self.open_type_hole(source.into_any(), Widening::Preserve, VariableRole::Regular)?;
+
+        // the delegate value must implement the generator protocol
+        let item = match asynchrony {
+            dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
+            dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
+        };
+        let expected =
+            self.language_type_reference(item, &[yield_target, output, resume_target])?;
+        self.check
+            .control_results
+            .insert(value.into_global_any(self.module), expected);
+        self.check
+            .control_results
+            .insert(source.into_global_any(self.module), output);
 
         Ok(())
     }
 
-    /// Validate one await expression against the current async context.
-    pub(in crate::check) fn validate_await_context(&mut self, source: dir::LocalNodeIdAny) {
-        // require a surrounding function body
-        let Some(function) = self.flow().current_function() else {
-            self.check
-                .report_await_outside_async_context(self.module, source);
-
-            return;
-        };
-
-        // require async function context
-        if function.asynchrony != dir::Asynchrony::Async {
-            self.check
-                .report_await_outside_async_context(self.module, source);
-        }
-    }
-
-    /// Return the current generator resume target.
-    pub(in crate::check) fn current_resume_target(&self) -> Option<dir::GlobalTypeId> {
+    /// Return whether the current function body is a generator.
+    pub(in crate::check) fn is_in_generator(&self) -> bool {
         self.flow()
             .current_function()
-            .and_then(|function| function.resume_target)
+            .is_some_and(|function| function.yield_target.is_some())
     }
 
     /// Return the enclosing function return target.
@@ -248,17 +101,5 @@ impl WalkState<'_, '_> {
         self.flow()
             .current_function()
             .map(|function| function.return_target)
-    }
-
-    /// Constrain a void return to the current function.
-    pub(in crate::check) fn constrain_void_return(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-    ) -> CompilerResult<()> {
-        // flow omitted return as void
-        let value = self.intern_type(dir::Type::Void)?;
-        self.constrain_return_value(source, value);
-
-        Ok(())
     }
 }

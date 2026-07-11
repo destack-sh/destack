@@ -1,5 +1,5 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
-use indexmap::IndexSet;
 
 use crate::check::{FlowBranch, FlowCheckpoint, ReceiverBinding};
 
@@ -23,9 +23,9 @@ pub(in crate::check) struct FunctionFrame {
     /// The value produced when this generator resumes after `yield`.
     pub(in crate::check::flow) resume_target: Option<dir::GlobalTypeId>,
     /// The function asynchrony.
-    pub(in crate::check::flow) asynchrony: dir::Asynchrony,
+    pub(in crate::check) asynchrony: dir::Asynchrony,
     /// Outer symbols read by this function.
-    pub(in crate::check::flow) captured_symbols: IndexSet<dir::GlobalSymbolId>,
+    pub(in crate::check::flow) captured_symbols: FxIndexSet<dir::GlobalSymbolId>,
     /// Outer receiver read by this function.
     pub(in crate::check::flow) captured_receiver: Option<ReceiverBinding>,
     /// The capture directive applied to this function.
@@ -39,8 +39,6 @@ pub(in crate::check) struct ControlTarget {
     pub(in crate::check::flow) label: Option<dir::StringId>,
     /// The source form that introduced this target.
     pub(in crate::check::flow) form: ControlTargetForm,
-    /// Break values collected while walking the control body.
-    pub(in crate::check::flow) break_values: Vec<dir::GlobalTypeId>,
     /// Flow branches collected at break sites.
     pub(in crate::check::flow) break_branches: Vec<FlowBranch>,
     /// Flow branches collected at continue sites.
@@ -52,16 +50,29 @@ pub(in crate::check) struct ControlTarget {
 /// A source control form that accepts `break`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum ControlTargetForm {
-    /// A labeled block accepts `break`.
-    Block,
-    /// A loop accepts `break` and `continue`.
-    Loop,
+    /// A labeled block accepts labeled breaks with values.
+    Block {
+        /// The output joined by break values and the block fallthrough.
+        result: dir::GlobalTypeId,
+    },
+    /// A `loop` accepts breaks with values and `continue`.
+    Loop {
+        /// The output joined by break values.
+        result: dir::GlobalTypeId,
+    },
+    /// A conditional or iterating loop accepts value-less `break` and `continue`.
+    Iteration,
 }
 
 impl ControlTargetForm {
     /// Return whether `continue` may target this form.
     pub(in crate::check) fn accepts_continue(self) -> bool {
-        matches!(self, Self::Loop)
+        matches!(self, Self::Loop { .. } | Self::Iteration)
+    }
+
+    /// Return whether an unlabeled `break` may target this form.
+    pub(in crate::check) fn accepts_unlabeled_break(self) -> bool {
+        matches!(self, Self::Loop { .. } | Self::Iteration)
     }
 }
 
