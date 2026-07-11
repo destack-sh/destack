@@ -3,7 +3,7 @@ use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
 
-use crate::FileId;
+use crate::{ByteRange, FileId};
 
 /// A source range in bytes (in some File).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -37,6 +37,15 @@ impl Span {
             file,
             start: 0,
             end: 0,
+        }
+    }
+
+    /// Return the file-local byte range of this span.
+    #[inline]
+    pub const fn range(self) -> ByteRange {
+        ByteRange {
+            start: self.start,
+            end: self.end,
         }
     }
 
