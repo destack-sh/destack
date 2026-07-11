@@ -4,7 +4,6 @@ use destack_repository::LintSeverity;
 use crate::rules::common::{
     expression_constant_to_bool, expression_has_side_effects, expression_is_equal,
     expression_is_nullish_literal, expression_path_segments,
-    expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -81,8 +80,6 @@ fn check_constant_result(
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<&'static str> {
     // normalize expression shape
-    let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), left_id);
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), right_id);
 
     // resolve expression references
     let left = ctx.dir.get(left_id);
@@ -191,7 +188,6 @@ fn expression_constant_truthiness(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<bool> {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // resolve direct constant values
@@ -220,7 +216,6 @@ fn expression_has_constant_nullishness(
     require_non_nullish: bool,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // keep non nullish mode strict for nullish literals

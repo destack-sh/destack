@@ -1,47 +1,20 @@
 use destack_dir::{self as dir, NodeVisitor};
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::rules::common::{
     span_has_comment, stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value,
 };
 use crate::{ConstValue, LintModuleContext};
 
-/// Return the source expression id with parenthesized source form unwrapped.
-pub fn expression_unwrap_parenthesized_source_form(
-    tree: &dir::Tree,
-    mut expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    // follow parenthesized wrappers until a non parenthesized expression is found
-    loop {
-        let expression = tree.get(expression_id);
-        let dir::Expression::Parenthesized { expression } = expression else {
-            return expression_id;
-        };
-
-        expression_id = *expression;
-    }
-}
-
 /// Return true when one expression is a nullish literal.
 pub fn expression_is_nullish_literal(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
-
     matches!(
         tree.get(expression_id),
         dir::Expression::ScalarLiteral(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined)
     )
-}
-
-/// Return the source expression id with statement source form unwrapped.
-pub fn expression_unwrap_statement_source_form(
-    tree: &dir::Tree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    let _ = tree;
-    expression_id
 }
 
 /// Return one simple expression target from one assignment pattern.
@@ -227,8 +200,8 @@ pub enum ConditionAssignmentStyle {
     None,
     /// Bare assignment expression: `x = y`.
     Bare,
-    /// Single parenthesized assignment: `(x = y)`.
-    SingleParenthesized,
+    /// Parenthesized assignment: `(x = y)`.
+    Parenthesized,
 }
 
 /// Return the assignment wrapping style for one conditional expression.
@@ -243,16 +216,17 @@ pub fn condition_assignment_style(
         dir::Expression::Let { .. } | dir::Expression::Using { .. } => {
             ConditionAssignmentStyle::None
         }
-        dir::Expression::Assign { .. } => ConditionAssignmentStyle::Bare,
-        dir::Expression::Parenthesized { expression } => {
-            // single parens around assignment are still ambiguous
-            let inner_expression = tree.get(*expression);
-            if matches!(inner_expression, dir::Expression::Assign { .. }) {
-                ConditionAssignmentStyle::SingleParenthesized
-            } else {
-                ConditionAssignmentStyle::None
-            }
+        dir::Expression::Assign { .. }
+            if tree
+                .get_side_range(
+                    expression_id,
+                    NodeSpanType::Region(NodeSpanRegion::Parentheses),
+                )
+                .is_some() =>
+        {
+            ConditionAssignmentStyle::Parenthesized
         }
+        dir::Expression::Assign { .. } => ConditionAssignmentStyle::Bare,
         _ => ConditionAssignmentStyle::None,
     }
 }
@@ -272,43 +246,13 @@ pub fn control_flow_condition_expression(
     }
 }
 
-/// Return the outer expression id including parenthesized source form.
-pub fn expression_outer_parenthesized_source_form(
-    tree: &dir::Tree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    // start from one normalized inner expression
-    let mut current_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
-
-    // climb through direct parenthesized wrappers
-    loop {
-        let Some(parent_id) = tree.get_parent_id(current_id.id) else {
-            return current_id;
-        };
-        if tree.get_node_type(parent_id) != dir::NodeType::Expression {
-            return current_id;
-        }
-
-        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
-        let parent_expression = tree.get(parent_expression_id);
-        if let dir::Expression::Parenthesized { expression } = parent_expression
-            && *expression == current_id
-        {
-            current_id = parent_expression_id;
-            continue;
-        }
-
-        return current_id;
-    }
-}
-
 /// Return the surrounding statement expression for a standalone expression.
 pub fn expression_statement_ancestor(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // start from the outer source form
-    let mut current_id = expression_outer_parenthesized_source_form(tree, expression_id);
+    let mut current_id = expression_id;
 
     // root expressions are statement-position by default
     if tree.get_parent_id(current_id.id).is_none() {
@@ -367,8 +311,7 @@ pub fn expression_is_direct_statement(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let outer_expression_id = expression_outer_parenthesized_source_form(tree, expression_id);
-    expression_statement_ancestor(tree, expression_id) == Some(outer_expression_id)
+    expression_statement_ancestor(tree, expression_id) == Some(expression_id)
 }
 
 /// Return true when one expression is a direct leading expression in a block.
@@ -376,9 +319,8 @@ pub fn expression_is_direct_block_leading_expression(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // normalize outer source form first
-    let outer_expression_id = expression_outer_parenthesized_source_form(tree, expression_id);
-    let Some(parent_id) = tree.get_parent_id(outer_expression_id.id) else {
+    // resolve the direct block parent
+    let Some(parent_id) = tree.get_parent_id(expression_id.id) else {
         return false;
     };
 
@@ -395,7 +337,7 @@ pub fn expression_is_direct_block_leading_expression(
         .leading_expressions
         .iter()
         .copied()
-        .any(|child_id| child_id == outer_expression_id)
+        .any(|child_id| child_id == expression_id)
 }
 
 /// Return true when one expression can safely start an expression statement.
@@ -448,16 +390,22 @@ pub fn expression_negated_source_text(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> String {
     // keep the original source text for replacement fidelity
-    let expression_span = ctx.dir.get_span(expression_id);
+    let expression_span = ctx.dir.tree().get_source_extent(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
+    let has_parentheses = ctx
+        .dir
+        .tree()
+        .get_side_range(
+            expression_id,
+            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+        )
+        .is_some();
 
-    // normalize the expression shape for precedence checks
-    let normalized_expression_id =
-        expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
-    let normalized_expression = ctx.dir.get(normalized_expression_id);
+    // resolve the canonical expression shape for precedence checks
+    let expression = ctx.dir.get(expression_id);
 
     // preserve precedence for non-atomic expressions
-    if expression_needs_parentheses_for_prefix_not(normalized_expression) {
+    if !has_parentheses && expression_needs_parentheses_for_prefix_not(expression) {
         return format!("!({expression_text})");
     }
 
@@ -467,7 +415,6 @@ pub fn expression_negated_source_text(
 /// Return true when one expression needs parentheses under prefix `!`.
 fn expression_needs_parentheses_for_prefix_not(expression: &dir::Expression) -> bool {
     !expression_can_start_expression_statement(expression)
-        && !matches!(expression, dir::Expression::Parenthesized { .. })
 }
 
 /// Return true when one expression starts a nested declaration scope.
@@ -480,32 +427,19 @@ pub fn expression_is_immediately_invoked(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let mut current_expression_id = expression_id;
-
-    loop {
-        // resolve one expression parent
-        let Some(parent_id) = tree.get_parent_id(current_expression_id.id) else {
-            return false;
-        };
-        if tree.get_node_type(parent_id) != dir::NodeType::Expression {
-            return false;
-        }
-
-        // keep climbing through parenthesized wrappers
-        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
-        let parent_expression = tree.get(parent_expression_id);
-        match parent_expression {
-            dir::Expression::Parenthesized { expression }
-                if *expression == current_expression_id =>
-            {
-                current_expression_id = parent_expression_id;
-            }
-            dir::Expression::Call { left, .. } => {
-                return *left == current_expression_id;
-            }
-            _ => return false,
-        }
+    // require one expression parent
+    let Some(parent_id) = tree.get_parent_id(expression_id.id) else {
+        return false;
+    };
+    if tree.get_node_type(parent_id) != dir::NodeType::Expression {
+        return false;
     }
+
+    // match the direct call target
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent_expression = tree.get(parent_expression_id);
+
+    matches!(parent_expression, dir::Expression::Call { left, .. } if *left == expression_id)
 }
 
 /// Return true when one expression subtree contains an assignment expression.
@@ -683,7 +617,7 @@ pub fn expression_is_type_annotation(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // start from one normalized expression id
-    let mut current_id = expression_unwrap_parenthesized_source_form(tree, expression_id).id;
+    let mut current_id = expression_id.id;
 
     // climb ancestors until one type annotation slot is found
     while let Some(parent_id) = tree.get_parent_id(current_id) {
@@ -1154,7 +1088,6 @@ fn collect_expression_path_segments(
     segments: &mut Vec<dir::StringId>,
 ) -> Option<()> {
     // normalize wrappers first
-    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     match expression {
@@ -1183,9 +1116,6 @@ fn collect_type_expression_path_segments(
     let type_expression = tree.get(type_expression_id);
 
     match type_expression {
-        dir::TypeExpression::Parenthesized { expression } => {
-            collect_type_expression_path_segments(tree, *expression, segments)
-        }
         dir::TypeExpression::Reference {
             path,
             generic_arguments,
@@ -1220,7 +1150,6 @@ pub fn expression_static_string_literal_source_form(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::StringId> {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // match direct string literals
@@ -1245,7 +1174,6 @@ pub fn expression_static_property_access_source_form(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, dir::StringId)> {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // match dot member access
@@ -1303,7 +1231,6 @@ pub fn expression_numeric_value(
     }
 
     // normalize expression shape and require a binary expression
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
     let dir::Expression::Binary {
         operator,
@@ -1360,8 +1287,6 @@ pub fn expression_is_equal(
     left_id: dir::LocalNodeId<dir::Expression>,
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), left_id);
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), right_id);
     let left = ctx.dir.get(left_id);
     let right = ctx.dir.get(right_id);
     match (left, right) {
@@ -1610,10 +1535,6 @@ pub fn type_expression_is_equal(
     let right = ctx.dir.get(right_id);
 
     match (left, right) {
-        (
-            dir::TypeExpression::Parenthesized { expression: left },
-            dir::TypeExpression::Parenthesized { expression: right },
-        ) => type_expression_is_equal(ctx, *left, *right),
         (
             dir::TypeExpression::ScalarLiteral { value: left },
             dir::TypeExpression::ScalarLiteral { value: right },
@@ -2115,11 +2036,6 @@ pub fn expression_has_side_effects(
         // side effects: debugger and damaged expressions
         dir::Expression::Debugger | dir::Expression::Error | dir::Expression::Missing => true,
 
-        // wrapped expressions: check inner
-        dir::Expression::Parenthesized { expression } => {
-            expression_has_side_effects(ctx, *expression)
-        }
-
         // maybe/must propagation: check inner for side effect
         dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. } => {
             expression_has_side_effects(ctx, *left)
@@ -2157,8 +2073,7 @@ pub fn type_expression_has_side_effects(
         | dir::TypeExpression::Error => false,
 
         // wrapped type expressions
-        dir::TypeExpression::Parenthesized { expression }
-        | dir::TypeExpression::Readonly {
+        dir::TypeExpression::Readonly {
             target_type: expression,
         }
         | dir::TypeExpression::Local {
@@ -2306,9 +2221,6 @@ pub fn expression_is_constant_expression(
     match expr {
         dir::Expression::ScalarLiteral(_) => true,
         dir::Expression::Type { value } => type_expression_is_constant(ctx, *value),
-        dir::Expression::Parenthesized { expression } => {
-            expression_is_constant_expression(ctx, ctx.dir.get(*expression))
-        }
         dir::Expression::Unary { right, .. } => {
             expression_is_constant_expression(ctx, ctx.dir.get(*right))
         }
@@ -2319,7 +2231,7 @@ pub fn expression_is_constant_expression(
 /// Evaluate a constant expression to a boolean value if possible.
 ///
 /// Returns Some(true) for truthy constants, Some(false) for falsy constants, None otherwise.
-/// Handles booleans, integers, floats, null/undefined, parenthesized expressions, and unary not.
+/// Handles booleans, integers, floats, null/undefined, and unary not.
 pub fn expression_constant_to_bool(
     ctx: &LintModuleContext<'_>,
     expr: &dir::Expression,
@@ -2333,9 +2245,6 @@ pub fn expression_constant_to_bool(
             _ => None,
         },
         dir::Expression::Type { value } => type_expression_constant_to_bool(ctx, *value),
-        dir::Expression::Parenthesized { expression } => {
-            expression_constant_to_bool(ctx, ctx.dir.get(*expression))
-        }
         dir::Expression::Unary { operator, right } => {
             if *operator == dir::UnaryOperator::Not {
                 expression_constant_to_bool(ctx, ctx.dir.get(*right)).map(|b| !b)
@@ -2355,9 +2264,6 @@ fn type_expression_is_constant(
     let type_expression = ctx.dir.get(type_expression_id);
 
     match type_expression {
-        dir::TypeExpression::Parenthesized { expression } => {
-            type_expression_is_constant(ctx, *expression)
-        }
         dir::TypeExpression::ScalarLiteral { value: _ }
         | dir::TypeExpression::Literal { .. }
         | dir::TypeExpression::Intrinsic
@@ -2375,9 +2281,6 @@ fn type_expression_constant_to_bool(
     let type_expression = ctx.dir.get(type_expression_id);
 
     match type_expression {
-        dir::TypeExpression::Parenthesized { expression } => {
-            type_expression_constant_to_bool(ctx, *expression)
-        }
         dir::TypeExpression::ScalarLiteral { value } => match value {
             dir::ScalarLiteral::Boolean(value) => Some(*value),
             dir::ScalarLiteral::Integer(value) => Some(*value != 0),

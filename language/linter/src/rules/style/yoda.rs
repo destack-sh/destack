@@ -3,8 +3,7 @@ use destack_dir::{self as dir, BinaryOperator, Expression, UnaryOperator};
 use destack_repository::{LintSeverity, YodaMode};
 
 use crate::rules::common::{
-    expression_is_equal, expression_is_literal, expression_outer_parenthesized_source_form,
-    expression_static_string_literal_source_form, expression_unwrap_parenthesized_source_form,
+    expression_is_equal, expression_is_literal, expression_static_string_literal_source_form,
     is_comparison_operator, source_text_contains_comment_token,
 };
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
@@ -184,7 +183,6 @@ fn expression_is_part_of_range_test(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_outer_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let Some(parent_id) = ctx.dir.get_parent_id(expression_id.id) else {
         return false;
     };
@@ -206,8 +204,8 @@ fn expression_is_part_of_range_test(
         return false;
     }
 
-    let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+    let left_id = *left;
+    let right_id = *right;
     let left_expression = ctx.dir.get(left_id);
     let right_expression = ctx.dir.get(right_id);
     let (
@@ -229,10 +227,10 @@ fn expression_is_part_of_range_test(
         return false;
     }
 
-    let left_left = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left_left);
-    let left_right = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left_right);
-    let right_left = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right_left);
-    let right_right = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right_right);
+    let left_left = *left_left;
+    let left_right = *left_right;
+    let right_left = *right_left;
+    let right_right = *right_right;
 
     let is_between_range = expression_is_equal(ctx, left_right, right_left)
         && expression_looks_like_literal(ctx, left_left, ctx.dir.get(left_left))

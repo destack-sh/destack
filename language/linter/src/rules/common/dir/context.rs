@@ -305,7 +305,7 @@ fn expression_is_using_declaration(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // normalize statement and parenthesized wrappers first
+    // normalize transparent statement wrappers first
     let expression_id = expression_unwrap_statement(tree, expression_id);
     let expression = tree.get(expression_id);
 
@@ -347,9 +347,6 @@ fn expression_is_transparent_parent_of(
     child_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     matches!(
-        parent_expression,
-        dir::Expression::Parenthesized { expression } if *expression == child_expression_id
-    ) || matches!(
         parent_expression,
         dir::Expression::Maybe { left, .. } if *left == child_expression_id
     ) || matches!(

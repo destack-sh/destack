@@ -31,8 +31,6 @@ pub fn regex_pattern_info(
     regexp_name: dir::StringId,
     global_qualifier_names: &[dir::StringId],
 ) -> Option<RegexPatternInfo> {
-    // normalize expression shape
-    let expression_id = super::expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // support direct regex literals

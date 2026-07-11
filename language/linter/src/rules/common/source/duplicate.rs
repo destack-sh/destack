@@ -97,7 +97,6 @@ fn expression_coarse_key(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> u64 {
     let expression = ctx.dir.get(expression_id);
-    let expression = unwrap_expression(ctx, expression);
 
     let mut hasher = StableHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
@@ -171,7 +170,6 @@ fn expression_structural_key(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> u64 {
     let expression = ctx.dir.get(expression_id);
-    let expression = unwrap_expression(ctx, expression);
 
     let mut hasher = StableHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
@@ -319,7 +317,6 @@ fn hash_expression_kind(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) {
     let expression = ctx.dir.get(expression_id);
-    let expression = unwrap_expression(ctx, expression);
     std::mem::discriminant(expression).hash(hasher);
 }
 
@@ -378,20 +375,4 @@ fn hash_if_condition_shape(
 /// Hash a debug value into the provided hasher.
 fn hash_debug_into(hasher: &mut StableHasher, value: &impl std::fmt::Debug) {
     stable_hash_debug(value).hash(hasher);
-}
-
-/// Unwrap parenthesized expressions for normalized hashing.
-fn unwrap_expression<'a>(
-    ctx: &'a LintModuleContext<'_>,
-    expression: &'a dir::Expression,
-) -> &'a dir::Expression {
-    match expression {
-        dir::Expression::Parenthesized {
-            expression: inner_expression_id,
-        } => {
-            let inner_expression = ctx.dir.get(*inner_expression_id);
-            unwrap_expression(ctx, inner_expression)
-        }
-        _ => expression,
-    }
 }

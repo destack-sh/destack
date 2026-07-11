@@ -271,7 +271,6 @@ fn is_terminating_statement(
         dir::Expression::Return { .. } => true,
         dir::Expression::Throw { .. } => true,
         dir::Expression::Continue { .. } => true,
-        dir::Expression::Parenthesized { expression } => is_terminating_statement(ctx, *expression),
         dir::Expression::Block(block_id) => {
             let block = ctx.dir.get(*block_id);
             if let Some(last_id) = block.last_expression() {

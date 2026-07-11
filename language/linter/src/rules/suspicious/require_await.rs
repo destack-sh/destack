@@ -8,8 +8,8 @@ use std::collections::HashSet;
 
 use crate::rules::common::{
     collect_pattern_value_binding_symbols, expression_enters_nested_declaration_scope,
-    expression_is_promise_like, expression_type_or_call_return_type_map,
-    expression_unwrap_parenthesized, is_promise_type, remove_first_async_keyword,
+    expression_is_promise_like, expression_type_or_call_return_type_map, is_promise_type,
+    remove_first_async_keyword,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -443,14 +443,13 @@ fn expression_is_async_symbol_call(
 ) -> bool {
     // normalize expression wrappers
     let tree = ctx.dir.tree();
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     let Expression::Call { left, .. } = expression else {
         return false;
     };
 
     // resolve one direct callee symbol
-    let callee_id = expression_unwrap_parenthesized(tree, *left);
+    let callee_id = *left;
     let Some(symbol_id) = ctx
         .resolutions
         .symbol_resolution(callee_id.into_global_any(ctx.module_id()))
@@ -466,7 +465,6 @@ fn expression_is_async_callable_value(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     let Expression::Declaration(declaration) = expression else {
         return false;

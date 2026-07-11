@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_dir::{self as dir, TypeExpression, TypeLiteral};
+use destack_dir::{self as dir, TypeLiteral};
 use destack_repository::LintSeverity;
 
 use crate::rules::common::{
@@ -233,8 +233,6 @@ fn count_boolean_object_type_fields(
     ctx: &LintModuleContext<'_>,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<usize> {
-    let type_expression_id =
-        unwrap_parenthesized_type_expression(ctx.dir.tree(), type_expression_id);
     let dir::TypeExpression::Object { members } = ctx.dir.get(type_expression_id) else {
         return None;
     };
@@ -273,8 +271,6 @@ fn expression_is_boolean_type(
     ctx: &LintModuleContext<'_>,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
-    let type_expression_id =
-        unwrap_parenthesized_type_expression(ctx.dir.tree(), type_expression_id);
     let expression = ctx.dir.get(type_expression_id);
 
     matches!(
@@ -283,20 +279,6 @@ fn expression_is_boolean_type(
             value: TypeLiteral::Boolean,
         }
     )
-}
-
-/// Return the type expression id with parenthesized wrappers removed.
-fn unwrap_parenthesized_type_expression(
-    tree: &dir::Tree,
-    mut type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
-) -> dir::LocalNodeId<dir::TypeExpression> {
-    loop {
-        let TypeExpression::Parenthesized { expression } = tree.get(type_expression_id) else {
-            return type_expression_id;
-        };
-
-        type_expression_id = *expression;
-    }
 }
 
 #[cfg(test)]

@@ -4,8 +4,7 @@ use destack_repository::LintSeverity;
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     ReferencePath, assign_pattern_reference_path, assign_pattern_target_expression,
-    expression_enters_nested_declaration_scope, expression_reference_path,
-    expression_unwrap_parenthesized, is_string_type,
+    expression_enters_nested_declaration_scope, expression_reference_path, is_string_type,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -183,9 +182,6 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
 
     /// Return true when the expression should be treated as a string.
     fn is_string_like_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // match string literals or typed strings
         let expression = self.ctx.dir.get(expression_id);
         matches!(
@@ -201,9 +197,6 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         reference: &ReferencePath,
     ) -> bool {
-        // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // descend into add chains
         let expression = self.ctx.dir.get(expression_id);
         if let dir::Expression::Binary {
@@ -225,9 +218,6 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // descend into add chains
         let expression = self.ctx.dir.get(expression_id);
         if let dir::Expression::Binary {
@@ -250,9 +240,6 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         reference: &ReferencePath,
     ) -> bool {
-        // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // match interpolated template expressions
         let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::TemplateExpression {

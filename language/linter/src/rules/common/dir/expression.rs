@@ -11,9 +11,6 @@ pub fn expression_is_numeric_literal(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // normalize parenthesized wrappers first
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
-
     matches!(
         tree.get(expression_id),
         dir::Expression::ScalarLiteral(
@@ -139,19 +136,6 @@ pub fn expression_import_target_specifier(
     expression_import_target_static_specifier(expression)
 }
 
-/// Return the expression id with parenthesized nodes unwrapped.
-pub fn expression_unwrap_parenthesized(
-    tree: &dir::Tree,
-    mut expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    loop {
-        let dir::Expression::Parenthesized { expression } = tree.get(expression_id) else {
-            return expression_id;
-        };
-        expression_id = *expression;
-    }
-}
-
 /// Resolve the value expression for one DIR argument node.
 pub fn argument_expression_id(
     tree: &dir::Tree,
@@ -223,10 +207,6 @@ pub fn type_expression_contains_reference_segment(
                     generic_arguments,
                     target_segment,
                 )
-        }
-
-        dir::TypeExpression::Parenthesized { expression } => {
-            type_expression_contains_reference_segment(tree, *expression, target_segment)
         }
 
         dir::TypeExpression::Readonly { target_type }
@@ -329,9 +309,6 @@ pub fn expression_unwrap_transparent(
     loop {
         let expression = tree.get(expression_id);
         match expression {
-            dir::Expression::Parenthesized { expression } => {
-                expression_id = *expression;
-            }
             dir::Expression::Maybe { left, .. }
             | dir::Expression::Must { left, .. }
             | dir::Expression::Instantiation { left, .. } => {
@@ -365,7 +342,7 @@ pub fn binary_expression_is_nested_same_operator(
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: dir::BinaryOperator,
 ) -> bool {
-    let mut current_node_id = expression_id.id;
+    let current_node_id = expression_id.id;
 
     loop {
         let Some(parent_node_id) = tree.get_parent(current_node_id) else {
@@ -378,9 +355,6 @@ pub fn binary_expression_is_nested_same_operator(
         let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
         let parent_expression = tree.get(parent_expression_id);
         match parent_expression {
-            dir::Expression::Parenthesized { expression } if expression.id == current_node_id => {
-                current_node_id = parent_node_id.id;
-            }
             dir::Expression::Binary {
                 operator: parent_operator,
                 ..
@@ -397,7 +371,6 @@ pub fn binary_expression_chain_members(
     operator: dir::BinaryOperator,
     members: &mut Vec<dir::LocalNodeId<dir::Expression>>,
 ) {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     if let dir::Expression::Binary {
         left,
@@ -513,24 +486,11 @@ pub fn expression_discarded_call_like_value(
     loop {
         let expression = tree.get(expression_id);
 
-        if let dir::Expression::Parenthesized { expression } = expression {
-            let value_id = expression_unwrap_parenthesized(tree, *expression);
-            if matches!(
-                tree.get(value_id),
-                dir::Expression::Call { .. } | dir::Expression::New { .. }
-            ) {
-                return Some((value_id, expression_id));
-            }
-            expression_id = *expression;
-            replacement_expression_id = expression_id;
-            continue;
-        }
-
         if let dir::Expression::Await { expression }
         | dir::Expression::AwaitMaybe { expression }
         | dir::Expression::AwaitMust { expression } = expression
         {
-            let value_id = expression_unwrap_parenthesized(tree, *expression);
+            let value_id = *expression;
             if matches!(
                 tree.get(value_id),
                 dir::Expression::Call { .. } | dir::Expression::New { .. }
@@ -566,9 +526,6 @@ pub fn expression_is_any_typed(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // unwrap parenthesized expressions
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
-
     // check inferred or declared expression type first
     if let Some(type_id) = ctx.expression_type_id(expression_id)
         && is_any_type(ctx, type_id)
@@ -609,8 +566,6 @@ pub fn expression_type_map<T>(
     expression_id: dir::LocalNodeId<dir::Expression>,
     map: impl FnOnce(&LintModuleContext<'_>, dir::GlobalTypeId) -> T,
 ) -> Option<T> {
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
-
     // resolve expression type from node outputs first
     if let Some(type_id) = ctx.expression_type_id(expression_id) {
         return Some(map(ctx, type_id));
@@ -631,8 +586,6 @@ pub fn expression_type_or_call_return_type_map<T>(
     expression_id: dir::LocalNodeId<dir::Expression>,
     mut map: impl FnMut(&LintModuleContext<'_>, dir::GlobalTypeId) -> T,
 ) -> Option<T> {
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
-
     // resolve direct expression types first
     if let Some(type_id) = ctx.expression_type_id(expression_id) {
         return Some(map(ctx, type_id));
@@ -665,8 +618,6 @@ pub fn expression_is_promise_like(
     promise_symbol: dir::GlobalSymbolId,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // unwrap parenthesized expressions
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // prefer expression node types
@@ -759,14 +710,6 @@ fn type_expression_is_explicit_any(
 ) -> bool {
     let type_expression = tree.get(type_expression_id);
 
-    // peel off parenthesized wrappers first
-    let type_expression = match type_expression {
-        dir::TypeExpression::Parenthesized { expression } => {
-            return type_expression_is_explicit_any(tree, *expression);
-        }
-        type_expression => type_expression,
-    };
-
     matches!(
         type_expression,
         dir::TypeExpression::Literal {
@@ -838,8 +781,6 @@ pub fn expression_is_potentially_tainted(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // unwrap parentheses
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // literals are safe
@@ -900,7 +841,6 @@ fn expression_contains_reference_segment(
     expression_id: dir::LocalNodeId<dir::Expression>,
     target_segment: StringId,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
     match expression {

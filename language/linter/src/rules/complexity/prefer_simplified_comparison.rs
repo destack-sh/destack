@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_dir::{self as dir, BinaryOperator};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{expression_numeric_value, expression_unwrap_parenthesized_source_form};
+use crate::rules::common::expression_numeric_value;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -143,7 +143,7 @@ fn right_add_or_sub_one(
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: BinaryOperator,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let expression = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = expression_id;
     let dir::Expression::Binary {
         left,
         operator: inner_operator,
@@ -156,7 +156,7 @@ fn right_add_or_sub_one(
         return None;
     }
 
-    let right_expression = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+    let right_expression = *right;
     if expression_numeric_value(ctx, right_expression)? != 1.0 {
         return None;
     }

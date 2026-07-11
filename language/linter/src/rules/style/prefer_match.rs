@@ -211,11 +211,6 @@ fn comparison_subject_and_pattern(
 )> {
     let condition = ctx.dir.get(condition_id);
 
-    // handle parenthesized conditions
-    if let dir::Expression::Parenthesized { expression } = condition {
-        return comparison_subject_and_pattern(ctx, *expression);
-    }
-
     // look for equality comparisons
     let dir::Expression::Binary {
         left,

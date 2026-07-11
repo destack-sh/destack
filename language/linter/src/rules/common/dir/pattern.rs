@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::LintModuleContext;
 
-use super::{expression_target_symbol, expression_unwrap_parenthesized};
+use super::expression_target_symbol;
 
 /// Return true when one DIR pattern matches all remaining values.
 pub fn pattern_is_total(tree: &dir::Tree, pattern_id: dir::LocalNodeId<dir::Pattern>) -> bool {
@@ -159,9 +159,6 @@ fn pattern_expression_is_equal(
     left_expression_id: dir::LocalNodeId<dir::Expression>,
     right_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let left_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), left_expression_id);
-    let right_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), right_expression_id);
-
     // prefer constant evaluation when both expressions fold
     let left_const_value = ctx.const_value(left_expression_id);
     let right_const_value = ctx.const_value(right_expression_id);

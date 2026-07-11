@@ -10,8 +10,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::analysis::LintRegexParse;
 use crate::rules::common::{
     expression_is_symbol, expression_static_string_literal, expression_target_symbol,
-    expression_unwrap_parenthesized, is_string_type, single_quoted_string_literal,
-    span_has_comment, symbol_initializer_expression,
+    is_string_type, single_quoted_string_literal, span_has_comment, symbol_initializer_expression,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -268,9 +267,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
     ) -> bool {
-        // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // match regex literals
         let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString {
@@ -362,9 +358,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
     ) -> Option<StringId> {
-        // unwrap parenthesized wrappers
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // keep direct static string literals
         if let Some(string_id) =
             expression_static_string_literal(self.ctx.dir.tree(), expression_id)
@@ -406,7 +399,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return None;
         }
 
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { content, flags }) =
             expression

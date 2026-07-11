@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use destack_dir::{self as dir, LanguageItem};
 use destack_repository::{ArrayTypeStyle, LintSeverity};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{expression_type_map, is_array_type};
@@ -266,10 +267,12 @@ fn array_type_fix(
             },
             ArrayTypeStyle::Array,
         ) => {
-            let type_argument_expression = ctx.dir.get(type_argument_expression_id);
-            let type_argument_text =
-                ctx.get_span_text(ctx.dir.get_span(type_argument_expression_id));
-            if type_argument_needs_parentheses(type_argument_expression) {
+            let type_argument_span = ctx
+                .dir
+                .tree()
+                .get_source_extent(type_argument_expression_id);
+            let type_argument_text = ctx.get_span_text(type_argument_span);
+            if type_argument_needs_parentheses(ctx.dir.tree(), type_argument_expression_id) {
                 format!("({type_argument_text})[]")
             } else {
                 format!("{type_argument_text}[]")
@@ -284,11 +287,23 @@ fn array_type_fix(
 }
 
 /// Return true when one type argument needs parentheses before appending `[]`.
-fn type_argument_needs_parentheses(expression: &dir::TypeExpression) -> bool {
+fn type_argument_needs_parentheses(
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::TypeExpression>,
+) -> bool {
+    let parentheses = tree.get_side_range(
+        expression_id,
+        NodeSpanType::Region(NodeSpanRegion::Parentheses),
+    );
+    if parentheses.is_some() {
+        return false;
+    }
+
+    let expression = tree.get(expression_id);
+
     !matches!(
         expression,
-        dir::TypeExpression::Parenthesized { .. }
-            | dir::TypeExpression::ScalarLiteral { value: _ }
+        dir::TypeExpression::ScalarLiteral { value: _ }
             | dir::TypeExpression::Literal { .. }
             | dir::TypeExpression::Intrinsic
             | dir::TypeExpression::Tuple { .. }

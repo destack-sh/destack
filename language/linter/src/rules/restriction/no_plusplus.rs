@@ -123,7 +123,7 @@ fn expression_is_for_loop_afterthought(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // start from the update expression
-    let mut current_id = expression_id;
+    let current_id = expression_id;
 
     // walk through parenthesized and sequence wrappers up to one for increment
     loop {
@@ -138,9 +138,6 @@ fn expression_is_for_loop_afterthought(
         let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
         let parent_expression = ctx.dir.get(parent_expression_id);
         match parent_expression {
-            dir::Expression::Parenthesized { expression } if *expression == current_id => {
-                current_id = parent_expression_id;
-            }
             dir::Expression::For {
                 increment: Some(increment_id),
                 ..

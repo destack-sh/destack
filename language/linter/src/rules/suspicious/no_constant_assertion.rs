@@ -197,9 +197,6 @@ fn get_constant_truthiness(
             }
         }
 
-        // parenthesized: unwrap
-        Expression::Parenthesized { expression } => get_constant_truthiness(ctx, *expression),
-
         // empty array literal is truthy (arrays are objects)
         Expression::ArrayExpression { elements } if elements.is_empty() => Some(true),
 

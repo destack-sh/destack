@@ -398,9 +398,6 @@ fn expression_reference_path_base(
 
     // match the base or member steps
     match expression {
-        dir::Expression::Parenthesized { expression } => {
-            expression_reference_path_base(ctx, *expression, members)
-        }
         dir::Expression::Member { left, name } => {
             let name = (*name)?;
 

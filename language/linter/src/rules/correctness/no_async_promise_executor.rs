@@ -3,8 +3,8 @@ use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    expression_call_like, expression_target_symbol, expression_unwrap_parenthesized,
-    is_async_function_type, remove_first_async_keyword,
+    expression_call_like, expression_target_symbol, is_async_function_type,
+    remove_first_async_keyword,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -147,7 +147,6 @@ fn async_promise_executor_fix(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     // require a direct inline declaration expression
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
     if !matches!(expression, dir::Expression::Declaration { .. }) {
         return None;
@@ -161,26 +160,8 @@ fn async_promise_executor_fix(
         return None;
     }
 
-    // remove one redundant parenthesized wrapper when the rewritten executor
-    // already has the arrow function's own parameter parentheses
-    let replacement_span = if let Some(parent) = ctx.dir.get_parent(expression_id.id)
-        && parent.ty == dir::NodeType::Expression
-    {
-        let parent_id = parent.into_typed::<dir::Expression>();
-        let parent_expression = ctx.dir.get(parent_id);
-        if matches!(
-            parent_expression,
-            dir::Expression::Parenthesized {
-                expression
-            } if *expression == expression_id
-        ) {
-            ctx.get_span(parent_id)
-        } else {
-            expression_span
-        }
-    } else {
-        expression_span
-    };
+    // replace any written parentheses with the rewritten executor
+    let replacement_span = ctx.dir.tree().get_source_extent(expression_id);
 
     // build replacement edit
     let edits = ctx

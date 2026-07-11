@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, Member};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{collect_assigned_symbol_usage, expression_unwrap_parenthesized};
+use crate::rules::common::collect_assigned_symbol_usage;
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -187,7 +187,6 @@ fn assigned_expression_is_self_field_reference(
     tree: &dir::Tree,
     assigned_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let assigned_expression_id = expression_unwrap_parenthesized(tree, assigned_expression_id);
     let assigned_expression = tree.get(assigned_expression_id);
     let receiver_expression_id = match assigned_expression {
         dir::Expression::Member { left, .. } => *left,
@@ -202,7 +201,6 @@ fn expression_is_this_reference(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     match expression {
         dir::Expression::This => true,

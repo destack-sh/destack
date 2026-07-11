@@ -6,8 +6,7 @@ use destack_dir::{
 use destack_repository::LintSeverity;
 
 use crate::rules::common::{
-    CallableOwnerId, expression_starts_nested_declaration_scope,
-    expression_unwrap_statement_source_form, for_each_callable_signature,
+    CallableOwnerId, expression_starts_nested_declaration_scope, for_each_callable_signature,
 };
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -224,8 +223,7 @@ impl NodeVisitor for CognitiveComplexityVisitor {
     ) {
         // keep nested declaration scopes out of parent callable complexity
         if expression_id != self.root_expression_id {
-            let normalized_expression_id =
-                expression_unwrap_statement_source_form(tree, expression_id);
+            let normalized_expression_id = expression_id;
             let normalized_expression = tree.get(normalized_expression_id);
             if expression_starts_nested_declaration_scope(normalized_expression) {
                 return;

@@ -2,9 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_repository::LintSeverity;
 use destack_source::Span;
 
-use crate::rules::common::{
-    expression_enters_nested_declaration_scope, expression_unwrap_parenthesized,
-};
+use crate::rules::common::expression_enters_nested_declaration_scope;
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -205,7 +203,6 @@ fn collect_callback_candidates(
     fix_mode: CallbackFixMode,
     candidates: &mut Vec<CallbackCandidate>,
 ) {
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // match direct function expression callbacks
@@ -291,7 +288,7 @@ fn collect_callback_candidates(
         return;
     };
 
-    let bind_target_id = expression_unwrap_parenthesized(ctx.dir.tree(), bind_shape.target_id);
+    let bind_target_id = bind_shape.target_id;
     let bind_target_expression = ctx.dir.get(bind_target_id);
 
     // remove direct `.bind(this)` wrappers around function literals
@@ -360,7 +357,6 @@ fn bind_call_shape(
     arguments: &[dir::LocalNodeId<dir::Argument>],
 ) -> Option<BindCallShape> {
     let bind_name = ctx.string_id("bind");
-    let call_left_id = expression_unwrap_parenthesized(ctx.dir.tree(), call_left_id);
     let call_left = ctx.dir.get(call_left_id);
 
     // require one plain member access named `bind`
@@ -392,7 +388,6 @@ fn argument_is_this_expression(
     let Some(expression_id) = argument.value() else {
         return false;
     };
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
 
     matches!(ctx.dir.get(expression_id), dir::Expression::This)
 }
@@ -507,7 +502,6 @@ fn expression_is_single_name_reference(
     expression_id: dir::LocalNodeId<dir::Expression>,
     name: dir::StringId,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
     match expression {

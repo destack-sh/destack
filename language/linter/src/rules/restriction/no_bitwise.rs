@@ -2,7 +2,6 @@ use crate::LintMeta;
 use destack_dir::{self as dir, AssignOperator, BinaryOperator, UnaryOperator};
 use destack_repository::{BitwiseOperator, LintSeverity};
 
-use crate::rules::common::expression_unwrap_parenthesized_source_form;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -62,7 +61,6 @@ fn expression_is_bitwise_int32_hint(
         return false;
     }
 
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let dir::Expression::Binary { right, .. } = ctx.dir.get(expression_id) else {
         return false;
     };
@@ -75,8 +73,6 @@ fn expression_is_zero_literal(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
-
     match ctx.dir.get(expression_id) {
         dir::Expression::ScalarLiteral(literal) => match literal {
             dir::ScalarLiteral::Integer(0) => true,

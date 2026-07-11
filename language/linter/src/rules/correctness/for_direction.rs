@@ -3,7 +3,6 @@ use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_expression, expression_numeric_sign, expression_path_segments,
-    expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -146,7 +145,6 @@ fn increment_with_expected_direction(
     expected_direction: Direction,
 ) -> Option<String> {
     // inspect the increment expression shape
-    let increment_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), increment_id);
     let increment = ctx.dir.get(increment_id);
 
     // render a direction corrected update form
@@ -212,7 +210,6 @@ fn condition_counter_expectations(
     ctx: &LintModuleContext<'_>,
     condition_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<CounterExpectation> {
-    let condition_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), condition_id);
     let condition = ctx.dir.get(condition_id);
 
     // require a binary comparison condition
@@ -261,7 +258,6 @@ fn update_direction_for_counter(
     counter_segments: &[dir::StringId],
 ) -> Option<Direction> {
     // normalize increment expression shape
-    let increment_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), increment_id);
     let increment = ctx.dir.get(increment_id);
 
     // resolve update direction only for matching counter updates

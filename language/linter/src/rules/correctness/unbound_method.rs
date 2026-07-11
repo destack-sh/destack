@@ -206,9 +206,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             let parent_id = parent.into_typed::<dir::Expression>();
             let parent_expression = self.ctx.dir.get(parent_id);
             match parent_expression {
-                dir::Expression::Parenthesized { expression } if *expression == current_id => {
-                    current_id = parent_id;
-                }
                 dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. }
                     if *left == current_id =>
                 {

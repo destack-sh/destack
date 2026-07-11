@@ -5,7 +5,7 @@ use destack_repository::{LintSeverity, ReturnAwaitMode};
 use crate::rules::common::{
     expression_affects_error_handling_context, expression_affects_resource_management_context,
     expression_is_any_typed, expression_is_inside_async_callable, expression_is_promise_like,
-    expression_type_or_call_return_type_map, expression_unwrap_parenthesized,
+    expression_type_or_call_return_type_map,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -210,7 +210,7 @@ fn classify_return_value(
         };
     }
 
-    let value_id = expression_unwrap_parenthesized(tree, value_expression_id);
+    let value_id = value_expression_id;
     ReturnValueKind::Plain { value_id }
 }
 
@@ -346,8 +346,6 @@ fn collect_possible_return_values(
     expression_id: dir::LocalNodeId<dir::Expression>,
     values: &mut Vec<dir::LocalNodeId<dir::Expression>>,
 ) {
-    // normalize one parenthesized wrapper layer
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // split conditional expression branches
@@ -440,7 +438,6 @@ fn expression_thenable_certainty(
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> ThenableCertainty {
     // normalize wrappers once for type checks
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
 
     // keep known promise-like expressions at highest certainty
     if promise_symbol.is_some_and(|promise_symbol| {
@@ -478,12 +475,7 @@ fn explicit_await_expression(
         return Some((expression_id, *expression));
     }
 
-    // recurse through parenthesized wrappers
-    let dir::Expression::Parenthesized { expression } = expression else {
-        return None;
-    };
-
-    explicit_await_expression(tree, *expression)
+    None
 }
 
 #[cfg(test)]

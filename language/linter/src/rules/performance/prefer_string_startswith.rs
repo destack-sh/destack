@@ -4,8 +4,8 @@ use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
-    is_string_type, regex_prefix_literal, single_quoted_string_literal, strip_dot_member_suffix,
+    const_i64, expression_regex_literal, flip_binary_operator, is_string_type,
+    regex_prefix_literal, single_quoted_string_literal, strip_dot_member_suffix,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -119,9 +119,6 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         constant_id: dir::LocalNodeId<dir::Expression>,
         flipped: bool,
     ) -> Option<StartsWithMatch> {
-        let candidate_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), candidate_id);
-        let constant_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), constant_id);
-
         // resolve constant comparisons
         let constant_value = self.ctx.const_value(constant_id)?;
         let constant = const_i64(&constant_value)?;

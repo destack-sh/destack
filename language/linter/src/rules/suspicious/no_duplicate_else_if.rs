@@ -2,9 +2,7 @@ use crate::LintMeta;
 use destack_dir as dir;
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{
-    expression_is_else_if_branch, expression_is_equal, expression_unwrap_parenthesized_source_form,
-};
+use crate::rules::common::{expression_is_else_if_branch, expression_is_equal};
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -211,9 +209,6 @@ fn condition_is_equal(
     left_id: dir::LocalNodeId<dir::Expression>,
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // unwrap parenthesized expression wrappers
-    let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), left_id);
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), right_id);
     let left_expression = ctx.dir.get(left_id);
     let right_expression = ctx.dir.get(right_id);
 
@@ -255,7 +250,6 @@ fn condition_is_and(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
     matches!(
         expression,
@@ -288,8 +282,6 @@ fn split_by_logical_operator(
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: dir::BinaryOperator,
 ) -> Vec<dir::LocalNodeId<dir::Expression>> {
-    // normalize parenthesized wrappers
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // recursively flatten matching logical operators

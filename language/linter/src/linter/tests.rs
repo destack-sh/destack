@@ -13,7 +13,7 @@ use destack_compiler::Compiler;
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, ScalarLiteral, Tree};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserOptions};
+use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::{
     DependencySetResolution, DestackLayoutOverride, Edit, Environment, LintCategory, LintSeverity,
     LinterOptions, Module, Profile, ProviderContext, ProviderError, ProviderResult, Ref,
@@ -227,10 +227,10 @@ fn parse_code_dir(
 ) -> DirParsed {
     let language_type = LanguageType::try_from(file.ty)
         .unwrap_or_else(|file_type| panic!("non-code file reached parser: {file_type:?}"));
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         file.clone(),
         language_type,
-        ParserOptions::default(),
+        ParserTriviaMode::Documentation,
         Arc::clone(compiler.repository.string_pool()),
     );
     let expressions = parser.parse();

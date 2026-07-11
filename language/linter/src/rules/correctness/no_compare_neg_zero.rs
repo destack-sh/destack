@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_parenthesized_source_form, is_comparison_operator};
+use crate::rules::common::is_comparison_operator;
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -134,7 +134,6 @@ fn is_negative_zero(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // require unary negation of zero
@@ -155,7 +154,6 @@ fn is_zero_literal(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // require numeric zero literals

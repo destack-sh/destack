@@ -3,9 +3,7 @@ use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, wa
 use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
-use crate::rules::common::{
-    ReferencePath, expression_reference_path, expression_unwrap_parenthesized, is_array_type,
-};
+use crate::rules::common::{ReferencePath, expression_reference_path, is_array_type};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -94,9 +92,6 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) {
-        let left = expression_unwrap_parenthesized(self.ctx.dir.tree(), left);
-        let right = expression_unwrap_parenthesized(self.ctx.dir.tree(), right);
-
         // match filter length on the left
         if let Some(filter_match) = self.filter_length_match(left) {
             // confirm the lengths refer to the same receiver
@@ -156,8 +151,6 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<FilterLengthMatch> {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // match `.length` member access
         let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {
@@ -218,8 +211,6 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         receiver: &ReferencePath,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-
         // match `.length` member access
         let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {

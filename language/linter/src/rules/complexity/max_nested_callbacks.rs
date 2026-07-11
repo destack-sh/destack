@@ -6,7 +6,6 @@ use destack_dir::{
 use destack_repository::LintSeverity;
 use destack_source::Span;
 
-use crate::rules::common::expression_unwrap_parenthesized_source_form;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -106,8 +105,6 @@ impl CallbackVisitor {
         tree: &Tree,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        // normalize parenthesized wrappers before shape checks
-        let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
         let expression = tree.get(expression_id);
 
         // require callable function expressions with a body

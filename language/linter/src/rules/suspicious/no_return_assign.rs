@@ -112,7 +112,7 @@ impl LintRule for NoReturnAssign {
     }
 }
 
-/// Return one assignment expression id, unwrapping parentheses.
+/// Return one assignment expression id.
 fn assignment_expression_id(
     ctx: &LintModuleContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
@@ -120,7 +120,6 @@ fn assignment_expression_id(
     let expression = ctx.dir.get(expr_id);
     match expression {
         dir::Expression::Assign { .. } => Some(expr_id),
-        dir::Expression::Parenthesized { expression } => assignment_expression_id(ctx, *expression),
         _ => None,
     }
 }

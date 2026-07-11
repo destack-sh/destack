@@ -6,8 +6,8 @@ use crate::LintModuleContext;
 use crate::rules::common::glob_matches;
 
 use super::{
-    SymbolDecorator, expression_candidate_symbols, expression_unwrap_parenthesized,
-    symbol_decorators_for, symbol_initializer_expression as resolve_symbol_initializer_expression,
+    SymbolDecorator, expression_candidate_symbols, symbol_decorators_for,
+    symbol_initializer_expression as resolve_symbol_initializer_expression,
 };
 
 /// Label set for taint tracking.
@@ -269,7 +269,6 @@ impl<'a> TaintAnalysis<'a> {
         expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
         symbol_stack: &mut Vec<dir::GlobalSymbolId>,
     ) -> TaintLabels {
-        let expression_id = expression_unwrap_parenthesized(self.tree, expression_id);
         if let Some(labels) = self.cache.expression_labels.get(&expression_id.id) {
             return labels.clone();
         }
@@ -746,7 +745,6 @@ fn expression_is_heuristically_tainted(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
     if matches!(expression, dir::Expression::ScalarLiteral(_)) {

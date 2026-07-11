@@ -3,9 +3,7 @@ use destack_dir as dir;
 use destack_repository::LintSeverity;
 use destack_source::Span;
 
-use crate::rules::common::{
-    expression_unwrap_parenthesized_source_form, single_quoted_string_literal,
-};
+use crate::rules::common::single_quoted_string_literal;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -98,7 +96,6 @@ fn concat_chain_left_operand(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
     if let dir::Expression::Binary {
         left,
@@ -117,7 +114,6 @@ fn concat_chain_right_operand(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
     if let dir::Expression::Binary {
         right,
@@ -139,7 +135,6 @@ fn is_string_literal(
     let expr = ctx.dir.get(expr_id);
     match expr {
         dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_)) => true,
-        dir::Expression::Parenthesized { expression } => is_string_literal(ctx, *expression),
         _ => false,
     }
 }
@@ -171,7 +166,6 @@ fn string_literal_content(
         dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) => {
             Some(ctx.strings.get(*string_id).to_string())
         }
-        dir::Expression::Parenthesized { expression } => string_literal_content(ctx, *expression),
         _ => None,
     }
 }
