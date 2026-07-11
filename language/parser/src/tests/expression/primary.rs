@@ -5,6 +5,7 @@ use destack_dir::{
 };
 use std::sync::Arc;
 
+use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::{
     Parser, ParserOptions, ParserTriviaMode, assert_expression_path, assert_node, assert_path,
     assert_string, assert_value_expression_path,
@@ -15,9 +16,9 @@ use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 /// Parse import meta as one dedicated expression root.
 #[test]
 fn test_parse_import_meta_expression() {
-    let mut test = TestParser::new("import.meta.env");
+    let test = TestParser::new("import.meta.env");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, name.expect("expected member name"), "env");
@@ -28,18 +29,18 @@ fn test_parse_import_meta_expression() {
 /// Parse import source phase access as the import source intrinsic.
 #[test]
 fn test_parse_import_source_as_intrinsic() {
-    let mut test = TestParser::new("import.source");
+    let test = TestParser::new("import.source");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::ImportSource);
 }
 
 /// Parse import source phase calls as member calls.
 #[test]
 fn test_parse_import_source_call_expression() {
-    let mut test = TestParser::new(r#"import.source("data:text/javascript,console.log(1)")"#);
+    let test = TestParser::new(r#"import.source("data:text/javascript,console.log(1)")"#);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -50,10 +51,9 @@ fn test_parse_import_source_call_expression() {
 /// Parse import source phase calls with expression arguments.
 #[test]
 fn test_parse_import_source_call_expression_with_template_argument() {
-    let mut test =
-        TestParser::new("import.source(String.raw`data:text/javascript,console.log(1)`)");
+    let test = TestParser::new("import.source(String.raw`data:text/javascript,console.log(1)`)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -67,18 +67,18 @@ fn test_parse_import_source_call_expression_with_template_argument() {
 /// Parse a bare this expression.
 #[test]
 fn test_parse_this_expression() {
-    let mut test = TestParser::new("this");
+    let test = TestParser::new("this");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::This);
 }
 
 /// Parse a bare identifier as an identifier expression.
 #[test]
 fn test_parse_identifier_expression_as_identifier() {
-    let mut test = TestParser::new("value");
+    let test = TestParser::new("value");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Identifier { name } => {
         assert_string!(parser, *name, "value");
@@ -89,24 +89,24 @@ fn test_parse_identifier_expression_as_identifier() {
 /// Parse contextual type literal names as values before member access.
 #[test]
 fn test_parse_contextual_type_literal_name_member_expression() {
-    let mut test = TestParser::new("object.property");
+    let test = TestParser::new("object.property");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_expression_path!(parser, parser.tree.get(*left), "object");
         assert_string!(parser, name.expect("expected member name"), "property");
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 /// Parse a type unary reference as a qualified reference.
 #[test]
 fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
-    let mut test = TestParser::new("type Foo.Bar");
+    let test = TestParser::new("type Foo.Bar");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
@@ -118,7 +118,7 @@ fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
                 .tree
                 .get_head_span(*value)
                 .expect("expected qualified reference head span");
-            assert_eq!(parser.get_span_str(head_span), "Foo");
+            assert_eq!(parser.span_str(head_span), "Foo");
         });
     });
 }
@@ -126,18 +126,18 @@ fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
 /// Parse a bare super expression.
 #[test]
 fn test_parse_super_expression() {
-    let mut test = TestParser::new("super");
+    let test = TestParser::new("super");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Super);
 }
 
 /// Parse a bare null literal.
 #[test]
 fn test_parse_null_literal() {
-    let mut test = TestParser::new("null");
+    let test = TestParser::new("null");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(
         parser.tree,
         expression_id,
@@ -148,9 +148,9 @@ fn test_parse_null_literal() {
 /// Parse a bare undefined literal.
 #[test]
 fn test_parse_undefined_literal() {
-    let mut test = TestParser::new("undefined");
+    let test = TestParser::new("undefined");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(
         parser.tree,
         expression_id,
@@ -161,37 +161,36 @@ fn test_parse_undefined_literal() {
 /// Parse parenthesized expressions with a transparent head span.
 #[test]
 fn test_parse_parenthesized_expression_records_semantic_head_span() {
-    let mut test = TestParser::new("(value)");
+    let test = TestParser::new("(value)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
-        let head_span = parser
+        let head_range = parser
             .tree
-            .get_head_span(expression_id)
-            .expect("missing parenthesized head span");
-        let value_head_span = parser.expression_head_span(*expression);
+            .get_head_range(expression_id)
+            .expect("missing parenthesized head range");
+        let value_head_range = parser.expression_head_range(*expression);
 
-        assert_eq!(head_span, value_head_span);
-        assert_eq!(parser.get_span_str(head_span), "value");
+        assert_eq!(head_range, value_head_range);
+        assert_eq!(parser.range_str(head_range), "value");
     });
 }
 
 /// Keep inner spans without parenthesized expression wrappers.
 #[test]
-fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
+fn test_parse_without_retained_parentheses_keeps_inner_expression_span() {
     let test = TestParser::new("(/* keep */ value)");
     let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
         test.language,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            preserve_parenthesized_wrappers: false,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         Arc::new(StringPool::new()),
     );
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Identifier { .. });
@@ -204,20 +203,24 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
             NodeSpanType::Boundary(NodeSpanBoundary::Leading),
         )
         .expect("missing expression leading span");
-    let wrapper_span = parser
+    let parentheses_span = parser
         .tree
-        .get_side_span(expression_id, NodeSpanType::Region(NodeSpanRegion::Wrapper))
-        .expect("missing expression wrapper span");
+        .get_side_span(
+            expression_id,
+            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+        )
+        .expect("missing expression parentheses span");
     let comment = parser.tree.comments()[0];
 
-    assert_eq!(parser.get_span_str(expression_span), "value");
-    assert_eq!(parser.get_span_str(leading_span), "/* keep */ ");
-    assert_eq!(parser.get_span_str(wrapper_span), "(/* keep */ value)");
+    assert_eq!(parser.span_str(expression_span), "value");
+    assert_eq!(parser.span_str(leading_span), "/* keep */ ");
+    assert_eq!(parser.span_str(parentheses_span), "(/* keep */ value)");
     assert_eq!(comment.attached_to, expression_span.start);
 }
+
 #[test]
 fn test_parse_typed_object_method_in_call_argument() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"connect({
     num(state: State) {
         return state.counter.num;
@@ -227,7 +230,7 @@ fn test_parse_typed_object_method_in_call_argument() {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "connect");
@@ -271,7 +274,7 @@ fn test_parse_typed_object_method_in_call_argument() {
 /// Parse typed object methods in decorator call arguments.
 #[test]
 fn test_parse_typed_object_method_in_decorator_argument() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"connect({
     num(state: State) {
         if (state.counter.num === 0) return true;
@@ -286,12 +289,13 @@ fn test_parse_typed_object_method_in_decorator_argument() {
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .with_flags(parser.flags.in_decorator(), |parser| {
-            parser.eat_expression(parser.flags)
+        .parse_expression(ExpressionContext {
+            decorator: DecoratorContext::Head,
+            ..ExpressionContext::default()
         })
         .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "connect");
@@ -329,7 +333,7 @@ fn test_parse_typed_object_method_in_decorator_argument() {
 /// Parse keywords as fields and identifiers.
 #[test]
 fn test_parse_keywords_as_fields_and_identifiers() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "{
     // can be used as both fields and bindings
     namespace: namespace,
@@ -361,7 +365,7 @@ fn test_parse_keywords_as_fields_and_identifiers() {
 }",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 25);
@@ -391,9 +395,9 @@ fn test_parse_keywords_as_fields_and_identifiers() {
 /// Parse `type instanceof Foo` as an instanceof guard.
 #[test]
 fn test_parse_type_keyword_instanceof_expression() {
-    let mut test = TestParser::new("type instanceof Foo");
+    let test = TestParser::new("type instanceof Foo");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::InstanceOf { value, target } => {
         assert_expression_path!(parser, parser.tree.get(*value), "type");
@@ -404,10 +408,10 @@ fn test_parse_type_keyword_instanceof_expression() {
 /// Parse `extension` as an identifier in expressions.
 #[test]
 fn test_parse_extension_identifier_in_ternary_expression() {
-    let mut test =
+    let test =
         TestParser::new(r#"typeof extension === "function" ? extension(cloned) : extension"#);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);

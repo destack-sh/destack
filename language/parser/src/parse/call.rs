@@ -1,43 +1,48 @@
 use destack_dir::{
     Expression, GenericArgument, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType,
 };
-use destack_source::Span;
+use destack_source::ByteRange;
 
+use crate::parse::context::{ExpressionContext, TypeContext, TypeMode};
 use crate::{Parser, ParserResult};
 
 impl Parser {
-    /// Eat one value-space explicit index postfix.
+    /// Parse one value-space explicit index postfix.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// []
     /// [1]
     /// ["bar"]
     /// [variable+1]
     /// ```
-    pub(crate) fn eat_index(
+    pub(crate) fn parse_index(
         &mut self,
         receiver_id: LocalNodeId<Expression>,
         position: PostfixPosition,
+        context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
-        let receiver_span = self.tree.get_span(receiver_id);
+        let start = self.mark_parse_start();
+        let receiver_range = self.tree.get_range(receiver_id);
 
         // open bracket
         self.eat_token(TokenType::OpenBracket)?;
 
         // bare index
         if self.peek_is(TokenType::CloseBracket) {
-            self.bump(); // eat close bracket
-            let index_span = self.get_span_from(&start);
-            let span = Span::new(index_span.file, receiver_span.start, index_span.end);
+            self.bump();
+            let index_range = self.range_since(&start);
+            let range = ByteRange {
+                start: receiver_range.start,
+                end: index_range.end,
+            };
             let index_id = self.insert_node(
                 Expression::Index {
                     position,
                     left: receiver_id,
                     index: None,
                 },
-                span,
+                range,
             );
             return Ok(index_id);
         }
@@ -47,7 +52,7 @@ impl Parser {
         let index = if is_missing_index {
             self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            self.eat_expression(self.flags.nested())?
+            self.parse_expression(context.nested())?
         };
 
         // close bracket
@@ -60,39 +65,53 @@ impl Parser {
             left: receiver_id,
             index: Some(index),
         };
-        let index_span = self.get_span_from(&start);
-        let span = Span::new(index_span.file, receiver_span.start, index_span.end);
-        let index_id = self.insert_node(index_expression, span);
+        let index_range = self.range_since(&start);
+        let range = ByteRange {
+            start: receiver_range.start,
+            end: index_range.end,
+        };
+        let index_id = self.insert_node(index_expression, range);
         Ok(index_id)
     }
 
-    /// Eat a new constructor call.
+    /// Parse a new constructor call.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// new Foo
     /// new Foo()
     /// new Foo(1, 2)
     /// new Foo<T>()
     /// new _()
     /// ```
-    pub fn eat_new(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
+    pub(crate) fn parse_new(
+        &mut self,
+        context: ExpressionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
 
         // keyword
         self.eat_keyword(Keyword::New)?;
         let is_maybe = self.eat_token_if(TokenType::Maybe);
 
         // constructor name
-        let ty = if self.current_token_is_on_new_line() {
+        let ty = if self.peek_is_on_new_line() {
             self.recover_missing_type_expression_here(NodeType::Expression)
         } else {
-            let ty_flags = self.flags.not_in_position().in_type().in_new_receiver();
-            self.eat_type_expression_or_recover_missing(ty_flags, NodeType::Expression)?
+            self.parse_type_or_recover_missing(
+                TypeContext {
+                    function: context.function,
+                    mode: TypeMode::NewReceiver,
+                    ..TypeContext::default()
+                },
+                NodeType::Expression,
+            )?
         };
 
         // constructor arguments are optional
-        let arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
+        let arguments = self
+            .parse_arguments_if_present(context.nested())?
+            .unwrap_or_default();
 
         // call
         let expression = if is_maybe {
@@ -100,37 +119,38 @@ impl Parser {
         } else {
             Expression::New { ty, arguments }
         };
-        let call_id = self.insert_node(expression, self.get_span_from(&start));
+        let call_id = self.insert_node(expression, self.range_since(&start));
         Ok(call_id)
     }
 
-    /// Eat a call (postfix, excluding the receiver).
+    /// Parse a call (postfix, excluding the receiver).
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// ()
     /// (1, 2, 3)
     /// <int32>(1, 2, 3)
     /// <Validate: false>(1, 2, 3)
     /// (Vector2 {x: 1, y: 2}, (true, 3))
     /// ```
-    pub fn eat_call(
+    pub(crate) fn parse_call(
         &mut self,
         receiver_id: LocalNodeId<Expression>,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         position: PostfixPosition,
+        context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
-        let receiver_span = self.tree.get_span(receiver_id);
+        let start = self.mark_parse_start();
+        let receiver_range = self.tree.get_range(receiver_id);
 
         // generic arguments from postfix or immediate call form
         let generic_arguments = match generic_arguments {
             Some(generic_arguments) => Some(generic_arguments),
-            None => self.eat_generic_arguments_maybe()?,
+            None => self.parse_generic_arguments_if_present(context)?,
         };
 
         // dynamic arguments (may be empty)
-        let arguments = self.eat_dynamic_arguments()?;
+        let arguments = self.parse_argument_list(context.nested())?;
 
         // call
         let call_id = self.insert_node(
@@ -141,8 +161,11 @@ impl Parser {
                 arguments,
             },
             {
-                let call_span = self.get_span_from(&start);
-                Span::new(call_span.file, receiver_span.start, call_span.end)
+                let call_range = self.range_since(&start);
+                ByteRange {
+                    start: receiver_range.start,
+                    end: call_range.end,
+                }
             },
         );
         Ok(call_id)

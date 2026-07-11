@@ -24,11 +24,11 @@ fn assert_direct_maybe_call(
 #[test]
 fn test_parse_optional_chain_after_comment_newlines() {
     let input = "promise\n  .then(noop)\n  // comment\n  // comment\n  ?.catch(noop)";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     let statement_id = expressions[0];
@@ -51,11 +51,11 @@ fn test_parse_optional_chain_after_comment_newlines() {
 /// Parse direct `?` before arithmetic continuation.
 #[test]
 fn test_parse_direct_maybe_before_arithmetic() {
-    let mut test = TestParser::new("encode()? + 1");
+    let test = TestParser::new("encode()? + 1");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::Add);
         assert_direct_maybe_call(&parser, *left, "encode");
@@ -66,11 +66,11 @@ fn test_parse_direct_maybe_before_arithmetic() {
 /// Parse direct `?` before logical continuation.
 #[test]
 fn test_parse_direct_maybe_before_logical() {
-    let mut test = TestParser::new("encode()? && ready");
+    let test = TestParser::new("encode()? && ready");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::And);
         assert_direct_maybe_call(&parser, *left, "encode");
@@ -81,11 +81,11 @@ fn test_parse_direct_maybe_before_logical() {
 /// Parse direct `?` before an `as` assertion continuation.
 #[test]
 fn test_parse_direct_maybe_before_as() {
-    let mut test = TestParser::new("encode()? as string");
+    let test = TestParser::new("encode()? as string");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
         assert_direct_maybe_call(&parser, *expression, "encode");
         assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
@@ -97,9 +97,9 @@ fn test_parse_direct_maybe_before_as() {
 /// Parse direct `?` before a type assertion continuation.
 #[test]
 fn test_parse_direct_maybe_before_satisfies() {
-    let mut test = TestParser::new("encode(value)? satisfies string");
+    let test = TestParser::new("encode(value)? satisfies string");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Satisfies { expression, target_type } => {
         assert_node!(parser.tree, *expression, Expression::Maybe { left, position } => {
@@ -116,11 +116,11 @@ fn test_parse_direct_maybe_before_satisfies() {
 /// Parse direct `?` before member continuation.
 #[test]
 fn test_parse_direct_maybe_before_member() {
-    let mut test = TestParser::new("encode()?.field");
+    let test = TestParser::new("encode()?.field");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, *name, "field");
         assert_direct_maybe_call(&parser, *left, "encode");
@@ -130,11 +130,11 @@ fn test_parse_direct_maybe_before_member() {
 /// Parse direct `?` before index continuation.
 #[test]
 fn test_parse_direct_maybe_before_index() {
-    let mut test = TestParser::new("encode()?[0]");
+    let test = TestParser::new("encode()?[0]");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Index { left, index, position } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_direct_maybe_call(&parser, *left, "encode");
@@ -145,11 +145,11 @@ fn test_parse_direct_maybe_before_index() {
 /// Parse a detached question mark after an identifier condition as a ternary.
 #[test]
 fn test_parse_identifier_question_expression_as_ternary() {
-    let mut test = TestParser::new("a ? b : c");
+    let test = TestParser::new("a ? b : c");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -162,13 +162,13 @@ fn test_parse_identifier_question_expression_as_ternary() {
 /// Parse direct `?` after a generic call with an escaped string argument.
 #[test]
 fn test_parse_direct_maybe_after_generic_call_with_escaped_string() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"const config = decode<ServerConfig>("{\"host\":\"127.0.0.1\",\"port\":8080,\"secure\":true}")?;"#,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
         assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
@@ -183,7 +183,7 @@ fn test_parse_direct_maybe_after_generic_call_with_escaped_string() {
 /// Parse direct `?` after a multiline generic call.
 #[test]
 fn test_parse_direct_maybe_after_multiline_generic_call() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"const config = decode<AppConfig>(
     "{\"database\":{\"url\":\"postgres://local\"}",
 )?;"#,
@@ -191,7 +191,7 @@ fn test_parse_direct_maybe_after_multiline_generic_call() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
         assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
@@ -206,11 +206,11 @@ fn test_parse_direct_maybe_after_multiline_generic_call() {
 /// Parse direct `?` after a qualified method call.
 #[test]
 fn test_parse_direct_maybe_after_qualified_call() {
-    let mut test = TestParser::new("JSON.parse(text)?;");
+    let test = TestParser::new("JSON.parse(text)?;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Maybe { left, position } => {
         assert_eq!(*position, PostfixPosition::Direct);
@@ -221,11 +221,11 @@ fn test_parse_direct_maybe_after_qualified_call() {
 /// Parse direct `?` after a qualified method call before a type assertion.
 #[test]
 fn test_parse_direct_maybe_after_qualified_call_before_satisfies() {
-    let mut test = TestParser::new("JSON.stringify(value)? satisfies string;");
+    let test = TestParser::new("JSON.stringify(value)? satisfies string;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Satisfies { expression, target_type } => {
         assert_node!(parser.tree, *expression, Expression::Maybe { left, position } => {
@@ -242,9 +242,9 @@ fn test_parse_direct_maybe_after_qualified_call_before_satisfies() {
 #[test]
 fn test_parse_optional_call_after_question_dot_line_comment_newline() {
     let input = "call?.// comment\n()";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, position, .. } => {
         assert_eq!(*position, PostfixPosition::Indirect);
@@ -261,11 +261,11 @@ fn test_parse_optional_call_after_question_dot_line_comment_newline() {
 #[test]
 fn test_parse_optional_chain_member_after_question_dot_newline() {
     let input = "items?.\nmap(noop)";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // items?.map(noop)
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -287,11 +287,11 @@ fn test_parse_optional_chain_member_after_question_dot_newline() {
 #[test]
 fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
     let input = "permissions?.\nconcat(first).\nconcat(second)";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -321,9 +321,9 @@ fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
 /// Parse an arrow function parameter named `accessor`.
 #[test]
 fn test_parse_arrow_parameter_accessor_name() {
-    let mut test = TestParser::new("(accessor: ServicesAccessor) => accessor.get()");
+    let test = TestParser::new("(accessor: ServicesAccessor) => accessor.get()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.parameters.len(), 1);
@@ -338,9 +338,9 @@ fn test_parse_arrow_parameter_accessor_name() {
 /// Parse newline-separated parenthesized assertion starters as a continued call.
 #[test]
 fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() {
-    let mut test = TestParser::new("(foo.bar as Baz)\n(foo.bar as any)");
+    let test = TestParser::new("(foo.bar as Baz)\n(foo.bar as any)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // (foo.bar as Baz) (foo.bar as any)
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {

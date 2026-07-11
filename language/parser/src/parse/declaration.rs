@@ -1,8 +1,8 @@
-use destack_dir::{ExportKind, Keyword, PlaceModifier, TokenType};
-use destack_source::Span;
+use destack_dir::{ExportKind, Keyword, Mutability, PlaceModifier, TokenType, TypeKind};
+use destack_source::ByteRange;
 
 /// Tokens that can start a declaration binding pattern.
-pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
+pub const DECLARATION_START_TOKENS: [TokenType; 6] = [
     TokenType::Literal,
     TokenType::Identifier,
     TokenType::OpenParenthesis,
@@ -12,7 +12,7 @@ pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
 ];
 
 /// Tokens that can start a value pattern.
-pub static PATTERN_START_TOKENS: [TokenType; 6] = [
+pub const PATTERN_START_TOKENS: [TokenType; 6] = [
     TokenType::Identifier,
     TokenType::Literal,
     TokenType::ElementwiseAnd,
@@ -21,93 +21,42 @@ pub static PATTERN_START_TOKENS: [TokenType; 6] = [
     TokenType::OpenBracket,
 ];
 
-/// Parsed declaration prefix shared across declaration forms.
+/// One declaration header shared across declaration forms.
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub(crate) struct DeclarationHeader {
     /// The export kind for the declaration.
-    pub export: Option<ExportKind>,
+    pub(crate) export: Option<ExportKind>,
     /// Whether the declaration is ambient.
-    pub is_ambient: bool,
-    /// The explicit `declare` modifier span.
-    pub declare_span: Option<Span>,
+    pub(crate) is_ambient: bool,
+    /// The explicit `declare` modifier range.
+    pub(crate) declare_range: Option<ByteRange>,
     /// Whether the declaration is abstract.
-    pub is_abstract: bool,
+    pub(crate) is_abstract: bool,
     /// Whether the declaration is final.
-    pub is_final: bool,
+    pub(crate) is_final: bool,
     /// The explicit placement modifier.
-    pub place: Option<PlaceModifier>,
+    pub(crate) place: Option<PlaceModifier>,
 }
 
-impl DeclarationHeader {
-    /// Return whether the header contains a parsed prefix modifier.
-    pub(crate) fn has_modifier(self) -> bool {
-        self.is_ambient
-            || self.declare_span.is_some()
-            || self.is_abstract
-            || self.is_final
-            || self.place.is_some()
+/// The declaration properties implied by one type keyword.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct TypeKeywordHeader {
+    /// The type declaration kind implied by the keyword.
+    pub(crate) kind: TypeKind,
+    /// The alias mutability implied by the keyword.
+    pub(crate) mutability: Option<Mutability>,
+}
+
+impl TypeKeywordHeader {
+    /// Return the declaration properties implied by one type keyword.
+    pub(crate) fn from_keyword(keyword: Keyword) -> Option<Self> {
+        let kind = match keyword {
+            Keyword::Type | Keyword::Readonly => TypeKind::Structural,
+            Keyword::Newtype => TypeKind::Nominal,
+            _ => return None,
+        };
+        let mutability = (keyword == Keyword::Readonly).then_some(Mutability::Immutable);
+
+        Some(Self { kind, mutability })
     }
-}
-
-/// Return true when a keyword starts a declaration.
-pub(crate) fn is_declaration_keyword(keyword: Keyword) -> bool {
-    matches!(
-        keyword,
-        Keyword::Struct
-            | Keyword::Class
-            | Keyword::Enum
-            | Keyword::Function
-            | Keyword::Extension
-            | Keyword::Interface
-            | Keyword::Type
-            | Keyword::Newtype
-            | Keyword::Const
-            | Keyword::Readonly
-            | Keyword::Let
-            | Keyword::Using
-    ) || is_declaration_modifier_keyword(keyword)
-}
-
-/// Return true when a keyword can modify a declaration head.
-pub(crate) fn is_declaration_modifier_keyword(keyword: Keyword) -> bool {
-    matches!(
-        keyword,
-        Keyword::Declare
-            | Keyword::Abstract
-            | Keyword::Final
-            | Keyword::Override
-            | Keyword::Public
-            | Keyword::Protected
-            | Keyword::Private
-            | Keyword::Async
-    )
-}
-
-/// Return true when a keyword can prefix a declaration expression.
-pub(crate) fn is_declaration_prefix_keyword(keyword: Keyword) -> bool {
-    matches!(
-        keyword,
-        Keyword::Export
-            | Keyword::Declare
-            | Keyword::Abstract
-            | Keyword::Final
-            | Keyword::Local
-            | Keyword::Shared
-    )
-}
-
-/// Return true when a keyword can act as a type relation operator.
-pub(crate) fn is_type_relation_keyword(keyword: Option<Keyword>) -> bool {
-    matches!(
-        keyword,
-        Some(
-            Keyword::As
-                | Keyword::Satisfies
-                | Keyword::Is
-                | Keyword::InstanceOf
-                | Keyword::In
-                | Keyword::Extends
-                | Keyword::Implements
-        )
-    )
 }

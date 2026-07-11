@@ -3,116 +3,113 @@ use destack_dir::{
     LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
 };
 
-use crate::parse::flags::ParserFlags;
+use crate::parse::context::{
+    ExpressionContext, ExpressionStops, FunctionContext, PatternContext, StatementPosition,
+};
 use crate::{Parser, ParserError, ParserResult};
 
 impl Parser {
-    /// Eat a loop (e.g., `loop { ... }`).
+    /// Parse one unconditional loop.
     ///
     /// Examples:
+    /// ```ds
+    /// loop { work(); }
     /// ```
-    /// loop {
-    ///     y = getNext()
-    ///     if (y < 0) {
-    ///         break
-    ///     }
-    /// }
-    /// ```
-    pub fn eat_loop(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
-
-        // keyword
-        self.eat_keyword(Keyword::Loop)?;
-
-        // body
-        let body_id = self.eat_block(BlockContext::Statement)?;
+    pub(crate) fn parse_loop(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
 
         // loop
-        let loop_id = self.insert_node(
-            Expression::Loop { body: body_id },
-            self.get_span_from(&start),
-        );
+        self.eat_keyword(Keyword::Loop)?;
+
+        // { body }
+        let body_id = self.parse_block(BlockContext::Statement, function)?;
+
+        // retain the complete loop
+        let loop_id =
+            self.insert_node(Expression::Loop { body: body_id }, self.range_since(&start));
         Ok(loop_id)
     }
 
-    /// Eat a for each or for condition loop (including keyword and header).
+    /// Parse one condition or iteration loop.
     ///
     /// Examples:
+    /// ```ds
+    /// for (item of items) visit(item);
+    /// for (let index = 0; index < count; index++) work(index);
     /// ```
-    /// for (const item in items) {
-    ///     item
-    /// }
-    ///
-    /// for (const x in zeds.iter()) a: {
-    ///     if (y > 5) {
-    ///         continue a
-    ///     }
-    ///     y = 2
-    /// }
-    ///
-    /// for (let x = 0; x < 10; x++) {
-    ///     y = 2
-    /// }
-    /// ```
-    pub fn eat_for(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
+    pub(crate) fn parse_for(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
 
-        // keyword
+        // for
         self.eat_keyword(Keyword::For)?;
 
-        // asynchrony
-        let asynchrony = if self.is_keyword(Keyword::Await) {
-            self.bump(); // eat await keyword
+        // await
+        let asynchrony = if self.peek_is_keyword(Keyword::Await) {
+            self.bump();
             Asynchrony::Async
         } else {
             Asynchrony::Sync
         };
 
-        let header_scan = self.scan_parenthesized_group(TokenType::Semicolon);
-        let has_top_level_semicolon = matches!(header_scan, Some(true));
+        let header_contains_semicolon =
+            self.peek_parenthesized_group_contains(TokenType::Semicolon);
+        let has_top_level_semicolon = matches!(header_contains_semicolon, Some(true));
         self.eat_token(TokenType::OpenParenthesis)?;
 
-        // for condition loop
+        // for (initialization; condition; increment) body
         if asynchrony == Asynchrony::Sync && has_top_level_semicolon {
-            // parse each c style clause as an independent expression
-            let clause_flags = self.flags.nested();
-
-            // initialization
+            // initialization;
             let initialization_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.eat_expression(clause_flags)?)
+                Some(self.parse_expression(ExpressionContext {
+                    function,
+                    statement: StatementPosition::Direct,
+                    ..ExpressionContext::default()
+                })?)
             };
             self.eat_token(TokenType::Semicolon)?;
 
-            // condition
+            // condition;
             let condition_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.eat_expression(clause_flags)?)
+                Some(self.parse_expression(ExpressionContext {
+                    function,
+                    ..ExpressionContext::default()
+                })?)
             };
             self.eat_token(TokenType::Semicolon)?;
 
-            // increment
+            // increment)
             let increment_id = if self.peek_is(TokenType::CloseParenthesis) {
                 None
             } else {
-                Some(self.eat_expression(clause_flags)?)
+                Some(self.parse_expression(ExpressionContext {
+                    function,
+                    ..ExpressionContext::default()
+                })?)
             };
 
-            // close parenthesis
+            // recover the closing parenthesis before the body
             self.eat_close_token_or_recover_missing_with(
                 TokenType::CloseParenthesis,
                 NodeType::Expression,
                 |parser, token_type| {
-                    Self::is_close_delimiter_boundary_token(token_type) || parser.is_block_start()
+                    Self::is_close_delimiter_boundary_token(token_type) || parser.peek_block()
                 },
             )?;
 
             // body
-            let body_id = self.eat_block_or_statement()?;
+            let body_id = self.parse_block_or_statement(function)?;
 
-            // for
+            // retain the complete condition loop
             let for_id = self.insert_node(
                 Expression::For {
                     initialization: initialization_id,
@@ -120,41 +117,44 @@ impl Parser {
                     increment: increment_id,
                     body: body_id,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             Ok(for_id)
         }
-        // explicit pattern for loop
+        // for [await] (binding in|of iterator) body
         else {
             // binding
-            let binding = self.eat_for_each_binding()?;
+            let binding = self.parse_for_each_binding(function)?;
 
-            // in
-            let operator_token = self.peek();
+            // in or of
+            let operator_token = self.peek_token_span();
             let operator = match self.eat_keyword_in(&[Keyword::In, Keyword::Of])? {
                 Keyword::In => ForEachOperator::In,
                 Keyword::Of => ForEachOperator::Of,
                 _ => return Err(ParserError::unexpected(operator_token)),
             };
 
-            // iterator
-            let iterator_flags = self.for_each_value_flags(header_scan.is_some());
-            let iterator_id =
-                self.with_flags(iterator_flags, |parser| parser.eat_expression(parser.flags))?;
+            // iterator)
+            let iterator_context = ExpressionContext::for_each(
+                function,
+                header_contains_semicolon.is_some(),
+                self.peek_is(TokenType::OpenBrace),
+            );
+            let iterator_id = self.parse_expression(iterator_context)?;
 
-            // close parenthesis
+            // recover the closing parenthesis before the body
             self.eat_close_token_or_recover_missing_with(
                 TokenType::CloseParenthesis,
                 NodeType::Expression,
                 |parser, token_type| {
-                    Self::is_close_delimiter_boundary_token(token_type) || parser.is_block_start()
+                    Self::is_close_delimiter_boundary_token(token_type) || parser.peek_block()
                 },
             )?;
 
             // body
-            let body_id = self.eat_block_or_statement()?;
+            let body_id = self.parse_block_or_statement(function)?;
 
-            // for
+            // retain the complete iteration loop
             let for_id = self.insert_node(
                 Expression::ForEach {
                     asynchrony,
@@ -163,24 +163,27 @@ impl Parser {
                     iterator: iterator_id,
                     body: body_id,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             Ok(for_id)
         }
     }
 
-    /// Eat a for each binding (pattern or using).
-    pub(crate) fn eat_for_each_binding(&mut self) -> ParserResult<ForEachBinding> {
-        let using_asynchrony = self.for_each_using_binding_asynchrony();
-
-        if let Some(using_asynchrony) = using_asynchrony {
+    /// Parse a for-each binding pattern or using declaration.
+    pub(crate) fn parse_for_each_binding(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<ForEachBinding> {
+        if let Some(using_asynchrony) = self.peek_for_each_using_asynchrony() {
             if using_asynchrony == Asynchrony::Async {
-                self.bump(); // eat await
+                self.bump();
             }
 
-            self.bump(); // eat using
-            let pattern_flags = self.flags.not_in_position().in_for_each();
-            let pattern = self.with_flags(pattern_flags, |parser| parser.eat_pattern())?;
+            self.bump();
+            let pattern = self.parse_pattern(PatternContext {
+                function,
+                ..PatternContext::default()
+            })?;
             Ok(ForEachBinding::Using {
                 asynchrony: using_asynchrony,
                 pattern,
@@ -190,13 +193,16 @@ impl Parser {
 
             if keyword.is_none() {
                 // for each without declarations keeps expression heads as expression patterns
-                let start = self.span_start();
-                let expression = self
-                    .eat_expression(self.flags.not_in_position().in_for_each().in_before_block())?;
+                let start = self.mark_parse_start();
+                let expression = self.parse_expression(ExpressionContext {
+                    function,
+                    stops: ExpressionStops::FOR_EACH.with(ExpressionStops::BODY_BRACE),
+                    ..ExpressionContext::default()
+                })?;
 
                 let pattern = self.insert_node(
                     Pattern::Expression { value: expression },
-                    self.get_span_from(&start),
+                    self.range_since(&start),
                 );
                 Ok(ForEachBinding::Pattern {
                     pattern,
@@ -206,50 +212,39 @@ impl Parser {
                 self.bump();
 
                 // declaration forms keep binding-pattern parsing
-                let pattern_flags = self.flags.not_in_position().in_for_each();
-                let pattern = self.with_flags(pattern_flags, |parser| parser.eat_pattern())?;
+                let pattern = self.parse_pattern(PatternContext {
+                    function,
+                    ..PatternContext::default()
+                })?;
                 Ok(ForEachBinding::Pattern { pattern, keyword })
             }
         }
     }
 
-    /// Return expression flags for a for-each iterator expression.
-    fn for_each_value_flags(&mut self, has_header_close: bool) -> ParserFlags {
-        let flags = self.flags.nested().not_in_position();
-
-        // preserve object literal iterators in valid headers
-        if has_header_close || self.peek_is(TokenType::OpenBrace) {
-            return flags;
-        }
-
-        // recover missing `)` before a body block
-        flags.in_for_each().in_before_block()
-    }
-
     /// Return the using asynchrony when a for each header starts a using binding.
-    fn for_each_using_binding_asynchrony(&mut self) -> Option<Asynchrony> {
+    fn peek_for_each_using_asynchrony(&self) -> Option<Asynchrony> {
         // resolve `using` with optional `await` prefix
-        let asynchrony = if self.using_keyword_is(Asynchrony::Async) {
+        let asynchrony = if self.peek_using(Asynchrony::Async) {
             Asynchrony::Async
-        } else if self.using_keyword_is(Asynchrony::Sync) {
+        } else if self.peek_using(Asynchrony::Sync) {
             Asynchrony::Sync
         } else {
             return None;
         };
 
         // keep the binding head on the same line
-        let declarator_token_type = self.using_binding_head_token(asynchrony)?;
+        let declarator_token_type = self.peek_using_binding_head_token(asynchrony)?;
 
         // using bindings start with a binding pattern shape
-        if !self.token_can_start_using_binding_pattern(declarator_token_type) {
+        if !Self::can_start_using_binding_pattern(declarator_token_type) {
             return None;
         }
 
         // disambiguate identifier starts that should remain expression headers
         if declarator_token_type == TokenType::Identifier {
             let declarator_keyword = self
-                .using_binding_head_offset(asynchrony)
-                .and_then(|offset| self.keyword_at_offset(offset));
+                .peek_using_binding_head_offset(asynchrony)
+                .and_then(|offset| self.peek_keyword_at(offset));
 
             // `for (using in ...)` should parse as identifier `using`
             if declarator_keyword == Some(Keyword::In) {
@@ -264,88 +259,80 @@ impl Parser {
 
         Some(asynchrony)
     }
+
     /// Return the declaration keyword for a for each pattern binding.
-    fn peek_for_each_keyword(&mut self) -> Option<BindingKeyword> {
-        let keyword = self.peek_any_keyword().ok()?;
-        match keyword {
+    fn peek_for_each_keyword(&self) -> Option<BindingKeyword> {
+        match self.peek_keyword()? {
             Keyword::Let => Some(BindingKeyword::Let),
             Keyword::Const | Keyword::Readonly => Some(BindingKeyword::Const),
             _ => None,
         }
     }
 
-    /// Eat a while or do-while loop (including keyword and header).
+    /// Parse one while or do-while loop.
     ///
     /// Examples:
+    /// ```ds
+    /// while (ready) work();
+    /// do { work(); } while (ready)
     /// ```
-    /// while (x > 1) {
-    ///     y = 2
-    /// }
-    ///
-    /// l: while (y < 10) {
-    ///     y = 2
-    ///     break l
-    /// }
-    ///
-    /// do {
-    ///     y = 2
-    /// } while (x > 1)
-    ///
-    /// do console.log("test"); while (true)
-    /// ```
-    pub fn eat_while(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
+    pub(crate) fn parse_while(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
 
-        // do-while loop
-        if self.is_keyword(Keyword::Do) {
-            // do keyword
-            self.bump(); // eat do keyword
+        // do body while (condition)
+        if self.peek_is_keyword(Keyword::Do) {
+            // do
+            self.bump();
 
             // body
-            let body_id = self.eat_block_or_statement()?;
+            let body_id = self.parse_block_or_statement(function)?;
 
-            // while keyword
+            // while
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_flags = self.flags.not_in_position();
-            let condition_id = self.with_flags(condition_flags, |parser| {
-                parser.eat_parenthesized_expression()
+            let condition_id = self.parse_parenthesized_expression(ExpressionContext {
+                function,
+                ..ExpressionContext::default()
             })?;
 
-            // while
+            // retain the complete do-while loop
             let while_id = self.insert_node(
                 Expression::While {
                     form: WhileForm::DoWhile,
                     condition: condition_id,
                     body: body_id,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             Ok(while_id)
         }
-        // while loop
+        // while (condition) body
         else {
-            // while keyword
+            // while
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_flags = self.flags.not_in_position().in_before_block();
-            let condition_id = self.with_flags(condition_flags, |parser| {
-                parser.eat_parenthesized_expression()
+            let condition_id = self.parse_parenthesized_expression(ExpressionContext {
+                function,
+                stops: ExpressionStops::BODY_BRACE,
+                ..ExpressionContext::default()
             })?;
 
             // body
-            let body_id = self.eat_block_or_statement()?;
+            let body_id = self.parse_block_or_statement(function)?;
 
-            // while
+            // retain the complete while loop
             let while_id = self.insert_node(
                 Expression::While {
                     form: WhileForm::While,
                     condition: condition_id,
                     body: body_id,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             Ok(while_id)
         }

@@ -5,71 +5,71 @@ use crate::{assert_expression_path, assert_node, assert_string};
 
 #[test]
 fn test_report_key_named_type_expression_with_multiline_type() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"[key:
     | string
     | number]"#,
     );
     let mut parser = test.prepare();
-    let error = parser.eat_key_with_span().unwrap_err();
-    assert_eq!(parser.get_range_str(error.range), ":");
+    let error = parser.eat_key_with_range(Default::default()).unwrap_err();
+    assert_eq!(parser.range_str(error.range), ":");
 }
 
 #[test]
 fn test_report_key_named_type_expression_with_newlines_before_colon_and_close_bracket() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"[key
 :
 string
 ]"#,
     );
     let mut parser = test.prepare();
-    let error = parser.eat_key_with_span().unwrap_err();
-    assert_eq!(parser.get_range_str(error.range), ":");
+    let error = parser.eat_key_with_range(Default::default()).unwrap_err();
+    assert_eq!(parser.range_str(error.range), ":");
 }
 
 /// Report computed keys with comma expressions.
 #[test]
 fn test_report_key_computed_comma_expression() {
     // source: [a,b]
-    let mut test = TestParser::new("[a,b]");
+    let test = TestParser::new("[a,b]");
     let mut parser = test.prepare();
-    let error = parser.eat_key_with_span().unwrap_err();
+    let error = parser.eat_key_with_range(Default::default()).unwrap_err();
 
     // ,
-    assert_eq!(parser.get_range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range), ",");
 }
 
 /// Report legacy octal numeric keys.
 #[test]
 fn test_report_legacy_octal_numeric_key() {
     // source: 021
-    let mut test = TestParser::new("021");
+    let test = TestParser::new("021");
     let mut parser = test.prepare();
-    let error = parser.eat_key_with_span().unwrap_err();
+    let error = parser.eat_key_with_range(Default::default()).unwrap_err();
 
     // 021
-    assert_eq!(parser.get_range_str(error.range), "021");
+    assert_eq!(parser.range_str(error.range), "021");
 }
 
 /// Parse finite integer property keys as static index keys.
 #[test]
 fn test_parse_key_integer_index() {
-    let mut test = TestParser::new("2");
+    let test = TestParser::new("2");
     let mut parser = test.prepare();
-    let (key, _span) = parser.eat_key_with_span().unwrap();
+    let (key, _span) = parser.eat_key_with_range(Default::default()).unwrap();
 
     assert_eq!(key, Key::Name(Name::Index(2)));
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 /// Parse computed keys with ternaries.
 #[test]
 fn test_parse_key_computed_ternary() {
-    let mut test = TestParser::new(r#"[hasCjsFormat ? "module" : "import"]"#);
+    let test = TestParser::new(r#"[hasCjsFormat ? "module" : "import"]"#);
     let mut parser = test.prepare();
 
-    let (key, _span) = parser.eat_key_with_span().unwrap();
+    let (key, _span) = parser.eat_key_with_range(Default::default()).unwrap();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert!(matches!(key, Key::Expression(_)));

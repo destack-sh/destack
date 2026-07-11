@@ -1,4 +1,5 @@
 use crate::assert_node;
+use crate::parse::{ExpressionContext, StatementPosition};
 use crate::tests::TestParser;
 use destack_dir::{
     Declaration, Expression, LocalNodeId, RangeEnd, Tree, TypeDeclaration, TypeExpression,
@@ -13,9 +14,14 @@ fn assert_reference(tree: &Tree, type_id: LocalNodeId<TypeExpression>) {
 
 #[test]
 fn test_parse_half_open_range_type() {
-    let mut test = TestParser::new("type Window = Start..End");
+    let test = TestParser::new("type Window = Start..End");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -26,14 +32,19 @@ fn test_parse_half_open_range_type() {
             });
         });
     });
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_inclusive_range_type() {
-    let mut test = TestParser::new("type Window = Start..=End");
+    let test = TestParser::new("type Window = Start..=End");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -44,12 +55,12 @@ fn test_parse_inclusive_range_type() {
             });
         });
     });
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_open_ended_range_types() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 type From = Start..
 type To = ..End
@@ -97,12 +108,12 @@ type Full = ..
             });
         });
     });
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_full_range_type_before_newline() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 type Full = ..
 type Other = Value
@@ -121,14 +132,19 @@ type Other = Value
             });
         });
     });
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_range_type_recovers_missing_inclusive_end() {
-    let mut test = TestParser::new("type Window = Start..=");
+    let test = TestParser::new("type Window = Start..=");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {

@@ -11,12 +11,17 @@ use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_interface_anonymous_empty() {
-    let mut test = TestParser::new("interface {}");
+    let test = TestParser::new("interface {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, members, .. }) => {
         assert!(name.is_none());
@@ -28,12 +33,17 @@ fn test_parse_interface_anonymous_empty() {
 
 #[test]
 fn test_parse_interface_with_extends() {
-    let mut test = TestParser::new("interface Foo extends Bar {}");
+    let test = TestParser::new("interface Foo extends Bar {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, extends_types, members, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Foo");
@@ -47,16 +57,21 @@ fn test_parse_interface_with_extends() {
 
 #[test]
 fn test_parse_interface_extends_with_generic_arguments() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
 "#,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
 
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
@@ -84,12 +99,17 @@ interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
 
 #[test]
 fn test_parse_interface_with_missing_close_brace() {
-    let mut test = TestParser::new("interface Foo { bar(): Baz");
+    let test = TestParser::new("interface Foo { bar(): Baz");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -103,7 +123,7 @@ fn test_parse_interface_with_missing_close_brace() {
 /// Parse interface call signatures with generic parameters before tree syntax.
 #[test]
 fn test_parse_interface_generic_call_signature_before_tree() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface Foo<G> {
     <T>(bar: G): T;
@@ -112,9 +132,14 @@ interface Foo<G> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
 
     // interface call signature with generic parameters
@@ -141,7 +166,7 @@ interface Foo<G> {
 /// Parse interface call signature overloads separated by a blank line.
 #[test]
 fn test_parse_interface_call_signature_overloads_with_blank_line_separator() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface Example {
   (a: number): typeof a
@@ -166,7 +191,7 @@ interface Example {
 
 #[test]
 fn test_parse_interface_extends_with_newline() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 interface Foo extends Bar
 {
@@ -175,9 +200,14 @@ interface Foo extends Bar
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
         assert_eq!(extends_types.len(), 1);
@@ -187,7 +217,7 @@ interface Foo extends Bar
 
 #[test]
 fn test_parse_interface_extends_with_newline_separated_types() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 interface Foo extends Bar
 Baz {
@@ -196,9 +226,14 @@ Baz {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
         assert_eq!(extends_types.len(), 2);
@@ -209,7 +244,7 @@ Baz {
 
 #[test]
 fn test_parse_interface_extends_comma_separated_with_newline() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 interface Foo extends Bar,
 Baz {
@@ -218,9 +253,14 @@ Baz {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
         assert_eq!(extends_types.len(), 2);
@@ -231,7 +271,7 @@ Baz {
 
 #[test]
 fn test_parse_interface_with_members() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 interface Foo extends Baz {
     readonly value: int32
@@ -243,9 +283,14 @@ interface Foo extends Baz {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, extends_types, members, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Foo");
@@ -278,7 +323,7 @@ interface Foo extends Baz {
 
 #[test]
 fn test_parse_interface_allows_comma_separated_members() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 interface Foo {
     value: int32,
@@ -288,9 +333,14 @@ interface Foo {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
         assert_eq!(members.len(), 2);
@@ -299,12 +349,17 @@ interface Foo {
 
 #[test]
 fn test_parse_interface_with_generic_parameters() {
-    let mut test = TestParser::new("interface Baz<T> {}");
+    let test = TestParser::new("interface Baz<T> {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Baz");
@@ -318,17 +373,22 @@ fn test_parse_interface_with_generic_parameters() {
             NodeSpanType::Region(NodeSpanRegion::GenericParameters),
         )
         .expect("missing interface generic parameter span");
-    assert_eq!(parser.get_span_str(generic_parameter_span), "<T>");
+    assert_eq!(parser.span_str(generic_parameter_span), "<T>");
 }
 
 #[test]
 fn test_parse_interface_with_empty_generic_parameters() {
-    let mut test = TestParser::new("interface Box<> {}");
+    let test = TestParser::new("interface Box<> {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Box");
@@ -338,12 +398,17 @@ fn test_parse_interface_with_empty_generic_parameters() {
 
 #[test]
 fn test_parse_interface_with_variance_parameters() {
-    let mut test = TestParser::new("interface Baz<in T, out U> {}");
+    let test = TestParser::new("interface Baz<in T, out U> {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Baz");
@@ -361,12 +426,17 @@ fn test_parse_interface_with_variance_parameters() {
 
 #[test]
 fn test_parse_interface_with_invariant_parameter() {
-    let mut test = TestParser::new("interface Holder<in out T> {}");
+    let test = TestParser::new("interface Holder<in out T> {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Holder");
@@ -380,7 +450,7 @@ fn test_parse_interface_with_invariant_parameter() {
 
 #[test]
 fn test_parse_interface_with_where_clause() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 interface Baz<T> where Requirement: Interface {
 }
@@ -388,9 +458,14 @@ interface Baz<T> where Requirement: Interface {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, where_clauses, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Baz");
@@ -409,7 +484,7 @@ interface Baz<T> where Requirement: Interface {
 
 #[test]
 fn test_parse_interface_with_nameless_shorthand_functions() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface SQL {
     <T = any>(value: T): SQL.Result<T>;
@@ -425,9 +500,14 @@ interface SQL {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, members, .. }) => {
         assert_string!(parser, name.unwrap().string(), "SQL");
@@ -440,13 +520,13 @@ interface SQL {
                 .tree
                 .get_side_span(members[0], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                 .expect("missing generic parameter span");
-            assert_eq!(parser.get_span_str(generic_parameter_span), "<T = any>");
+            assert_eq!(parser.span_str(generic_parameter_span), "<T = any>");
 
             let parameter_span = parser
                 .tree
                 .get_side_span(members[0], NodeSpanType::Region(NodeSpanRegion::Parameters))
                 .expect("missing parameter span");
-            assert_eq!(parser.get_span_str(parameter_span), "(value: T)");
+            assert_eq!(parser.span_str(parameter_span), "(value: T)");
 
             let generic_parameters = &signature.generic_parameters;
             // <T = any>
@@ -512,17 +592,17 @@ interface SQL {
             // [Symbol.toPrimitive]
             assert_expression_path!(parser, parser.tree.get(*key), "Symbol.toPrimitive");
 
-            let optional_span = parser
+            let optional_range = parser
                 .tree
                 .get_side_span(members[4], NodeSpanType::Boundary(NodeSpanBoundary::Trailing))
                 .expect("missing optional marker span");
-            assert_eq!(parser.get_span_str(optional_span), "?");
+            assert_eq!(parser.span_str(optional_range), "?");
 
             let parameter_span = parser
                 .tree
                 .get_side_span(members[4], NodeSpanType::Region(NodeSpanRegion::Parameters))
                 .expect("missing parameter span");
-            assert_eq!(parser.get_span_str(parameter_span), "()");
+            assert_eq!(parser.span_str(parameter_span), "()");
 
             assert_eq!(signature.parameters.len(), 0);
             // number
@@ -535,7 +615,7 @@ interface SQL {
 
 #[test]
 fn test_parse_interface_with_iterator_methods() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface Iterator<T, TReturn = any, TNext = any> {
     next(...[value]: [] | [TNext]): IteratorResult<T, TReturn>;
@@ -546,9 +626,14 @@ interface Iterator<T, TReturn = any, TNext = any> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
         assert_eq!(members.len(), 3);
@@ -605,7 +690,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
 /// Parse interface members that use semicolon separators.
 #[test]
 fn test_parse_interface_semicolon_member_separators() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface MacroContext {
     readonly trigger: MacroTrigger;
@@ -616,9 +701,14 @@ interface MacroContext {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
@@ -657,7 +747,7 @@ interface MacroContext {
 /// Parse index signatures on structural interfaces.
 #[test]
 fn test_parse_interface_index_signature_members() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface ImportMetaEnv {
     readonly [key: string]: string | undefined;
@@ -667,9 +757,14 @@ interface ImportMetaEnv {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
@@ -702,7 +797,7 @@ interface ImportMetaEnv {
 
 #[test]
 fn test_parse_interface_method_overloads_named_where() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"interface Query {
 where(where: string, parameters?: ObjectLiteral): this
 where(where: Brackets, parameters?: ObjectLiteral): this
@@ -710,9 +805,14 @@ where(where: Brackets, parameters?: ObjectLiteral): this
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
         assert_eq!(members.len(), 2);
@@ -741,12 +841,17 @@ where(where: Brackets, parameters?: ObjectLiteral): this
 
 #[test]
 fn test_parse_newtype_interface_empty() {
-    let mut test = TestParser::new("interface {}");
+    let test = TestParser::new("interface {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Nominal)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Nominal,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, members, .. }) => {
         assert!(*is_nominal);
@@ -758,11 +863,11 @@ fn test_parse_newtype_interface_empty() {
 
 #[test]
 fn test_parse_local_newtype_interface() {
-    let mut test = TestParser::new("local newtype interface Awaitable {}");
+    let test = TestParser::new("local newtype interface Awaitable {}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -776,11 +881,11 @@ fn test_parse_local_newtype_interface() {
 
 #[test]
 fn test_parse_shared_newtype_interface() {
-    let mut test = TestParser::new("shared newtype interface Channel {}");
+    let test = TestParser::new("shared newtype interface Channel {}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -794,7 +899,7 @@ fn test_parse_shared_newtype_interface() {
 
 #[test]
 fn test_parse_newtype_interface_with_method() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 interface Add<T, R = this> {
     add(other: T): R
@@ -803,9 +908,14 @@ interface Add<T, R = this> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Nominal)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Nominal,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, members, .. }) => {
         assert!(*is_nominal);
@@ -827,16 +937,21 @@ interface Add<T, R = this> {
 /// Parse `is` as a property name in declaration files.
 #[test]
 fn test_parse_interface_with_is_property_name() {
-    let mut test = TestParser::declaration(
+    let test = TestParser::declaration(
         r#"interface Webidl {
     is: WebidlIs
 }"#,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let interface_id = parser
-        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .parse_interface(
+            &start,
+            DeclarationHeader::default(),
+            TypeKind::Structural,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, members, .. }) => {
         assert_string!(parser, name.unwrap().string(), "Webidl");
@@ -853,7 +968,7 @@ fn test_parse_interface_with_is_property_name() {
 /// 'is' as property name works in multi-member interfaces.
 #[test]
 fn test_parse_interface_with_is_and_other_members() {
-    let mut test = TestParser::declaration(
+    let test = TestParser::declaration(
         r#"export interface Webidl {
     errors: WebidlErrors
     util: WebidlUtil
@@ -864,7 +979,7 @@ fn test_parse_interface_with_is_and_other_members() {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Interface(InterfaceDeclaration { name, export, members, .. }) => {
             assert_string!(parser, name.unwrap().string(), "Webidl");
@@ -906,7 +1021,7 @@ fn test_parse_interface_with_is_and_other_members() {
 
 #[test]
 fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
-    let mut test = TestParser::new("interface Shape // interface-head\n{\n  area: number\n}");
+    let test = TestParser::new("interface Shape // interface-head\n{\n  area: number\n}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -930,7 +1045,7 @@ fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
 
 #[test]
 fn test_parse_export_newtype_interface_with_default_this_parameter() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 export newtype interface Add<T, R = this> {
     add(other: T): R;
@@ -975,7 +1090,7 @@ export newtype interface Add<T, R = this> {
 /// Parse Destack default method bodies on nominal interfaces.
 #[test]
 fn test_parse_newtype_interface_default_method_body() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 newtype interface Error {
     source(): Dynamic<Error> | undefined {

@@ -1,96 +1,36 @@
-use crate::{Parser, ParserError, ParserResult, keyword_from_identifier};
+use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{Keyword, TokenSpan, TokenType};
 
 impl Parser {
     /// Return true when the current token is the given keyword.
     #[inline]
-    pub fn is_keyword(&mut self, keyword: Keyword) -> bool {
-        self.current_keyword() == Some(keyword)
+    pub fn peek_is_keyword(&self, keyword: Keyword) -> bool {
+        self.peek_keyword() == Some(keyword)
     }
 
-    /// Return true when the next token is the given keyword.
+    /// Return the current token when it is the requested keyword.
     #[inline]
-    pub fn is_next_keyword(&mut self, keyword: Keyword) -> bool {
-        self.keyword_at_offset(1) == Some(keyword)
-    }
-
-    /// Return true when the next next token is the given keyword.
-    #[inline]
-    pub fn is_next_next_keyword(&mut self, keyword: Keyword) -> bool {
-        self.keyword_at_offset(2) == Some(keyword)
-    }
-
-    /// Peek a keyword.
-    #[inline]
-    pub fn peek_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
-        let current = self.peek_token(TokenType::Identifier)?;
-        if !self.is_keyword(keyword) {
+    pub fn peek_keyword_token(&self, keyword: Keyword) -> ParserResult<TokenSpan> {
+        let current = self.require_token(TokenType::Identifier)?;
+        if !self.peek_is_keyword(keyword) {
             Err(ParserError::expected(current, TokenType::Identifier))
         } else {
-            self.peek_token(TokenType::Identifier)
+            Ok(current)
         }
     }
 
     /// Peek any keyword.
     #[inline]
-    pub fn peek_any_keyword(&mut self) -> ParserResult<Keyword> {
-        let current = self.peek_token(TokenType::Identifier)?;
-        self.current_keyword()
+    pub fn peek_any_keyword(&self) -> ParserResult<Keyword> {
+        let current = self.require_token(TokenType::Identifier)?;
+        self.peek_keyword()
             .ok_or_else(|| ParserError::expected(current, TokenType::Identifier))
-    }
-
-    /// Peek the next keyword.
-    #[inline]
-    pub fn peek_next_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
-        let token = self.next_token();
-        let span = token.span(self.file_id);
-        if !token.is(TokenType::Identifier) || self.keyword_at_offset(1) != Some(keyword) {
-            return Err(ParserError::expected(span, TokenType::Identifier));
-        }
-
-        Ok(TokenSpan::new(token, self.file_id))
-    }
-
-    /// Peek any next keyword.
-    #[inline]
-    pub fn peek_next_any_keyword(&mut self) -> ParserResult<Keyword> {
-        let token = self.next_token();
-        let span = token.span(self.file_id);
-        if !token.is(TokenType::Identifier) {
-            return Err(ParserError::expected(span, TokenType::Identifier));
-        }
-
-        self.keyword_at_offset(1)
-            .ok_or_else(|| ParserError::expected(span, TokenType::Identifier))
-    }
-
-    /// Peek the next next keyword.
-    #[inline]
-    pub fn peek_next_next_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
-        let token = self.token_at_offset(2);
-        let span = token.span(self.file_id);
-        if !token.is(TokenType::Identifier) || self.keyword_at_offset(2) != Some(keyword) {
-            return Err(ParserError::expected(span, TokenType::Identifier));
-        }
-
-        Ok(TokenSpan::new(token, self.file_id))
     }
 
     /// Eat a keyword.
     pub fn eat_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
-        self.peek_keyword(keyword)?;
+        self.peek_keyword_token(keyword)?;
         self.eat_token(TokenType::Identifier)
-    }
-
-    /// Eat any keyword.
-    pub fn eat_keyword_any(&mut self) -> ParserResult<Keyword> {
-        let current = self.eat_token(TokenType::Identifier)?;
-        if let Some(keyword) = current.token.classified_keyword() {
-            return keyword.ok_or_else(|| ParserError::expected(current, TokenType::Identifier));
-        }
-
-        keyword_from_identifier(self.get_token_span_str(current))
-            .ok_or_else(|| ParserError::expected(current, TokenType::Identifier))
     }
 
     /// Eat one of a list of keywords.
@@ -101,7 +41,7 @@ impl Parser {
             Ok(keyword)
         } else {
             Err(ParserError::expected(
-                self.peek().span,
+                self.peek_token().range(),
                 TokenType::Identifier,
             ))
         }

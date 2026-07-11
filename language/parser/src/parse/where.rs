@@ -1,63 +1,53 @@
-// parse use and where declarations
+use crate::parse::context::{ConditionalTypeContext, FunctionContext, TypeContext};
 use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause, WhereRelation};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
-    /// Eat a where context declaration maybe.
-    ///
-    /// Examples:
-    /// ```
-    /// where T: int32
-    /// where T.Output == U
-    /// where Foo: Bar
-    /// where Foo.Bar: Baz
-    /// where BaseOf<Foo>: Copy
-    /// ```
-    pub fn eat_where_maybe(&mut self) -> ParserResult<Option<Vec<LocalNodeId<WhereClause>>>> {
-        if !self.is_keyword(Keyword::Where) {
-            return Ok(None);
+    /// Parse zero or more where clauses.
+    pub(crate) fn parse_where_clauses(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
+        if !self.peek_is_keyword(Keyword::Where) {
+            return Ok(Vec::new());
         }
 
         // keep property names distinct from constraint clauses
-        let next_token = self.token_at_offset(1);
-        let is_property = matches!(next_token.ty(), TokenType::Maybe | TokenType::Colon)
-            || next_token.is(TokenType::LessThan)
-            || next_token.is(TokenType::OpenParenthesis)
-                && self.peek().span.end == next_token.start();
+        let peek_next_token = self.peek_token_at(1);
+        let is_property = matches!(peek_next_token.ty(), TokenType::Maybe | TokenType::Colon)
+            || peek_next_token.is(TokenType::LessThan)
+            || peek_next_token.is(TokenType::OpenParenthesis)
+                && self.peek_token().range().end == peek_next_token.start();
         if is_property {
-            return Ok(None);
+            return Ok(Vec::new());
         }
 
-        Ok(Some(self.eat_where()?))
+        self.parse_where(function)
     }
 
-    /// Eat a where context declaration.
+    /// Parse one required where clause sequence.
     ///
     /// Examples:
+    /// ```ds
+    /// where T: Serializable, T.Output == U
     /// ```
-    /// where T: int32
-    /// where T.Output == U
-    /// where Foo: Bar
-    /// where Foo.Bar: Baz
-    /// where BaseOf<Foo>: Copy
-    /// where T: Numeric, F: Numeric
-    /// where (
-    ///    T: Numeric
-    ///    F: Numeric // optional comma
-    /// )
-    /// ```
-    pub fn eat_where(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
+    pub(crate) fn parse_where(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
         self.eat_keyword(Keyword::Where)?;
-        let body_flags = self.flags.in_before_block();
-        let clauses = self.with_flags(body_flags, |parser| parser.eat_where_body())?;
-        Ok(clauses)
+
+        self.parse_where_body(function)
     }
 
-    /// Eat the clauses of a `where` declaration (without the `where` keyword).
+    /// Parse the clauses after a `where` keyword.
     /// Separated by commas.
-    fn eat_where_body(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
+    fn parse_where_body(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
         let mut clauses: Vec<LocalNodeId<WhereClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -67,7 +57,7 @@ impl Parser {
                 if self.peek_is(TokenType::CloseParenthesis) {
                     break;
                 }
-                let next_clause = self.eat_where_clause()?;
+                let next_clause = self.parse_where_clause(function)?;
                 clauses.push(next_clause);
                 // optional comma with newlines
                 if self.peek_is(TokenType::Comma) {
@@ -82,7 +72,7 @@ impl Parser {
         // plain list separated by commas
         else {
             while self.has_more_tokens() {
-                let clause = self.eat_where_clause()?;
+                let clause = self.parse_where_clause(function)?;
                 clauses.push(clause);
                 // required comma
                 if self.peek_is(TokenType::Comma) {
@@ -96,42 +86,45 @@ impl Parser {
         Ok(clauses)
     }
 
-    /// Eat a single where clause.
-    fn eat_where_clause(&mut self) -> ParserResult<LocalNodeId<WhereClause>> {
-        let start = self.span_start();
+    /// Parse one where clause.
+    fn parse_where_clause(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<WhereClause>> {
+        let start = self.mark_parse_start();
 
         // parse left operand
-        let left_flags = self
-            .flags
-            .in_type()
-            .in_before_block()
-            .in_ternary_condition()
-            .disallow_type_conditional();
-        let left =
-            self.eat_type_expression_or_recover_missing(left_flags, NodeType::WhereClause)?;
-        let left_span = self.tree.get_span(left);
+        let left = self.parse_type_or_recover_missing(
+            TypeContext {
+                function,
+                conditional: ConditionalTypeContext::Forbidden,
+                ..TypeContext::default()
+            },
+            NodeType::WhereClause,
+        )?;
+        let left_range = self.tree.get_range(left);
 
         // start relation span
-        let type_start = self.span_start();
+        let type_start = self.mark_parse_start();
 
         // accept constraint relation
-        let relation = if self.peek_colon_is() {
-            self.bump(); // eat colon
+        let relation = if self.peek_is(TokenType::Colon) {
+            self.bump();
             WhereRelation::Satisfies
         }
         // accept equality relation
         else if self.peek_is(TokenType::Equal) {
-            self.bump(); // eat ==
+            self.bump();
             WhereRelation::Equals
         }
         // recover stale relation keywords
         else if matches!(
-            self.current_keyword(),
+            self.peek_keyword(),
             Some(Keyword::Extends | Keyword::Implements)
         ) {
-            let error = ParserError::expected(self.peek(), TokenType::Colon);
-            self.report_error(&error);
-            self.bump(); // eat stale relation separator
+            let error = ParserError::expected(self.peek_token_span(), TokenType::Colon);
+            self.report_error(error);
+            self.bump();
             WhereRelation::Satisfies
         }
         // require canonical relation syntax
@@ -141,23 +134,28 @@ impl Parser {
         };
 
         // parse right operand
-        let right = self
-            .eat_type_expression_or_recover_missing(self.flags.in_type(), NodeType::WhereClause)?;
-        let clause = self.tree.insert(
+        let right = self.parse_type_or_recover_missing(
+            TypeContext {
+                function,
+                ..TypeContext::default()
+            },
+            NodeType::WhereClause,
+        )?;
+        let clause = self.insert_node(
             WhereClause {
                 relation,
                 left,
                 right,
             },
-            self.get_span_from(&start),
+            self.range_since(&start),
         );
 
         // record spans
-        self.tree.set_main_span(clause, left_span);
-        self.tree.set_side_span(
+        self.tree.set_main_range(clause, left_range);
+        self.tree.set_side_range(
             clause,
             NodeSpanType::Region(NodeSpanRegion::Type),
-            self.get_span_from(&type_start),
+            self.range_since(&type_start),
         );
 
         Ok(clause)

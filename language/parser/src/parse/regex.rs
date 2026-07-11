@@ -1,115 +1,57 @@
-use crate::Parser;
+use smallvec::SmallVec;
 
-impl Parser {
+/// One regular expression pattern awaiting grammar validation.
+pub(crate) struct RegexPattern<'a> {
+    /// The pattern source between its delimiters.
+    source: &'a str,
+}
+
+/// One regular expression flag sequence awaiting validation.
+pub(crate) struct RegexFlags<'a> {
+    /// The flag source after the closing pattern delimiter.
+    source: &'a str,
+}
+
+impl<'a> RegexPattern<'a> {
+    /// Create a regular expression pattern validator.
+    pub(crate) const fn new(source: &'a str) -> Self {
+        Self { source }
+    }
+
     /// Return true when content contains a regex line terminator code point.
     ///
     /// Regex literal bodies cannot contain raw line terminators.
-    /// This stays in parser validation because the lexer intentionally tokenizes
-    /// regex literals broadly and defers syntax-specific checks to parse.
-    pub(super) fn contains_regex_line_terminator(&self, content: &str) -> bool {
-        content
+    /// The broad lexer defers this grammar check to the parser.
+    pub(crate) fn contains_line_terminator(&self) -> bool {
+        self.source
             .chars()
             .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
     }
 
-    /// Return whether regex flags are valid.
-    pub(super) fn regex_flags_are_valid(&self, flags: &str) -> bool {
-        let mut seen_d = false;
-        let mut seen_g = false;
-        let mut seen_i = false;
-        let mut seen_m = false;
-        let mut seen_s = false;
-        let mut seen_u = false;
-        let mut seen_v = false;
-        let mut seen_y = false;
-
-        for flag in flags.chars() {
-            match flag {
-                'd' => {
-                    if seen_d {
-                        return false;
-                    }
-                    seen_d = true;
-                }
-                'g' => {
-                    if seen_g {
-                        return false;
-                    }
-                    seen_g = true;
-                }
-                'i' => {
-                    if seen_i {
-                        return false;
-                    }
-                    seen_i = true;
-                }
-                'm' => {
-                    if seen_m {
-                        return false;
-                    }
-                    seen_m = true;
-                }
-                's' => {
-                    if seen_s {
-                        return false;
-                    }
-                    seen_s = true;
-                }
-                'u' => {
-                    if seen_u {
-                        return false;
-                    }
-                    seen_u = true;
-                }
-                'v' => {
-                    if seen_v {
-                        return false;
-                    }
-                    seen_v = true;
-                }
-                'y' => {
-                    if seen_y {
-                        return false;
-                    }
-                    seen_y = true;
-                }
-                _ => return false,
-            }
-        }
-
-        // unicode and unicode-sets are mutually exclusive
-        if seen_u && seen_v {
-            return false;
-        }
-
-        true
-    }
-
     /// Return true when regex unicode escapes are valid for the provided flags.
-    pub(super) fn regex_unicode_escapes_are_valid(&self, pattern: &str, flags: &str) -> bool {
+    pub(crate) fn unicode_escapes_are_valid(&self, flags: &RegexFlags<'_>) -> bool {
         // unicode escape validation only applies in unicode regex modes
-        let has_unicode_mode = flags.chars().any(|flag| flag == 'u' || flag == 'v');
-        if !has_unicode_mode {
+        if !flags.has_unicode_mode() {
             return true;
         }
 
         // validate braced unicode escapes first
-        if !self.regex_unicode_code_point_escapes_are_valid(pattern) {
+        if !self.unicode_code_point_escapes_are_valid() {
             return false;
         }
 
         // count capturing groups so decimal escapes can be validated as backreferences
-        let Some(capturing_group_count) = self.regex_unicode_capturing_group_count(pattern) else {
+        let Some(capturing_group_count) = self.unicode_capturing_group_count() else {
             return false;
         };
 
         // validate unicode-mode quantifier and escape restrictions
-        self.regex_unicode_tokens_are_valid(pattern, capturing_group_count)
+        self.unicode_tokens_are_valid(capturing_group_count)
     }
 
-    // validate braced code point escapes like \u{1F600}
-    fn regex_unicode_code_point_escapes_are_valid(&self, pattern: &str) -> bool {
-        let mut characters = pattern.chars().peekable();
+    /// Return whether braced code point escapes such as `\u{1F600}` are valid.
+    fn unicode_code_point_escapes_are_valid(&self) -> bool {
+        let mut characters = self.source.chars().peekable();
         while let Some(character) = characters.next() {
             if character != '\\' {
                 continue;
@@ -170,9 +112,9 @@ impl Parser {
         true
     }
 
-    // count capturing groups in unicode regex mode
-    fn regex_unicode_capturing_group_count(&self, pattern: &str) -> Option<usize> {
-        let characters: Vec<char> = pattern.chars().collect();
+    /// Count capturing groups in Unicode mode.
+    fn unicode_capturing_group_count(&self) -> Option<usize> {
+        let characters = self.source.as_bytes();
         let mut index = 0_usize;
         let mut in_character_class = false;
         let mut capturing_group_count = 0_usize;
@@ -181,7 +123,7 @@ impl Parser {
             let character = characters[index];
 
             // escaped tokens do not affect grouping
-            if character == '\\' {
+            if character == b'\\' {
                 index += 1;
                 if index >= characters.len() {
                     return None;
@@ -192,46 +134,46 @@ impl Parser {
 
             // ignore group markers inside character classes
             if in_character_class {
-                if character == ']' {
+                if character == b']' {
                     in_character_class = false;
                 }
                 index += 1;
                 continue;
             }
 
-            if character == '[' {
+            if character == b'[' {
                 in_character_class = true;
                 index += 1;
                 continue;
             }
 
             // parse group prefixes to decide whether this is a capturing group
-            if character == '(' {
-                if index + 1 < characters.len() && characters[index + 1] == '?' {
+            if character == b'(' {
+                if index + 1 < characters.len() && characters[index + 1] == b'?' {
                     if index + 2 >= characters.len() {
                         return None;
                     }
 
                     let marker = characters[index + 2];
-                    if marker == ':' || marker == '=' || marker == '!' {
+                    if marker == b':' || marker == b'=' || marker == b'!' {
                         index += 3;
                         continue;
                     }
 
-                    if marker == '<' {
+                    if marker == b'<' {
                         if index + 3 >= characters.len() {
                             return None;
                         }
 
                         let lookbehind_marker = characters[index + 3];
-                        if lookbehind_marker == '=' || lookbehind_marker == '!' {
+                        if lookbehind_marker == b'=' || lookbehind_marker == b'!' {
                             index += 4;
                             continue;
                         }
 
                         let mut name_index = index + 3;
                         let mut has_name = false;
-                        while name_index < characters.len() && characters[name_index] != '>' {
+                        while name_index < characters.len() && characters[name_index] != b'>' {
                             has_name = true;
                             name_index += 1;
                         }
@@ -262,34 +204,34 @@ impl Parser {
         Some(capturing_group_count)
     }
 
-    // validate unicode-mode escapes and quantifier placement
-    fn regex_unicode_tokens_are_valid(&self, pattern: &str, capturing_group_count: usize) -> bool {
-        let characters: Vec<char> = pattern.chars().collect();
+    /// Return whether Unicode escapes and quantifier placement are valid.
+    fn unicode_tokens_are_valid(&self, capturing_group_count: usize) -> bool {
+        let characters = self.source.as_bytes();
         let mut index = 0_usize;
         let mut in_character_class = false;
-        let mut previous_is_quantifiable_atom = false;
-        let mut previous_is_quantifier = false;
-        let mut group_quantifiability_stack: Vec<bool> = Vec::new();
+        let mut is_previous_quantifiable_term = false;
+        let mut is_previous_quantifier = false;
+        let mut group_quantifiability_stack = SmallVec::<[bool; 8]>::new();
 
         while index < characters.len() {
             let character = characters[index];
 
             // escaped tokens: validate decimal escapes and advance over escape body
-            if character == '\\' {
+            if character == b'\\' {
                 let Some(next_character) = characters.get(index + 1).copied() else {
                     return false;
                 };
 
                 // consume full braced unicode code point escapes so `{...}` is not
                 // interpreted as a quantifier token
-                if next_character == 'u'
+                if next_character == b'u'
                     && characters
                         .get(index + 2)
-                        .is_some_and(|character| *character == '{')
+                        .is_some_and(|character| *character == b'{')
                 {
                     let mut escape_index = index + 3;
                     let mut has_digit = false;
-                    while escape_index < characters.len() && characters[escape_index] != '}' {
+                    while escape_index < characters.len() && characters[escape_index] != b'}' {
                         if !characters[escape_index].is_ascii_hexdigit() {
                             return false;
                         }
@@ -301,22 +243,20 @@ impl Parser {
                         return false;
                     }
 
-                    previous_is_quantifiable_atom = true;
-                    previous_is_quantifier = false;
+                    is_previous_quantifiable_term = true;
+                    is_previous_quantifier = false;
                     index = escape_index + 1;
                     continue;
                 }
 
                 // consume unicode property escapes like \p{Emoji} and \P{Emoji}
-                if next_character == 'p' || next_character == 'P' {
-                    let Some(next_index) =
-                        self.regex_unicode_parse_property_escape(&characters, index)
-                    else {
+                if next_character == b'p' || next_character == b'P' {
+                    let Some(next_index) = self.unicode_property_escape_end(index) else {
                         return false;
                     };
 
-                    previous_is_quantifiable_atom = true;
-                    previous_is_quantifier = false;
+                    is_previous_quantifiable_term = true;
+                    is_previous_quantifier = false;
                     index = next_index;
                     continue;
                 }
@@ -330,10 +270,7 @@ impl Parser {
 
                     let mut number = 0usize;
                     for digit in &characters[index + 1..digit_index] {
-                        let digit = match digit {
-                            '0'..='9' => *digit as usize - '0' as usize,
-                            _ => unreachable!("checked ascii digit"),
-                        };
+                        let digit = *digit as usize - b'0' as usize;
                         let Some(next) = number
                             .checked_mul(10)
                             .and_then(|number| number.checked_add(digit))
@@ -347,68 +284,68 @@ impl Parser {
                         return false;
                     }
 
-                    previous_is_quantifiable_atom = true;
-                    previous_is_quantifier = false;
+                    is_previous_quantifiable_term = true;
+                    is_previous_quantifier = false;
                     index = digit_index;
                     continue;
                 }
 
-                if next_character == 'b' || next_character == 'B' {
-                    previous_is_quantifiable_atom = false;
-                    previous_is_quantifier = false;
+                if next_character == b'b' || next_character == b'B' {
+                    is_previous_quantifiable_term = false;
+                    is_previous_quantifier = false;
                     index += 2;
                     continue;
                 }
 
-                previous_is_quantifiable_atom = true;
-                previous_is_quantifier = false;
+                is_previous_quantifiable_term = true;
+                is_previous_quantifier = false;
                 index += 2;
                 continue;
             }
 
-            // character classes are always quantifiable atoms once closed
+            // character classes are always quantifiable terms once closed
             if in_character_class {
-                if character == ']' {
+                if character == b']' {
                     in_character_class = false;
-                    previous_is_quantifiable_atom = true;
-                    previous_is_quantifier = false;
+                    is_previous_quantifiable_term = true;
+                    is_previous_quantifier = false;
                 }
                 index += 1;
                 continue;
             }
 
-            if character == '[' {
+            if character == b'[' {
                 in_character_class = true;
-                previous_is_quantifiable_atom = false;
-                previous_is_quantifier = false;
+                is_previous_quantifiable_term = false;
+                is_previous_quantifier = false;
                 index += 1;
                 continue;
             }
 
             // groups are quantifiable unless they are lookaround assertions
-            if character == '(' {
-                let mut group_is_quantifiable = true;
-                if index + 1 < characters.len() && characters[index + 1] == '?' {
+            if character == b'(' {
+                let mut is_group_quantifiable = true;
+                if index + 1 < characters.len() && characters[index + 1] == b'?' {
                     if index + 2 >= characters.len() {
                         return false;
                     }
 
                     let marker = characters[index + 2];
-                    if marker == '=' || marker == '!' {
-                        group_is_quantifiable = false;
+                    if marker == b'=' || marker == b'!' {
+                        is_group_quantifiable = false;
                         index += 3;
-                    } else if marker == '<' {
+                    } else if marker == b'<' {
                         if index + 3 >= characters.len() {
                             return false;
                         }
                         let lookbehind_marker = characters[index + 3];
-                        if lookbehind_marker == '=' || lookbehind_marker == '!' {
-                            group_is_quantifiable = false;
+                        if lookbehind_marker == b'=' || lookbehind_marker == b'!' {
+                            is_group_quantifiable = false;
                             index += 4;
                         } else {
                             let mut name_index = index + 3;
                             let mut has_name = false;
-                            while name_index < characters.len() && characters[name_index] != '>' {
+                            while name_index < characters.len() && characters[name_index] != b'>' {
                                 has_name = true;
                                 name_index += 1;
                             }
@@ -417,7 +354,7 @@ impl Parser {
                             }
                             index = name_index + 1;
                         }
-                    } else if marker == ':' {
+                    } else if marker == b':' {
                         index += 3;
                     } else {
                         return false;
@@ -426,106 +363,102 @@ impl Parser {
                     index += 1;
                 }
 
-                group_quantifiability_stack.push(group_is_quantifiable);
-                previous_is_quantifiable_atom = false;
-                previous_is_quantifier = false;
+                group_quantifiability_stack.push(is_group_quantifiable);
+                is_previous_quantifiable_term = false;
+                is_previous_quantifier = false;
                 continue;
             }
 
-            if character == ')' {
-                let Some(group_is_quantifiable) = group_quantifiability_stack.pop() else {
+            if character == b')' {
+                let Some(is_group_quantifiable) = group_quantifiability_stack.pop() else {
                     return false;
                 };
-                previous_is_quantifiable_atom = group_is_quantifiable;
-                previous_is_quantifier = false;
+                is_previous_quantifiable_term = is_group_quantifiable;
+                is_previous_quantifier = false;
                 index += 1;
                 continue;
             }
 
-            // assertions and alternations are not quantifiable atoms
-            if character == '^' || character == '$' || character == '|' {
-                previous_is_quantifiable_atom = false;
-                previous_is_quantifier = false;
+            // assertions and alternations are not quantifiable terms
+            if character == b'^' || character == b'$' || character == b'|' {
+                is_previous_quantifiable_term = false;
+                is_previous_quantifier = false;
                 index += 1;
                 continue;
             }
 
-            // postfix quantifiers require a quantifiable atom
-            if character == '*' || character == '+' {
-                if !previous_is_quantifiable_atom {
+            // require a quantifiable pattern term before postfix quantifiers
+            if character == b'*' || character == b'+' {
+                if !is_previous_quantifiable_term {
                     return false;
                 }
-                previous_is_quantifiable_atom = false;
-                previous_is_quantifier = true;
+                is_previous_quantifiable_term = false;
+                is_previous_quantifier = true;
                 index += 1;
                 continue;
             }
 
-            if character == '?' {
-                if previous_is_quantifier {
-                    previous_is_quantifier = false;
-                    previous_is_quantifiable_atom = false;
+            if character == b'?' {
+                if is_previous_quantifier {
+                    is_previous_quantifier = false;
+                    is_previous_quantifiable_term = false;
                     index += 1;
                     continue;
                 }
 
-                if !previous_is_quantifiable_atom {
+                if !is_previous_quantifiable_term {
                     return false;
                 }
-                previous_is_quantifiable_atom = false;
-                previous_is_quantifier = true;
+                is_previous_quantifiable_term = false;
+                is_previous_quantifier = true;
                 index += 1;
                 continue;
             }
 
-            if character == '{' {
-                if !previous_is_quantifiable_atom {
+            if character == b'{' {
+                if !is_previous_quantifiable_term {
                     return false;
                 }
 
-                let Some(next_index) =
-                    self.regex_unicode_parse_braced_quantifier(&characters, index)
-                else {
+                let Some(next_index) = self.unicode_braced_quantifier_end(index) else {
                     return false;
                 };
-                previous_is_quantifiable_atom = false;
-                previous_is_quantifier = true;
+                is_previous_quantifiable_term = false;
+                is_previous_quantifier = true;
                 index = next_index;
                 continue;
             }
 
             // unescaped `}` is always invalid in unicode regex mode
-            if character == '}' {
+            if character == b'}' {
                 return false;
             }
 
-            previous_is_quantifiable_atom = true;
-            previous_is_quantifier = false;
+            is_previous_quantifiable_term = true;
+            is_previous_quantifier = false;
             index += 1;
         }
 
         !in_character_class && group_quantifiability_stack.is_empty()
     }
 
-    // parse a unicode property escape at `start` and return the next index
-    fn regex_unicode_parse_property_escape(
-        &self,
-        characters: &[char],
-        start: usize,
-    ) -> Option<usize> {
+    /// Return the index after one Unicode property escape.
+    fn unicode_property_escape_end(&self, start: usize) -> Option<usize> {
+        let characters = self.source.as_bytes();
+
         // require opening brace after \p or \P
-        if characters.get(start + 2).copied() != Some('{') {
+        if characters.get(start + 2).copied() != Some(b'{') {
             return None;
         }
 
         let mut index = start + 3;
         let mut has_content = false;
-        while index < characters.len() && characters[index] != '}' {
+        while index < characters.len() && characters[index] != b'}' {
             let character = characters[index];
             if !(character.is_ascii_alphanumeric()
-                || character == '_'
-                || character == '='
-                || character == '-')
+                || character == b'_'
+                || character == b'='
+                || character == b'-')
             {
                 return None;
             }
@@ -540,12 +473,9 @@ impl Parser {
         Some(index + 1)
     }
 
-    // parse a unicode-mode braced quantifier at `start` and return the next index
-    fn regex_unicode_parse_braced_quantifier(
-        &self,
-        characters: &[char],
-        start: usize,
-    ) -> Option<usize> {
+    /// Return the index after one Unicode braced quantifier.
+    fn unicode_braced_quantifier_end(&self, start: usize) -> Option<usize> {
+        let characters = self.source.as_bytes();
         let mut index = start + 1;
 
         // parse the minimum repetition count
@@ -556,15 +486,11 @@ impl Parser {
         if minimum_start == index {
             return None;
         }
-        let minimum: usize = characters[minimum_start..index]
-            .iter()
-            .collect::<String>()
-            .parse()
-            .ok()?;
+        let minimum = self.decimal(minimum_start, index)?;
 
         // parse the optional maximum repetition count
         let mut maximum = minimum;
-        if index < characters.len() && characters[index] == ',' {
+        if index < characters.len() && characters[index] == b',' {
             index += 1;
             let maximum_start = index;
             while index < characters.len() && characters[index].is_ascii_digit() {
@@ -572,17 +498,13 @@ impl Parser {
             }
 
             if maximum_start < index {
-                maximum = characters[maximum_start..index]
-                    .iter()
-                    .collect::<String>()
-                    .parse()
-                    .ok()?;
+                maximum = self.decimal(maximum_start, index)?;
             } else {
                 maximum = usize::MAX;
             }
         }
 
-        if index >= characters.len() || characters[index] != '}' {
+        if index >= characters.len() || characters[index] != b'}' {
             return None;
         }
         if maximum != usize::MAX && maximum < minimum {
@@ -590,5 +512,72 @@ impl Parser {
         }
 
         Some(index + 1)
+    }
+
+    /// Return one ASCII decimal value from the pattern range.
+    fn decimal(&self, start: usize, end: usize) -> Option<usize> {
+        let characters = self.source.as_bytes();
+        let mut value = 0usize;
+
+        for character in &characters[start..end] {
+            if !character.is_ascii_digit() {
+                return None;
+            }
+            let digit = (character - b'0') as usize;
+            value = value.checked_mul(10)?.checked_add(digit)?;
+        }
+
+        Some(value)
+    }
+}
+
+impl<'a> RegexFlags<'a> {
+    /// Create a regular expression flag validator.
+    pub(crate) const fn new(source: &'a str) -> Self {
+        Self { source }
+    }
+
+    /// Return whether the flag sequence is empty.
+    pub(crate) const fn is_empty(&self) -> bool {
+        self.source.is_empty()
+    }
+
+    /// Return whether the flag sequence is valid.
+    pub(crate) fn is_valid(&self) -> bool {
+        let mut seen_d = false;
+        let mut seen_g = false;
+        let mut seen_i = false;
+        let mut seen_m = false;
+        let mut seen_s = false;
+        let mut seen_u = false;
+        let mut seen_v = false;
+        let mut seen_y = false;
+
+        for flag in self.source.chars() {
+            match flag {
+                'd' if !seen_d => seen_d = true,
+                'g' if !seen_g => seen_g = true,
+                'i' if !seen_i => seen_i = true,
+                'm' if !seen_m => seen_m = true,
+                's' if !seen_s => seen_s = true,
+                'u' if !seen_u => seen_u = true,
+                'v' if !seen_v => seen_v = true,
+                'y' if !seen_y => seen_y = true,
+                _ => return false,
+            }
+        }
+
+        // unicode and unicode sets are mutually exclusive
+        !(seen_u && seen_v)
+    }
+
+    /// Return whether the flag sequence enables either Unicode grammar.
+    fn has_unicode_mode(&self) -> bool {
+        self.source.bytes().any(|flag| flag == b'u' || flag == b'v')
+    }
+
+    /// Return the flag source.
+    pub(crate) const fn source(&self) -> &'a str {
+        self.source
     }
 }

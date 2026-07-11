@@ -1,3 +1,4 @@
+use crate::parse::{ExpressionContext, StatementPosition};
 use crate::tests::TestParser;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -8,11 +9,16 @@ use destack_dir::{
 /// Parse conditional types with infer constraints.
 #[test]
 fn test_parse_type_conditional_with_infer_constraint() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "type Wrapper<T> = T extends infer A extends readonly unknown[] ? A : never",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type Wrapper<T> = T extends infer A extends readonly unknown[] ? A : never
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -33,10 +39,14 @@ fn test_parse_type_conditional_with_infer_constraint() {
 /// Parse tuple types in conditional type branches.
 #[test]
 fn test_parse_type_conditional_tuple_then_branch() {
-    let mut test =
-        TestParser::new("type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never");
+    let test = TestParser::new("type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -51,15 +61,20 @@ fn test_parse_type_conditional_tuple_then_branch() {
         });
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 /// Parse conditional types where infer-extends is a constraint inside parentheses.
 #[test]
 fn test_parse_type_conditional_infer_extends_parenthesized_constraint() {
-    let mut test = TestParser::new("type X = T extends (infer U extends number) ? 1 : 0");
+    let test = TestParser::new("type X = T extends (infer U extends number) ? 1 : 0");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type X = T extends (infer U extends number) ? 1 : 0
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -88,9 +103,14 @@ fn test_parse_type_conditional_infer_extends_parenthesized_constraint() {
 /// Parse conditional types where infer-extends starts a nested conditional.
 #[test]
 fn test_parse_type_conditional_infer_extends_parenthesized_conditional() {
-    let mut test = TestParser::new("type X = T extends (infer U extends number ? 1 : 0) ? 1 : 0");
+    let test = TestParser::new("type X = T extends (infer U extends number ? 1 : 0) ? 1 : 0");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type X = T extends (infer U extends number ? 1 : 0) ? 1 : 0
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -128,10 +148,14 @@ fn test_parse_type_conditional_infer_extends_parenthesized_conditional() {
 /// Parse parenthesized nested conditional types in conditional branches.
 #[test]
 fn test_parse_type_conditional_with_parenthesized_nested_branch() {
-    let mut test =
-        TestParser::new("type Nested<T> = T extends string ? (T extends \"a\" ? 1 : 2) : 3");
+    let test = TestParser::new("type Nested<T> = T extends string ? (T extends \"a\" ? 1 : 2) : 3");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -168,9 +192,14 @@ fn test_parse_type_conditional_with_parenthesized_nested_branch() {
 
 #[test]
 fn test_parse_type_expression_with_generic_arguments() {
-    let mut test = TestParser::new("type T<A, B>");
+    let test = TestParser::new("type T<A, B>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
     // type T<A, B>
     assert_node!(parser.tree, expr_id, Expression::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
@@ -182,9 +211,14 @@ fn test_parse_type_expression_with_generic_arguments() {
 
 #[test]
 fn test_parse_type_expression() {
-    let mut test = TestParser::new("type 1 | 2 | 3");
+    let test = TestParser::new("type 1 | 2 | 3");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
     // type 1 | 2 |3
     assert_node!(parser.tree, expr_id, Expression::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
@@ -204,18 +238,28 @@ fn test_parse_type_expression() {
 
 #[test]
 fn test_report_optional_type() {
-    let mut test = TestParser::new("type T = Foo?");
+    let test = TestParser::new("type T = Foo?");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), "?");
+    assert_eq!(parser.range_str(error.range), "?");
 }
 
 #[test]
 fn test_parse_readonly_type_expression() {
-    let mut test = TestParser::new("readonly T");
+    let test = TestParser::new("readonly T");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
     // readonly T
     assert_node!(parser.tree, expr_id, Expression::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::Readonly { target_type } => {
@@ -228,9 +272,14 @@ fn test_parse_readonly_type_expression() {
 
 #[test]
 fn test_parse_newtype_type_expression() {
-    let mut test = TestParser::new("newtype T = int32");
+    let test = TestParser::new("newtype T = int32");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
     // newtype T = int32
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, is_nominal, .. }) => {
@@ -246,9 +295,14 @@ fn test_parse_newtype_type_expression() {
 
 #[test]
 fn test_parse_conditional_type_with_inline_object() {
-    let mut test = TestParser::new("type T = A extends B ? {} : { a: string | undefined }");
+    let test = TestParser::new("type T = A extends B ? {} : { a: string | undefined }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends B ? {} : { a: string | undefined }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -267,9 +321,14 @@ fn test_parse_conditional_type_with_inline_object() {
 
 #[test]
 fn test_parse_conditional_type_with_union_right() {
-    let mut test = TestParser::new("type T = A extends B | C ? D : E");
+    let test = TestParser::new("type T = A extends B | C ? D : E");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends B | C ? D : E
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -288,9 +347,14 @@ fn test_parse_conditional_type_with_union_right() {
 
 #[test]
 fn test_parse_conditional_type_with_intersection_right() {
-    let mut test = TestParser::new("type T = A extends B & C ? D : E");
+    let test = TestParser::new("type T = A extends B & C ? D : E");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends B & C ? D : E
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -309,9 +373,14 @@ fn test_parse_conditional_type_with_intersection_right() {
 
 #[test]
 fn test_parse_type_extends_with_union_right() {
-    let mut test = TestParser::new("type T = A extends B | C");
+    let test = TestParser::new("type T = A extends B | C");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends B | C
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -329,9 +398,14 @@ fn test_parse_type_extends_with_union_right() {
 /// Parse conditional types with function right-hand sides.
 #[test]
 fn test_parse_conditional_type_with_function_right() {
-    let mut test = TestParser::new("type T = A extends (x: number) => any ? C : D");
+    let test = TestParser::new("type T = A extends (x: number) => any ? C : D");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends (x: number) => any ? C : D
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -349,10 +423,15 @@ fn test_parse_conditional_type_with_function_right() {
 
 #[test]
 fn test_parse_conditional_type_with_abstract_construct_signature() {
-    let mut test =
+    let test =
         TestParser::new("type T = A extends abstract new (x: number) => infer U ? U : unknown");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends abstract new (x: number) => infer U ? U : unknown
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -377,10 +456,15 @@ fn test_parse_conditional_type_with_abstract_construct_signature() {
 
 #[test]
 fn test_parse_conditional_type_with_multiline_abstract_construct_signature() {
-    let mut test =
+    let test =
         TestParser::new("type T = A extends abstract\n  new (x: number) => infer U ? U : unknown");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends abstract\nnew (x: number) => infer U ? U : unknown
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -396,9 +480,14 @@ fn test_parse_conditional_type_with_multiline_abstract_construct_signature() {
 
 #[test]
 fn test_parse_type_union_with_construct_signature() {
-    let mut test = TestParser::new("type T = RegExp | (new() => object)");
+    let test = TestParser::new("type T = RegExp | (new() => object)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = RegExp | (new() => object)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -418,10 +507,14 @@ fn test_parse_type_union_with_construct_signature() {
 
 #[test]
 fn test_parse_conditional_type_with_semicolon_terminated_properties() {
-    let mut test =
-        TestParser::new("type T = X extends Y ? {} : { a: string | undefined; b: number; }");
+    let test = TestParser::new("type T = X extends Y ? {} : { a: string | undefined; b: number; }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = X extends Y ? {} : { a: string | undefined; b: number; }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -437,13 +530,18 @@ fn test_parse_conditional_type_with_semicolon_terminated_properties() {
 
 #[test]
 fn test_parse_type_conditional_multiline_nested() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type T = A extends B ?
 C extends D ? E : F
 : G"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends B ? C extends D ? E : F : G
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -466,9 +564,14 @@ fn test_parse_long_type_conditional_ladder() {
 
     source.push_str("never");
 
-    let mut test = TestParser::new(&source);
+    let test = TestParser::new(&source);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -476,15 +579,20 @@ fn test_parse_long_type_conditional_ladder() {
         });
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 /// Parse extends with readonly array types.
 #[test]
 fn test_parse_type_extends_readonly_array() {
-    let mut test = TestParser::new("type T = A extends readonly unknown[]");
+    let test = TestParser::new("type T = A extends readonly unknown[]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = A extends readonly unknown[]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -500,7 +608,7 @@ fn test_parse_type_extends_readonly_array() {
 /// Parse multiline conditional types with readonly array constraints.
 #[test]
 fn test_parse_type_conditional_multiline_readonly_array() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type IsTuple<T> = T extends readonly unknown[]
   ? number extends T["length"]
 ? false
@@ -508,7 +616,12 @@ fn test_parse_type_conditional_multiline_readonly_array() {
   : false"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type IsTuple<T> = T extends readonly unknown[] ? number extends T["length"] ? false : true : false
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -522,9 +635,14 @@ fn test_parse_type_conditional_multiline_readonly_array() {
 
 #[test]
 fn test_parse_type_intersection_with_inline_object() {
-    let mut test = TestParser::new("type T = Z & { a: string | undefined }");
+    let test = TestParser::new("type T = Z & { a: string | undefined }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = Z & { a: string | undefined }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -541,9 +659,14 @@ fn test_parse_type_intersection_with_inline_object() {
 
 #[test]
 fn test_parse_tuple_type() {
-    let mut test = TestParser::new("type T = (string, number)");
+    let test = TestParser::new("type T = (string, number)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = (string, number)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -573,9 +696,14 @@ fn test_parse_tuple_type() {
 
 #[test]
 fn test_parse_type_infer_with_constraint() {
-    let mut test = TestParser::new("type T = infer U extends V");
+    let test = TestParser::new("type T = infer U extends V");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = infer U extends V
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -591,9 +719,14 @@ fn test_parse_type_infer_with_constraint() {
 #[test]
 fn test_parse_type_infer_constraint_with_boundary_comment() {
     let source = "type T = infer U extends // infer-bound\nV";
-    let mut test = TestParser::new(source);
+    let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -610,9 +743,14 @@ fn test_parse_type_infer_constraint_with_boundary_comment() {
 
 #[test]
 fn test_parse_type_infer_with_wildcard() {
-    let mut test = TestParser::new("type T = infer _");
+    let test = TestParser::new("type T = infer _");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = infer _
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -628,9 +766,14 @@ fn test_parse_type_infer_with_wildcard() {
 
 #[test]
 fn test_parse_type_infer_anonymous_constraint() {
-    let mut test = TestParser::new("type T = infer _ extends V");
+    let test = TestParser::new("type T = infer _ extends V");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = infer _ extends V
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -646,9 +789,14 @@ fn test_parse_type_infer_anonymous_constraint() {
 
 #[test]
 fn test_parse_type_infer_hole() {
-    let mut test = TestParser::new("type T = _");
+    let test = TestParser::new("type T = _");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = _
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -664,9 +812,14 @@ fn test_parse_type_infer_hole() {
 
 #[test]
 fn test_parse_type_infer_hole_as_generic_argument() {
-    let mut test = TestParser::new("type T = Box<_>");
+    let test = TestParser::new("type T = Box<_>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = Box<_>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -687,9 +840,14 @@ fn test_parse_type_infer_hole_as_generic_argument() {
 
 #[test]
 fn test_parse_type_infer_hole_as_declarator_type() {
-    let mut test = TestParser::new("let value: _ = load()");
+    let test = TestParser::new("let value: _ = load()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // let value: _ = load()
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -707,11 +865,16 @@ fn test_parse_type_infer_hole_as_declarator_type() {
 /// Parse constrained infer operands in unions and intersections without absorbing the operator into the constraint.
 #[test]
 fn test_parse_type_conditional_with_parenthesized_constrained_infer_binary_operand() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type X<T> = T extends (infer U extends number) | { a: infer U extends number } ? U : never"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type X<T> = T extends (infer U extends number) | { a: infer U extends number } ? U : never
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -737,11 +900,16 @@ fn test_parse_type_conditional_with_parenthesized_constrained_infer_binary_opera
 /// Parse constrained infer operands in intersections without absorbing the operator into the constraint.
 #[test]
 fn test_parse_type_conditional_with_parenthesized_constrained_infer_intersection_operand() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type Y<T> = T extends (infer U extends number) & { a: infer U extends number } ? U : never"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type Y<T> = T extends (infer U extends number) & { a: infer U extends number } ? U : never
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

@@ -1,3 +1,4 @@
+use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -8,11 +9,11 @@ use destack_dir::{
 /// Parse a class expression with implements.
 #[test]
 fn test_parse_class_expression_with_implements() {
-    let mut test = TestParser::new("class implements Foo {}");
+    let test = TestParser::new("class implements Foo {}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
@@ -25,11 +26,11 @@ fn test_parse_class_expression_with_implements() {
 /// Parse a final class expression.
 #[test]
 fn test_parse_final_class_expression() {
-    let mut test = TestParser::new("final class Service {}");
+    let test = TestParser::new("final class Service {}");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, is_final, .. }) => {
@@ -42,11 +43,11 @@ fn test_parse_final_class_expression() {
 /// Parse a class expression when heritage starts on the next line.
 #[test]
 fn test_parse_class_expression_with_newline_implements() {
-    let mut test = TestParser::new("class\n  implements Foo\n{}");
+    let test = TestParser::new("class\n  implements Foo\n{}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
@@ -59,11 +60,11 @@ fn test_parse_class_expression_with_newline_implements() {
 /// Parse a class expression with multiline extends heritage.
 #[test]
 fn test_parse_class_expression_with_newline_extends() {
-    let mut test = TestParser::new("class\n  extends Foo<Bar>\n{}");
+    let test = TestParser::new("class\n  extends Foo<Bar>\n{}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type, .. }) => {
@@ -82,11 +83,11 @@ fn test_parse_class_expression_with_newline_extends() {
 /// Parse an unparenthesized class expression with extends.
 #[test]
 fn test_parse_unparenthesized_class_expression_with_extends() {
-    let mut test = TestParser::new("class extends TestRepository {}");
+    let test = TestParser::new("class extends TestRepository {}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type, .. }) => {
@@ -99,11 +100,11 @@ fn test_parse_unparenthesized_class_expression_with_extends() {
 /// Parse an object property value that is a named class expression.
 #[test]
 fn test_parse_object_property_named_class_expression_value() {
-    let mut test = TestParser::new("{ useClass: class MyExampleClass {} }");
+    let test = TestParser::new("{ useClass: class MyExampleClass {} }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
@@ -122,11 +123,12 @@ fn test_parse_object_property_named_class_expression_value() {
 /// Parse class expression values in decorator call arguments.
 #[test]
 fn test_eat_decorator_object_property_named_class_expression_value() {
-    let mut test = TestParser::new("Component({ useClass: class MyExampleClass {} })");
+    let test = TestParser::new("Component({ useClass: class MyExampleClass {} })");
     let mut parser = test.prepare();
     let expr_id = parser
-        .with_flags(parser.flags.in_decorator(), |parser| {
-            parser.eat_expression(parser.flags)
+        .parse_expression(ExpressionContext {
+            decorator: DecoratorContext::Head,
+            ..ExpressionContext::default()
         })
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
@@ -151,7 +153,7 @@ fn test_eat_decorator_object_property_named_class_expression_value() {
 /// Parse class expressions with generic implements clauses.
 #[test]
 fn test_parse_class_expression_with_generic_implements_clause() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"class implements Iterable<string> {
   *[Symbol.iterator]() {
     yield "value";
@@ -159,7 +161,7 @@ fn test_parse_class_expression_with_generic_implements_clause() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, members, .. }) => {
@@ -174,7 +176,7 @@ fn test_parse_class_expression_with_generic_implements_clause() {
 
 #[test]
 fn test_parse_arrow_body_with_anonymous_class_expression() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"<P extends Props>(
   wrapped: ComponentType<P>
 ) => class extends Component<Omit<P, keyof A> & Partial<B>, C> {
@@ -182,7 +184,7 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
 }"###,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // <P extends Props>(wrapped: ComponentType<P>) => class extends Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
@@ -208,7 +210,7 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
 
 #[test]
 fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"<P extends Props>(
   wrapped: React.ComponentType<P>
 ) => class extends React.Component<
@@ -219,7 +221,7 @@ fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
 }"###,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // <P extends Props>(wrapped: React.ComponentType<P>) => class extends React.Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {

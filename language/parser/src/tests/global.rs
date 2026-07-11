@@ -4,7 +4,7 @@ use crate::{TestParser, assert_node};
 
 #[test]
 fn test_parse_declare_global_block() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 declare global {
     interface Foo {
@@ -15,7 +15,7 @@ declare global {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
             assert!(*is_ambient);
@@ -26,7 +26,7 @@ declare global {
 
 #[test]
 fn test_parse_global_block_without_declare() {
-    let mut test = TestParser::declaration(
+    let test = TestParser::declaration(
         r###"
 global {
     interface Foo { }
@@ -35,7 +35,7 @@ global {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
             assert!(*is_ambient);
@@ -46,7 +46,7 @@ global {
 
 #[test]
 fn test_parse_global_declaration() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 global {
     let process: Process

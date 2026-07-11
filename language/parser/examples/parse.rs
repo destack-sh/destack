@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let language = file_language(file.ty)?;
     let parser_options = ParserOptions {
         trivia_mode: options.trivia_mode,
-        ..ParserOptions::default()
+        retain_parentheses: false,
     };
 
     // sample only the parse loop
@@ -118,7 +118,7 @@ fn parse_file(
     let roots = if options.trivia_mode.keeps_comments() {
         parser.parse()
     } else {
-        parser.parse_without_attaching_comments()
+        parser.parse_roots()
     };
 
     (parser, roots)

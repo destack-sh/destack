@@ -9,9 +9,9 @@ use destack_dir::{
 /// Type casts bind to the full addition expression on the left.
 #[test]
 fn test_parse_precedence_cast_after_addition() {
-    let mut test = TestParser::new("a + b as number");
+    let test = TestParser::new("a + b as number");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // a + b as number
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -36,9 +36,9 @@ fn test_parse_precedence_cast_after_addition() {
 /// Type casts bind to the left side before multiplication.
 #[test]
 fn test_parse_precedence_cast_before_multiply() {
-    let mut test = TestParser::new("a as boolean * b");
+    let test = TestParser::new("a as boolean * b");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // a as boolean * b
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
@@ -63,9 +63,9 @@ fn test_parse_precedence_cast_before_multiply() {
 /// Type casts bind to the full multiplication expression on the left.
 #[test]
 fn test_parse_precedence_cast_after_multiply() {
-    let mut test = TestParser::new("a * b as boolean");
+    let test = TestParser::new("a * b as boolean");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // a * b as boolean
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -90,9 +90,9 @@ fn test_parse_precedence_cast_after_multiply() {
 /// Type casts bind to the full comparison expression on the left.
 #[test]
 fn test_parse_precedence_cast_after_comparison() {
-    let mut test = TestParser::new("a >= b as number");
+    let test = TestParser::new("a >= b as number");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // a >= b as number
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -117,9 +117,9 @@ fn test_parse_precedence_cast_after_comparison() {
 /// Parse parenthesized casts on the right side of comparisons.
 #[test]
 fn test_parse_parenthesized_cast_in_comparison_right_side() {
-    let mut test = TestParser::new("i >= (this.length as number)");
+    let test = TestParser::new("i >= (this.length as number)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // i >= (this.length as number)
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right, .. } => {
@@ -147,9 +147,9 @@ fn test_parse_parenthesized_cast_in_comparison_right_side() {
 /// Parse logical-or expressions that compare against a parenthesized cast.
 #[test]
 fn test_parse_logical_or_with_parenthesized_cast_comparison() {
-    let mut test = TestParser::new("i < 0 || i >= (this.length as number)");
+    let test = TestParser::new("i < 0 || i >= (this.length as number)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // i < 0 || i >= (this.length as number)
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right, .. } => {
@@ -173,8 +173,7 @@ fn test_parse_logical_or_with_parenthesized_cast_comparison() {
 /// Parse if statements with parenthesized cast comparisons in the condition.
 #[test]
 fn test_parse_if_condition_with_parenthesized_cast_comparison() {
-    let mut test =
-        TestParser::new("if (i < 0 || i >= (this.length as number)) {\n  undefined!;\n}");
+    let test = TestParser::new("if (i < 0 || i >= (this.length as number)) {\n  undefined!;\n}");
     let mut parser = test.prepare();
     let _ = parser.parse();
 
@@ -190,9 +189,9 @@ fn test_parse_if_condition_with_parenthesized_cast_comparison() {
 /// Parse type prefix operators and infer bindings.
 #[test]
 fn test_parse_type_unary_prefix_expression() {
-    let mut test = TestParser::new("keyof typeof infer Value");
+    let test = TestParser::new("keyof typeof infer Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // keyof typeof infer Value
     assert_node!(parser.tree, expr_id, Expression::Type { value } => {
@@ -212,9 +211,9 @@ fn test_parse_type_unary_prefix_expression() {
 /// Parse type unary postfix as const operation.
 #[test]
 fn test_parse_type_unary_postfix_as_const_expression() {
-    let mut test = TestParser::new("Value as const");
+    let test = TestParser::new("Value as const");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // Value as const
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -226,9 +225,9 @@ fn test_parse_type_unary_postfix_as_const_expression() {
 /// Parse `value /* assert-tail */ as const` without mutating wrapped annotations.
 #[test]
 fn test_parse_as_const_keeps_wrapped_expression_plain() {
-    let mut test = TestParser::new("value /* assert-tail */ as const");
+    let test = TestParser::new("value /* assert-tail */ as const");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "value");
@@ -241,29 +240,29 @@ fn test_parse_as_const_keeps_wrapped_expression_plain() {
 /// Parse `value as const` with a transparent head span.
 #[test]
 fn test_parse_as_const_records_semantic_head_span() {
-    let mut test = TestParser::new("value as const");
+    let test = TestParser::new("value as const");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
         assert_node!(parser.tree, *target_type, TypeExpression::Const);
-        let head_span = parser
+        let head_range = parser
             .tree
-            .get_head_span(expression_id)
-            .expect("missing as const head span");
-        let value_head_span = parser.expression_head_span(*expression);
+            .get_head_range(expression_id)
+            .expect("missing as const head range");
+        let value_head_range = parser.expression_head_range(*expression);
 
-        assert_eq!(head_span, value_head_span);
-        assert_eq!(parser.get_span_str(head_span), "value");
+        assert_eq!(head_range, value_head_range);
+        assert_eq!(parser.range_str(head_range), "value");
     });
 }
 
 /// Parse comparisons against members on an identifier named `as`.
 #[test]
 fn test_parse_comparison_with_as_identifier_member_access() {
-    let mut test = TestParser::new("i > as.length");
+    let test = TestParser::new("i > as.length");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // i > as.length
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -276,9 +275,9 @@ fn test_parse_comparison_with_as_identifier_member_access() {
 /// Parse comparisons against members on an identifier named `satisfies`.
 #[test]
 fn test_parse_comparison_with_satisfies_identifier_member_access() {
-    let mut test = TestParser::new("i > satisfies.length");
+    let test = TestParser::new("i > satisfies.length");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // i > satisfies.length
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -291,9 +290,9 @@ fn test_parse_comparison_with_satisfies_identifier_member_access() {
 /// Parse comparisons against optional members on an identifier named `as`.
 #[test]
 fn test_parse_comparison_with_as_identifier_optional_member_access() {
-    let mut test = TestParser::new("i > as?.length");
+    let test = TestParser::new("i > as?.length");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // i > as?.length
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -311,9 +310,9 @@ fn test_parse_comparison_with_as_identifier_optional_member_access() {
 /// Parse typed arrow bodies that reference a parameter named `as`.
 #[test]
 fn test_parse_typed_arrow_body_with_as_parameter_member_access() {
-    let mut test = TestParser::new("(as: Array<number>) => i > as.length");
+    let test = TestParser::new("(as: Array<number>) => i > as.length");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // (as: Array<number>) => i > as.length
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -351,9 +350,9 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
     let source = r#"<A,>(i: number, a: A) =>
   (as: Array<A>): Option<NonEmptyArray<A>> =>
     i < 0 || i > as.length ? _.none : _.some(unsafeInsertAt(i, a, as))"#;
-    let mut test = TestParser::new(source);
+    let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // <A,>(i: number, a: A) =>
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -413,9 +412,9 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
 /// Parse async identifiers with `as` casts.
 #[test]
 fn test_parse_async_as_cast() {
-    let mut test = TestParser::new("async as any");
+    let test = TestParser::new("async as any");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "async");
@@ -428,12 +427,12 @@ fn test_parse_async_as_cast() {
 /// Parse casts with a missing type target.
 #[test]
 fn test_parse_as_cast_missing_type_target() {
-    let mut test = TestParser::new("value as");
+    let test = TestParser::new("value as");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_range_str(parser.errors[0].range), "");
+    assert_eq!(parser.range_str(parser.errors[0].range), "");
 
     // value as
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -445,12 +444,12 @@ fn test_parse_as_cast_missing_type_target() {
 /// Parse satisfies expressions with a missing type target.
 #[test]
 fn test_parse_satisfies_missing_type_target() {
-    let mut test = TestParser::new("value satisfies");
+    let test = TestParser::new("value satisfies");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_range_str(parser.errors[0].range), "");
+    assert_eq!(parser.range_str(parser.errors[0].range), "");
 
     // value satisfies
     assert_node!(parser.tree, expr_id, Expression::Satisfies { expression, target_type } => {
@@ -464,12 +463,12 @@ fn test_parse_satisfies_missing_type_target() {
 fn test_recover_newline_before_assertion_operator() {
     for operator in ["as", "satisfies"] {
         let source = format!("call(value\n{operator} number)");
-        let mut test = TestParser::new(&source);
+        let test = TestParser::new(&source);
         let mut parser = test.prepare();
 
         parser.parse();
 
-        test.assert_errors(
+        TestParser::assert_errors(
             &parser,
             &[
                 (
@@ -478,7 +477,6 @@ fn test_recover_newline_before_assertion_operator() {
                     Some(TokenType::CloseParenthesis),
                     operator,
                 ),
-                (None, Some(TokenType::Identifier), None, "number"),
                 (None, Some(TokenType::CloseParenthesis), None, ")"),
             ],
         );
@@ -488,11 +486,11 @@ fn test_recover_newline_before_assertion_operator() {
 /// Parse multiline cast rhs unions after an own-line boundary comment.
 #[test]
 fn test_parse_cast_rhs_leading_union_after_own_line_comment() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "functionArg = a as\n  // comment\n  TSESTree.ArrowFunctionExpression\n  | TSESTree.ArrowFunctionExpression\n  | TSESTree.FunctionExpression\n  | undefined",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // functionArg = a as // comment Some.Namespace.Type | ...
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
@@ -512,9 +510,9 @@ fn test_parse_cast_rhs_leading_union_after_own_line_comment() {
 }
 #[test]
 fn test_parse_as_rhs_with_line_comment() {
-    let mut test = TestParser::new("value as // as-tail\nnumber");
+    let test = TestParser::new("value as // as-tail\nnumber");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
@@ -531,9 +529,9 @@ fn test_parse_as_rhs_with_line_comment() {
 /// Parse `satisfies` rhs comments without synthetic separator ownership.
 #[test]
 fn test_parse_satisfies_rhs_with_line_comment() {
-    let mut test = TestParser::new("value satisfies // sat-tail\nFoo");
+    let test = TestParser::new("value satisfies // sat-tail\nFoo");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Satisfies { expression, target_type } => {
@@ -548,9 +546,9 @@ fn test_parse_satisfies_rhs_with_line_comment() {
 /// Parse async arrows with a parameter named `as`.
 #[test]
 fn test_parse_async_arrow_with_as_parameter() {
-    let mut test = TestParser::new("async as => {}");
+    let test = TestParser::new("async as => {}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -575,7 +573,7 @@ fn test_recover_arrow_parameter_cast_tails() {
 
     for (source, error_text) in cases {
         let source = format!("{source}\nconst stable = 1;");
-        let mut test = TestParser::new(&source);
+        let test = TestParser::new(&source);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -588,7 +586,7 @@ fn test_recover_arrow_parameter_cast_tails() {
             });
         });
         assert_node!(parser.tree, expressions[1], Expression::Let { .. });
-        test.assert_errors(
+        TestParser::assert_errors(
             &parser,
             &[(
                 Some(NodeType::Parameter),
@@ -603,9 +601,9 @@ fn test_recover_arrow_parameter_cast_tails() {
 /// Parse async arrows with a newline before a return type annotation.
 #[test]
 fn test_parse_async_arrow_with_newline_before_return_type() {
-    let mut test = TestParser::new("async (f)\n: t => { }");
+    let test = TestParser::new("async (f)\n: t => { }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -623,9 +621,9 @@ fn test_parse_async_arrow_with_newline_before_return_type() {
 
 #[test]
 fn test_parse_type_keyword_as_cast_expression() {
-    let mut test = TestParser::new("type as string");
+    let test = TestParser::new("type as string");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "type");
@@ -637,9 +635,9 @@ fn test_parse_type_keyword_as_cast_expression() {
 
 #[test]
 fn test_parse_module_identifier_as_cast_expression() {
-    let mut test = TestParser::new("module as DynamicModule");
+    let test = TestParser::new("module as DynamicModule");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "module");
@@ -649,9 +647,9 @@ fn test_parse_module_identifier_as_cast_expression() {
 
 #[test]
 fn test_parse_namespace_identifier_as_cast_call_argument() {
-    let mut test = TestParser::new("render(cloned, rootContainer, namespace as ElementNamespace)");
+    let test = TestParser::new("render(cloned, rootContainer, namespace as ElementNamespace)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "render");
@@ -667,10 +665,9 @@ fn test_parse_namespace_identifier_as_cast_call_argument() {
 
 #[test]
 fn test_parse_cast_with_keyof_typeof_type_argument() {
-    let mut test =
-        TestParser::new("Object.keys(touchedFields) as Array<keyof typeof touchedFields>");
+    let test = TestParser::new("Object.keys(touchedFields) as Array<keyof typeof touchedFields>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
         assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
@@ -697,9 +694,9 @@ fn test_parse_cast_with_keyof_typeof_type_argument() {
 /// Parse casts whose type target is a conditional type.
 #[test]
 fn test_parse_cast_with_conditional_type_target() {
-    let mut test = TestParser::new("value as Flag extends true ? Selected : Rejected");
+    let test = TestParser::new("value as Flag extends true ? Selected : Rejected");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // value as Flag extends true ? Selected : Rejected
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -720,10 +717,10 @@ fn test_parse_cast_with_conditional_type_target() {
 /// Parse ternary expressions after an `as` cast.
 #[test]
 fn test_parse_cast_followed_by_ternary_expression() {
-    let mut test =
+    let test =
         TestParser::new("perFileCache === resolvedModuleNames as unknown ? resolved : fallback");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // perFileCache === (resolvedModuleNames as unknown) ? resolved : fallback
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
@@ -747,9 +744,9 @@ fn test_parse_cast_followed_by_ternary_expression() {
 /// Parse ternary expressions after `satisfies`.
 #[test]
 fn test_parse_satisfies_followed_by_ternary_expression() {
-    let mut test = TestParser::new("value satisfies SomeType ? yes : no");
+    let test = TestParser::new("value satisfies SomeType ? yes : no");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
@@ -765,11 +762,11 @@ fn test_parse_satisfies_followed_by_ternary_expression() {
 
 #[test]
 fn test_parse_parenthesized_cast_followed_by_flat_map_call() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "(Object.keys(touchedFields) as Array<keyof typeof touchedFields>).flatMap((topLevelKey) => topLevelKey)",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
@@ -791,7 +788,7 @@ fn test_parse_parenthesized_cast_followed_by_flat_map_call() {
 
 #[test]
 fn test_parse_type_alias_named_as_or_satisfies() {
-    let mut test = TestParser::new("type as = 0;\ntype satisfies = 0;");
+    let test = TestParser::new("type as = 0;\ntype satisfies = 0;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -817,9 +814,9 @@ fn test_parse_type_alias_named_as_or_satisfies() {
 }
 #[test]
 fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument() {
-    let mut test = TestParser::new("new Set<keyof A | keyof B>([\"connect\"] as const)");
+    let test = TestParser::new("new Set<keyof A | keyof B>([\"connect\"] as const)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
@@ -841,39 +838,39 @@ fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument(
 /// Report angle bracket assertions in `new` receivers.
 #[test]
 fn test_report_type_assertion_in_new_receiver() {
-    let mut test = TestParser::new("new <any>Test2();");
+    let test = TestParser::new("new <any>Test2();");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), "<");
+    assert_eq!(parser.range_str(error.range), "<");
 }
 
 /// Report unparenthesized cast assignment targets.
 #[test]
 fn test_report_unparenthesized_cast_assignment_target() {
-    let mut test = TestParser::new("value as number = 2");
+    let test = TestParser::new("value as number = 2");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), "value as number");
+    assert_eq!(parser.range_str(error.range), "value as number");
 }
 
 /// Report unparenthesized satisfies assignment targets.
 #[test]
 fn test_report_unparenthesized_satisfies_assignment_target() {
-    let mut test = TestParser::new("value satisfies number = 2");
+    let test = TestParser::new("value satisfies number = 2");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), "value satisfies number");
+    assert_eq!(parser.range_str(error.range), "value satisfies number");
 }
 
 /// Parse parenthesized cast assignment targets.
 #[test]
 fn test_parse_parenthesized_cast_assignment_target() {
-    let mut test = TestParser::new("(value as number) = 2");
+    let test = TestParser::new("(value as number) = 2");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);
@@ -894,9 +891,9 @@ fn test_parse_parenthesized_cast_assignment_target() {
 /// Parse parenthesized satisfies assignment targets.
 #[test]
 fn test_parse_parenthesized_satisfies_assignment_target() {
-    let mut test = TestParser::new("(value satisfies number) = 2");
+    let test = TestParser::new("(value satisfies number) = 2");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);

@@ -1,32 +1,34 @@
-use crate::parse::PendingDecorators;
+use crate::parse::Decorators;
+use crate::parse::context::{ExpressionContext, ExpressionStops, FunctionContext, PatternContext};
 use crate::parse::error::ParserResultExt;
-use crate::parse::flags::ParserFlags;
-use crate::{Parser, ParserError, ParserResult};
+use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
     Block, BlockContext, BlockForm, Expression, Keyword, LocalNodeId, MatchCase, MatchForm,
     MatchSelector, NodeType, Pattern, TokenType,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
-use std::mem;
+use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+
+/// One match guard and its clause range.
+struct MatchGuard {
+    /// The guard expression.
+    expression: LocalNodeId<Expression>,
+    /// The complete guard clause range.
+    range: ByteRange,
+}
 
 impl Parser {
-    /// Eat a match statement.
+    /// Parse one match or switch expression.
     ///
     /// Examples:
+    /// ```ds
+    /// match (value) { Some(value): value; none: 0 }
     /// ```
-    /// match (<expr>) {
-    ///     (x, y, ..) => {
-    ///         ...
-    ///     }
-    ///     (x, y, z) => {
-    ///         ...
-    ///     }
-    ///     _ = ohNoes()
-    /// }
-    /// ```
-    pub fn eat_match(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        // keyword
+    pub(crate) fn parse_match(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        // match or switch
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
         let form = if keyword == Keyword::Switch {
             MatchForm::Switch
@@ -34,101 +36,65 @@ impl Parser {
             MatchForm::Match
         };
 
-        // body
-        self.eat_match_body(form)
+        // (value) { cases }
+        self.parse_match_body(form, function)
     }
 
-    /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self, form: MatchForm) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
+    /// Parse one match body after its keyword.
+    pub(crate) fn parse_match_body(
+        &mut self,
+        form: MatchForm,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
 
-        // value
-        let value_id = self.with_flags(self.match_value_flags(), |parser| {
-            parser.eat_parenthesized_expression()
+        // (value)
+        let value_id = self.parse_parenthesized_expression(ExpressionContext {
+            function,
+            ..ExpressionContext::default()
         })?;
 
-        // cases
-        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
-            .for_node_type(NodeType::MatchCase)?;
-        let cases_id = self.eat_match_cases(form)?;
+        // { cases }
+        self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
+            .in_node(NodeType::MatchCase)?;
+        let cases_id = self.parse_match_cases(form, function)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::MatchCase)?;
 
-        // match
+        // retain the complete expression
         let match_id = self.insert_node(
             Expression::Match {
                 form,
                 value: value_id,
                 cases: cases_id,
             },
-            self.get_span_from(&start),
+            self.range_since(&start),
         );
         Ok(match_id)
     }
 
-    /// Return parser flags for a match value expression.
-    #[inline]
-    fn match_value_flags(&self) -> ParserFlags {
-        let ambient_context = self.flags.with_before_block(true);
-        let expression_context = self.flags;
-
-        self.flags
-            .with_ambient_context(ambient_context)
-            .with_expression_context(expression_context)
-    }
-
-    /// Return parser flags for a match-case pattern.
-    #[inline]
-    fn match_pattern_flags(&self) -> ParserFlags {
-        let ambient_context = self.flags.with_match_case(true);
-        let expression_context = self.flags;
-
-        self.flags
-            .with_ambient_context(ambient_context)
-            .with_expression_context(expression_context)
-    }
-
-    /// Return parser flags for a match-case guard.
-    #[inline]
-    fn match_guard_flags(&self) -> ParserFlags {
-        let ambient_context = self.flags.with_match_case(true).with_before_block(true);
-        let expression_context = ParserFlags::default();
-
-        self.flags
-            .with_ambient_context(ambient_context)
-            .with_expression_context(expression_context)
-    }
-
-    /// Eat a match-case guard when present.
-    fn eat_match_guard(
-        &mut self,
-        guard_clause_span: &mut Option<Span>,
-    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if !self.is_keyword(Keyword::If) {
+    /// Parse a match-case guard when present.
+    fn parse_match_guard(&mut self, function: FunctionContext) -> ParserResult<Option<MatchGuard>> {
+        if !self.peek_is_keyword(Keyword::If) {
             return Ok(None);
         }
 
-        let guard_start = self.span_start();
+        let guard_start = self.mark_parse_start();
         self.eat_keyword(Keyword::If)?;
-        let guard = self.with_flags(self.match_guard_flags(), |parser| {
-            parser.eat_parenthesized_expression()
+        let guard = self.parse_parenthesized_expression(ExpressionContext {
+            function,
+            ..ExpressionContext::default()
         })?;
-        *guard_clause_span = Some(self.get_span_from(&guard_start));
-
-        Ok(Some(guard))
+        Ok(Some(MatchGuard {
+            expression: guard,
+            range: self.range_since(&guard_start),
+        }))
     }
 
-    /// Eat multiple match cases separated as statements (without the `{` and `}`).
-    ///
-    /// Examples:
-    /// ```
-    /// 2 => parse_int(2)
-    /// (x, y) => {
-    ///     ...
-    /// }
-    /// ```
-    pub(crate) fn eat_match_cases(
+    /// Parse match cases until the closing brace.
+    pub(crate) fn parse_match_cases(
         &mut self,
         form: MatchForm,
+        function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<MatchCase>>> {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
         let mut has_default_case = false;
@@ -149,14 +115,14 @@ impl Parser {
                 // reject duplicate default selectors in switch blocks
                 if form == MatchForm::Switch
                     && has_default_case
-                    && self.is_keyword(Keyword::Default)
+                    && self.peek_is_keyword(Keyword::Default)
                 {
-                    return Err(ParserError::unexpected(self.peek()));
+                    return Err(ParserError::unexpected(self.peek_token_span()));
                 }
 
                 let case = self
-                    .eat_match_case(form)
-                    .for_node_type(NodeType::MatchCase)?;
+                    .parse_match_case(form, function)
+                    .in_node(NodeType::MatchCase)?;
 
                 // track default selectors for duplicate checks
                 if form == MatchForm::Switch {
@@ -175,234 +141,213 @@ impl Parser {
         Ok(cases)
     }
 
-    /// Eat a match case.
-    ///
-    /// Examples:
-    /// ```
-    /// 2 => parse_int(2)
-    ///
-    /// (x, y) if (x > y) => {
-    ///     ...
-    /// }
-    /// ```
-    fn eat_match_case(&mut self, form: MatchForm) -> ParserResult<LocalNodeId<MatchCase>> {
+    /// Parse one match case.
+    fn parse_match_case(
+        &mut self,
+        form: MatchForm,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<MatchCase>> {
         // decorators before match arms
-        let mut pending_case_decorators = if self.peek_is(TokenType::At) {
-            self.eat_decorators_maybe()?
+        let decorators = if self.peek_is(TokenType::At) {
+            self.parse_decorators(function)
         } else {
             smallvec::SmallVec::new()
         };
 
-        let start = self.span_start();
-        let mut guard_clause_span = None;
+        let start = self.mark_parse_start();
 
-        let selector = match form {
+        let (selector, guard_range) = match form {
             MatchForm::Switch => {
                 // default case
-                if self.is_keyword(Keyword::Default) {
+                if self.peek_is_keyword(Keyword::Default) {
                     self.bump();
-                    self.eat_colon()?;
-                    MatchSelector::Default
+                    self.eat_token(TokenType::Colon)?;
+                    (MatchSelector::Default, None)
                 }
                 // regular case
                 else {
                     self.eat_keyword(Keyword::Case)?;
-                    let pattern_start = self.span_start();
+                    let pattern_start = self.mark_parse_start();
                     // allow a wildcard here so switch cases do not bind `_`
-                    let pattern = if self.peek_identifier_str_is("_") {
+                    let pattern = if self.peek_identifier_is("_") {
                         self.bump();
-                        self.tree
-                            .insert(Pattern::Wildcard, self.get_span_from(&pattern_start))
+                        self.insert_node(Pattern::Wildcard, self.range_since(&pattern_start))
                     } else {
-                        let value = self.eat_expression(self.match_guard_flags())?;
+                        let value = self.parse_expression(ExpressionContext {
+                            function,
+                            stops: ExpressionStops::MATCH_COLON,
+                            ..ExpressionContext::default()
+                        })?;
                         self.insert_node(
                             Pattern::Expression { value },
-                            self.get_span_from(&pattern_start),
+                            self.range_since(&pattern_start),
                         )
                     };
 
                     // guard
-                    let guard = self.eat_match_guard(&mut guard_clause_span)?;
+                    let guard = self.parse_match_guard(function)?;
 
-                    self.eat_colon()?;
-                    MatchSelector::Pattern { pattern, guard }
+                    self.eat_token(TokenType::Colon)?;
+                    let guard_expression = guard.as_ref().map(|guard| guard.expression);
+                    let guard_range = guard.map(|guard| guard.range);
+
+                    (
+                        MatchSelector::Pattern {
+                            pattern,
+                            guard: guard_expression,
+                        },
+                        guard_range,
+                    )
                 }
             }
             // match form
             MatchForm::Match => {
                 // pattern
-                let pattern =
-                    self.with_flags(self.match_pattern_flags(), |parser| parser.eat_pattern())?;
+                let pattern = self.parse_pattern(PatternContext {
+                    function,
+                    is_match_case: true,
+                    ..PatternContext::default()
+                })?;
 
                 // guard
-                let guard = self.eat_match_guard(&mut guard_clause_span)?;
+                let guard = self.parse_match_guard(function)?;
 
                 // "arrow"
-                self.eat_arrow()?;
+                self.eat_token(TokenType::ArrowWide)?;
 
-                MatchSelector::Pattern { pattern, guard }
+                let guard_expression = guard.as_ref().map(|guard| guard.expression);
+                let guard_range = guard.map(|guard| guard.range);
+
+                (
+                    MatchSelector::Pattern {
+                        pattern,
+                        guard: guard_expression,
+                    },
+                    guard_range,
+                )
             }
         };
 
-        // switch case body: consume statements until break or next case boundary
-        if form == MatchForm::Switch {
-            // eat expressions until we hit a break (inclusive) or case / default (exclusive)
-
-            // empty case body before the next case, default, or closing brace
-            let is_empty_case = self.is_keyword(Keyword::Case)
-                || self.is_keyword(Keyword::Default)
-                || self.peek_is(TokenType::CloseBrace);
-            if is_empty_case {
-                let block_id = self.insert_node(
-                    Block {
-                        context: BlockContext::Statement,
-                        form: BlockForm::Implicit,
-                        leading_expressions: Vec::new(),
-                        tail_expression: None,
-                    },
-                    self.get_span_from(&start),
-                );
-                let match_case_id = self.insert_node(
-                    MatchCase::Block {
-                        selector,
-                        body: block_id,
-                    },
-                    self.get_span_from(&start),
-                );
-                self.finish_match_case(
-                    match_case_id,
-                    guard_clause_span,
-                    &mut pending_case_decorators,
-                );
-
-                return Ok(match_case_id);
-            }
-            let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
-            while self.has_more_tokens() {
-                // consume empty statements between switch body statements
-                if self.peek_is(TokenType::Semicolon) {
-                    self.eat_statement_stop()?;
-                    continue;
-                }
-
-                // stop at the next case boundary
-                if self.is_keyword(Keyword::Case)
-                    || self.is_keyword(Keyword::Default)
-                    || self.peek_is(TokenType::CloseBrace)
-                {
-                    break;
-                }
-                let expression_id = self.eat_statement_expression_or_recover();
-                expressions.push(expression_id);
-
-                // consume real separators without treating eof as progress
-                if matches!(
-                    self.peek_token_type(),
-                    TokenType::Comma | TokenType::Semicolon
-                ) {
-                    self.eat_any_stop()?;
-                }
-            }
-            // single expression case
-            let match_case_id = if expressions.len() == 1 {
-                self.insert_node(
-                    MatchCase::Expression {
-                        selector,
-                        body: expressions[0],
-                    },
-                    self.get_span_from(&start),
-                )
-            }
-            // multiple expression block
-            else {
-                let block_id = self.insert_node(
-                    Block {
-                        context: BlockContext::Statement,
-                        form: BlockForm::Implicit,
-                        leading_expressions: expressions,
-                        tail_expression: None,
-                    },
-                    self.get_span_from(&start),
-                );
-                self.insert_node(
-                    MatchCase::Block {
-                        selector,
-                        body: block_id,
-                    },
-                    self.get_span_from(&start),
-                )
-            };
-            self.finish_match_case(
-                match_case_id,
-                guard_clause_span,
-                &mut pending_case_decorators,
-            );
-            Ok(match_case_id)
-        }
-        // block body
-        else if self.is_block_start() {
-            let block_id = self.eat_block(BlockContext::Expression)?;
-            let match_case_id = self.insert_node(
+        // parse the case body in its source form
+        let case = if form == MatchForm::Switch {
+            self.parse_switch_case_body(&start, selector, function)?
+        } else if self.peek_block() {
+            let block = self.parse_block(BlockContext::Expression, function)?;
+            self.insert_node(
                 MatchCase::Block {
                     selector,
-                    body: block_id,
+                    body: block,
                 },
-                self.get_span_from(&start),
-            );
-            self.finish_match_case(
-                match_case_id,
-                guard_clause_span,
-                &mut pending_case_decorators,
-            );
-            Ok(match_case_id)
-        }
-        // single expression
-        else {
-            let expression_id = self.with_flags(self.flags.in_match_case_body(), |parser| {
-                parser.eat_expression(parser.flags)
+                self.range_since(&start),
+            )
+        } else {
+            let expression = self.parse_expression(ExpressionContext {
+                function,
+                stops: ExpressionStops::MATCH_COLON.with(ExpressionStops::MATCH_LINE),
+                ..ExpressionContext::default()
             })?;
-            let match_case_id = self.insert_node(
+            self.insert_node(
                 MatchCase::Expression {
                     selector,
-                    body: expression_id,
+                    body: expression,
                 },
-                self.get_span_from(&start),
-            );
-            self.finish_match_case(
-                match_case_id,
-                guard_clause_span,
-                &mut pending_case_decorators,
-            );
-            Ok(match_case_id)
-        }
+                self.range_since(&start),
+            )
+        };
+
+        // attach source metadata once after every body form
+        self.attach_match_case_metadata(case, guard_range, decorators);
+
+        Ok(case)
     }
 
-    /// Finish spans and decorators for one match case.
-    fn finish_match_case(
+    /// Parse one switch case body until the next case boundary.
+    fn parse_switch_case_body(
         &mut self,
-        match_case_id: LocalNodeId<MatchCase>,
-        guard_clause_span: Option<Span>,
-        pending_case_decorators: &mut PendingDecorators,
-    ) {
-        self.record_match_case_guard_clause(match_case_id, guard_clause_span);
+        start: &ParseStart,
+        selector: MatchSelector,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<MatchCase>> {
+        let mut expressions = Vec::new();
 
-        if !pending_case_decorators.is_empty() {
-            self.attach_decorators(match_case_id.id, mem::take(pending_case_decorators));
+        while self.has_more_tokens() {
+            // consume empty statements between body expressions
+            if self.peek_is(TokenType::Semicolon) {
+                self.eat_statement_stop()?;
+                continue;
+            }
+
+            // stop before the next case
+            if self.peek_is_keyword(Keyword::Case)
+                || self.peek_is_keyword(Keyword::Default)
+                || self.peek_is(TokenType::CloseBrace)
+            {
+                break;
+            }
+
+            // parse one body statement
+            let expression = self.parse_statement(function);
+            expressions.push(expression);
+
+            // consume an explicit separator without treating EOF as progress
+            if matches!(
+                self.peek_token_type(),
+                TokenType::Comma | TokenType::Semicolon
+            ) {
+                self.eat_any_stop()?;
+            }
         }
+
+        // retain a lone expression without an implicit block
+        if let [expression] = expressions.as_slice() {
+            return Ok(self.insert_node(
+                MatchCase::Expression {
+                    selector,
+                    body: *expression,
+                },
+                self.range_since(start),
+            ));
+        }
+
+        // represent empty and multi-statement cases as implicit blocks
+        let block = self.insert_node(
+            Block {
+                context: BlockContext::Statement,
+                form: BlockForm::Implicit,
+                leading_expressions: expressions,
+                tail_expression: None,
+            },
+            self.range_since(start),
+        );
+
+        Ok(self.insert_node(
+            MatchCase::Block {
+                selector,
+                body: block,
+            },
+            self.range_since(start),
+        ))
     }
 
-    /// Record the guard clause span for one match case.
-    fn record_match_case_guard_clause(
+    /// Attach source ranges and decorators to one match case.
+    fn attach_match_case_metadata(
         &mut self,
         match_case_id: LocalNodeId<MatchCase>,
-        guard_clause_span: Option<Span>,
+        guard_clause_range: Option<ByteRange>,
+        decorators: Decorators,
     ) {
-        if let Some(guard_clause_span) = guard_clause_span {
-            self.tree.set_side_span(
+        // retain the optional guard clause
+        if let Some(guard_clause_range) = guard_clause_range {
+            self.tree.set_side_range(
                 match_case_id,
                 NodeSpanType::Region(NodeSpanRegion::Clause),
-                guard_clause_span,
+                guard_clause_range,
             );
+        }
+
+        // attach case decorators in source order
+        if !decorators.is_empty() {
+            self.attach_decorators(match_case_id.id, decorators);
         }
     }
 }

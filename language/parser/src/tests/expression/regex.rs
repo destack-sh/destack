@@ -8,9 +8,9 @@ use destack_dir::{
 /// Parse regex literals inside template interpolation expressions.
 #[test]
 fn test_parse_tagged_template_with_regex_interpolation() {
-    let mut test = TestParser::new("re`/^${/^$/}$/u`");
+    let test = TestParser::new("re`/^${/^$/}$/u`");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value, .. } => {
         assert_expression_path!(parser, parser.tree.get(*tag), "re");
@@ -32,9 +32,9 @@ fn test_parse_tagged_template_with_regex_interpolation() {
 /// Parse tagged templates with legacy octal escapes.
 #[test]
 fn test_parse_tagged_template_with_legacy_octal_escape() {
-    let mut test = TestParser::new(r"String.raw`\1`");
+    let test = TestParser::new(r"String.raw`\1`");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // String.raw`\\1`
     assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value, .. } => {
@@ -54,9 +54,9 @@ fn test_parse_tagged_template_with_legacy_octal_escape() {
 #[test]
 fn test_parse_regex_literal_after_binary_add() {
     // source: RegExp(prefix + /[A-Z]/.source)
-    let mut test = TestParser::new("RegExp(prefix + /[A-Z]/.source)");
+    let test = TestParser::new("RegExp(prefix + /[A-Z]/.source)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // RegExp(prefix + /[A-Z]/.source)
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
@@ -79,9 +79,9 @@ fn test_parse_regex_literal_after_binary_add() {
 #[test]
 fn test_parse_regex_literal_after_binary_subtract() {
     // source: RegExp(prefix - /[A-Z]/.source)
-    let mut test = TestParser::new("RegExp(prefix - /[A-Z]/.source)");
+    let test = TestParser::new("RegExp(prefix - /[A-Z]/.source)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // RegExp(prefix - /[A-Z]/.source)
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
@@ -104,9 +104,9 @@ fn test_parse_regex_literal_after_binary_subtract() {
 #[test]
 fn test_parse_regex_literal_after_binary_divide() {
     // source: value / /[0-9]/.exec(text).length
-    let mut test = TestParser::new("value / /[0-9]/.exec(text).length");
+    let test = TestParser::new("value / /[0-9]/.exec(text).length");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // value / /[0-9]/.exec(text).length
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -132,9 +132,9 @@ fn test_parse_regex_literal_after_binary_divide() {
 #[test]
 fn test_parse_regex_literal_after_binary_less_than() {
     // source: value < /[A-Z]/.test(text)
-    let mut test = TestParser::new("value < /[A-Z]/.test(text)");
+    let test = TestParser::new("value < /[A-Z]/.test(text)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // value < /[A-Z]/.test(text)
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -157,9 +157,9 @@ fn test_parse_regex_literal_after_binary_less_than() {
 #[test]
 fn test_parse_regex_literal_after_binary_in_keyword() {
     // source: key in /[A-Z]/.source
-    let mut test = TestParser::new("key in /[A-Z]/.source");
+    let test = TestParser::new("key in /[A-Z]/.source");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // key in /[A-Z]/.source
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -176,9 +176,9 @@ fn test_parse_regex_literal_after_binary_in_keyword() {
 #[test]
 fn test_parse_regex_literal_after_binary_instanceof_keyword() {
     // source: value instanceof /[A-Z]/
-    let mut test = TestParser::new("value instanceof /[A-Z]/");
+    let test = TestParser::new("value instanceof /[A-Z]/");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // value instanceof /[A-Z]/
     assert_node!(parser.tree, expr_id, Expression::InstanceOf { value, target } => {
@@ -191,9 +191,9 @@ fn test_parse_regex_literal_after_binary_instanceof_keyword() {
 #[test]
 fn test_parse_regex_literal_after_assign_newline() {
     // source: let match =\n/^foo$/i.exec(str)
-    let mut test = TestParser::new("let match =\n/^foo$/i.exec(str)");
+    let test = TestParser::new("let match =\n/^foo$/i.exec(str)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // let match =\n/^foo$/i.exec(str)
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -214,9 +214,9 @@ fn test_parse_regex_literal_after_assign_newline() {
 #[test]
 fn test_parse_regex_literal_after_arrow() {
     // source: () => /^foo$/.test(value)
-    let mut test = TestParser::new("() => /^foo$/.test(value)");
+    let test = TestParser::new("() => /^foo$/.test(value)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body, .. }) => {
@@ -236,9 +236,9 @@ fn test_parse_regex_literal_after_arrow() {
 #[test]
 fn test_parse_regex_literal_after_unary_not() {
     // source: !/[A-Z]/.test(k)
-    let mut test = TestParser::new("!/[A-Z]/.test(k)");
+    let test = TestParser::new("!/[A-Z]/.test(k)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // !/[A-Z]/.test(k)
     assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
@@ -257,9 +257,9 @@ fn test_parse_regex_literal_after_unary_not() {
 #[test]
 fn test_parse_regex_literal_after_coalesce_assign() {
     // source: encoded ??= /[%+]/.test(url)
-    let mut test = TestParser::new("encoded ??= /[%+]/.test(url)");
+    let test = TestParser::new("encoded ??= /[%+]/.test(url)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // encoded ??= /[%+]/.test(url)
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
@@ -279,9 +279,9 @@ fn test_parse_regex_literal_after_coalesce_assign() {
 #[test]
 fn test_parse_divide_after_non_null_assertion() {
     // source: x! / 2
-    let mut test = TestParser::new("x! / 2");
+    let test = TestParser::new("x! / 2");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // x! / 2
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -298,9 +298,9 @@ fn test_parse_divide_after_non_null_assertion() {
 #[test]
 fn test_parse_regex_literal_with_character_class_slash() {
     // source: let a = /[\]/]/
-    let mut test = TestParser::new("let a = /[\\]/]/");
+    let test = TestParser::new("let a = /[\\]/]/");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // let a = /[\]/]/
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -315,9 +315,9 @@ fn test_parse_regex_literal_with_character_class_slash() {
 #[test]
 fn test_report_regex_unicode_escape_out_of_range() {
     // source: /\u{110000}/u
-    let mut test = TestParser::new("/\\u{110000}/u");
+    let test = TestParser::new("/\\u{110000}/u");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
     assert_eq!(error.range.start, 0);
 }
@@ -326,9 +326,9 @@ fn test_report_regex_unicode_escape_out_of_range() {
 #[test]
 fn test_report_regex_unicode_invalid_decimal_escape() {
     // source: /\1/u
-    let mut test = TestParser::new("/\\1/u");
+    let test = TestParser::new("/\\1/u");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
     assert_eq!(error.range.start, 0);
 }
@@ -337,9 +337,9 @@ fn test_report_regex_unicode_invalid_decimal_escape() {
 #[test]
 fn test_report_regex_unicode_lone_opening_quantifier_brace() {
     // source: /{*/u
-    let mut test = TestParser::new("/{*/u");
+    let test = TestParser::new("/{*/u");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
     assert_eq!(error.range.start, 0);
 }
@@ -348,9 +348,9 @@ fn test_report_regex_unicode_lone_opening_quantifier_brace() {
 #[test]
 fn test_report_regex_unicode_quantified_lookahead() {
     // source: /(?!.){0,}?/u
-    let mut test = TestParser::new("/(?!.){0,}?/u");
+    let test = TestParser::new("/(?!.){0,}?/u");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
     assert_eq!(error.range.start, 0);
 }
@@ -359,9 +359,9 @@ fn test_report_regex_unicode_quantified_lookahead() {
 #[test]
 fn test_report_regex_unicode_lone_closing_quantifier_brace() {
     // source: /}?/u
-    let mut test = TestParser::new("/}?/u");
+    let test = TestParser::new("/}?/u");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
     assert_eq!(error.range.start, 0);
 }
@@ -370,9 +370,9 @@ fn test_report_regex_unicode_lone_closing_quantifier_brace() {
 #[test]
 fn test_parse_regex_unicode_property_escape() {
     // source: /\p{Emoji}/u
-    let mut test = TestParser::new("/\\p{Emoji}/u");
+    let test = TestParser::new("/\\p{Emoji}/u");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(
         parser.tree,
@@ -385,9 +385,9 @@ fn test_parse_regex_unicode_property_escape() {
 #[test]
 fn test_parse_regex_unicode_escape_with_long_leading_zeros() {
     // source: /[\u{0000000000000061}-\u{7A}]/u
-    let mut test = TestParser::new("/[\\u{0000000000000061}-\\u{7A}]/u");
+    let test = TestParser::new("/[\\u{0000000000000061}-\\u{7A}]/u");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // /[\u{0000000000000061}-\u{7A}]/u
     assert_node!(
@@ -401,9 +401,9 @@ fn test_parse_regex_unicode_escape_with_long_leading_zeros() {
 #[test]
 fn test_parse_string_unicode_escape_with_long_leading_zeros() {
     // source: "\u{00000000034}"
-    let mut test = TestParser::new("\"\\u{00000000034}\"");
+    let test = TestParser::new("\"\\u{00000000034}\"");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // "\u{00000000034}"
     assert_node!(parser.tree, expr_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
@@ -414,9 +414,9 @@ fn test_parse_string_unicode_escape_with_long_leading_zeros() {
 /// Parse a less-than comparison.
 #[test]
 fn test_parse_comparison_less_than() {
-    let mut test = TestParser::new("x < y");
+    let test = TestParser::new("x < y");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     // x < y
     assert_node!(
         parser.tree,
@@ -434,9 +434,9 @@ fn test_parse_comparison_less_than() {
 /// Parse regex literal in export default.
 #[test]
 fn test_parse_export_default_regex_literal() {
-    let mut test = TestParser::new("export default /foo/");
+    let test = TestParser::new("export default /foo/");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());

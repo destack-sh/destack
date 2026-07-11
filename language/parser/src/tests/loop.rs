@@ -11,7 +11,7 @@ use crate::{
 
 #[test]
 fn test_parse_loop() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 loop {
     x
@@ -20,7 +20,7 @@ loop {
     );
     let mut parser = test.prepare();
 
-    let loop_id = parser.eat_loop().unwrap();
+    let loop_id = parser.parse_loop(Default::default()).unwrap();
     assert_node!(parser.tree, loop_id, Expression::Loop { body, .. } => {
         let _block = parser.tree.get(*body);
     });
@@ -28,7 +28,7 @@ loop {
 
 #[test]
 fn test_parse_for_loop() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (const item in items) {
     x
@@ -37,7 +37,7 @@ for (const item in items) {
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*keyword, Some(BindingKeyword::Const));
         // item
@@ -51,9 +51,9 @@ for (const item in items) {
 
 #[test]
 fn test_parse_for_loop_with_missing_close_parenthesis() {
-    let mut test = TestParser::new("for (item in items { body }");
+    let test = TestParser::new("for (item in items { body }");
     let mut parser = test.prepare();
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -69,10 +69,10 @@ fn test_parse_for_loop_with_missing_close_parenthesis() {
 
 #[test]
 fn test_parse_for_loop_with_line_comment_after_keyword() {
-    let mut test = TestParser::new("for // comment\n(;;);");
+    let test = TestParser::new("for // comment\n(;;);");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
         assert!(initialization.is_none());
         assert!(condition.is_none());
@@ -86,10 +86,10 @@ fn test_parse_for_loop_with_line_comment_after_keyword() {
 
 #[test]
 fn test_parse_for_loop_with_block_comment_after_keyword() {
-    let mut test = TestParser::new("for /* comment */(;;);");
+    let test = TestParser::new("for /* comment */(;;);");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
         assert!(initialization.is_none());
         assert!(condition.is_none());
@@ -103,7 +103,7 @@ fn test_parse_for_loop_with_block_comment_after_keyword() {
 
 #[test]
 fn test_parse_for_each_loop_in_parentheses() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (const item in items) {
     x
@@ -112,7 +112,7 @@ for (const item in items) {
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*asynchrony, Asynchrony::Sync);
         assert_eq!(*keyword, Some(BindingKeyword::Const));
@@ -127,7 +127,7 @@ for (const item in items) {
 
 #[test]
 fn test_parse_for_loop_with_async_in_parentheses() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for await (const item of items) {
     x
@@ -136,7 +136,7 @@ for await (const item of items) {
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*asynchrony, Asynchrony::Async);
         assert_eq!(*operator, ForEachOperator::Of);
@@ -153,7 +153,7 @@ for await (const item of items) {
 /// Parse for of headers with multiline destructured bindings.
 #[test]
 fn test_parse_for_of_multiline_destructured_binding() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (
   const {
@@ -165,7 +165,7 @@ for (
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     // for (const { ... } of selectedRelations) {}
     assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding, iterator, body } => {
         assert_eq!(*asynchrony, Asynchrony::Sync);
@@ -193,14 +193,14 @@ for (
 
 #[test]
 fn test_parse_for_of_await_generic_call_with_object_type_argument() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (const { item } of await fetchList<{ item: string }>(values)) {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding, iterator, body } => {
         assert_eq!(*asynchrony, Asynchrony::Sync);
         assert_eq!(*operator, ForEachOperator::Of);
@@ -250,7 +250,7 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
 
 #[test]
 fn test_parse_for_each_binding_const_object_stops_before_of() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (const { item } of fetchList<{ item: string }>(values)) {}
 "###,
@@ -260,7 +260,7 @@ for (const { item } of fetchList<{ item: string }>(values)) {}
     parser.eat_keyword(Keyword::For).unwrap();
     parser.eat_token(TokenType::OpenParenthesis).unwrap();
 
-    let binding = parser.eat_for_each_binding().unwrap();
+    let binding = parser.parse_for_each_binding(Default::default()).unwrap();
     assert_node!(binding, ForEachBinding::Pattern { pattern, keyword } => {
         assert_eq!(keyword, Some(BindingKeyword::Const));
         assert_node!(parser.tree, pattern, Pattern::Object { fields } => {
@@ -268,19 +268,19 @@ for (const { item } of fetchList<{ item: string }>(values)) {}
         });
     });
 
-    assert!(parser.peek_keyword(Keyword::Of).is_ok());
+    assert_eq!(parser.peek_keyword(), Some(Keyword::Of));
 }
 
 #[test]
 fn test_parse_for_of_tagged_object_binding() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (const Shape.Line { start: Point { x, y }, end } of lines) {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
 
     assert!(parser.errors.is_empty());
 
@@ -321,7 +321,7 @@ for (const Shape.Line { start: Point { x, y }, end } of lines) {}
 
 #[test]
 fn test_parse_for_loop_with_inline_if_body() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (let r in t)
     if (r !== "default" && !Object.prototype.hasOwnProperty.call(e, r)) i(e, t, r)
@@ -329,7 +329,7 @@ for (let r in t)
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, keyword }, iterator, body, .. } => {
         assert_eq!(*keyword, Some(BindingKeyword::Let));
         // r
@@ -349,7 +349,7 @@ for (let r in t)
 
 #[test]
 fn test_parse_for_loop_with_label() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (const item in items) outer: {
     x
@@ -358,7 +358,7 @@ for (const item in items) outer: {
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*keyword, Some(BindingKeyword::Const));
         // item
@@ -372,7 +372,7 @@ for (const item in items) outer: {
 
 #[test]
 fn test_parse_for_loop_with_using_binding() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (using item of items) {
     x
@@ -381,7 +381,7 @@ for (using item of items) {
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Using { asynchrony, pattern }, iterator, .. } => {
         assert_eq!(*asynchrony, Asynchrony::Sync);
         assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
@@ -393,10 +393,10 @@ for (using item of items) {
 
 #[test]
 fn test_parse_for_loop_with_await_using_of_binding() {
-    let mut test = TestParser::new("for await (await using of of items);");
+    let test = TestParser::new("for await (await using of of items);");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, operator, binding, iterator, .. } => {
         assert_eq!(*asynchrony, Asynchrony::Async);
         assert_eq!(*operator, ForEachOperator::Of);
@@ -415,10 +415,10 @@ fn test_parse_for_loop_with_await_using_of_binding() {
 #[test]
 fn test_parse_for_in_with_member_expression_binding() {
     // for (a[b in c] in d);
-    let mut test = TestParser::new("for (a[b in c] in d);");
+    let test = TestParser::new("for (a[b in c] in d);");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*operator, ForEachOperator::In);
         assert_eq!(*keyword, None);
@@ -432,10 +432,10 @@ fn test_parse_for_in_with_member_expression_binding() {
 #[test]
 fn test_parse_for_in_with_call_expression_binding() {
     // for (a(b in c)[1] in d);
-    let mut test = TestParser::new("for (a(b in c)[1] in d);");
+    let test = TestParser::new("for (a(b in c)[1] in d);");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*operator, ForEachOperator::In);
         assert_eq!(*keyword, None);
@@ -449,11 +449,11 @@ fn test_parse_for_in_with_call_expression_binding() {
 #[test]
 fn test_parse_for_in_with_array_expression_binding() {
     // for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);
-    let mut test =
+    let test =
         TestParser::new("for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*operator, ForEachOperator::In);
         assert_eq!(*keyword, None);
@@ -467,10 +467,10 @@ fn test_parse_for_in_with_array_expression_binding() {
 #[test]
 fn test_parse_for_in_with_unary_binding_expression() {
     // source: for (+i in {});
-    let mut test = TestParser::new("for (+i in {});");
+    let test = TestParser::new("for (+i in {});");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*operator, ForEachOperator::In);
         assert_eq!(*keyword, None);
@@ -484,10 +484,10 @@ fn test_parse_for_in_with_unary_binding_expression() {
 #[test]
 fn test_parse_for_in_with_binary_binding_expression() {
     // source: for (i + 1 in {});
-    let mut test = TestParser::new("for (i + 1 in {});");
+    let test = TestParser::new("for (i + 1 in {});");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, .. } => {
         assert_eq!(*operator, ForEachOperator::In);
         assert_eq!(*keyword, None);
@@ -501,10 +501,10 @@ fn test_parse_for_in_with_binary_binding_expression() {
 #[test]
 fn test_parse_for_in_with_parenthesized_binary_binding_expression() {
     // source: for((1 + 1) in list) process(x);
-    let mut test = TestParser::new("for((1 + 1) in list) process(x);");
+    let test = TestParser::new("for((1 + 1) in list) process(x);");
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding: ForEachBinding::Pattern { pattern, keyword }, iterator, body, .. } => {
         assert_eq!(*operator, ForEachOperator::In);
         assert_eq!(*keyword, None);
@@ -524,14 +524,14 @@ fn test_parse_for_in_with_parenthesized_binary_binding_expression() {
 
 #[test]
 fn test_parse_for_loop_condition_empty() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (;;) {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, .. } => {
         assert!(initialization.is_none());
         assert!(condition.is_none());
@@ -541,7 +541,7 @@ for (;;) {}
 
 #[test]
 fn test_parse_for_loop_condition_with_initialization() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (let x = 0; x < 10; x++) {
     x
@@ -550,7 +550,7 @@ for (let x = 0; x < 10; x++) {
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, .. } => {
         // let x = 0
         assert_node!(parser.tree, initialization.unwrap(), Expression::Let { declarators, .. } => {
@@ -582,14 +582,14 @@ for (let x = 0; x < 10; x++) {
 }
 #[test]
 fn test_parse_for_of_with_type_identifier_binding() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 for (type of values) {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let for_id = parser.eat_for().unwrap();
+    let for_id = parser.parse_for(Default::default()).unwrap();
     assert_node!(parser.tree, for_id, Expression::ForEach { binding, operator, iterator, .. } => {
         // for of
         assert_eq!(*operator, ForEachOperator::Of);
@@ -611,14 +611,14 @@ for (type of values) {}
 
 #[test]
 fn test_parse_while_loop() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 while (x) {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let while_id = parser.eat_while().unwrap();
+    let while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
         assert_expression_path!(parser, parser.tree.get(*condition), "x");
     });
@@ -626,7 +626,7 @@ while (x) {}
 
 #[test]
 fn test_parse_while_loop_nested() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 while (x > y) {
     while (a < b) {
@@ -638,7 +638,7 @@ while (x > y) {
     );
     let mut parser = test.prepare();
 
-    let while_id = parser.eat_while().unwrap();
+    let while_id = parser.parse_while(Default::default()).unwrap();
 
     // while (x > y)
     assert_node!(parser.tree, while_id, Expression::While { condition, body, .. } => {
@@ -674,10 +674,10 @@ while (x > y) {
 
 #[test]
 fn test_parse_while_parenthesized_condition_keeps_inner_span() {
-    let mut test = TestParser::new("while (x > y) {}");
+    let test = TestParser::new("while (x > y) {}");
     let mut parser = test.prepare();
 
-    let while_id = parser.eat_while().unwrap();
+    let while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, while_id, Expression::While { condition, .. } => {
         assert_node!(parser.tree, *condition, Expression::Binary { .. });
 
@@ -690,7 +690,7 @@ fn test_parse_while_parenthesized_condition_keeps_inner_span() {
 
 #[test]
 fn test_parse_do_while_loop() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 do { x } while (true)
 "###,
@@ -699,19 +699,36 @@ do { x } while (true)
     let mut parser = test.prepare();
 
     // do { x } while true
-    let do_while_id = parser.eat_while().unwrap();
+    let do_while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, do_while_id, Expression::While { form, condition, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
         assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
     });
 }
 
+/// Parse a do-while expression whose block contains statement separators.
 #[test]
-fn test_parse_do_while_parenthesized_condition_keeps_inner_span() {
-    let mut test = TestParser::new("do x; while (value)");
+fn test_parse_do_while_block_with_semicolons() {
+    let test = TestParser::new("do { a++; b--; } while (a < 1)");
     let mut parser = test.prepare();
 
-    let while_id = parser.eat_while().unwrap();
+    let roots = parser.parse();
+    assert_eq!(roots.len(), 1);
+    assert_node!(parser.tree, roots[0], Expression::While { form, condition, body } => {
+        assert_eq!(*form, WhileForm::DoWhile);
+        assert_node!(parser.tree, *condition, Expression::Binary { .. });
+        assert_node!(parser.tree, *body, Block { .. });
+    });
+
+    TestParser::assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_do_while_parenthesized_condition_keeps_inner_span() {
+    let test = TestParser::new("do x; while (value)");
+    let mut parser = test.prepare();
+
+    let while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, while_id, Expression::While { form, condition, .. } => {
         assert_eq!(*form, WhileForm::DoWhile);
         assert_expression_path!(parser, parser.tree.get(*condition), "value");
@@ -726,11 +743,11 @@ fn test_parse_do_while_parenthesized_condition_keeps_inner_span() {
 /// Parse a single statement loop body without braces.
 #[test]
 fn test_parse_do_while_single_statement() {
-    let mut test = TestParser::new("do x; while (true)");
+    let test = TestParser::new("do x; while (true)");
 
     let mut parser = test.prepare();
 
-    let do_while_id = parser.eat_while().unwrap();
+    let do_while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body } => {
         assert_eq!(*form, WhileForm::DoWhile);
         assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
@@ -744,11 +761,11 @@ fn test_parse_do_while_single_statement() {
 
 #[test]
 fn test_parse_do_while_continue_statement() {
-    let mut test = TestParser::new("do continue; while (true)");
+    let test = TestParser::new("do continue; while (true)");
 
     let mut parser = test.prepare();
 
-    let do_while_id = parser.eat_while().unwrap();
+    let do_while_id = parser.parse_while(Default::default()).unwrap();
     assert_node!(parser.tree, do_while_id, Expression::While { form, condition, body } => {
         assert_eq!(*form, WhileForm::DoWhile);
         assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));

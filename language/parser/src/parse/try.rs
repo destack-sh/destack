@@ -1,129 +1,55 @@
+use crate::parse::context::{ExpressionContext, FunctionContext, PatternContext, TypeContext};
 use crate::{Parser, ParserResult};
 use destack_dir::{BlockContext, Catch, Expression, Keyword, LocalNodeId, NodeType, TokenType};
 
 impl Parser {
-    /// Eat a try expression.
+    /// Parse one try expression.
     ///
     /// Examples:
+    /// ```ds
+    /// try { work(); } catch (error) { handle(error); } finally { cleanup(); }
     /// ```
-    /// try {
-    ///     fileOperation()?;
-    /// } catch (e) {
-    ///     handle(e);
-    /// }
-    ///
-    /// try {
-    ///     let a = riskyOperationA()?;
-    ///     riskyOperationB(a)?;
-    /// } catch (e) {
-    ///     log("failed", e);
-    /// } finally {
-    ///     cleanup();
-    /// }
-    ///
-    /// try {
-    ///     riskyOperationA()?;
-    /// } catch match (e) {
-    ///     NumericError(x) => Error(`bad number: ${x}`)
-    ///     FormatError => Error(`bad format ${e}`)
-    ///     _ => Error(`unknown error: ${e}`)
-    /// }
-    /// ```
-    ///
-    /// The parser accepts `try <expr>` without catch/finally, but Analyze rejects it.
-    pub fn eat_try(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
+    pub(crate) fn parse_try(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
         self.eat_keyword(Keyword::Try)?;
 
-        // try block
-        if self.is_block_start() {
-            // try block
-            let try_block = self.eat_block(BlockContext::Expression)?;
-            let try_block_span = self.tree.get_span(try_block);
-            let body = self.insert_node(Expression::Block(try_block), try_block_span);
+        // try { body } catch ... finally ...
+        if self.peek_block() {
+            let try_block = self.parse_block(BlockContext::Expression, function)?;
+            let try_block_range = self.tree.get_range(try_block);
+            let body = self.insert_node(Expression::Block(try_block), try_block_range);
 
-            // catch
-            let catch = if self.is_keyword(Keyword::Catch) {
-                let catch_start = self.span_start();
-                self.bump(); // eat keyword
+            // catch ...
+            let catch = self.parse_catch(function)?;
 
-                // no pattern or catch match
-                let (pattern, ty, body) =
-                    if self.is_block_start() || self.is_keyword(Keyword::Match) {
-                        let body = self.eat_try_branch_body()?;
-                        (None, None, body)
-                    }
-                    // catch pattern with expression content
-                    else {
-                        // parse catch binding pattern
-                        self.eat_token(TokenType::OpenParenthesis)?;
-
-                        let catch_pattern_flags = self
-                            .flags
-                            .not_in_position()
-                            .in_before_type()
-                            .in_before_block();
-                        let catch_pattern =
-                            self.with_flags(catch_pattern_flags, |parser| parser.eat_pattern())?;
-
-                        let catch_ty = if self.peek_colon_is() {
-                            self.bump(); // eat :
-                            let catch_ty = self.eat_type_expression_or_recover_missing(
-                                self.flags.not_in_position().in_type().in_before_block(),
-                                NodeType::Pattern,
-                            )?;
-                            Some(catch_ty)
-                        } else {
-                            None
-                        };
-
-                        self.eat_close_token_or_recover_missing_with(
-                            TokenType::CloseParenthesis,
-                            NodeType::Pattern,
-                            |parser, token_type| {
-                                Self::is_close_delimiter_boundary_token(token_type)
-                                    || parser.is_block_start()
-                                    || parser.is_keyword(Keyword::Match)
-                            },
-                        )?;
-
-                        let body = self.eat_try_branch_body()?;
-                        (Some(catch_pattern), catch_ty, body)
-                    };
-
-                Some(self.insert_node(
-                    Catch { pattern, ty, body },
-                    self.get_span_from(&catch_start),
-                ))
-            } else {
-                None
-            };
-
-            // finally
-            let finally = if self.is_keyword(Keyword::Finally) {
-                self.bump(); // eat keyword
-                let finally = self.eat_try_branch_body()?;
+            // finally ...
+            let finally = if self.peek_is_keyword(Keyword::Finally) {
+                self.bump();
+                let finally = self.parse_try_branch(function)?;
                 Some(finally)
             } else {
                 None
             };
 
-            // try
+            // retain the complete branch sequence
             let try_id = self.insert_node(
                 Expression::Try {
                     body,
                     catch,
                     finally,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             Ok(try_id)
         }
         // try expression
         else {
-            let expression_flags = self.flags.not_in_position();
-            let expression_id = self.with_flags(expression_flags, |parser| {
-                parser.eat_expression(parser.flags)
+            let expression_id = self.parse_expression(ExpressionContext {
+                function,
+                ..ExpressionContext::default()
             })?;
             let try_id = self.insert_node(
                 Expression::Try {
@@ -131,23 +57,92 @@ impl Parser {
                     catch: None,
                     finally: None,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             Ok(try_id)
         }
     }
 
-    /// Eat a catch or finally branch body.
-    fn eat_try_branch_body(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        if self.is_block_start() {
-            let block = self.eat_block(BlockContext::Expression)?;
-            let span = self.tree.get_span(block);
-
-            Ok(self.insert_node(Expression::Block(block), span))
-        } else {
-            self.with_flags(self.flags.not_in_position(), |parser| {
-                parser.eat_statement_expression()
-            })
+    /// Parse one optional catch clause.
+    fn parse_catch(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<Option<LocalNodeId<Catch>>> {
+        if !self.peek_is_keyword(Keyword::Catch) {
+            return Ok(None);
         }
+
+        let start = self.mark_parse_start();
+        self.bump();
+
+        // parse an unbound catch or catch-match body
+        if self.peek_block() || self.peek_is_keyword(Keyword::Match) {
+            let body = self.parse_try_branch(function)?;
+            let catch = self.insert_node(
+                Catch {
+                    pattern: None,
+                    ty: None,
+                    body,
+                },
+                self.range_since(&start),
+            );
+
+            return Ok(Some(catch));
+        }
+
+        // parse the catch binding and optional type
+        self.eat_token(TokenType::OpenParenthesis)?;
+        let pattern = self.parse_pattern(PatternContext {
+            function,
+            is_before_type: true,
+            ..PatternContext::default()
+        })?;
+        let ty = if self.eat_token_if(TokenType::Colon) {
+            Some(self.parse_type_or_recover_missing(
+                TypeContext {
+                    function,
+                    ..TypeContext::default()
+                },
+                NodeType::Pattern,
+            )?)
+        } else {
+            None
+        };
+
+        // close the binding before entering the branch body
+        self.eat_close_token_or_recover_missing_with(
+            TokenType::CloseParenthesis,
+            NodeType::Pattern,
+            |parser, token_type| {
+                Self::is_close_delimiter_boundary_token(token_type)
+                    || parser.peek_block()
+                    || parser.peek_is_keyword(Keyword::Match)
+            },
+        )?;
+        let body = self.parse_try_branch(function)?;
+        let catch = self.insert_node(
+            Catch {
+                pattern: Some(pattern),
+                ty,
+                body,
+            },
+            self.range_since(&start),
+        );
+
+        Ok(Some(catch))
+    }
+
+    /// Parse one catch or finally branch body.
+    fn parse_try_branch(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        if self.peek_block() {
+            let block = self.parse_block(BlockContext::Expression, function)?;
+
+            return Ok(self.insert_node(Expression::Block(block), self.tree.get_range(block)));
+        }
+
+        Ok(self.parse_statement(function))
     }
 }

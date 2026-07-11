@@ -1,3 +1,4 @@
+use crate::parse::context::{ExpressionContext, FunctionContext};
 use crate::{Parser, ParserError, ParserResult};
 
 use destack_core::StringId;
@@ -6,24 +7,24 @@ use destack_dir::{
     ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Key, Keyword,
     LocalNodeId, Name, NodeType, Property, TokenLiteral, TokenType,
 };
-use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{ByteRange, NodeSpanList, NodeSpanRegion, NodeSpanType};
 
-/// One parsed import attribute clause plus parser owned source spans.
+/// One import attribute clause and its source ranges.
 #[derive(Debug, Clone)]
-struct ParsedImportAttributeClause {
+struct ImportClause {
     /// The decoded import attribute clause.
     clause: ImportAttributeClause,
-    /// The full source span of the clause.
-    span: Span,
-    /// The source spans of the attribute entries.
-    attribute_spans: Vec<Span>,
+    /// The full source range of the clause.
+    range: ByteRange,
+    /// The source ranges of the attribute entries.
+    attribute_ranges: Vec<ByteRange>,
 }
 
 impl Parser {
-    /// Eat an import declaration (including the `import` keyword and an optional body).
+    /// Parse an import declaration (including the `import` keyword and an optional body).
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// import "foo"
     /// import "foo.bar"
     /// import * as foo from "foo"
@@ -31,96 +32,97 @@ impl Parser {
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true }
     /// ```
-    pub fn eat_import(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
+    pub(crate) fn parse_import(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
 
         // keyword
         self.eat_keyword(Keyword::Import)?;
 
         // source form
-        let form = if self.should_parse_import_type_modifier() {
-            self.bump(); // eat type
-            Some(DependencyForm::Type)
+        let form = if self.peek_import_type_modifier() {
+            self.bump();
+            DependencyForm::Type
         } else {
-            None
+            DependencyForm::Plain
         };
 
         // binding
-        let mut has_binding = false;
-        let items = if self.peek_dependency_binding_is() {
-            has_binding = true;
-            let allow_type_modifier = form != Some(DependencyForm::Type);
-            Some(self.eat_dependency_items_block(allow_type_modifier, false)?)
+        let items = if self.peek_dependency_binding() {
+            let allow_type_modifier = form != DependencyForm::Type;
+            Some(self.parse_dependency_items(allow_type_modifier, false, function)?)
         } else {
             None
         };
 
-        if has_binding {
+        if items.is_some() {
             self.eat_keyword(Keyword::From)?;
         }
 
         // allow bare import targets on the next line (`import\n"foo"` and comment separated forms)
-        let (target, target_span) = self.eat_dependency_target_with_span()?;
+        let (target, target_range) = self.eat_dependency_target_with_range()?;
 
         // arguments
-        let parsed_attributes = self.eat_dependency_arguments_maybe()?;
-        let attributes = parsed_attributes
+        let import_clause = self.parse_import_clause(function)?;
+        let attributes = import_clause
             .as_ref()
-            .map(|parsed_attributes| parsed_attributes.clause.clone());
+            .map(|import_clause| import_clause.clause.clone());
 
         // import
         let import_id = self.insert_node(
             Expression::Import {
-                form: form.unwrap_or(DependencyForm::Plain),
+                form,
                 target,
                 items,
                 attributes,
             },
-            self.get_span_from(&start),
+            self.range_since(&start),
         );
 
-        // set main span to the import target string
-        self.tree.set_main_span(import_id, target_span);
+        // set the main source range to the import target string
+        self.tree.set_main_range(import_id, target_range);
 
-        // set import attribute source spans
-        if let Some(parsed_attributes) = parsed_attributes {
-            self.set_import_attribute_clause_spans(import_id, &parsed_attributes)?;
+        // set import attribute source ranges
+        if let Some(import_clause) = import_clause {
+            self.set_import_attribute_clause_ranges(import_id, &import_clause)?;
         }
 
         Ok(import_id)
     }
 
     /// Decide whether `type` after `import` is a type-only modifier.
-    fn should_parse_import_type_modifier(&mut self) -> bool {
-        if !self.is_keyword(Keyword::Type) {
+    fn peek_import_type_modifier(&self) -> bool {
+        if !self.peek_is_keyword(Keyword::Type) {
             return false;
         }
 
         // binding forms like `import type { ... }` or `import type * as`
         if matches!(
-            self.token_type_at_offset(1),
+            self.peek_token_type_at(1),
             TokenType::OpenBrace | TokenType::Multiply
         ) {
             return true;
         }
 
         // identifier bindings like `import type A from "a"`
-        if self.token_type_at_offset(1) != TokenType::Identifier {
+        if self.peek_token_type_at(1) != TokenType::Identifier {
             return false;
         }
 
-        if self.keyword_at_offset(1) == Some(Keyword::From) {
-            return self.token_type_at_offset(2) == TokenType::Assign
-                || self.keyword_at_offset(2) == Some(Keyword::From);
+        if self.peek_keyword_at(1) == Some(Keyword::From) {
+            return self.peek_token_type_at(2) == TokenType::Assign
+                || self.peek_keyword_at(2) == Some(Keyword::From);
         }
 
         true
     }
 
-    /// Eat an export declaration (including the `export` keyword and an optional body).
+    /// Parse an export declaration (including the `export` keyword and an optional body).
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// export "foo"
     /// export * from "foo"
     /// export * as foo from "foo"
@@ -128,21 +130,27 @@ impl Parser {
     /// export { bar as bar, baz }
     /// export default foo
     /// ```
-    pub fn eat_export(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
+    pub(crate) fn parse_export(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
 
         self.eat_keyword(Keyword::Export)?;
 
         // export default <expression>
-        if self.is_keyword(Keyword::Default) {
-            self.bump(); // eat default
+        if self.peek_is_keyword(Keyword::Default) {
+            self.bump();
 
             // reject export default enum declarations
-            if self.is_keyword(Keyword::Enum) {
-                return Err(ParserError::unexpected(self.peek()));
+            if self.peek_is_keyword(Keyword::Enum) {
+                return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
-            let value = self.eat_expression(self.flags.not_in_position())?;
+            let value = self.parse_expression(ExpressionContext {
+                function,
+                ..ExpressionContext::default()
+            })?;
             let item = self.insert_node(
                 DependencyItem::Binding {
                     binding: DependencyBinding::Default,
@@ -151,7 +159,7 @@ impl Parser {
                     alias: None,
                     value: Some(value),
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             let export = self.insert_node(
                 Expression::Export {
@@ -160,30 +168,31 @@ impl Parser {
                     items: vec![item],
                     attributes: None,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             return Ok(export);
         }
 
         // source form
-        let form = if self.is_keyword(Keyword::Type) {
-            self.bump(); // eat type
-            Some(DependencyForm::Type)
+        let form = if self.peek_is_keyword(Keyword::Type) {
+            self.bump();
+            DependencyForm::Type
         } else {
-            None
+            DependencyForm::Plain
         };
 
         // export * from
-        let has_namespace_reexport_from =
-            self.peek_is(TokenType::Multiply) && { self.next_keyword() == Some(Keyword::From) };
+        let has_namespace_reexport_from = self.peek_is(TokenType::Multiply) && {
+            self.peek_next_keyword() == Some(Keyword::From)
+        };
         if has_namespace_reexport_from {
-            self.bump(); // eat *
+            self.bump();
             self.eat_keyword(Keyword::From)?;
-            let (target, target_span) = self.eat_dependency_target_with_span()?;
-            let parsed_attributes = self.eat_dependency_arguments_maybe()?;
-            let attributes = parsed_attributes
+            let (target, target_range) = self.eat_dependency_target_with_range()?;
+            let import_clause = self.parse_import_clause(function)?;
+            let attributes = import_clause
                 .as_ref()
-                .map(|parsed_attributes| parsed_attributes.clause.clone());
+                .map(|import_clause| import_clause.clause.clone());
             let item = DependencyItem::Binding {
                 binding: DependencyBinding::Namespace,
                 form: None,
@@ -191,54 +200,54 @@ impl Parser {
                 alias: None,
                 value: None,
             };
-            let item_id = self.insert_node(item, self.get_span_from(&start));
+            let item_id = self.insert_node(item, self.range_since(&start));
             let export = self.insert_node(
                 Expression::Export {
-                    form: form.unwrap_or(DependencyForm::Plain),
+                    form,
                     target: Some(target),
                     items: vec![item_id],
                     attributes,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
 
-            // set main span to the export target string
-            self.tree.set_main_span(export, target_span);
+            // set the main source range to the export target string
+            self.tree.set_main_range(export, target_range);
 
-            // set import attribute source spans
-            if let Some(parsed_attributes) = parsed_attributes {
-                self.set_import_attribute_clause_spans(export, &parsed_attributes)?;
+            // set import attribute source ranges
+            if let Some(import_clause) = import_clause {
+                self.set_import_attribute_clause_ranges(export, &import_clause)?;
             }
 
             return Ok(export);
         }
 
         // require a binding after export and optional type modifier
-        if self.peek_dependency_binding().is_err() {
-            return Err(ParserError::unexpected(self.peek()));
+        if !self.peek_dependency_binding() {
+            return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
         // binding
-        let allow_type_modifier = form != Some(DependencyForm::Type);
-        let items = self.eat_dependency_items_block(allow_type_modifier, true)?;
-        let has_from_target = self.is_keyword(Keyword::From);
-        let (target, target_span) = if has_from_target {
+        let allow_type_modifier = form != DependencyForm::Type;
+        let items = self.parse_dependency_items(allow_type_modifier, true, function)?;
+        let has_from_target = self.peek_is_keyword(Keyword::From);
+        let (target, target_range) = if has_from_target {
             self.eat_keyword(Keyword::From)?;
-            let (target, span) = self.eat_dependency_target_with_span()?;
-            (Some(target), Some(span))
+            let (target, range) = self.eat_dependency_target_with_range()?;
+            (Some(target), Some(range))
         } else {
             (None, None)
         };
 
         // assertions or attributes
-        let parsed_attributes = if target.is_some() {
-            self.eat_dependency_arguments_maybe()?
+        let import_clause = if target.is_some() {
+            self.parse_import_clause(function)?
         } else {
             None
         };
-        let attributes = parsed_attributes
+        let attributes = import_clause
             .as_ref()
-            .map(|parsed_attributes| parsed_attributes.clause.clone());
+            .map(|import_clause| import_clause.clause.clone());
 
         // `export { default }` without `from` is invalid
         // (default is a reserved word and can't be a local binding)
@@ -251,11 +260,11 @@ impl Parser {
                     ..
                 } = item
                 {
-                    let span = self
+                    let range = self
                         .tree
-                        .get_main_span(*item_id)
-                        .unwrap_or(self.tree.get_span(*item_id));
-                    return Err(ParserError::unexpected(span));
+                        .get_main_range(*item_id)
+                        .unwrap_or(self.tree.get_range(*item_id));
+                    return Err(ParserError::unexpected(range));
                 }
             }
         }
@@ -263,28 +272,28 @@ impl Parser {
         // export
         let export_id = self.insert_node(
             Expression::Export {
-                form: form.unwrap_or(DependencyForm::Plain),
+                form,
                 target,
                 items,
                 attributes,
             },
-            self.get_span_from(&start),
+            self.range_since(&start),
         );
 
-        // set main span to the export target string if present
-        if let Some(target_span) = target_span {
-            self.tree.set_main_span(export_id, target_span);
+        // set the export target string as the main source range
+        if let Some(target_range) = target_range {
+            self.tree.set_main_range(export_id, target_range);
         }
 
-        // set import attribute source spans
-        if let Some(parsed_attributes) = parsed_attributes {
-            self.set_import_attribute_clause_spans(export_id, &parsed_attributes)?;
+        // set import attribute source ranges
+        if let Some(import_clause) = import_clause {
+            self.set_import_attribute_clause_ranges(export_id, &import_clause)?;
         }
 
         Ok(export_id)
     }
 
-    /// Decode one parsed expression node into one import attribute value.
+    /// Decode one expression node into an import attribute value.
     ///
     /// Import attributes store values directly rather than retaining their expression nodes.
     fn decode_import_attribute_value(
@@ -300,7 +309,7 @@ impl Parser {
 
                 for &element_id in elements {
                     let Argument::Positional { value } = self.tree.get(element_id) else {
-                        return Err(ParserError::unexpected(self.tree.get_span(element_id)));
+                        return Err(ParserError::unexpected(self.tree.get_range(element_id)));
                     };
 
                     values.push(self.decode_import_attribute_value(*value)?);
@@ -313,11 +322,11 @@ impl Parser {
 
                 for &property_id in properties {
                     let Property::Field { key, value, .. } = self.tree.get(property_id) else {
-                        return Err(ParserError::unexpected(self.tree.get_span(property_id)));
+                        return Err(ParserError::unexpected(self.tree.get_range(property_id)));
                     };
 
                     let Key::Name(key) = key else {
-                        return Err(ParserError::unexpected(self.tree.get_span(property_id)));
+                        return Err(ParserError::unexpected(self.tree.get_range(property_id)));
                     };
                     let value = self.decode_import_attribute_value(*value)?;
 
@@ -326,17 +335,17 @@ impl Parser {
 
                 ImportAttributeValue::Object(attributes)
             }
-            _ => return Err(ParserError::unexpected(self.tree.get_span(expression_id))),
+            _ => return Err(ParserError::unexpected(self.tree.get_range(expression_id))),
         })
     }
 
-    /// Decode one parsed named argument into one import attribute entry.
+    /// Decode one named argument into an import attribute entry.
     fn decode_import_attribute(
         &self,
         argument_id: LocalNodeId<Argument>,
     ) -> ParserResult<ImportAttribute> {
         let Argument::Named { name, value } = self.tree.get(argument_id) else {
-            return Err(ParserError::unexpected(self.tree.get_span(argument_id)));
+            return Err(ParserError::unexpected(self.tree.get_range(argument_id)));
         };
 
         let value = self.decode_import_attribute_value(*value)?;
@@ -344,55 +353,59 @@ impl Parser {
         Ok(ImportAttribute { key: *name, value })
     }
 
-    /// Set source spans for one parsed import attribute clause.
-    fn set_import_attribute_clause_spans(
+    /// Record source regions for one import attribute clause.
+    fn set_import_attribute_clause_ranges(
         &mut self,
         node_id: LocalNodeId<Expression>,
-        parsed_attributes: &ParsedImportAttributeClause,
+        import_clause: &ImportClause,
     ) -> ParserResult<()> {
-        self.tree.set_side_span(
+        self.tree.set_side_range(
             node_id,
             NodeSpanType::Region(NodeSpanRegion::Clause),
-            parsed_attributes.span,
+            import_clause.range,
         );
 
-        for (index, attribute_span) in parsed_attributes.attribute_spans.iter().enumerate() {
+        for (index, attribute_range) in import_clause.attribute_ranges.iter().enumerate() {
             let Ok(segment) = u16::try_from(index) else {
-                return Err(ParserError::unexpected(*attribute_span));
+                return Err(ParserError::unexpected(*attribute_range));
             };
-            self.tree.set_side_span(
+            self.tree.set_side_range(
                 node_id,
                 NodeSpanType::ListItem(NodeSpanList::Entry, segment),
-                *attribute_span,
+                *attribute_range,
             );
         }
 
         Ok(())
     }
 
-    /// Eat dependency arguments for import/export attributes.
-    fn eat_dependency_arguments_maybe(
+    /// Parse dependency arguments for import/export attributes.
+    fn parse_import_clause(
         &mut self,
-    ) -> ParserResult<Option<ParsedImportAttributeClause>> {
+        function: FunctionContext,
+    ) -> ParserResult<Option<ImportClause>> {
         // attribute clause head
-        if !self.is_keyword(Keyword::With) {
+        if !self.peek_is_keyword(Keyword::With) {
             return Ok(None);
         }
 
-        let start = self.span_start();
-        self.bump(); // eat with
+        let start = self.mark_parse_start();
+        self.bump();
 
         // attribute clause body
-        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
-        let argument_flags = self.flags.nested();
-        let arguments = self.with_flags(argument_flags, |parser| {
-            parser.eat_arguments_body(TokenType::CloseBrace)
-        })?;
+        self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)?;
+        let arguments = self.parse_named_argument_list_body(
+            TokenType::CloseBrace,
+            ExpressionContext {
+                function,
+                ..ExpressionContext::default()
+            },
+        )?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
-        let span = self.get_span_from(&start);
-        let attribute_spans = arguments
+        let range = self.range_since(&start);
+        let attribute_ranges = arguments
             .iter()
-            .map(|argument_id| self.tree.get_span(*argument_id))
+            .map(|argument_id| self.tree.get_range(*argument_id))
             .collect();
 
         // decoded attributes
@@ -407,55 +420,46 @@ impl Parser {
             attributes,
         };
 
-        Ok(Some(ParsedImportAttributeClause {
+        Ok(Some(ImportClause {
             clause,
-            span,
-            attribute_spans,
+            range,
+            attribute_ranges,
         }))
     }
 
-    /// Peek a dependency binding.
-    pub(crate) fn peek_dependency_binding(&mut self) -> ParserResult<()> {
-        if self.peek_dependency_binding_is() {
-            Ok(())
-        } else {
-            Err(ParserError::unexpected(self.peek()))
-        }
-    }
-
-    /// Return true when the next tokens can start a dependency binding.
+    /// Return whether the current tokens can start a dependency binding.
     #[inline]
-    pub(crate) fn peek_dependency_binding_is(&mut self) -> bool {
+    pub(crate) fn peek_dependency_binding(&self) -> bool {
         if self.peek_is(TokenType::OpenBrace) || self.peek_is(TokenType::Multiply) {
             return true;
         }
 
         if self.peek_is(TokenType::Identifier) {
-            let next_token_type = self.next_token_type();
-            return next_token_type == TokenType::Comma
-                || self.next_keyword() == Some(Keyword::From);
+            let peek_next_token_type = self.peek_next_token_type();
+            return peek_next_token_type == TokenType::Comma
+                || self.peek_next_keyword() == Some(Keyword::From);
         }
 
         false
     }
 
     /// Return true when tokens after `import` can start an import statement.
-    pub(crate) fn can_start_import_statement(&mut self) -> bool {
+    pub(crate) fn peek_import_statement(&self) -> bool {
         matches!(
-            self.next_token_type(),
+            self.peek_next_token_type(),
             TokenType::Identifier | TokenType::OpenBrace | TokenType::Multiply | TokenType::Literal
         )
     }
 
-    /// Eat an dependency target and return both the string and its span.
+    /// Parse a dependency target and return both the string and its byte range.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// "foo"
     /// "foo/bar:something"
     /// ```
-    fn eat_dependency_target_with_span(&mut self) -> ParserResult<(StringId, Span)> {
-        let token = self.peek_token(TokenType::Literal)?;
+    fn eat_dependency_target_with_range(&mut self) -> ParserResult<(StringId, ByteRange)> {
+        let token = self.require_token(TokenType::Literal)?;
 
         // module targets accept regular string literals, including unterminated ones for recovery
         let is_valid_target = matches!(
@@ -469,47 +473,49 @@ impl Parser {
             return Err(ParserError::expected(token, TokenType::Literal));
         }
 
-        let content = self.get_string_literal_str(token).to_owned();
+        let content = self.string_literal_str(token).to_owned();
         let string_id = self.strings.intern(&content);
         self.bump();
 
-        Ok((string_id, token.span))
+        Ok((string_id, token.token.range()))
     }
 
-    /// Eat a dependency items block.
+    /// Parse a dependency items block.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// foo
     /// * as foo
     /// Default, { a, b }
     /// { a, b }
     /// ```
-    fn eat_dependency_items_block(
+    fn parse_dependency_items(
         &mut self,
         allow_type_modifier: bool,
         allow_literal_alias: bool,
+        function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
 
         // `Default,` or `foo from`
         let can_start_default_item = if self.peek_is(TokenType::Identifier) {
-            self.next_token_type() == TokenType::Comma || self.next_keyword() == Some(Keyword::From)
+            self.peek_next_token_type() == TokenType::Comma
+                || self.peek_next_keyword() == Some(Keyword::From)
         } else {
             false
         };
 
         if can_start_default_item {
-            let start = self.span_start();
-            let (alias, alias_span) = self.eat_identifier_with_span()?;
+            let start = self.mark_parse_start();
+            let (alias, alias_range) = self.eat_identifier_with_range()?;
 
             // parse optional default binding separator
             if self.peek_is(TokenType::Comma) {
-                self.bump(); // eat comma
+                self.bump();
 
                 // require a supported binding continuation
                 if !self.peek_is(TokenType::OpenBrace) && !self.peek_is(TokenType::Multiply) {
-                    return Err(ParserError::unexpected(self.peek()));
+                    return Err(ParserError::unexpected(self.peek_token_span()));
                 }
             }
             let item = DependencyItem::Binding {
@@ -519,20 +525,20 @@ impl Parser {
                 alias: Some(alias),
                 value: None,
             };
-            let item_id = self.insert_node(item, self.get_span_from(&start));
-            self.tree.set_main_span(item_id, alias_span);
+            let item_id = self.insert_node(item, self.range_since(&start));
+            self.tree.set_main_range(item_id, alias_range);
             items.push(item_id);
         }
 
         // `* as foo` (can follow a default import)
-        if self.peek_is(TokenType::Multiply) && self.is_next_keyword(Keyword::As) {
-            let start = self.span_start();
-            self.bump(); // eat *
-            self.bump(); // eat as
-            let (alias, alias_span) = if self.peek_is(TokenType::Literal) {
-                self.eat_string_literal_with_span()?
+        if self.peek_is(TokenType::Multiply) && self.peek_next_keyword() == Some(Keyword::As) {
+            let start = self.mark_parse_start();
+            self.bump();
+            self.bump();
+            let (alias, alias_range) = if self.peek_is(TokenType::Literal) {
+                self.eat_string_literal_with_range()?
             } else {
-                self.eat_identifier_with_span()?
+                self.eat_identifier_with_range()?
             };
             let item = DependencyItem::Binding {
                 binding: DependencyBinding::Namespace,
@@ -541,8 +547,8 @@ impl Parser {
                 alias: Some(alias),
                 value: None,
             };
-            let item_id = self.insert_node(item, self.get_span_from(&start));
-            self.tree.set_main_span(item_id, alias_span);
+            let item_id = self.insert_node(item, self.range_since(&start));
+            self.tree.set_main_range(item_id, alias_range);
             items.push(item_id);
         }
 
@@ -551,22 +557,22 @@ impl Parser {
             self.eat_token(TokenType::OpenBrace)?;
 
             while !self.peek_is(TokenType::CloseBrace) {
-                let item_start = self.span_start();
-                let decorators = self.eat_decorators_maybe()?;
+                let item_start = self.mark_parse_start();
+                let decorators = self.parse_decorators(function);
 
-                let item = match self.eat_dependency_item(allow_type_modifier, allow_literal_alias)
-                {
-                    Ok(item) => item,
-                    Err(error) => {
-                        self.recover_list_item(
-                            self.get_span_from(&item_start),
-                            TokenType::CloseBrace,
-                            Some(error),
-                        );
+                let item =
+                    match self.parse_dependency_item(allow_type_modifier, allow_literal_alias) {
+                        Ok(item) => item,
+                        Err(error) => {
+                            self.recover_list_item(
+                                self.range_since(&item_start),
+                                TokenType::CloseBrace,
+                                error,
+                            );
 
-                        self.insert_node(DependencyItem::Error, self.get_span_from(&item_start))
-                    }
-                };
+                            self.insert_node(DependencyItem::Error, self.range_since(&item_start))
+                        }
+                    };
                 self.attach_decorators(item.id, decorators);
 
                 items.push(item);
@@ -575,11 +581,11 @@ impl Parser {
                     break;
                 }
 
-                if self.peek_comma_is() {
-                    self.eat_comma()?;
+                if self.peek_is(TokenType::Comma) {
+                    self.eat_token(TokenType::Comma)?;
 
                     // recover a missing close brace before the clause boundary
-                    if self.is_keyword(Keyword::From)
+                    if self.peek_is_keyword(Keyword::From)
                         || Self::is_any_stop_token(self.peek_token_type())
                     {
                         break;
@@ -588,19 +594,20 @@ impl Parser {
                     continue;
                 }
 
-                if self.is_keyword(Keyword::From) || Self::is_any_stop_token(self.peek_token_type())
+                if self.peek_is_keyword(Keyword::From)
+                    || Self::is_any_stop_token(self.peek_token_type())
                 {
                     break;
                 }
 
-                return Err(ParserError::unexpected(self.peek()));
+                return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
             self.eat_close_token_or_recover_missing_with(
                 TokenType::CloseBrace,
                 NodeType::DependencyItem,
                 |parser, token_type| {
-                    parser.is_keyword(Keyword::From) || Self::is_any_stop_token(token_type)
+                    parser.peek_is_keyword(Keyword::From) || Self::is_any_stop_token(token_type)
                 },
             )?;
         }
@@ -608,44 +615,44 @@ impl Parser {
         Ok(items)
     }
 
-    /// Eat a dependency item (like `geometry` or `geometry as geom`).
+    /// Parse a dependency item (like `geometry` or `geometry as geom`).
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// geometry
     /// geometry as geom
     /// ```
-    pub(crate) fn eat_dependency_item(
+    pub(crate) fn parse_dependency_item(
         &mut self,
         allow_type_modifier: bool,
         allow_literal_alias: bool,
     ) -> ParserResult<LocalNodeId<DependencyItem>> {
-        let start = self.span_start();
+        let start = self.mark_parse_start();
 
         // source form
-        let form = if self.should_parse_dependency_type_modifier() {
+        let form = if self.peek_dependency_type_modifier() {
             if !allow_type_modifier {
-                let span = self.peek().span;
-                return Err(ParserError::unexpected(span));
+                let range = self.peek_token().range();
+                return Err(ParserError::unexpected(range));
             }
-            self.bump(); // eat type
+            self.bump();
             Some(DependencyForm::Type)
         } else {
             None
         };
 
         // default
-        if self.is_keyword(Keyword::Default) {
-            self.bump(); // eat default
+        if self.peek_is_keyword(Keyword::Default) {
+            self.bump();
 
             // alias
             let has_alias_separator =
-                self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon);
-            let (alias, alias_span) = if has_alias_separator {
-                self.bump(); // eat `as` or `:`
-                let (alias, alias_span) =
-                    self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
-                (Some(alias), Some(alias_span))
+                self.peek_is_keyword(Keyword::As) || self.peek_is(TokenType::Colon);
+            let (alias, alias_range) = if has_alias_separator {
+                self.bump();
+                let (alias, alias_range) =
+                    self.eat_dependency_item_alias_with_range(allow_literal_alias)?;
+                (Some(alias), Some(alias_range))
             } else {
                 (None, None)
             };
@@ -659,26 +666,26 @@ impl Parser {
                     alias,
                     value: None,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
-            if let Some(alias_span) = alias_span {
-                self.tree.set_main_span(item, alias_span);
+            if let Some(alias_range) = alias_range {
+                self.tree.set_main_range(item, alias_range);
             }
             Ok(item)
         }
         // item
         else {
             // name
-            let (name, name_span) = self.eat_dependency_item_name_with_span()?;
+            let (name, name_range) = self.eat_dependency_item_name_with_range()?;
 
             // alias
             let has_alias_separator =
-                self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon);
-            let (alias, alias_span) = if has_alias_separator {
-                self.bump(); // eat `as` or `:`
-                let (alias, alias_span) =
-                    self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
-                (Some(alias), Some(alias_span))
+                self.peek_is_keyword(Keyword::As) || self.peek_is(TokenType::Colon);
+            let (alias, alias_range) = if has_alias_separator {
+                self.bump();
+                let (alias, alias_range) =
+                    self.eat_dependency_item_alias_with_range(allow_literal_alias)?;
+                (Some(alias), Some(alias_range))
             } else {
                 (None, None)
             };
@@ -692,39 +699,39 @@ impl Parser {
                     alias,
                     value: None,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
             self.tree
-                .set_side_span(item, NodeSpanType::Region(NodeSpanRegion::Type), name_span);
-            let main_span = alias_span.unwrap_or(name_span);
-            self.tree.set_main_span(item, main_span);
+                .set_side_range(item, NodeSpanType::Region(NodeSpanRegion::Type), name_range);
+            let main_range = alias_range.unwrap_or(name_range);
+            self.tree.set_main_range(item, main_range);
             Ok(item)
         }
     }
 
     /// Decide whether `type` should be parsed as a dependency item modifier.
-    fn should_parse_dependency_type_modifier(&mut self) -> bool {
+    fn peek_dependency_type_modifier(&self) -> bool {
         // require `type` keyword
-        if !self.is_keyword(Keyword::Type) {
+        if !self.peek_is_keyword(Keyword::Type) {
             return false;
         }
 
         // require a name after `type`
         if !matches!(
-            self.token_type_at_offset(1),
+            self.peek_token_type_at(1),
             TokenType::Identifier | TokenType::Literal
         ) {
             return false;
         }
 
         // handle `type as` disambiguation
-        if self.is_next_keyword(Keyword::As) {
-            if self.token_type_at_offset(2) != TokenType::Identifier {
+        if self.peek_next_keyword() == Some(Keyword::As) {
+            if self.peek_token_type_at(2) != TokenType::Identifier {
                 return true;
             }
 
-            if self.is_next_next_keyword(Keyword::As) {
-                return self.token_type_at_offset(3) == TokenType::Identifier;
+            if self.peek_keyword_at(2) == Some(Keyword::As) {
+                return self.peek_token_type_at(3) == TokenType::Identifier;
             }
 
             return false;
@@ -733,55 +740,55 @@ impl Parser {
         true
     }
 
-    /// Eat a dependency item name (identifier or string literal) and its span.
-    fn eat_dependency_item_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
+    /// Eat a dependency item name and return its value and byte range.
+    fn eat_dependency_item_name_with_range(&mut self) -> ParserResult<(Name, ByteRange)> {
         if self.peek_is(TokenType::Identifier) {
-            let (name, span) = self.eat_identifier_with_span()?;
-            return Ok((Name::Identifier(name), span));
+            let (name, range) = self.eat_identifier_with_range()?;
+            return Ok((Name::Identifier(name), range));
         }
 
-        if self.peek_string_literal_is() {
-            let (name, span) = self.eat_string_literal_with_span()?;
-            return Ok((Name::String(name), span));
+        if self.peek_string_literal_start() {
+            let (name, range) = self.eat_string_literal_with_range()?;
+            return Ok((Name::String(name), range));
         }
 
         Err(ParserError::expected(
-            self.peek().span,
+            self.peek_token().range(),
             TokenType::Identifier,
         ))
     }
 
-    /// Eat a dependency alias and return its interned string and span.
-    fn eat_dependency_item_alias_with_span(
+    /// Eat a dependency alias and return its string ID and byte range.
+    fn eat_dependency_item_alias_with_range(
         &mut self,
         allow_literal_alias: bool,
-    ) -> ParserResult<(StringId, Span)> {
+    ) -> ParserResult<(StringId, ByteRange)> {
         // identifier aliases are always valid
         if self.peek_is(TokenType::Identifier) {
-            return self.eat_identifier_with_span();
+            return self.eat_identifier_with_range();
         }
 
         // export specifiers also allow string literal aliases
-        if allow_literal_alias && self.peek_string_literal_is() {
-            return self.eat_string_literal_with_span();
+        if allow_literal_alias && self.peek_string_literal_start() {
+            return self.eat_string_literal_with_range();
         }
 
         // export specifiers also allow keyword like literal aliases: true, false
-        let token = self.peek().token;
+        let token = self.peek_token_span().token;
         let has_boolean_literal_alias = allow_literal_alias
             && token.ty() == TokenType::Literal
             && matches!(token.literal(), Some(TokenLiteral::Boolean { .. }));
         if has_boolean_literal_alias {
-            let span = self.peek().span;
-            let alias = self.get_span_str(span).to_string();
+            let range = self.peek_token().range();
+            let alias = self.range_str(range).to_string();
             let alias = self.strings.intern(&alias);
             self.bump();
-            return Ok((alias, span));
+            return Ok((alias, range));
         }
 
         // all other forms are invalid aliases
         Err(ParserError::expected(
-            self.peek().span,
+            self.peek_token().range(),
             TokenType::Identifier,
         ))
     }

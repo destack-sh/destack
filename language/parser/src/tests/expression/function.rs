@@ -1,3 +1,4 @@
+use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -11,11 +12,11 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 /// Parse a lambda function type with empty parameters.
 #[test]
 fn test_parse_lambda_function_empty_type() {
-    let mut test = TestParser::new("() => void");
+    let test = TestParser::new("() => void");
     let mut parser = test.prepare();
-    let type_expression_id = parser.eat_type_expression().unwrap();
+    let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         assert_eq!(function.parameters.len(), 0);
@@ -28,11 +29,11 @@ fn test_parse_lambda_function_empty_type() {
 /// Parse a lambda function type with parameters and return type.
 #[test]
 fn test_parse_lambda_function_type() {
-    let mut test = TestParser::new("(a: int32) => int32");
+    let test = TestParser::new("(a: int32) => int32");
     let mut parser = test.prepare();
-    let type_expression_id = parser.eat_type_expression().unwrap();
+    let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         // a: int32
@@ -61,41 +62,41 @@ fn test_parse_lambda_function_type() {
 /// Parse lambda function type container spans with separator comments.
 #[test]
 fn test_parse_lambda_function_type_container_spans_with_comments() {
-    let mut test = TestParser::new("(value: /* arg */ string) /* fn-tail */ => void");
+    let test = TestParser::new("(value: /* arg */ string) /* fn-tail */ => void");
     let mut parser = test.prepare();
-    let type_expression_id = parser.eat_type_expression().unwrap();
+    let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         let parameter_type_span = parser
             .tree
             .get_side_span(function.parameters[0], NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("missing lambda parameter type span");
-        assert_eq!(parser.get_span_str(parameter_type_span), ": /* arg */ string");
+        assert_eq!(parser.span_str(parameter_type_span), ": /* arg */ string");
 
         let parameter_span = parser
             .tree
             .get_side_span(type_expression_id, NodeSpanType::Region(NodeSpanRegion::Parameters))
             .expect("missing lambda parameter span");
-        assert_eq!(parser.get_span_str(parameter_span), "(value: /* arg */ string)");
+        assert_eq!(parser.span_str(parameter_span), "(value: /* arg */ string)");
 
         let return_type_span = parser
             .tree
             .get_side_span(type_expression_id, NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("missing lambda return type span");
-        assert_eq!(parser.get_span_str(return_type_span), "=> void");
+        assert_eq!(parser.span_str(return_type_span), "=> void");
     });
 }
 
 /// Parse a lambda function value with a body.
 #[test]
 fn test_parse_lambda_function_value() {
-    let mut test = TestParser::new("(a) => a > 2");
+    let test = TestParser::new("(a) => a > 2");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -120,11 +121,11 @@ fn test_parse_lambda_function_value() {
 /// Parse a lambda body that owns a tagged struct literal.
 #[test]
 fn test_parse_lambda_owned_struct_body() {
-    let mut test = TestParser::new("() => ^Node { parent: this }");
+    let test = TestParser::new("() => ^Node { parent: this }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -152,14 +153,14 @@ fn test_parse_lambda_owned_struct_body() {
 /// Parse a typed lambda with multiple parameters and a return annotation.
 #[test]
 fn test_parse_typed_lambda_value_with_multiple_parameters() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"const add = (a: number, b: number): number => a + b;
 add satisfies (a: number, b: number) => number;"#,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
 
     // const add = (a: number, b: number): number => a + b
@@ -196,16 +197,16 @@ add satisfies (a: number, b: number) => number;"#,
 /// Parse function expression callbacks with a newline before the body block.
 #[test]
 fn test_parse_call_with_function_expression_newline_before_body() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"defer(function nextTick_callback()
 {
   callback(err, result);
 });",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // defer(function nextTick_callback() { ... });
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -246,7 +247,7 @@ fn test_parse_call_with_function_expression_newline_before_body() {
 /// Recover anonymous function arguments without abandoning their call or following statement.
 #[test]
 fn test_recover_anonymous_function_argument() {
-    let mut test = TestParser::new("consume(function () {});\nconst stable = 1;");
+    let test = TestParser::new("consume(function () {});\nconst stable = 1;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -256,25 +257,20 @@ fn test_recover_anonymous_function_argument() {
         assert_node!(parser.tree, arguments[0], Argument::Error);
     });
     assert_node!(parser.tree, expressions[1], Expression::Let { .. });
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
-        &[(
-            None,
-            Some(TokenType::OpenParenthesis),
-            Some(TokenType::Identifier),
-            "(",
-        )],
+        &[(None, Some(TokenType::Identifier), None, "function")],
     );
 }
 
 /// Parse a generic lambda function value with a body.
 #[test]
 fn test_parse_generic_lambda_function_value() {
-    let mut test = TestParser::new("<T,>(x: T): T => x");
+    let test = TestParser::new("<T,>(x: T): T => x");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -304,9 +300,9 @@ fn test_parse_generic_lambda_function_value() {
 /// Parse a generic lambda function with a newline after `<`.
 #[test]
 fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
-    let mut test = TestParser::new("<\nT extends string\n>(x: T) => x");
+    let test = TestParser::new("<\nT extends string\n>(x: T) => x");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -336,7 +332,7 @@ fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
 /// Parse ternary typed arrows whose parameter annotations include function types.
 #[test]
 fn test_parse_ternary_typed_arrow_with_function_type_parameter() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"shouldAssert(AssertionLevel.Normal)
     ? (nodes: Node[], test: (node: Node) => boolean, message?: string): void => assert(
         test === undefined || every(nodes, test),
@@ -347,7 +343,7 @@ fn test_parse_ternary_typed_arrow_with_function_type_parameter() {
     : noop"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
         assert_eq!(*form, IfForm::Ternary);
@@ -372,9 +368,9 @@ fn test_parse_ternary_typed_arrow_with_function_type_parameter() {
 /// Parse a lambda function value with a body and pattern parameters.
 #[test]
 fn test_parse_lambda_function_value_with_pattern_parameters() {
-    let mut test = TestParser::new("(_, { x, y }: T) => a");
+    let test = TestParser::new("(_, { x, y }: T) => a");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -410,11 +406,11 @@ fn test_parse_lambda_function_value_with_pattern_parameters() {
 /// Parse a lambda parameter whose type is a mapped object type.
 #[test]
 fn test_parse_lambda_parameter_with_mapped_object_type() {
-    let mut test = TestParser::new("(expected: { [T in TestFilterTerm]?: boolean; }) => {}");
+    let test = TestParser::new("(expected: { [T in TestFilterTerm]?: boolean; }) => {}");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -437,7 +433,7 @@ fn test_parse_lambda_parameter_with_mapped_object_type() {
 /// Parse a destructured lambda parameter whose type is an object type.
 #[test]
 fn test_parse_lambda_pattern_parameter_with_object_type() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"(
   options,
   { log, logger, messenger }: {
@@ -448,9 +444,9 @@ fn test_parse_lambda_pattern_parameter_with_object_type() {
 "#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -483,9 +479,9 @@ fn test_parse_lambda_pattern_parameter_with_object_type() {
 #[test]
 fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
     // source: <T, N>(): ((T, (action: N) => void)) => {}
-    let mut test = TestParser::new("<T, N>(): ((T, (action: N) => void)) => {}");
+    let test = TestParser::new("<T, N>(): ((T, (action: N) => void)) => {}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // <T, N>(): ((T, (action: N) => void)) => {}
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -520,9 +516,9 @@ fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
 /// Parse generic arrow functions with function type return annotations.
 #[test]
 fn test_parse_generic_arrow_with_function_type_return_annotation() {
-    let mut test = TestParser::new("<T,>(fn: T): (value: T) => T => value => value");
+    let test = TestParser::new("<T,>(fn: T): (value: T) => T => value => value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // <T,>(fn: T): (value: T) => T => value => value
     assert_node!(parser.tree, expr_id, Expression::Declaration(function_id) => {
@@ -570,9 +566,9 @@ fn test_parse_generic_arrow_with_function_type_return_annotation() {
 #[test]
 fn test_parse_generic_parameter_constraint_object_property_named_in() {
     // source: <V extends { in: string }>() => {}
-    let mut test = TestParser::new("<V extends { in: string }>() => {}");
+    let test = TestParser::new("<V extends { in: string }>() => {}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // <V extends { in: string }>() => {}
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -601,9 +597,9 @@ fn test_parse_generic_parameter_constraint_object_property_named_in() {
 /// Parse a lambda function value with a shorthand argument.
 #[test]
 fn test_parse_lambda_function_value_shorthand() {
-    let mut test = TestParser::new("x => x");
+    let test = TestParser::new("x => x");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -624,7 +620,7 @@ fn test_parse_lambda_function_value_shorthand() {
 /// Parse relational arrow values without swallowing following object properties.
 #[test]
 fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"morgan({
   skip: (req, res) => res.statusCode < 400,
   write: (str: string) => {
@@ -633,7 +629,7 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
 })"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "morgan");
@@ -686,13 +682,13 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
 /// Parse readonly tuple type annotations in function parameters.
 #[test]
 fn test_parse_function_parameter_readonly_tuple_target_type() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"function flattenPairs(pair: readonly (string, number), acc: Array<string | number>): Array<string | number> {
   return acc.concat(pair);
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -712,15 +708,16 @@ fn test_parse_function_parameter_readonly_tuple_target_type() {
 /// Parse function expressions in decorator call arguments.
 #[test]
 fn test_eat_decorator_call_with_function_expression_argument() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"computed("fullName", function fullName(this: Foo) {
   return this.fullName.toUpperCase();
 })"#,
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .with_flags(parser.flags.in_decorator(), |parser| {
-            parser.eat_expression(parser.flags)
+        .parse_expression(ExpressionContext {
+            decorator: DecoratorContext::Head,
+            ..ExpressionContext::default()
         })
         .unwrap();
 

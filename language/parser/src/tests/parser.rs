@@ -1,6 +1,6 @@
 use destack_dir::{
-    AssignPattern, Block, Expression, LocalNodeId, NodeType, TokenType, TypeExpression,
-    normalize_comment_payload,
+    AssignPattern, Block, Expression, LocalNodeId, NodeType, TokenLiteral, TokenType,
+    TypeExpression, normalize_comment_payload,
 };
 use std::sync::Arc;
 
@@ -12,7 +12,9 @@ use crate::{Parser, ParserOptions, ParserTriviaMode};
 /// A test wrapper for Parser.
 #[derive(Debug)]
 pub(crate) struct TestParser {
+    /// The source file under test.
     pub file: Arc<File>,
+    /// The source language under test.
     pub language: LanguageType,
 }
 
@@ -44,13 +46,13 @@ impl TestParser {
         }
     }
 
-    /// Get a Parser for this test.
-    pub(crate) fn prepare(&mut self) -> Parser {
+    /// Create a parser for this test.
+    pub(crate) fn prepare(&self) -> Parser {
         self.prepare_with_options(Self::options())
     }
 
-    /// Get a Parser with explicit options for this test.
-    pub(crate) fn prepare_with_options(&mut self, options: ParserOptions) -> Parser {
+    /// Create a parser with explicit options for this test.
+    pub(crate) fn prepare_with_options(&self, options: ParserOptions) -> Parser {
         Parser::lex_file_with_options(
             self.file.clone(),
             self.language,
@@ -63,14 +65,12 @@ impl TestParser {
     pub(crate) fn options() -> ParserOptions {
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            preserve_parenthesized_wrappers: true,
-            ..ParserOptions::default()
+            retain_parentheses: true,
         }
     }
 
     /// Assert parser errors by node type, actual token, expected token, and source text.
     pub(crate) fn assert_errors(
-        &self,
         parser: &Parser,
         expected_errors: &[(Option<NodeType>, Option<TokenType>, Option<TokenType>, &str)],
     ) {
@@ -82,56 +82,183 @@ impl TestParser {
                     error.node_type,
                     error.actual,
                     error.expected,
-                    parser.get_range_str(error.range).to_owned(),
+                    parser.range_str(error.range).to_owned(),
                 )
             })
             .collect();
+        let expected_errors: Vec<_> = expected_errors
+            .iter()
+            .map(|(node_type, actual, expected, text)| {
+                (*node_type, *actual, *expected, (*text).to_owned())
+            })
+            .collect();
 
-        assert_eq!(
-            actual_errors.len(),
-            expected_errors.len(),
-            "actual parser errors: {actual_errors:#?}",
-        );
-
-        for (
-            (actual_node_type, actual_token, actual_expected, actual_text),
-            (expected_node_type, expected_token, expected_expected, expected_text),
-        ) in actual_errors.iter().zip(expected_errors.iter())
-        {
-            assert_eq!(
-                *actual_node_type, *expected_node_type,
-                "actual parser errors: {actual_errors:#?}"
-            );
-            assert_eq!(
-                *actual_token, *expected_token,
-                "actual parser errors: {actual_errors:#?}"
-            );
-            assert_eq!(
-                *actual_expected, *expected_expected,
-                "actual parser errors: {actual_errors:#?}"
-            );
-            assert_eq!(
-                actual_text, expected_text,
-                "actual parser errors: {actual_errors:#?}"
-            );
-        }
+        assert_eq!(actual_errors, expected_errors);
     }
 
     /// Assert that the parser produced no diagnostics.
-    pub(crate) fn assert_no_errors(&self, parser: &Parser) {
+    pub(crate) fn assert_no_errors(parser: &Parser) {
         assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     }
+}
+
+/// Return the complete ordinary stream before grammar consumption.
+#[test]
+fn test_take_tokens_before_parse() {
+    let test = TestParser::new("const value = 1;");
+    let mut parser = test.prepare();
+    let (tokens, side_tokens) = parser.take_tokens();
+    let token_types: Vec<_> = tokens.iter().map(|token| token.ty()).collect();
+    let side_tokens: Vec<_> = side_tokens
+        .iter()
+        .map(|token| (token.ty(), parser.token_str(*token)))
+        .collect();
+
+    assert_eq!(
+        token_types,
+        vec![
+            TokenType::Identifier,
+            TokenType::Identifier,
+            TokenType::Assign,
+            TokenType::Literal,
+            TokenType::Semicolon,
+            TokenType::End,
+        ]
+    );
+    assert_eq!(
+        side_tokens,
+        vec![
+            (TokenType::Whitespace, " "),
+            (TokenType::Whitespace, " "),
+            (TokenType::Whitespace, " "),
+        ]
+    );
+}
+
+/// Materialize split compound tokens after parsing.
+#[test]
+fn test_take_tokens_materializes_splits() {
+    let test = TestParser::new("const borrowed = &&value; type Nested = Box<Box<int>>;");
+    let mut parser = test.prepare();
+    parser.parse();
+    let (tokens, _) = parser.take_tokens();
+    let tokens: Vec<_> = tokens
+        .iter()
+        .map(|token| (token.ty(), parser.token_str(*token)))
+        .collect();
+
+    assert_eq!(
+        tokens,
+        vec![
+            (TokenType::Identifier, "const"),
+            (TokenType::Identifier, "borrowed"),
+            (TokenType::Assign, "="),
+            (TokenType::ElementwiseAnd, "&"),
+            (TokenType::ElementwiseAnd, "&"),
+            (TokenType::Identifier, "value"),
+            (TokenType::Semicolon, ";"),
+            (TokenType::Identifier, "type"),
+            (TokenType::Identifier, "Nested"),
+            (TokenType::Assign, "="),
+            (TokenType::Identifier, "Box"),
+            (TokenType::LessThan, "<"),
+            (TokenType::Identifier, "Box"),
+            (TokenType::LessThan, "<"),
+            (TokenType::Identifier, "int"),
+            (TokenType::GreaterThan, ">"),
+            (TokenType::GreaterThan, ">"),
+            (TokenType::Semicolon, ";"),
+            (TokenType::End, ""),
+        ]
+    );
+    TestParser::assert_no_errors(&parser);
+}
+
+/// Materialize one contextually reclassified regex token after parsing.
+#[test]
+fn test_take_tokens_materializes_regex() {
+    let test = TestParser::new("const pattern = /a+b/g;");
+    let mut parser = test.prepare();
+    parser.parse();
+    let (tokens, _) = parser.take_tokens();
+    let tokens: Vec<_> = tokens
+        .iter()
+        .map(|token| (token.ty(), token.literal(), parser.token_str(*token)))
+        .collect();
+
+    assert_eq!(
+        tokens,
+        vec![
+            (TokenType::Identifier, None, "const"),
+            (TokenType::Identifier, None, "pattern"),
+            (TokenType::Assign, None, "="),
+            (
+                TokenType::Literal,
+                Some(TokenLiteral::RegexString { has_flags: true }),
+                "/a+b/g",
+            ),
+            (TokenType::Semicolon, None, ";"),
+            (TokenType::End, None, ""),
+        ]
+    );
+    TestParser::assert_no_errors(&parser);
+}
+
+/// Materialize contextually tokenized tree names and text after parsing.
+#[test]
+fn test_take_tokens_materializes_tree() {
+    let test = TestParser::new("const tree = <panel-name title={value}>hello world</panel-name>;");
+    let mut parser = test.prepare();
+    parser.parse();
+    let (tokens, _) = parser.take_tokens();
+    let tokens: Vec<_> = tokens
+        .iter()
+        .map(|token| (token.ty(), token.literal(), parser.token_str(*token)))
+        .collect();
+
+    assert_eq!(
+        tokens,
+        vec![
+            (TokenType::Identifier, None, "const"),
+            (TokenType::Identifier, None, "tree"),
+            (TokenType::Assign, None, "="),
+            (TokenType::LessThan, None, "<"),
+            (TokenType::Identifier, None, "panel"),
+            (TokenType::Subtract, None, "-"),
+            (TokenType::Identifier, None, "name"),
+            (TokenType::Identifier, None, "title"),
+            (TokenType::Assign, None, "="),
+            (TokenType::OpenBrace, None, "{"),
+            (TokenType::Identifier, None, "value"),
+            (TokenType::CloseBrace, None, "}"),
+            (TokenType::GreaterThan, None, ">"),
+            (
+                TokenType::Literal,
+                Some(TokenLiteral::TreeString),
+                "hello world"
+            ),
+            (TokenType::LessThan, None, "<"),
+            (TokenType::Divide, None, "/"),
+            (TokenType::Identifier, None, "panel"),
+            (TokenType::Subtract, None, "-"),
+            (TokenType::Identifier, None, "name"),
+            (TokenType::GreaterThan, None, ">"),
+            (TokenType::Semicolon, None, ";"),
+            (TokenType::End, None, ""),
+        ]
+    );
+    TestParser::assert_no_errors(&parser);
 }
 
 /// Return EOF for lookahead offsets beyond the physical end of source.
 #[test]
 fn test_lookahead_stays_at_end() {
-    let mut test = TestParser::new("value");
-    let mut parser = test.prepare();
+    let test = TestParser::new("value");
+    let parser = test.prepare();
 
-    assert_eq!(parser.token_type_at_offset(1), TokenType::End);
-    assert_eq!(parser.token_type_at_offset(2), TokenType::End);
-    assert_eq!(parser.token_type_at_offset(8), TokenType::End);
+    assert_eq!(parser.peek_token_type_at(1), TokenType::End);
+    assert_eq!(parser.peek_token_type_at(2), TokenType::End);
+    assert_eq!(parser.peek_token_type_at(8), TokenType::End);
     assert_eq!(parser.peek_token_type(), TokenType::Identifier);
 }
 

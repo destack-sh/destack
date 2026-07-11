@@ -16,7 +16,7 @@ use crate::{
 
 /// Parse one whole source string and return the resulting root expressions.
 fn parse_source(source: &str) -> (Parser, Vec<LocalNodeId<Expression>>) {
-    let mut test = TestParser::new(source);
+    let test = TestParser::new(source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     (parser, expressions)
@@ -33,7 +33,7 @@ fn parse_source_with_trivia_mode(
         LanguageType::Destack,
         ParserOptions {
             trivia_mode,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         Arc::new(StringPool::new()),
     );
@@ -44,22 +44,21 @@ fn parse_source_with_trivia_mode(
 
 /// Parse one block expression source and attach comments after the direct entrypoint.
 fn parse_block_source(source: &str) -> (Parser, LocalNodeId<Block>) {
-    let mut test = TestParser::new(source);
+    let test = TestParser::new(source);
     let mut parser = test.prepare();
     let block_id = parser
-        .eat_block(BlockContext::Expression)
+        .parse_block(BlockContext::Expression, Default::default())
         .expect("expected block expression in test source");
     parser.attach_comments();
     (parser, block_id)
 }
 
 /// Parse one direct property entrypoint and attach comments after parsing.
-fn parse_property_source(source: &str, is_in_variant: bool) -> (Parser, LocalNodeId<Property>) {
-    let mut test = TestParser::new(source);
+fn parse_property_source(source: &str) -> (Parser, LocalNodeId<Property>) {
+    let test = TestParser::new(source);
     let mut parser = test.prepare();
-    parser.flags = parser.flags.with_variant(is_in_variant);
     let property_id = parser
-        .eat_property()
+        .parse_property(Default::default())
         .expect("expected property in test source");
     parser.attach_comments();
     (parser, property_id)
@@ -67,14 +66,14 @@ fn parse_property_source(source: &str, is_in_variant: bool) -> (Parser, LocalNod
 
 /// Return the normalized payload text for one raw comment.
 fn comment_text(parser: &Parser, comment: Comment) -> String {
-    let source = parser.get_span_str(comment.span);
+    let source = parser.span_str(comment.span);
     normalize_comment_payload(source).into_owned()
 }
 
 /// Return the nearest non-trivia token before one comment boundary.
 fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenType> {
     parser
-        .tokens()
+        .consumed_tokens()
         .iter()
         .rev()
         .find(|token| {
@@ -87,7 +86,7 @@ fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<Tok
 /// Return the nearest non-trivia token after one comment boundary.
 fn next_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenType> {
     parser
-        .tokens()
+        .consumed_tokens()
         .iter()
         .find(|token| {
             token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
@@ -161,12 +160,12 @@ const mode = runCli();
 }
 
 #[test]
-fn test_parse_without_attaching_comments_leaves_comments_empty_until_attach() {
-    let mut test = TestParser::new("// lead\nvalue\n\nnext");
+fn test_parse_roots_leaves_comments_unattached_until_attach() {
+    let test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
     // `value`, `next`
-    let expressions = parser.parse_without_attaching_comments();
+    let expressions = parser.parse_roots();
     assert_eq!(expressions.len(), 2);
 
     // `// lead`
@@ -219,11 +218,17 @@ fn test_lex_documentation_trivia_mode_skips_side_tokens() {
 
 #[test]
 fn test_attach_comments_on_direct_entrypoint_emits_output() {
-    let mut test = TestParser::new("// lead\nvalue\n\nnext");
+    let test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
     // `value`, `next`
-    let expressions = parser.eat_block_body(BlockForm::Implicit).unwrap();
+    let expressions = parser
+        .parse_block_body(
+            BlockForm::Implicit,
+            BlockContext::Statement,
+            Default::default(),
+        )
+        .unwrap();
     assert_eq!(expressions.len(), 2);
 
     // `// lead`
@@ -236,16 +241,17 @@ fn test_attach_comments_on_direct_entrypoint_emits_output() {
 
 #[test]
 fn test_attach_comments_is_idempotent() {
-    let mut test = TestParser::new("// lead\nvalue\n\nnext");
+    let test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
     // `value`, `next`
-    let expressions = parser.parse_without_attaching_comments();
+    let expressions = parser.parse_roots();
     assert_eq!(expressions.len(), 2);
 
     // first `// lead`
     parser.attach_comments();
     let first_comment_count = parser.tree.comments().len();
+    assert_eq!(first_comment_count, 1);
 
     // second `// lead`
     parser.attach_comments();
@@ -253,17 +259,40 @@ fn test_attach_comments_is_idempotent() {
 }
 
 #[test]
-fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
-    let mut test = TestParser::new("a // note\nb");
+fn test_attach_comments_appends_to_existing_tree() {
+    let (first_parser, _) = parse_source("// first\nfirst");
+    let first_comment = first_parser.tree.comments()[0];
+    assert_eq!(comment_text(&first_parser, first_comment), "first");
+
+    let second_test = TestParser::new("// second\nsecond");
+    let mut second_parser = Parser::lex_into_tree_with_options(
+        second_test.file.clone(),
+        second_test.language,
+        TestParser::options(),
+        Arc::new(StringPool::new()),
+        first_parser.tree,
+    );
+
+    second_parser.parse();
+
+    assert_eq!(second_parser.tree.comments().len(), 2);
+    assert_eq!(second_parser.tree.comments()[0], first_comment);
+    assert_eq!(
+        comment_text(&second_parser, second_parser.tree.comments()[1]),
+        "second"
+    );
+}
+
+#[test]
+fn test_attach_comments_keeps_one_comment_after_token_probe() {
+    let test = TestParser::new("a // note\nb");
     let mut parser = test.prepare();
 
-    // speculative lookahead across the comment
-    let mark = parser.checkpoint();
-    let next_span = parser.next_token().span(parser.file_id);
-    assert_eq!(parser.get_span_str(next_span), "b");
+    // probe across the comment without advancing the parser
+    let next_span = parser.peek_next_token().span(parser.file_id);
+    assert_eq!(parser.span_str(next_span), "b");
 
-    // restore and consume the same boundary again
-    parser.restore(mark);
+    // consume the same boundary through the parser cursor
     parser.eat();
     parser.eat();
 
@@ -457,7 +486,7 @@ fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
                 // `/** keep-doc */`
                 assert_eq!(comments(&parser).len(), 1);
                 let comment = comments(&parser)[0];
-                assert!(parser.get_span_str(comment.span).starts_with("/**"));
+                assert!(parser.span_str(comment.span).starts_with("/**"));
                 assert!(comment_text(&parser, comment).contains("keep-doc"));
                 let _ = value;
                 assert_comment_boundary_tokens(
@@ -1497,7 +1526,7 @@ fn test_comment_after_member_return_type_colon_attaches_to_return_type_boundary(
 
 #[test]
 fn test_comment_after_property_field_colon_attaches_to_field_type_boundary() {
-    let (parser, property_id) = parse_property_source("value: /* a */ number", true);
+    let (parser, property_id) = parse_property_source("value: /* a */ number");
 
     // `value: number`
     let field_type = assert_node!(parser.tree, property_id, Property::Field { value, .. } => {
@@ -1520,7 +1549,7 @@ fn test_comment_after_property_field_colon_attaches_to_field_type_boundary() {
 
 #[test]
 fn test_comment_after_optional_property_marker_attaches_to_field_type_boundary() {
-    let (parser, property_id) = parse_property_source("value? /* a */ : number", true);
+    let (parser, property_id) = parse_property_source("value? /* a */ : number");
 
     // `value?: number`
     let _field_type = assert_node!(parser.tree, property_id, Property::Field { value, .. } => {
@@ -1542,7 +1571,7 @@ fn test_comment_after_optional_property_marker_attaches_to_field_type_boundary()
 
 #[test]
 fn test_comment_after_property_return_type_colon_attaches_to_return_type_boundary() {
-    let (parser, property_id) = parse_property_source("method(): /* a */ number {}", false);
+    let (parser, property_id) = parse_property_source("method(): /* a */ number {}");
 
     // `method(): number {}`
     let return_type = assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {

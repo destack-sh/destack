@@ -8,18 +8,20 @@ use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path
 
 fn make_receiver(parser: &mut Parser) -> LocalNodeId<Expression> {
     let receiver_str = parser.strings.intern("receiver");
-    let span = parser.peek().span;
-    parser.insert_node(Expression::Identifier { name: receiver_str }, span)
+    let span = parser.peek_token_span().span;
+    parser.insert_node(Expression::Identifier { name: receiver_str }, span.range())
 }
 
 #[test]
 fn test_parse_index_postfix_explicit() {
     // [1]
-    let mut test = TestParser::new("[1]");
+    let test = TestParser::new("[1]");
     let mut parser = test.prepare();
     let recv = make_receiver(&mut parser);
 
-    let index_id = parser.eat_index(recv, PostfixPosition::Direct).unwrap();
+    let index_id = parser
+        .parse_index(recv, PostfixPosition::Direct, Default::default())
+        .unwrap();
     assert_node!(parser.tree, index_id, Expression::Index { position, left, index } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
@@ -32,11 +34,13 @@ fn test_parse_index_postfix_multiline() {
     // [
     //   1
     // ]
-    let mut test = TestParser::new("[\n  1\n]");
+    let test = TestParser::new("[\n  1\n]");
     let mut parser = test.prepare();
     let recv = make_receiver(&mut parser);
 
-    let index_id = parser.eat_index(recv, PostfixPosition::Direct).unwrap();
+    let index_id = parser
+        .parse_index(recv, PostfixPosition::Direct, Default::default())
+        .unwrap();
     assert_node!(parser.tree, index_id, Expression::Index { position, left, index } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
@@ -47,11 +51,11 @@ fn test_parse_index_postfix_multiline() {
 #[test]
 fn test_parse_call_postfix() {
     // (1, 2)
-    let mut test = TestParser::new("(1, 2)");
+    let test = TestParser::new("(1, 2)");
     let mut parser = test.prepare();
     let recv = make_receiver(&mut parser);
     let call_id = parser
-        .eat_call(recv, None, PostfixPosition::Direct)
+        .parse_call(recv, None, PostfixPosition::Direct, Default::default())
         .unwrap();
 
     assert_node!(parser.tree, call_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
@@ -76,11 +80,11 @@ fn test_parse_call_postfix() {
 #[test]
 fn test_parse_member_postfix_missing_name() {
     // foo.
-    let mut test = TestParser::new("foo.");
+    let test = TestParser::new("foo.");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo.
     assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
@@ -91,11 +95,11 @@ fn test_parse_member_postfix_missing_name() {
 #[test]
 fn test_parse_optional_member_postfix_missing_name() {
     // foo?.
-    let mut test = TestParser::new("foo?.");
+    let test = TestParser::new("foo?.");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo?.
     assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
@@ -109,11 +113,11 @@ fn test_parse_optional_member_postfix_missing_name() {
 #[test]
 fn test_parse_parenthesized_member_postfix_missing_name_preserves_outer_close() {
     // (foo.)
-    let mut test = TestParser::new("(foo.)");
+    let test = TestParser::new("(foo.)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
 
     // (foo.)
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
@@ -126,11 +130,11 @@ fn test_parse_parenthesized_member_postfix_missing_name_preserves_outer_close() 
 #[test]
 fn test_parse_call_postfix_missing_close_parenthesis() {
     // foo(
-    let mut test = TestParser::new("foo(");
+    let test = TestParser::new("foo(");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -151,11 +155,11 @@ fn test_parse_call_postfix_missing_close_parenthesis() {
 #[test]
 fn test_parse_call_postfix_missing_close_parenthesis_after_argument() {
     // foo(1
-    let mut test = TestParser::new("foo(1");
+    let test = TestParser::new("foo(1");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -179,11 +183,11 @@ fn test_parse_call_postfix_missing_close_parenthesis_after_argument() {
 #[test]
 fn test_parse_indirect_call_postfix_missing_close_parenthesis_after_argument() {
     // foo.(1
-    let mut test = TestParser::new("foo.(1");
+    let test = TestParser::new("foo.(1");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -207,11 +211,11 @@ fn test_parse_indirect_call_postfix_missing_close_parenthesis_after_argument() {
 #[test]
 fn test_parse_optional_call_postfix_missing_close_parenthesis_after_argument() {
     // foo?.(1
-    let mut test = TestParser::new("foo?.(1");
+    let test = TestParser::new("foo?.(1");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -265,22 +269,22 @@ fn nested_call_source(depth: usize) -> String {
 #[test]
 fn test_parse_deeply_nested_call_expression() {
     let source = nested_call_source(1024);
-    let mut test = TestParser::new(&source);
+    let test = TestParser::new(&source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_index_postfix_missing_expression() {
     // foo[
-    let mut test = TestParser::new("foo[");
+    let test = TestParser::new("foo[");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo[
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
@@ -293,11 +297,11 @@ fn test_parse_index_postfix_missing_expression() {
 #[test]
 fn test_parse_index_postfix_missing_close_bracket() {
     // foo[1
-    let mut test = TestParser::new("foo[1");
+    let test = TestParser::new("foo[1");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -318,11 +322,11 @@ fn test_parse_index_postfix_missing_close_bracket() {
 #[test]
 fn test_parse_indirect_index_postfix_missing_expression() {
     // foo.[
-    let mut test = TestParser::new("foo.[");
+    let test = TestParser::new("foo.[");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo.[
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
@@ -335,11 +339,11 @@ fn test_parse_indirect_index_postfix_missing_expression() {
 #[test]
 fn test_parse_optional_index_postfix_missing_expression() {
     // foo?.[
-    let mut test = TestParser::new("foo?.[");
+    let test = TestParser::new("foo?.[");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo?.[
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
@@ -355,11 +359,11 @@ fn test_parse_optional_index_postfix_missing_expression() {
 #[test]
 fn test_parse_parenthesized_index_postfix_missing_expression_preserves_outer_close() {
     // (foo[)
-    let mut test = TestParser::new("(foo[)");
+    let test = TestParser::new("(foo[)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
 
     // (foo[)
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
@@ -374,9 +378,9 @@ fn test_parse_parenthesized_index_postfix_missing_expression_preserves_outer_clo
 #[test]
 fn test_parse_call_expression_with_generic_arguments() {
     // foo<T>(1, 2)
-    let mut test = TestParser::new("foo<T>(1, 2)");
+    let test = TestParser::new("foo<T>(1, 2)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // foo<T>(1, 2)
     assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments, arguments } => {
@@ -405,9 +409,9 @@ fn test_parse_call_expression_with_generic_arguments() {
 #[test]
 fn test_parse_new_without_parentheses() {
     // new Foo without parentheses
-    let mut test = TestParser::new("new Foo");
+    let test = TestParser::new("new Foo");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         // Foo
@@ -419,9 +423,9 @@ fn test_parse_new_without_parentheses() {
 #[test]
 fn test_parse_new_with_empty_parentheses() {
     // new Foo() (with empty parentheses)
-    let mut test = TestParser::new("new Foo()");
+    let test = TestParser::new("new Foo()");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         // Foo
@@ -433,9 +437,9 @@ fn test_parse_new_with_empty_parentheses() {
 #[test]
 fn test_parse_new_maybe_with_empty_parentheses() {
     // new? Foo()
-    let mut test = TestParser::new("new? Foo()");
+    let test = TestParser::new("new? Foo()");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::NewMaybe { ty, arguments } => {
         // constructor
@@ -447,11 +451,11 @@ fn test_parse_new_maybe_with_empty_parentheses() {
 #[test]
 fn test_parse_new_maybe_without_receiver_recovers_missing_constructor() {
     // new?
-    let mut test = TestParser::new("new?");
+    let test = TestParser::new("new?");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     assert_node!(parser.tree, expression_id, Expression::NewMaybe { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Missing);
@@ -461,9 +465,9 @@ fn test_parse_new_maybe_without_receiver_recovers_missing_constructor() {
 
 #[test]
 fn test_parse_new_with_infer_hole() {
-    let mut test = TestParser::new("new _()");
+    let test = TestParser::new("new _()");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Infer { form, name, constraint } => {
@@ -474,14 +478,14 @@ fn test_parse_new_with_infer_hole() {
         assert!(arguments.is_empty());
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_new_with_infer_hole_type_argument() {
-    let mut test = TestParser::new("new Box<_>(value)");
+    let test = TestParser::new("new Box<_>(value)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
@@ -498,14 +502,14 @@ fn test_parse_new_with_infer_hole_type_argument() {
         assert_eq!(arguments.len(), 1);
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_new_with_generic_member_constructor_name() {
-    let mut test = TestParser::new("new ns.Box<_>.Inner<T>(value)");
+    let test = TestParser::new("new ns.Box<_>.Inner<T>(value)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Member { left, name, generic_arguments } => {
@@ -527,16 +531,16 @@ fn test_parse_new_with_generic_member_constructor_name() {
         assert_eq!(arguments.len(), 1);
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_new_without_receiver_recovers_missing_constructor() {
-    let mut test = TestParser::new("new");
+    let test = TestParser::new("new");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // new
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
@@ -548,9 +552,9 @@ fn test_parse_new_without_receiver_recovers_missing_constructor() {
 #[test]
 fn test_parse_new_with_arguments() {
     // new Foo(1, 2)
-    let mut test = TestParser::new("new Foo(1, 2)");
+    let test = TestParser::new("new Foo(1, 2)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         // Foo
@@ -563,9 +567,9 @@ fn test_parse_new_with_arguments() {
 #[test]
 fn test_parse_new_type_arguments_before_if_keyword() {
     // new A<T> if (0);
-    let mut test = TestParser::new("new A<T> if (0);");
+    let test = TestParser::new("new A<T> if (0);");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // new A<T>
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
@@ -586,9 +590,9 @@ fn test_parse_new_type_arguments_before_if_keyword() {
 #[test]
 fn test_parse_new_type_arguments_without_parenthesized_call() {
     // new A<T>
-    let mut test = TestParser::new("new A<T>");
+    let test = TestParser::new("new A<T>");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // new A<T>
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
@@ -609,12 +613,12 @@ fn test_parse_new_type_arguments_without_parenthesized_call() {
 #[test]
 fn test_parse_new_type_arguments_with_spaces() {
     // new A < T >
-    let mut test = TestParser::new("new A < T >");
+    let test = TestParser::new("new A < T >");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // new A < T >
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
             assert_path!(parser, *path, "A");
@@ -630,12 +634,12 @@ fn test_parse_new_type_arguments_with_spaces() {
 #[test]
 fn test_parse_new_multiple_type_arguments_with_spaces() {
     // new A < B, C >
-    let mut test = TestParser::new("new A < B, C >");
+    let test = TestParser::new("new A < B, C >");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // new A < B, C >
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
             assert_path!(parser, *path, "A");
@@ -654,11 +658,11 @@ fn test_parse_new_multiple_type_arguments_with_spaces() {
 #[test]
 fn test_parse_shift_left_comparison_not_type_arguments_like_babel() {
     // f<< T > (()=>T) > T
-    let mut test = TestParser::new("f<< T > (()=>T) > T");
+    let test = TestParser::new("f<< T > (()=>T) > T");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // f<< T > (()=>T) > T
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
@@ -693,9 +697,9 @@ fn test_parse_shift_left_comparison_not_type_arguments_like_babel() {
 #[test]
 fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
     // new Type(...instances)
-    let mut test = TestParser::new("new Type(...instances)");
+    let test = TestParser::new("new Type(...instances)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // new Type(...instances)
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
@@ -710,9 +714,9 @@ fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
 
 #[test]
 fn test_parse_new_parenthesized_cast_receiver_with_generic_arguments() {
-    let mut test = TestParser::new("new Promise<Foo>((resolve, reject) => {})");
+    let test = TestParser::new("new Promise<Foo>((resolve, reject) => {})");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {

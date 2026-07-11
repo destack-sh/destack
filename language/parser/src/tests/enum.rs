@@ -12,16 +12,21 @@ use crate::{
 
 #[test]
 fn test_parse_enum_with_extends_types() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 enum Foo extends Day {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let enum_id = parser
-        .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
+        .parse_enum(
+            &start,
+            EnumKind::Enum,
+            DeclarationHeader::default(),
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, generic_parameters, implements_types, fields, members, .. }) => {
         assert_string!(parser, name.unwrap().string(), "Foo");
@@ -37,11 +42,11 @@ enum Foo extends Day {}
 
 #[test]
 fn test_parse_shared_enum_declaration() {
-    let mut test = TestParser::new("shared enum Result { Ok; Error }");
+    let test = TestParser::new("shared enum Result { Ok; Error }");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -55,11 +60,11 @@ fn test_parse_shared_enum_declaration() {
 
 #[test]
 fn test_parse_local_const_enum_declaration() {
-    let mut test = TestParser::new("local const enum Result { Ok; Error }");
+    let test = TestParser::new("local const enum Result { Ok; Error }");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -74,7 +79,7 @@ fn test_parse_local_const_enum_declaration() {
 
 #[test]
 fn test_parse_recovers_enum_without_body() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 enum;
 enum A;
@@ -86,24 +91,28 @@ enum A;
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Error);
     assert_node!(parser.tree, expressions[1], Expression::Error);
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[
             (
                 Some(NodeType::Expression),
-                Some(TokenType::Identifier),
-                None,
-                "enum",
+                Some(TokenType::Semicolon),
+                Some(TokenType::OpenBrace),
+                ";",
             ),
-            (None, None, None, ";"),
-            (Some(NodeType::Expression), None, None, ";"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Semicolon),
+                Some(TokenType::OpenBrace),
+                ";",
+            ),
         ],
     );
 }
 
 #[test]
 fn test_parse_enum_anonymous_simple() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 enum {
     Success
@@ -113,9 +122,14 @@ enum {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let enum_id = parser
-        .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
+        .parse_enum(
+            &start,
+            EnumKind::Enum,
+            DeclarationHeader::default(),
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, fields, .. }) => {
         assert!(name.is_none());
@@ -135,7 +149,7 @@ enum {
 
 #[test]
 fn test_parse_enum_with_type_name_and_values() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 enum Foo extends Day {
 
@@ -147,9 +161,14 @@ enum Foo extends Day {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let enum_id = parser
-        .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
+        .parse_enum(
+            &start,
+            EnumKind::Enum,
+            DeclarationHeader::default(),
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, fields, generic_parameters, implements_types, .. }) => {
         // Foo
@@ -181,7 +200,7 @@ enum Foo extends Day {
 /// Computed string enum keys should parse as string names.
 #[test]
 fn test_parse_enum_computed_string_names() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 enum CHAR {
     ['\v'] = 0x0B,
@@ -191,9 +210,14 @@ enum CHAR {
 "###,
     );
     let mut parser = test.prepare();
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let enum_id = parser
-        .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
+        .parse_enum(
+            &start,
+            EnumKind::Enum,
+            DeclarationHeader::default(),
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
         assert_eq!(fields.len(), 3);
@@ -214,7 +238,7 @@ enum CHAR {
 
 #[test]
 fn test_parse_enum_with_generic_parameters() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 enum Machine<T: int32 = 3, IsSomething: boolean = true> {
     A = 1
@@ -226,9 +250,14 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let enum_id = parser
-        .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
+        .parse_enum(
+            &start,
+            EnumKind::Enum,
+            DeclarationHeader::default(),
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { name, generic_parameters, fields, .. }) => {
         // Machine
@@ -256,14 +285,14 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         )
         .expect("missing enum generic parameter span");
     assert_eq!(
-        parser.get_span_str(generic_parameter_span),
+        parser.span_str(generic_parameter_span),
         "<T: int32 = 3, IsSomething: boolean = true>"
     );
 }
 
 #[test]
 fn test_parse_enum_with_where_clause() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 enum Foo where Requirement: Interface {
     Value
@@ -272,9 +301,14 @@ enum Foo where Requirement: Interface {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let enum_id = parser
-        .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
+        .parse_enum(
+            &start,
+            EnumKind::Enum,
+            DeclarationHeader::default(),
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { where_clauses, fields, .. }) => {
         assert_eq!(where_clauses.len(), 1);
@@ -293,7 +327,7 @@ enum Foo where Requirement: Interface {
 
 #[test]
 fn test_parse_enum_with_dangling_item_decorator_reports_error_and_no_attachment() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 enum Value {
     @dangling
@@ -309,7 +343,7 @@ enum Value {
         1,
         "expected one dangling decorator parse error"
     );
-    assert_eq!(parser.get_range_str(parser.errors[0].range), "}");
+    assert_eq!(parser.range_str(parser.errors[0].range), "}");
 
     let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -331,7 +365,7 @@ enum Value {
 
 #[test]
 fn test_parse_enum_field_interleaved_comments_and_decorators() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"enum Value {
 // before-first
 @first
@@ -381,7 +415,7 @@ Entry
 
 #[test]
 fn test_parse_enum_field_trailing_and_blank_seams() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"enum Value {
 A // a-tail
 
@@ -417,7 +451,7 @@ B
 
 #[test]
 fn test_parse_enum_body_boundary_comment_on_declaration_owner() {
-    let mut test = TestParser::new("enum Value /* enum-body */ { A }");
+    let test = TestParser::new("enum Value /* enum-body */ { A }");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
