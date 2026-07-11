@@ -6,7 +6,7 @@ use destack_core::StableHasher;
 use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
-use crate::{FileType, Span, Uri};
+use crate::{ByteRange, FileType, Span, Uri};
 
 const FILE_LOGICAL_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
 const FILE_SOURCE_DOMAIN: &[u8] = b"destack.source.file.source.v1";
@@ -338,8 +338,18 @@ impl File {
     /// Get the string slice for a given span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> Option<&str> {
+        if span.file != self.id {
+            return None;
+        }
+
+        self.get_range_str(span.range())
+    }
+
+    /// Return the string slice for one file-local byte range.
+    #[inline]
+    pub fn get_range_str(&self, range: ByteRange) -> Option<&str> {
         match self.content.payload() {
-            Content::Text { content } => Some(&content[span.start as usize..span.end as usize]),
+            Content::Text { content } => content.get(range.start as usize..range.end as usize),
             Content::Binary { .. } => None,
         }
     }
