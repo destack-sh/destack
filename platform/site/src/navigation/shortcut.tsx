@@ -1,4 +1,4 @@
-import { onCleanup, onMount } from "solid-js";
+import { createMemo, onCleanup, onMount } from "solid-js";
 
 type ShortcutLabelProps = {
     /// Whether to surround the label with square brackets.
@@ -13,19 +13,22 @@ type ShortcutLabelProps = {
 
 /// Render a label with its keyboard mnemonic underlined.
 export function ShortcutLabel(props: ShortcutLabelProps) {
-    const index = props.label.toLowerCase().indexOf(props.shortcut.toLowerCase());
-    if (props.shortcut.length !== 1 || index < 0) {
-        throw new Error(`shortcut ${props.shortcut} is not present in ${props.label}`);
-    }
+    const index = createMemo(() => {
+        const index = props.label.toLowerCase().indexOf(props.shortcut.toLowerCase());
+        if (props.shortcut.length !== 1 || index < 0) {
+            throw new Error(`shortcut ${props.shortcut} is not present in ${props.label}`);
+        }
 
-    const before = props.label.slice(0, index);
-    const mnemonic = props.label.slice(index, index + 1);
-    const after = props.label.slice(index + 1);
+        return index;
+    });
+    const before = () => props.label.slice(0, index());
+    const mnemonic = () => props.label.slice(index(), index() + 1);
+    const after = () => props.label.slice(index() + 1);
 
     return (
         <>
             {props.brackets !== false && "["}
-            {before}<u>{mnemonic}</u>{after}
+            {before()}<u>{mnemonic()}</u>{after()}
             {props.brackets !== false && "]"}
         </>
     );

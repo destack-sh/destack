@@ -63,8 +63,8 @@ export function commandsFor(entries: readonly SearchEntry[], source?: PageFormat
         eventCommand(
             "theme",
             "appearance",
-            "Toggle color theme",
-            "dark light theme",
+            "Cycle color theme",
+            "system dark light theme appearance",
             commandEvents.toggleTheme,
         ),
     ];
