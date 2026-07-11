@@ -4,9 +4,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidatePass, CheckState, DeclaredMember, Dependency,
-    MemberCandidate, MemberLookup, Origin, ProbeReason, Relation, SignatureSelection,
-    TypeSubstitution, answer,
+    Answer, BodyState, CandidateOutcome, CandidatePass, Cause, CauseKind, CheckState,
+    DeclaredMember, Dependency, MemberCandidate, MemberLookup, Origin, ProbeReason, Relation,
+    SignatureSelection, TypeSubstitution, answer,
 };
 
 /// Interface protocol required by a generated operation.
@@ -543,8 +543,10 @@ impl BodyState<'_, '_> {
             let source_node = source.into_global(module);
             let source_origin = self.origin_at(origin, source_node)?;
 
+            let cause = self.intern_cause(Cause::root(source_origin, CauseKind::Expression));
+
             decision = decision.and(self.constrain_type(
-                source_origin,
+                cause,
                 Relation::Satisfies,
                 argument,
                 constraint,

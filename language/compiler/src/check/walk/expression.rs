@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    AssignedPlace, BodyOwner, BodyPhase, BodyTarget, ConditionBranch, ControlTargetForm,
+    AssignedPlace, BodyOwner, BodyPhase, BodyTarget, CauseKind, ConditionBranch, ControlTargetForm,
     ExpectedType, FlowBranch, FlowCheckpoint, Obligation, Origin, PatternCoverage,
     PatternCoverageObligation, PlaceUse, Relation, ValueUse, VariableRole, WalkState, Widening,
 };
@@ -1023,7 +1023,13 @@ impl WalkState<'_, '_> {
             );
             let never = self.intern_type(dir::Type::Never)?;
 
-            self.relate_type(origin, Relation::Equal, result, never);
+            self.relate_type(
+                origin,
+                CauseKind::Expression,
+                Relation::Equal,
+                result,
+                never,
+            );
         }
         self.merge_flow_branches_from(before_body, &branches);
 
@@ -1144,7 +1150,13 @@ impl WalkState<'_, '_> {
                 id.into_global_any(self.module),
                 self.flow().template_scope(),
             );
-            self.relate_type(origin, Relation::Assignable, failure, expected);
+            self.relate_type(
+                origin,
+                CauseKind::Expression,
+                Relation::Assignable,
+                failure,
+                expected,
+            );
         }
 
         // catch (error)

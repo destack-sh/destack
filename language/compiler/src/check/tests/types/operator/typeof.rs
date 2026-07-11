@@ -78,6 +78,7 @@ let bad: ValueType = "no";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'ValueType'"
 /// @diagnostic.label line=6 column=22 span="\"no\"" line_source="let bad: ValueType = \"no\";"
+/// @diagnostic.note message="'ValueType' reduces to '42'"
 "#,
     );
 }

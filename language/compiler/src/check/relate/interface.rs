@@ -3,7 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, MemberRole, Origin, Relation, TypeSubstitution, answer};
+use crate::check::{
+    Answer, Cause, CauseKind, CheckState, MemberRole, Origin, Relation, TypeSubstitution, answer,
+};
 
 use super::nominal::HeritageApplication;
 
@@ -434,8 +436,10 @@ impl CheckState<'_> {
             let matches = if implemented.symbol == interface.symbol {
                 let implemented_arguments = self.type_ids(module, implemented.arguments)?.to_vec();
 
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
                 self.relate_type_arguments(
-                    origin,
+                    cause,
                     interface.symbol,
                     self.default_symbol_context(interface.symbol),
                     Relation::Assignable,
@@ -449,8 +453,10 @@ impl CheckState<'_> {
                     .type_ids(origin.module(), inherited.arguments)?
                     .to_vec();
 
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
                 self.relate_type_arguments(
-                    origin,
+                    cause,
                     interface.symbol,
                     self.default_symbol_context(interface.symbol),
                     Relation::Assignable,

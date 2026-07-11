@@ -4,8 +4,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Constraint, Decision, Expectation, ExpectedType, FlowPointId, FlowSite,
-    Obligation, Origin, PlaceUse, Relation, ValueUse, WritablePlaceObligation, WriteTarget, answer,
+    Answer, BodyState, Cause, CauseKind, Constraint, Decision, Expectation, ExpectedType,
+    FlowPointId, FlowSite, Obligation, Origin, PlaceUse, Relation, ValueUse,
+    WritablePlaceObligation, WriteTarget, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -69,13 +70,19 @@ impl BodyState<'_, '_> {
                 };
                 let target =
                     answer!(self.commit_assign_pattern_place(input_origin, node, place)?);
+                let pattern_cause = self.intern_cause(Cause::root(
+                    input_origin,
+                    CauseKind::Pattern {
+                        pattern: node.into_any(),
+                    },
+                ));
                 let input_origin = self.intern_origin(input_origin);
                 self.push_constraint(Constraint::value(
                     Relation::Assignable,
                     input,
                     target,
                     input_origin,
-                    input_origin,
+                    pattern_cause,
                     Some(ValueUse::Store),
                 ));
 
@@ -607,7 +614,10 @@ impl BodyState<'_, '_> {
         let expectation = Expectation {
             expected: ExpectedType::Type(input),
             relation: Relation::Assignable,
-            origin: Origin::Node(pattern, scope),
+            cause: self.check.intern_cause(Cause::root(
+                Origin::Node(pattern, scope),
+                CauseKind::Pattern { pattern },
+            )),
             use_: ValueUse::Store,
         };
         self.check_node(site, PlaceUse::Read, Some(expectation))?;

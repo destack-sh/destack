@@ -8,9 +8,9 @@ use destack_source::{ComponentId, ModuleId, ProfileId};
 use smallvec::SmallVec;
 
 use crate::check::{
-    BodyOwner, CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex,
-    GenericScope, GenericTemplateId, Origin, OriginId, Solver, TryPropagationTarget,
-    VarianceContext, VarianceState, should_stream_check_events,
+    BodyOwner, Cause, CauseId, CheckEvent, CheckExternalModuleState, CheckModuleState,
+    DecisionTable, GenericIndex, GenericScope, GenericTemplateId, Origin, OriginId, Solver,
+    TryPropagationTarget, VarianceContext, VarianceState, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -363,6 +363,16 @@ impl CheckState<'_> {
     /// Intern one work origin into the solver.
     pub(in crate::check) fn intern_origin(&mut self, origin: Origin) -> OriginId {
         self.solver.intern_origin(origin)
+    }
+
+    /// Intern one judgment cause into the solver.
+    pub(in crate::check) fn intern_cause(&mut self, cause: Cause) -> CauseId {
+        self.solver.intern_cause(cause)
+    }
+
+    /// Return one interned cause's origin.
+    pub(in crate::check) fn cause_origin(&self, id: CauseId) -> Origin {
+        self.solver.cause(id).origin
     }
 
     /// Return one type operation payload by its interned id.

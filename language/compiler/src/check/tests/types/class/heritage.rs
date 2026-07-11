@@ -536,6 +536,7 @@ class Document extends Base {
         r#"
 /// @diagnostic.error code=EC606 message="'print' shadows an inherited member and must be declared 'override'"
 /// @diagnostic.label line=7 column=5 span="print" line_source="print(): void {}"
+/// @diagnostic.help message="add the 'override' modifier"
 "#,
     );
 }
@@ -593,6 +594,7 @@ class Document extends Base {
         r#"
 /// @diagnostic.error code=EC607 message="cannot override 'print': the inherited member is not virtual"
 /// @diagnostic.label line=7 column=14 span="print" line_source="override print(): void {}"
+/// @diagnostic.help message="declare the inherited member 'virtual' or 'abstract'"
 "#,
     );
 }
@@ -716,6 +718,7 @@ class FileWriter extends Writer {}
         r#"
 /// @diagnostic.error code=EC601 message="abstract member 'write' is not implemented"
 /// @diagnostic.label line=6 column=7 span="FileWriter" line_source="class FileWriter extends Writer {}"
+/// @diagnostic.help message="implement the member or declare the class 'abstract'"
 "#,
     );
 }
@@ -753,6 +756,7 @@ const map: Map<string, int32> = record;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Record<string, int32>' is not assignable to type 'Map<string, int32>'"
 /// @diagnostic.label line=3 column=33 span="record" line_source="const map: Map<string, int32> = record;"
+/// @diagnostic.note message="'Record<string, int32>' reduces to '{ [P: string]: int32 }'"
 "#,
     );
 }
@@ -787,6 +791,7 @@ new Writer();
         r#"
 /// @diagnostic.error code=EC602 message="abstract class 'Writer' cannot be constructed"
 /// @diagnostic.label line=4 column=1 span="new Writer()" line_source="new Writer();"
+/// @diagnostic.help message="construct a concrete subclass instead"
 "#,
     );
 }

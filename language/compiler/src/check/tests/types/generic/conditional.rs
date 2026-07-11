@@ -253,6 +253,8 @@ write("message", number);
 /// @diagnostic.label line=13 column=10 span="write" line_source="sink.write(value);"
 /// @diagnostic.error code=EC209 message="argument of type 'NumberSink' is not assignable to parameter of type 'SinkFor<\"message\">'"
 /// @diagnostic.label line=17 column=18 span="number" line_source="write(\"message\", number);"
+/// @diagnostic.related line=17 column=1 span="write(\"message\", number)" line_source="write(\"message\", number);" message="in this call"
+/// @diagnostic.note message="'SinkFor<\"message\">' reduces to 'TextSink'"
 "#,
     );
 }

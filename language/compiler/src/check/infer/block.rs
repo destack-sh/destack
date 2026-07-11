@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CheckOutcome, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, CauseId, CheckOutcome, FlowSite, PlaceUse, Relation, ValueUse, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -80,7 +80,7 @@ impl BodyState<'_, '_> {
         block: dir::LocalNodeId<dir::Block>,
         target: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckOutcome>> {
         let module = site.node.module_id;
@@ -90,7 +90,7 @@ impl BodyState<'_, '_> {
             Some(value) => {
                 let value_site = self.node_site(value.into_global_any(module))?;
                 let check =
-                    answer!(self.check_node_expected(value_site, target, relation, origin, use_)?);
+                    answer!(self.check_node_expected(value_site, target, relation, cause, use_)?);
                 let value_type = answer!(self.node_type_at(value_site)?);
                 self.commit_node_type(site.node, value_type)?;
 
@@ -100,7 +100,7 @@ impl BodyState<'_, '_> {
                 let value = self.block_end_type(module, block)?;
                 self.commit_node_type(site.node, value)?;
                 let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
                 check
             }

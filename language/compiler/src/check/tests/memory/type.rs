@@ -975,6 +975,8 @@ localSharedOwned satisfies local ^Cell;
         r#"
 /// @diagnostic.error code=EC201 message="type 'LocalSharedOwned' does not satisfy 'local ^Cell'"
 /// @diagnostic.label line=13 column=18 span="satisfies" line_source="localSharedOwned satisfies local ^Cell;"
+/// @diagnostic.note message="'LocalSharedOwned' reduces to 'shared Cell'"
+/// @diagnostic.note message="'local ^Cell' reduces to 'local Cell'"
 "#,
     );
 }

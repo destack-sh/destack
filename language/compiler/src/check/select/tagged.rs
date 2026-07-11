@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidatePass, Decision, FlowPointId, FlowSite, Origin,
-    Relation, TypeSubstitution, answer,
+    Answer, BodyState, CandidateOutcome, CandidatePass, Cause, CauseKind, Decision, FlowPointId,
+    FlowSite, Origin, Relation, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -99,8 +99,9 @@ impl BodyState<'_, '_> {
 
         // otherwise let the written generic owner bind against the input
         let heads = if heads.is_empty() {
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
             let belongs =
-                answer!(self.constrain_type(origin, Relation::Assignable, input, head.owner)?);
+                answer!(self.constrain_type(cause, Relation::Assignable, input, head.owner)?);
             let variant = self.format_variant_case(head.owner, head.key);
             if !belongs {
                 self.report_pattern_variant_not_in_type(origin, variant, input)?;
@@ -300,10 +301,10 @@ impl BodyState<'_, '_> {
         // name the case from the variant symbol's declared key
         let owner_head = answer!(self.reduce_type_head(origin, member.owner)?);
         let dir::Type::Instance(owner_instance) = self.ty(owner_head)? else {
-            return self.reject_construct(site, node, origin, argument_nodes);
+            return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
         let Some(key) = self.tagged_variant_key(owner_instance.symbol, member.member)? else {
-            return self.reject_construct(site, node, origin, argument_nodes);
+            return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
 
         // open the owner at the call site: the return expectation and
@@ -311,23 +312,23 @@ impl BodyState<'_, '_> {
         let owner_static = answer!(self.symbol_type(owner_instance.symbol)?);
         let Some(head) = answer!(self.tagged_pattern_head_from_owner(origin, owner_static, key)?)
         else {
-            return self.reject_construct(site, node, origin, argument_nodes);
+            return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
         let Some(case) = answer!(self.tagged_case_selection(origin, &head)?) else {
-            return self.reject_construct(site, node, origin, argument_nodes);
+            return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
 
         // explicit type arguments bind the opened owner holes directly
         let mut type_arguments = type_arguments;
         if !type_arguments.is_empty() {
             let dir::Type::Instance(owner_open) = self.ty(head.owner)? else {
-                return self.reject_construct(site, node, origin, argument_nodes);
+                return self.reject_construct(site, node, origin, argument_nodes, &[]);
             };
             let holes = self
                 .type_ids(head.owner.module_id, owner_open.arguments)?
                 .to_vec();
             if holes.len() != type_arguments.len() {
-                return self.reject_construct(site, node, origin, argument_nodes);
+                return self.reject_construct(site, node, origin, argument_nodes, &[]);
             }
             for (hole, argument) in holes.iter().zip(type_arguments) {
                 if let Some(variable) = self.check.root_variable(*hole)? {
@@ -375,7 +376,7 @@ impl BodyState<'_, '_> {
         let signature = match answer!(attempt) {
             CandidateOutcome::Accepted(signature) => signature,
             CandidateOutcome::Rejected(_) => {
-                return self.reject_construct(site, node, origin, argument_nodes);
+                return self.reject_construct(site, node, origin, argument_nodes, &[]);
             }
         };
 

@@ -2,9 +2,9 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowBranch, FlowState, GenericTemplateId,
-    InducedLifetimeOwner, Origin, Receiver, ReceiverBinding, Relation, ValueUse, WalkState,
-    Widening,
+    BodyOwner, BodyPhase, BodyTarget, CauseKind, ExpectedType, FlowBranch, FlowState,
+    GenericTemplateId, InducedLifetimeOwner, Origin, Receiver, ReceiverBinding, Relation, ValueUse,
+    WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -325,6 +325,7 @@ impl WalkState<'_, '_> {
                         );
                         self.relate_value(
                             origin,
+                            CauseKind::Initializer { annotation: None },
                             ValueUse::Store,
                             Relation::Assignable,
                             written,
@@ -979,6 +980,7 @@ impl WalkState<'_, '_> {
                             let origin = Origin::Node(source, self.flow().template_scope());
                             self.relate_value(
                                 origin,
+                                CauseKind::Initializer { annotation: None },
                                 ValueUse::Store,
                                 Relation::Assignable,
                                 written,

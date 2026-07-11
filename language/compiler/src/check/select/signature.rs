@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::infer::InferMode;
 use crate::check::{
-    Answer, BodyState, BoundMode, CandidateOutcome, Constraint, Origin, PlaceUse, ReceiverSteps,
-    Relation, TypeSubstitution, ValueUse, answer,
+    Answer, BodyState, BoundMode, CandidateOutcome, Cause, CauseKind, Constraint, Origin, PlaceUse,
+    ReceiverSteps, Relation, TypeSubstitution, ValueUse, answer,
 };
 
 /// Callable signature accepted for an invocation.
@@ -474,13 +474,17 @@ impl BodyState<'_, '_> {
                 }
                 let parameter_type =
                     self.erase_inference_barriers(origin.module(), parameter_type)?;
-                let origin = self.origin_at(origin, source)?;
-                let origin = self.intern_origin(origin);
+                let call = self.origin_source(origin)?;
+                let anchored = self.origin_at(origin, source)?;
+                let cause = self.check.intern_cause(Cause::root(
+                    anchored,
+                    CauseKind::Argument { call, index: 0 },
+                ));
                 self.push_constraint(Constraint::r#type(
                     Relation::Assignable,
                     ty,
                     parameter_type,
-                    origin,
+                    cause,
                 ));
             }
 
@@ -513,8 +517,11 @@ impl BodyState<'_, '_> {
 
                 let source_node = source.into_global(module);
                 let bound_origin = self.origin_at(origin, source_node)?;
+                let bound_cause = self
+                    .check
+                    .intern_cause(Cause::root(bound_origin, CauseKind::Bound { parameter }));
                 if !answer!(self.constrain_type(
-                    bound_origin,
+                    bound_cause,
                     Relation::Satisfies,
                     argument,
                     bound
@@ -532,7 +539,10 @@ impl BodyState<'_, '_> {
             let left = self.substitute_type(origin.module(), predicate.left, &substitution)?;
             let right = self.substitute_type(origin.module(), predicate.right, &substitution)?;
 
-            if !answer!(self.constrain_type(origin, Relation::Satisfies, left, right)?) {
+            let predicate_cause = self
+                .check
+                .intern_cause(Cause::root(origin, CauseKind::Expression));
+            if !answer!(self.constrain_type(predicate_cause, Relation::Satisfies, left, right)?) {
                 let source_node = source.into_global(module);
                 let rejection = self.signature_bound_rejection(origin, source_node, left, right)?;
 
@@ -543,8 +553,11 @@ impl BodyState<'_, '_> {
         // relate expected returns in the same candidate context
         if let (Some(return_type), Some(expected_return)) = (function_return, expected_return) {
             let return_type = self.substitute_type(origin.module(), return_type, &substitution)?;
+            let return_cause = self
+                .check
+                .intern_cause(Cause::root(origin, CauseKind::Return { annotation: None }));
             if !answer!(self.constrain_type(
-                origin,
+                return_cause,
                 Relation::Assignable,
                 return_type,
                 expected_return
@@ -643,12 +656,14 @@ impl BodyState<'_, '_> {
 
             let source_node = source.into_global(module);
             let bound_origin = self.origin_at(origin, source_node)?;
-            let bound_origin = self.intern_origin(bound_origin);
+            let bound_cause = self
+                .check
+                .intern_cause(Cause::root(bound_origin, CauseKind::Bound { parameter }));
             self.push_constraint(Constraint::r#type(
                 Relation::Satisfies,
                 argument,
                 bound,
-                bound_origin,
+                bound_cause,
             ));
         }
 
@@ -656,19 +671,23 @@ impl BodyState<'_, '_> {
         for predicate in self.template_predicates(function.template) {
             let left = self.substitute_type(origin.module(), predicate.left, substitution)?;
             let right = self.substitute_type(origin.module(), predicate.right, substitution)?;
-            let origin = self.intern_origin(origin);
-            self.push_constraint(Constraint::r#type(Relation::Satisfies, left, right, origin));
+            let cause = self
+                .check
+                .intern_cause(Cause::root(origin, CauseKind::Expression));
+            self.push_constraint(Constraint::r#type(Relation::Satisfies, left, right, cause));
         }
 
         // the substituted return flows into the expected return
         if let (Some(return_type), Some(expected_return)) = (function_return, expected_return) {
             let return_type = self.substitute_type(origin.module(), return_type, substitution)?;
-            let origin = self.intern_origin(origin);
+            let cause = self
+                .check
+                .intern_cause(Cause::root(origin, CauseKind::Return { annotation: None }));
             self.push_constraint(Constraint::r#type(
                 Relation::Assignable,
                 return_type,
                 expected_return,
-                origin,
+                cause,
             ));
         }
 
@@ -738,7 +757,11 @@ impl BodyState<'_, '_> {
         parameter_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let source = argument.source();
+        let call = self.origin_source(origin)?;
         let origin = self.origin_at(origin, source)?;
+        let cause = self
+            .check
+            .intern_cause(Cause::root(origin, CauseKind::Argument { call, index: 0 }));
 
         // preserve exact literal structure for const literal materialization
         if matches!(argument, CallableArgument::Expression(_))
@@ -752,19 +775,19 @@ impl BodyState<'_, '_> {
             let ty = answer!(self.node_type_at(site)?);
             let ty = answer!(self.const_literal_expression_type(source, ty)?);
 
-            return self.constrain_type(origin, Relation::Assignable, ty, parameter_type);
+            return self.constrain_type(cause, Relation::Assignable, ty, parameter_type);
         }
 
         // check source expressions with the parameter as their expected type
         match argument {
             CallableArgument::Expression(_) => self.check_expression_relation(
-                origin,
+                cause,
                 Relation::Assignable,
                 parameter_type,
                 Some(ValueUse::Argument),
             ),
             CallableArgument::Typed { ty, .. } => {
-                self.constrain_type(origin, Relation::Assignable, ty, parameter_type)
+                self.constrain_type(cause, Relation::Assignable, ty, parameter_type)
             }
         }
     }

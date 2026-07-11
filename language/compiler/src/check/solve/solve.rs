@@ -1,4 +1,4 @@
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use smallvec::SmallVec;
 
@@ -138,29 +138,32 @@ impl CheckState<'_> {
     fn report_parked_obligations(&mut self) -> CompilerResult<()> {
         // drain parked dependencies once
         let parked = self.solver.drain_waiters();
-        let mut origins = FxIndexSet::default();
+        let mut origins = FxIndexMap::default();
 
         // resolve each stuck dependency to the origin it anchors at
         for (dependency, _) in parked {
-            let origin = match dependency {
+            let (origin, variable) = match dependency {
                 Dependency::Variable(variable) => {
                     let state = self.solver.variable(variable)?;
                     if state.solution.is_some() {
                         continue;
                     }
 
-                    self.solver.origin(state.origin)
+                    (self.solver.origin(state.origin), Some(variable))
                 }
-                Dependency::SymbolType(symbol) => Origin::Symbol(symbol),
+                Dependency::SymbolType(symbol) => (Origin::Symbol(symbol), None),
             };
-            origins.insert(origin);
+            origins.entry(origin).or_insert(variable);
         }
 
         self.report_cannot_infer_origins(origins)
     }
 
     /// Report unresolved inference origins in deterministic source order.
-    fn report_cannot_infer_origins(&mut self, origins: FxIndexSet<Origin>) -> CompilerResult<()> {
+    fn report_cannot_infer_origins(
+        &mut self,
+        origins: FxIndexMap<Origin, Option<dir::TypeVariableId>>,
+    ) -> CompilerResult<()> {
         if origins.is_empty() {
             return Ok(());
         }
@@ -169,25 +172,25 @@ impl CheckState<'_> {
 
         // suppress casualties of errors reported before the sweep
         let mut tainted = FxIndexSet::default();
-        for origin in &origins {
+        for (origin, _) in &origins {
             let module = origin.module();
             if self.is_component_module(module) && !self.module(module).diagnostics.is_empty() {
                 tainted.insert(module);
             }
         }
-        origins.retain(|origin| !tainted.contains(&origin.module()));
+        origins.retain(|(origin, _)| !tainted.contains(&origin.module()));
 
         // report in source order for deterministic diagnostics
         let mut keyed = Vec::new();
-        for origin in origins {
+        for (origin, variable) in origins {
             let source = self.origin_source_node(origin)?;
-            keyed.push((origin.module(), source.id, origin));
+            keyed.push((origin.module(), source.id, origin, variable));
         }
-        keyed.sort_by_key(|(module, id, _)| (*module, *id));
+        keyed.sort_by_key(|(module, id, _, _)| (*module, *id));
 
         let mut reported = FxIndexSet::default();
-        for (_, _, origin) in keyed {
-            self.report_cannot_infer_type(origin, &mut reported)?;
+        for (_, _, origin, variable) in keyed {
+            self.report_cannot_infer_type(origin, variable, &mut reported)?;
         }
 
         Ok(())
@@ -209,7 +212,7 @@ impl CheckState<'_> {
     fn report_task_failure(&mut self, failure: TaskFailure) -> CompilerResult<()> {
         match failure {
             TaskFailure::Constraint(failure) => self.report_constraint_failure(
-                failure.origin,
+                failure.cause,
                 failure.relation,
                 failure.use_,
                 failure.source,
@@ -229,7 +232,7 @@ impl CheckState<'_> {
         let constraint = *self.solver.constraints.get(id)?;
         let check = match &constraint {
             Constraint::Type(constraint) => self.check_type_constraint(
-                self.solver.origin(constraint.origin),
+                constraint.cause,
                 constraint.relation,
                 constraint.subject,
                 constraint.source,
@@ -249,7 +252,7 @@ impl CheckState<'_> {
                 }
 
                 self.check_value_constraint(
-                    self.solver.origin(constraint.origin),
+                    constraint.cause,
                     self.solver.origin(constraint.value_origin),
                     constraint.relation,
                     constraint.source,
@@ -263,7 +266,7 @@ impl CheckState<'_> {
                 let mut failures = TaskFailures::new();
                 if let CheckOutcome::Fails(failure) = check {
                     failures.push(TaskFailure::Constraint(ConstraintFailure {
-                        origin: self.solver.origin(constraint.origin()),
+                        cause: constraint.cause(),
                         relation: constraint.relation(),
                         use_: constraint.value_use(),
                         source: constraint.source(),

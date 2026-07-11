@@ -143,6 +143,7 @@ use(source);
         r#"
 /// @diagnostic.error code=EC209 message="argument of type '(Dynamic<unknown> | undefined) => void' is not assignable to parameter of type '(unknown) => void'"
 /// @diagnostic.label line=5 column=5 span="source" line_source="use(source);"
+/// @diagnostic.related line=5 column=1 span="use(source)" line_source="use(source);" message="in this call"
 "#,
     );
 }

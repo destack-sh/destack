@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CheckAttempt, CheckOutcome, Constraint, FlowSite, Origin, PlaceUse,
-    Relation, ValueUse, VariableRole, Widening, answer,
+    Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Constraint, FlowSite,
+    Origin, PlaceUse, Relation, ValueUse, VariableRole, Widening, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -96,13 +96,15 @@ impl BodyState<'_, '_> {
             let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
-                let origin =
-                    self.intern_origin(Origin::Node(source.into_global_any(module), site.scope));
+                let cause = self.intern_cause(Cause::root(
+                    Origin::Node(source.into_global_any(module), site.scope),
+                    CauseKind::Expression,
+                ));
                 self.push_constraint(Constraint::r#type(
                     Relation::Assignable,
                     *value,
                     element,
-                    origin,
+                    cause,
                 ));
             }
 
@@ -113,13 +115,15 @@ impl BodyState<'_, '_> {
         // spreads expand item by item into the new array's elements
         for (value, spread) in spreads {
             let item = self.spread_element_type(spread)?;
-            let origin =
-                self.intern_origin(Origin::Node(value.into_global_any(module), site.scope));
+            let cause = self.intern_cause(Cause::root(
+                Origin::Node(value.into_global_any(module), site.scope),
+                CauseKind::Expression,
+            ));
             self.push_constraint(Constraint::r#type(
                 Relation::Assignable,
                 item,
                 element,
-                origin,
+                cause,
             ));
         }
 
@@ -235,7 +239,7 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         target_head: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
@@ -261,13 +265,12 @@ impl BodyState<'_, '_> {
             };
             let child = value.into_global_any(node.module_id);
             let child_site = self.node_site(child)?;
-            let child_check = answer!(self.check_node_expected(
-                child_site,
-                element,
-                relation,
+            let cause = self.intern_cause(Cause::root(
                 Origin::Node(child, site.scope),
-                use_
-            )?);
+                CauseKind::Expression,
+            ));
+            let child_check =
+                answer!(self.check_node_expected(child_site, element, relation, cause, use_)?);
             check = check.and(child_check);
         }
 
@@ -293,7 +296,7 @@ impl BodyState<'_, '_> {
         should_relate_result |= elements.is_empty();
         if should_relate_result {
             let (_, result_check) =
-                answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
             check = check.and(result_check);
         }
 
@@ -309,7 +312,7 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         target_head: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
@@ -321,11 +324,15 @@ impl BodyState<'_, '_> {
         // check the repeated value against the expected element type
         let child = value.into_global_any(module);
         let child_site = self.node_site(child)?;
+        let element_cause = self.check.intern_cause(Cause::root(
+            Origin::Node(child, site.scope),
+            CauseKind::Expression,
+        ));
         let check = answer!(self.check_node_expected(
             child_site,
             array.element,
             relation,
-            Origin::Node(child, site.scope),
+            element_cause,
             use_
         )?);
 
@@ -342,7 +349,7 @@ impl BodyState<'_, '_> {
 
         // relate the result to bind the expected count
         let (_, result_check) =
-            answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+            answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
         Ok(Answer::Ready(CheckAttempt::Checked(
             check.and(result_check),
@@ -381,11 +388,15 @@ impl BodyState<'_, '_> {
             };
             let child = value.into_global_any(node.module_id);
             let child_site = self.node_site(child)?;
+            let element_cause = self.check.intern_cause(Cause::root(
+                Origin::Node(child, site.scope),
+                CauseKind::Expression,
+            ));
             let child_check = answer!(self.check_node_expected(
                 child_site,
                 element.ty,
                 relation,
-                Origin::Node(child, site.scope),
+                element_cause,
                 use_
             )?);
             check = check.and(child_check);

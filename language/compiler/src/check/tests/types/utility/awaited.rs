@@ -165,6 +165,7 @@ const bad: Value = promise;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Promise<string>' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="promise" line_source="const bad: Value = promise;"
+/// @diagnostic.note message="'Value' reduces to 'string'"
 "#,
     );
 }

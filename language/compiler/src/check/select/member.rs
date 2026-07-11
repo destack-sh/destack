@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
@@ -489,6 +489,28 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(()))
     }
 
+    /// Return the span of one member access key, when it is exact.
+    fn member_key_span(&self, node: dir::GlobalNodeIdAny) -> Option<Span> {
+        let state = self.module(node.module_id);
+        if node.local_id.ty != dir::NodeType::Expression {
+            return None;
+        }
+        let expression = node.local_id.into_typed::<dir::Expression>();
+        let dir::Expression::Member {
+            left, is_optional, ..
+        } = *state.view().get(expression)
+        else {
+            return None;
+        };
+        let node_span = state.diagnostic_span(node.local_id)?;
+        let left_span = state.diagnostic_span(left.into_any())?;
+        if node_span.file != left_span.file {
+            return None;
+        }
+        let start = left_span.end + if is_optional { 2 } else { 1 };
+        (start < node_span.end).then(|| Span::new(node_span.file, start, node_span.end))
+    }
+
     /// Reject one member access with a diagnostic.
     fn reject_member(
         &mut self,
@@ -503,7 +525,8 @@ impl BodyState<'_, '_> {
 
             return Ok(Answer::Ready(()));
         }
-        self.report_missing_member(origin, receiver, key)?;
+        let key_span = self.member_key_span(node);
+        self.report_missing_member(origin, receiver, key, key_span)?;
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
 

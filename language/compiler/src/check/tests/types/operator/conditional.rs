@@ -188,6 +188,7 @@ let value: Result = "no";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'Result'"
 /// @diagnostic.label line=5 column=21 span="\"no\"" line_source="let value: Result = \"no\";"
+/// @diagnostic.note message="'Result' reduces to 'never'"
 "#,
     );
 }
@@ -363,6 +364,7 @@ let value: Value = "no";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=6 column=20 span="\"no\"" line_source="let value: Value = \"no\";"
+/// @diagnostic.note message="'Value' reduces to 'never'"
 "#,
     );
 }

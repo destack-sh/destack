@@ -377,6 +377,8 @@ new Box(true);
         r#"
 /// @diagnostic.error code=EC311 message="no constructor matches arguments ('true')"
 /// @diagnostic.label line=14 column=1 span="new Box(true)" line_source="new Box(true);"
+/// @diagnostic.note message="the candidate '(string) => Box' rejects argument 0: 'true' is not assignable to 'string'"
+/// @diagnostic.note message="the candidate '(int32) => Box' rejects argument 0: 'true' is not assignable to 'int32'"
 "#,
     );
 }

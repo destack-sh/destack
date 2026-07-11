@@ -274,6 +274,7 @@ const person: AgeOnly = { name: "Ada" };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'name' in object literal for type 'AgeOnly'"
 /// @diagnostic.label line=9 column=25 span="{ name: \"Ada\" }" line_source="const person: AgeOnly = { name: \"Ada\" };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }
@@ -465,6 +466,7 @@ const person: NameOnly = { name: "Ada", age: 42 };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'age' in object literal for type 'NameOnly'"
 /// @diagnostic.label line=9 column=26 span="{ name: \"Ada\", age: 42 }" line_source="const person: NameOnly = { name: \"Ada\", age: 42 };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }

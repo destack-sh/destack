@@ -440,6 +440,7 @@ const point = Point { x: 1, y: 2, z: 3 };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'z' in object literal for type 'Point'"
 /// @diagnostic.label line=7 column=15 span="Point { x: 1, y: 2, z: 3 }" line_source="const point = Point { x: 1, y: 2, z: 3 };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }

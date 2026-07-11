@@ -228,6 +228,7 @@ class Meter {
         r#"
 /// @diagnostic.error code=EC209 message="argument of type 'readonly Dynamic<Sink>' is not assignable to parameter of type 'Dynamic<Sink>'"
 /// @diagnostic.label line=18 column=19 span="sink" line_source="full(this.sink)"
+/// @diagnostic.related line=18 column=9 span="full(this.sink)" line_source="full(this.sink)" message="in this call"
 "#,
     );
 }

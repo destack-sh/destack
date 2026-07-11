@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{OriginId, Relation};
+use crate::check::{CauseId, OriginId, Relation};
 use crate::{CompilerError, CompilerResult};
 
 /// Component-global id of one collected constraint.
@@ -37,8 +37,8 @@ pub(in crate::check) struct TypeConstraint {
     pub(in crate::check) source: dir::GlobalTypeId,
     /// The target operand.
     pub(in crate::check) target: dir::GlobalTypeId,
-    /// The source that produced the constraint.
-    pub(in crate::check) origin: OriginId,
+    /// Why this constraint exists.
+    pub(in crate::check) cause: CauseId,
     /// The source subject blamed when this relation fails.
     pub(in crate::check) subject: Option<ConstraintSubject>,
 }
@@ -54,8 +54,8 @@ pub(in crate::check) struct ValueConstraint {
     pub(in crate::check) target: dir::GlobalTypeId,
     /// The source value occurrence used for value materialization.
     pub(in crate::check) value_origin: OriginId,
-    /// The source that produced the relation.
-    pub(in crate::check) origin: OriginId,
+    /// Why this constraint exists.
+    pub(in crate::check) cause: CauseId,
     /// The checked value role.
     pub(in crate::check) use_: Option<ValueUse>,
     /// Whether this relation only verifies and never bounds open variables.
@@ -133,13 +133,13 @@ impl Constraint {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        origin: OriginId,
+        cause: CauseId,
     ) -> Self {
         Self::Type(TypeConstraint {
             relation,
             source,
             target,
-            origin,
+            cause,
             subject: None,
         })
     }
@@ -150,7 +150,7 @@ impl Constraint {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         value_origin: OriginId,
-        origin: OriginId,
+        cause: CauseId,
         use_: Option<ValueUse>,
     ) -> Self {
         Self::Value(ValueConstraint {
@@ -158,7 +158,7 @@ impl Constraint {
             source,
             target,
             value_origin,
-            origin,
+            cause,
             use_,
             is_check_only: false,
         })
@@ -170,7 +170,7 @@ impl Constraint {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         value_origin: OriginId,
-        origin: OriginId,
+        cause: CauseId,
         use_: Option<ValueUse>,
     ) -> Self {
         Self::Value(ValueConstraint {
@@ -178,7 +178,7 @@ impl Constraint {
             source,
             target,
             value_origin,
-            origin,
+            cause,
             use_,
             is_check_only: true,
         })
@@ -208,11 +208,11 @@ impl Constraint {
         }
     }
 
-    /// Return the source that produced the relation.
-    pub(in crate::check) fn origin(&self) -> OriginId {
+    /// Return why this constraint exists.
+    pub(in crate::check) fn cause(&self) -> CauseId {
         match self {
-            Self::Type(constraint) => constraint.origin,
-            Self::Value(constraint) => constraint.origin,
+            Self::Type(constraint) => constraint.cause,
+            Self::Value(constraint) => constraint.cause,
         }
     }
 

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    BoundMode, CheckFailure, ConstraintId, ObligationFailure, ObligationId, Origin, Relation,
+    BoundMode, CauseId, CheckFailure, ConstraintId, ObligationFailure, ObligationId, Relation,
     ValueUse,
 };
 
@@ -22,8 +22,8 @@ pub(in crate::check) enum TaskFailure {
 /// One failed constraint judgment.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct ConstraintFailure {
-    /// The source that produced the constraint.
-    pub(in crate::check) origin: Origin,
+    /// The judgment cause that produced the constraint.
+    pub(in crate::check) cause: CauseId,
     /// The relation that failed.
     pub(in crate::check) relation: Relation,
     /// The checked value use, if the constraint checked a value.

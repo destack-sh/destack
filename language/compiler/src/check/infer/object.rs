@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome, Decision,
-    FlowSite, Origin, PlaceUse, ProbeReason, Relation, ValueUse, answer,
+    Answer, BodyState, CandidateOutcome, CandidateVerdict, Cause, CauseId, CauseKind, CheckAttempt,
+    CheckOutcome, Decision, FlowSite, Origin, PlaceUse, ProbeReason, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -124,9 +124,10 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         target_head: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
+        let origin = self.cause_origin(cause);
         let node = site.node.into_typed::<dir::Expression>();
         let mut target_payload = target_head;
         while let dir::Type::Form(form) = self.ty(target_payload)?
@@ -149,7 +150,7 @@ impl BodyState<'_, '_> {
                         element,
                         element_head,
                         relation,
-                        origin,
+                        cause,
                         use_,
                     )?;
 
@@ -168,7 +169,7 @@ impl BodyState<'_, '_> {
                         element,
                         element_head,
                         relation,
-                        origin,
+                        cause,
                         use_,
                     );
                 }
@@ -212,11 +213,16 @@ impl BodyState<'_, '_> {
                         }
                         false => field.ty,
                     };
+                    let field_cause = self.check.intern_cause(Cause::slot(
+                        Origin::Node(child, site.scope),
+                        CauseKind::Field { key },
+                        cause,
+                    ));
                     let child_check = answer!(self.check_node_expected(
                         child_site,
                         expected,
                         relation,
-                        Origin::Node(child, site.scope),
+                        field_cause,
                         use_
                     )?);
                     check = check.and(child_check);
@@ -239,7 +245,7 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node.into_any(), source)?;
         if should_relate_result {
             let (_, result_check) =
-                answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
             check = check.and(result_check);
         }
 

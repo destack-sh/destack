@@ -206,6 +206,7 @@ const flags: Flags = { a: true, b: false, c: true };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'c' in object literal for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ a: true, b: false, c: true }" line_source="const flags: Flags = { a: true, b: false, c: true };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }
@@ -236,6 +237,8 @@ type Bad = Record<{ name: string }, boolean>;
         r#"
 /// @diagnostic.error code=EC201 message="type '{ name: string }' does not satisfy 'PropertyKey'"
 /// @diagnostic.label line=2 column=12 span="Record" line_source="type Bad = Record<{ name: string }, boolean>;"
+/// @diagnostic.related file="object.ds" message="required by this bound on 'K'"
+/// @diagnostic.note message="'PropertyKey' reduces to 'string | usize | symbol'"
 "#,
     );
 }
@@ -342,6 +345,7 @@ const value = read(point);
         r#"
 /// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=20 span="point" line_source="const value = read(point);"
+/// @diagnostic.related line=7 column=15 span="read(point)" line_source="const value = read(point);" message="in this call"
 "#,
     );
 }
@@ -518,6 +522,7 @@ const empty: Empty = { value: true };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'value' in object literal for type 'Empty'"
 /// @diagnostic.label line=4 column=22 span="{ value: true }" line_source="const empty: Empty = { value: true };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }

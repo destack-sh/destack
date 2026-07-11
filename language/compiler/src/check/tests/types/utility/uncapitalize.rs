@@ -109,6 +109,7 @@ const bad: Value = "Hello";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"Hello\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="\"Hello\"" line_source="const bad: Value = \"Hello\";"
+/// @diagnostic.note message="'Value' reduces to '\"hello\"'"
 "#,
     );
 }

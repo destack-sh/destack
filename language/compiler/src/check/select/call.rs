@@ -213,24 +213,33 @@ impl BodyState<'_, '_> {
         let is_single_candidate = candidates.len() == 1;
         let mut winner = None;
         let mut ambiguous = None;
+        let mut rejections = Vec::new();
         for candidate in candidates {
             if is_single_candidate {
                 winner = Some(candidate);
                 break;
             }
-            let verdict = self.probe_candidate(ProbeReason::Signature, |state| {
-                state.attempt_call(
-                    CandidatePass::Winnow,
-                    origin,
-                    module,
-                    candidate,
-                    argument_nodes,
-                    &argument_types,
-                    expected_return,
-                )
-            })?;
+            let (verdict, rejection) = self.probe_candidate_noted(
+                ProbeReason::Signature,
+                |state| {
+                    state.attempt_call(
+                        CandidatePass::Winnow,
+                        origin,
+                        module,
+                        candidate,
+                        argument_nodes,
+                        &argument_types,
+                        expected_return,
+                    )
+                },
+                |state, rejection| {
+                    Ok(state
+                        .check
+                        .describe_signature_rejection(module, candidate.ty, rejection))
+                },
+            )?;
             match verdict {
-                CandidateVerdict::Rejected => {}
+                CandidateVerdict::Rejected => rejections.extend(rejection),
                 CandidateVerdict::Viable => {
                     winner = Some(candidate);
                     break;
@@ -279,8 +288,9 @@ impl BodyState<'_, '_> {
         }
 
         // no candidate matched the arguments
+        rejections.truncate(4);
         let arguments = answer!(self.infer_argument_types(site, argument_nodes)?);
-        self.report_no_matching_call(origin, &arguments)?;
+        self.report_no_matching_call(origin, &arguments, &rejections)?;
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
 
@@ -624,7 +634,7 @@ impl BodyState<'_, '_> {
             let CandidateOutcome::Accepted(signature) = answer!(attempt) else {
                 // one rejecting variant rejects the whole union call
                 let argument_types = answer!(self.infer_argument_types(site, argument_nodes)?);
-                self.report_no_matching_call(origin, &argument_types)?;
+                self.report_no_matching_call(origin, &argument_types, &[])?;
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
 

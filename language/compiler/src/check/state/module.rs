@@ -10,8 +10,9 @@ use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyOwner, Capture, CheckError, CheckOutcome, CheckState, CheckWarning, Constraint,
-    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, answer,
+    Answer, BodyOwner, Capture, Cause, CauseId, CauseKind, CheckError, CheckOutcome, CheckState,
+    CheckWarning, Constraint, Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation,
+    answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -485,10 +486,10 @@ impl CheckState<'_> {
         site: FlowSite,
         relation: Relation,
         target: dir::GlobalTypeId,
-        origin: Origin,
+        cause: CauseId,
     ) -> CompilerResult<Answer<(dir::GlobalTypeId, CheckOutcome)>> {
         let source = answer!(self.node_type_at(site)?);
-        let check = answer!(self.check_value_relation(origin, relation, source, target)?);
+        let check = answer!(self.check_value_relation(cause, relation, source, target)?);
 
         Ok(Answer::Ready((source, check)))
     }
@@ -592,7 +593,9 @@ impl CheckState<'_> {
 
         if let Some(existing) = existing {
             let origin = self.intern_origin(Origin::Symbol(symbol));
-            self.push_constraint(Constraint::r#type(Relation::Equal, existing, ty, origin));
+            let origin = self.solver.origin(origin);
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            self.push_constraint(Constraint::r#type(Relation::Equal, existing, ty, cause));
 
             return Ok(existing);
         }

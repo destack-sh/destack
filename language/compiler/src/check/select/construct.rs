@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateOutcome, CandidatePass, CandidateVerdict,
-    Decision, DecisionKind, FlowSite, Origin, ProbeReason, Relation, SignatureRejection,
+    Answer, BodyState, CallableArgument, CandidateOutcome, CandidatePass, CandidateVerdict, Cause,
+    CauseKind, Decision, DecisionKind, FlowSite, Origin, ProbeReason, Relation, SignatureRejection,
     SignatureSelection, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
@@ -203,6 +203,9 @@ impl BodyState<'_, '_> {
             &substitution,
         )?) {
             let anchored = self.origin_at(origin, rejection.source)?;
+            let anchored = self
+                .check
+                .intern_cause(Cause::root(anchored, CauseKind::Expression));
             self.relate(
                 anchored,
                 Relation::Satisfies,
@@ -315,26 +318,35 @@ impl BodyState<'_, '_> {
         let is_single_candidate = constructors.len() == 1;
         let mut winner = None;
         let mut ambiguous = None;
+        let mut rejections = Vec::new();
         for constructor in constructors {
             if is_single_candidate {
                 winner = Some(constructor);
                 break;
             }
-            let verdict = self.probe_candidate(ProbeReason::Signature, |state| {
-                state.attempt_construct(
-                    CandidatePass::Winnow,
-                    origin,
-                    module,
-                    target.module_id,
-                    &instance,
-                    target,
-                    constructor.ty,
-                    &arguments,
-                    expected_return,
-                )
-            })?;
+            let (verdict, rejection) = self.probe_candidate_noted(
+                ProbeReason::Signature,
+                |state| {
+                    state.attempt_construct(
+                        CandidatePass::Winnow,
+                        origin,
+                        module,
+                        target.module_id,
+                        &instance,
+                        target,
+                        constructor.ty,
+                        &arguments,
+                        expected_return,
+                    )
+                },
+                |state, rejection| {
+                    Ok(state
+                        .check
+                        .describe_signature_rejection(module, constructor.ty, rejection))
+                },
+            )?;
             match verdict {
-                CandidateVerdict::Rejected => {}
+                CandidateVerdict::Rejected => rejections.extend(rejection),
                 CandidateVerdict::Viable => {
                     winner = Some(constructor);
                     break;
@@ -375,7 +387,8 @@ impl BodyState<'_, '_> {
             }
         }
 
-        self.reject_construct(site, node, origin, argument_nodes)
+        rejections.truncate(4);
+        self.reject_construct(site, node, origin, argument_nodes, &rejections)
     }
 
     /// Return construct candidates for one class instance.
@@ -575,7 +588,7 @@ impl BodyState<'_, '_> {
 
         // read the wrapped backing type
         let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
-            return self.reject_construct(site, node, origin, argument_nodes);
+            return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
         let backing = definition.value;
 
@@ -647,7 +660,7 @@ impl BodyState<'_, '_> {
         let signature = match answer!(attempt) {
             CandidateOutcome::Accepted(signature) => signature,
             CandidateOutcome::Rejected(_) => {
-                return self.reject_construct(site, node, origin, argument_nodes);
+                return self.reject_construct(site, node, origin, argument_nodes, &[]);
             }
         };
 
@@ -772,9 +785,10 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeIdAny,
         origin: Origin,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        rejections: &[String],
     ) -> CompilerResult<Answer<()>> {
         let arguments = answer!(self.infer_argument_types(site, argument_nodes)?);
-        self.report_no_matching_construct(origin, &arguments)?;
+        self.report_no_matching_construct(origin, &arguments, rejections)?;
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
 

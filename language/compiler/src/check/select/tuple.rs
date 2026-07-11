@@ -3,7 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Constraint, Decision, FlowPointId, Origin, Relation, answer,
+    Answer, BodyState, Cause, CauseKind, Constraint, Decision, FlowPointId, Origin, Relation,
+    answer,
 };
 
 impl BodyState<'_, '_> {
@@ -76,12 +77,13 @@ impl BodyState<'_, '_> {
                     )?;
                 } else {
                     let hole = self.require_node_type(target)?;
-                    let origin = self.intern_origin(origin);
+                    let cause = self
+                        .intern_cause(Cause::root(origin, CauseKind::Pattern { pattern: target }));
                     self.push_constraint(Constraint::r#type(
                         Relation::Equal,
                         projected_value,
                         hole,
-                        origin,
+                        cause,
                     ));
                 }
             }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Decision, GenericArgument, Obligation, Origin, Receiver, Relation, TypeSubstitution,
+    CauseKind, Decision, GenericArgument, Obligation, Origin, Receiver, Relation, TypeSubstitution,
     VariableRole, WalkState, WellFormedTypeObligation, Widening,
 };
 use crate::{CompilerError, CompilerResult};
@@ -965,6 +965,7 @@ impl WalkState<'_, '_> {
             self.relate_generic_bound(
                 origin,
                 source.into_global(self.module),
+                parameter,
                 argument,
                 constraint,
             );
@@ -984,7 +985,13 @@ impl WalkState<'_, '_> {
                 .check
                 .substitute_type(self.module, predicate.right, &substitution)?;
 
-            self.relate_type(origin, Relation::Satisfies, left, right);
+            self.relate_type(
+                origin,
+                CauseKind::Expression,
+                Relation::Satisfies,
+                left,
+                right,
+            );
         }
 
         Ok(())

@@ -2,10 +2,10 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation};
+use crate::check::{Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation};
 
 /// One derived generic parameter variance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Variance {
     /// The parameter is unused and relates freely.
     Bivariant,
@@ -63,7 +63,10 @@ impl Variance {
     /// The edge is `Widens` when the arguments name storage inside an
     /// existing value, and `Assignable` when a conformance query encodes
     /// call edges that convert at each use.
-    fn argument_relation(self, edge: Relation) -> Option<(Relation, OperandOrder)> {
+    pub(in crate::check) fn argument_relation(
+        self,
+        edge: Relation,
+    ) -> Option<(Relation, OperandOrder)> {
         match self {
             Variance::Bivariant => None,
             Variance::Covariant => Some((edge, OperandOrder::Forward)),
@@ -75,7 +78,7 @@ impl Variance {
 
 /// Operand order for one variance-directed argument relation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum OperandOrder {
+pub(in crate::check) enum OperandOrder {
     /// Source relates to target.
     Forward,
     /// Target relates to source.
@@ -84,7 +87,7 @@ enum OperandOrder {
 
 impl OperandOrder {
     /// Order one operand pair.
-    fn orient<T>(self, source: T, target: T) -> (T, T) {
+    pub(in crate::check) fn orient<T>(self, source: T, target: T) -> (T, T) {
         match self {
             Self::Forward => (source, target),
             Self::Reversed => (target, source),
@@ -685,26 +688,31 @@ impl CheckState<'_> {
     /// Relate same-template type arguments under one handle context.
     pub(in crate::check) fn relate_type_arguments(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         symbol: dir::GlobalSymbolId,
         context: VarianceContext,
         edge: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
+        let origin = self.cause_origin(cause);
         let edge = self.instance_argument_edge(symbol, edge);
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
-            let answer = match self
-                .argument_variance(symbol, index, context)?
-                .argument_relation(edge)
-            {
+            let variance = self.argument_variance(symbol, index, context)?;
+            let slot = CauseKind::TypeArgument {
+                symbol,
+                index: index as u32,
+                variance,
+            };
+            let child = self.intern_cause(Cause::slot(origin, slot, cause));
+            let answer = match variance.argument_relation(edge) {
                 // bivariant arguments still constrain open holes so inference closes
                 None => {
                     if self.type_flags(*source)?.has_variable()
                         || self.type_flags(*target)?.has_variable()
                     {
-                        self.constrain_type(origin, Relation::Equal, *source, *target)?
+                        self.constrain_type(child, Relation::Equal, *source, *target)?
                     } else {
                         Answer::Ready(true)
                     }
@@ -712,7 +720,7 @@ impl CheckState<'_> {
                 Some((relation, order)) => {
                     let (source, target) = order.orient(*source, *target);
 
-                    self.constrain_type(origin, relation, source, target)?
+                    self.constrain_type(child, relation, source, target)?
                 }
             };
             decision = decision.and(answer);
@@ -729,7 +737,11 @@ impl CheckState<'_> {
     /// Interface instances are dynamic carriers pending the dynamic-safe
     /// wiring, so their arguments keep conformance edges until vtable
     /// construction enforces identity there.
-    fn instance_argument_edge(&self, symbol: dir::GlobalSymbolId, edge: Relation) -> Relation {
+    pub(in crate::check) fn instance_argument_edge(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        edge: Relation,
+    ) -> Relation {
         match self.symbol_kind(symbol) {
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
                 if edge == Relation::Widens =>

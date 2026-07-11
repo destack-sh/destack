@@ -150,6 +150,8 @@ const rectangle = Rectangle {
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'z' in object literal for type 'Point'"
 /// @diagnostic.label line=12 column=12 span="{ x: 0, y: 0, z: 0 }" line_source="start: { x: 0, y: 0, z: 0 },"
+/// @diagnostic.note message="object literals may only specify known properties"
+/// @diagnostic.note message="the mismatch is in field 'start'"
 "#,
     );
 }

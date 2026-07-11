@@ -88,6 +88,8 @@ const tight: Tight = loose;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Loose' is not assignable to type 'Tight'"
 /// @diagnostic.label line=6 column=22 span="loose" line_source="const tight: Tight = loose;"
+/// @diagnostic.note message="'Loose' reduces to '`${string}-id`'"
+/// @diagnostic.note message="'Tight' reduces to '`user-${string}-id`'"
 "#,
     );
 }
@@ -180,6 +182,8 @@ const numeric: NumericId = id;
         r#"
 /// @diagnostic.error code=EC200 message="type 'StringId' is not assignable to type 'NumericId'"
 /// @diagnostic.label line=6 column=28 span="id" line_source="const numeric: NumericId = id;"
+/// @diagnostic.note message="'StringId' reduces to '`id-${string}`'"
+/// @diagnostic.note message="'NumericId' reduces to '`id-${float64}`'"
 "#,
     );
 }

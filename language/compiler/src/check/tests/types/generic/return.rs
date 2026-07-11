@@ -554,7 +554,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=4 types=35 constraints=5 obligations=8 solutions=4 bounds=5 decisions=18
+/// @check.stats.solve variables=4 types=35 constraints=5 obligations=8 solutions=4 bounds=3 decisions=18
 "#,
     );
 }
@@ -596,8 +596,14 @@ function pong(n: float64) {
         r#"
 /// @diagnostic.error code=EC100 message="cannot infer a type here"
 /// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
+/// @diagnostic.related line=3 column=12 span="n > 0 ? pong(n - 1) : n" line_source="return n > 0 ? pong(n - 1) : n;" message="'_ | float64' flows into it here"
+/// @diagnostic.related line=2 column=27 span="{\n    return n > 0 ? pong(n - 1) : n;\n}" line_source="function ping(n: float64) {" message="'never' flows into it here"
+/// @diagnostic.help message="annotate the type explicitly"
 /// @diagnostic.error code=EC100 message="cannot infer a type here"
 /// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
+/// @diagnostic.related line=7 column=12 span="n > 0 ? ping(n - 1) : n" line_source="return n > 0 ? ping(n - 1) : n;" message="'_ | float64' flows into it here"
+/// @diagnostic.related line=6 column=27 span="{\n    return n > 0 ? ping(n - 1) : n;\n}" line_source="function pong(n: float64) {" message="'never' flows into it here"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }

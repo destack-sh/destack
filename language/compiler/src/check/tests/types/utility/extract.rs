@@ -75,6 +75,7 @@ const bad: Match = "b";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"b\"' is not assignable to type 'Match'"
 /// @diagnostic.label line=4 column=20 span="\"b\"" line_source="const bad: Match = \"b\";"
+/// @diagnostic.note message="'Match' reduces to '\"a\" | \"c\"'"
 "#,
     );
 }
@@ -113,6 +114,7 @@ let bad: Match = "a";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"a\"' is not assignable to type 'Match'"
 /// @diagnostic.label line=4 column=18 span="\"a\"" line_source="let bad: Match = \"a\";"
+/// @diagnostic.note message="'Match' reduces to 'never'"
 "#,
     );
 }

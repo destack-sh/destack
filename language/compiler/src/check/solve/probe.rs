@@ -96,6 +96,29 @@ impl BodyState<'_, '_> {
         self.check.settle_probe(mark, outcome)
     }
 
+    /// Probe one candidate, describing a rejection before the rollback.
+    pub(in crate::check) fn probe_candidate_noted<T, R>(
+        &mut self,
+        reason: ProbeReason,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+        describe: impl FnOnce(&mut Self, &R) -> CompilerResult<String>,
+    ) -> CompilerResult<(CandidateVerdict, Option<String>)> {
+        let mark = self.check.open_probe(reason);
+        let outcome = attempt(self);
+
+        // rejection payloads reference probe types, so describe them
+        //  before the rollback frees their interned slots
+        let note = match &outcome {
+            Ok(Answer::Ready(CandidateOutcome::Rejected(rejection))) => {
+                Some(describe(self, rejection)?)
+            }
+            _ => None,
+        };
+        let verdict = self.check.settle_probe(mark, outcome)?;
+
+        Ok((verdict, note))
+    }
+
     /// Probe one candidate, then confirm a viable outcome in place.
     pub(in crate::check) fn confirm_candidate<T, R>(
         &mut self,

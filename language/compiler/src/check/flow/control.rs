@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ControlTarget, ControlTargetForm, FlowBranch, Origin, Relation, TryTarget, ValueUse,
+    CauseKind, ControlTarget, ControlTargetForm, FlowBranch, Origin, Relation, TryTarget, ValueUse,
     VariableRole, WalkState, Widening,
 };
 
@@ -83,7 +83,13 @@ impl WalkState<'_, '_> {
             );
             let never = self.intern_type(dir::Type::Never)?;
 
-            self.relate_type(origin, Relation::Equal, target.failure, never);
+            self.relate_type(
+                origin,
+                CauseKind::Expression,
+                Relation::Equal,
+                target.failure,
+                never,
+            );
         }
 
         Ok(target.failure)
@@ -129,7 +135,14 @@ impl WalkState<'_, '_> {
                 );
                 let void = self.intern_type(dir::Type::Void)?;
 
-                self.relate_value(origin, ValueUse::Output, Relation::Assignable, void, result);
+                self.relate_value(
+                    origin,
+                    CauseKind::Return { annotation: None },
+                    ValueUse::Output,
+                    Relation::Assignable,
+                    void,
+                    result,
+                );
             }
             (None, ControlTargetForm::Iteration) => {}
         }

@@ -170,6 +170,8 @@ take(values);
         r#"
 /// @diagnostic.error code=EC209 message="argument of type 'Array<1 | 2>' is not assignable to parameter of type 'Array<float64>'"
 /// @diagnostic.label line=5 column=6 span="values" line_source="take(values);"
+/// @diagnostic.related line=5 column=1 span="take(values)" line_source="take(values);" message="in this call"
+/// @diagnostic.note message="the mismatch is in the element type: expected 'float64', found '1 | 2'"
 "#,
     );
 }
@@ -270,6 +272,8 @@ take([1, 2, 3]);
         r#"
 /// @diagnostic.error code=EC209 message="argument of type 'FixedArray<float64, 3>' is not assignable to parameter of type 'FixedArray<float64, 2>'"
 /// @diagnostic.label line=4 column=6 span="[1, 2, 3]" line_source="take([1, 2, 3]);"
+/// @diagnostic.related line=4 column=1 span="take([1, 2, 3])" line_source="take([1, 2, 3]);" message="in this call"
+/// @diagnostic.note message="the mismatch is in the length: expected '2', found '3'"
 "#,
     );
 }

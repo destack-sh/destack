@@ -36,6 +36,7 @@ const value: Person = { name: "Ada", extra: true };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type 'Person'"
 /// @diagnostic.label line=4 column=23 span="{ name: \"Ada\", extra: true }" line_source="const value: Person = { name: \"Ada\", extra: true };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }

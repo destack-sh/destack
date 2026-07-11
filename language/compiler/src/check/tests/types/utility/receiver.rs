@@ -157,6 +157,7 @@ fn("bad");
         r#"
 /// @diagnostic.error code=EC209 message="argument of type '\"bad\"' is not assignable to parameter of type 'float64'"
 /// @diagnostic.label line=5 column=4 span="\"bad\"" line_source="fn(\"bad\");"
+/// @diagnostic.related line=5 column=1 span="fn(\"bad\")" line_source="fn(\"bad\");" message="in this call"
 "#,
     );
 }

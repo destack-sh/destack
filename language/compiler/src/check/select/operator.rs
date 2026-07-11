@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, BodyState, Constraint, Decision, FlowSite, Obligation, OperatorExpressionResult,
-    Origin, PlaceUse, Relation, ValueUse, WritablePlaceObligation, answer,
-    binary_operator_protocols, unary_operator_protocols,
+    Answer, BodyState, Cause, CauseKind, Constraint, Decision, FlowSite, Obligation,
+    OperatorExpressionResult, Origin, PlaceUse, Relation, ValueUse, WritablePlaceObligation,
+    answer, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -652,13 +652,14 @@ impl BodyState<'_, '_> {
             return;
         };
 
-        let origin = self.intern_origin(origin);
+        let value_origin = self.intern_origin(origin);
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         self.push_constraint(Constraint::value(
             Relation::Assignable,
             result,
             writeback,
-            origin,
-            origin,
+            value_origin,
+            cause,
             Some(ValueUse::Store),
         ));
     }

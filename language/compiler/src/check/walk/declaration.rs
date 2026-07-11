@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
+    CauseKind, CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
     ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericTemplateId,
     ImplementationCoherenceObligation, InducedLifetimeOwner, Obligation, Origin,
     ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
@@ -1487,7 +1487,13 @@ impl WalkState<'_, '_> {
                 id.into_global_any(self.module),
                 self.flow().template_scope(),
             );
-            self.relate_type(origin, Relation::Satisfies, left, right);
+            self.relate_type(
+                origin,
+                CauseKind::Expression,
+                Relation::Satisfies,
+                left,
+                right,
+            );
 
             return Ok(());
         };
@@ -1752,7 +1758,14 @@ impl WalkState<'_, '_> {
             source.into_global_any(self.module),
             self.flow().template_scope(),
         );
-        self.relate_type(origin, relation, declared, heritage);
+        let clause = source.into_global_any(self.module);
+        self.relate_type(
+            origin,
+            CauseKind::Heritage { clause },
+            relation,
+            declared,
+            heritage,
+        );
     }
 
     /// Return one extension target from a walked target annotation.

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, BodyState, Constraint, Expectation, ExpectedType, FlowSite, Origin, PlaceUse, Relation,
-    ValueUse,
+    Answer, BodyState, Cause, CauseKind, Constraint, Expectation, ExpectedType, FlowSite, Origin,
+    PlaceUse, Relation, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -42,19 +42,29 @@ impl BodyState<'_, '_> {
                 if let Some(value) = value {
                     let value_site = self.check.node_site(value.into_global_any(module))?;
                     let expectation = self.ret.map(|ret| {
-                        Expectation::assignable(ret, value_site.origin(), ValueUse::Output)
+                        Expectation::assignable(
+                            ret,
+                            self.check.intern_cause(Cause::root(
+                                value_site.origin(),
+                                CauseKind::Return { annotation: None },
+                            )),
+                            ValueUse::Output,
+                        )
                     });
                     self.check_node(value_site, PlaceUse::Read, expectation)?;
                 }
                 // a bare return completes the body with void
                 else if let Some(ret) = self.ret {
                     let void = self.check.intern_type(module, dir::Type::Void)?;
-                    let origin = self.check.intern_origin(site.origin());
+                    let cause = self.check.intern_cause(Cause::root(
+                        site.origin(),
+                        CauseKind::Return { annotation: None },
+                    ));
                     self.check.push_constraint(Constraint::r#type(
                         Relation::Assignable,
                         void,
                         ret,
-                        origin,
+                        cause,
                     ));
                 }
                 let never = self.check.intern_type(module, dir::Type::Never)?;
@@ -77,19 +87,28 @@ impl BodyState<'_, '_> {
                         dir::YieldCardinality::Scalar => generator.map(|targets| targets.yielded),
                     };
                     let expectation = target.map(|target| {
-                        Expectation::assignable(target, value_site.origin(), ValueUse::Output)
+                        Expectation::assignable(
+                            target,
+                            self.check.intern_cause(Cause::root(
+                                value_site.origin(),
+                                CauseKind::Return { annotation: None },
+                            )),
+                            ValueUse::Output,
+                        )
                     });
                     self.check_node(value_site, PlaceUse::Read, expectation)?;
                 }
                 // a bare yield produces void
                 else if let Some(targets) = generator {
                     let void = self.check.intern_type(module, dir::Type::Void)?;
-                    let origin = self.check.intern_origin(site.origin());
+                    let cause = self
+                        .check
+                        .intern_cause(Cause::root(site.origin(), CauseKind::Expression));
                     self.check.push_constraint(Constraint::r#type(
                         Relation::Assignable,
                         void,
                         targets.yielded,
-                        origin,
+                        cause,
                     ));
                 }
 
@@ -182,7 +201,14 @@ impl BodyState<'_, '_> {
                         .get(&value_site.node)
                         .copied()
                         .map(|target| {
-                            Expectation::assignable(target, value_site.origin(), ValueUse::Output)
+                            Expectation::assignable(
+                                target,
+                                self.check.intern_cause(Cause::root(
+                                    value_site.origin(),
+                                    CauseKind::Return { annotation: None },
+                                )),
+                                ValueUse::Output,
+                            )
                         });
                     self.check_node(value_site, PlaceUse::Read, expectation)?;
                 }
@@ -231,7 +257,10 @@ impl BodyState<'_, '_> {
         let expectation = Expectation {
             expected: ExpectedType::Type(boolean),
             relation: Relation::Assignable,
-            origin: Origin::Node(condition.into_global_any(module), site.scope),
+            cause: self.check.intern_cause(Cause::root(
+                Origin::Node(condition.into_global_any(module), site.scope),
+                CauseKind::Expression,
+            )),
             use_: ValueUse::Condition,
         };
         self.check_node(site, PlaceUse::Read, Some(expectation))?;

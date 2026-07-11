@@ -37,6 +37,7 @@ const digit: Digit = value;
         r#"
 /// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=22 span="value" line_source="const digit: Digit = value;"
+/// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
 }
@@ -80,6 +81,7 @@ const next: Digit = digit + 1;
         r#"
 /// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=27 span="+" line_source="const next: Digit = digit + 1;"
+/// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
 }
@@ -127,6 +129,7 @@ const bad: Edge = 128;
         r#"
 /// @diagnostic.error code=EC200 message="type '128' is not assignable to type 'Edge'"
 /// @diagnostic.label line=6 column=19 span="128" line_source="const bad: Edge = 128;"
+/// @diagnostic.note message="'Edge' reduces to '0..=3 | 252..=255'"
 "#,
     );
 }

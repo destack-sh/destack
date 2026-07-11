@@ -213,6 +213,7 @@ const bad: Value = true;
         r#"
 /// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
+/// @diagnostic.note message="'Value' reduces to 'string | int32'"
 "#,
     );
 }
@@ -356,6 +357,7 @@ const bad: Value = true;
         r#"
 /// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
+/// @diagnostic.note message="'Value' reduces to 'float64 | undefined | string'"
 "#,
     );
 }

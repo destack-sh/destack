@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CheckAttempt, CheckFailure, CheckOutcome, ConstructResult, Dependency,
-    FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, CauseId, CheckAttempt, CheckFailure, CheckOutcome, ConstructResult,
+    Dependency, FlowSite, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -11,11 +11,12 @@ impl BodyState<'_, '_> {
     /// Check one source value type against a target type.
     pub(in crate::check) fn check_expression_relation(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         target: dir::GlobalTypeId,
         use_: Option<ValueUse>,
     ) -> CompilerResult<Answer<bool>> {
+        let origin = self.cause_origin(cause);
         let Some(expression) = origin.expression() else {
             return Err(CompilerError::Internal {
                 message: "expression relation has no expression source".to_string(),
@@ -44,7 +45,7 @@ impl BodyState<'_, '_> {
             && let Some(use_) = use_
             && self.node_type_maybe(site.node).is_none()
         {
-            let check = answer!(self.check_expression(site, target, relation, origin, use_)?);
+            let check = answer!(self.check_expression(site, target, relation, cause, use_)?);
             if matches!(check, CheckOutcome::Fails(_)) {
                 return Ok(Answer::Ready(false));
             }
@@ -57,7 +58,7 @@ impl BodyState<'_, '_> {
         // relate the checked source immediately for candidate matching
         let source = answer!(self.node_type_at(site)?);
 
-        self.constrain_type(origin, relation, source, target)
+        self.constrain_type(cause, relation, source, target)
     }
 
     /// Check one expression node against an expected type.
@@ -66,9 +67,10 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         target: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckOutcome>> {
+        let origin = self.cause_origin(cause);
         // function values deduce from the expected callable, then check;
         //  a failing body rejects the value in this context
         let mut target = target;
@@ -82,7 +84,7 @@ impl BodyState<'_, '_> {
         }
         if self.node_type_maybe(site.node).is_some() {
             let (_, check) =
-                answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
             return Ok(Answer::Ready(check));
         }
@@ -95,7 +97,7 @@ impl BodyState<'_, '_> {
                 target,
                 target_head,
                 relation,
-                origin,
+                cause,
                 use_
             )?),
             Answer::Pending(blockers) => {
@@ -117,7 +119,7 @@ impl BodyState<'_, '_> {
             CheckAttempt::NotApplicable => {
                 answer!(self.infer_node(site, PlaceUse::Read)?);
                 let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
                 Ok(Answer::Ready(check))
             }
@@ -131,9 +133,10 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         target_head: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
+        let origin = self.cause_origin(cause);
         let node = site.node.into_typed::<dir::Expression>();
         let expression = self
             .module(node.module_id)
@@ -143,15 +146,15 @@ impl BodyState<'_, '_> {
 
         match expression {
             dir::Expression::Block(block) => {
-                let check = answer!(self.check_block(site, block, target, relation, origin, use_)?);
+                let check = answer!(self.check_block(site, block, target, relation, cause, use_)?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
             dir::Expression::Comptime { body } => {
-                self.check_transparent_expression(site, body, target, relation, origin, use_)
+                self.check_transparent_expression(site, body, target, relation, cause, use_)
             }
             dir::Expression::Satisfies { expression, .. } => {
-                self.check_transparent_expression(site, expression, target, relation, origin, use_)
+                self.check_transparent_expression(site, expression, target, relation, cause, use_)
             }
             dir::Expression::If {
                 condition,
@@ -167,7 +170,7 @@ impl BodyState<'_, '_> {
                     else_expression,
                     target,
                     relation,
-                    origin,
+                    cause,
                     use_,
                 )
             }
@@ -177,7 +180,7 @@ impl BodyState<'_, '_> {
                 target,
                 target_head,
                 relation,
-                origin,
+                cause,
                 use_,
             ),
             dir::Expression::FixedArrayExpression { value, length } => self
@@ -188,7 +191,7 @@ impl BodyState<'_, '_> {
                     target,
                     target_head,
                     relation,
-                    origin,
+                    cause,
                     use_,
                 ),
             dir::Expression::TupleExpression { elements } => self.check_tuple_expression(
@@ -204,7 +207,7 @@ impl BodyState<'_, '_> {
                 target,
                 target_head,
                 relation,
-                origin,
+                cause,
                 use_,
             ),
             dir::Expression::StructExpression { ty, properties } => {
@@ -216,7 +219,7 @@ impl BodyState<'_, '_> {
                     Some(construct_target),
                 )?);
                 let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(field_check.and(check))))
             }
@@ -239,7 +242,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(CheckAttempt::Checked(selected)));
                 }
                 let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
@@ -252,7 +255,7 @@ impl BodyState<'_, '_> {
                     Some(target),
                 )?);
                 let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
@@ -265,7 +268,7 @@ impl BodyState<'_, '_> {
                     Some(target),
                 )?);
                 let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
@@ -281,12 +284,12 @@ impl BodyState<'_, '_> {
         child: dir::LocalNodeId<dir::Expression>,
         target: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
         let child_site = self.node_site(child.into_global_any(module))?;
-        let check = answer!(self.check_node_expected(child_site, target, relation, origin, use_)?);
+        let check = answer!(self.check_node_expected(child_site, target, relation, cause, use_)?);
         let child_type = answer!(self.node_type_at(child_site)?);
         self.commit_node_type(site.node, child_type)?;
 

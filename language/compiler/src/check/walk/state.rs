@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, Constraint, ConstraintSubject, FlowPointId, FlowSite, FlowState, Origin, Relation,
-    TypeConstraint, ValueUse, VariableRole, Widening,
+    Cause, CauseKind, CheckState, Constraint, ConstraintSubject, FlowPointId, FlowSite, FlowState,
+    Origin, Relation, TypeConstraint, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -332,31 +332,34 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::check) fn relate_type(
         &mut self,
         origin: Origin,
+        kind: CauseKind,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) {
-        let origin = self.check.intern_origin(origin);
+        let cause = self.check.intern_cause(Cause::root(origin, kind));
         self.check
-            .push_constraint(Constraint::r#type(relation, source, target, origin));
+            .push_constraint(Constraint::r#type(relation, source, target, cause));
     }
 
     /// Collect one value relation constraint.
     pub(in crate::check) fn relate_value(
         &mut self,
         origin: Origin,
+        kind: CauseKind,
         use_: ValueUse,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) {
-        let origin = self.check.intern_origin(origin);
+        let value_origin = self.check.intern_origin(origin);
+        let cause = self.check.intern_cause(Cause::root(origin, kind));
         self.check.push_constraint(Constraint::value(
             relation,
             source,
             target,
-            origin,
-            origin,
+            value_origin,
+            cause,
             Some(use_),
         ));
     }
@@ -366,15 +369,18 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
+        parameter: dir::GlobalGenericParameterId,
         argument: dir::GlobalTypeId,
         bound: dir::GlobalTypeId,
     ) {
-        let origin = self.check.intern_origin(origin);
+        let cause = self
+            .check
+            .intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
         self.check.push_constraint(Constraint::Type(TypeConstraint {
             relation: Relation::Satisfies,
             source: argument,
             target: bound,
-            origin,
+            cause,
             subject: Some(ConstraintSubject::GenericArgument { source }),
         }));
     }

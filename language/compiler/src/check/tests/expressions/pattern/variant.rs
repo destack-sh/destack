@@ -462,6 +462,7 @@ const label = match (status) {
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: 'Status.Ok' is not covered"
 /// @diagnostic.label line=7 column=21 span="(status) {\n    Status.Ok(value) if (value.length > 0) => \"ok\"\n    Status.Err(code) => \"err\"\n}" line_source="const label = match (status) {"
+/// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
 }

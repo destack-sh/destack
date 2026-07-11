@@ -1,11 +1,13 @@
 use destack_artifact::DiagnosticBuilder;
 use destack_core::FxIndexSet;
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{
+    Applicability, DiagnosticSuggestion, FilePatch, ModuleId, Patch, PatchSet, Span,
+};
 
 use crate::check::{
-    CheckFailure, CheckState, ObligationFailure, OperatorOperands, Origin, Relation,
-    SignatureRejection, UncoveredValue, ValueUse, Variance,
+    BoundSide, CauseId, CheckFailure, CheckState, ObligationFailure, OperatorOperands, Origin,
+    Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
 };
 use crate::{CheckError, CheckWarning, CompilerResult, DiagnosticAnchor};
 
@@ -221,12 +223,31 @@ impl CheckState<'_> {
         path: &dir::Path,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::UnresolvedReference {
-            anchor,
+        let name = self.path_label(path);
+        let best = self.closest_reference_name(module, source, path);
+        let error = CheckError::UnresolvedReference {
+            anchor: anchor.clone(),
             module,
-            name: self.path_label(path),
-            suggestion: self.closest_reference_name(module, source, path),
+            name: name.clone(),
+            suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
+
+        // an exact declaration in a sibling module beats any spelling hint
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        if let Some(suggestion) = best
+            .as_ref()
+            .and_then(|best| self.rename_suggestion(&anchor, best))
+        {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+        if let Some(sibling) = self.declaring_sibling_module(module, path) {
+            diagnostic = diagnostic
+                .label(
+                    DiagnosticAnchor::Module(sibling),
+                    format!("'{name}' is declared in this module"),
+                )
+                .help(format!("import '{name}' from that module"));
+        }
 
         self.report(module, diagnostic);
     }
@@ -239,11 +260,27 @@ impl CheckState<'_> {
         path: &dir::Path,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::AmbiguousReference {
+        let error = CheckError::AmbiguousReference {
             anchor,
             module,
             name: self.path_label(path),
         };
+
+        // point at each conflicting candidate declaration
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        if let Some(dir::Reference::Ambiguous(candidates)) = self
+            .modules
+            .get(&module)
+            .and_then(|state| state.resolved.references.get(source.into_global(module)))
+        {
+            for symbol in candidates.clone().iter().take(4) {
+                let Ok(declaration) = self.symbol_source(*symbol) else {
+                    continue;
+                };
+                let (_, candidate) = self.source_anchor(declaration);
+                diagnostic = diagnostic.label(candidate, "one candidate is declared here");
+            }
+        }
 
         self.report(module, diagnostic);
     }
@@ -256,11 +293,12 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::UseBeforeAssigned {
+        let error = CheckError::UseBeforeAssigned {
             anchor,
             module,
             name: self.format_symbol(symbol),
         };
+        let diagnostic = self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
 
         self.report(module, diagnostic);
     }
@@ -332,6 +370,44 @@ impl CheckState<'_> {
         let diagnostic = CheckError::InvalidTypeQuery { anchor, module };
 
         self.report(module, diagnostic);
+    }
+
+    /// Report one cast whose target equals its operand type.
+    pub(in crate::check) fn report_redundant_cast(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        value: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) {
+        let (module, anchor) = self.source_anchor(node);
+        let warning = CheckWarning::RedundantCast {
+            anchor,
+            module,
+            ty: self.format_type_at(module, ty),
+        };
+
+        // deleting the cast suffix needs both spans in one file
+        let mut diagnostic = DiagnosticBuilder::new(warning);
+        let state = self.module(module);
+        if let (Some(node_span), Some(value_span)) = (
+            state.diagnostic_span(node.local_id),
+            state.diagnostic_span(value.local_id),
+        ) && node_span.file == value_span.file
+            && value_span.end < node_span.end
+        {
+            let suffix = Span::new(node_span.file, value_span.end, node_span.end);
+            let patches = PatchSet::from_files(vec![FilePatch {
+                file: suffix.file,
+                patches: vec![Patch::replace(suffix, "")],
+            }]);
+            diagnostic = diagnostic.suggestion(DiagnosticSuggestion::new(
+                "remove the cast",
+                patches,
+                Applicability::Automatic,
+            ));
+        }
+
+        self.module_mut(module).warnings.push(diagnostic);
     }
 
     /// Report unreachable code at one source node.
@@ -434,15 +510,60 @@ impl CheckState<'_> {
     pub(in crate::check) fn report_cannot_infer_type(
         &mut self,
         origin: Origin,
+        variable: Option<dir::TypeVariableId>,
         reported: &mut FxIndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        if self.modules.contains_key(&module) && reported.insert((module, anchor.clone())) {
-            let error = CheckError::CannotInferType { anchor, module };
-            self.report(module, error);
+        if !self.modules.contains_key(&module) || !reported.insert((module, anchor.clone())) {
+            return Ok(());
         }
 
+        let error = CheckError::CannotInferType {
+            anchor: anchor.clone(),
+            module,
+        };
+        let mut diagnostic = DiagnosticBuilder::new(error);
+
+        // show where the collected bounds came from
+        if let Some(variable) = variable {
+            for (side, bound) in self.variable_bound_list(variable)? {
+                let bound_origin = self.cause_origin(bound.cause);
+                let (_, bound_anchor) = self.origin_diagnostic_anchor(bound_origin)?;
+                if bound_anchor == anchor {
+                    continue;
+                }
+                let ty = self.format_type_at(module, bound.ty);
+                let message = match (side, bound.relation) {
+                    (_, Relation::Equal) => format!("it must equal '{ty}' here"),
+                    (BoundSide::Lower, _) => format!("'{ty}' flows into it here"),
+                    (BoundSide::Upper, _) => format!("it must satisfy '{ty}' here"),
+                };
+                diagnostic = diagnostic.label(bound_anchor, message);
+            }
+        }
+        self.report(module, diagnostic);
+
         Ok(())
+    }
+
+    /// Collect one variable's bounds on both sides, capped for display.
+    fn variable_bound_list(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Vec<(BoundSide, TypeBound)>> {
+        let representative = self.solver.representative(variable)?;
+        let mut bounds = Vec::new();
+        for side in [BoundSide::Lower, BoundSide::Upper] {
+            bounds.extend(
+                self.solver
+                    .variables
+                    .side_bounds(representative, side)?
+                    .map(|bound| (side, bound)),
+            );
+        }
+        bounds.truncate(4);
+
+        Ok(bounds)
     }
 
     /// Report one source node whose type could not be inferred.
@@ -463,18 +584,33 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
         key: String,
+        key_span: Option<Span>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+
+        // an exact key span anchors the name instead of the whole access
+        let anchor = match key_span {
+            Some(span) if span.len() as usize == key.len() => DiagnosticAnchor::Span(span),
+            _ => anchor,
+        };
         let receiver_text = self.format_type(receiver);
-        let suggestion = self.closest_member_key(receiver, &key)?;
+        let best = self.closest_member_key(receiver, &key)?;
         let error = CheckError::MissingMember {
-            anchor,
+            anchor: anchor.clone(),
             module,
             key,
             receiver: receiver_text,
-            suggestion,
+            suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
-        self.report(module, error);
+
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        if key_span.is_some()
+            && let Some(best) = best
+            && let Some(suggestion) = self.rename_suggestion(&anchor, &best)
+        {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+        self.report(module, diagnostic);
 
         Ok(())
     }
@@ -552,6 +688,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         arguments: &[dir::GlobalTypeId],
+        rejections: &[String],
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::NoMatchingCall {
@@ -559,9 +696,61 @@ impl CheckState<'_> {
             module,
             arguments: self.format_types(arguments),
         };
-        self.report(module, error);
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        for rejection in rejections {
+            diagnostic = diagnostic.note(rejection.clone());
+        }
+        self.report(module, diagnostic);
 
         Ok(())
+    }
+
+    /// Describe why one candidate signature rejected an invocation.
+    pub(in crate::check) fn describe_signature_rejection(
+        &self,
+        module: ModuleId,
+        candidate: dir::GlobalTypeId,
+        rejection: &SignatureRejection,
+    ) -> String {
+        let candidate = self.format_type_at(module, candidate);
+        let reason = match rejection {
+            SignatureRejection::Inapplicable => "does not apply".to_string(),
+            SignatureRejection::Arity {
+                required,
+                total,
+                has_rest,
+                supplied,
+            } => {
+                let expected = Self::format_argument_count(*required, *total, *has_rest);
+
+                format!("takes {expected}, got {supplied}")
+            }
+            SignatureRejection::Argument {
+                index,
+                source,
+                target,
+            } => format!(
+                "rejects argument {index}: '{}' is not assignable to '{}'",
+                self.format_type_at(module, *source),
+                self.format_type_at(module, *target),
+            ),
+            SignatureRejection::Bound { source, target, .. } => format!(
+                "requires '{}' to satisfy '{}'",
+                self.format_type_at(module, *source),
+                self.format_type_at(module, *target),
+            ),
+            SignatureRejection::Receiver { source, target } => format!(
+                "rejects the receiver: '{}' is not assignable to '{}'",
+                self.format_type_at(module, *source),
+                self.format_type_at(module, *target),
+            ),
+            SignatureRejection::WritableIndex { source, .. } => format!(
+                "requires '{}' to support writable index access",
+                self.format_type_at(module, *source),
+            ),
+        };
+
+        format!("the candidate '{candidate}' {reason}")
     }
 
     /// Report one construction whose arguments match no constructor.
@@ -569,6 +758,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         arguments: &[dir::GlobalTypeId],
+        rejections: &[String],
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::NoMatchingConstruct {
@@ -576,7 +766,11 @@ impl CheckState<'_> {
             module,
             arguments: self.format_types(arguments),
         };
-        self.report(module, error);
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        for rejection in rejections {
+            diagnostic = diagnostic.note(rejection.clone());
+        }
+        self.report(module, diagnostic);
 
         Ok(())
     }
@@ -1126,7 +1320,7 @@ impl CheckState<'_> {
     /// Report one failed closed constraint.
     pub(in crate::check) fn report_constraint_failure(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         value_use: Option<ValueUse>,
         source: dir::GlobalTypeId,
@@ -1142,49 +1336,67 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        let origin = self.cause_origin(cause);
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+
+        // re-walk failed closed relations to their mismatched leaf
+        let blame = match failure {
+            CheckFailure::Relation => self.blame_relation(origin, relation, source, target)?,
+            _ => None,
+        };
         let source = self.format_type_at(module, source);
         let target = self.format_type_at(module, target);
 
         // translate the selected failure reason
-        match failure {
-            CheckFailure::Reported => {}
+        let diagnostic = match failure {
+            CheckFailure::Reported => return Ok(()),
             CheckFailure::Relation => {
-                let error = self
-                    .constraint_relation_error(anchor, module, relation, value_use, source, target);
-                self.report(module, error);
+                let error = self.constraint_relation_error(
+                    anchor.clone(),
+                    module,
+                    relation,
+                    value_use,
+                    source,
+                    target,
+                );
+
+                DiagnosticBuilder::new(error)
             }
             CheckFailure::MissingRequiredProperty { key } => {
                 let error = CheckError::MissingRequiredProperty {
-                    anchor,
+                    anchor: anchor.clone(),
                     module,
                     key: self.format_static_key(&key),
                     target,
                 };
-                self.report(module, error);
+
+                DiagnosticBuilder::new(error)
             }
             CheckFailure::ExcessProperty { key } => {
                 let error = CheckError::ExcessProperty {
-                    anchor,
+                    anchor: anchor.clone(),
                     module,
                     key: self.format_static_key(&key),
                     target,
                 };
-                let diagnostic = DiagnosticBuilder::new(error)
-                    .note("object literals may only specify known properties");
-                self.report(module, diagnostic);
+
+                DiagnosticBuilder::new(error)
+                    .note("object literals may only specify known properties")
             }
             CheckFailure::WritableIndexRequiresIndexSet { signature } => {
                 let error = CheckError::WritableIndexRequiresIndexSet {
-                    anchor,
+                    anchor: anchor.clone(),
                     module,
                     source,
                     key: self.format_type_at(module, signature.key_type),
                     value: self.format_type_at(module, signature.value_type),
                 };
-                self.report(module, error);
+
+                DiagnosticBuilder::new(error)
             }
-        }
+        };
+        let diagnostic = self.explain_cause(diagnostic, cause, &anchor, blame.as_ref())?;
+        self.report(module, diagnostic);
 
         Ok(())
     }

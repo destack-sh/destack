@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use destack_repository::{Repository, Revision};
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, File, FileId, PrintOptions, print_diagnostics,
+    Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticSuggestion, File, FileId,
+    PrintOptions, apply_file_patch, print_diagnostics,
 };
 
 /// Render one diagnostic collection as stable tripleslash rows.
@@ -20,11 +21,82 @@ pub(crate) fn render_diagnostics(
             diagnostic.code,
             quote(&diagnostic.message)
         ));
+        let primary_file = diagnostic.primary.span.file;
+        lines.push(render_label(
+            repository,
+            revision,
+            &diagnostic.primary,
+            "label",
+            primary_file,
+        ));
 
-        lines.push(render_label(repository, revision, &diagnostic.primary));
+        // secondary labels follow their diagnostic
+        for label in diagnostic.labels() {
+            lines.push(render_label(
+                repository,
+                revision,
+                label,
+                "related",
+                primary_file,
+            ));
+        }
+
+        // notes and helps pin as plain messages
+        for note in diagnostic.notes() {
+            lines.push(format!(
+                "/// @diagnostic.note message={}",
+                quote(&note.message)
+            ));
+        }
+        for help in diagnostic.helps() {
+            lines.push(format!(
+                "/// @diagnostic.help message={}",
+                quote(&help.message)
+            ));
+        }
+
+        // suggestions pin their patched output
+        for suggestion in &diagnostic.suggestions {
+            lines.push(render_suggestion(repository, revision, suggestion));
+        }
     }
 
     lines.join("\n")
+}
+
+/// Render one suggestion with its patched lines.
+fn render_suggestion(
+    repository: &Repository,
+    revision: Revision,
+    suggestion: &DiagnosticSuggestion,
+) -> String {
+    let applicability = match suggestion.applicability {
+        Applicability::Automatic => "automatic",
+        Applicability::Unsafe => "unsafe",
+        Applicability::Dangerous => "dangerous",
+    };
+
+    // apply each file patch and keep only the lines that changed
+    let mut patched_lines = Vec::new();
+    for file_patch in &suggestion.patches.files {
+        let file = repository
+            .file(revision, file_patch.file)
+            .expect("suggestion snapshot file lookup should work")
+            .expect("suggestion snapshot file should exist");
+        let updated =
+            apply_file_patch(&file, file_patch).expect("suggestion snapshot patch should apply");
+        for (before, after) in file.text().lines().zip(updated.lines()) {
+            if before != after {
+                patched_lines.push(after.trim().to_string());
+            }
+        }
+    }
+
+    format!(
+        "/// @diagnostic.suggestion message={} applicability={applicability} patched={}",
+        quote(&suggestion.message),
+        quote(&patched_lines.join("\n"))
+    )
 }
 
 /// Render one diagnostic collection with source annotations.
@@ -49,15 +121,34 @@ pub(crate) fn render_source_diagnostics(
     lines.lock().join("\n")
 }
 
-/// Render one diagnostic label.
-fn render_label(repository: &Repository, revision: Revision, label: &DiagnosticLabel) -> String {
+/// Render one diagnostic label under one row tag.
+fn render_label(
+    repository: &Repository,
+    revision: Revision,
+    label: &DiagnosticLabel,
+    tag: &str,
+    primary_file: FileId,
+) -> String {
     let file = repository
         .file(revision, label.span.file)
         .expect("diagnostic snapshot file lookup should work")
         .expect("diagnostic snapshot file should exist");
-    let content = repository
-        .content(label.content)
-        .expect("diagnostic snapshot content lookup should work");
+
+    // labels in other files name their file
+    let file_field = match label.span.file == primary_file {
+        true => String::new(),
+        false => format!(" file={}", quote(&file.name)),
+    };
+
+    // labels into sources outside the test revision pin by file only
+    let Ok(content) = repository.content(label.content) else {
+        let message = match &label.message {
+            Some(message) if tag != "label" => format!(" message={}", quote(message)),
+            _ => String::new(),
+        };
+
+        return format!("/// @diagnostic.{tag} file={}{message}", quote(&file.name));
+    };
     let file = File::from_content(
         file.id,
         file.name.clone(),
@@ -74,8 +165,14 @@ fn render_label(repository: &Repository, revision: Revision, label: &DiagnosticL
     let line = line + 1;
     let column = column + 1;
 
+    // related labels carry their own message beside the span
+    let message = match &label.message {
+        Some(message) if tag != "label" => format!(" message={}", quote(message)),
+        _ => String::new(),
+    };
+
     format!(
-        "/// @diagnostic.label line={line} column={column} span={} line_source={}",
+        "/// @diagnostic.{tag}{file_field} line={line} column={column} span={} line_source={}{message}",
         quote(span),
         quote(line_source)
     )

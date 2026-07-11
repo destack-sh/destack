@@ -153,6 +153,7 @@ const either: Holder<Circle | Square> = circles;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Holder<Circle>' is not assignable to type 'Holder<Circle | Square>'"
 /// @diagnostic.label line=11 column=41 span="circles" line_source="const either: Holder<Circle | Square> = circles;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"
 "#,
     );
 }
@@ -211,6 +212,7 @@ const wide: Holder<int32> = one;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Holder<1>' is not assignable to type 'Holder<int32>'"
 /// @diagnostic.label line=7 column=29 span="one" line_source="const wide: Holder<int32> = one;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'int32', found '1'"
 "#,
     );
 }
@@ -278,6 +280,7 @@ const opaque: Holder<unknown> = circles;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Holder<Circle>' is not assignable to type 'Holder<unknown>'"
 /// @diagnostic.label line=9 column=33 span="circles" line_source="const opaque: Holder<unknown> = circles;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'unknown', found 'Circle'"
 "#,
     );
 }
@@ -357,6 +360,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Holder<Circle>' is not assignable to type 'Holder<Dynamic<Draw>>'"
 /// @diagnostic.label line=10 column=40 span="circles" line_source="const dynamic: Holder<Dynamic<Draw>> = circles;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Dynamic<Draw>', found 'Circle'"
 "#,
     );
 }
@@ -514,6 +518,7 @@ const either: Holder<() => Circle | Square> = makers;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Holder<() => Circle>' is not assignable to type 'Holder<() => … | …>'"
 /// @diagnostic.label line=11 column=47 span="makers" line_source="const either: Holder<() => Circle | Square> = makers;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected '() => Circle | Square', found '() => Circle'"
 "#,
     );
 }
@@ -590,6 +595,7 @@ const widened: Box<Shape> = boxed;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
 /// @diagnostic.label line=10 column=29 span="boxed" line_source="const widened: Box<Shape> = boxed;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Box': expected 'Shape', found 'Circle'"
 "#,
     );
 }
@@ -822,6 +828,7 @@ const widened: ^Pipe<Shape> = pipe;
         r#"
 /// @diagnostic.error code=EC200 message="type '^Pipe<Circle>' is not assignable to type '^Pipe<Shape>'"
 /// @diagnostic.label line=12 column=31 span="pipe" line_source="const widened: ^Pipe<Shape> = pipe;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Pipe': expected 'Shape', found 'Circle'"
 "#,
     );
 }
@@ -933,6 +940,7 @@ const widened: Stack<Shape> = circles;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Stack<Circle>' is not assignable to type 'Stack<Shape>'"
 /// @diagnostic.label line=16 column=31 span="circles" line_source="const widened: Stack<Shape> = circles;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Stack': expected 'Shape', found 'Circle'"
 "#,
     );
 }
@@ -1273,6 +1281,7 @@ const either: Handle<Circle | Square> = handle;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Handle<Circle>' is not assignable to type 'Handle<Circle | Square>'"
 /// @diagnostic.label line=9 column=41 span="handle" line_source="const either: Handle<Circle | Square> = handle;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Handle': expected 'Circle | Square', found 'Circle'"
 "#,
     );
 }
@@ -1342,6 +1351,8 @@ const widened: Managed<Handle<Shape>> = handle;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Managed<Handle<Circle>>' is not assignable to type 'Managed<Handle<Shape>>'"
 /// @diagnostic.label line=8 column=41 span="handle" line_source="const widened: Managed<Handle<Shape>> = handle;"
+/// @diagnostic.note message="'Managed<Handle<Circle>>' reduces to 'Handle<Circle>'"
+/// @diagnostic.note message="'Managed<Handle<Shape>>' reduces to 'Handle<Shape>'"
 "#,
     );
 }

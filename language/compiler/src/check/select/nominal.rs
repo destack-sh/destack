@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, FlowPointId, Origin, Relation, answer};
+use crate::check::{Answer, BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, answer};
 
 impl BodyState<'_, '_> {
     /// Select one newtype pattern, unwrapping the substituted backing.
@@ -120,7 +120,8 @@ impl BodyState<'_, '_> {
             if let dir::Type::Instance(arm_instance) = self.ty(arm)?
                 && arm_instance.symbol == instance.symbol
             {
-                answer!(self.constrain_type(origin, Relation::Equal, arm, tag)?);
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                answer!(self.constrain_type(cause, Relation::Equal, arm, tag)?);
                 break;
             }
         }

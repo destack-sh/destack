@@ -106,6 +106,7 @@ let owned: ^Label = borrow;
         r#"
 /// @diagnostic.error code=EC200 message="type '&Label' is not assignable to type '^Label'"
 /// @diagnostic.label line=8 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
+/// @diagnostic.note message="'^Label' reduces to 'Label'"
 "#,
     );
 }
@@ -387,6 +388,7 @@ rename(user);
         r#"
 /// @diagnostic.error code=EC209 message="argument of type 'User' is not assignable to parameter of type '&exclusive User'"
 /// @diagnostic.label line=9 column=8 span="user" line_source="rename(user);"
+/// @diagnostic.related line=9 column=1 span="rename(user)" line_source="rename(user);" message="in this call"
 "#,
     );
 }

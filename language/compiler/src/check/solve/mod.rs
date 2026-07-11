@@ -1,5 +1,6 @@
 mod answer;
 mod bound;
+mod cause;
 mod constraint;
 mod decision;
 mod probe;
@@ -12,6 +13,7 @@ mod variable;
 
 pub(in crate::check) use answer::*;
 pub(in crate::check) use bound::*;
+pub(in crate::check) use cause::*;
 pub(in crate::check) use constraint::*;
 pub(in crate::check) use decision::*;
 pub(in crate::check) use probe::*;
