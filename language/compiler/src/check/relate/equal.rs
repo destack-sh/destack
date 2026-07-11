@@ -8,10 +8,10 @@ impl CheckState<'_> {
     pub(in crate::check) fn decide_equal(
         &mut self,
         origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let decision = match (self.ty(left)?, self.ty(right)?) {
+        let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types poison silently instead of cascading
             (dir::Type::Error, _) | (_, dir::Type::Error) => Answer::Ready(true),
             // unit atoms compare by kind
@@ -31,16 +31,18 @@ impl CheckState<'_> {
                 Answer::Ready(true)
             }
             // atoms compare structurally
-            (dir::Type::Literal(left), dir::Type::Literal(right)) => Answer::Ready(left == right),
-            // nullish literals equal their canonical type types
+            (dir::Type::Literal(source), dir::Type::Literal(target)) => {
+                Answer::Ready(source == target)
+            }
+            // nullish literals equal their canonical unit types
             (dir::Type::Null, dir::Type::Literal(dir::ScalarLiteral::Null))
             | (dir::Type::Literal(dir::ScalarLiteral::Null), dir::Type::Null)
             | (dir::Type::Undefined, dir::Type::Literal(dir::ScalarLiteral::Undefined))
             | (dir::Type::Literal(dir::ScalarLiteral::Undefined), dir::Type::Undefined) => {
                 Answer::Ready(true)
             }
-            (dir::Type::Primitive(left), dir::Type::Primitive(right)) => {
-                Answer::Ready(left == right)
+            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => {
+                Answer::Ready(source == target)
             }
             // memory singleton values compare against their authored string spelling
             (dir::Type::Memory(memory), dir::Type::Literal(dir::ScalarLiteral::String(text)))
@@ -52,31 +54,45 @@ impl CheckState<'_> {
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
             ) => Answer::Ready(true),
-            (dir::Type::Memory(left), dir::Type::Memory(right)) => Answer::Ready(left == right),
-            (dir::Type::Static(left), dir::Type::Static(right)) => Answer::Ready(left == right),
-            (dir::Type::Parameter(left), dir::Type::Parameter(right)) => {
-                Answer::Ready(left == right)
+            (dir::Type::Memory(source), dir::Type::Memory(target)) => {
+                Answer::Ready(source == target)
             }
-            (dir::Type::Erased(left), dir::Type::Erased(right)) => Answer::Ready(left == right),
-            (dir::Type::Range(left), dir::Type::Range(right)) => Answer::Ready(left == right),
+            (dir::Type::Static(source), dir::Type::Static(target)) => {
+                Answer::Ready(source == target)
+            }
+            (dir::Type::Parameter(source), dir::Type::Parameter(target)) => {
+                Answer::Ready(source == target)
+            }
+            (dir::Type::Erased(source), dir::Type::Erased(target)) => {
+                Answer::Ready(source == target)
+            }
+            (dir::Type::Range(source), dir::Type::Range(target)) => Answer::Ready(source == target),
             // memory forms compare constructor and payload
-            (dir::Type::Form(left), dir::Type::Form(right)) => {
-                let (left_form, right_form) = (left.form, right.form);
-                let (left_value, right_value) = (left.value, right.value);
-                let constructor = self.decide_form_equal(origin, left_form, right_form)?;
+            (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
+                let constructor = self.decide_form_equal(
+                    origin,
+                    source.module_id,
+                    source_form.form,
+                    target.module_id,
+                    target_form.form,
+                )?;
                 if !constructor.is_ready_true() {
                     return Ok(constructor);
                 }
 
-                self.decide_relation(origin, Relation::Equal, left_value, right_value)?
+                self.decide_relation(
+                    origin,
+                    Relation::Equal,
+                    source_form.value,
+                    target_form.value,
+                )?
             }
-
             // structural shapes and functions
             (dir::Type::Shape(_), dir::Type::Shape(_)) => {
-                self.decide_shape_equal(origin, left, right)?
+                self.decide_shape_equal(origin, source, target)?
             }
             // composites compare fixed slots beneath one shared constructor
-            _ => match self.decompose_type_pair(left, right)? {
+            _ => match self.decompose_type_pair(source, target)? {
                 Some(pairs) => self.decide_each(origin, Relation::Equal, &pairs)?,
                 None => Answer::Ready(false),
             },

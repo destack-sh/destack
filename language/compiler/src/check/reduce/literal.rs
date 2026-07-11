@@ -5,6 +5,9 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
+/// Maximum alternatives one template literal expands into.
+const TEMPLATE_EXPANSION_LIMIT: usize = 4096;
+
 impl CheckState<'_> {
     /// Reduce one string mapping operation.
     pub(super) fn reduce_string_mapping_operation(
@@ -19,6 +22,13 @@ impl CheckState<'_> {
         match self.ty(target)? {
             // map one closed string literal
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+                let mapped = self.reduce_string_mapping(id.module_id, mapping, value)?;
+
+                Ok(Answer::Ready(Some(mapped)))
+            }
+
+            // map one exact name key
+            dir::Type::Key(dir::StaticKey::Name(value)) => {
                 let mapped = self.reduce_string_mapping(id.module_id, mapping, value)?;
 
                 Ok(Answer::Ready(Some(mapped)))
@@ -57,8 +67,8 @@ impl CheckState<'_> {
         let strings = self.template_strings(module, template.strings)?.to_vec();
         let spans = self.type_ids(module, template.spans)?.to_vec();
 
-        // close every interpolated span to printable text
-        let mut printed = Vec::with_capacity(spans.len());
+        // close every interpolated span to its printable choices
+        let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for span in spans {
             let span = match self.reduce_type_head(origin, span)? {
@@ -70,33 +80,81 @@ impl CheckState<'_> {
                 }
             };
 
-            let text = match self.ty(span)? {
-                dir::Type::Literal(literal) => literal.template_text(&self.module(module).strings),
-                dir::Type::Null => Some("null".to_string()),
-                dir::Type::Undefined => Some("undefined".to_string()),
-                _ => None,
-            };
-            match text {
-                Some(text) => printed.push(text),
-                None => return Ok(Answer::Ready(None)),
+            // a never span empties the whole template
+            if matches!(self.ty(span)?, dir::Type::Never) {
+                return Ok(Answer::Ready(Some(
+                    self.intern_type(module, dir::Type::Never)?,
+                )));
             }
+
+            // union spans distribute their printable alternatives
+            let choices = match self.ty(span)? {
+                dir::Type::Union(union) => {
+                    let elements = self.type_ids(span.module_id, union.elements)?.to_vec();
+                    let mut choices = Vec::with_capacity(elements.len());
+                    for element in elements {
+                        let element = match self.reduce_type_head(origin, element)? {
+                            Answer::Ready(element) => element,
+                            Answer::Pending(dependencies) => {
+                                blockers.extend(dependencies);
+
+                                continue;
+                            }
+                        };
+                        match self.template_piece_text(element)? {
+                            Some(text) => choices.push(text),
+                            None => return Ok(Answer::Ready(None)),
+                        }
+                    }
+
+                    choices
+                }
+                _ => match self.template_piece_text(span)? {
+                    Some(text) => vec![text],
+                    None => return Ok(Answer::Ready(None)),
+                },
+            };
+            printed.push(choices);
         }
         if !blockers.is_empty() {
             return Ok(Answer::pending(blockers));
         }
 
-        // interleave literal segments with printed spans
-        let mut joined = String::new();
+        // wide distributions stay symbolic
+        let combinations: usize = printed.iter().map(Vec::len).product();
+        if combinations > TEMPLATE_EXPANSION_LIMIT {
+            return Ok(Answer::Ready(None));
+        }
+
+        // interleave literal segments with every printed alternative
+        let mut joined = vec![String::new()];
         for (index, segment) in strings.iter().enumerate() {
-            joined.push_str(self.module(module).strings.get(*segment));
-            if let Some(text) = printed.get(index) {
-                joined.push_str(text);
+            let segment = self.strings().get(*segment).to_string();
+            for text in &mut joined {
+                text.push_str(&segment);
+            }
+            if let Some(choices) = printed.get(index) {
+                let mut expanded = Vec::with_capacity(joined.len() * choices.len());
+                for text in &joined {
+                    for choice in choices {
+                        expanded.push(format!("{text}{choice}"));
+                    }
+                }
+                joined = expanded;
             }
         }
-        let joined = self.module_mut(module).strings.intern(&joined);
-        let literal = dir::Type::Literal(dir::ScalarLiteral::String(joined));
+        let mut literals = Vec::with_capacity(joined.len());
+        for text in joined {
+            let text = self.strings().intern(&text);
+            let literal = dir::Type::Literal(dir::ScalarLiteral::String(text));
+            literals.push(self.intern_type(module, literal)?);
+        }
+        let reduced = match literals.as_slice() {
+            [single] => *single,
+            _ => self.normalized_union_type(module, literals)?,
+        };
 
-        Ok(Answer::Ready(Some(self.intern_type(module, literal)?)))
+        Ok(Answer::Ready(Some(reduced)))
     }
 
     /// Evaluate one static binary operation over literal operands.
@@ -150,11 +208,11 @@ impl CheckState<'_> {
         {
             let module = origin.module();
             let joined = {
-                let strings = &self.module(module).strings;
+                let strings = self.strings();
 
                 format!("{}{}", strings.get(left_value), strings.get(right_value))
             };
-            let joined = self.module_mut(module).strings.intern(&joined);
+            let joined = self.strings().intern(&joined);
             let literal = dir::Type::Literal(dir::ScalarLiteral::String(joined));
 
             return Ok(Answer::Ready(Some(self.intern_type(module, literal)?)));
@@ -228,9 +286,9 @@ impl CheckState<'_> {
         mapping: dir::StringMapping,
         value: dir::StringId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let text = self.module(module).strings.get(value).to_string();
+        let text = self.strings().get(value).to_string();
         let mapped = mapping.apply(&text);
-        let mapped = self.module_mut(module).strings.intern(&mapped);
+        let mapped = self.strings().intern(&mapped);
         let literal = dir::Type::Literal(dir::ScalarLiteral::String(mapped));
 
         self.intern_type(module, literal)
@@ -249,9 +307,12 @@ impl CheckState<'_> {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                 self.reduce_string_mapping(module, mapping, value)?
             }
-            _ => self.intern_type(
+            dir::Type::Key(dir::StaticKey::Name(value)) => {
+                self.reduce_string_mapping(module, mapping, value)?
+            }
+            _ => self.intern_operation(
                 module,
-                dir::Type::Operation(dir::TypeOperation::StringMapping { mapping, target }),
+                dir::TypeOperation::StringMapping { mapping, target },
             )?,
         };
 

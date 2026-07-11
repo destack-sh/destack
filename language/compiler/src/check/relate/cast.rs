@@ -20,7 +20,7 @@ impl CheckState<'_> {
         }
 
         // machine scalars convert explicitly to any numeric width;
-        // parameters classify through their scalar bounds
+        //  parameters classify through their scalar bounds
         if matches!(
             self.ty(target)?,
             dir::Type::Primitive(dir::PrimitiveType::Integer(_) | dir::PrimitiveType::Float(_))
@@ -50,12 +50,12 @@ impl CheckState<'_> {
             }
         }
 
-        let forward = self.decide_assignable(origin, source, target)?;
+        let forward = self.decide_assignable(origin, Relation::Assignable, source, target)?;
         if forward.is_ready_true() {
             return Ok(Answer::Ready(true));
         }
 
-        let backward = self.decide_assignable(origin, target, source)?;
+        let backward = self.decide_assignable(origin, Relation::Assignable, target, source)?;
         if backward.is_ready_true() {
             return Ok(Answer::Ready(true));
         }

@@ -3,9 +3,12 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, Variance, answer};
+use crate::check::{
+    Answer, CandidateOutcome, CheckState, Dependency, Origin, ProbeReason, Relation, Variance,
+    answer,
+};
 
-use super::rewrite::InferSubstitution;
+use super::substitute::InferSubstitution;
 
 /// One binder declared by a conditional `infer` pattern.
 #[derive(Debug, Clone, Copy)]
@@ -86,6 +89,18 @@ impl InferMatch {
         Answer::Ready(true)
     }
 
+    /// Return the covariant candidates already captured for one binder.
+    fn captured(
+        &self,
+        pattern: dir::GlobalTypeId,
+        symbol: Option<dir::GlobalSymbolId>,
+    ) -> &[dir::GlobalTypeId] {
+        match self.binder_index(pattern, symbol) {
+            Some(index) => &self.captures[index].covariant,
+            None => &[],
+        }
+    }
+
     /// Return the substitutions represented by captured binders.
     fn substitutions(
         &self,
@@ -154,8 +169,6 @@ impl InferCapture {
 
 impl CheckState<'_> {
     /// Evaluate one conditional type.
-    ///
-    /// Distributive conditionals evaluate one union arm at a time.
     pub(super) fn reduce_conditional(
         &mut self,
         origin: Origin,
@@ -169,12 +182,7 @@ impl CheckState<'_> {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(left.module_id, union.elements)?)
             }
             dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
-            _ => {
-                let mut single = SmallVec::new();
-                single.push(left);
-
-                single
-            }
+            _ => SmallVec::from_slice(&[left]),
         };
 
         // collect infer binders declared by the extends pattern
@@ -270,15 +278,19 @@ impl CheckState<'_> {
         binders: &[InferBinder],
         blockers: &mut SmallVec<[Dependency; 2]>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let matched = self.probe_accept(
-            |state| state.match_infer_pattern(origin, right, then_type, binders, left),
-            |branch| branch.is_some(),
-        )?;
+        let matched = self.confirm_candidate(ProbeReason::Conditional, |state| {
+            match state.match_infer_pattern(origin, right, then_type, binders, left)? {
+                Answer::Ready(Some(branch)) => {
+                    Ok(Answer::Ready(CandidateOutcome::Accepted(branch)))
+                }
+                Answer::Ready(None) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
+                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            }
+        })?;
 
         match matched {
             Answer::Ready(Some(branch)) => Ok(Some(branch)),
             Answer::Ready(None) => Ok(Some(else_type)),
-            Answer::Pending(dependencies) if dependencies.is_empty() => Ok(Some(else_type)),
             Answer::Pending(dependencies) => {
                 blockers.extend(dependencies);
 
@@ -298,24 +310,34 @@ impl CheckState<'_> {
 
         while let Some(id) = pending.pop() {
             match self.ty(id)? {
-                dir::Type::Operation(dir::TypeOperation::Infer(infer)) => match infer.symbol {
-                    Some(symbol)
-                        if !binders
-                            .iter()
-                            .any(|binder: &InferBinder| binder.symbol == Some(symbol)) =>
-                    {
-                        binders.push(InferBinder {
+                dir::Type::Operation(operation)
+                    if let dir::TypeOperation::Infer(infer) =
+                        self.type_operation(id.module_id, operation)? =>
+                {
+                    match infer.symbol {
+                        Some(symbol)
+                            if !binders
+                                .iter()
+                                .any(|binder: &InferBinder| binder.symbol == Some(symbol)) =>
+                        {
+                            binders.push(InferBinder {
+                                ty: id,
+                                symbol: Some(symbol),
+                            });
+                        }
+                        Some(_) => {}
+                        None => binders.push(InferBinder {
                             ty: id,
-                            symbol: Some(symbol),
-                        });
+                            symbol: None,
+                        }),
                     }
-                    Some(_) => {}
-                    None => binders.push(InferBinder {
-                        ty: id,
-                        symbol: None,
-                    }),
-                },
-                dir::Type::Operation(dir::TypeOperation::Conditional(_)) if id != pattern => {}
+                }
+                dir::Type::Operation(operation)
+                    if id != pattern
+                        && matches!(
+                            self.type_operation(id.module_id, operation)?,
+                            dir::TypeOperation::Conditional(_)
+                        ) => {}
                 ty => self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?,
             }
         }
@@ -367,7 +389,7 @@ impl CheckState<'_> {
         let actual = answer!(self.reduce_type_head(origin, actual)?);
 
         // capture direct infer binders
-        if let dir::Type::Operation(dir::TypeOperation::Infer(infer)) = self.ty(pattern)?
+        if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern)?
             && captures.binder_index(pattern, infer.symbol).is_some()
         {
             let symbol = infer.symbol;
@@ -391,6 +413,67 @@ impl CheckState<'_> {
         let pattern_type = self.ty(pattern)?;
         let actual_type = self.ty(actual)?;
         match (pattern_type, actual_type) {
+            // template patterns split the actual text into span captures
+            (
+                dir::Type::Operation(operation),
+                dir::Type::Literal(dir::ScalarLiteral::String(_))
+                | dir::Type::Key(dir::StaticKey::Name(_)),
+            ) if let dir::TypeOperation::TemplateLiteral(template) =
+                self.type_operation(pattern_module, operation)? =>
+            {
+                let text = match actual_type {
+                    dir::Type::Literal(dir::ScalarLiteral::String(text))
+                    | dir::Type::Key(dir::StaticKey::Name(text)) => {
+                        self.strings().get(text).to_string()
+                    }
+                    _ => unreachable!(),
+                };
+                let Some(parts) = answer!(self.split_template_captures(
+                    origin,
+                    &text,
+                    pattern_module,
+                    &template
+                )?) else {
+                    return Ok(Answer::Ready(false));
+                };
+                for (span, captured) in parts {
+                    // fixed spans already matched during the split
+                    if self.template_piece_text(span)?.is_some() {
+                        continue;
+                    }
+                    match self.operation_head(span)? {
+                        Some(dir::TypeOperation::Infer(infer)) => {
+                            let captured = self.template_captured_type(
+                                origin,
+                                pattern_module,
+                                span,
+                                &captured,
+                            )?;
+                            // repeated binders must capture identical text
+                            let previous = captures.captured(span, infer.symbol);
+                            if !previous.is_empty() && previous != [captured] {
+                                return Ok(Answer::Ready(false));
+                            }
+                            if !answer!(self.match_infer_type(
+                                origin,
+                                captures,
+                                Variance::Covariant,
+                                span,
+                                captured
+                            )?) {
+                                return Ok(Answer::Ready(false));
+                            }
+                        }
+                        _ => {
+                            if !answer!(self.match_template_span(origin, &captured, span)?) {
+                                return Ok(Answer::Ready(false));
+                            }
+                        }
+                    }
+                }
+
+                Ok(Answer::Ready(true))
+            }
             (dir::Type::Instance(pattern), dir::Type::Instance(actual))
                 if pattern.symbol == actual.symbol =>
             {
@@ -437,6 +520,20 @@ impl CheckState<'_> {
                     &actual_elements,
                 )
             }
+            // class references match constructor patterns by their construct signatures
+            (dir::Type::FunctionSignature(_), dir::Type::Reference(reference)) => {
+                let candidates = self.reference_construct_signatures(reference)?.to_vec();
+                let mut matched = Answer::Ready(false);
+                for candidate in candidates {
+                    matched = matched
+                        .or(self.match_infer_type(origin, captures, variance, pattern, candidate)?);
+                    if matched.is_ready_true() {
+                        break;
+                    }
+                }
+
+                Ok(matched)
+            }
             (dir::Type::Shape(pattern), dir::Type::Shape(actual)) => self.match_infer_shape(
                 origin,
                 captures,
@@ -446,8 +543,11 @@ impl CheckState<'_> {
                 actual_module,
                 actual,
             ),
-            (dir::Type::FunctionSignature(pattern), dir::Type::FunctionSignature(actual)) => self
-                .match_infer_function(
+            (dir::Type::FunctionSignature(pattern), dir::Type::FunctionSignature(actual)) => {
+                let pattern = self.type_signature(pattern_module, pattern)?;
+                let actual = self.type_signature(actual_module, actual)?;
+
+                self.match_infer_function(
                     origin,
                     captures,
                     variance,
@@ -455,7 +555,8 @@ impl CheckState<'_> {
                     &pattern,
                     actual_module,
                     &actual,
-                ),
+                )
+            }
             (dir::Type::Function(pattern), dir::Type::Function(actual)) => self.match_infer_type(
                 origin,
                 captures,
@@ -670,7 +771,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         }
         let parameters = self
-            .symbol_template(symbol)
+            .symbol_template(symbol)?
             .map(|template| self.generic_template_parameters(template));
         let mut decision = Answer::Ready(true);
         for (index, (pattern, actual)) in pattern
@@ -681,7 +782,11 @@ impl CheckState<'_> {
         {
             let argument_variance = match &parameters {
                 Some(parameters) => match parameters.get(index) {
-                    Some(parameter) => variance.compose(self.parameter_variance(*parameter)?),
+                    Some(parameter) => {
+                        let context = self.default_symbol_context(symbol);
+
+                        variance.compose(self.parameter_variance(*parameter, context)?)
+                    }
                     None => Variance::Invariant,
                 },
                 None => Variance::Invariant,
@@ -830,7 +935,7 @@ impl CheckState<'_> {
         let pattern_type = answer!(self.reduce_type_head(origin, pattern.ty)?);
 
         // infer rest parameters capture the actual parameter tuple
-        if let dir::Type::Operation(dir::TypeOperation::Infer(infer)) = self.ty(pattern_type)?
+        if let Some(dir::TypeOperation::Infer(infer)) = self.operation_head(pattern_type)?
             && captures.binder_index(pattern_type, infer.symbol).is_some()
         {
             let symbol = infer.symbol;

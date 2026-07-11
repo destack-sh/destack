@@ -6,18 +6,20 @@ use crate::check::{Answer, CheckState, Origin, Relation, ScalarFamily, answer};
 
 impl CheckState<'_> {
     /// Decide assignability from one reduced source to one reduced target.
+    ///
+    /// `Widens` decides the same judgment restricted to identity-witnessed
+    /// edges: conversions that would reify as coercions never widen.
     pub(in crate::check) fn decide_assignable(
         &mut self,
         origin: Origin,
+        relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         if self.decide_equal(origin, source, target)?.is_ready_true() {
             return Ok(Answer::Ready(true));
         }
-        if answer!(self.widens_to(origin, source, target)?) {
-            return Ok(Answer::Ready(true));
-        }
+        let widens = relation == Relation::Widens;
 
         let source_signature = self.callable_signature(source)?;
         let target_signature = self.callable_signature(target)?;
@@ -29,63 +31,87 @@ impl CheckState<'_> {
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
             ) => Answer::Ready(true),
-            (_, dir::Type::Any) | (_, dir::Type::Unknown) => Answer::Ready(true),
-            (dir::Type::Any, _) => Answer::Ready(true),
+            // existential carriers box their values and never widen
+            (_, dir::Type::Any) | (_, dir::Type::Unknown) => Answer::Ready(!widens),
+            (dir::Type::Any, _) => Answer::Ready(!widens),
             (dir::Type::Never, _) => Answer::Ready(true),
+
+            // string literals inhabit matching template literal patterns
+            (
+                dir::Type::Literal(dir::ScalarLiteral::String(text)),
+                dir::Type::Operation(operation),
+            ) if let dir::TypeOperation::TemplateLiteral(template) =
+                self.type_operation(target.module_id, operation)? =>
+            {
+                let text = self.strings().get(text).to_string();
+
+                self.decide_template_string(origin, &text, target.module_id, &template)?
+            }
+            // every template literal instance is a string
+            (dir::Type::Operation(operation), dir::Type::Primitive(dir::PrimitiveType::String))
+                if matches!(
+                    self.type_operation(source.module_id, operation)?,
+                    dir::TypeOperation::TemplateLiteral(_)
+                ) =>
+            {
+                Answer::Ready(true)
+            }
+            // unconstraining patterns absorb the whole string domain
+            (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
+                if let dir::TypeOperation::TemplateLiteral(template) =
+                    self.type_operation(target.module_id, operation)? =>
+            {
+                self.decide_string_inhabits_template(origin, target.module_id, &template)?
+            }
+            // template patterns compare span-wise through their pieces
+            (dir::Type::Operation(source_operation), dir::Type::Operation(target_operation))
+                if let dir::TypeOperation::TemplateLiteral(source_template) =
+                    self.type_operation(source.module_id, source_operation)?
+                    && let dir::TypeOperation::TemplateLiteral(target_template) =
+                        self.type_operation(target.module_id, target_operation)? =>
+            {
+                self.decide_template_template(
+                    origin,
+                    source.module_id,
+                    &source_template,
+                    target.module_id,
+                    &target_template,
+                )?
+            }
 
             // exact property keys flow into their primitive key domains
             (_, dir::Type::Primitive(primitive))
-                if self
-                    .static_key_from_type(source)?
-                    .is_some_and(|key| primitive_accepts_key(primitive, key)) =>
+                if !widens
+                    && self
+                        .static_key_from_type(source)?
+                        .is_some_and(|key| primitive_accepts_key(primitive, key)) =>
             {
                 Answer::Ready(true)
             }
 
             // memory forms own placement and readonly views
-            _ if let Some(decision) = self.constrain_form_assignable(origin, source, target)? => {
+            _ if let Some(decision) =
+                self.constrain_form_assignable(origin, relation, source, target)? =>
+            {
                 decision
             }
+
+            // union carriers tag their values and never widen
+            (dir::Type::Union(_), _) | (_, dir::Type::Union(_)) if widens => Answer::Ready(false),
 
             // union sources need every element assignable
             (dir::Type::Union(union), _) => {
                 let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
 
-                self.decide_all_assignable(origin, &elements, target)?
+                self.decide_all_sources(origin, relation, &elements, target)?
             }
-            // parameters assign through their constraints, or sit inside a union target
-            (dir::Type::Parameter(parameter), _) => {
-                let decision = self.decide_parameter_relation(
-                    origin,
-                    Relation::Assignable,
-                    parameter,
-                    target,
-                )?;
+            // parameters and erased arguments assign through their
+            //  constraints, or sit inside a union target
+            (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
+                let decision =
+                    self.decide_parameter_relation(origin, relation, parameter, target)?;
 
-                self.decide_union_membership(
-                    origin,
-                    Relation::Assignable,
-                    decision,
-                    source,
-                    target,
-                )?
-            }
-            // erased arguments read through their declaration constraints only
-            (dir::Type::Erased(parameter), _) => {
-                let decision = self.decide_parameter_relation(
-                    origin,
-                    Relation::Assignable,
-                    parameter,
-                    target,
-                )?;
-
-                self.decide_union_membership(
-                    origin,
-                    Relation::Assignable,
-                    decision,
-                    source,
-                    target,
-                )?
+                self.decide_union_membership(origin, relation, decision, source, target)?
             }
             // erased arguments are existential and do not accept concrete writes
             (_, dir::Type::Erased(_)) => Answer::Ready(false),
@@ -93,69 +119,80 @@ impl CheckState<'_> {
             (dir::Type::This, _) => {
                 let decision = self.decide_this_assignable(origin, target)?;
 
-                self.decide_union_membership(
-                    origin,
-                    Relation::Assignable,
-                    decision,
-                    source,
-                    target,
-                )?
+                self.decide_union_membership(origin, relation, decision, source, target)?
+            }
+            // rigid projections assign through their declared constraint
+            (dir::Type::Member(member), _) => {
+                let member = self.type_member(source.module_id, member)?;
+                let constraint = self
+                    .body(origin.module())
+                    .projection_constraint(origin, &member)?;
+                let decision = match constraint {
+                    Answer::Ready(Some(constraint)) => {
+                        self.decide_relation(origin, relation, constraint, target)?
+                    }
+                    Answer::Ready(None) => Answer::Ready(false),
+                    Answer::Pending(blockers) => Answer::Pending(blockers),
+                };
+
+                self.decide_union_membership(origin, relation, decision, source, target)?
             }
             // intersection sources assign through any element
             (dir::Type::Intersection(intersection), _) => {
                 let elements = self
                     .type_ids(source.module_id, intersection.elements)?
                     .to_vec();
-                let mut decision = Answer::Ready(false);
-                for element in elements {
-                    decision = decision.or(self.decide_relation(
-                        origin,
-                        Relation::Assignable,
-                        element,
-                        target,
-                    )?);
-                    if decision.is_ready_true() {
-                        break;
-                    }
-                }
 
-                decision
+                self.decide_any_source(origin, relation, &elements, target)?
             }
             // union targets need one viable element
             (_, dir::Type::Union(union)) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
 
-                self.decide_any_assignable(origin, source, &elements)?
+                self.decide_any_target(origin, relation, source, &elements)?
             }
             // intersection targets need every element
             (_, dir::Type::Intersection(intersection)) => {
                 let elements = self
                     .type_ids(target.module_id, intersection.elements)?
                     .to_vec();
-                let mut decision = Answer::Ready(true);
-                for element in elements {
-                    decision = decision.and(self.decide_relation(
-                        origin,
-                        Relation::Assignable,
-                        source,
-                        element,
-                    )?);
-                    if decision.is_ready_false() {
-                        break;
-                    }
-                }
 
-                decision
+                self.decide_all_targets(origin, relation, source, &elements)?
+            }
+            // interface-typed values already store as their own dynamic
+            //  carrier, so wrapping and unwrapping the written type is identity
+            (dir::Type::Instance(instance), dir::Type::Dynamic(dynamic))
+                if self.is_interface_instance(Some(&instance))? =>
+            {
+                self.decide_relation(origin, relation, source, dynamic.constraint)?
+            }
+            (dir::Type::Dynamic(dynamic), dir::Type::Instance(instance))
+                if self.is_interface_instance(Some(&instance))? =>
+            {
+                self.decide_relation(origin, relation, dynamic.constraint, target)?
+            }
+            // existential carriers box their values and never widen
+            (_, dir::Type::Dynamic(_)) | (dir::Type::Dynamic(_), _) if widens => {
+                Answer::Ready(false)
             }
             // erase compatible values into dynamic targets
             (_, dir::Type::Dynamic(dynamic)) => {
-                let constraint = dynamic.constraint;
-
-                self.decide_dynamic_assignable(origin, source, constraint)?
+                self.decide_dynamic_assignable(origin, source, dynamic.constraint)?
+            }
+            // dynamic values carry their constraint's proof by construction
+            (dir::Type::Dynamic(dynamic), _) => {
+                self.decide_relation(origin, Relation::Assignable, dynamic.constraint, target)?
             }
 
+            // numeric literal storage has no single carrier and never widens;
+            //  uniform-carrier families like strings store identically
+            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => {
+                Answer::Ready(false)
+            }
+            (dir::Type::Range(_), _) if widens => Answer::Ready(false),
+
             // comptime scalars prove against rigid parameters universally:
-            // the value must fit every member of the parameter's families
+            //  the value must fit every member of the parameter's families
             (dir::Type::Literal(literal), dir::Type::Parameter(_)) => {
                 let families = answer!(self.scalar_families(origin, target)?);
                 let holds = families.is_some_and(|families| {
@@ -175,47 +212,38 @@ impl CheckState<'_> {
             (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
             (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
             (dir::Type::EnumMember(member), _) => {
-                self.decide_relation(origin, Relation::Assignable, member.owner, target)?
+                self.decide_relation(origin, relation, member.owner, target)?
             }
 
             // mutable collections alias their elements and stay invariant
             (dir::Type::Array(source), dir::Type::Array(target)) => {
-                let (source, target) = (source.element, target.element);
-
-                self.decide_relation(origin, Relation::Equal, source, target)?
+                self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
             (dir::Type::Array(source), dir::Type::Slice(target)) => {
-                let (source, target) = (source.element, target.element);
-
-                self.decide_relation(origin, Relation::Equal, source, target)?
+                self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
             (dir::Type::Array(_), dir::Type::FixedArray(_)) => Answer::Ready(false),
             (dir::Type::Slice(source), dir::Type::Slice(target)) => {
-                let (source, target) = (source.element, target.element);
-
-                self.decide_relation(origin, Relation::Equal, source, target)?
+                self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
+            // value containers copy without a rebuild: elements only widen
             (dir::Type::FixedArray(source), dir::Type::FixedArray(target)) => {
-                let (source_element, target_element) = (source.element, target.element);
-                let (source_count, target_count) = (source.count, target.count);
-                let element = self.decide_relation(
-                    origin,
-                    Relation::Assignable,
-                    source_element,
-                    target_element,
-                )?;
+                let element =
+                    self.decide_relation(origin, Relation::Widens, source.element, target.element)?;
                 let count =
-                    self.decide_relation(origin, Relation::Equal, source_count, target_count)?;
+                    self.decide_relation(origin, Relation::Equal, source.count, target.count)?;
 
                 element.and(count)
             }
-            (dir::Type::FixedArray(source), dir::Type::Slice(target)) => {
-                let (source, target) = (source.element, target.element);
-
-                self.decide_relation(origin, Relation::Assignable, source, target)?
+            // sized sequences convert into their fat mutable carriers
+            (dir::Type::FixedArray(source), dir::Type::Slice(target)) if !widens => {
+                self.decide_relation(origin, Relation::Equal, source.element, target.element)?
+            }
+            (dir::Type::FixedArray(source), dir::Type::Array(target)) if !widens => {
+                self.decide_relation(origin, Relation::Widens, source.element, target.element)?
             }
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
-                self.decide_tuple_assignable(origin, source, target)?
+                self.decide_tuple_assignable(origin, relation, source, target)?
             }
 
             // structural shapes and nominal boundaries
@@ -243,7 +271,16 @@ impl CheckState<'_> {
                     self.type_ids(target.module_id, target_instance.arguments)?,
                 );
 
-                self.decide_type_arguments(origin, symbol, &source_arguments, &target_arguments)?
+                let context = self.default_symbol_context(symbol);
+
+                self.decide_type_arguments(
+                    origin,
+                    symbol,
+                    context,
+                    Relation::Widens,
+                    &source_arguments,
+                    &target_arguments,
+                )?
             }
             (dir::Type::Instance(_), dir::Type::Instance(_)) => {
                 self.decide_nominal_assignable(origin, source, target)?
@@ -251,16 +288,16 @@ impl CheckState<'_> {
 
             // functions assign by signature variance
             (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
-                self.decide_function_assignable(origin, source, target)?
+                self.decide_function_assignable(origin, relation, source, target)?
             }
             (_, dir::Type::FunctionSignature(_)) if let Some(source) = source_signature => {
-                self.decide_function_assignable(origin, source, target)?
+                self.decide_function_assignable(origin, relation, source, target)?
             }
             (dir::Type::FunctionSignature(_), _) if let Some(target) = target_signature => {
-                self.decide_function_assignable(origin, source, target)?
+                self.decide_function_assignable(origin, relation, source, target)?
             }
             (_, _) if let (Some(source), Some(target)) = (source_signature, target_signature) => {
-                self.decide_function_assignable(origin, source, target)?
+                self.decide_function_assignable(origin, relation, source, target)?
             }
 
             _ => Answer::Ready(false),
@@ -281,7 +318,7 @@ impl CheckState<'_> {
             (self.ty(source)?, self.ty(target)?)
         {
             let is_struct = matches!(
-                self.definition(instance.symbol),
+                self.definition(instance.symbol)?,
                 Some(dir::Definition::Struct(_))
             );
             if is_struct {
@@ -289,7 +326,86 @@ impl CheckState<'_> {
             }
         }
 
-        self.decide_assignable(origin, source, target)
+        // union sources distribute as ordinary assignability
+        if matches!(self.ty(source)?, dir::Type::Union(_)) {
+            return self.decide_assignable(origin, Relation::Assignable, source, target);
+        }
+
+        // fresh values keep their freshness through target arms
+        if let dir::Type::Union(union) = self.ty(target)? {
+            let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+
+            return self.decide_any_target(origin, Relation::Writable, source, &elements);
+        }
+        if let dir::Type::Intersection(intersection) = self.ty(target)? {
+            let elements = self
+                .type_ids(target.module_id, intersection.elements)?
+                .to_vec();
+
+            return self.decide_all_targets(origin, Relation::Writable, source, &elements);
+        }
+
+        // fresh shapes conform covariantly with strict excess keys
+        if let (dir::Type::Shape(_), dir::Type::Shape(_)) = (self.ty(source)?, self.ty(target)?) {
+            return self.decide_fresh_shape_writable(origin, source, target);
+        }
+
+        // fresh collections write their elements covariantly
+        match (self.ty(source)?, self.ty(target)?) {
+            (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
+                return self.decide_relation(
+                    origin,
+                    Relation::Writable,
+                    source_array.element,
+                    target_array.element,
+                );
+            }
+            (dir::Type::FixedArray(source_array), dir::Type::FixedArray(target_array)) => {
+                let elements = self.decide_relation(
+                    origin,
+                    Relation::Writable,
+                    source_array.element,
+                    target_array.element,
+                )?;
+                let counts = self.decide_relation(
+                    origin,
+                    Relation::Equal,
+                    source_array.count,
+                    target_array.count,
+                )?;
+
+                return Ok(elements.and(counts));
+            }
+            (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple)) => {
+                let source_elements = self
+                    .tuple_elements(source.module_id, source_tuple.elements)?
+                    .to_vec();
+                let target_elements = self
+                    .tuple_elements(target.module_id, target_tuple.elements)?
+                    .to_vec();
+                if source_elements.len() == target_elements.len() {
+                    let mut decision = Answer::Ready(true);
+                    for (source_element, target_element) in
+                        source_elements.iter().zip(target_elements.iter())
+                    {
+                        decision = decision.and(self.decide_relation(
+                            origin,
+                            Relation::Writable,
+                            source_element.ty,
+                            target_element.ty,
+                        )?);
+                        if decision.is_ready_false() {
+                            break;
+                        }
+                    }
+
+                    return Ok(decision);
+                }
+            }
+            _ => {}
+        }
+
+        self.decide_assignable(origin, Relation::Assignable, source, target)
     }
 
     /// Decide whether one source value can erase into `Dynamic<constraint>`.
@@ -313,36 +429,6 @@ impl CheckState<'_> {
         }
 
         self.decide_relation(origin, Relation::Assignable, source, constraint)
-    }
-
-    /// Decide assignability under one deep readonly form.
-    ///
-    /// Aliasing containers relax to covariant element relations because
-    ///  no mutation can flow back through the form.
-    pub(in crate::check) fn decide_readonly_assignable(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        // readable collections relate elements covariantly
-        let elements = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Array(source), dir::Type::Array(target)) => {
-                Some((source.element, target.element))
-            }
-            (dir::Type::Array(source), dir::Type::Slice(target)) => {
-                Some((source.element, target.element))
-            }
-            (dir::Type::Slice(source), dir::Type::Slice(target)) => {
-                Some((source.element, target.element))
-            }
-            _ => None,
-        };
-
-        match elements {
-            Some((source, target)) => self.decide_readonly_assignable(origin, source, target),
-            None => self.decide_assignable(origin, source, target),
-        }
     }
 
     /// Decide whether one parameter's bounds carry one relation.

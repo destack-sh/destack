@@ -16,6 +16,42 @@ struct FormChain {
     is_open: bool,
 }
 
+/// One resolved ownership constructor on the memory axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ownership {
+    /// Automatically managed reference ownership.
+    Managed,
+    /// Owned value ownership.
+    Owned,
+    /// Borrowed view ownership.
+    Borrowed,
+    /// Raw pointer ownership.
+    Raw,
+}
+
+impl Ownership {
+    /// Return the ownership literal text.
+    fn text(self) -> &'static str {
+        match self {
+            Self::Managed => "managed",
+            Self::Owned => "owned",
+            Self::Borrowed => "borrowed",
+            Self::Raw => "raw",
+        }
+    }
+
+    /// Classify one form constructor's ownership, when it carries one.
+    fn from_form(form: dir::Form) -> Option<Self> {
+        match form {
+            dir::Form::Managed => Some(Self::Managed),
+            dir::Form::Owned => Some(Self::Owned),
+            dir::Form::Borrowed(_) => Some(Self::Borrowed),
+            dir::Form::Raw => Some(Self::Raw),
+            dir::Form::Readonly | dir::Form::Placed { .. } => None,
+        }
+    }
+}
+
 impl CheckState<'_> {
     /// Return the value beneath one type's memory forms.
     pub(in crate::check) fn value_beneath_forms(
@@ -85,13 +121,11 @@ impl CheckState<'_> {
         let Some(default) = answer!(self.default_ownership(origin, value)?) else {
             return Ok(Answer::Ready(false));
         };
-        let matches_default = std::mem::discriminant(&default) == std::mem::discriminant(&form);
 
-        Ok(Answer::Ready(matches_default))
+        Ok(Answer::Ready(Ownership::from_form(form) == Some(default)))
     }
 
     /// Reduce one unary form constructor application.
-    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_form_constructor(
         &mut self,
         origin: Origin,
@@ -103,13 +137,12 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
         let formed = dir::Type::Form(dir::FormType { form, value });
-        let id = self.push_memory_type(origin, formed)?;
+        let id = self.intern_memory_type(origin, formed)?;
 
         Ok(Answer::Ready(Some(id)))
     }
 
     /// Reduce one borrowed form constructor application.
-    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_borrowed_constructor(
         &mut self,
         origin: Origin,
@@ -127,22 +160,18 @@ impl CheckState<'_> {
         // missing access arguments default to mutable
         let access = match arguments.get(2).copied() {
             Some(access) => self.normalize_access(origin, access)?,
-            None => {
-                self.push_memory_literal(origin, dir::MemoryLiteral::Access(dir::Access::Mutable))?
-            }
+            None => self
+                .intern_memory_literal(origin, dir::MemoryLiteral::Access(dir::Access::Mutable))?,
         };
         let lifetime = self.normalize_lifetime(origin, lifetime)?;
-        let formed = dir::Type::Form(dir::FormType {
-            form: dir::Form::Borrowed { lifetime, access },
-            value,
-        });
-        let id = self.push_memory_type(origin, formed)?;
+        let form = self.intern_borrow(origin.module(), lifetime, access)?;
+        let formed = dir::Type::Form(dir::FormType { form, value });
+        let id = self.intern_memory_type(origin, formed)?;
 
         Ok(Answer::Ready(Some(id)))
     }
 
     /// Reduce one placed form constructor application.
-    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_placed_constructor(
         &mut self,
         origin: Origin,
@@ -162,13 +191,12 @@ impl CheckState<'_> {
             form: dir::Form::Placed { place },
             value,
         });
-        let id = self.push_memory_type(origin, formed)?;
+        let id = self.intern_memory_type(origin, formed)?;
 
         Ok(Answer::Ready(Some(id)))
     }
 
     /// Evaluate one memory accessor, distributing over union targets.
-    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_memory_accessor(
         &mut self,
         origin: Origin,
@@ -188,12 +216,7 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(target.module_id, union.elements)?)
             }
-            _ => {
-                let mut single = SmallVec::new();
-                single.push(target);
-
-                single
-            }
+            _ => SmallVec::from_slice(&[target]),
         };
         let mut answers = Vec::with_capacity(elements.len());
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
@@ -233,7 +256,7 @@ impl CheckState<'_> {
             }
         }
         let joined = match kept.as_slice() {
-            [] => self.push_memory_type(origin, dir::Type::Never)?,
+            [] => self.intern_memory_type(origin, dir::Type::Never)?,
             [single] => *single,
             _ => {
                 let union_module = origin.module();
@@ -246,7 +269,6 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one memory accessor over one closed element.
-    /// Returns none while the element's forms stay symbolic.
     fn reduce_element_accessor(
         &mut self,
         origin: Origin,
@@ -295,21 +317,13 @@ impl CheckState<'_> {
                     .map(Answer::Ready)
             }
             dir::LanguageItem::IsManaged => {
-                self.ownership_predicate(origin, chain, dir::Form::Managed)
+                self.ownership_predicate(origin, chain, Ownership::Managed)
             }
-            dir::LanguageItem::IsOwned => self.ownership_predicate(origin, chain, dir::Form::Owned),
+            dir::LanguageItem::IsOwned => self.ownership_predicate(origin, chain, Ownership::Owned),
             dir::LanguageItem::IsBorrowed => {
-                let found = self.chain_ownership(chain);
-                let is_borrowed = match found {
-                    Some(form) => self
-                        .boolean_literal_type(origin, matches!(form, dir::Form::Borrowed { .. }))?,
-                    None if chain.is_open => None,
-                    None => self.boolean_literal_type(origin, false)?,
-                };
-
-                Ok(Answer::Ready(is_borrowed))
+                self.ownership_predicate(origin, chain, Ownership::Borrowed)
             }
-            dir::LanguageItem::IsRaw => self.ownership_predicate(origin, chain, dir::Form::Raw),
+            dir::LanguageItem::IsRaw => self.ownership_predicate(origin, chain, Ownership::Raw),
 
             // access component
             dir::LanguageItem::AccessOf => self.access(origin, chain).map(Answer::Ready),
@@ -452,8 +466,17 @@ impl CheckState<'_> {
                 break;
             };
 
+            // rehome borrow payloads so chain rebuilds stay module-local
+            let head = match form.form {
+                dir::Form::Borrowed(borrow) => {
+                    let borrow = self.type_borrow(current.module_id, borrow)?;
+
+                    self.intern_borrow(origin.module(), borrow.lifetime, borrow.access)?
+                }
+                head => head,
+            };
             forms.push(dir::FormType {
-                form: form.form,
+                form: head,
                 value: form.value,
             });
             current = form.value;
@@ -476,14 +499,12 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Return the outermost ownership form on one chain.
-    fn chain_ownership(&self, chain: &FormChain) -> Option<dir::Form> {
-        chain.forms.iter().map(|entry| entry.form).find(|form| {
-            matches!(
-                form,
-                dir::Form::Managed | dir::Form::Owned | dir::Form::Borrowed { .. } | dir::Form::Raw
-            )
-        })
+    /// Return the outermost ownership constructor on one chain.
+    fn chain_ownership(&self, chain: &FormChain) -> Option<Ownership> {
+        chain
+            .forms
+            .iter()
+            .find_map(|entry| Ownership::from_form(entry.form))
     }
 
     /// Return one chain's ownership kind as a type literal.
@@ -493,66 +514,48 @@ impl CheckState<'_> {
         chain: &FormChain,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let ownership = match self.chain_ownership(chain) {
-            Some(dir::Form::Managed) => self.text_literal_type(origin, "managed").map(Some)?,
-            Some(dir::Form::Owned) => self.text_literal_type(origin, "owned").map(Some)?,
-            Some(dir::Form::Borrowed { .. }) => {
-                self.text_literal_type(origin, "borrowed").map(Some)?
-            }
-            Some(dir::Form::Raw) => self.text_literal_type(origin, "raw").map(Some)?,
+            // report the explicit ownership constructor
+            Some(ownership) => Some(self.text_literal_type(origin, ownership.text())?),
             // open bases may still gain ownership at instantiation
             None if chain.is_open => None,
-            None => {
-                let Some(form) = answer!(self.default_ownership(origin, chain.base)?) else {
-                    return Ok(Answer::Ready(Some(
-                        self.push_memory_type(origin, dir::Type::Never)?,
-                    )));
-                };
-                match form {
-                    dir::Form::Managed => self.text_literal_type(origin, "managed").map(Some)?,
-                    dir::Form::Owned => self.text_literal_type(origin, "owned").map(Some)?,
-                    _ => None,
-                }
-            }
-            Some(_) if chain.is_open => None,
-            Some(_) => Some(self.push_memory_type(origin, dir::Type::Never)?),
+            // closed bases report their default ownership
+            None => match answer!(self.default_ownership(origin, chain.base)?) {
+                Some(default) => Some(self.text_literal_type(origin, default.text())?),
+                None => Some(self.intern_memory_type(origin, dir::Type::Never)?),
+            },
         };
 
         Ok(Answer::Ready(ownership))
     }
 
-    /// Return whether one chain's ownership matches a form constructor.
+    /// Return whether one chain's ownership matches a constructor.
     fn ownership_predicate(
         &mut self,
         origin: Origin,
         chain: &FormChain,
-        form: dir::Form,
+        ownership: Ownership,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let matches_ownership = match self.chain_ownership(chain) {
-            Some(found) => self.boolean_literal_type(
-                origin,
-                std::mem::discriminant(&found) == std::mem::discriminant(&form),
-            )?,
+            Some(found) => self.boolean_literal_type(origin, found == ownership)?,
             None if chain.is_open => None,
             None => {
                 let Some(found) = answer!(self.default_ownership(origin, chain.base)?) else {
                     return self.boolean_literal_type(origin, false).map(Answer::Ready);
                 };
-                self.boolean_literal_type(
-                    origin,
-                    std::mem::discriminant(&found) == std::mem::discriminant(&form),
-                )?
+
+                self.boolean_literal_type(origin, found == ownership)?
             }
         };
 
         Ok(Answer::Ready(matches_ownership))
     }
 
-    /// Return one reduced type's default ownership form.
+    /// Return one reduced type's default ownership.
     fn default_ownership(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Form>>> {
+    ) -> CompilerResult<Answer<Option<Ownership>>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
         let default = match self.ty(ty)? {
             dir::Type::Any
@@ -561,7 +564,7 @@ impl CheckState<'_> {
             | dir::Type::Dynamic(_)
             | dir::Type::Shape(_)
             | dir::Type::Array(_)
-            | dir::Type::Function(_) => Some(dir::Form::Managed),
+            | dir::Type::Function(_) => Some(Ownership::Managed),
             dir::Type::Never
             | dir::Type::Void
             | dir::Type::Undefined
@@ -576,22 +579,22 @@ impl CheckState<'_> {
             | dir::Type::Tuple(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
-            | dir::Type::FunctionPointer(_) => Some(dir::Form::Owned),
+            | dir::Type::FunctionPointer(_) => Some(Ownership::Owned),
             dir::Type::Primitive(primitive) => {
                 if primitive.representation_item().is_some() {
-                    Some(dir::Form::Managed)
+                    Some(Ownership::Managed)
                 } else {
-                    Some(dir::Form::Owned)
+                    Some(Ownership::Owned)
                 }
             }
             dir::Type::Instance(instance) => {
                 let symbol = instance.symbol;
-                match self.definition(symbol).cloned() {
+                match self.definition(symbol)?.cloned() {
                     Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
-                        Some(dir::Form::Managed)
+                        Some(Ownership::Managed)
                     }
                     Some(dir::Definition::Struct(_) | dir::Definition::Enum(_)) => {
-                        Some(dir::Form::Owned)
+                        Some(Ownership::Owned)
                     }
                     Some(dir::Definition::Newtype(definition)) => {
                         let backing = answer!(self.reduce_type_head(origin, definition.value)?);
@@ -605,10 +608,9 @@ impl CheckState<'_> {
                 dir::Form::Readonly | dir::Form::Placed { .. } => {
                     return self.default_ownership(origin, form.value);
                 }
-                dir::Form::Managed
-                | dir::Form::Owned
-                | dir::Form::Borrowed { .. }
-                | dir::Form::Raw => None,
+                dir::Form::Managed | dir::Form::Owned | dir::Form::Borrowed(_) | dir::Form::Raw => {
+                    None
+                }
             },
             dir::Type::Reference(_)
             | dir::Type::Parameter(_)
@@ -621,13 +623,18 @@ impl CheckState<'_> {
             | dir::Type::Intersection(_)
             | dir::Type::Union(_)
             | dir::Type::Error => None,
+            // refinements share their base's default form
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(ty.module_id, refined)?;
+
+                return self.default_ownership(origin, refined.base);
+            }
         };
 
         Ok(Answer::Ready(default))
     }
 
     /// Return one chain's access mode as a type literal.
-    /// Unqualified concrete chains default to mutable access.
     fn access(
         &mut self,
         origin: Origin,
@@ -636,7 +643,9 @@ impl CheckState<'_> {
         for entry in &chain.forms {
             match entry.form {
                 dir::Form::Readonly => return self.text_literal_type(origin, "readonly").map(Some),
-                dir::Form::Borrowed { access, .. } => {
+                dir::Form::Borrowed(borrow) => {
+                    let access = self.type_borrow(origin.module(), borrow)?.access;
+
                     return self.normalize_component_text(origin, access).map(Some);
                 }
                 _ => {}
@@ -651,7 +660,6 @@ impl CheckState<'_> {
     }
 
     /// Return one chain's placement as a type literal.
-    /// Unqualified concrete chains stay ambient.
     fn place(
         &mut self,
         origin: Origin,
@@ -683,15 +691,13 @@ impl CheckState<'_> {
 
         // ambient placement names no concrete space
         if self.is_memory_component(place, "ambient")? {
-            Ok(Some(self.push_memory_type(origin, dir::Type::Never)?))
+            Ok(Some(self.intern_memory_type(origin, dir::Type::Never)?))
         } else {
             Ok(Some(place))
         }
     }
 
     /// Return one chain's borrow lifetime type.
-    /// Borrows carry their lifetime argument; managed handles answer the
-    /// frame lifetime of the automatic root that pins them.
     fn lifetime(
         &mut self,
         origin: Origin,
@@ -699,9 +705,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         for entry in &chain.forms {
             match entry.form {
-                dir::Form::Borrowed { lifetime, .. } => return Ok(Some(lifetime)),
+                dir::Form::Borrowed(borrow) => {
+                    return Ok(Some(self.type_borrow(origin.module(), borrow)?.lifetime));
+                }
                 dir::Form::Managed => {
-                    return Ok(Some(self.push_memory_literal(
+                    return Ok(Some(self.intern_memory_literal(
                         origin,
                         dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame),
                     )?));
@@ -713,7 +721,7 @@ impl CheckState<'_> {
         if chain.is_open {
             Ok(None)
         } else {
-            Ok(Some(self.push_memory_type(origin, dir::Type::Never)?))
+            Ok(Some(self.intern_memory_type(origin, dir::Type::Never)?))
         }
     }
 
@@ -766,12 +774,12 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
                 let lifetime = self.normalize_lifetime(origin, lifetime)?;
-                let access = self.push_memory_literal(
+                let access = self.intern_memory_literal(
                     origin,
                     dir::MemoryLiteral::Access(dir::Access::Mutable),
                 )?;
 
-                dir::Form::Borrowed { lifetime, access }
+                self.intern_borrow(origin.module(), lifetime, access)?
             }
             _ => return Ok(None),
         };
@@ -780,7 +788,7 @@ impl CheckState<'_> {
             value: element,
         });
 
-        Ok(Some(self.push_memory_type(origin, formed)?))
+        Ok(Some(self.intern_memory_type(origin, formed)?))
     }
 
     /// Resolve one ambient placement form.
@@ -824,7 +832,7 @@ impl CheckState<'_> {
                     value: element,
                 });
 
-                Ok(Some(self.push_memory_type(origin, formed)?))
+                Ok(Some(self.intern_memory_type(origin, formed)?))
             }
         }
     }
@@ -847,7 +855,7 @@ impl CheckState<'_> {
         if chain
             .forms
             .iter()
-            .any(|entry| matches!(entry.form, dir::Form::Borrowed { .. }))
+            .any(|entry| matches!(entry.form, dir::Form::Borrowed(_)))
         {
             return self.replace_borrow(origin, chain, None, Some(access));
         }
@@ -882,7 +890,7 @@ impl CheckState<'_> {
                 Ok(Some(self.wrap_forms(origin, &forms, chain.base)?))
             }
             dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)) => {
-                Ok(Some(self.push_memory_type(origin, dir::Type::Never)?))
+                Ok(Some(self.intern_memory_type(origin, dir::Type::Never)?))
             }
             _ => Ok(None),
         }
@@ -899,21 +907,19 @@ impl CheckState<'_> {
         let position = chain
             .forms
             .iter()
-            .position(|entry| matches!(entry.form, dir::Form::Borrowed { .. }));
+            .position(|entry| matches!(entry.form, dir::Form::Borrowed(_)));
         let Some(position) = position else {
             return Ok(None);
         };
 
         let mut forms = chain.forms.clone();
-        if let dir::Form::Borrowed {
-            lifetime: old_lifetime,
-            access: old_access,
-        } = forms[position].form
-        {
-            forms[position].form = dir::Form::Borrowed {
-                lifetime: lifetime.unwrap_or(old_lifetime),
-                access: access.unwrap_or(old_access),
-            };
+        if let dir::Form::Borrowed(borrow) = forms[position].form {
+            let borrow = self.type_borrow(origin.module(), borrow)?;
+            forms[position].form = self.intern_borrow(
+                origin.module(),
+                lifetime.unwrap_or(borrow.lifetime),
+                access.unwrap_or(borrow.access),
+            )?;
         }
 
         Ok(Some(self.wrap_forms(origin, &forms, chain.base)?))
@@ -929,7 +935,7 @@ impl CheckState<'_> {
         let mut current = base;
 
         for entry in forms.iter().rev() {
-            current = self.push_memory_type(
+            current = self.intern_memory_type(
                 origin,
                 dir::Type::Form(dir::FormType {
                     form: entry.form,
@@ -957,7 +963,7 @@ impl CheckState<'_> {
             _ => return Ok(component),
         };
 
-        self.push_memory_literal(origin, dir::MemoryLiteral::Access(access))
+        self.intern_memory_literal(origin, dir::MemoryLiteral::Access(access))
     }
 
     /// Normalize one place component to its canonical memory literal.
@@ -978,7 +984,7 @@ impl CheckState<'_> {
             _ => return Ok(component),
         };
 
-        self.push_memory_literal(origin, dir::MemoryLiteral::Place(place))
+        self.intern_memory_literal(origin, dir::MemoryLiteral::Place(place))
     }
 
     /// Normalize one space component to its canonical memory literal.
@@ -998,7 +1004,7 @@ impl CheckState<'_> {
             _ => return Ok(component),
         };
 
-        self.push_memory_literal(origin, dir::MemoryLiteral::Space(space))
+        self.intern_memory_literal(origin, dir::MemoryLiteral::Space(space))
     }
 
     /// Normalize one lifetime component to its canonical memory literal.
@@ -1017,7 +1023,7 @@ impl CheckState<'_> {
             _ => return Ok(component),
         };
 
-        self.push_memory_literal(origin, dir::MemoryLiteral::Lifetime(lifetime))
+        self.intern_memory_literal(origin, dir::MemoryLiteral::Lifetime(lifetime))
     }
 
     /// Return one memory component as its canonical text written form.
@@ -1044,9 +1050,7 @@ impl CheckState<'_> {
 
         let text = match self.ty(component)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
-                let module = origin.module();
-
-                Some(self.module(module).strings.get(value).to_string())
+                Some(self.strings().get(value).to_string())
             }
             dir::Type::Memory(literal) => Some(literal.text().to_string()),
             _ => None,
@@ -1055,7 +1059,7 @@ impl CheckState<'_> {
         Ok(text)
     }
 
-    /// Return whether one type is a specific memory component spelling.
+    /// Return whether one type is a specific memory component literal.
     fn is_memory_component(&self, ty: dir::GlobalTypeId, text: &str) -> CompilerResult<bool> {
         let is_match = match self.ty(ty)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
@@ -1074,10 +1078,9 @@ impl CheckState<'_> {
         origin: Origin,
         text: &str,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
-        let value = self.module_mut(module).strings.intern(text);
+        let value = self.strings().intern(text);
 
-        self.push_memory_type(
+        self.intern_memory_type(
             origin,
             dir::Type::Literal(dir::ScalarLiteral::String(value)),
         )
@@ -1089,7 +1092,7 @@ impl CheckState<'_> {
         origin: Origin,
         value: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let ty = self.push_memory_type(
+        let ty = self.intern_memory_type(
             origin,
             dir::Type::Literal(dir::ScalarLiteral::Boolean(value)),
         )?;
@@ -1098,16 +1101,16 @@ impl CheckState<'_> {
     }
 
     /// Push one memory literal written form.
-    fn push_memory_literal(
+    fn intern_memory_literal(
         &mut self,
         origin: Origin,
         literal: dir::MemoryLiteral,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.push_memory_type(origin, dir::Type::Memory(literal))
+        self.intern_memory_type(origin, dir::Type::Memory(literal))
     }
 
     /// Push one memory type at the accessor's origin.
-    fn push_memory_type(
+    fn intern_memory_type(
         &mut self,
         origin: Origin,
         ty: dir::Type,
@@ -1118,8 +1121,6 @@ impl CheckState<'_> {
     }
 
     /// Resolve one type to its readable value.
-    /// Reads see through managed handles and readonly forms; the
-    /// payload carries the fields and elements a read consumes.
     pub(in crate::check) fn readable_value(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -1134,5 +1135,73 @@ impl CheckState<'_> {
         }
 
         Ok(current)
+    }
+
+    /// Rewrite one form composition into its canonical interned order.
+    pub(in crate::check) fn canonical_form_type(
+        &mut self,
+        module: ModuleId,
+        ty: dir::Type,
+    ) -> CompilerResult<dir::Type> {
+        let dir::Type::Form(form) = ty else {
+            return Ok(ty);
+        };
+        let dir::Type::Form(inner) = self.ty(form.value)? else {
+            return Ok(ty);
+        };
+
+        match (form.form, inner.form) {
+            // an explicit inner placement absorbs the outer request
+            (dir::Form::Placed { place }, dir::Form::Placed { place: existing }) => {
+                if self.is_ambient_place(existing)? {
+                    let value = inner.value;
+
+                    return Ok(dir::Type::Form(dir::FormType {
+                        form: dir::Form::Placed { place },
+                        value,
+                    }));
+                }
+                if self.is_closed_place(existing)? {
+                    return Ok(dir::Type::Form(inner));
+                }
+
+                Ok(ty)
+            }
+            // readonly views are idempotent
+            (dir::Form::Readonly, dir::Form::Readonly) => Ok(dir::Type::Form(inner)),
+            // placement commutes with every other axis: `^shared T` is `shared ^T`
+            (form_kind, dir::Form::Placed { place }) => {
+                let value = self.intern_type(
+                    module,
+                    dir::Type::Form(dir::FormType {
+                        form: form_kind,
+                        value: inner.value,
+                    }),
+                )?;
+
+                Ok(dir::Type::Form(dir::FormType {
+                    form: dir::Form::Placed { place },
+                    value,
+                }))
+            }
+            _ => Ok(ty),
+        }
+    }
+
+    /// Return whether one place singleton is the ambient placeholder.
+    fn is_ambient_place(&self, place: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let dir::Type::Literal(dir::ScalarLiteral::String(name)) = self.ty(place)? else {
+            return Ok(false);
+        };
+
+        Ok(self.strings().get(name) == "ambient")
+    }
+
+    /// Return whether one place singleton names a concrete space.
+    fn is_closed_place(&self, place: dir::GlobalTypeId) -> CompilerResult<bool> {
+        Ok(matches!(
+            self.ty(place)?,
+            dir::Type::Literal(dir::ScalarLiteral::String(_))
+        ))
     }
 }

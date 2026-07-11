@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{Answer, CheckState, OperationReduction, Origin, answer};
 
 impl CheckState<'_> {
     /// Reduce one `typeof` type query from its stable value-reference path.
@@ -25,6 +25,7 @@ impl CheckState<'_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => {
                 if let Some(ty) = answer!(self.reduce_typeof_reference(value)?) {
                     return Ok(Answer::Ready(Some(ty)));
@@ -35,7 +36,24 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(None));
                 };
 
-                self.reduce_static_member_projection(origin, owner, dir::StaticKey::Name(name))
+                let key = self.intern_type(
+                    origin.module(),
+                    dir::Type::Literal(dir::ScalarLiteral::String(name)),
+                )?;
+                let projection = answer!(self.reduce_static_member_projection(
+                    origin,
+                    owner,
+                    dir::StaticKey::Name(name),
+                    key,
+                )?);
+
+                // query paths stay symbolic without a unique projection
+                match projection {
+                    OperationReduction::Projected(ty) => Ok(Answer::Ready(Some(ty))),
+                    OperationReduction::Rigid | OperationReduction::Invalid(_) => {
+                        Ok(Answer::Ready(None))
+                    }
+                }
             }
 
             // rejected query operands stay symbolic after diagnostics

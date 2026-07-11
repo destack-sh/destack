@@ -1,11 +1,11 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin};
 
 /// Working accumulator for merging shape elements of an intersection.
-/// Payload lists stay as plain vectors until the merged shape is interned.
 #[derive(Default)]
 struct ShapeMerge {
     /// The merged fields.
@@ -22,7 +22,7 @@ impl CheckState<'_> {
     /// Return a flattened intersection type.
     pub(in crate::check) fn normalized_intersection_type(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
@@ -59,10 +59,6 @@ impl CheckState<'_> {
     }
 
     /// Merge one intersection's structural shape elements.
-    ///
-    /// Shared field keys intersect their types, required fields and readonly forms win, and
-    /// non-shape elements stay intersected.
-    /// Returns the unchanged root while fewer than two elements are shapes.
     pub(in crate::check) fn reduce_intersection(
         &mut self,
         origin: Origin,
@@ -79,6 +75,22 @@ impl CheckState<'_> {
         }
         if !blockers.is_empty() {
             return Ok(Answer::pending(blockers));
+        }
+
+        // exact key members absorb the string primitive
+        let has_exact_key = closed.iter().any(|element| {
+            matches!(
+                self.ty(*element),
+                Ok(dir::Type::Key(_) | dir::Type::Literal(dir::ScalarLiteral::String(_)))
+            )
+        });
+        if has_exact_key {
+            closed.retain(|element| {
+                !matches!(
+                    self.ty(*element),
+                    Ok(dir::Type::Primitive(dir::PrimitiveType::String))
+                )
+            });
         }
 
         // reduce one element intersection to that element
@@ -138,7 +150,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         merged: &mut Option<ShapeMerge>,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         shape: dir::ShapeType,
     ) -> CompilerResult<()> {
         let fields = self.shape_fields(module, shape.fields)?.to_vec();

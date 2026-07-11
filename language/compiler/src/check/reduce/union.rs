@@ -77,6 +77,9 @@ impl CheckState<'_> {
                 if self.union_contains(&kept, element)? {
                     continue;
                 }
+                if self.merge_borrowed_union_element(&mut kept, element)? {
+                    continue;
+                }
 
                 self.remove_covered_union_elements(&mut kept, element)?;
                 kept.push(element);
@@ -84,6 +87,54 @@ impl CheckState<'_> {
         }
 
         Ok(kept)
+    }
+
+    /// Merge borrows of one payload and access by joining their lifetimes.
+    fn merge_borrowed_union_element(
+        &mut self,
+        kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let module = element.module_id;
+        let dir::Type::Form(form) = self.ty(element)? else {
+            return Ok(false);
+        };
+        let dir::Form::Borrowed(borrow) = form.form else {
+            return Ok(false);
+        };
+        let borrow = self.type_borrow(element.module_id, borrow)?;
+
+        for slot in kept.iter_mut() {
+            let dir::Type::Form(existing) = self.ty(*slot)? else {
+                continue;
+            };
+            let dir::Form::Borrowed(existing_borrow) = existing.form else {
+                continue;
+            };
+            let existing_borrow = self.type_borrow(slot.module_id, existing_borrow)?;
+            if existing.value != form.value || existing_borrow.access != borrow.access {
+                continue;
+            }
+            if existing_borrow.lifetime == borrow.lifetime {
+                return Ok(true);
+            }
+
+            // one borrow value valid for the join of both lifetimes
+            let joined =
+                self.normalized_union_type(module, [existing_borrow.lifetime, borrow.lifetime])?;
+            let joined_form = self.intern_borrow(module, joined, borrow.access)?;
+            *slot = self.intern_type(
+                module,
+                dir::Type::Form(dir::FormType {
+                    form: joined_form,
+                    value: existing.value,
+                }),
+            )?;
+
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 
     /// Return whether a union element list already covers one type.
@@ -122,18 +173,52 @@ impl CheckState<'_> {
     /// Return whether one union element covers another element.
     fn union_element_covers(
         &self,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let decision = match (self.ty(left)?, self.ty(right)?) {
-            (left, right) if left == right => true,
+        let decision = match (self.ty(source)?, self.ty(target)?) {
+            (source, target) if source == target => true,
             (_, dir::Type::Never) => true,
             (target, dir::Type::Literal(literal)) => literal.widens_to(&target),
             (target, dir::Type::Range(range)) => range.widens_to(&target),
+            // instances interned by different modules compare by their parts
+            (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
+                if source_instance.symbol == target_instance.symbol =>
+            {
+                self.type_ids(source.module_id, source_instance.arguments)?
+                    == self.type_ids(target.module_id, target_instance.arguments)?
+            }
             _ => false,
         };
 
         Ok(decision)
+    }
+
+    /// Return whether two union elements are the same type structurally.
+    ///
+    /// Instances interned by different modules carry distinct ids for one
+    /// structural type, so id equality alone under-deduplicates.
+    pub(in crate::check) fn union_element_duplicates(
+        &self,
+        existing: dir::GlobalTypeId,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        if existing == element {
+            return Ok(true);
+        }
+
+        match (self.ty(existing)?, self.ty(element)?) {
+            (existing_head, element_head) if existing_head == element_head => Ok(true),
+            (dir::Type::Instance(existing_instance), dir::Type::Instance(element_instance))
+                if existing_instance.symbol == element_instance.symbol =>
+            {
+                Ok(
+                    self.type_ids(existing.module_id, existing_instance.arguments)?
+                        == self.type_ids(element.module_id, element_instance.arguments)?,
+                )
+            }
+            _ => Ok(false),
+        }
     }
 
     /// Return one union type without nullish elements.

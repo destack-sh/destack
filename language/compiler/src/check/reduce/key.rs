@@ -1,6 +1,6 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexSet;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -23,9 +23,9 @@ enum KeyDomain {
 #[derive(Debug, Clone, Default)]
 struct KeySet {
     /// The exact known keys.
-    keys: IndexSet<dir::StaticKey>,
+    keys: FxIndexSet<dir::StaticKey>,
     /// The broad key domains accepted by index signatures.
-    domains: IndexSet<KeyDomain>,
+    domains: FxIndexSet<KeyDomain>,
 }
 
 impl KeySet {
@@ -101,6 +101,34 @@ impl KeyDomain {
     }
 }
 
+/// Outcome of reducing one written type operation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) enum OperationReduction {
+    /// The operation projected to its value type.
+    Projected(dir::GlobalTypeId),
+    /// The operation stays symbolic over rigid operands.
+    Rigid,
+    /// The operation cannot hold on its closed operands.
+    Invalid(InvalidOperation),
+}
+
+/// Reason one closed type operation is ill-formed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) enum InvalidOperation {
+    /// The receiver can never be indexed.
+    IndexReceiver {
+        /// The indexed receiver type.
+        receiver: dir::GlobalTypeId,
+    },
+    /// The key does not project from the receiver.
+    IndexKey {
+        /// The indexed receiver type.
+        receiver: dir::GlobalTypeId,
+        /// The supplied key type.
+        key: dir::GlobalTypeId,
+    },
+}
+
 impl CheckState<'_> {
     /// Reduce one member projection to its value type.
     pub(super) fn reduce_static_member_projection(
@@ -108,105 +136,275 @@ impl CheckState<'_> {
         origin: Origin,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        key_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<OperationReduction>> {
         let space = match self.ty(owner)? {
             dir::Type::Reference(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,
         };
-        let lookup = answer!(self.lookup_member(origin, origin.module(), owner, space, key)?);
+        let lookup = answer!(self.body(origin.module()).lookup_member(
+            origin,
+            origin.module(),
+            owner,
+            space,
+            key
+        )?);
 
         match lookup {
             // a field contributes its value type
-            MemberLookup::Field(ty) => Ok(Answer::Ready(Some(ty))),
+            MemberLookup::Field(ty) => Ok(Answer::Ready(OperationReduction::Projected(ty))),
 
             // a matching member contributes its static value or callable value type
             MemberLookup::Found(candidates) => match candidates.as_slice() {
                 [candidate] => {
                     if let Some(written) = candidate.value_type {
-                        return Ok(Answer::Ready(Some(written)));
+                        return Ok(Answer::Ready(OperationReduction::Projected(written)));
                     }
                     if let Some(value) = candidate.value {
                         let ty = self.intern_type(origin.module(), dir::Type::Static(value))?;
 
-                        return Ok(Answer::Ready(Some(ty)));
+                        return Ok(Answer::Ready(OperationReduction::Projected(ty)));
                     }
 
-                    Ok(Answer::Ready(Some(candidate.ty)))
+                    Ok(Answer::Ready(OperationReduction::Projected(candidate.ty)))
                 }
-                _ => Ok(Answer::Ready(None)),
+                // overloaded members stay symbolic
+                _ => Ok(Answer::Ready(OperationReduction::Rigid)),
             },
 
-            // missing members leave the operation symbolic
-            MemberLookup::Missing => Ok(Answer::Ready(None)),
+            // missing members reject the key on the closed receiver
+            MemberLookup::Missing => Ok(Answer::Ready(OperationReduction::Invalid(
+                InvalidOperation::IndexKey {
+                    receiver: owner,
+                    key: key_type,
+                },
+            ))),
         }
     }
 
-    /// Reduce one indexed access type with a closed key.
-    pub(super) fn reduce_index(
+    /// Reduce one indexed access type over its reduced operands.
+    pub(in crate::check) fn reduce_index(
         &mut self,
         origin: Origin,
         index: &dir::IndexType,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Answer<OperationReduction>> {
         let left = answer!(self.reduce_type_head(origin, index.left)?);
         let key = answer!(self.reduce_type_head(origin, index.index)?);
+
+        // poisoned operands project their poison
+        if self.ty(left)?.is_error() || self.ty(key)?.is_error() {
+            let error = self.intern_type(origin.module(), dir::Type::Error)?;
+
+            return Ok(Answer::Ready(OperationReduction::Projected(error)));
+        }
 
         // union keys distribute their projections
         if let dir::Type::Union(union) = self.ty(key)? {
             let keys =
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(key.module_id, union.elements)?);
-            let Some(union) =
-                answer!(
-                    self.reduce_distributed_operation(origin, keys, |state, key| {
-                        state.reduce_index(
-                            origin,
-                            &dir::IndexType {
-                                left: index.left,
-                                index: key,
-                            },
-                        )
-                    })?
-                )
-            else {
-                return Ok(Answer::Ready(None));
-            };
 
-            return Ok(Answer::Ready(Some(union)));
+            return self
+                .reduce_distributed_index(origin, keys, |key| dir::IndexType { left, index: key });
         }
 
-        // project string keys from static declaration references
-        if matches!(self.ty(left)?, dir::Type::Reference(_))
-            && let dir::Type::Literal(dir::ScalarLiteral::String(name)) = self.ty(key)?
-        {
-            let key = dir::StaticKey::Name(name);
+        // union bases distribute their projections
+        if let dir::Type::Union(union) = self.ty(left)? {
+            let bases =
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(left.module_id, union.elements)?);
 
-            return self.reduce_static_member_projection(origin, left, key);
+            return self.reduce_distributed_index(origin, bases, |base| dir::IndexType {
+                left: base,
+                index: key,
+            });
+        }
+
+        // memory forms project through their payload
+        if let dir::Type::Form(form) = self.ty(left)? {
+            return self.reduce_index(
+                origin,
+                &dir::IndexType {
+                    left: form.value,
+                    index: key,
+                },
+            );
+        }
+
+        // rigid operands keep the operation symbolic
+        if self.is_rigid_index_operand(left)? || self.is_rigid_index_operand(key)? {
+            return Ok(Answer::Ready(OperationReduction::Rigid));
+        }
+
+        // project static keys from member-bearing receivers
+        let static_key = self.static_key_from_type(key)?;
+        let key_domain = self.index_key_domain(key)?;
+        if let Some(static_key) = static_key
+            && matches!(
+                self.ty(left)?,
+                dir::Type::Reference(_) | dir::Type::Instance(_) | dir::Type::Refined(_)
+            )
+        {
+            return self.reduce_static_member_projection(origin, left, static_key, key);
         }
 
         // project closed structural keys
-        let projected = match (self.ty(left)?, self.ty(key)?) {
-            (dir::Type::Shape(shape), dir::Type::Literal(dir::ScalarLiteral::String(name))) => {
-                let key = dir::StaticKey::Name(name);
-
-                self.shape_fields(left.module_id, shape.fields)?
+        let projected = match (self.ty(left)?, static_key) {
+            (dir::Type::Shape(shape), Some(static_key)) => {
+                let field = self
+                    .shape_fields(left.module_id, shape.fields)?
                     .iter()
-                    .find(|field| field.key == key)
-                    .map(|field| field.ty)
-            }
-            (dir::Type::Tuple(tuple), dir::Type::Literal(dir::ScalarLiteral::Integer(value))) => {
-                let elements = self.tuple_elements(left.module_id, tuple.elements)?;
+                    .find(|field| field.key == static_key)
+                    .copied();
 
-                usize::try_from(value)
-                    .ok()
-                    .and_then(|index| elements.get(index))
-                    .map(|element| element.ty)
+                // optional fields read as their value or undefined
+                match field {
+                    Some(field) if field.is_optional => {
+                        let module = origin.module();
+                        let undefined = self.intern_type(module, dir::Type::Undefined)?;
+
+                        Some(self.normalized_union_type(module, vec![field.ty, undefined])?)
+                    }
+                    Some(field) => Some(field.ty),
+                    // keyed index signatures cover missing exact fields
+                    None => {
+                        answer!(self.shape_signature_projection(origin, left, &shape, key)?)
+                    }
+                }
             }
-            (dir::Type::Array(array), dir::Type::Literal(dir::ScalarLiteral::Integer(_))) => {
+            // primitive keys project matching index signatures
+            (dir::Type::Shape(shape), None) => {
+                answer!(self.shape_signature_projection(origin, left, &shape, key)?)
+            }
+            (dir::Type::Tuple(tuple), Some(dir::StaticKey::Index(index))) => self
+                .tuple_elements(left.module_id, tuple.elements)?
+                .get(index)
+                .map(|element| element.ty),
+            (dir::Type::Array(array), Some(dir::StaticKey::Index(_))) => Some(array.element),
+            (dir::Type::FixedArray(array), Some(dir::StaticKey::Index(_))) => Some(array.element),
+            // integer-domain keys project every positional element
+            (dir::Type::Array(array), None) if key_domain == Some(KeyDomain::Usize) => {
                 Some(array.element)
+            }
+            (dir::Type::FixedArray(array), None) if key_domain == Some(KeyDomain::Usize) => {
+                Some(array.element)
+            }
+            (dir::Type::Tuple(tuple), None) if key_domain == Some(KeyDomain::Usize) => {
+                let elements = self
+                    .tuple_elements(left.module_id, tuple.elements)?
+                    .iter()
+                    .map(|element| element.ty)
+                    .collect::<Vec<_>>();
+
+                Some(self.normalized_union_type(origin.module(), elements)?)
+            }
+            // unprojected member-bearing receivers stay symbolic
+            (
+                dir::Type::Instance(_)
+                | dir::Type::Reference(_)
+                | dir::Type::Refined(_)
+                | dir::Type::Intersection(_),
+                _,
+            ) => return Ok(Answer::Ready(OperationReduction::Rigid)),
+            // closed non-indexable receivers reject the operation
+            (dir::Type::Tuple(_) | dir::Type::Array(_) | dir::Type::FixedArray(_), _) => None,
+            _ => {
+                return Ok(Answer::Ready(OperationReduction::Invalid(
+                    InvalidOperation::IndexReceiver { receiver: left },
+                )));
+            }
+        };
+
+        match projected {
+            Some(ty) => Ok(Answer::Ready(OperationReduction::Projected(ty))),
+            None => Ok(Answer::Ready(OperationReduction::Invalid(
+                InvalidOperation::IndexKey {
+                    receiver: left,
+                    key,
+                },
+            ))),
+        }
+    }
+
+    /// Reduce one indexed access distributed over union operands.
+    fn reduce_distributed_index(
+        &mut self,
+        origin: Origin,
+        elements: SmallVec<[dir::GlobalTypeId; 4]>,
+        index: impl Fn(dir::GlobalTypeId) -> dir::IndexType,
+    ) -> CompilerResult<Answer<OperationReduction>> {
+        let mut projected = Vec::with_capacity(elements.len());
+
+        // project each arm independently
+        for element in elements {
+            match answer!(self.reduce_index(origin, &index(element))?) {
+                OperationReduction::Projected(ty) => projected.push(ty),
+                other => return Ok(Answer::Ready(other)),
+            }
+        }
+        let union = self.normalized_union_type(origin.module(), projected)?;
+
+        Ok(Answer::Ready(OperationReduction::Projected(union)))
+    }
+
+    /// Project one key through a shape's index signatures.
+    fn shape_signature_projection(
+        &mut self,
+        origin: Origin,
+        shape_id: dir::GlobalTypeId,
+        shape: &dir::ShapeType,
+        key: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let Some(domain) = self.index_key_domain(key)? else {
+            return Ok(Answer::Ready(None));
+        };
+        let signatures = self
+            .shape_index_signatures(shape_id.module_id, shape.index_signatures)?
+            .to_vec();
+
+        // match the first signature covering the key domain
+        for signature in signatures {
+            let signature_key = answer!(self.reduce_type_head(origin, signature.key_type)?);
+            let Some(signature_domain) = self.index_key_domain(signature_key)? else {
+                continue;
+            };
+            // string signatures accept numeric property names too
+            let covers = signature_domain == domain
+                || (signature_domain == KeyDomain::String && domain == KeyDomain::Usize);
+            if covers {
+                return Ok(Answer::Ready(Some(signature.value_type)));
+            }
+        }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Return the broad key domain of one closed key type.
+    fn index_key_domain(&self, key: dir::GlobalTypeId) -> CompilerResult<Option<KeyDomain>> {
+        if let Some(static_key) = self.static_key_from_type(key)? {
+            return Ok(Some(KeyDomain::from_key(static_key)));
+        }
+
+        let domain = match self.ty(key)? {
+            dir::Type::Primitive(dir::PrimitiveType::String) => Some(KeyDomain::String),
+            dir::Type::Primitive(dir::PrimitiveType::Integer(_)) => Some(KeyDomain::Usize),
+            dir::Type::Primitive(dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol) => {
+                Some(KeyDomain::Symbol)
             }
             _ => None,
         };
 
-        Ok(Answer::Ready(projected))
+        Ok(domain)
+    }
+
+    /// Return whether one reduced index operand carries rigid material.
+    fn is_rigid_index_operand(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        Ok(matches!(
+            self.ty(ty)?,
+            dir::Type::Variable(_)
+                | dir::Type::Parameter(_)
+                | dir::Type::This
+                | dir::Type::Member(_)
+                | dir::Type::Operation(_)
+        ))
     }
 
     /// Reduce keyof over one closed type to a key literal union.
@@ -352,7 +550,7 @@ impl CheckState<'_> {
                 dir::MemberSpace::Instance,
             )?));
 
-            if let Some(definition) = self.definition(symbol) {
+            if let Some(definition) = self.definition(symbol)? {
                 for heritage in definition.bases() {
                     pending.push(heritage.symbol);
                 }
@@ -370,7 +568,7 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
     ) -> CompilerResult<Answer<KeySet>> {
         let mut keys = KeySet::default();
-        let Some(definition) = self.definition(symbol) else {
+        let Some(definition) = self.definition(symbol)? else {
             return Ok(Answer::Ready(keys));
         };
         let mut signatures = SmallVec::<[dir::GlobalTypeId; 2]>::new();
@@ -386,36 +584,14 @@ impl CheckState<'_> {
 
             // index signatures contribute key domains rather than exact keys
             if let dir::DefinitionMember::IndexSignature(signature) = member {
-                signatures.push(signature.ty);
+                signatures.push(signature.key_type);
             }
         }
-        for signature in signatures {
-            answer!(self.insert_index_signature_type(origin, &mut keys, signature)?);
+        for key_type in signatures {
+            answer!(self.insert_index_key_type(origin, &mut keys, key_type)?);
         }
 
         Ok(Answer::Ready(keys))
-    }
-
-    /// Insert the key domain carried by one index-signature function type.
-    fn insert_index_signature_type(
-        &mut self,
-        origin: Origin,
-        keys: &mut KeySet,
-        signature: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        let signature_id = answer!(self.reduce_type_head(origin, signature)?);
-        let dir::Type::FunctionSignature(signature) = self.ty(signature_id)? else {
-            return Ok(Answer::Ready(()));
-        };
-        let Some(parameter) = self
-            .signature_parameters(signature_id.module_id, signature.parameters)?
-            .first()
-        else {
-            return Ok(Answer::Ready(()));
-        };
-        let parameter_ty = parameter.ty;
-
-        self.insert_index_key_type(origin, keys, parameter_ty)
     }
 
     /// Insert the key domain represented by one closed key type.
@@ -543,10 +719,12 @@ impl CheckState<'_> {
         origin: Origin,
         mapped: &dir::MappedType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let homomorphic = match self.ty(mapped.parameter.constraint)? {
-            dir::Type::Operation(dir::TypeOperation::KeyOf(unary)) => Some(unary.target),
-            _ => None,
-        };
+        let modifiers_type = mapped.parameter.modifiers_type.or(
+            match self.operation_head(mapped.parameter.constraint)? {
+                Some(dir::TypeOperation::KeyOf(unary)) => Some(unary.target),
+                _ => None,
+            },
+        );
 
         // close the key source first
         let closed = answer!(self.reduce_type_head(origin, mapped.parameter.constraint)?);
@@ -556,32 +734,44 @@ impl CheckState<'_> {
                 SmallVec::<[_; 8]>::from_slice(self.type_ids(closed.module_id, union.elements)?)
             }
             dir::Type::Never => SmallVec::new(),
-            dir::Type::Literal(_) | dir::Type::Primitive(_) => {
-                let mut single = SmallVec::new();
-                single.push(closed);
-
-                single
-            }
-            _ if self.static_key_from_type(closed)?.is_some() => {
-                let mut single = SmallVec::new();
-                single.push(closed);
-
-                single
-            }
+            dir::Type::Literal(_) | dir::Type::Primitive(_) => SmallVec::from_slice(&[closed]),
+            _ if self.static_key_from_type(closed)?.is_some() => SmallVec::from_slice(&[closed]),
             _ => return Ok(Answer::Ready(None)),
         };
 
-        // close the homomorphic source for modifier carry
-        let source_shape = match homomorphic {
+        // close the modifier source for the carry
+        let source_fields = match modifiers_type {
             Some(target) => {
                 let target = answer!(self.reduce_type_head(origin, target)?);
 
                 match self.ty(target)? {
-                    dir::Type::Shape(shape) => Some((target.module_id, shape)),
+                    dir::Type::Shape(shape) => {
+                        Some(self.shape_fields(target.module_id, shape.fields)?.to_vec())
+                    }
+                    dir::Type::Instance(instance) => {
+                        answer!(self.interface_instance_fields(
+                            origin,
+                            target.module_id,
+                            &instance,
+                            target
+                        )?)
+                    }
                     _ => None,
                 }
             }
             None => None,
+        };
+
+        // top-level T[K] values project declared field types, not reads
+        let is_identity = match (self.operation_head(mapped.value)?, modifiers_type) {
+            (Some(dir::TypeOperation::Index(index)), Some(target)) => {
+                (index.left == target || Some(index.left) == mapped.parameter.modifiers_type)
+                    && matches!(
+                        self.ty(index.index)?,
+                        dir::Type::Parameter(parameter) if parameter == mapped.parameter.parameter
+                    )
+            }
+            _ => false,
         };
 
         // project each key into one field
@@ -594,13 +784,25 @@ impl CheckState<'_> {
             substitution.parameters.push(mapped.parameter.parameter);
             substitution.arguments.push(key);
 
-            let value = self.substitute_type(module, mapped.value, &substitution)?;
-            let value = match self.reduce_type_head(origin, value)? {
-                Answer::Ready(value) => value,
-                Answer::Pending(dependencies) => {
-                    blockers.extend(dependencies);
+            let key_field = self.static_key_from_type(key)?;
+            let carried = match (&source_fields, key_field) {
+                (Some(fields), Some(key)) => fields.iter().find(|field| field.key == key).copied(),
+                _ => None,
+            };
 
-                    continue;
+            // identity projections carry the declared field type
+            let value = match (is_identity, carried) {
+                (true, Some(field)) => field.ty,
+                _ => {
+                    let value = self.substitute_type(module, mapped.value, &substitution)?;
+                    match self.reduce_type_head(origin, value)? {
+                        Answer::Ready(value) => value,
+                        Answer::Pending(dependencies) => {
+                            blockers.extend(dependencies);
+
+                            continue;
+                        }
+                    }
                 }
             };
 
@@ -620,15 +822,6 @@ impl CheckState<'_> {
                 None => key,
             };
 
-            let key_field = self.static_key_from_type(key)?;
-            let carried = match (&source_shape, key_field) {
-                (Some((shape_module, shape)), Some(key)) => self
-                    .shape_fields(*shape_module, shape.fields)?
-                    .iter()
-                    .find(|field| field.key == key)
-                    .copied(),
-                _ => None,
-            };
             let is_optional = match mapped.modifiers.optional {
                 dir::MappedTypeModifier::Present | dir::MappedTypeModifier::Add => true,
                 dir::MappedTypeModifier::Remove => false,

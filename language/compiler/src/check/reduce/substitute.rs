@@ -1,6 +1,6 @@
+use destack_core::{FxIndexMap, FxIndexSet, ensure_sufficient_stack};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -160,14 +160,31 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // omitted explicit parameters are ordinary inference variables
+            // omitted explicit parameters are ordinary inference variables;
+            //  plain parameters widen fresh literals, const parameters keep
+            //  them, and primitive constraints keep literals inside the family
             if is_explicit {
+                let primitive_constraint = match binding.constraint {
+                    Some(constraint) => matches!(
+                        self.ty(self.settled_root(constraint)?)?,
+                        dir::Type::Primitive(_)
+                    ),
+                    None => false,
+                };
+                let widening = match binding.is_const || primitive_constraint {
+                    true => Widening::Preserve,
+                    false => Widening::WidenWrites,
+                };
                 let variable = self.allocate_variable(
-                    origin.module(),
                     origin,
-                    Widening::Preserve,
-                    VariableRole::Regular,
+                    widening,
+                    VariableRole::Instantiation { parameter },
                 );
+                // declared defaults complete the parameter when inference stays dry
+                if let Some(default) = binding.default {
+                    let default = self.substitute_type(origin.module(), default, &substitution)?;
+                    self.set_variable_default(variable, default)?;
+                }
                 let argument = self.variable_type(variable)?;
                 substitution.parameters.push(parameter);
                 substitution.arguments.push(argument);
@@ -259,47 +276,7 @@ impl SubstitutionRule<'_> {
 }
 
 impl CheckState<'_> {
-    /// Collect the unsolved variables one type transitively references.
-    pub(in crate::check) fn type_variables(
-        &self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
-        let mut variables = SmallVec::new();
-        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        let mut visited = indexmap::IndexSet::new();
-        pending.push(id);
-
-        // scan the type graph without following symbol references;
-        // solutions may be cyclic, so every id visits exactly once
-        while let Some(id) = pending.pop() {
-            if !visited.insert(id) {
-                continue;
-            }
-            let ty = self.ty(id)?;
-
-            // follow solved variables and collect open variables once
-            if let dir::Type::Variable(variable) = ty {
-                if let Some(solution) = self.solver.solution(variable)? {
-                    pending.push(solution);
-                } else if let Some(variable) = self.open_variable(variable)?
-                    && !variables.contains(&variable)
-                {
-                    variables.push(variable);
-                }
-
-                continue;
-            }
-
-            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
-        }
-
-        Ok(variables)
-    }
-
     /// Substitute one type graph by replacing matching leaves.
-    /// Returns the same id when nothing changed.
-    /// Source payload lists resolve in each source type's own module;
-    /// rebuilt composites intern into the writable target module.
     fn substitute_graph(
         &mut self,
         target: ModuleId,
@@ -307,9 +284,9 @@ impl CheckState<'_> {
         rule: SubstitutionRule<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // mark every affected path once, then rebuild along the marks
-        let mut marks = IndexMap::new();
+        let mut marks = FxIndexMap::default();
         self.mark_substitutions(id, rule, &mut marks)?;
-        let mut substituting = IndexSet::new();
+        let mut substituting = FxIndexSet::default();
 
         self.substitute_guarded(target, id, rule, &marks, &mut substituting)
     }
@@ -351,7 +328,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        let mut visited = IndexSet::new();
+        let mut visited = FxIndexSet::default();
         pending.push(id);
 
         // scan each reachable type once
@@ -363,7 +340,10 @@ impl CheckState<'_> {
 
             // stop when either operation or stdlib NoInfer appears
             let ty = self.ty(id)?;
-            if matches!(ty, dir::Type::Operation(dir::TypeOperation::NoInfer(_))) {
+            if matches!(
+                self.operation_head(id)?,
+                Some(dir::TypeOperation::NoInfer(_))
+            ) {
                 return Ok(true);
             }
             if let dir::Type::Instance(instance) = ty
@@ -410,12 +390,11 @@ impl CheckState<'_> {
     }
 
     /// Mark whether each reachable id contains an affected leaf.
-    /// Cyclic graphs mark conservatively unchanged on re-entry.
     fn mark_substitutions(
         &self,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        marks: &mut IndexMap<dir::GlobalTypeId, bool>,
+        marks: &mut FxIndexMap<dir::GlobalTypeId, bool>,
     ) -> CompilerResult<bool> {
         // replay marks and break cycles
         if let Some(known) = marks.get(&id) {
@@ -433,13 +412,15 @@ impl CheckState<'_> {
             {
                 true
             }
-            (
-                dir::Type::Operation(dir::TypeOperation::Infer(dir::InferType {
+            (dir::Type::Operation(operation), _)
+                if let dir::TypeOperation::Infer(dir::InferType {
                     symbol: Some(symbol),
                     ..
-                })),
-                _,
-            ) if rule.infer_capture(symbol).is_some() => true,
+                }) = self.type_operation(id.module_id, operation)?
+                    && rule.infer_capture(symbol).is_some() =>
+            {
+                true
+            }
             (dir::Type::Parameter(parameter), SubstitutionRule::Substitute { .. }) => {
                 rule.substituted(parameter).is_some()
             }
@@ -448,10 +429,14 @@ impl CheckState<'_> {
                 Some(solution) => self.mark_substitutions(solution, rule, marks)?,
                 None => false,
             },
-            (
-                dir::Type::Operation(dir::TypeOperation::NoInfer(_)),
-                SubstitutionRule::EraseNoInfer,
-            ) => true,
+            (dir::Type::Operation(operation), SubstitutionRule::EraseNoInfer)
+                if matches!(
+                    self.type_operation(id.module_id, operation)?,
+                    dir::TypeOperation::NoInfer(_)
+                ) =>
+            {
+                true
+            }
             (dir::Type::Instance(instance), SubstitutionRule::EraseNoInfer)
                 if self
                     .environment
@@ -483,16 +468,15 @@ impl CheckState<'_> {
         target: ModuleId,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        marks: &IndexMap<dir::GlobalTypeId, bool>,
-        substituting: &mut IndexSet<dir::GlobalTypeId>,
+        marks: &FxIndexMap<dir::GlobalTypeId, bool>,
+        substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // break substitution cycles conservatively
         if !substituting.insert(id) {
             return Ok(id);
         }
-        let substituted = destack_core::ensure_sufficient_stack(|| {
-            self.substitute_id(target, id, rule, marks, substituting)
-        });
+        let substituted =
+            ensure_sufficient_stack(|| self.substitute_id(target, id, rule, marks, substituting));
         substituting.swap_remove(&id);
 
         substituted
@@ -504,8 +488,8 @@ impl CheckState<'_> {
         target: ModuleId,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        marks: &IndexMap<dir::GlobalTypeId, bool>,
-        substituting: &mut IndexSet<dir::GlobalTypeId>,
+        marks: &FxIndexMap<dir::GlobalTypeId, bool>,
+        substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // replace one matched type id
         if let SubstitutionRule::Replace { from, to } = rule
@@ -523,10 +507,10 @@ impl CheckState<'_> {
         }
 
         // substitute one direct conditional-infer binder
-        if let dir::Type::Operation(dir::TypeOperation::Infer(dir::InferType {
+        if let Some(dir::TypeOperation::Infer(dir::InferType {
             symbol: Some(symbol),
             ..
-        })) = self.ty(id)?
+        })) = self.operation_head(id)?
             && let Some(replacement) = rule.infer_capture(symbol)
         {
             return Ok(replacement);
@@ -552,7 +536,12 @@ impl CheckState<'_> {
         // erase one inference barrier after the owning signature closes inference
         if matches!(rule, SubstitutionRule::EraseNoInfer) {
             let unwrapped = match self.ty(id)? {
-                dir::Type::Operation(dir::TypeOperation::NoInfer(unary)) => Some(unary.target),
+                dir::Type::Operation(operation)
+                    if let dir::TypeOperation::NoInfer(unary) =
+                        self.type_operation(id.module_id, operation)? =>
+                {
+                    Some(unary.target)
+                }
                 dir::Type::Instance(instance)
                     if self
                         .environment
@@ -578,17 +567,15 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(variable) = variable {
-            let solution = self.solver.solution(variable)?;
-
-            return match (solution, rule) {
-                (Some(solution), _) => {
+            return match self.solver.solution(variable)? {
+                Some(solution) => {
                     // solutions mark separately from their variable entries
-                    let mut marks = IndexMap::new();
+                    let mut marks = FxIndexMap::default();
                     self.mark_substitutions(solution, rule, &mut marks)?;
 
                     self.substitute_guarded(target, solution, rule, &marks, substituting)
                 }
-                (None, _) => Ok(id),
+                None => Ok(id),
             };
         }
 
@@ -612,8 +599,8 @@ impl CheckState<'_> {
         target: ModuleId,
         ty: dir::Type,
         rule: SubstitutionRule<'_>,
-        marks: &IndexMap<dir::GlobalTypeId, bool>,
-        substituting: &mut IndexSet<dir::GlobalTypeId>,
+        marks: &FxIndexMap<dir::GlobalTypeId, bool>,
+        substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
         self.map_type_children(source, target, ty, &mut |state, child| {
             state.substitute_guarded(target, child, rule, marks, substituting)

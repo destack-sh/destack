@@ -17,7 +17,8 @@ impl CheckState<'_> {
         // narrow newtypes through their backing representation
         let mut source = source;
         if matches!(self.ty(source)?, dir::Type::Instance(_))
-            && let Some(backing) = answer!(self.newtype_backing(origin, source)?)
+            && let Some(backing) =
+                answer!(self.body(origin.module()).newtype_backing(origin, source)?)
         {
             source = answer!(self.reduce_type_head(origin, backing)?);
         }
@@ -26,13 +27,13 @@ impl CheckState<'_> {
         if matches!(self.ty(source)?, dir::Type::Form(_)) {
             let value = answer!(self.value_beneath_forms(origin, source)?);
             let target_value = answer!(self.value_beneath_forms(origin, target)?);
-            let operation = self.intern_type(
+            let operation = self.intern_operation(
                 origin.module(),
-                dir::Type::Operation(dir::TypeOperation::Narrow(dir::NarrowType {
+                dir::TypeOperation::Narrow(dir::NarrowType {
                     source: value,
                     target: target_value,
                     is_positive: narrow.is_positive,
-                })),
+                }),
             )?;
             let narrowed = answer!(self.reduce_type_head(origin, operation)?);
             if matches!(self.ty(narrowed)?, dir::Type::Operation(_)) {
@@ -53,15 +54,35 @@ impl CheckState<'_> {
             }
             dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
             // stuck operations wait for their blocking variables
-            dir::Type::Operation(_) => {
+            dir::Type::Operation(operation) => {
                 let variables = self.type_variables(source)?;
                 if variables.is_empty() {
-                    return Ok(Answer::Ready(None));
+                    // closed operations expand before narrowing distributes
+                    let expanded = answer!(self.reduce_type(origin, source)?);
+                    if expanded != source {
+                        return self.reduce_narrow(
+                            origin,
+                            dir::NarrowType {
+                                source: expanded,
+                                target: narrow.target,
+                                is_positive: narrow.is_positive,
+                            },
+                        );
+                    }
+                    // irreducible template patterns narrow like single arms
+                    if matches!(
+                        self.type_operation(source.module_id, operation)?,
+                        dir::TypeOperation::TemplateLiteral(_)
+                    ) {
+                        SmallVec::from_slice(&[source])
+                    } else {
+                        return Ok(Answer::Ready(None));
+                    }
+                } else {
+                    return Ok(Answer::pending(
+                        variables.into_iter().map(Dependency::Variable),
+                    ));
                 }
-
-                return Ok(Answer::pending(
-                    variables.into_iter().map(Dependency::Variable),
-                ));
             }
             _ => SmallVec::from_slice(&[source]),
         };
@@ -120,8 +141,9 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(narrowed));
         }
 
-        // exact matches keep or remove the source arm
-        if answer!(self.decide_relation(origin, Relation::Assignable, source, target)?) {
+        // exact matches keep or remove the source arm; narrowing asks a
+        //  constraint question, so reads stay per use and never move values
+        if answer!(self.decide_relation(origin, Relation::Satisfies, source, target)?) {
             let narrowed = if is_positive {
                 source
             } else {
@@ -133,7 +155,7 @@ impl CheckState<'_> {
 
         // top-like source arms take the target on matching branches
         let is_top_like =
-            answer!(self.decide_relation(origin, Relation::Assignable, target, source)?);
+            answer!(self.decide_relation(origin, Relation::Satisfies, target, source)?);
         let can_preserve_intersection = self.can_preserve_intersection_narrowing(source, target)?;
         let narrowed = if is_positive && is_top_like {
             target
