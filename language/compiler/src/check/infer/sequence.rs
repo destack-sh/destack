@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CheckAttempt, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, CauseId, CheckAttempt, FlowSite, PlaceUse, Relation, ValueUse, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -32,7 +32,7 @@ impl BodyState<'_, '_> {
         expressions: &[dir::LocalNodeId<dir::Expression>],
         target: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
@@ -40,7 +40,7 @@ impl BodyState<'_, '_> {
             Some(value) => {
                 let value_site = self.node_site(value.into_global_any(module))?;
                 let check =
-                    answer!(self.check_node_expected(value_site, target, relation, origin, use_)?);
+                    answer!(self.check_node_expected(value_site, target, relation, cause, use_)?);
                 let value_type = answer!(self.node_type_at(value_site)?);
                 self.commit_node_type(site.node, value_type)?;
 
@@ -50,7 +50,7 @@ impl BodyState<'_, '_> {
                 let void = self.intern_type(module, dir::Type::Void)?;
                 self.commit_node_type(site.node, void)?;
                 let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
                 check
             }

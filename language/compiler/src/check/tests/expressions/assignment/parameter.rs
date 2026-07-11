@@ -76,6 +76,7 @@ function bump(value: int32): void {
         r#"
 /// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=3 column=13 span="\"no\"" line_source="value = \"no\";"
+/// @diagnostic.related line=3 column=5 span="value" line_source="value = \"no\";" message="expected due to the type of this target"
 "#,
     );
 }

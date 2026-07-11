@@ -118,6 +118,7 @@ const reds: "red"[] = values;
         r#"
 /// @diagnostic.error code=EC209 message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
 /// @diagnostic.label line=6 column=31 span="\"green\"" line_source="const picked = choose(values, \"green\");"
+/// @diagnostic.related line=6 column=16 span="choose(values, \"green\")" line_source="const picked = choose(values, \"green\");" message="in this call"
 "#,
     );
 }
@@ -189,6 +190,8 @@ const reds: "red"[] = values;
         r#"
 /// @diagnostic.error code=EC209 message="argument of type 'Array<\"green\">' is not assignable to parameter of type 'Array<\"red\">'"
 /// @diagnostic.label line=6 column=27 span="[\"green\"]" line_source="const kept = keep(values, [\"green\"]);"
+/// @diagnostic.related line=6 column=14 span="keep(values, [\"green\"])" line_source="const kept = keep(values, [\"green\"]);" message="in this call"
+/// @diagnostic.note message="the mismatch is in the element type: expected '\"red\"', found '\"green\"'"
 "#,
     );
 }
@@ -304,6 +307,7 @@ choose(["red", "blue"], "green");
         r#"
 /// @diagnostic.error code=EC209 message="argument of type '\"green\"' is not assignable to parameter of type '\"red\" | \"blue\" | undefined'"
 /// @diagnostic.label line=4 column=25 span="\"green\"" line_source="choose([\"red\", \"blue\"], \"green\");"
+/// @diagnostic.related line=4 column=1 span="choose([\"red\", \"blue\"], \"green\")" line_source="choose([\"red\", \"blue\"], \"green\");" message="in this call"
 "#,
     );
 }

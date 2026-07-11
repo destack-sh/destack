@@ -239,6 +239,7 @@ try {
         r#"
 /// @diagnostic.error code=EC437 message="catch pattern must be irrefutable: '\"denied\"' is not covered"
 /// @diagnostic.label line=6 column=10 span="\"missing\"" line_source="} catch (\"missing\") {"
+/// @diagnostic.help message="catch bindings must handle every failure value"
 "#,
     );
 }

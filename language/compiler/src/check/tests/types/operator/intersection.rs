@@ -153,6 +153,7 @@ const value: Value = { value: "ok" };
         r#"
 /// @diagnostic.error code=EC200 message="type '\"ok\"' is not assignable to type 'int32 & string'"
 /// @diagnostic.label line=6 column=31 span="\"ok\"" line_source="const value: Value = { value: \"ok\" };"
+/// @diagnostic.note message="the mismatch is in field 'value'"
 "#,
     );
 }
@@ -245,6 +246,7 @@ let value: Both = "ok";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"ok\"' is not assignable to type 'Both'"
 /// @diagnostic.label line=4 column=19 span="\"ok\"" line_source="let value: Both = \"ok\";"
+/// @diagnostic.note message="'Both' reduces to 'string & int32'"
 "#,
     );
 }
@@ -280,6 +282,7 @@ let value: Value = ();
         r#"
 /// @diagnostic.error code=EC200 message="type '()' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="()" line_source="let value: Value = ();"
+/// @diagnostic.note message="'Value' reduces to 'void & never'"
 "#,
     );
 }

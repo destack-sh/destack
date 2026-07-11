@@ -4,10 +4,10 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    BoundSide, Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency,
-    ObligationEntry, ObligationId, ObligationTable, Origin, OriginArena, OriginId, RelationCache,
-    RelationCacheSnapshot, Task, TypeBound, Variable, VariableRole, VariableTable, Widening,
-    WorkQueue,
+    BoundSide, Cause, CauseArena, CauseId, Constraint, ConstraintId, ConstraintState,
+    ConstraintTable, Dependency, ObligationEntry, ObligationId, ObligationTable, Origin,
+    OriginArena, OriginId, RelationCache, RelationCacheSnapshot, Task, TypeBound, Variable,
+    VariableRole, VariableTable, Widening, WorkQueue,
 };
 
 /// Solver state for one checked component.
@@ -25,6 +25,8 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) obligations: ObligationTable,
     /// Interned work origins.
     pub(in crate::check) origins: OriginArena,
+    /// Interned judgment causes.
+    pub(in crate::check) causes: CauseArena,
     /// Tasks parked on unresolved dependencies.
     waiters: FxIndexMap<Dependency, SmallVec<[Task; 2]>>,
     /// Undo entries recorded by active snapshots.
@@ -100,6 +102,7 @@ impl Solver {
             relations: RelationCache::new(),
             obligations: ObligationTable::new(),
             origins: OriginArena::default(),
+            causes: CauseArena::default(),
             waiters: FxIndexMap::default(),
             undo: Vec::new(),
             snapshot_depth: 0,
@@ -185,6 +188,16 @@ impl Solver {
         self.origins.intern(origin)
     }
 
+    /// Intern one judgment cause.
+    pub(in crate::check) fn intern_cause(&mut self, cause: Cause) -> CauseId {
+        self.causes.intern(cause)
+    }
+
+    /// Return one interned judgment cause.
+    pub(in crate::check) fn cause(&self, id: CauseId) -> Cause {
+        self.causes.get(id)
+    }
+
     /// Return one interned work origin.
     pub(in crate::check) fn origin(&self, id: OriginId) -> Origin {
         self.origins.get(id)
@@ -265,7 +278,7 @@ impl Solver {
     }
 
     /// Return the representative for one variable.
-    pub(super) fn representative(
+    pub(in crate::check) fn representative(
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<dir::TypeVariableId> {

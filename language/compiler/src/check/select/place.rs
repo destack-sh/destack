@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::{SmallVec, smallvec};
 
 use crate::check::{
-    Answer, BodyState, Dependency, FlowSite, MemberCandidate, MemberLookup, Origin, PlaceUse,
-    WriteTarget, answer,
+    Answer, BodyState, Cause, CauseKind, Dependency, FlowSite, MemberCandidate, MemberLookup,
+    Origin, PlaceUse, WriteTarget, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -184,8 +184,10 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(None));
                 };
                 let key_scope = self.origin_scope(origin)?;
-                let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
-                if let Some(constraint) = selection.key_constraint(key_origin, index) {
+                let anchored = Origin::Node(index_node, key_scope);
+                let key_origin = self.intern_origin(anchored);
+                let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
+                if let Some(constraint) = selection.key_constraint(key_origin, cause, index) {
                     self.push_constraint(constraint);
                 }
                 let ty = selection.ty();

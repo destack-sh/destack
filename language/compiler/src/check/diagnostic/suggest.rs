@@ -1,9 +1,10 @@
-use destack_core::closest_string;
+use destack_core::{NameMatch, find_best_match};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::CheckState;
-use crate::{CompilerResult, diagnostic_suggestion_distance};
+use crate::{CompilerResult, DiagnosticAnchor, diagnostic_suggestion_distance, rename_suggestion};
+use destack_source::DiagnosticSuggestion;
 
 impl CheckState<'_> {
     /// Return the visible member key closest to one missing key.
@@ -11,10 +12,10 @@ impl CheckState<'_> {
         &mut self,
         receiver: dir::GlobalTypeId,
         key: &str,
-    ) -> CompilerResult<Option<String>> {
+    ) -> CompilerResult<Option<NameMatch<String>>> {
         let keys = self.visible_member_keys(receiver)?;
 
-        Ok(closest_string(
+        Ok(find_best_match(
             key,
             keys,
             diagnostic_suggestion_distance(key),
@@ -37,13 +38,63 @@ impl CheckState<'_> {
         label
     }
 
+    /// Return one imported module declaring an unresolved name.
+    pub(in crate::check) fn declaring_sibling_module(
+        &self,
+        module: ModuleId,
+        path: &dir::Path,
+    ) -> Option<ModuleId> {
+        let [name] = path.segments.as_slice() else {
+            return None;
+        };
+        let name = self.strings().get(*name);
+
+        // collect the modules this file already imports from
+        let mut imported = Vec::new();
+        for target in self.modules.get(&module)?.resolved.imports.targets() {
+            let target = target.module();
+            if target != module && !imported.contains(&target) {
+                imported.push(target);
+            }
+        }
+
+        // scan each imported module scope for the exact name
+        let declares = |bindings: &dir::BindingTable<'_>| {
+            let scope = bindings.module_scope();
+            bindings
+                .get_scope(scope)
+                .named_symbols_up_to(scope.mark)
+                .any(|(key, symbol)| {
+                    bindings
+                        .get_symbol(symbol)
+                        .kind
+                        .is_visible_in(dir::SymbolSpace::Declaration)
+                        && matches!(key, dir::StaticKey::Name(key) if self.strings().get(key) == name)
+                })
+        };
+        for imported in imported {
+            let declared = match self.modules.get(&imported) {
+                Some(state) => declares(&state.binding_table()),
+                None => match self.external_modules.get(&imported) {
+                    Some(external) => declares(&external.bindings),
+                    None => continue,
+                },
+            };
+            if declared {
+                return Some(imported);
+            }
+        }
+
+        None
+    }
+
     /// Return the closest visible name for one unresolved single-segment path.
     pub(in crate::check) fn closest_reference_name(
         &self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
-    ) -> Option<String> {
+    ) -> Option<NameMatch<String>> {
         let [name] = path.segments.as_slice() else {
             return None;
         };
@@ -69,7 +120,16 @@ impl CheckState<'_> {
             }
         }
 
-        closest_string(&name, candidates, diagnostic_suggestion_distance(&name))
+        find_best_match(&name, candidates, diagnostic_suggestion_distance(&name))
+    }
+
+    /// Return the rename suggestion for one matched misspelled name.
+    pub(in crate::check) fn rename_suggestion(
+        &self,
+        anchor: &DiagnosticAnchor,
+        best: &NameMatch<String>,
+    ) -> Option<DiagnosticSuggestion> {
+        rename_suggestion(anchor, best)
     }
 
     /// Collect the member keys visible on one receiver.

@@ -5,9 +5,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, DeclaredMember, Dependency, GenericTemplateId,
-    MemberCandidate, MemberLookup, Origin, ProbeReason, ReceiverSteps, Relation, TypeSubstitution,
-    answer,
+    Answer, BodyState, CandidateOutcome, Cause, CauseKind, DeclaredMember, Dependency,
+    GenericTemplateId, MemberCandidate, MemberLookup, Origin, ProbeReason, ReceiverSteps, Relation,
+    TypeSubstitution, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -439,7 +439,11 @@ impl BodyState<'_, '_> {
         let target_type = self.substitute_type(origin.module(), target_type, &substitution)?;
         let proven = match self.type_variables(receiver)?.is_empty() {
             true => self.decide_relation(origin, Relation::Assignable, receiver, target_type)?,
-            false => self.constrain_type(origin, Relation::Assignable, receiver, target_type)?,
+            false => {
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
+                self.constrain_type(cause, Relation::Assignable, receiver, target_type)?
+            }
         };
         if !answer!(proven) {
             return Ok(Answer::Ready(None));

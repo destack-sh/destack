@@ -105,6 +105,7 @@ type TooLarge = InlineBuffer<uint8, 4097>;
         r#"
 /// @diagnostic.error code=EC201 message="type '4097' does not satisfy '0..=4096'"
 /// @diagnostic.label line=6 column=17 span="InlineBuffer" line_source="type TooLarge = InlineBuffer<uint8, 4097>;"
+/// @diagnostic.related line=2 column=33 span="N" line_source="struct InlineBuffer<T, comptime N: 0..=4096> {" message="required by this bound on 'N'"
 "#,
     );
 }

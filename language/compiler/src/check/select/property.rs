@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CheckFailure, CheckOutcome, Constraint, Decision, Dependency, FlowSite,
-    Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, CheckFailure, CheckOutcome, Constraint, Decision,
+    Dependency, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
 };
 
 /// One literal property entry collected for merging.
@@ -99,11 +99,15 @@ impl BodyState<'_, '_> {
                                 }
                                 false => field.ty,
                             };
+                            let field_cause = self.check.intern_cause(Cause::root(
+                                Origin::Node(source, site.scope),
+                                CauseKind::Field { key },
+                            ));
                             let field_check = answer!(self.check_node_expected(
                                 source_site,
                                 expected_ty,
                                 Relation::Assignable,
-                                Origin::Node(source, site.scope),
+                                field_cause,
                                 ValueUse::Store,
                             )?);
                             check = check.and(field_check);
@@ -164,12 +168,17 @@ impl BodyState<'_, '_> {
                 //  failed field judgment already carried the report
                 self.commit_node_type(node.into_any(), target)?;
                 if matches!(check, CheckOutcome::Holds) {
-                    let origin = self.intern_origin(origin);
+                    let cause = self.check.intern_cause(Cause::root(
+                        origin,
+                        CauseKind::Write {
+                            place: node.into_any(),
+                        },
+                    ));
                     self.push_constraint(Constraint::r#type(
                         Relation::Writable,
                         shape,
                         target,
-                        origin,
+                        cause,
                     ));
                 }
 

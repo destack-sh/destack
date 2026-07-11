@@ -18,11 +18,11 @@ impl Constraint {
             .text("target", context.type_label(self.target()))
             .text(
                 "origin",
-                context.origin_label(context.check.solver.origin(self.origin())),
+                context.origin_label(context.check.solver.cause(self.cause()).origin),
             )
             .text(
                 "at",
-                context.origin_source_label(context.check.solver.origin(self.origin())),
+                context.origin_source_label(context.check.solver.cause(self.cause()).origin),
             )
             .text("use", context.value_use_label(self.value_use()))
             .bool("finished", finished)

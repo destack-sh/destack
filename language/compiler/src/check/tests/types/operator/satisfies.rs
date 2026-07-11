@@ -122,6 +122,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'b' in object literal for type 'Shape'"
 /// @diagnostic.label line=4 column=30 span="satisfies" line_source="const value = { a: 1, b: 2 } satisfies Shape;"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }

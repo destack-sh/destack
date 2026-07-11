@@ -50,6 +50,7 @@ const bad: Keys = "name";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"name\"' is not assignable to type 'Keys'"
 /// @diagnostic.label line=7 column=19 span="\"name\"" line_source="const bad: Keys = \"name\";"
+/// @diagnostic.note message="'Keys' reduces to 'symbol'"
 "#,
     );
 }
@@ -204,6 +205,7 @@ const bad: Keys = other;
         r#"
 /// @diagnostic.error code=EC200 message="type 'other' is not assignable to type 'Keys'"
 /// @diagnostic.label line=8 column=19 span="other" line_source="const bad: Keys = other;"
+/// @diagnostic.note message="'Keys' reduces to 'token'"
 "#,
     );
 }

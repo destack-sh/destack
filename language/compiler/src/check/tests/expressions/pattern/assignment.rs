@@ -409,6 +409,7 @@ declare const bag: { [key: string]: int32 };
         r#"
 /// @diagnostic.error code=EC200 message="type 'int32 | undefined' is not assignable to type 'int32'"
 /// @diagnostic.label line=6 column=11 span="value" line_source="({ [key]: value } = bag);"
+/// @diagnostic.note message="expected 'int32', found 'undefined'"
 "#,
     );
 }

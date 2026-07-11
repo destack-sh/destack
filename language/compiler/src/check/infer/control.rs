@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CheckAttempt, Expectation, ExpectedType, FlowSite, ForInSourceObligation,
-    Obligation, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, Expectation, ExpectedType,
+    FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -103,7 +103,7 @@ impl BodyState<'_, '_> {
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
         target: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
@@ -111,7 +111,7 @@ impl BodyState<'_, '_> {
         // check the then branch against the incoming expectation
         let then_site = self.node_site(then_expression.into_global_any(module))?;
         let then_check =
-            answer!(self.check_node_expected(then_site, target, relation, origin, use_)?);
+            answer!(self.check_node_expected(then_site, target, relation, cause, use_)?);
         let then_type = answer!(self.node_type_at(then_site)?);
         let mut should_relate_result = false;
         let mut check = then_check;
@@ -120,7 +120,7 @@ impl BodyState<'_, '_> {
         let result = if let Some(else_expression) = else_expression {
             let else_site = self.node_site(else_expression.into_global_any(module))?;
             let else_check =
-                answer!(self.check_node_expected(else_site, target, relation, origin, use_)?);
+                answer!(self.check_node_expected(else_site, target, relation, cause, use_)?);
             let else_type = answer!(self.node_type_at(else_site)?);
             check = check.and(else_check);
 
@@ -136,7 +136,7 @@ impl BodyState<'_, '_> {
         // relate the result when branch checks did not cover every arm
         if should_relate_result {
             let (_, result_check) =
-                answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
             check = check.and(result_check);
         }
 
@@ -235,7 +235,10 @@ impl BodyState<'_, '_> {
         let expectation = Expectation {
             expected: ExpectedType::Type(boolean),
             relation: Relation::Assignable,
-            origin: Origin::Node(guard.into_global_any(module), site.scope),
+            cause: self.check.intern_cause(Cause::root(
+                Origin::Node(guard.into_global_any(module), site.scope),
+                CauseKind::Expression,
+            )),
             use_: ValueUse::Condition,
         };
         self.check_node(site, PlaceUse::Read, Some(expectation))?;
@@ -265,11 +268,12 @@ impl BodyState<'_, '_> {
             | dir::ForEachBinding::Using { pattern, .. } => pattern,
         };
         let pattern_site = self.node_site(pattern.into_global_any(module))?;
+        let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
         answer!(self.check_node_expected(
             pattern_site,
             target,
             Relation::Assignable,
-            site.origin(),
+            cause,
             ValueUse::Store
         )?);
 

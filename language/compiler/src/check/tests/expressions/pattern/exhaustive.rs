@@ -244,6 +244,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: 'Err<E>' is not covered"
 /// @diagnostic.label line=13 column=11 span="(outcome) {\n        Ok { value } => value\n    }" line_source="match (outcome) {"
+/// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
 }
@@ -436,6 +437,7 @@ const value: string = match (edge) {
         r#"
 /// @diagnostic.error code=EC200 message="type 'string | int32' is not assignable to type 'string'"
 /// @diagnostic.label line=9 column=29 span="(edge) {\n    Edge.Bounded { limit } => limit\n    Edge.Open => \"\"\n}" line_source="const value: string = match (edge) {"
+/// @diagnostic.note message="expected 'string', found 'int32'"
 "#,
     );
 }

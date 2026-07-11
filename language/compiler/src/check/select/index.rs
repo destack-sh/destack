@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Constraint, Decision, FlowSite, MemberCandidate, MemberLookup, Origin,
-    OriginId, PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
+    Answer, BodyState, Cause, CauseId, CauseKind, Constraint, Decision, FlowSite, MemberCandidate,
+    MemberLookup, Origin, OriginId, PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
 };
 
 /// One selected subscript operation.
@@ -79,6 +79,7 @@ impl SubscriptSelection {
     pub(in crate::check) fn key_constraint(
         &self,
         origin: OriginId,
+        cause: CauseId,
         index: dir::GlobalTypeId,
     ) -> Option<Constraint> {
         let parameter = self.key_parameter?;
@@ -88,7 +89,7 @@ impl SubscriptSelection {
             index,
             parameter,
             origin,
-            origin,
+            cause,
             Some(ValueUse::Argument),
         ))
     }
@@ -205,7 +206,9 @@ impl BodyState<'_, '_> {
         // commit result
         let key_scope = self.origin_scope(origin)?;
         let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
-        if let Some(constraint) = selection.key_constraint(key_origin, index) {
+        let anchored = self.solver.origin(key_origin);
+        let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
+        if let Some(constraint) = selection.key_constraint(key_origin, cause, index) {
             self.push_constraint(constraint);
         }
         let ty = selection.ty();
@@ -316,7 +319,9 @@ impl BodyState<'_, '_> {
 
         let key_scope = self.origin_scope(origin)?;
         let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
-        if let Some(constraint) = selection.key_constraint(key_origin, index) {
+        let anchored = self.solver.origin(key_origin);
+        let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
+        if let Some(constraint) = selection.key_constraint(key_origin, cause, index) {
             self.push_constraint(constraint);
         }
 
@@ -597,7 +602,9 @@ impl BodyState<'_, '_> {
         let element = read.ty;
         let value = write.ty;
         let origin = self.intern_origin(origin);
-        self.push_constraint(Constraint::r#type(Relation::Equal, element, value, origin));
+        let anchored = self.solver.origin(origin);
+        let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
+        self.push_constraint(Constraint::r#type(Relation::Equal, element, value, cause));
 
         let key_parameter = read.key_parameter;
 

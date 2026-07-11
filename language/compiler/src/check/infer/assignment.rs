@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CheckOutcome, Decision, FlowSite, Origin, PlaceUse, Relation, ValueUse,
-    answer,
+    Answer, BodyState, Cause, CauseKind, CheckOutcome, Decision, FlowSite, Origin, PlaceUse,
+    Relation, ValueUse, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -45,11 +45,17 @@ impl BodyState<'_, '_> {
             };
             let target = place.ty;
             let right_site = self.node_site(right_node)?;
+            let cause = self.intern_cause(Cause::root(
+                Origin::Node(right_node, site.scope),
+                CauseKind::Write {
+                    place: expression.into_global_any(module),
+                },
+            ));
             let check = answer!(self.check_expression(
                 right_site,
                 target,
                 Relation::Assignable,
-                Origin::Node(right_node, site.scope),
+                cause,
                 ValueUse::Store,
             )?);
 
@@ -57,7 +63,7 @@ impl BodyState<'_, '_> {
             if let CheckOutcome::Fails(failure) = check {
                 let source = answer!(self.node_type_at(right_site)?);
                 self.report_constraint_failure(
-                    Origin::Node(right_node, site.scope),
+                    cause,
                     Relation::Assignable,
                     Some(ValueUse::Store),
                     source,
@@ -69,7 +75,7 @@ impl BodyState<'_, '_> {
             if !self.check.solver.is_probing() {
                 let origin = Origin::Node(right_node, site.scope);
                 self.check
-                    .push_solved_constraint(origin, ValueUse::Store, value, target)?;
+                    .push_solved_constraint(origin, cause, ValueUse::Store, value, target)?;
             }
             let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
             self.commit_node_type(left_node.into_any(), value)?;
@@ -150,17 +156,23 @@ impl BodyState<'_, '_> {
 
         // non-compound update assignments store directly into the target
         let right_site = self.node_site(right_node)?;
+        let cause = self.intern_cause(Cause::root(
+            Origin::Node(right_node, site.scope),
+            CauseKind::Write {
+                place: target.into_global_any(module),
+            },
+        ));
         let check = answer!(self.check_expression(
             right_site,
             target_type,
             Relation::Assignable,
-            Origin::Node(right_node, site.scope),
+            cause,
             ValueUse::Store,
         )?);
         if let CheckOutcome::Fails(failure) = check {
             let source = answer!(self.node_type_at(right_site)?);
             self.report_constraint_failure(
-                Origin::Node(right_node, site.scope),
+                cause,
                 Relation::Assignable,
                 Some(ValueUse::Store),
                 source,

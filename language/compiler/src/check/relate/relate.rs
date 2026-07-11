@@ -3,18 +3,20 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BoundMode, CandidateOutcome, CheckFailure, CheckOutcome, CheckState, ConstraintSubject,
-    Dependency, ObligationCheck, Origin, ProbeReason, Relation, ValueUse, answer,
+    Answer, BoundMode, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
+    CheckState, ConstraintSubject, Dependency, ObligationCheck, Origin, ProbeReason, Relation,
+    ValueUse, answer,
 };
 
 impl CheckState<'_> {
     /// Match one generic satisfaction relation.
     fn satisfy_type_constraint(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         argument: dir::GlobalTypeId,
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        let origin = self.cause_origin(cause);
         let constraint = answer!(self.reduce_type_head(origin, constraint)?);
         let argument = answer!(self.reduce_type_head(origin, argument)?);
 
@@ -23,7 +25,7 @@ impl CheckState<'_> {
             let elements = self.type_ids(argument.module_id, union.elements)?.to_vec();
             let mut decision = Answer::Ready(true);
             for element in elements {
-                decision = decision.and(self.satisfy_type_constraint(origin, element, constraint)?);
+                decision = decision.and(self.satisfy_type_constraint(cause, element, constraint)?);
                 if decision.is_ready_false() {
                     break;
                 }
@@ -37,7 +39,7 @@ impl CheckState<'_> {
             self.ty(argument)?,
             dir::Type::Parameter(_) | dir::Type::Erased(_)
         ) {
-            return self.solve_type_relation(origin, Relation::Satisfies, argument, constraint);
+            return self.solve_type_relation(cause, Relation::Satisfies, argument, constraint);
         }
 
         // check conjunction bounds element-wise
@@ -47,7 +49,7 @@ impl CheckState<'_> {
                 .to_vec();
             let mut decision = Answer::Ready(true);
             for element in elements {
-                decision = decision.and(self.satisfy_type_constraint(origin, argument, element)?);
+                decision = decision.and(self.satisfy_type_constraint(cause, argument, element)?);
                 if decision.is_ready_false() {
                     break;
                 }
@@ -62,7 +64,7 @@ impl CheckState<'_> {
                 .type_ids(constraint.module_id, union.elements)?
                 .to_vec();
 
-            return self.constrain_union_target(origin, Relation::Satisfies, argument, &elements);
+            return self.constrain_union_target(cause, Relation::Satisfies, argument, &elements);
         }
 
         // normalize compiler-known static domains before relation checking
@@ -81,7 +83,7 @@ impl CheckState<'_> {
             ) => {
                 let argument = self.normalize_memory_domain_value(origin, argument, item)?;
 
-                self.solve_type_relation(origin, Relation::Satisfies, argument, constraint)
+                self.solve_type_relation(cause, Relation::Satisfies, argument, constraint)
             }
             Some(dir::LanguageItem::Concrete) => {
                 match answer!(self.check_representation(origin, argument)?) {
@@ -109,7 +111,7 @@ impl CheckState<'_> {
                     && !self.type_variables(argument)?.is_empty()
                 {
                     return self.constrain_nominal_satisfies(
-                        origin,
+                        cause,
                         argument,
                         &argument_instance,
                         constraint,
@@ -117,7 +119,7 @@ impl CheckState<'_> {
                     );
                 }
 
-                self.solve_type_relation(origin, Relation::Satisfies, argument, constraint)
+                self.solve_type_relation(cause, Relation::Satisfies, argument, constraint)
             }
         }
     }
@@ -140,18 +142,19 @@ impl CheckState<'_> {
     /// Enforce one relation between two types, bounding open variables.
     pub(in crate::check) fn relate(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         value_use: Option<ValueUse>,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
+        let origin = self.cause_origin(cause);
         let check = match value_use {
-            Some(_) => self.check_value_constraint(origin, origin, relation, source, target)?,
+            Some(_) => self.check_value_constraint(cause, origin, relation, source, target)?,
             None => {
-                let holds = answer!(self.constrain_type(origin, relation, source, target)?);
+                let holds = answer!(self.constrain_type(cause, relation, source, target)?);
                 let check =
-                    self.complete_constraint_check(origin, relation, source, target, holds)?;
+                    self.complete_constraint_check(cause, relation, source, target, holds)?;
 
                 Answer::Ready(check)
             }
@@ -161,7 +164,7 @@ impl CheckState<'_> {
             Answer::Ready(CheckOutcome::Holds) => Ok(Answer::Ready(())),
             Answer::Ready(CheckOutcome::Fails(failure)) => {
                 self.report_constraint_failure(
-                    origin, relation, value_use, source, target, failure,
+                    cause, relation, value_use, source, target, failure,
                 )?;
 
                 Ok(Answer::Ready(()))
@@ -173,7 +176,7 @@ impl CheckState<'_> {
     /// Check one value constraint and return the completed result.
     pub(in crate::check) fn check_value_constraint(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         value_origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
@@ -182,24 +185,24 @@ impl CheckState<'_> {
         // bodies commit their nodes before fulfillment relates them
         if let Some(node) = value_origin.expression() {
             let site = self.node_site(node.into())?;
-            let (_, check) = answer!(self.check_node_value(site, relation, target, origin)?);
+            let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
             return Ok(Answer::Ready(check));
         }
 
-        self.check_value_relation(origin, relation, source, target)
+        self.check_value_relation(cause, relation, source, target)
     }
 
     /// Check one already typed value relation.
     pub(in crate::check) fn check_value_relation(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<CheckOutcome>> {
-        let holds = answer!(self.constrain_type(origin, relation, source, target)?);
-        let check = self.complete_constraint_check(origin, relation, source, target, holds)?;
+        let holds = answer!(self.constrain_type(cause, relation, source, target)?);
+        let check = self.complete_constraint_check(cause, relation, source, target, holds)?;
 
         Ok(Answer::Ready(check))
     }
@@ -207,33 +210,45 @@ impl CheckState<'_> {
     /// Check one type constraint and return the completed result.
     pub(in crate::check) fn check_type_constraint(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         subject: Option<ConstraintSubject>,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<CheckOutcome>> {
         let Some(subject) = subject else {
-            let holds = answer!(self.constrain_type(origin, relation, source, target)?);
-            let check = self.complete_constraint_check(origin, relation, source, target, holds)?;
+            let holds = answer!(self.constrain_type(cause, relation, source, target)?);
+            let check = self.complete_constraint_check(cause, relation, source, target, holds)?;
 
             return Ok(Answer::Ready(check));
         };
 
         let holds = match subject {
             ConstraintSubject::GenericArgument { source: argument } => {
-                let origin = self.origin_at(origin, argument)?;
+                let parent = self.solver.cause(cause);
+                let origin = self.origin_at(parent.origin, argument)?;
+                let anchored = self.intern_cause(Cause {
+                    origin,
+                    kind: parent.kind,
+                    parent: parent.parent,
+                });
 
-                answer!(self.constrain_type(origin, Relation::Satisfies, source, target)?)
+                answer!(self.constrain_type(anchored, Relation::Satisfies, source, target)?)
             }
         };
         if !holds {
-            let origin = match subject {
+            let anchored = match subject {
                 ConstraintSubject::GenericArgument { source: argument } => {
-                    Origin::Node(argument, None)
+                    let parent = self.solver.cause(cause);
+                    self.intern_cause(Cause {
+                        origin: Origin::Node(argument, None),
+                        kind: parent.kind,
+                        parent: parent.parent,
+                    })
                 }
             };
-            let check = self.complete_constraint_check(origin, relation, source, target, false)?;
+            let check =
+                self.complete_constraint_check(anchored, relation, source, target, false)?;
 
             return Ok(Answer::Ready(check));
         }
@@ -244,12 +259,13 @@ impl CheckState<'_> {
     /// Return the completed check for one closed constraint.
     pub(in crate::check) fn complete_constraint_check(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         holds: bool,
     ) -> CompilerResult<CheckOutcome> {
+        let origin = self.cause_origin(cause);
         let is_property_relation = matches!(
             relation,
             Relation::Assignable | Relation::Writable | Relation::Satisfies
@@ -293,27 +309,27 @@ impl CheckState<'_> {
     /// Match one relation between two types, bounding open variables.
     pub(in crate::check) fn constrain_type(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         if relation == Relation::Satisfies {
-            return self.satisfy_type_constraint(origin, source, target);
+            return self.satisfy_type_constraint(cause, source, target);
         }
 
-        self.solve_type_relation(origin, relation, source, target)
+        self.solve_type_relation(cause, relation, source, target)
     }
 
     /// Solve one type relation after relation-specific normalization.
     fn solve_type_relation(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let bound_source = self.origin_source(origin)?;
+        let origin = self.cause_origin(cause);
 
         // substitute solved variables before comparing
         let source = self.settled_root(source)?;
@@ -334,38 +350,14 @@ impl CheckState<'_> {
             }
             // bound one open side by the closed side
             (Some(variable), None, Relation::Equal) => {
-                self.push_lower_bound(
-                    variable,
-                    bound_source,
-                    target,
-                    Relation::Equal,
-                    BoundMode::Strong,
-                )?;
-                self.push_upper_bound(
-                    variable,
-                    bound_source,
-                    target,
-                    Relation::Equal,
-                    BoundMode::Strong,
-                )?;
+                self.push_lower_bound(variable, cause, target, Relation::Equal, BoundMode::Strong)?;
+                self.push_upper_bound(variable, cause, target, Relation::Equal, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
             (None, Some(variable), Relation::Equal) => {
-                self.push_lower_bound(
-                    variable,
-                    bound_source,
-                    source,
-                    Relation::Equal,
-                    BoundMode::Strong,
-                )?;
-                self.push_upper_bound(
-                    variable,
-                    bound_source,
-                    source,
-                    Relation::Equal,
-                    BoundMode::Strong,
-                )?;
+                self.push_lower_bound(variable, cause, source, Relation::Equal, BoundMode::Strong)?;
+                self.push_upper_bound(variable, cause, source, Relation::Equal, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
@@ -376,12 +368,12 @@ impl CheckState<'_> {
                 Some(variable),
                 Relation::Assignable | Relation::Widens | Relation::Castable | Relation::Writable,
             ) => {
-                self.push_lower_bound(variable, bound_source, source, relation, BoundMode::Strong)?;
+                self.push_lower_bound(variable, cause, source, relation, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
             (Some(variable), _, Relation::Assignable | Relation::Widens | Relation::Castable) => {
-                self.push_upper_bound(variable, bound_source, target, relation, BoundMode::Strong)?;
+                self.push_upper_bound(variable, cause, target, relation, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
@@ -390,13 +382,13 @@ impl CheckState<'_> {
                 Some(variable),
                 Relation::Assignable | Relation::Widens | Relation::Castable | Relation::Writable,
             ) => {
-                self.push_lower_bound(variable, bound_source, source, relation, BoundMode::Strong)?;
+                self.push_lower_bound(variable, cause, source, relation, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
             // constraint relations restrict the open source without choosing it
             (Some(variable), _, Relation::Satisfies) => {
-                self.push_upper_bound(variable, bound_source, target, relation, BoundMode::Strong)?;
+                self.push_upper_bound(variable, cause, target, relation, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
@@ -433,7 +425,7 @@ impl CheckState<'_> {
                     && !matches!(self.ty(target)?, dir::Type::EnumMember(_))
                     && relation != Relation::Equal
                 {
-                    return self.constrain_type(origin, relation, member.owner, target);
+                    return self.constrain_type(cause, relation, member.owner, target);
                 }
 
                 // push bounds into known composites that still contain holes
@@ -442,7 +434,7 @@ impl CheckState<'_> {
                 {
                     return match structural {
                         Relation::Equal | Relation::Assignable | Relation::Widens => {
-                            match self.constrain_structural(origin, structural, source, target)? {
+                            match self.constrain_structural(cause, structural, source, target)? {
                                 Some(answer) => Ok(answer),
                                 None => Ok(self.pending_on_open_leaves(source, target)?),
                             }
@@ -463,11 +455,12 @@ impl CheckState<'_> {
     /// Relate matching composites slot by slot, bounding open leaves.
     fn constrain_structural(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Answer<bool>>> {
+        let origin = self.cause_origin(cause);
         // only composites with open leaves need constraint recursion
         if self.type_variables(source)?.is_empty() && self.type_variables(target)?.is_empty() {
             return Ok(None);
@@ -479,7 +472,7 @@ impl CheckState<'_> {
             && !self.is_open_template(source)?
             && !self.is_open_template(target)?
             && let Some(decision) =
-                self.constrain_form_assignable(origin, relation, source, target)?
+                self.constrain_form_assignable(cause, relation, source, target)?
         {
             return Ok(Some(decision));
         }
@@ -505,7 +498,7 @@ impl CheckState<'_> {
             let context = self.default_symbol_context(symbol);
 
             return Ok(Some(self.relate_type_arguments(
-                origin,
+                cause,
                 symbol,
                 context,
                 Relation::Widens,
@@ -546,7 +539,7 @@ impl CheckState<'_> {
                 matching = Some(element);
             }
             if let Some(arm) = matching {
-                return Ok(Some(self.constrain_type(origin, relation, source, arm)?));
+                return Ok(Some(self.constrain_type(cause, relation, source, arm)?));
             }
         }
 
@@ -554,25 +547,53 @@ impl CheckState<'_> {
         let target_signature = self.callable_signature(target)?;
 
         // collect fixed slot pairs with their slot relations
-        let mut pairs = SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
+        let mut pairs = SmallVec::<
+            [(
+                Option<CauseKind>,
+                Relation,
+                dir::GlobalTypeId,
+                dir::GlobalTypeId,
+            ); 4],
+        >::new();
         match (self.ty(source)?, self.ty(target)?) {
             // mutable collections alias their elements and stay invariant
             (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
-                pairs.push((Relation::Equal, source_array.element, target_array.element));
+                pairs.push((
+                    None,
+                    Relation::Equal,
+                    source_array.element,
+                    target_array.element,
+                ));
             }
             (dir::Type::Slice(source_slice), dir::Type::Slice(target_slice)) => {
-                pairs.push((Relation::Equal, source_slice.element, target_slice.element));
+                pairs.push((
+                    None,
+                    Relation::Equal,
+                    source_slice.element,
+                    target_slice.element,
+                ));
             }
             (dir::Type::Array(source_array), dir::Type::Slice(target_slice)) => {
-                pairs.push((Relation::Equal, source_array.element, target_slice.element));
+                pairs.push((
+                    None,
+                    Relation::Equal,
+                    source_array.element,
+                    target_slice.element,
+                ));
             }
             (dir::Type::FixedArray(source_array), dir::Type::FixedArray(target_array)) => {
                 pairs.push((
+                    None,
                     relation.interior(),
                     source_array.element,
                     target_array.element,
                 ));
-                pairs.push((Relation::Equal, source_array.count, target_array.count));
+                pairs.push((
+                    None,
+                    Relation::Equal,
+                    source_array.count,
+                    target_array.count,
+                ));
             }
             (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple))
                 if source_tuple.form == target_tuple.form
@@ -582,10 +603,20 @@ impl CheckState<'_> {
                     self.tuple_elements(source.module_id, source_tuple.elements)?;
                 let target_elements =
                     self.tuple_elements(target.module_id, target_tuple.elements)?;
-                for (source_element, target_element) in
-                    source_elements.iter().zip(target_elements.iter())
+                for (index, (source_element, target_element)) in source_elements
+                    .iter()
+                    .zip(target_elements.iter())
+                    .enumerate()
                 {
-                    pairs.push((relation.interior(), source_element.ty, target_element.ty));
+                    let kind = CauseKind::Element {
+                        index: index as u32,
+                    };
+                    pairs.push((
+                        Some(kind),
+                        relation.interior(),
+                        source_element.ty,
+                        target_element.ty,
+                    ));
                 }
             }
             // string sources bind open template spans by captured text
@@ -625,7 +656,7 @@ impl CheckState<'_> {
                     else {
                         return Ok(Some(Answer::Ready(false)));
                     };
-                    pairs.push((Relation::Assignable, captured, span));
+                    pairs.push((None, Relation::Assignable, captured, span));
                 }
             }
             (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
@@ -639,7 +670,7 @@ impl CheckState<'_> {
                     }
                 }
                 for span in self.type_ids(target.module_id, template.spans)?.to_vec() {
-                    pairs.push((Relation::Assignable, source, span));
+                    pairs.push((None, Relation::Assignable, source, span));
                 }
             }
 
@@ -668,7 +699,14 @@ impl CheckState<'_> {
                                     relation
                                 };
 
-                            pairs.push((field_relation, source_field.ty, target_field.ty));
+                            pairs.push((
+                                Some(CauseKind::Field {
+                                    key: target_field.key,
+                                }),
+                                field_relation,
+                                source_field.ty,
+                                target_field.ty,
+                            ));
                         }
                         // missing members satisfy optional targets only
                         None => {
@@ -684,19 +722,19 @@ impl CheckState<'_> {
                 if matches!(relation, Relation::Assignable | Relation::Widens)
                     && let Some(source) = source_signature =>
             {
-                pairs.push((relation, source, target));
+                pairs.push((None, relation, source, target));
             }
             (dir::Type::FunctionSignature(_), _)
                 if matches!(relation, Relation::Assignable | Relation::Widens)
                     && let Some(target) = target_signature =>
             {
-                pairs.push((relation, source, target));
+                pairs.push((None, relation, source, target));
             }
             (_, _)
                 if matches!(relation, Relation::Assignable | Relation::Widens)
                     && let (Some(source), Some(target)) = (source_signature, target_signature) =>
             {
-                pairs.push((relation, source, target));
+                pairs.push((None, relation, source, target));
             }
             (
                 dir::Type::FunctionSignature(source_function),
@@ -709,11 +747,16 @@ impl CheckState<'_> {
                 let target_parameters =
                     self.signature_parameters(target.module_id, target_function.parameters)?;
                 let shared = source_parameters.len().min(target_parameters.len());
-                for (source_parameter, target_parameter) in source_parameters[..shared]
+                for (index, (source_parameter, target_parameter)) in source_parameters[..shared]
                     .iter()
                     .zip(target_parameters[..shared].iter())
+                    .enumerate()
                 {
+                    let kind = CauseKind::Parameter {
+                        index: index as u32,
+                    };
                     pairs.push((
+                        Some(kind),
                         relation.interior(),
                         target_parameter.ty,
                         source_parameter.ty,
@@ -722,7 +765,12 @@ impl CheckState<'_> {
                 if let (Some(source_return), Some(target_return)) =
                     (source_function.return_type, target_function.return_type)
                 {
-                    pairs.push((relation.interior(), source_return, target_return));
+                    pairs.push((
+                        Some(CauseKind::ReturnSlot),
+                        relation.interior(),
+                        source_return,
+                        target_return,
+                    ));
                 }
             }
             // memory forms relate payloads directly, borrows bind their slots
@@ -734,8 +782,13 @@ impl CheckState<'_> {
                 {
                     let source_borrow = self.type_borrow(source.module_id, source_borrow)?;
                     let target_borrow = self.type_borrow(target.module_id, target_borrow)?;
-                    pairs.push((relation, source_borrow.lifetime, target_borrow.lifetime));
-                    pairs.push((relation, source_borrow.access, target_borrow.access));
+                    pairs.push((
+                        None,
+                        relation,
+                        source_borrow.lifetime,
+                        target_borrow.lifetime,
+                    ));
+                    pairs.push((None, relation, source_borrow.access, target_borrow.access));
                 }
                 if let (
                     dir::Form::Placed {
@@ -746,9 +799,14 @@ impl CheckState<'_> {
                     },
                 ) = (source_form.form, target_form.form)
                 {
-                    pairs.push((Relation::Equal, source_place, target_place));
+                    pairs.push((None, Relation::Equal, source_place, target_place));
                 }
-                pairs.push((relation, source_form.value, target_form.value));
+                pairs.push((
+                    Some(CauseKind::Payload),
+                    relation,
+                    source_form.value,
+                    target_form.value,
+                ));
             }
             // union sources flow every element into the target
             (dir::Type::Union(elements), _) if relation == Relation::Assignable => {
@@ -756,7 +814,7 @@ impl CheckState<'_> {
                     self.type_ids(source.module_id, elements.elements)?,
                 );
                 for element in elements {
-                    pairs.push((relation, element, target));
+                    pairs.push((None, relation, element, target));
                 }
             }
             // union targets accept when any member accepts
@@ -766,7 +824,7 @@ impl CheckState<'_> {
                 );
 
                 return Ok(Some(
-                    self.constrain_union_target(origin, relation, source, &elements)?,
+                    self.constrain_union_target(cause, relation, source, &elements)?,
                 ));
             }
             (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => {
@@ -775,12 +833,17 @@ impl CheckState<'_> {
                     Relation::Widens => Relation::Equal,
                     relation => relation,
                 };
-                pairs.push((constraint_relation, source.constraint, target.constraint));
+                pairs.push((
+                    None,
+                    constraint_relation,
+                    source.constraint,
+                    target.constraint,
+                ));
             }
             // fixed constructors recurse through their slots
             (_, _) if let Some(slots) = self.decompose_type_pair(source, target)? => {
                 for (source, target) in slots {
-                    pairs.push((relation, source, target));
+                    pairs.push((None, relation, source, target));
                 }
             }
             // ambiguous composites wait for their open leaves instead
@@ -789,8 +852,12 @@ impl CheckState<'_> {
 
         // constrain every slot pair through the bounding path
         let mut decision = Answer::Ready(true);
-        for (relation, source, target) in pairs {
-            decision = decision.and(self.constrain_type(origin, relation, source, target)?);
+        for (kind, relation, source, target) in pairs {
+            let child = match kind {
+                Some(kind) => self.intern_cause(Cause::slot(origin, kind, cause)),
+                None => cause,
+            };
+            decision = decision.and(self.constrain_type(child, relation, source, target)?);
             if decision.is_ready_false() {
                 return Ok(Some(decision));
             }
@@ -802,7 +869,7 @@ impl CheckState<'_> {
     /// Constrain one value into a union target.
     fn constrain_union_target(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         source: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
@@ -811,7 +878,7 @@ impl CheckState<'_> {
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for element in elements.iter().copied() {
             match self.confirm_candidate(ProbeReason::UnionArm, |state| {
-                match state.constrain_type(origin, relation, source, element)? {
+                match state.constrain_type(cause, relation, source, element)? {
                     Answer::Ready(true) => Ok(Answer::Ready(CandidateOutcome::Accepted(()))),
                     Answer::Ready(false) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
                     Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),

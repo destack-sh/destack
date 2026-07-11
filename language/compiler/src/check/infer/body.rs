@@ -5,7 +5,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Checked, Expectation, ExpectedType, PlaceUse, TaskScope, ValueUse, Widening,
+    Answer, Cause, CauseKind, CheckState, Checked, Expectation, ExpectedType, PlaceUse, TaskScope,
+    ValueUse, Widening,
 };
 
 /// Yield targets for one generator body.
@@ -171,9 +172,14 @@ impl<'check, 'state> BodyState<'check, 'state> {
     /// Check one body expression against the return target.
     fn check_body(&mut self, body: dir::LocalNodeIdAny) -> CompilerResult<Checked> {
         let site = self.node_site(body.into_global(self.module))?;
-        let expectation = self
-            .ret
-            .map(|ret| Expectation::assignable(ret, site.origin(), self.ret_use));
+        let expectation = self.ret.map(|ret| {
+            let cause = self.check.intern_cause(Cause::root(
+                site.origin(),
+                CauseKind::Return { annotation: None },
+            ));
+
+            Expectation::assignable(ret, cause, self.ret_use)
+        });
 
         self.check_node(site, PlaceUse::Read, expectation)
     }

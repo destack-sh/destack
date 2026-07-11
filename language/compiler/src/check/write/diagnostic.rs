@@ -25,13 +25,13 @@ impl CheckState<'_> {
                 continue;
             }
 
-            unresolved_origins.push(constraint.origin());
+            unresolved_origins.push(constraint.cause());
         }
 
         // report each unsolved anchor once
         let mut reported = FxIndexSet::default();
-        for origin in unresolved_origins {
-            let origin = self.solver.origin(origin);
+        for cause in unresolved_origins {
+            let origin = self.solver.cause(cause).origin;
             let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
             if reported.insert((module, anchor.clone())) {
                 errors.push(CheckError::CannotInferType { anchor, module }.into());

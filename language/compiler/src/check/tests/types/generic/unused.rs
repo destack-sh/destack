@@ -37,6 +37,7 @@ class Tag<T> {
 /// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
 /// @diagnostic.error code=EC442 message="generic parameter 'T' is never used"
 /// @diagnostic.label line=2 column=11 span="T" line_source="class Tag<T> {"
+/// @diagnostic.help message="declare explicit variance like 'out T' to keep a marker parameter"
 "#,
     );
 }

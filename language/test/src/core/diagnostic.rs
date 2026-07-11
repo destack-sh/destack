@@ -5,8 +5,8 @@ use destack_core::pluralize;
 use destack_parser::source_colorizer;
 use destack_repository::{Repository, Revision};
 use destack_source::{
-    AnnotateOptions, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId,
-    AnnotateSpan, PrintOptions, annotate_file,
+    AnnotateOptions, AnnotateSpan, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity,
+    File, FileId, PrintOptions, annotate_file,
 };
 
 use super::{Case, CaseResult};
@@ -46,10 +46,8 @@ where
 
         let header_message = annotate_options.color_normal.apply(&diagnostic.message);
         let header = format!("{header_preamble}: {header_message}");
-        let primary = AnnotateSpan::primary(
-            primary.span,
-            primary.message.clone().unwrap_or_default(),
-        );
+        let primary =
+            AnnotateSpan::primary(primary.span, primary.message.clone().unwrap_or_default());
         let body = annotate_file(&file, &[primary], annotate_options)
             .unwrap_or_else(|error| panic!("failed to render diagnostic: {error}"));
 

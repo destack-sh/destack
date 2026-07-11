@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, BoundMode, CallableArgument, Constraint, Expectation, ExpectedType,
-    FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, BoundMode, CallableArgument, Cause, CauseKind, Constraint, Expectation,
+    ExpectedType, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -118,6 +118,14 @@ impl BodyState<'_, '_> {
                 false => Relation::Assignable,
             };
 
+            let cause = self.check.intern_cause(Cause::root(
+                origin,
+                CauseKind::Argument {
+                    call: site.node,
+                    index: binding.parameter as u32,
+                },
+            ));
+
             // verify values against open barred targets once they close
             if is_barred && !self.type_variables(expected)?.is_empty() {
                 let checked = self.check_node(value_site, PlaceUse::Read, None)?;
@@ -127,7 +135,7 @@ impl BodyState<'_, '_> {
                     checked.ty,
                     expected,
                     value_origin,
-                    value_origin,
+                    cause,
                     Some(ValueUse::Argument),
                 ));
 
@@ -137,7 +145,7 @@ impl BodyState<'_, '_> {
             let expectation = Expectation {
                 expected: ExpectedType::Type(expected),
                 relation,
-                origin,
+                cause,
                 use_: ValueUse::Argument,
             };
             self.check_node(value_site, PlaceUse::Read, Some(expectation))?;

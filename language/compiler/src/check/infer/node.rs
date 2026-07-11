@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, BoundMode, CheckFailure, CheckOutcome, Constraint, DecisionKind, FlowSite,
-    Origin, Relation, ValueUse, answer,
+    Answer, BodyState, BoundMode, Cause, CauseId, CheckFailure, CheckOutcome, Constraint,
+    DecisionKind, FlowSite, Origin, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -34,8 +34,8 @@ pub(in crate::check) struct Expectation {
     pub(in crate::check) expected: ExpectedType,
     /// The relation the expression value must satisfy.
     pub(in crate::check) relation: Relation,
-    /// The source that produced this expectation.
-    pub(in crate::check) origin: Origin,
+    /// Why this expectation exists.
+    pub(in crate::check) cause: CauseId,
     /// The expected value use.
     pub(in crate::check) use_: ValueUse,
 }
@@ -44,13 +44,13 @@ impl Expectation {
     /// Create an assignable value expectation.
     pub(in crate::check) fn assignable(
         target: dir::GlobalTypeId,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> Self {
         Self {
             expected: ExpectedType::Type(target),
             relation: Relation::Assignable,
-            origin,
+            cause,
             use_,
         }
     }
@@ -110,25 +110,24 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         relation: Relation,
         target: dir::GlobalTypeId,
-        origin: Origin,
+        cause: CauseId,
         use_: Option<ValueUse>,
     ) -> CompilerResult<Answer<(dir::GlobalTypeId, CheckOutcome)>> {
         let source = answer!(self.node_type_at(site)?);
 
         // park undecidable checks for fulfillment outside probes
-        match self
-            .check
-            .constrain_type(origin, relation, source, target)?
-        {
+        match self.check.constrain_type(cause, relation, source, target)? {
             Answer::Ready(holds) => {
                 // literal freshness completes against the value expression
-                let check = self.check.complete_constraint_check(
-                    site.origin(),
-                    relation,
-                    source,
-                    target,
-                    holds,
-                )?;
+                let parent = self.check.solver.cause(cause);
+                let valued = self.check.intern_cause(Cause {
+                    origin: site.origin(),
+                    kind: parent.kind,
+                    parent: parent.parent,
+                });
+                let check = self
+                    .check
+                    .complete_constraint_check(valued, relation, source, target, holds)?;
 
                 Ok(Answer::Ready((source, check)))
             }
@@ -137,13 +136,12 @@ impl BodyState<'_, '_> {
             }
             Answer::Pending(_) => {
                 let value_origin = self.check.intern_origin(site.origin());
-                let origin = self.check.intern_origin(origin);
                 self.check.push_constraint(Constraint::value(
                     relation,
                     source,
                     target,
                     value_origin,
-                    origin,
+                    cause,
                     use_,
                 ));
 
@@ -196,8 +194,13 @@ impl BodyState<'_, '_> {
         {
             let target = answer!(self.expected_type(expectation.expected)?);
             let origin = Origin::Node(site.node, site.scope);
-            self.check
-                .push_solved_constraint(origin, expectation.use_, source, target)?;
+            self.check.push_solved_constraint(
+                origin,
+                expectation.cause,
+                expectation.use_,
+                source,
+                target,
+            )?;
         }
 
         // failed committed judgments report at the judgment
@@ -213,7 +216,7 @@ impl BodyState<'_, '_> {
             // poisoned judgments already reported their cause
             if !self.check.ty(source)?.is_error() && !self.check.ty(target)?.is_error() {
                 self.check.report_constraint_failure(
-                    expectation.origin,
+                    expectation.cause,
                     expectation.relation,
                     Some(expectation.use_),
                     source,
@@ -251,21 +254,19 @@ impl BodyState<'_, '_> {
         let Expectation {
             expected,
             relation,
-            origin,
+            cause,
             use_,
         } = expectation;
         let target = answer!(self.expected_type(expected)?);
 
         match node.local_id.ty {
-            dir::NodeType::Expression => {
-                self.check_expression(site, target, relation, origin, use_)
-            }
+            dir::NodeType::Expression => self.check_expression(site, target, relation, cause, use_),
             dir::NodeType::Block => self.check_block(
                 site,
                 node.into_typed().local_id,
                 target,
                 relation,
-                origin,
+                cause,
                 use_,
             ),
             dir::NodeType::Pattern => {
@@ -279,7 +280,7 @@ impl BodyState<'_, '_> {
                     site.flow,
                     site.scope,
                     target,
-                    origin,
+                    self.check.cause_origin(cause),
                 )?);
 
                 Ok(Answer::Ready(CheckOutcome::Holds))
@@ -313,13 +314,13 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         target: dir::GlobalTypeId,
         relation: Relation,
-        origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckOutcome>> {
         let expectation = Expectation {
             expected: ExpectedType::Type(target),
             relation,
-            origin,
+            cause,
             use_,
         };
         let check = answer!(self.check_node_kind(site, expectation)?);

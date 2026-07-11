@@ -347,6 +347,7 @@ identity<int32>("x");
         r#"
 /// @diagnostic.error code=EC209 message="argument of type '\"x\"' is not assignable to parameter of type 'int32'"
 /// @diagnostic.label line=6 column=17 span="\"x\"" line_source="identity<int32>(\"x\");"
+/// @diagnostic.related line=6 column=1 span="identity<int32>(\"x\")" line_source="identity<int32>(\"x\");" message="in this call"
 "#,
     );
 }

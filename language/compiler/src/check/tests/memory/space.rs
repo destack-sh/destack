@@ -355,6 +355,8 @@ const near: int32 = far;
         r#"
 /// @diagnostic.error code=EC200 message="type 'shared ^Point' is not assignable to type 'local ^Point'"
 /// @diagnostic.label line=7 column=30 span="remote" line_source="const nearby: local ^Point = remote;"
+/// @diagnostic.note message="'shared ^Point' reduces to 'shared Point'"
+/// @diagnostic.note message="'local ^Point' reduces to 'local Point'"
 "#,
     );
 }

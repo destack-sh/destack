@@ -3,7 +3,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, ConstructResult, Decision, Expectation, FlowSite, PlaceUse, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, ConstructResult, Decision, Expectation, FlowSite,
+    PlaceUse, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -45,8 +46,14 @@ impl BodyState<'_, '_> {
                 // labeled blocks own their output; labeled loops forward transparently
                 if let Some(result) = self.check.control_results.get(&node.into_any()).copied() {
                     let body_site = self.node_site(body.into_global_any(node.module_id))?;
-                    let expectation =
-                        Expectation::assignable(result, body_site.origin(), ValueUse::Output);
+                    let expectation = Expectation::assignable(
+                        result,
+                        self.check.intern_cause(Cause::root(
+                            body_site.origin(),
+                            CauseKind::Return { annotation: None },
+                        )),
+                        ValueUse::Output,
+                    );
                     self.check_node(body_site, PlaceUse::Read, Some(expectation))?;
                     self.commit_node_type(node.into_any(), result)?;
 

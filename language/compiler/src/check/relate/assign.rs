@@ -91,7 +91,7 @@ impl CheckState<'_> {
 
             // memory forms own placement and readonly views
             _ if let Some(decision) =
-                self.constrain_form_assignable(origin, relation, source, target)? =>
+                self.constrain_form_assignable_rooted(origin, relation, source, target)? =>
             {
                 decision
             }

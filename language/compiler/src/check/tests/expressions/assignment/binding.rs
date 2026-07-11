@@ -95,6 +95,7 @@ value = "text";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=3 column=9 span="\"text\"" line_source="value = \"text\";"
+/// @diagnostic.related line=3 column=1 span="value" line_source="value = \"text\";" message="expected due to the type of this target"
 "#,
     );
 }
@@ -199,6 +200,7 @@ value = "text";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=3 column=9 span="\"text\"" line_source="value = \"text\";"
+/// @diagnostic.related line=3 column=1 span="value" line_source="value = \"text\";" message="expected due to the type of this target"
 "#,
     );
 }
@@ -393,6 +395,8 @@ values = [1, 2, 3];
         r#"
 /// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
 /// @diagnostic.label line=3 column=10 span="[1, 2, 3]" line_source="values = [1, 2, 3];"
+/// @diagnostic.related line=3 column=1 span="values" line_source="values = [1, 2, 3];" message="expected due to the type of this target"
+/// @diagnostic.note message="the mismatch is in the length: expected '2', found '3'"
 "#,
     );
 }
@@ -468,6 +472,7 @@ const copy = value;
         r#"
 /// @diagnostic.error code=EC405 message="'value' is used before being assigned"
 /// @diagnostic.label line=3 column=14 span="value" line_source="const copy = value;"
+/// @diagnostic.related line=2 column=5 span="value" line_source="let value: string;" message="declared here"
 "#,
     );
 }
@@ -527,6 +532,7 @@ const copy = value;
         r#"
 /// @diagnostic.error code=EC405 message="'value' is used before being assigned"
 /// @diagnostic.label line=8 column=14 span="value" line_source="const copy = value;"
+/// @diagnostic.related line=4 column=5 span="value" line_source="let value: string;" message="declared here"
 "#,
     );
 }

@@ -172,6 +172,7 @@ const bad: Partial<Person> = { name: "Ada", extra: true };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type 'Partial<Person>'"
 /// @diagnostic.label line=7 column=30 span="{ name: \"Ada\", extra: true }" line_source="const bad: Partial<Person> = { name: \"Ada\", extra: true };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }
@@ -226,6 +227,7 @@ const bad: Partial<Person> = { name: "Ada", age: "no" };
         r#"
 /// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'int32 | undefined'"
 /// @diagnostic.label line=7 column=50 span="\"no\"" line_source="const bad: Partial<Person> = { name: \"Ada\", age: \"no\" };"
+/// @diagnostic.note message="the mismatch is in field 'age'"
 "#,
     );
 }

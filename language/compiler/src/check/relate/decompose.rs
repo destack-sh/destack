@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, GenericParameterId, Origin, Relation, TypeSubstitution, answer,
+    Answer, Cause, CauseKind, CheckState, Constraint, GenericParameterId, Origin, Relation,
+    TypeSubstitution, answer,
 };
 
 /// Applied generic argument that violates its declared parameter bound.
@@ -406,7 +407,8 @@ impl CheckState<'_> {
             };
 
             let origin = self.origin_at(origin, argument_source)?;
-            match self.constrain_type(origin, Relation::Satisfies, argument, bound)? {
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            match self.constrain_type(cause, Relation::Satisfies, argument, bound)? {
                 Answer::Ready(true) => {}
                 Answer::Ready(false) => {
                     return Ok(Answer::Ready(Some(GenericBoundRejection {
@@ -420,12 +422,13 @@ impl CheckState<'_> {
                 }
                 // park undecidable bounds for fulfillment outside probes
                 Answer::Pending(_) => {
-                    let origin = self.intern_origin(origin);
+                    let cause =
+                        self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
                     self.push_constraint(Constraint::r#type(
                         Relation::Satisfies,
                         argument,
                         bound,
-                        origin,
+                        cause,
                     ));
                 }
             }
@@ -647,8 +650,9 @@ impl CheckState<'_> {
             else {
                 continue;
             };
-            let origin = self.origin_at(origin, source)?;
-            if !answer!(self.constrain_type(origin, Relation::Satisfies, argument, bound)?) {
+            let anchored = self.origin_at(origin, source)?;
+            let cause = self.intern_cause(Cause::root(anchored, CauseKind::Bound { parameter }));
+            if !answer!(self.constrain_type(cause, Relation::Satisfies, argument, bound)?) {
                 return Ok(Answer::Ready(false));
             }
         }

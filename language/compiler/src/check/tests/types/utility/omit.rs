@@ -260,6 +260,7 @@ const person: WithoutAge = { name: "Ada", age: 42 };
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'age' in object literal for type 'WithoutAge'"
 /// @diagnostic.label line=9 column=28 span="{ name: \"Ada\", age: 42 }" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };"
+/// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
 }

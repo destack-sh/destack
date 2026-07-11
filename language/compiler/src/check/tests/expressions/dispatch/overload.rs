@@ -198,6 +198,8 @@ parse(true);
         r#"
 /// @diagnostic.error code=EC302 message="no overload matches arguments ('true')"
 /// @diagnostic.label line=5 column=1 span="parse(true)" line_source="parse(true);"
+/// @diagnostic.note message="the candidate '(string) => int32' rejects argument 0: 'true' is not assignable to 'string'"
+/// @diagnostic.note message="the candidate '(int32) => int32' rejects argument 0: 'true' is not assignable to 'int32'"
 "#,
     );
 }

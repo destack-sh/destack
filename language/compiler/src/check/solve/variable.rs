@@ -159,11 +159,13 @@ impl VariableTable {
         side: BoundSide,
         bound: TypeBound,
     ) -> CompilerResult<bool> {
-        // reject bounds already collected on this side
-        if self
-            .side_bounds(id, side)?
-            .any(|existing| existing == bound)
-        {
+        // reject bounds already collected on this side; the first
+        //  cause wins, since provenance never changes the solution
+        if self.side_bounds(id, side)?.any(|existing| {
+            existing.ty == bound.ty
+                && existing.relation == bound.relation
+                && existing.mode == bound.mode
+        }) {
             return Ok(false);
         }
 

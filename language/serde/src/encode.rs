@@ -103,7 +103,10 @@ impl std::fmt::Debug for Encoder<'_> {
             EncoderOutput::Hasher(_) => "hasher",
         };
 
-        formatter.debug_struct("Encoder").field("output", &sink).finish()
+        formatter
+            .debug_struct("Encoder")
+            .field("output", &sink)
+            .finish()
     }
 }
 

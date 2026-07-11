@@ -127,6 +127,8 @@ const value = read(mixed);
         r#"
 /// @diagnostic.error code=EC209 message="argument of type '{ x: int32; y: string }' is not assignable to parameter of type 'Bag'"
 /// @diagnostic.label line=7 column=20 span="mixed" line_source="const value = read(mixed);"
+/// @diagnostic.related line=7 column=15 span="read(mixed)" line_source="const value = read(mixed);" message="in this call"
+/// @diagnostic.note message="'Bag' reduces to '{ readonly [key: string]: int32 }'"
 "#,
     );
 }
@@ -219,6 +221,7 @@ const bad = write(point);
         r#"
 /// @diagnostic.error code=EC216 message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=19 span="point" line_source="const bad = write(point);"
+/// @diagnostic.related line=7 column=13 span="write(point)" line_source="const bad = write(point);" message="in this call"
 "#,
     );
 }
@@ -491,6 +494,7 @@ const bad = read(point);
         r#"
 /// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=18 span="point" line_source="const bad = read(point);"
+/// @diagnostic.related line=7 column=13 span="read(point)" line_source="const bad = read(point);" message="in this call"
 "#,
     );
 }

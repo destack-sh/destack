@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, BodyState, Decision, DecisionKind, Dependency, Relation, answer};
+use crate::check::{
+    Answer, BodyState, Cause, CauseKind, Decision, DecisionKind, Dependency, Relation, answer,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
@@ -116,6 +118,9 @@ impl BodyState<'_, '_> {
                     &substitution,
                 )?) {
                     let anchored = self.origin_at(origin, rejection.source)?;
+                    let anchored = self
+                        .check
+                        .intern_cause(Cause::root(anchored, CauseKind::Expression));
                     self.relate(
                         anchored,
                         Relation::Satisfies,

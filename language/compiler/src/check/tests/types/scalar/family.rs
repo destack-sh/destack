@@ -114,6 +114,7 @@ const narrow = Index { value: 1 as int32 };
         r#"
 /// @diagnostic.error code=EC201 message="type 'int32' does not satisfy 'int64'"
 /// @diagnostic.label line=7 column=16 span="Index" line_source="const narrow = Index { value: 1 as int32 };"
+/// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"
 "#,
     );
 }

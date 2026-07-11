@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BoundMode, BoundSide, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation,
-    Task, TaskFailures, TypeBound, VariableBounds, VariableRole, Widening, answer,
+    Answer, BoundMode, BoundSide, CauseId, CheckEvent, CheckState, Constraint, Dependency, Origin,
+    Relation, Task, TaskFailures, TypeBound, VariableBounds, VariableRole, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -464,8 +464,6 @@ impl CheckState<'_> {
 
             return Ok(());
         }
-        let origin_id = self.solver.variable(representative)?.origin;
-        let origin = self.solver.origin(origin_id);
         let bounds = VariableBounds {
             lower: self
                 .solver
@@ -495,10 +493,10 @@ impl CheckState<'_> {
 
         // accumulated bounds discharge against the committed solution
         for bound in &bounds.lower {
-            self.discharge_bound(origin, BoundSide::Lower, bound, solution)?;
+            self.discharge_bound(BoundSide::Lower, bound, solution)?;
         }
         for bound in &bounds.upper {
-            self.discharge_bound(origin, BoundSide::Upper, bound, solution)?;
+            self.discharge_bound(BoundSide::Upper, bound, solution)?;
         }
 
         Ok(())
@@ -507,7 +505,6 @@ impl CheckState<'_> {
     /// Discharge one accumulated bound against a committed solution.
     fn discharge_bound(
         &mut self,
-        origin: Origin,
         side: BoundSide,
         bound: &TypeBound,
         solution: dir::GlobalTypeId,
@@ -518,12 +515,15 @@ impl CheckState<'_> {
         };
 
         // relations that cannot settle in place park as constraints
-        let anchored = self.origin_at(origin, bound.source)?;
-        match self.constrain_type(anchored, bound.relation, source, target)? {
+        match self.constrain_type(bound.cause, bound.relation, source, target)? {
             Answer::Ready(true) => {}
             Answer::Ready(false) | Answer::Pending(_) => {
-                let anchored = self.intern_origin(anchored);
-                self.push_constraint(Constraint::r#type(bound.relation, source, target, anchored));
+                self.push_constraint(Constraint::r#type(
+                    bound.relation,
+                    source,
+                    target,
+                    bound.cause,
+                ));
             }
         }
 
@@ -578,10 +578,10 @@ impl CheckState<'_> {
 
         // push moved bounds through the checked paths
         for bound in lower {
-            self.push_lower_bound(target, bound.source, bound.ty, bound.relation, bound.mode)?;
+            self.push_lower_bound(target, bound.cause, bound.ty, bound.relation, bound.mode)?;
         }
         for bound in upper {
-            self.push_upper_bound(target, bound.source, bound.ty, bound.relation, bound.mode)?;
+            self.push_upper_bound(target, bound.cause, bound.ty, bound.relation, bound.mode)?;
         }
 
         // move tasks parked on the old representative
@@ -621,24 +621,24 @@ impl CheckState<'_> {
     pub(in crate::check) fn push_lower_bound(
         &mut self,
         variable: dir::TypeVariableId,
-        source: dir::GlobalNodeIdAny,
+        cause: CauseId,
         bound: dir::GlobalTypeId,
         relation: Relation,
         mode: BoundMode,
     ) -> CompilerResult<()> {
-        self.push_variable_bound(variable, BoundSide::Lower, source, bound, relation, mode)
+        self.push_variable_bound(variable, BoundSide::Lower, cause, bound, relation, mode)
     }
 
     /// Push one upper bound onto a variable and schedule it.
     pub(in crate::check) fn push_upper_bound(
         &mut self,
         variable: dir::TypeVariableId,
-        source: dir::GlobalNodeIdAny,
+        cause: CauseId,
         bound: dir::GlobalTypeId,
         relation: Relation,
         mode: BoundMode,
     ) -> CompilerResult<()> {
-        self.push_variable_bound(variable, BoundSide::Upper, source, bound, relation, mode)
+        self.push_variable_bound(variable, BoundSide::Upper, cause, bound, relation, mode)
     }
 
     /// Push one bound onto a variable side and schedule it.
@@ -646,7 +646,7 @@ impl CheckState<'_> {
         &mut self,
         variable: dir::TypeVariableId,
         side: BoundSide,
-        source: dir::GlobalNodeIdAny,
+        cause: CauseId,
         bound: dir::GlobalTypeId,
         relation: Relation,
         mode: BoundMode,
@@ -658,16 +658,14 @@ impl CheckState<'_> {
 
         // late bounds against a solved variable discharge as relation checks
         if let Some(solution) = self.solver.variable(representative)?.solution {
-            let origin_id = self.solver.variable(representative)?.origin;
-            let origin = self.solver.origin(origin_id);
-            let late = TypeBound::new(bound, relation, source, mode);
-            self.discharge_bound(origin, side, &late, solution)?;
+            let late = TypeBound::new(bound, relation, cause, mode);
+            self.discharge_bound(side, &late, solution)?;
 
             return Ok(());
         }
 
         // collect the bound and schedule the variable
-        let bound = TypeBound::new(bound, relation, source, mode);
+        let bound = TypeBound::new(bound, relation, cause, mode);
         if self.solver.push_bound(representative, side, bound)? {
             self.record_event(match side {
                 BoundSide::Lower => CheckEvent::LowerBoundPushed {

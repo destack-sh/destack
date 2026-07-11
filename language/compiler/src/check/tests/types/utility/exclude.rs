@@ -75,6 +75,7 @@ const bad: Letter = "b";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"b\"' is not assignable to type 'Letter'"
 /// @diagnostic.label line=4 column=21 span="\"b\"" line_source="const bad: Letter = \"b\";"
+/// @diagnostic.note message="'Letter' reduces to '\"a\" | \"c\"'"
 "#,
     );
 }
@@ -113,6 +114,7 @@ let bad: Letter = "b";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"b\"' is not assignable to type 'Letter'"
 /// @diagnostic.label line=4 column=19 span="\"b\"" line_source="let bad: Letter = \"b\";"
+/// @diagnostic.note message="'Letter' reduces to 'never'"
 "#,
     );
 }

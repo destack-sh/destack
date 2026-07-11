@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Constraint, FlowSite, PlaceUse, Relation, TryPropagationTarget, ValueUse,
-    VariableRole, Widening, answer,
+    Answer, BodyState, Cause, CauseKind, Constraint, FlowSite, PlaceUse, Relation,
+    TryPropagationTarget, ValueUse, VariableRole, Widening, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -22,11 +22,12 @@ impl BodyState<'_, '_> {
 
         // the value checks against the target without taking its type
         let target = answer!(self.node_type(target_type.into_global_any(module))?);
+        let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
         answer!(self.check_node_expected(
             value_site,
             target,
             Relation::Satisfies,
-            site.origin(),
+            cause,
             ValueUse::Satisfies,
         )?);
         let value_type = answer!(self.node_type_at(value_site)?);
@@ -64,11 +65,12 @@ impl BodyState<'_, '_> {
         if !self.check.type_variables(target)?.is_empty()
             && self.node_type_maybe(value_site.node).is_none()
         {
+            let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
             answer!(self.check_expression(
                 value_site,
                 target,
                 Relation::Castable,
-                site.origin(),
+                cause,
                 ValueUse::Store
             )?);
             self.commit_node_type(node.into_any(), target)?;
@@ -77,12 +79,27 @@ impl BodyState<'_, '_> {
         }
 
         let value_type = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        let origin = self.intern_origin(site.origin());
+
+        // a cast onto the operand's own settled type has no effect
+        let value_root = self.check.settled_root(value_type)?;
+        let target_root = self.check.settled_root(target)?;
+        if value_root == target_root
+            && self.check.type_variables(value_root)?.is_empty()
+            && !self.check.solver.is_probing()
+        {
+            self.check.report_redundant_cast(
+                node.into_any(),
+                value.into_global_any(module),
+                target,
+            );
+        }
+
+        let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
         self.push_constraint(Constraint::r#type(
             Relation::Castable,
             value_type,
             target,
-            origin,
+            cause,
         ));
         self.commit_node_type(node.into_any(), target)?;
 
@@ -116,13 +133,13 @@ impl BodyState<'_, '_> {
                 let variable =
                     self.allocate_variable(origin, Widening::Widen, VariableRole::Regular);
                 let element = self.variable_type(variable)?;
-                let origin = self.intern_origin(origin);
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {
                     self.push_constraint(Constraint::r#type(
                         Relation::Assignable,
                         *bound,
                         element,
-                        origin,
+                        cause,
                     ));
                 }
 
@@ -177,12 +194,12 @@ impl BodyState<'_, '_> {
         let residual = self.intern_operation(module, dir::TypeOperation::TryResidual { value })?;
         match target {
             TryPropagationTarget::Failure { ty } => {
-                let origin = self.intern_origin(origin);
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_constraint(Constraint::r#type(
                     Relation::Assignable,
                     residual,
                     ty,
-                    origin,
+                    cause,
                 ));
             }
             TryPropagationTarget::Return { ty: Some(ret) } => {
@@ -192,13 +209,8 @@ impl BodyState<'_, '_> {
                     module,
                     dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
                 )?;
-                let origin = self.intern_origin(origin);
-                self.push_constraint(Constraint::r#type(
-                    Relation::Implements,
-                    ret,
-                    target,
-                    origin,
-                ));
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                self.push_constraint(Constraint::r#type(Relation::Implements, ret, target, cause));
             }
             TryPropagationTarget::Return { ty: None } => {
                 self.check.report_try_outside_function(node);

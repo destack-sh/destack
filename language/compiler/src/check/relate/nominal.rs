@@ -3,7 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
+use crate::check::{
+    Answer, Cause, CauseId, CauseKind, CheckState, Dependency, Origin, Relation, answer,
+};
 
 /// One applied heritage edge in a nominal declaration closure.
 #[derive(Debug, Clone)]
@@ -270,12 +272,14 @@ impl CheckState<'_> {
     /// Constrain one open nominal application into a required interface.
     pub(in crate::check) fn constrain_nominal_satisfies(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         source: dir::GlobalTypeId,
         source_instance: &dir::GenericInstance,
         target: dir::GlobalTypeId,
         target_instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
+        let origin = self.cause_origin(cause);
+
         // declared heritage carries the relation and binds open arguments
         if let Some(heritage) = answer!(self.heritage_instance(
             origin,
@@ -291,7 +295,7 @@ impl CheckState<'_> {
             let context = self.default_symbol_context(target_instance.symbol);
 
             return self.relate_type_arguments(
-                origin,
+                cause,
                 target_instance.symbol,
                 context,
                 Relation::Assignable,
@@ -360,7 +364,7 @@ impl CheckState<'_> {
             let context = self.default_symbol_context(target_instance.symbol);
 
             return self.relate_type_arguments(
-                origin,
+                cause,
                 target_instance.symbol,
                 context,
                 Relation::Assignable,
@@ -396,8 +400,10 @@ impl CheckState<'_> {
 
                 let context = self.default_symbol_context(target_instance.symbol);
 
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
                 return self.relate_type_arguments(
-                    origin,
+                    cause,
                     target_instance.symbol,
                     context,
                     Relation::Assignable,
@@ -434,8 +440,10 @@ impl CheckState<'_> {
                     .type_ids(target.module_id, target_instance.arguments)?
                     .to_vec();
 
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
                 self.relate_type_arguments(
-                    origin,
+                    cause,
                     target_instance.symbol,
                     self.default_symbol_context(target_instance.symbol),
                     Relation::Assignable,
@@ -788,7 +796,9 @@ impl CheckState<'_> {
                 continue;
             };
 
-            answer!(self.constrain_type(origin, Relation::Writable, field.ty, declared.ty)?);
+            let field_cause =
+                self.intern_cause(Cause::root(origin, CauseKind::Field { key: field.key }));
+            answer!(self.constrain_type(field_cause, Relation::Writable, field.ty, declared.ty)?);
         }
 
         Ok(Answer::Ready(()))
@@ -1098,10 +1108,11 @@ impl CheckState<'_> {
             )
             .collect::<SmallVec<[_; 4]>>();
 
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let mut decision = Answer::Ready(true);
         for (source_argument, target_argument) in pairs {
             decision = decision.and(self.constrain_type(
-                origin,
+                cause,
                 Relation::Equal,
                 source_argument,
                 target_argument,

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::Relation;
+use crate::check::{CauseId, Relation};
 
 /// One empty intrusive list link.
 pub(in crate::check) const EMPTY: u32 = u32::MAX;
@@ -28,24 +28,24 @@ pub(in crate::check) struct TypeBound {
     pub(in crate::check) ty: dir::GlobalTypeId,
     /// The relation between the variable and this bound.
     pub(in crate::check) relation: Relation,
-    /// The source occurrence that produced the bound.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// Why this bound exists.
+    pub(in crate::check) cause: CauseId,
     /// When this bound may choose the variable's solution.
     pub(in crate::check) mode: BoundMode,
 }
 
 impl TypeBound {
-    /// Return one type bound from a source occurrence.
+    /// Return one type bound from its cause.
     pub(in crate::check) fn new(
         ty: dir::GlobalTypeId,
         relation: Relation,
-        source: dir::GlobalNodeIdAny,
+        cause: CauseId,
         mode: BoundMode,
     ) -> Self {
         Self {
             ty,
             relation,
-            source,
+            cause,
             mode,
         }
     }

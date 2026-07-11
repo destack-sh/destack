@@ -3,7 +3,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowBranch, GeneratorTargets,
+    BodyOwner, BodyPhase, BodyTarget, CauseKind, ExpectedType, FlowBranch, GeneratorTargets,
     GenericTemplateId, InducedLifetimeOwner, Origin, ReceiverBinding, Relation, ValueUse,
     VariableRole, WalkState, Widening,
 };
@@ -457,7 +457,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
             let promised =
                 self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
-            self.relate_type(origin, Relation::Assignable, promised, result);
+            self.relate_type(
+                origin,
+                CauseKind::Return { annotation: None },
+                Relation::Assignable,
+                promised,
+                result,
+            );
 
             return_target = completed;
         }
@@ -475,7 +481,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
             };
             let generated = self.language_type_reference(item, &[yielded, completed, resumed])?;
-            self.relate_type(origin, Relation::Assignable, generated, result);
+            self.relate_type(
+                origin,
+                CauseKind::Return { annotation: None },
+                Relation::Assignable,
+                generated,
+                result,
+            );
 
             return_target = completed;
             yield_target = Some(yielded);

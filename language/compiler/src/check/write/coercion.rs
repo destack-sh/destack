@@ -3,7 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, CheckState, Constraint, ConstraintId, ConstraintState, Origin, Relation, ValueUse,
+    Answer, CauseId, CheckState, Constraint, ConstraintId, ConstraintState, Origin, Relation,
+    ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -12,17 +13,18 @@ impl CheckState<'_> {
     pub(in crate::check) fn push_solved_constraint(
         &mut self,
         origin: Origin,
+        cause: CauseId,
         use_: ValueUse,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let origin = self.intern_origin(origin);
+        let value_origin = self.intern_origin(origin);
         let constraint = Constraint::value(
             Relation::Assignable,
             source,
             target,
-            origin,
-            origin,
+            value_origin,
+            cause,
             Some(use_),
         );
         let id = self.solver.allocate_constraint(constraint);
@@ -41,7 +43,7 @@ impl CheckState<'_> {
         for (id, constraint) in self.solver.constraints.iter() {
             let state = self.solver.constraints.state(id)?;
             if state == ConstraintState::Holds
-                && self.solver.origin(constraint.origin()).module() == module
+                && self.solver.cause(constraint.cause()).origin.module() == module
             {
                 constraints.push(id);
             }
@@ -115,7 +117,7 @@ impl CheckState<'_> {
                 constraint.use_,
                 constraint.source,
                 constraint.target,
-                constraint.origin,
+                constraint.value_origin,
             )
         };
 

@@ -74,6 +74,7 @@ const bad: Numeric = "NaN";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"NaN\"' is not assignable to type 'Numeric'"
 /// @diagnostic.label line=4 column=22 span="\"NaN\"" line_source="const bad: Numeric = \"NaN\";"
+/// @diagnostic.note message="'Numeric' reduces to '`${float64}`'"
 "#,
     );
 }
@@ -152,6 +153,7 @@ const bad: Small = "128";
         r#"
 /// @diagnostic.error code=EC200 message="type '\"128\"' is not assignable to type 'Small'"
 /// @diagnostic.label line=4 column=20 span="\"128\"" line_source="const bad: Small = \"128\";"
+/// @diagnostic.note message="'Small' reduces to '`${int8}`'"
 "#,
     );
 }

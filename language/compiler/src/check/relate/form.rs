@@ -2,7 +2,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BoundMode, CheckState, Origin, Relation, VarianceContext, answer};
+use crate::check::{
+    Answer, BoundMode, Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceContext,
+    answer,
+};
 
 /// The payload relation one matched handle pair runs under.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,24 +57,18 @@ impl CheckState<'_> {
     /// Constrain one matched handle pair's payloads under a policy.
     fn constrain_form_payload(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         relation: Relation,
         policy: FormPayloadPolicy,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         match policy {
-            FormPayloadPolicy::Exact => {
-                self.constrain_type(origin, Relation::Equal, source, target)
+            FormPayloadPolicy::Exact => self.constrain_type(cause, Relation::Equal, source, target),
+            FormPayloadPolicy::Plain => self.constrain_type(cause, relation, source, target),
+            FormPayloadPolicy::Context(context) => {
+                self.relate_context_payload(cause, context, relation.payload_edge(), source, target)
             }
-            FormPayloadPolicy::Plain => self.constrain_type(origin, relation, source, target),
-            FormPayloadPolicy::Context(context) => self.relate_context_payload(
-                origin,
-                context,
-                relation.payload_edge(),
-                source,
-                target,
-            ),
         }
     }
 
@@ -82,7 +79,7 @@ impl CheckState<'_> {
     /// edge widens, since an existing payload has no site to convert at.
     pub(in crate::check) fn relate_context_payload(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         context: VarianceContext,
         edge: Relation,
         source: dir::GlobalTypeId,
@@ -102,7 +99,7 @@ impl CheckState<'_> {
                     .to_vec();
 
                 self.relate_type_arguments(
-                    origin,
+                    cause,
                     symbol,
                     context,
                     edge,
@@ -113,7 +110,7 @@ impl CheckState<'_> {
             // container elements are storage the handle can reach
             (dir::Type::Array(source_array), dir::Type::Array(target_array)) => self
                 .relate_context_storage(
-                    origin,
+                    cause,
                     context,
                     edge,
                     source_array.element,
@@ -121,7 +118,7 @@ impl CheckState<'_> {
                 ),
             (dir::Type::Slice(source_slice), dir::Type::Slice(target_slice)) => self
                 .relate_context_storage(
-                    origin,
+                    cause,
                     context,
                     edge,
                     source_slice.element,
@@ -132,7 +129,7 @@ impl CheckState<'_> {
                 if context == VarianceContext::View =>
             {
                 self.relate_context_storage(
-                    origin,
+                    cause,
                     context,
                     edge,
                     source_array.element,
@@ -140,14 +137,14 @@ impl CheckState<'_> {
                 )
             }
             // every other payload edge relates by the flavored edge
-            _ => self.constrain_type(origin, edge, source, target),
+            _ => self.constrain_type(cause, edge, source, target),
         }
     }
 
     /// Relate one storage slot reached through a handle context.
     fn relate_context_storage(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         context: VarianceContext,
         edge: Relation,
         source: dir::GlobalTypeId,
@@ -156,11 +153,11 @@ impl CheckState<'_> {
         match context {
             // readonly views read storage covariantly and stay views deeply
             VarianceContext::View => {
-                self.relate_context_payload(origin, VarianceContext::View, edge, source, target)
+                self.relate_context_payload(cause, VarianceContext::View, edge, source, target)
             }
             // aliased and owned handles reach mutable storage
             VarianceContext::Aliased | VarianceContext::Owned => {
-                self.constrain_type(origin, Relation::Equal, source, target)
+                self.constrain_type(cause, Relation::Equal, source, target)
             }
         }
     }
@@ -169,13 +166,27 @@ impl CheckState<'_> {
     ///
     /// Under `Widens`, arms that change the runtime carrier are skipped:
     /// only transparent forms and matching constructors widen.
-    pub(in crate::check) fn constrain_form_assignable(
+    /// Constrain form assignability from a decide-side entry.
+    pub(in crate::check) fn constrain_form_assignable_rooted(
         &mut self,
         origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Answer<bool>>> {
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
+        self.constrain_form_assignable(cause, relation, source, target)
+    }
+
+    pub(in crate::check) fn constrain_form_assignable(
+        &mut self,
+        cause: CauseId,
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Answer<bool>>> {
+        let origin = self.cause_origin(cause);
         let source = match self.reduce_type_head(origin, source)? {
             Answer::Ready(source) => source,
             Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
@@ -191,8 +202,10 @@ impl CheckState<'_> {
                 if source_form.form == dir::Form::Readonly
                     && target_form.form == dir::Form::Readonly =>
             {
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
                 Ok(Some(self.relate_context_payload(
-                    origin,
+                    cause,
                     VarianceContext::View,
                     relation.payload_edge(),
                     source_form.value,
@@ -219,8 +232,10 @@ impl CheckState<'_> {
 
             // values can flow into readonly forms by dropping write access
             (_, dir::Type::Form(target_form)) if target_form.form == dir::Form::Readonly => {
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
                 Ok(Some(self.relate_context_payload(
-                    origin,
+                    cause,
                     VarianceContext::View,
                     relation.payload_edge(),
                     source,
@@ -262,7 +277,7 @@ impl CheckState<'_> {
                 };
 
                 Ok(Some(self.constrain_form_payload(
-                    origin,
+                    cause,
                     relation,
                     policy,
                     source_value,
@@ -304,7 +319,7 @@ impl CheckState<'_> {
                     };
 
                 Ok(Some(self.constrain_form_payload(
-                    origin,
+                    cause,
                     relation,
                     policy,
                     source_form.value,
@@ -329,7 +344,7 @@ impl CheckState<'_> {
                 }
 
                 Ok(Some(self.constrain_type(
-                    origin,
+                    cause,
                     Relation::Assignable,
                     source,
                     target_value,
@@ -351,7 +366,7 @@ impl CheckState<'_> {
                 }
 
                 Ok(Some(self.constrain_type(
-                    origin,
+                    cause,
                     Relation::Assignable,
                     source,
                     target_form.value,
@@ -366,7 +381,7 @@ impl CheckState<'_> {
                 ) =>
             {
                 Ok(Some(self.constrain_type(
-                    origin,
+                    cause,
                     relation,
                     source_form.value,
                     target,
@@ -377,7 +392,7 @@ impl CheckState<'_> {
                 if relation != Relation::Widens && source_form.form == dir::Form::Owned =>
             {
                 Ok(Some(self.constrain_type(
-                    origin,
+                    cause,
                     Relation::Assignable,
                     source_form.value,
                     target,
@@ -413,8 +428,9 @@ impl CheckState<'_> {
         if !copyable.is_ready_true() {
             return Ok(copyable);
         }
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-        self.constrain_type(origin, relation, payload, target)
+        self.constrain_type(cause, relation, payload, target)
     }
 
     /// Decide equality of two memory form constructors.
@@ -515,12 +531,10 @@ impl CheckState<'_> {
         }
 
         if let Some(variable) = self.root_variable(target)? {
-            let bound_source = self
-                .origin_source_node(origin)?
-                .into_global(origin.module());
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
             self.push_lower_bound(
                 variable,
-                bound_source,
+                cause,
                 source,
                 Relation::Assignable,
                 BoundMode::Strong,
@@ -569,7 +583,9 @@ impl CheckState<'_> {
         let source = self.settled_root(source)?;
         let target = self.settled_root(target)?;
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
-            return self.constrain_type(origin, Relation::Assignable, source, target);
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
+            return self.constrain_type(cause, Relation::Assignable, source, target);
         }
 
         self.decide_access_assignable(origin, source, target)

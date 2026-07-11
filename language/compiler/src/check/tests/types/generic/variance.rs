@@ -46,6 +46,7 @@ const shapes: Shape[] = circles;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Array<Circle>' is not assignable to type 'Array<Shape>'"
 /// @diagnostic.label line=6 column=25 span="circles" line_source="const shapes: Shape[] = circles;"
+/// @diagnostic.note message="the mismatch is in the element type: expected 'Shape', found 'Circle'"
 "#,
     );
 }
@@ -394,6 +395,8 @@ const widened: Managed<Box<Shape>> = aliased;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Managed<Box<Circle>>' is not assignable to type 'Managed<Box<Shape>>'"
 /// @diagnostic.label line=13 column=38 span="aliased" line_source="const widened: Managed<Box<Shape>> = aliased;"
+/// @diagnostic.note message="'Managed<Box<Circle>>' reduces to 'Box<Circle>'"
+/// @diagnostic.note message="'Managed<Box<Shape>>' reduces to 'Box<Shape>'"
 "#,
     );
 }
@@ -462,6 +465,7 @@ const widened: { x: float64 } = point;
         r#"
 /// @diagnostic.error code=EC200 message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
 /// @diagnostic.label line=3 column=33 span="point" line_source="const widened: { x: float64 } = point;"
+/// @diagnostic.note message="the mismatch is in field 'x': expected 'float64', found '1'"
 "#,
     );
 }
@@ -525,6 +529,7 @@ const converted: { readonly x: float64 } = scalar;
         r#"
 /// @diagnostic.error code=EC200 message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
 /// @diagnostic.label line=9 column=44 span="scalar" line_source="const converted: { readonly x: float64 } = scalar;"
+/// @diagnostic.note message="the mismatch is in field 'x': expected 'float64', found '1'"
 "#,
     );
 }
@@ -639,6 +644,7 @@ const target: Handle<string> = source;
         r#"
 /// @diagnostic.error code=EC200 message="type 'Handle<int32>' is not assignable to type 'Handle<string>'"
 /// @diagnostic.label line=5 column=32 span="source" line_source="const target: Handle<string> = source;"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Handle': expected 'string', found 'int32'"
 "#,
     );
 }

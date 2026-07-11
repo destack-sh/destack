@@ -84,6 +84,7 @@ parse("row-col");
         r#"
 /// @diagnostic.error code=EC209 message="argument of type '\"row-col\"' is not assignable to parameter of type '`${_}-${_}`'"
 /// @diagnostic.label line=4 column=7 span="\"row-col\"" line_source="parse(\"row-col\");"
+/// @diagnostic.related line=4 column=1 span="parse(\"row-col\")" line_source="parse(\"row-col\");" message="in this call"
 "#,
     );
 }

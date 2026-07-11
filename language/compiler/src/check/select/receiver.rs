@@ -3,7 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, CandidateOutcome, Origin, ProbeReason, Relation, answer};
+use crate::check::{
+    Answer, BodyState, CandidateOutcome, Cause, CauseKind, Origin, ProbeReason, Relation, answer,
+};
 
 /// The projection steps picked for one receiver.
 pub(in crate::check) type ReceiverSteps = SmallVec<[dir::Projection; 2]>;
@@ -68,8 +70,10 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(CandidateOutcome::Rejected(())));
                 };
 
+                let cause = state.intern_cause(Cause::root(origin, CauseKind::Expression));
+
                 match state.constrain_type(
-                    origin,
+                    cause,
                     Relation::Assignable,
                     adjusted.source,
                     adjusted.target,

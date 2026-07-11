@@ -43,6 +43,7 @@ const bad: Count = 5;
         r#"
 /// @diagnostic.error code=EC200 message="type '5' is not assignable to type 'Count'"
 /// @diagnostic.label line=6 column=20 span="5" line_source="const bad: Count = 5;"
+/// @diagnostic.note message="'Count' reduces to '0..5'"
 "#,
     );
 }
@@ -90,6 +91,7 @@ const bad: Digit = 10;
         r#"
 /// @diagnostic.error code=EC200 message="type '10' is not assignable to type 'Digit'"
 /// @diagnostic.label line=6 column=20 span="10" line_source="const bad: Digit = 10;"
+/// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
 }

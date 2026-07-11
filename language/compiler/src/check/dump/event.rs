@@ -37,14 +37,20 @@ impl CheckEvent {
                 .text("variable", context.variable_label(*variable))
                 .text("bound", context.type_label(bound.ty))
                 .text("relation", context.relation_label(bound.relation))
-                .text("source", context.node_label(bound.source))
+                .text(
+                    "cause",
+                    context.origin_label(context.check.solver.cause(bound.cause).origin),
+                )
                 .text("mode", context.bound_mode_label(bound.mode)),
             Self::UpperBoundPushed { variable, bound } => ArtifactEvent::new("variable.upper")
                 .debug()
                 .text("variable", context.variable_label(*variable))
                 .text("bound", context.type_label(bound.ty))
                 .text("relation", context.relation_label(bound.relation))
-                .text("source", context.node_label(bound.source))
+                .text(
+                    "cause",
+                    context.origin_label(context.check.solver.cause(bound.cause).origin),
+                )
                 .text("mode", context.bound_mode_label(bound.mode)),
             Self::SolveStarted { tasks, variables } => ArtifactEvent::new("solve.started")
                 .info()
