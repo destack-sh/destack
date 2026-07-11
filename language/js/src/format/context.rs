@@ -64,15 +64,13 @@ pub enum ScriptFormat {
     /// TypeScript with runtime and type syntax.
     #[default]
     TypeScript,
-    /// TypeScript declarations only.
-    Declaration,
 }
 
 impl ScriptFormat {
     /// Return whether type syntax should be emitted.
     #[inline]
     pub fn includes_types(self) -> bool {
-        matches!(self, Self::TypeScript | Self::Declaration)
+        self == Self::TypeScript
     }
 
     /// Return the canonical output extension.
@@ -80,7 +78,6 @@ impl ScriptFormat {
         match self {
             Self::JavaScript => "js",
             Self::TypeScript => "ts",
-            Self::Declaration => "d.ts",
         }
     }
 }
