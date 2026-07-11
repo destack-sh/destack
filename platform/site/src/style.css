@@ -241,11 +241,17 @@ button {
     outline-offset: 0.25rem;
 }
 
-.home-points a:hover .home-points__action,
-.home-points a[aria-current] .home-points__action {
+.home-points a:not([aria-current]):hover .home-points__action {
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.25rem;
+}
+
+.home-points a[aria-current] .home-points__action,
+.home-points a:focus-visible .home-points__action {
+    background: var(--theme-text);
+    color: var(--theme-page);
+    text-decoration: none;
 }
 
 .home-points__number {
@@ -254,6 +260,7 @@ button {
 }
 
 .home-points__action {
+    justify-self: start;
     font-weight: 600;
 }
 
@@ -315,13 +322,6 @@ button {
     opacity: 0.72;
     text-shadow: 0 1px 0 color-mix(in srgb, var(--theme-lake-light) 35%, transparent);
     white-space: pre;
-}
-
-.sweep-text__character--lit {
-    color: var(--theme-lake);
-    font-weight: 600;
-    text-shadow: 0 0 0.35rem
-        color-mix(in srgb, var(--theme-lake-light) 40%, transparent);
 }
 
 .home-stage {
