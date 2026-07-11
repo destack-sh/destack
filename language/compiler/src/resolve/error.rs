@@ -28,6 +28,24 @@ pub enum ResolveError {
         suggestion: Option<String>,
     },
 
+    /// Import or re-export selects a name that exists in the target module without being exported.
+    ///
+    /// ```ds
+    /// import { hidden } from "./library.ds";
+    /// ```
+    #[diagnostic(
+        code = "ER202",
+        message = "'{name}' exists in '{target}' but is not exported"
+    )]
+    NotExported {
+        /// The import or re-export clause.
+        anchor: DiagnosticAnchor,
+        /// The unexported binding name.
+        name: String,
+        /// The resolved target module.
+        target: String,
+    },
+
     /// Import or re-export selects a name that is re-exported by multiple star exports.
     ///
     /// ```ds

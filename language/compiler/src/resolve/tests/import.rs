@@ -315,6 +315,59 @@ export let value = 1;
 }
 
 #[test]
+fn test_resolve_reports_unexported_local_binding() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+import { hidden } from "./dep.ds";
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+let hidden = 1;
+export let value = 2;
+"#,
+        )
+        .build();
+    compiler.assert_dir_resolved_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=ER202 message="'hidden' exists in './dep.ds' but is not exported"
+/// @diagnostic.label line=2 column=10 span="hidden" line_source="import { hidden } from \"./dep.ds\";"
+/// @diagnostic.help message="export 'hidden' from './dep.ds'"
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_suggests_closest_export_across_case() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+import { json } from "./dep.ds";
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export let JSON = 1;
+"#,
+        )
+        .build();
+    compiler.assert_dir_resolved_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=ER200 message="missing export 'json' from './dep.ds'; did you mean 'JSON'?"
+/// @diagnostic.label line=2 column=10 span="json" line_source="import { json } from \"./dep.ds\";"
+/// @diagnostic.suggestion message="rename to 'JSON'" applicability=automatic patched="import { JSON } from \"./dep.ds\";"
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_reports_default_import_hidden_by_star_export() {
     let compiler = TestSession::builder()
         .module(
@@ -380,6 +433,9 @@ export let value = 2;
         r#"
 /// @diagnostic.error code=ER201 message="ambiguous export 'value' from './mid.ds'"
 /// @diagnostic.label line=2 column=10 span="value" line_source="import { value } from \"./mid.ds\";"
+/// @diagnostic.related file="a.ds" line=1 column=1 span="" line_source="" message="one 'value' comes from this module"
+/// @diagnostic.related file="b.ds" line=1 column=1 span="" line_source="" message="one 'value' comes from this module"
+/// @diagnostic.help message="import 'value' directly from one origin module"
 "#,
     );
 }

@@ -1,8 +1,12 @@
+use destack_artifact::DiagnosticBuilder;
+use destack_core::find_best_match;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::export::state::ExportState;
-use crate::{Compiler, ExportError, ExportResult};
+use crate::{
+    Compiler, ExportError, ExportResult, diagnostic_suggestion_distance, rename_suggestion,
+};
 
 impl Compiler {
     /// Export entries declared by one expression.
@@ -111,16 +115,37 @@ impl Compiler {
                     state.report_diagnostic(ExportError::MissingExportBinding {
                         anchor: state.anchor_node(item_id.id)?,
                         name: "default".to_string(),
+                        suggestion: None,
                     });
 
                     return Ok(None);
                 };
 
                 let Some(source) = state.find_module_symbol(source_key) else {
-                    state.report_diagnostic(ExportError::MissingExportBinding {
-                        anchor: state.anchor_node(item_id.id)?,
-                        name: state.static_key_text(source_key),
-                    });
+                    let name = state.static_key_text(source_key);
+                    let anchor = state.anchor_node(item_id.id)?;
+                    let best = find_best_match(
+                        &name,
+                        state.module_scope_names(),
+                        diagnostic_suggestion_distance(&name),
+                    );
+                    let error = ExportError::MissingExportBinding {
+                        anchor: anchor.clone(),
+                        name,
+                        suggestion: best.as_ref().map(|best| best.candidate.clone()),
+                    };
+
+                    // plain items span the bare name, so the rename patches cleanly
+                    let mut diagnostic = DiagnosticBuilder::new(error);
+                    let is_plain_name =
+                        matches!(item, dir::DependencyItem::Binding { alias: None, .. });
+                    if is_plain_name
+                        && let Some(best) = best
+                        && let Some(suggestion) = rename_suggestion(&anchor, &best)
+                    {
+                        diagnostic = diagnostic.suggestion(suggestion);
+                    }
+                    state.report_diagnostic(diagnostic);
 
                     return Ok(None);
                 };

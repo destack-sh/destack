@@ -1,4 +1,6 @@
-use destack_artifact::{ConditionSet, DiagnosticAnchor, DirExported, ProfileKey};
+use destack_artifact::{
+    ConditionSet, DiagnosticAnchor, DiagnosticBuilder, DirExported, ProfileKey,
+};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
@@ -37,7 +39,7 @@ pub(crate) struct ExportState<'a> {
     /// Nodes skipped by static guards.
     pub(in crate::export) static_skipped_nodes: IndexSet<dir::LocalNodeIdAny>,
     /// The recoverable diagnostics produced while exporting.
-    pub(in crate::export) diagnostics: Vec<ExportError>,
+    pub(in crate::export) diagnostics: Vec<DiagnosticBuilder<ExportError>>,
     /// The work stats accumulated while exporting.
     pub(in crate::export) stats: ExportStats,
 }
@@ -74,13 +76,37 @@ impl<'a> ExportState<'a> {
     }
 
     /// Finish exported DIR.
-    pub(in crate::export) fn finish(self) -> (DirExported, Vec<ExportError>) {
+    pub(in crate::export) fn finish(self) -> (DirExported, Vec<DiagnosticBuilder<ExportError>>) {
+        let locals = self.module_scope_names();
         let exported = DirExported {
             exports: self.exports,
             globals: self.globals,
+            locals,
         };
 
         (exported, self.diagnostics)
+    }
+
+    /// Collect the module-scope binding names in declaration order.
+    pub(in crate::export) fn module_scope_names(&self) -> Vec<String> {
+        let scope = self.bindings.module_scope();
+        let mut names = Vec::new();
+        for (key, symbol) in self
+            .bindings
+            .get_scope(scope)
+            .named_symbols_up_to(scope.mark)
+        {
+            let kind = self.bindings.get_symbol(symbol).kind;
+            if !kind.is_visible_in(dir::SymbolSpace::Declaration) {
+                continue;
+            }
+            if let dir::StaticKey::Name(name) = key {
+                names.push(self.strings.get(name).to_string());
+            }
+        }
+        names.dedup();
+
+        names
     }
 
     /// Insert one named export and report duplicate keys.
@@ -90,11 +116,18 @@ impl<'a> ExportState<'a> {
         anchor: DiagnosticAnchor,
     ) -> ExportResult<()> {
         let key = export.key();
-        if self.exports.export_by_key.contains_key(&key) {
-            self.report_diagnostic(ExportError::DuplicateExport {
+        if let Some(previous) = self.exports.export_by_key.get(&key) {
+            let error = ExportError::DuplicateExport {
                 anchor,
                 key: self.export_key_text(key),
-            });
+            };
+            let diagnostic = match previous.item().map(|item| self.anchor_node(item.id)) {
+                Some(Ok(first)) => {
+                    DiagnosticBuilder::new(error).label(first, "first exported here")
+                }
+                _ => DiagnosticBuilder::new(error),
+            };
+            self.report_diagnostic(diagnostic);
 
             return Ok(());
         }
@@ -105,8 +138,11 @@ impl<'a> ExportState<'a> {
     }
 
     /// Report one recoverable export diagnostic.
-    pub(in crate::export) fn report_diagnostic(&mut self, diagnostic: ExportError) {
-        self.diagnostics.push(diagnostic);
+    pub(in crate::export) fn report_diagnostic(
+        &mut self,
+        diagnostic: impl Into<DiagnosticBuilder<ExportError>>,
+    ) {
+        self.diagnostics.push(diagnostic.into());
     }
 
     /// Mark one node as skipped by a static guard.

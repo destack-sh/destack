@@ -206,8 +206,8 @@ impl ResolveState<'_> {
                 self.imports
                     .insert_symbol(local_symbol, dir::ImportTarget::Namespace(module));
             }
-            ExportLookup::Ambiguous(_) => {
-                self.report_ambiguous_export(item_id, key, specifier)?;
+            ExportLookup::Ambiguous(targets) => {
+                self.report_ambiguous_export(item_id, key, specifier, &targets)?;
             }
             ExportLookup::Missing => self.report_missing_export(target, item_id, key, specifier)?,
         }
@@ -255,8 +255,8 @@ impl ResolveState<'_> {
 
             match self.resolve_export_target(target, key)? {
                 ExportLookup::Found(_) => {}
-                ExportLookup::Ambiguous(_) => {
-                    self.report_ambiguous_export(*item_id, key, specifier)?;
+                ExportLookup::Ambiguous(targets) => {
+                    self.report_ambiguous_export(*item_id, key, specifier, &targets)?;
                 }
                 ExportLookup::Missing => {
                     self.report_missing_export(target, *item_id, key, specifier)?;
