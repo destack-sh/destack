@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
 use destack_core::StringId;
-use destack_source::{ModuleId, NodeSpanRegion, NodeSpanType, SourceIndex, Span};
+use destack_source::{ModuleId, MultiSpan, NodeSpanRegion, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -741,11 +741,17 @@ impl Tree {
         T: Node,
     {
         let span = self.source_index.get(node_id.id);
-        let wrapper_span = self
-            .source_index
-            .get_side(node_id.id, NodeSpanType::Region(NodeSpanRegion::Wrapper));
+        let parentheses_span = self.source_index.get_side(
+            node_id.id,
+            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+        );
+        let tree_container_span = self.source_index.get_side(
+            node_id.id,
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+        );
+        let span = parentheses_span.map_or(span, |parentheses| span.merge(parentheses));
 
-        wrapper_span.map_or(span, |wrapper_span| span.merge(wrapper_span))
+        tree_container_span.map_or(span, |container| span.merge(container))
     }
 
     /// Set the enclosing source span for one parsed node.
@@ -878,6 +884,12 @@ impl Tree {
         self.get_spans_for(NodeType::Decorator)
     }
 
+    /// Return the combined span of all decorator nodes.
+    #[inline]
+    pub fn decorator_span(&self) -> MultiSpan {
+        MultiSpan::new(self.get_side_decorator_spans())
+    }
+
     /// Return all raw comments in source order.
     #[inline]
     pub fn comments(&self) -> &[Comment] {
@@ -915,17 +927,27 @@ impl Tree {
             && ((node_id - self.first_global_id) as usize) < self.node_index_by_node_id.len()
     }
 
-    /// Append a decorator to a node by its global id.
+    /// Attach a decorator to a node in source order.
     #[inline]
-    pub fn append_decorator(&mut self, target_id: u32, decorator: LocalNodeId<Decorator>) {
+    pub fn attach_decorator(&mut self, target_id: u32, decorator: LocalNodeId<Decorator>) {
         debug_assert!(target_id < self.next_global_id);
+
+        let decorator_start = self.get_span(decorator).start;
+        let position = self
+            .decorators_by_node_id
+            .get(&target_id)
+            .map(|decorators| {
+                decorators
+                    .partition_point(|candidate| self.get_span(*candidate).start <= decorator_start)
+            })
+            .unwrap_or(0);
 
         // track decorators for the target node; index_parents derives the decorator
         // parent from this map, so no parent slot is written here
         self.decorators_by_node_id
             .entry(target_id)
             .or_default()
-            .push(decorator);
+            .insert(position, decorator);
         self.decorator_attachments.push(DecoratorAttachment {
             target_id,
             decorator_id: decorator,
@@ -1027,7 +1049,7 @@ mod tests {
             },
             test_span(3),
         );
-        tree.append_decorator(owner.id, decorator);
+        tree.attach_decorator(owner.id, decorator);
 
         assert_eq!(tree.get_decorators(owner.id), vec![decorator]);
 

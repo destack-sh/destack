@@ -2,6 +2,7 @@ use destack_serde::Reflect;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
+use destack_source::{ByteRange, FileId, Span};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -13,6 +14,7 @@ const TOKEN_TYPE_BITS: u32 = 0x0000_00ff;
 const TOKEN_LINE_BIT: u32 = 0x0000_0100;
 const TOKEN_KEYWORD_BITS: u32 = 0x0000_fe00;
 const TOKEN_KEYWORD_SHIFT: u32 = 9;
+const TOKEN_IDENTIFIER_ESCAPE_BIT: u32 = 0x0001_0000;
 const TOKEN_LITERAL_SHIFT: u32 = 16;
 const TOKEN_NON_KEYWORD_CODE: u8 = 0x7f;
 const TOKEN_TYPE_MAX: u8 = TokenType::CoalesceAssign as u8;
@@ -42,10 +44,9 @@ pub struct Token {
 
 impl PartialEq for Token {
     fn eq(&self, other: &Self) -> bool {
-        let left_bits = self.bits & !TOKEN_KEYWORD_BITS;
-        let right_bits = other.bits & !TOKEN_KEYWORD_BITS;
-
-        self.start == other.start && self.len == other.len && left_bits == right_bits
+        self.start == other.start
+            && self.len == other.len
+            && self.identity_bits() == other.identity_bits()
     }
 }
 
@@ -53,11 +54,9 @@ impl Eq for Token {}
 
 impl Hash for Token {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let bits = self.bits & !TOKEN_KEYWORD_BITS;
-
         self.start.hash(state);
         self.len.hash(state);
-        bits.hash(state);
+        self.identity_bits().hash(state);
     }
 }
 
@@ -137,6 +136,15 @@ impl<'de> Deserialize<'de> for Token {
 }
 
 impl Token {
+    /// Return token bits without identifier-only lexer caches.
+    const fn identity_bits(self) -> u32 {
+        if self.is(TokenType::Identifier) {
+            self.bits & !(TOKEN_KEYWORD_BITS | TOKEN_IDENTIFIER_ESCAPE_BIT)
+        } else {
+            self.bits
+        }
+    }
+
     /// Create a token.
     #[inline(always)]
     pub const fn new(ty: TokenType, start: u32, len: u32, literal: Option<TokenLiteral>) -> Token {
@@ -162,15 +170,29 @@ impl Token {
 
     /// Create an identifier token with optional keyword identity.
     #[inline(always)]
-    pub const fn identifier(start: u32, len: u32, keyword: Option<Keyword>) -> Token {
+    pub const fn identifier(
+        start: u32,
+        len: u32,
+        keyword: Option<Keyword>,
+        is_escaped: bool,
+    ) -> Token {
         let mut token = Token::simple(TokenType::Identifier, start, len);
         let code = match keyword {
             Some(keyword) => keyword.code() + 1,
             None => TOKEN_NON_KEYWORD_CODE,
         } as u32;
         token.bits |= code << TOKEN_KEYWORD_SHIFT;
+        if is_escaped {
+            token.bits |= TOKEN_IDENTIFIER_ESCAPE_BIT;
+        }
 
         token
+    }
+
+    /// Return whether this identifier contains a Unicode escape.
+    #[inline]
+    pub const fn is_identifier_escaped(self) -> bool {
+        self.is(TokenType::Identifier) && self.bits & TOKEN_IDENTIFIER_ESCAPE_BIT != 0
     }
 
     /// Create an end token.
@@ -226,10 +248,19 @@ impl Token {
         self.start + self.len
     }
 
+    /// Return the token byte range in its source file.
+    #[inline]
+    pub const fn range(self) -> ByteRange {
+        ByteRange {
+            start: self.start,
+            end: self.end(),
+        }
+    }
+
     /// Return the source span for this token in one file.
     #[inline]
-    pub fn span(self, file: destack_source::FileId) -> destack_source::Span {
-        destack_source::Span::new(file, self.start, self.end())
+    pub fn span(self, file: FileId) -> Span {
+        Span::new(file, self.start, self.end())
     }
 
     /// Return the length of the token in bytes.
@@ -865,6 +896,7 @@ const fn flag_bit(is_set: bool, bit: u16) -> u16 {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use std::mem::size_of;
 
     use super::*;
@@ -924,5 +956,31 @@ mod tests {
             assert_eq!(token.literal(), literal);
             assert!(token.is_on_new_line());
         }
+    }
+
+    #[test]
+    fn test_distinguish_literal_identity_from_identifier_caches() {
+        let character = Token::new(
+            TokenType::Literal,
+            0,
+            1,
+            Some(TokenLiteral::Character {
+                is_terminated: false,
+                is_html_entity: false,
+            }),
+        );
+        let string = Token::new(
+            TokenType::Literal,
+            0,
+            1,
+            Some(TokenLiteral::String {
+                is_terminated: false,
+                has_invalid_escape: false,
+            }),
+        );
+        let tokens = HashSet::from([character, string]);
+
+        assert_ne!(character, string);
+        assert_eq!(tokens.len(), 2);
     }
 }

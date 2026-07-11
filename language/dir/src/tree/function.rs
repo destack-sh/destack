@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, FunctionRole, GenericParameter, LocalNodeId, Parameter, TypeExpression, View,
-    WhereClause,
+    Asynchrony, ConstructorType, FunctionRole, FunctionTypeExpression, GenericParameter,
+    LocalNodeId, Parameter, TypeExpression, View, WhereClause,
 };
 
 /// The source form of a function.
@@ -65,6 +65,36 @@ pub struct FunctionSignature {
 }
 
 impl FunctionSignature {
+    /// Convert this call signature into a function type.
+    pub fn into_function_type(self) -> FunctionTypeExpression {
+        debug_assert!(self.role.is_none() || self.role == Some(FunctionRole::Call));
+
+        FunctionTypeExpression {
+            generic_parameters: self.generic_parameters,
+            where_clauses: self.where_clauses,
+            this_form: self.this_form,
+            this_parameter: self.this_parameter,
+            parameters: self.parameters,
+            return_type: self.return_type,
+        }
+    }
+
+    /// Convert this constructor signature into a constructor type.
+    pub fn into_constructor_type(self) -> ConstructorType {
+        debug_assert!(matches!(
+            self.role,
+            Some(FunctionRole::Constructor | FunctionRole::New)
+        ));
+
+        ConstructorType {
+            generic_parameters: self.generic_parameters,
+            where_clauses: self.where_clauses,
+            parameters: self.parameters,
+            return_type: self.return_type,
+            is_abstract: self.is_abstract,
+        }
+    }
+
     /// Return whether this signature declares a generic template.
     pub fn declares_generic_template(&self, view: &View<'_>) -> bool {
         // explicit generic header
