@@ -71,6 +71,8 @@ struct DiagnosticVariant {
     message: Option<String>,
     /// The optional diagnostic message template.
     optional_message: Option<String>,
+    /// The static help template.
+    help: Option<String>,
     /// The named fields carried by the variant.
     fields: Vec<DiagnosticField>,
 }
@@ -304,6 +306,28 @@ fn message_format_expr(template: &MessageTemplate, formatter_name: &Ident) -> To
     quote! { format!(#format, #(#format_args),*) }
 }
 
+/// Generate one match arm returning a variant's static help.
+fn help_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<TokenStream2> {
+    let name = &variant.name;
+    let Some(help) = &variant.help else {
+        let pattern = variant_pattern(variant);
+        return Ok(quote! { #pattern => None });
+    };
+    let template = parse_message_template(help, &variant.fields, variant.code.span())?;
+    let format_expr = message_format_expr(&template, formatter_name);
+    let used_fields = template
+        .fields
+        .iter()
+        .map(|field| field.name.clone())
+        .collect::<Vec<_>>();
+    if used_fields.is_empty() {
+        let pattern = variant_pattern(variant);
+        return Ok(quote! { #pattern => Some(#format_expr) });
+    }
+
+    Ok(quote! { Self::#name { #(#used_fields,)* .. } => Some(#format_expr) })
+}
+
 /// Generate the formatting expression for one optional message template.
 fn optional_message_format_expr(
     template: &MessageTemplate,
@@ -433,6 +457,7 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
     let mut code = None;
     let mut message = None;
     let mut optional_message = None;
+    let mut help = None;
     // parse code and message
     attribute.parse_nested_meta(|meta| {
         if meta.path.is_ident("code") {
@@ -443,6 +468,9 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
         } else if meta.path.is_ident("optional_message") {
             let value: LitStr = meta.value()?.parse()?;
             optional_message = Some(value.value());
+        } else if meta.path.is_ident("help") {
+            let value: LitStr = meta.value()?.parse()?;
+            help = Some(value.value());
         } else {
             return Err(meta.error("unknown diagnostic variant option"));
         }
@@ -477,6 +505,7 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
         sub_code,
         message,
         optional_message,
+        help,
         fields,
     })
 }
@@ -769,6 +798,21 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             Ok(message)
         }
     };
+    let help_arms = variants
+        .iter()
+        .map(|variant| help_arm(variant, &formatter_name))
+        .collect::<Result<Vec<_>>>()?;
+    let help_body = if variants.is_empty() {
+        quote! { match *self {} }
+    } else {
+        quote! {
+            let help = match self {
+                #(#help_arms),*
+            };
+
+            Ok(help)
+        }
+    };
     let diagnostic_body = if variants.is_empty() {
         quote! { match *self {} }
     } else {
@@ -786,6 +830,10 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
                 message.clone(),
                 primary_label,
             );
+            let __diagnostic = match self.help_message(&#formatter_name)? {
+                Some(help) => __diagnostic.help(help),
+                None => __diagnostic,
+            };
 
             Ok(__diagnostic)
         }
@@ -851,6 +899,16 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             ) -> Result<String, destack_artifact::DiagnosticError>
             {
                 #message_body
+            }
+
+            /// Return the static help for this diagnostic.
+            #[allow(unused_variables)]
+            pub fn help_message(
+                &self,
+                #formatter_name: &destack_artifact::DiagnosticFormatter<'_>,
+            ) -> Result<Option<String>, destack_artifact::DiagnosticError>
+            {
+                #help_body
             }
 
             /// Return the source diagnostic for this provider diagnostic.
