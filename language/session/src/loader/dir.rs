@@ -123,7 +123,7 @@ impl SessionState {
 
         // parse and forward parser diagnostics
         let tree_in = std::mem::replace(tree, Tree::new(tree.module_id));
-        let mut parser = Parser::lex_module_tree_with_options(
+        let mut parser = Parser::lex_into_tree_with_options(
             file.clone(),
             language_type,
             ParserOptions::default(),
