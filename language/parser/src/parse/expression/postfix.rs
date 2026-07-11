@@ -1,296 +1,232 @@
-use crate::parse::scope::ExpressionScope;
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::parse::context::{
+    DecoratorContext, ExpressionContext, ExpressionMode, ExpressionStops, StatementPosition,
+};
+use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
-    Expression, GenericArgument, Keyword, LocalNodeId, NodeType, Path, PostfixPosition,
-    ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
+    Declaration, Expression, FunctionDeclaration, FunctionForm, GenericArgument, LocalNodeId,
+    NodeType, Path, PostfixPosition, ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
 };
-use destack_source::Span;
+use destack_source::ByteRange;
 use smallvec::smallvec;
 
+/// One value expression head that can be promoted into static type space.
+enum StaticTypeHead {
+    /// One identifier expression.
+    Identifier(StringId),
+    /// One named member expression.
+    Member {
+        /// The member receiver.
+        left: LocalNodeId<Expression>,
+        /// The member name.
+        name: StringId,
+    },
+    /// One generic instantiation expression.
+    Instantiation {
+        /// The instantiated expression.
+        left: LocalNodeId<Expression>,
+        /// The generic arguments.
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    },
+}
+
 impl Parser {
-    /// Eat value postfix operators.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value.member(argument)?
-    /// call<T>(argument)
-    /// value[index]!.member
-    /// ```
-    pub(in crate::parse::expression) fn eat_postfix(
+    /// Return true when an expression is a lambda declaration without wrapping parentheses.
+    fn is_unparenthesized_lambda_expression(&self, expression: LocalNodeId<Expression>) -> bool {
+        matches!(
+            self.tree.get(expression),
+            Expression::Declaration(declaration)
+                if matches!(
+                    self.tree.get(*declaration),
+                    Declaration::Function(FunctionDeclaration { signature, .. })
+                        if signature.form == FunctionForm::Lambda
+                )
+        )
+    }
+
+    /// Return true when an expression can be used as an unparenthesized tagged template tag.
+    fn is_valid_tagged_template_tag(&self, expression: LocalNodeId<Expression>) -> bool {
+        !self.is_unparenthesized_lambda_expression(expression)
+            && !matches!(self.tree.get(expression), Expression::Unary { .. })
+    }
+
+    /// Parse all postfix operations owned by one value expression.
+    pub(in crate::parse::expression) fn parse_expression_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         mut left: LocalNodeId<Expression>,
         mut is_parenthesized: bool,
-        scope: ExpressionScope,
-    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
+        context: ExpressionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
         loop {
+            // stop before tokens that cannot continue one value operand
             let token_type = self.peek_token_type();
-            let is_on_new_line = self.current_token_is_on_new_line();
-
-            // decorator target boundary
-            if scope.owns_decorator_line_boundary() && is_on_new_line {
-                break;
-            }
-
-            // statement boundary
-            if scope.is_match_case_body() && is_on_new_line {
-                break;
-            }
-
-            // parse the next postfix operation
-            let next = self.eat_value_postfix(
-                start,
-                left,
-                is_parenthesized,
-                scope,
-                is_on_new_line,
+            let is_postfix_candidate = matches!(
                 token_type,
-            )?;
-            let Some(expression_id) = next else {
+                TokenType::OpenBrace
+                    | TokenType::OpenParenthesis
+                    | TokenType::OpenBracket
+                    | TokenType::Dot
+                    | TokenType::Maybe
+                    | TokenType::Not
+                    | TokenType::LessThan
+                    | TokenType::ShiftLeft
+                    | TokenType::TemplateString
+                    | TokenType::TemplateStringStart
+                    | TokenType::Increment
+                    | TokenType::Decrement
+            );
+            if !is_postfix_candidate {
+                break;
+            }
+
+            // classify newline ownership before dispatching the postfix
+            let is_on_new_line = self.peek_is_on_new_line();
+            let is_question_postfix =
+                token_type == TokenType::Maybe && self.peek_question_postfix();
+            let continues_postfix = token_type == TokenType::Dot || is_question_postfix;
+            if is_on_new_line
+                && !continues_postfix
+                && (context.decorator != DecoratorContext::None
+                    || context.stops.contains(ExpressionStops::MATCH_LINE)
+                    || context.stops.contains(ExpressionStops::NEWLINE_CALL)
+                    || context.statement == StatementPosition::Direct
+                        && self.tree.get(left).ends_statement_on_newline())
+            {
+                break;
+            }
+
+            // parse one postfix operation without recursive descent
+            let next = match token_type {
+                TokenType::OpenBrace
+                    if !is_on_new_line && !context.stops.contains(ExpressionStops::BODY_BRACE) =>
+                {
+                    self.parse_struct_postfix(start, left, context)?
+                }
+                TokenType::OpenParenthesis if context.mode != ExpressionMode::NewReceiver => {
+                    if self.is_unparenthesized_lambda_expression(left) && !is_parenthesized {
+                        return Err(ParserError::unexpected(self.peek_token_span()));
+                    }
+                    Some(self.parse_call(left, None, PostfixPosition::Direct, context)?)
+                }
+                TokenType::OpenBracket => {
+                    Some(self.parse_index(left, PostfixPosition::Direct, context)?)
+                }
+                TokenType::Dot => Some(self.parse_dot_postfix(start, left, context)?),
+                TokenType::Maybe if is_question_postfix => {
+                    Some(self.parse_assertion_postfix(start, left, true, PostfixPosition::Direct))
+                }
+                TokenType::Not if !is_on_new_line => {
+                    Some(self.parse_assertion_postfix(start, left, false, PostfixPosition::Direct))
+                }
+                TokenType::LessThan
+                    if !matches!(
+                        context.mode,
+                        ExpressionMode::Tree | ExpressionMode::TypeofQuery
+                    ) =>
+                {
+                    self.parse_generic_postfix(start, left, context)?
+                }
+                TokenType::ShiftLeft
+                    if !matches!(
+                        context.mode,
+                        ExpressionMode::Tree | ExpressionMode::TypeofQuery
+                    ) && self.peek_shift_left_generic_function_argument() =>
+                {
+                    self.parse_generic_postfix(start, left, context)?
+                }
+                TokenType::TemplateString | TokenType::TemplateStringStart
+                    if self.is_valid_tagged_template_tag(left) =>
+                {
+                    Some(self.parse_tagged_template_postfix(start, left, Vec::new(), context)?)
+                }
+                _ if !is_on_new_line => UnaryOperator::from_postfix_token(token_type)
+                    .map(|operator| self.parse_unary_postfix(start, left, operator)),
+                _ => None,
+            };
+            let Some(next) = next else {
                 break;
             };
 
-            left = expression_id;
+            // continue from the newly wrapped expression
+            left = next;
             is_parenthesized = false;
         }
 
-        Ok((left, is_parenthesized))
+        Ok(left)
     }
 
-    /// Eat the value postfix operation starting at the current token when present.
-    #[inline(never)]
-    fn eat_value_postfix(
+    /// Parse one direct or indirect assertion postfix.
+    fn parse_assertion_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<Expression>,
-        is_parenthesized: bool,
-        scope: ExpressionScope,
-        is_on_new_line: bool,
-        token_type: TokenType,
-    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        match token_type {
-            TokenType::OpenBrace => self.eat_tagged_object_postfix(start, left, scope),
-            TokenType::OpenParenthesis => {
-                self.eat_call_postfix(left, is_parenthesized, scope, is_on_new_line)
-            }
-            TokenType::OpenBracket => self.eat_index(left, PostfixPosition::Direct).map(Some),
-            TokenType::Dot => self.eat_value_dot_postfix(start, left).map(Some),
-            TokenType::Maybe if self.current_question_starts_maybe_postfix() => self
-                .eat_maybe_postfix(start, left, PostfixPosition::Direct)
-                .map(Some),
-            TokenType::Not if !is_on_new_line => self
-                .eat_must_postfix(start, left, PostfixPosition::Direct)
-                .map(Some),
-            TokenType::Identifier if self.current_value_comptime_postfix_starts() => {
-                Ok(Some(self.eat_comptime_postfix(start, left)))
-            }
-            TokenType::LessThan | TokenType::ShiftLeft => {
-                self.eat_generic_postfix(start, left, scope)
-            }
-            TokenType::TemplateString | TokenType::TemplateStringStart
-                if self.tagged_template_tag_is_valid(left) =>
-            {
-                self.eat_tagged_template_postfix(start, left).map(Some)
-            }
-            _ if !is_on_new_line => Ok(UnaryOperator::from_postfix_token(token_type)
-                .map(|operator| self.eat_unary_postfix(start, left, operator))),
-            _ => Ok(None),
-        }
-    }
-
-    /// Return whether the current token starts a value comptime postfix.
-    fn current_value_comptime_postfix_starts(&mut self) -> bool {
-        self.current_keyword() == Some(Keyword::As)
-            && self.next_keyword() == Some(Keyword::Comptime)
-    }
-
-    /// Eat a direct call postfix when this expression owns it.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value()
-    /// value(argument)
-    /// value<T>(argument)
-    /// ```
-    fn eat_call_postfix(
-        &mut self,
-        left: LocalNodeId<Expression>,
-        is_parenthesized: bool,
-        scope: ExpressionScope,
-        is_on_new_line: bool,
-    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if self.call_belongs_to_outer_scope(left, scope, is_on_new_line) {
-            return Ok(None);
-        }
-
-        if self.is_unparenthesized_lambda_expression(left) && !is_parenthesized {
-            return Err(ParserError::unexpected(self.peek()));
-        }
-
-        self.eat_call(left, Vec::new().into(), PostfixPosition::Direct)
-            .map(Some)
-    }
-
-    /// Return whether a direct call is owned by an outer parser.
-    fn call_belongs_to_outer_scope(
-        &self,
-        left: LocalNodeId<Expression>,
-        scope: ExpressionScope,
-        is_on_new_line: bool,
-    ) -> bool {
-        if scope.is_new_receiver() {
-            return true;
-        }
-
-        if scope.owns_newline_call_boundary() && is_on_new_line {
-            return true;
-        }
-
-        is_on_new_line
-            && (self.tree.get(left).ends_statement_on_newline()
-                || !self.current_token_is_on_new_line())
-    }
-
-    /// Parse one maybe postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value?
-    /// value.?
-    /// value?[index]
-    /// ```
-    fn eat_maybe_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
+        is_maybe: bool,
         position: PostfixPosition,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let operator_span = self.peek().span;
-        self.bump();
-        let expression_id = self.insert_node(
-            Expression::Maybe { position, left },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(expression_id, operator_span);
-
-        Ok(expression_id)
-    }
-
-    /// Parse one must postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value!
-    /// value.!
-    /// call()!
-    /// ```
-    fn eat_must_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
-        position: PostfixPosition,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let operator_span = self.peek().span;
-        self.bump();
-        let expression_id = self.insert_node(
-            Expression::Must { position, left },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(expression_id, operator_span);
-
-        Ok(expression_id)
-    }
-
-    /// Parse one comptime postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value as comptime
-    /// call() as comptime
-    /// Namespace.value as comptime
-    /// ```
-    fn eat_comptime_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
     ) -> LocalNodeId<Expression> {
-        let operator_start = self.span_start();
+        let operator_range = self.peek_token().range();
         self.bump();
-        self.bump();
-        let expression_id = self.insert_node(
-            Expression::Comptime { body: left },
-            self.get_span_from(start),
-        );
-        self.tree
-            .set_main_span(expression_id, self.get_span_from(&operator_start));
+        let node = if is_maybe {
+            Expression::Maybe { position, left }
+        } else {
+            Expression::Must { position, left }
+        };
+        let expression = self.insert_node(node, self.range_since(start));
+        self.tree.set_main_range(expression, operator_range);
 
-        expression_id
+        expression
     }
 
-    /// Parse one unary postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value++
-    /// value--
-    /// object.field++
-    /// ```
-    fn eat_unary_postfix(
+    /// Parse one value unary postfix.
+    fn parse_unary_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<Expression>,
         operator: UnaryOperator,
     ) -> LocalNodeId<Expression> {
-        let operator_start = self.span_start();
+        let operator_range = self.peek_token().range();
         self.bump();
-        let expression_id = self.insert_node(
+        let expression = self.insert_node(
             Expression::Unary {
                 operator,
                 right: left,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         );
-        self.tree
-            .set_main_span(expression_id, self.get_span_from(&operator_start));
+        self.tree.set_main_range(expression, operator_range);
 
-        expression_id
+        expression
     }
 
-    /// Parse value generic postfix syntax when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value<T>
-    /// value<T>(argument)
-    /// value<<T>() => T>
-    /// ```
-    #[inline(never)]
-    fn eat_generic_postfix(
+    /// Parse generic arguments as an instantiation or call postfix.
+    fn parse_generic_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<Expression>,
-        scope: ExpressionScope,
+        context: ExpressionContext,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if self.generic_belongs_to_outer_scope(scope)? {
+        if self.peek_is_on_new_line() || !self.peek_angle_group_expression_postfix() {
             return Ok(None);
         }
 
-        let checkpoint = self.checkpoint();
-        let has_leading_gap = self.generic_arguments_have_leading_gap(left);
-        let Some(generic_arguments) = self.eat_generic_arguments_if_valid(true) else {
-            return Ok(None);
-        };
-
-        if has_leading_gap && !self.spaced_generic_arguments_have_postfix_anchor() {
-            self.restore(checkpoint);
-            return Ok(None);
-        }
-
+        let generic_arguments = self.parse_generic_argument_list(context)?;
         if self.peek_is(TokenType::OpenParenthesis) {
-            let call = self.eat_call(left, Some(generic_arguments), PostfixPosition::Direct)?;
-
-            return Ok(Some(call));
+            return self
+                .parse_call(
+                    left,
+                    Some(generic_arguments),
+                    PostfixPosition::Direct,
+                    context,
+                )
+                .map(Some);
+        }
+        if matches!(
+            self.peek_token_type(),
+            TokenType::TemplateString | TokenType::TemplateStringStart
+        ) {
+            return self
+                .parse_tagged_template_postfix(start, left, generic_arguments, context)
+                .map(Some);
         }
 
         Ok(Some(self.insert_node(
@@ -298,455 +234,250 @@ impl Parser {
                 left,
                 generic_arguments,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         )))
     }
 
-    /// Return whether value generic postfix is owned by an outer parser.
-    fn generic_belongs_to_outer_scope(&mut self, scope: ExpressionScope) -> ParserResult<bool> {
-        if self.peek_is(TokenType::ShiftLeft) && !self.shift_left_can_start_generic_arguments() {
-            return Ok(true);
-        }
-
-        if scope.is_new_receiver() || scope.is_tree_literal() || scope.is_typeof_query() {
-            return Ok(true);
-        }
-
-        if self.current_token_is_on_new_line() && self.is_tree_literal_start() {
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-
-    /// Parse tagged template postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// tag`value`
-    /// tag`hello ${name}`
-    /// namespace.tag`value`
-    /// ```
-    fn eat_tagged_template_postfix(
+    /// Parse one tagged template continuation.
+    fn parse_tagged_template_postfix(
         &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
+        start: &ParseStart,
+        tag: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let value = self.eat_tagged_template_literal()?;
+        let value = self.parse_tagged_template_literal(context.function)?;
 
         Ok(self.insert_node(
             Expression::TaggedTemplateExpression {
-                tag: left,
-                generic_arguments: Vec::new(),
+                tag,
+                generic_arguments,
                 value,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         ))
     }
 
-    /// Return whether generic arguments are separated from their receiver.
-    fn generic_arguments_have_leading_gap(&mut self, left: LocalNodeId<Expression>) -> bool {
-        self.tree.get_source_extent(left).end < self.anchor_span_here().start
-    }
-
-    /// Return whether spaced generic arguments have a strong postfix follow.
-    fn spaced_generic_arguments_have_postfix_anchor(&mut self) -> bool {
-        matches!(
-            self.peek_token_type(),
-            TokenType::OpenParenthesis
-                | TokenType::OpenBracket
-                | TokenType::Dot
-                | TokenType::Maybe
-                | TokenType::TemplateString
-                | TokenType::TemplateStringStart
-        )
-    }
-
-    /// Return whether `<<` can be a generic argument start.
-    fn shift_left_can_start_generic_arguments(&mut self) -> bool {
-        self.lookahead(|parser| parser.scan_shift_left_can_start_generic_arguments())
-    }
-
-    /// Scan whether `<<` can be a generic argument start.
-    fn scan_shift_left_can_start_generic_arguments(&mut self) -> bool {
-        self.bump();
-        let mut angle_depth = 1usize;
-
-        loop {
-            let token_type = self.peek_token_type();
-
-            // statement and expression boundaries make this a shift operator
-            if matches!(
-                token_type,
-                TokenType::End
-                    | TokenType::Comma
-                    | TokenType::Semicolon
-                    | TokenType::CloseParenthesis
-                    | TokenType::CloseBracket
-                    | TokenType::CloseBrace
-            ) {
-                return false;
-            }
-
-            // the inner generic head must close before a function shaped type
-            if token_type == TokenType::GreaterThan && angle_depth == 1 {
-                self.bump();
-
-                return matches!(
-                    self.peek_token_type(),
-                    TokenType::OpenParenthesis | TokenType::ArrowWide
-                );
-            }
-
-            match token_type {
-                TokenType::LessThan => angle_depth += 1,
-                TokenType::ShiftLeft => angle_depth += 2,
-                TokenType::GreaterThan => {
-                    if angle_depth == 0 {
-                        return false;
-                    }
-
-                    angle_depth -= 1;
-                }
-                TokenType::ShiftRight => {
-                    if angle_depth < 2 {
-                        return false;
-                    }
-
-                    angle_depth -= 2;
-                }
-                TokenType::UnsignedShiftRight => {
-                    if angle_depth < 3 {
-                        return false;
-                    }
-
-                    angle_depth -= 3;
-                }
-                _ => {}
-            }
-
-            self.bump();
-        }
-    }
-
-    /// Return whether `?` starts a postfix expression here.
-    fn current_question_starts_maybe_postfix(&mut self) -> bool {
-        if self.is_optional_chain_after_question_mark() {
-            return true;
-        }
-
-        // plain postfix maybe is Destack syntax, TS keeps `?` for ternaries
-        // an attached question mark is try-propagation, a detached one a ternary
-        self.question_is_attached_to_operand()
-    }
-
-    /// Parse a Destack tagged object literal postfix when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// Type { field: value }
-    /// Namespace.Type { field: value }
-    /// Type<T> { field: value }
-    /// ```
-    fn eat_tagged_object_postfix(
+    /// Parse one struct expression continuation when present.
+    fn parse_struct_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<Expression>,
-        scope: ExpressionScope,
+        context: ExpressionContext,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if !self.peek_is(TokenType::OpenBrace) || self.current_token_is_on_new_line() {
-            return Ok(None);
-        }
-
-        // let heritage and for each recovery own the following block
-        if self.flags.is_in_super_type() || scope.owns_for_each_boundary() {
-            return Ok(None);
-        }
-
-        let left = self.without_parentheses_expression(left);
-        let Some(ty) = self.static_type_head_from_expression(left) else {
+        let left = self.strip_expression_parentheses(left);
+        let Some(ty) = self.promote_static_type_head(left) else {
             return Ok(None);
         };
-
-        if !self.can_start_tagged_object_literal_type(ty) {
-            return Err(ParserError::unexpected(self.tree.get_span(left)));
-        }
-
-        let properties = self.with_flags(self.flags.not_in_position(), |parser| {
-            parser.eat_object_literal()
-        })?;
-        let expression_id = self.insert_node(
-            Expression::StructExpression { ty, properties },
-            self.get_span_from(start),
-        );
-
-        Ok(Some(expression_id))
-    }
-
-    /// Build the static type head represented by reference-shaped value syntax.
-    ///
-    /// Examples:
-    /// ```ds
-    /// Type
-    /// Namespace.Type
-    /// Type<T>
-    /// ```
-    pub(in crate::parse::expression) fn static_type_head_from_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<LocalNodeId<TypeExpression>> {
-        match self.tree.get(expression_id) {
-            Expression::Type { value } => Some(*value),
-            Expression::Identifier { name } => {
-                let path = Path {
-                    segments: smallvec![*name],
-                };
-                let ty = TypeExpression::Reference {
-                    path,
-                    generic_arguments: Vec::new(),
-                };
-
-                Some(self.insert_node(ty, self.tree.get_span(expression_id)))
-            }
-            Expression::Member {
-                left,
-                name: Some(name),
-            } => {
-                let left = *left;
-                let name = *name;
-                let left = self.without_parentheses_expression(left);
-                let ty = self.static_type_head_from_expression(left)?;
-                let ty = self.static_type_head_with_member(ty, name);
-
-                Some(self.insert_node(ty, self.tree.get_span(expression_id)))
-            }
-            Expression::Instantiation {
-                left,
-                generic_arguments,
-            } => self.static_type_head_from_instantiation(
-                expression_id,
-                *left,
-                generic_arguments.clone(),
-            ),
-            _ => None,
-        }
-    }
-
-    /// Return a static type head from a generic instantiation expression.
-    fn static_type_head_from_instantiation(
-        &mut self,
-        expression: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-    ) -> Option<LocalNodeId<TypeExpression>> {
-        let left = self.without_parentheses_expression(left);
-        let ty = self.static_type_head_from_expression(left)?;
-
-        match self.tree.get(ty) {
-            TypeExpression::Reference { path, .. } => {
-                let ty = TypeExpression::Reference {
-                    path: path.clone(),
-                    generic_arguments,
-                };
-
-                Some(self.insert_node(ty, self.tree.get_span(expression)))
-            }
-            TypeExpression::Member { left, name, .. } => {
-                let ty = TypeExpression::Member {
-                    left: *left,
-                    name: *name,
-                    generic_arguments,
-                };
-
-                Some(self.insert_node(ty, self.tree.get_span(expression)))
-            }
-            _ => None,
-        }
-    }
-
-    /// Add one member segment to a static type head.
-    fn static_type_head_with_member(
-        &self,
-        ty: LocalNodeId<TypeExpression>,
-        name: StringId,
-    ) -> TypeExpression {
-        match self.tree.get(ty) {
-            TypeExpression::Reference {
-                path,
-                generic_arguments,
-            } if generic_arguments.is_empty() => {
-                let mut path = path.clone();
-                path.segments.push(name);
-                TypeExpression::Reference {
-                    path,
-                    generic_arguments: Vec::new(),
-                }
-            }
-            _ => TypeExpression::Member {
-                left: ty,
-                name,
-                generic_arguments: Vec::new(),
-            },
-        }
-    }
-
-    /// Return whether the current question token touches the token before it.
-    fn question_is_attached_to_operand(&mut self) -> bool {
-        let question_start = self.peek().span.start;
-
-        self.prev()
-            .is_some_and(|previous| previous.span.end == question_start)
-    }
-
-    /// Parse a value dot postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value.member
-    /// value.(argument)
-    /// value.[index]
-    /// ```
-    fn eat_value_dot_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let dot_span = self.eat_token(TokenType::Dot)?.span;
-        if self.expression_is_decimal_integer_before_dot(left, dot_span) {
-            return Err(ParserError::unexpected(dot_span));
-        }
-
-        // indirect call and index
-        if self.peek_is(TokenType::OpenParenthesis) {
-            return self.eat_call(left, None, PostfixPosition::Indirect);
-        }
-
-        if self.peek_is(TokenType::OpenBracket) {
-            return self.eat_index(left, PostfixPosition::Indirect);
-        }
-
-        // indirect assertions
-        if self.peek_is(TokenType::Maybe) {
-            return self.eat_maybe_postfix(start, left, PostfixPosition::Indirect);
-        }
-
-        if self.peek_is(TokenType::Not) {
-            return self.eat_must_postfix(start, left, PostfixPosition::Indirect);
-        }
-
-        // indirect generic postfix
-        if matches!(
-            self.peek_token_type(),
-            TokenType::LessThan | TokenType::ShiftLeft
+        if !matches!(
+            self.tree.get(ty),
+            TypeExpression::Reference { .. }
+                | TypeExpression::Member { .. }
+                | TypeExpression::Function(_)
+                | TypeExpression::Constructor(_)
         ) {
-            return self.eat_indirect_generic_postfix(start, left);
+            return Err(ParserError::unexpected(self.tree.get_range(left)));
         }
 
-        // private member
-        if self.peek_is(TokenType::Hash) {
-            return Err(ParserError::unexpected(self.peek()));
-        }
+        let properties = self.parse_object_literal(context.function)?;
 
-        // named or missing member
-        self.eat_named_member_postfix(start, left)
+        Ok(Some(self.insert_node(
+            Expression::StructExpression { ty, properties },
+            self.range_since(start),
+        )))
     }
 
-    /// Parse an indirect generic postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value.<T>
-    /// value.<T>(argument)
-    /// value.<<T>() => T>
-    /// ```
-    fn eat_indirect_generic_postfix(
+    /// Parse one dot member, indirect call, index, or assertion.
+    fn parse_dot_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<Expression>,
+        context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let Some(generic_arguments) = self.eat_generic_arguments_if_valid(true) else {
-            return Err(ParserError::unexpected(self.peek()));
-        };
+        let dot_range = self.eat_token(TokenType::Dot)?.token.range();
+        if self.is_decimal_integer_before_dot(left, dot_range) {
+            return Err(ParserError::unexpected(dot_range));
+        }
 
+        // indirect call
         if self.peek_is(TokenType::OpenParenthesis) {
-            return self.eat_call(left, Some(generic_arguments), PostfixPosition::Indirect);
+            return self.parse_call(left, None, PostfixPosition::Indirect, context);
         }
 
-        Ok(self.insert_node(
-            Expression::Instantiation {
-                left,
-                generic_arguments,
-            },
-            self.get_span_from(start),
-        ))
-    }
+        // indirect index
+        if self.peek_is(TokenType::OpenBracket) {
+            return self.parse_index(left, PostfixPosition::Indirect, context);
+        }
 
-    /// Parse a named member or recover a missing member name.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value.member
-    /// value.default
-    /// value.true
-    /// ```
-    fn eat_named_member_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        if !self.current_token_starts_member_name() {
-            self.report_unexpected_for_here(NodeType::Expression);
-            let expression = self.insert_node(
-                Expression::Member { left, name: None },
-                self.get_span_from(start),
-            );
+        // indirect assertion
+        if self.peek_is(TokenType::Maybe) {
+            return Ok(self.parse_assertion_postfix(start, left, true, PostfixPosition::Indirect));
+        }
+        if self.peek_is(TokenType::Not) {
+            return Ok(self.parse_assertion_postfix(start, left, false, PostfixPosition::Indirect));
+        }
 
+        // indirect generic call or instantiation
+        let is_generic_start =
+            self.peek_is(TokenType::LessThan) || self.peek_shift_left_generic_function_argument();
+        if is_generic_start
+            && let Some(expression) = self.parse_generic_postfix(start, left, context)?
+        {
             return Ok(expression);
         }
 
-        let (name, name_span) = self.eat_member_name_with_span()?;
+        // recover a missing member name
+        if !matches!(
+            self.peek_token_type(),
+            TokenType::Identifier | TokenType::Literal
+        ) {
+            self.report_unexpected_here(NodeType::Expression);
+
+            return Ok(self.insert_node(
+                Expression::Member { left, name: None },
+                self.range_since(start),
+            ));
+        }
+
+        // named member
+        let (name, name_range) = self.eat_member_name_with_range()?;
         let expression = self.insert_node(
             Expression::Member {
                 left,
                 name: Some(name),
             },
-            self.get_span_from(start),
+            self.range_since(start),
         );
-        self.tree.set_main_span(expression, name_span);
+        self.tree.set_main_range(expression, name_range);
 
         Ok(expression)
     }
 
-    /// Return whether the current token starts a member name.
-    fn current_token_starts_member_name(&mut self) -> bool {
-        self.peek_is(TokenType::Identifier) || self.peek_is(TokenType::Literal)
+    /// Create the static type head represented by a reference-shaped value.
+    pub(in crate::parse::expression) fn promote_static_type_head(
+        &mut self,
+        expression: LocalNodeId<Expression>,
+    ) -> Option<LocalNodeId<TypeExpression>> {
+        // return an existing type expression without rebuilding it
+        if let Expression::Type { value } = self.tree.get(expression) {
+            return Some(*value);
+        }
+
+        // copy only fields from promotable value heads
+        let head = match self.tree.get(expression) {
+            Expression::Identifier { name } => StaticTypeHead::Identifier(*name),
+            Expression::Member {
+                left,
+                name: Some(name),
+            } => StaticTypeHead::Member {
+                left: *left,
+                name: *name,
+            },
+            Expression::Instantiation {
+                left,
+                generic_arguments,
+            } => StaticTypeHead::Instantiation {
+                left: *left,
+                generic_arguments: generic_arguments.clone(),
+            },
+            _ => return None,
+        };
+        let range = self.tree.get_range(expression);
+
+        // promote the complete head into type space
+        match head {
+            StaticTypeHead::Identifier(name) => Some(self.insert_node(
+                TypeExpression::Reference {
+                    path: Path {
+                        segments: smallvec![name],
+                    },
+                    generic_arguments: Vec::new(),
+                },
+                range,
+            )),
+            StaticTypeHead::Member { left, name } => {
+                let left = self.promote_static_type_head(left)?;
+                let type_expression = match self.tree.get(left) {
+                    TypeExpression::Reference {
+                        path,
+                        generic_arguments,
+                    } if generic_arguments.is_empty() => {
+                        let mut path = path.clone();
+                        path.segments.push(name);
+
+                        TypeExpression::Reference {
+                            path,
+                            generic_arguments: Vec::new(),
+                        }
+                    }
+                    _ => TypeExpression::Member {
+                        left,
+                        name,
+                        generic_arguments: Vec::new(),
+                    },
+                };
+
+                Some(self.insert_node(type_expression, range))
+            }
+            StaticTypeHead::Instantiation {
+                left,
+                generic_arguments,
+            } => self.promote_static_type_instantiation(range, left, generic_arguments),
+        }
     }
 
-    /// Return true when a decimal integer needs a separator before member access.
-    fn expression_is_decimal_integer_before_dot(
+    /// Create one instantiated static type head.
+    fn promote_static_type_instantiation(
+        &mut self,
+        range: ByteRange,
+        left: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    ) -> Option<LocalNodeId<TypeExpression>> {
+        let ty = self.promote_static_type_head(left)?;
+        let node = match self.tree.get(ty) {
+            TypeExpression::Reference { path, .. } => TypeExpression::Reference {
+                path: path.clone(),
+                generic_arguments,
+            },
+            TypeExpression::Member { left, name, .. } => TypeExpression::Member {
+                left: *left,
+                name: *name,
+                generic_arguments,
+            },
+            _ => return None,
+        };
+
+        Some(self.insert_node(node, range))
+    }
+
+    /// Return whether the current question mark touches its operand.
+    fn peek_question_postfix(&self) -> bool {
+        let question = self.peek_token().range();
+        if self.peek_previous_token_end() == question.start {
+            return true;
+        }
+
+        let next = self.peek_next_token();
+
+        next.is(TokenType::Dot) && question.end == next.start()
+    }
+
+    /// Return whether decimal integer member access requires another dot.
+    fn is_decimal_integer_before_dot(
         &self,
         left: LocalNodeId<Expression>,
-        dot_span: Span,
+        dot_range: ByteRange,
     ) -> bool {
         if !matches!(
             self.tree.get(left),
             Expression::ScalarLiteral(ScalarLiteral::Integer(_))
-        ) {
+        ) || self.tree.get_range(left).end != dot_range.start
+        {
             return false;
         }
 
-        let left_span = self.tree.get_span(left);
-        if left_span.end != dot_span.start {
-            return false;
-        }
-
-        let source_text = self.get_span_str(left_span);
-        !source_text.ends_with('n')
-            && !source_text.starts_with("0x")
-            && !source_text.starts_with("0X")
-            && !source_text.starts_with("0b")
-            && !source_text.starts_with("0B")
-            && !source_text.starts_with("0o")
-            && !source_text.starts_with("0O")
+        let text = self.range_str(self.tree.get_range(left));
+        !text.ends_with('n')
+            && !matches!(text.get(..2), Some("0x" | "0X" | "0b" | "0B" | "0o" | "0O"))
     }
 }

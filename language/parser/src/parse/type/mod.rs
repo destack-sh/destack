@@ -6,8 +6,11 @@ mod infer;
 mod infix;
 mod literal;
 mod mapped;
+mod member;
 pub(crate) mod operator;
 mod postfix;
 mod primary;
 mod reference;
 mod tuple;
+
+pub(crate) use member::TypeMemberContainerKind;

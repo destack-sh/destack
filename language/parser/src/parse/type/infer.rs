@@ -1,11 +1,13 @@
-use crate::{Parser, ParserResult};
+use crate::parse::context::{ConditionalTypeContext, InferExtends, TypeContext};
+use crate::parse::lookahead::DelimiterDepth;
+use crate::{Parser, ParserResult, TokenProbe};
 
 use destack_core::StringId;
 use destack_dir::{InferForm, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
-use destack_source::Span;
+use destack_source::ByteRange;
 
 impl Parser {
-    /// Eat one `infer` type expression.
+    /// Parse one `infer` type expression.
     ///
     /// Examples:
     /// ```ds
@@ -13,12 +15,15 @@ impl Parser {
     /// infer T extends U
     /// infer T extends (U extends V ? X : Y)
     /// ```
-    pub fn eat_type_infer_expression(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
+    pub(crate) fn parse_type_infer(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // `infer T`
-        let start = self.span_start();
+        let start = self.mark_parse_start();
         self.eat_keyword(Keyword::Infer)?;
-        let (name, name_span) = self.eat_infer_binding()?;
-        let constraint = self.eat_infer_constraint()?;
+        let (name, name_range) = self.parse_infer_binding()?;
+        let constraint = self.parse_infer_constraint(context)?;
 
         // infer node
         let type_expression_id = self.insert_node(
@@ -27,14 +32,14 @@ impl Parser {
                 name,
                 constraint,
             },
-            self.get_span_from(&start),
+            self.range_since(&start),
         );
-        self.tree.set_main_span(type_expression_id, name_span);
+        self.tree.set_main_range(type_expression_id, name_range);
 
         Ok(type_expression_id)
     }
 
-    /// Eat an infer binding name.
+    /// Parse an infer binding name.
     ///
     /// Examples:
     /// ```ds
@@ -42,16 +47,16 @@ impl Parser {
     /// _
     /// Result
     /// ```
-    fn eat_infer_binding(&mut self) -> ParserResult<(Option<StringId>, Span)> {
-        let (name, name_span) = self.eat_identifier_with_span()?;
-        if self.get_span_str(name_span) == "_" {
-            return Ok((None, name_span));
+    fn parse_infer_binding(&mut self) -> ParserResult<(Option<StringId>, ByteRange)> {
+        let (name, name_range) = self.eat_identifier_with_range()?;
+        if self.range_str(name_range) == "_" {
+            return Ok((None, name_range));
         }
 
-        Ok((Some(name), name_span))
+        Ok((Some(name), name_range))
     }
 
-    /// Eat an infer constraint when present.
+    /// Parse an infer constraint when present.
     ///
     /// Examples:
     /// ```ds
@@ -59,24 +64,24 @@ impl Parser {
     /// extends keyof T
     /// extends { id: string }
     /// ```
-    fn eat_infer_constraint(&mut self) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        if !self.is_keyword(Keyword::Extends) {
+    fn parse_infer_constraint(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
+        if !self.peek_is_keyword(Keyword::Extends) {
+            return Ok(None);
+        }
+        if context.infer_extends == InferExtends::Conditional && self.peek_infer_conditional() {
             return Ok(None);
         }
 
-        let checkpoint = self.checkpoint();
         self.bump();
-
-        let constraint = self.eat_infer_constraint_type()?;
-        if self.infer_extends_is_conditional_boundary() {
-            self.restore(checkpoint);
-            return Ok(None);
-        }
+        let constraint = self.parse_infer_constraint_type(context)?;
 
         Ok(Some(constraint))
     }
 
-    /// Eat the type after `infer T extends`.
+    /// Parse the type after `infer T extends`.
     ///
     /// Examples:
     /// ```ds
@@ -84,23 +89,56 @@ impl Parser {
     /// readonly string[]
     /// T extends U ? A : B
     /// ```
-    fn eat_infer_constraint_type(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let mut flags = self
-            .flags
-            .not_in_position()
-            .in_type()
-            .disallow_type_conditional();
-        if self.flags.is_in_type_conditional_right() {
-            flags = flags.in_type_conditional_right();
-        }
-
-        self.eat_type_expression_or_recover_missing(flags, NodeType::TypeExpression)
+    fn parse_infer_constraint_type(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        self.parse_type_or_recover_missing(
+            TypeContext {
+                conditional: ConditionalTypeContext::Forbidden,
+                ..context.nested()
+            },
+            NodeType::TypeExpression,
+        )
     }
 
-    /// Return whether `extends` should stay with the surrounding conditional type.
-    fn infer_extends_is_conditional_boundary(&mut self) -> bool {
-        !self.flags.is_disallow_type_conditional()
-            && (self.peek_is(TokenType::Maybe)
-                || self.current_token_is_on_new_line() && self.peek_is(TokenType::Maybe))
+    /// Return whether this `extends` is followed by a top-level conditional question.
+    fn peek_infer_conditional(&self) -> bool {
+        let mut probe = self.cursor.probe(&self.file);
+        probe.bump();
+
+        probe.scan_conditional_type_question()
+    }
+}
+
+impl TokenProbe<'_> {
+    /// Return whether this type scan reaches a top-level conditional question.
+    fn scan_conditional_type_question(&mut self) -> bool {
+        let mut depth = DelimiterDepth::type_expression();
+
+        loop {
+            let token_type = self.peek_token_type();
+            if depth.is_top_level() && token_type == TokenType::Maybe {
+                return true;
+            }
+            if depth.is_top_level()
+                && matches!(
+                    token_type,
+                    TokenType::Comma
+                        | TokenType::Semicolon
+                        | TokenType::CloseParenthesis
+                        | TokenType::CloseBracket
+                        | TokenType::CloseBrace
+                        | TokenType::End
+                )
+            {
+                return false;
+            }
+            if !depth.advance(token_type) {
+                return false;
+            }
+
+            self.bump();
+        }
     }
 }

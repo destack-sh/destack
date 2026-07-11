@@ -43,6 +43,13 @@ impl Parser {
             )
     }
 
+    /// Return whether the current token closes an empty expression slot.
+    #[inline]
+    pub(crate) fn peek_expression_slot_boundary(&self) -> bool {
+        Self::is_expression_slot_boundary_token(self.peek_token_type())
+            || self.peek_is(TokenType::Colon)
+    }
+
     /// Return true when a close delimiter can recover a missing token here.
     #[inline]
     pub(crate) const fn is_close_delimiter_boundary_token(token_type: TokenType) -> bool {
@@ -75,29 +82,23 @@ impl Parser {
             )
     }
 
-    /// Return true when a type expression can recover a missing child here.
-    #[inline]
-    pub(crate) fn is_type_expression_boundary(&mut self) -> bool {
-        Self::is_type_expression_boundary_token(self.peek_token_type())
-    }
-
     /// Return true when type parsing can recover at the current cursor.
     #[inline]
-    pub(crate) fn is_type_expression_recovery_boundary(&mut self) -> bool {
-        self.is_type_expression_boundary()
-            || self.current_token_starts_recovery_point(RecoveryPoint::TypeExpressionDeclaration)
+    pub(crate) fn peek_type_expression_recovery_boundary(&self) -> bool {
+        Self::is_type_expression_boundary_token(self.peek_token_type())
+            || self.peek_recovery_point(RecoveryPoint::TypeExpressionDeclaration)
     }
 
     /// Return true when the next token is a statement stop.
     #[inline]
-    pub fn is_statement_stop(&mut self) -> bool {
+    pub fn peek_statement_stop(&self) -> bool {
         Self::is_statement_stop_token(self.peek_token_type())
     }
 
     /// Return true when the current token position can terminate a statement.
     #[inline]
-    pub fn can_insert_semicolon(&mut self) -> bool {
-        self.current_token_is_on_new_line()
+    pub fn peek_semicolon_insertion(&self) -> bool {
+        self.peek_is_on_new_line()
             || matches!(
                 self.peek_token_type(),
                 TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
@@ -106,13 +107,13 @@ impl Parser {
 
     /// Return true when the next token is an item stop.
     #[inline]
-    pub fn is_item_stop(&mut self) -> bool {
+    pub fn peek_item_stop(&self) -> bool {
         Self::is_item_stop_token(self.peek_token_type())
     }
 
     /// Return true when the next token is any stop.
     #[inline]
-    pub fn is_any_stop(&mut self) -> bool {
+    pub fn peek_any_stop(&self) -> bool {
         Self::is_any_stop_token(self.peek_token_type())
     }
 
@@ -120,7 +121,7 @@ impl Parser {
     #[inline]
     pub fn eat_statement_stop(&mut self) -> ParserResult<()> {
         if self.peek_is(TokenType::Semicolon) {
-            self.bump(); // eat semicolon
+            self.bump();
             return Ok(());
         }
 
@@ -128,7 +129,10 @@ impl Parser {
             return Ok(());
         }
 
-        Err(ParserError::expected(self.eof_span(), TokenType::Semicolon))
+        Err(ParserError::expected(
+            self.peek_token_span(),
+            TokenType::Semicolon,
+        ))
     }
 
     /// Eat any stop.
@@ -146,6 +150,6 @@ impl Parser {
             return Ok(());
         }
 
-        Err(ParserError::expected(self.eof_span(), TokenType::Semicolon))
+        Err(ParserError::unexpected(self.peek_token_span()))
     }
 }

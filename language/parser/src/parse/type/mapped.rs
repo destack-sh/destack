@@ -1,31 +1,32 @@
+use crate::parse::context::TypeContext;
 use crate::{Parser, ParserResult};
 
 use destack_dir::{
     Keyword, LocalNodeId, MappedTypeModifier, NodeType, TokenType, TypeExpression,
     TypeMappedParameter,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
-/// Parsed mapped type head.
+/// One mapped type head.
 struct MappedTypeHead {
     /// The mapped parameter node.
     parameter: LocalNodeId<TypeMappedParameter>,
-    /// The full mapped head span.
-    span: Span,
-    /// The mapped key name span.
-    name_span: Span,
+    /// The full mapped head range.
+    range: ByteRange,
+    /// The mapped key name range.
+    name_range: ByteRange,
 }
 
-/// Parsed mapped type value.
+/// One mapped type value.
 struct MappedTypeValue {
-    /// The optional mapped value type.
-    value: Option<LocalNodeId<TypeExpression>>,
-    /// The optional mapped value span.
-    span: Option<Span>,
+    /// The mapped value type.
+    value: LocalNodeId<TypeExpression>,
+    /// The mapped value range.
+    range: ByteRange,
 }
 
 impl Parser {
-    /// Eat one mapped type expression.
+    /// Parse one mapped type expression.
     ///
     /// Examples:
     /// ```ds
@@ -33,82 +34,87 @@ impl Parser {
     /// { readonly [K in keyof T]?: T[K] }
     /// { [K in keyof T as `get${K}`]: T[K] }
     /// ```
-    pub fn eat_type_mapped_expression(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let start = self.span_start();
+    pub(crate) fn parse_mapped_type(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        let start = self.mark_parse_start();
 
         // mapped body: `{ ... }`
         self.eat_token(TokenType::OpenBrace)?;
 
-        let readonly = self.eat_type_mapped_readonly_modifier()?;
-        let head = self.eat_type_mapped_head()?;
-        let optional = self.eat_type_mapped_optional_modifier()?;
-        let value = self.eat_type_mapped_value()?;
+        let readonly = self.parse_type_mapped_readonly_modifier();
+        let head = self.parse_mapped_type_head(context)?;
+        let optional = self.parse_type_mapped_optional_modifier();
+        let value = self.parse_mapped_type_value(context)?;
 
+        // consume an optional member terminator
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
             self.bump();
         }
 
         // mapped value trailing boundary
-        let mapped_close_start = self.peek().span.start;
-        if let Some(value) = value.value {
-            self.set_node_trailing_span(value, mapped_close_start);
+        let mapped_close_start = self.peek_token_span().span.start;
+        if let Some(value) = value.as_ref() {
+            self.set_node_trailing_range(value.value, mapped_close_start);
         }
 
         self.eat_type_token_or_recover_missing(TokenType::CloseBrace, NodeType::TypeExpression)?;
 
         // mapped type node
+        let value_id = value.as_ref().map(|value| value.value);
         let mapped_id = self.insert_node(
             TypeExpression::Mapped {
                 parameter: head.parameter,
                 readonly,
                 optional,
-                value: value.value,
+                value: value_id,
             },
-            self.get_span_from(&start),
+            self.range_since(&start),
         );
         self.tree
-            .set_side_span(mapped_id, NodeSpanType::Head, head.span);
-        if let Some(value_type_span) = value.span {
-            self.tree.set_side_span(
+            .set_side_range(mapped_id, NodeSpanType::Head, head.range);
+        if let Some(value) = value {
+            self.tree.set_side_range(
                 mapped_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
-                value_type_span,
+                value.range,
             );
         }
-        self.tree.set_main_span(mapped_id, head.name_span);
+        self.tree.set_main_range(mapped_id, head.name_range);
 
         Ok(mapped_id)
     }
 
     /// Return true when the current token starts a mapped type head.
-    pub(crate) fn can_start_type_mapped_expression(&mut self) -> bool {
+    pub(crate) fn peek_mapped_type(&self) -> bool {
         // mapped types always start with `{`
         if !self.peek_is(TokenType::OpenBrace) {
             return false;
         }
 
-        self.token_offset_starts_mapped_type_head(1)
+        self.peek_mapped_type_at(1)
     }
 
     /// Return whether one token offset starts a mapped type head.
-    fn token_offset_starts_mapped_type_head(&mut self, mut offset: usize) -> bool {
+    fn peek_mapped_type_at(&self, mut offset: usize) -> bool {
         if matches!(
-            self.token_type_at_offset(offset),
+            self.peek_token_type_at(offset),
             TokenType::Add | TokenType::Subtract
         ) {
-            return self.keyword_at_offset(offset + 1) == Some(Keyword::Readonly);
+            return self.peek_keyword_at(offset + 1) == Some(Keyword::Readonly);
         }
 
-        if self.keyword_at_offset(offset) == Some(Keyword::Readonly) {
+        if self.peek_keyword_at(offset) == Some(Keyword::Readonly) {
             offset += 1;
         }
 
-        self.token_type_at_offset(offset) == TokenType::OpenBracket
-            && self.token_type_at_offset(offset + 1) == TokenType::Identifier
-            && self.keyword_at_offset(offset + 2) == Some(Keyword::In)
+        self.peek_token_type_at(offset) == TokenType::OpenBracket
+            && self.peek_token_type_at(offset + 1) == TokenType::Identifier
+            && self.peek_keyword_at(offset + 2) == Some(Keyword::In)
     }
 
-    /// Eat a mapped type head.
+    /// Parse a mapped type head.
     ///
     /// Examples:
     /// ```ds
@@ -116,38 +122,36 @@ impl Parser {
     /// [K in keyof T as `get${K}`]
     /// [P in keyof Model as P]
     /// ```
-    fn eat_type_mapped_head(&mut self) -> ParserResult<MappedTypeHead> {
-        let start = self.span_start();
+    fn parse_mapped_type_head(&mut self, context: TypeContext) -> ParserResult<MappedTypeHead> {
+        let start = self.mark_parse_start();
         self.eat_token(TokenType::OpenBracket)?;
 
-        let (name, name_span) = self.eat_identifier_with_span()?;
+        let (name, name_range) = self.eat_identifier_with_range()?;
         self.eat_keyword(Keyword::In)?;
-        let source_type = self.eat_type_expression_or_recover_missing(
-            self.flags.not_in_position().in_type(),
-            NodeType::TypeExpression,
-        )?;
-        let key_remap = self.eat_type_mapped_key_remap(source_type)?;
+        let source_type =
+            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
+        let key_remap = self.parse_mapped_type_key(source_type, context)?;
 
         self.eat_type_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
-        let span = self.get_span_from(&start);
+        let range = self.range_since(&start);
         let parameter = self.insert_node(
             TypeMappedParameter {
                 name,
                 source_type,
                 key_remap,
             },
-            span,
+            range,
         );
-        self.tree.set_main_span(parameter, name_span);
+        self.tree.set_main_range(parameter, name_range);
 
         Ok(MappedTypeHead {
             parameter,
-            span,
-            name_span,
+            range,
+            name_range,
         })
     }
 
-    /// Eat a mapped key remap when present.
+    /// Parse a mapped key remap when present.
     ///
     /// Examples:
     /// ```ds
@@ -155,26 +159,25 @@ impl Parser {
     /// as `get${K}`
     /// as Exclude<K, "id">
     /// ```
-    fn eat_type_mapped_key_remap(
+    fn parse_mapped_type_key(
         &mut self,
         source_type: LocalNodeId<TypeExpression>,
+        context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        if !self.is_keyword(Keyword::As) {
+        if !self.peek_is_keyword(Keyword::As) {
             return Ok(None);
         }
 
-        let as_span = self.eat_keyword(Keyword::As)?.span;
-        self.set_node_trailing_span(source_type, as_span.start);
-        let remap_expression = self.eat_type_expression_or_recover_missing(
-            self.flags.not_in_position().in_type(),
-            NodeType::TypeExpression,
-        )?;
-        self.set_node_leading_span(remap_expression, as_span.end);
+        let as_range = self.eat_keyword(Keyword::As)?.span.range();
+        self.set_node_trailing_range(source_type, as_range.start);
+        let remap_expression =
+            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
+        self.set_node_leading_range(remap_expression, as_range.end);
 
         Ok(Some(remap_expression))
     }
 
-    /// Eat a mapped value type when present.
+    /// Parse a mapped value type when present.
     ///
     /// Examples:
     /// ```ds
@@ -182,31 +185,26 @@ impl Parser {
     /// : readonly T[K]
     /// : T[K] | undefined
     /// ```
-    fn eat_type_mapped_value(&mut self) -> ParserResult<MappedTypeValue> {
+    fn parse_mapped_type_value(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<Option<MappedTypeValue>> {
         if !self.peek_is(TokenType::Colon) {
-            return Ok(MappedTypeValue {
-                value: None,
-                span: None,
-            });
+            return Ok(None);
         }
 
-        let start = self.span_start();
+        let start = self.mark_parse_start();
         self.eat_token(TokenType::Colon)?;
-        let boundary_start = self.prev_token_end();
-        let value = self.eat_type_expression_or_recover_missing(
-            self.flags.not_in_position().in_type(),
-            NodeType::TypeExpression,
-        )?;
-        self.set_node_leading_span(value, boundary_start);
-        let span = self.get_span_from(&start);
+        let boundary_start = self.peek_previous_token_end();
+        let value =
+            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
+        self.set_node_leading_range(value, boundary_start);
+        let range = self.range_since(&start);
 
-        Ok(MappedTypeValue {
-            value: Some(value),
-            span: Some(span),
-        })
+        Ok(Some(MappedTypeValue { value, range }))
     }
 
-    /// Eat one mapped readonly modifier.
+    /// Parse one mapped readonly modifier.
     ///
     /// Examples:
     /// ```ds
@@ -214,11 +212,11 @@ impl Parser {
     /// +readonly [K in keyof T]
     /// -readonly [K in keyof T]
     /// ```
-    fn eat_type_mapped_readonly_modifier(&mut self) -> ParserResult<MappedTypeModifier> {
+    fn parse_type_mapped_readonly_modifier(&mut self) -> MappedTypeModifier {
         // readonly modifier: `readonly`, `+readonly`, `-readonly`
-        if self.is_keyword(Keyword::Readonly) {
+        if self.peek_is_keyword(Keyword::Readonly) {
             self.bump();
-            return Ok(MappedTypeModifier::Present);
+            return MappedTypeModifier::Present;
         }
 
         // +/- readonly
@@ -227,21 +225,21 @@ impl Parser {
         } else if self.peek_is(TokenType::Add) {
             MappedTypeModifier::Add
         } else {
-            return Ok(MappedTypeModifier::None);
+            return MappedTypeModifier::None;
         };
 
         // allow line breaks between `+` or `-` and `readonly`
-        let has_readonly_after_operator = self.keyword_at_offset(1) == Some(Keyword::Readonly);
+        let has_readonly_after_operator = self.peek_keyword_at(1) == Some(Keyword::Readonly);
         if has_readonly_after_operator {
             self.bump();
             self.bump();
-            return Ok(modifier);
+            return modifier;
         }
 
-        Ok(MappedTypeModifier::None)
+        MappedTypeModifier::None
     }
 
-    /// Eat one mapped optional modifier.
+    /// Parse one mapped optional modifier.
     ///
     /// Examples:
     /// ```ds
@@ -249,28 +247,28 @@ impl Parser {
     /// [K in keyof T]+?
     /// [K in keyof T]-?
     /// ```
-    fn eat_type_mapped_optional_modifier(&mut self) -> ParserResult<MappedTypeModifier> {
+    fn parse_type_mapped_optional_modifier(&mut self) -> MappedTypeModifier {
         // ?
         if self.peek_is(TokenType::Maybe) {
             self.bump();
-            return Ok(MappedTypeModifier::Present);
+            return MappedTypeModifier::Present;
         }
 
         // -?
-        if self.token_type_at_offset(1) == TokenType::Maybe {
+        if self.peek_token_type_at(1) == TokenType::Maybe {
             if self.peek_is(TokenType::Subtract) {
                 self.bump();
                 self.bump();
-                return Ok(MappedTypeModifier::Remove);
+                return MappedTypeModifier::Remove;
             }
 
             if self.peek_is(TokenType::Add) {
                 self.bump();
                 self.bump();
-                return Ok(MappedTypeModifier::Add);
+                return MappedTypeModifier::Add;
             }
         }
 
-        Ok(MappedTypeModifier::None)
+        MappedTypeModifier::None
     }
 }

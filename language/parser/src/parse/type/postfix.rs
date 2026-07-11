@@ -1,18 +1,17 @@
-use crate::parse::scope::TypeScope;
-use crate::{Parser, ParserResult, ParserSpanStart};
-
+use crate::parse::context::{ExpressionContext, TypeContext, TypeMode};
+use crate::{ParseStart, Parser, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
     Expression, GenericArgument, LocalNodeId, NodeType, Path, PostfixPosition, TokenType,
     TypeExpression,
 };
-use destack_source::Span;
+use destack_source::ByteRange;
 
-/// Type head that can receive generic arguments.
+/// One type head that can receive generic arguments.
 enum TypeGenericHead {
-    /// Reference type head.
+    /// One reference type head.
     Reference(Path),
-    /// Member type head.
+    /// One member type head.
     Member {
         /// The type before the member name.
         left: LocalNodeId<TypeExpression>,
@@ -21,202 +20,210 @@ enum TypeGenericHead {
     },
 }
 
+/// One static type head promoted into value space.
+struct TypeValueHead {
+    /// The promoted value expression.
+    expression: LocalNodeId<Expression>,
+    /// The generic arguments retained for a call or instantiation.
+    generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+}
+
 impl Parser {
-    /// Eat type postfix operators.
-    ///
-    /// Examples:
-    /// ```ds
-    /// T[]
-    /// T["key"]
-    /// Namespace.Type<T>!
-    /// ```
-    pub(super) fn eat_type_postfix(
+    /// Parse all postfix operations owned by one type operand.
+    pub(in crate::parse::r#type) fn parse_type_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         mut left: LocalNodeId<TypeExpression>,
-        scope: TypeScope,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         loop {
+            // stop before tokens that cannot continue one type operand
             let token_type = self.peek_token_type();
-            let is_on_new_line = self.current_token_is_on_new_line();
-
-            // static type close
-            if scope.is_static() && Self::starts_type_angle_close(token_type) {
+            let is_postfix_candidate = matches!(
+                token_type,
+                TokenType::OpenBracket
+                    | TokenType::OpenParenthesis
+                    | TokenType::Dot
+                    | TokenType::Not
+                    | TokenType::LessThan
+                    | TokenType::ShiftLeft
+            );
+            if !is_postfix_candidate {
                 break;
             }
 
-            match token_type {
-                TokenType::OpenBracket => {
-                    left = self.eat_type_index_postfix(left)?;
+            // parse one postfix operation without recursive descent
+            let is_on_new_line = self.peek_is_on_new_line();
+            let next = match token_type {
+                TokenType::OpenBracket => Some(self.parse_type_index_postfix(left, context)?),
+                TokenType::OpenParenthesis if context.mode != TypeMode::NewReceiver => {
+                    self.parse_type_static_call_postfix(start, left, context)?
                 }
-                TokenType::OpenParenthesis => {
-                    if scope.is_new_receiver() {
-                        break;
-                    }
-
-                    let Some(expression_id) = self.eat_type_static_value_call(start, left)? else {
-                        break;
-                    };
-                    left = expression_id;
-                }
-                TokenType::Dot => {
-                    left = self.eat_type_dot_postfix(start, left)?;
-                }
+                TokenType::Dot => Some(self.parse_type_member_postfix(start, left, context)?),
                 TokenType::Not if !is_on_new_line => {
-                    left = self.eat_type_must_postfix(start, left);
+                    Some(self.parse_type_must_postfix(start, left))
                 }
-                TokenType::LessThan | TokenType::ShiftLeft => {
-                    let Some(expression_id) = self.eat_type_generic_postfix(start, left)? else {
-                        break;
-                    };
-                    left = expression_id;
+                TokenType::LessThan | TokenType::ShiftLeft if !is_on_new_line => {
+                    self.parse_type_generic_postfix(start, left, context)?
                 }
-                _ => break,
-            }
+                _ => None,
+            };
+            let Some(next) = next else {
+                break;
+            };
+
+            // continue from the newly wrapped type
+            left = next;
         }
 
         Ok(left)
     }
 
-    /// Parse a value call in type syntax.
-    ///
-    /// Examples:
-    /// ```ds
-    /// sizeOf<Header>()
-    /// namespace.value<T>(argument)
-    /// ```
-    fn eat_type_static_value_call(
+    /// Parse one value call written from a static type head.
+    fn parse_type_static_call_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<TypeExpression>,
+        context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        let Some((callee, generic_arguments)) = self.type_head_as_value(left) else {
+        let Some(head) = self.promote_type_value_head(left) else {
             return Ok(None);
         };
-        let expression = self.eat_call(callee, Some(generic_arguments), PostfixPosition::Direct)?;
-
-        Ok(Some(self.insert_node(
+        let expression = self.parse_call(
+            head.expression,
+            Some(head.generic_arguments),
+            PostfixPosition::Direct,
+            ExpressionContext {
+                function: context.function,
+                ..ExpressionContext::default()
+            },
+        )?;
+        let ty = self.insert_node(
             TypeExpression::StaticValue { expression },
-            self.get_span_from(start),
-        )))
+            self.range_since(start),
+        );
+
+        Ok(Some(ty))
     }
 
-    /// Return the value expression represented by one type head.
-    fn type_head_as_value(
+    /// Promote one static type head into value space.
+    fn promote_type_value_head(
         &mut self,
         ty: LocalNodeId<TypeExpression>,
-    ) -> Option<(LocalNodeId<Expression>, Vec<LocalNodeId<GenericArgument>>)> {
-        match self.tree.get(ty).clone() {
+    ) -> Option<TypeValueHead> {
+        // copy only fields from promotable type heads
+        let (head, generic_arguments) = match self.tree.get(ty) {
             TypeExpression::Reference {
                 path,
                 generic_arguments,
-            } => {
-                let callee = self.type_path_as_value(&path, self.tree.get_span(ty))?;
-
-                Some((callee, generic_arguments))
-            }
+            } => (
+                TypeGenericHead::Reference(path.clone()),
+                generic_arguments.clone(),
+            ),
             TypeExpression::Member {
                 left,
                 name,
                 generic_arguments,
-            } => {
-                let owner = self.type_head_as_instantiated_value(left)?;
-                let callee = self.insert_node(
+            } => (
+                TypeGenericHead::Member {
+                    left: *left,
+                    name: *name,
+                },
+                generic_arguments.clone(),
+            ),
+            _ => return None,
+        };
+        let range = self.tree.get_range(ty);
+
+        // promote the reference-shaped head into value space
+        let expression = match head {
+            TypeGenericHead::Reference(path) => self.insert_path_expression(&path, range)?,
+            TypeGenericHead::Member { left, name } => {
+                let owner = self.promote_type_value(left)?;
+                self.insert_node(
                     Expression::Member {
                         left: owner,
                         name: Some(name),
                     },
-                    self.tree.get_span(ty),
-                );
-
-                Some((callee, generic_arguments))
+                    range,
+                )
             }
-            _ => None,
-        }
+        };
+
+        Some(TypeValueHead {
+            expression,
+            generic_arguments,
+        })
     }
 
-    /// Return the instantiated value expression represented by one type head.
-    fn type_head_as_instantiated_value(
+    /// Promote one complete static type head into value space.
+    fn promote_type_value(
         &mut self,
         ty: LocalNodeId<TypeExpression>,
     ) -> Option<LocalNodeId<Expression>> {
-        let (callee, generic_arguments) = self.type_head_as_value(ty)?;
-        if generic_arguments.is_empty() {
-            return Some(callee);
+        let head = self.promote_type_value_head(ty)?;
+        if head.generic_arguments.is_empty() {
+            return Some(head.expression);
         }
 
         Some(self.insert_node(
             Expression::Instantiation {
-                left: callee,
-                generic_arguments,
+                left: head.expression,
+                generic_arguments: head.generic_arguments,
             },
-            self.tree.get_span(ty),
+            self.tree.get_range(ty),
         ))
     }
 
-    /// Return the value expression represented by a path reference.
-    fn type_path_as_value(&mut self, path: &Path, span: Span) -> Option<LocalNodeId<Expression>> {
+    /// Insert one type path as a value expression path.
+    fn insert_path_expression(
+        &mut self,
+        path: &Path,
+        range: ByteRange,
+    ) -> Option<LocalNodeId<Expression>> {
         let mut segments = path.segments.iter().copied();
         let first = segments.next()?;
-        let mut callee = self.insert_node(Expression::Identifier { name: first }, span);
+        let mut value = self.insert_node(Expression::Identifier { name: first }, range);
 
         for segment in segments {
-            callee = self.insert_node(
+            value = self.insert_node(
                 Expression::Member {
-                    left: callee,
+                    left: value,
                     name: Some(segment),
                 },
-                span,
+                range,
             );
         }
 
-        Some(callee)
+        Some(value)
     }
 
-    /// Parse a type must postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// T!
-    /// Namespace.Type!
-    /// Result<T>!
-    /// ```
-    fn eat_type_must_postfix(
+    /// Parse one type must postfix.
+    fn parse_type_must_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
-        let operator_start = self.span_start();
+        let operator_range = self.peek_token().range();
         self.bump();
-        let expression_id = self.insert_node(
+        let ty = self.insert_node(
             TypeExpression::Must { target_type: left },
-            self.get_span_from(start),
+            self.range_since(start),
         );
-        self.tree
-            .set_main_span(expression_id, self.get_span_from(&operator_start));
+        self.tree.set_main_range(ty, operator_range);
 
-        expression_id
+        ty
     }
 
-    /// Parse type generic postfix arguments when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// Result<T>
-    /// Map<K, V>
-    /// Namespace.Type<string>
-    /// ```
-    fn eat_type_generic_postfix(
+    /// Parse generic arguments after one compatible type head.
+    fn parse_type_generic_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<TypeExpression>,
+        context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        if self.current_token_is_on_new_line() {
-            return Ok(None);
-        }
-
-        let previous_head_span = self.tree.get_head_span(left);
-        let previous_main_span = self.tree.get_main_span(left);
+        let previous_head_range = self.tree.get_head_range(left);
+        let previous_main_range = self.tree.get_main_range(left);
         let head = match self.tree.get(left) {
             TypeExpression::Reference { path, .. } => TypeGenericHead::Reference(path.clone()),
             TypeExpression::Member { left, name, .. } => TypeGenericHead::Member {
@@ -226,8 +233,8 @@ impl Parser {
             _ => return Ok(None),
         };
 
-        let generic_arguments = self.eat_type_generic_arguments()?;
-        let expression = match head {
+        let generic_arguments = self.parse_type_generic_arguments(context)?;
+        let ty = match head {
             TypeGenericHead::Reference(path) => TypeExpression::Reference {
                 path,
                 generic_arguments,
@@ -238,88 +245,84 @@ impl Parser {
                 generic_arguments,
             },
         };
-
-        let expression_id = self.insert_node(expression, self.get_span_from(start));
-        if let Some(span) = previous_head_span {
-            self.tree.set_head_span(expression_id, span);
+        let ty = self.insert_node(ty, self.range_since(start));
+        if let Some(range) = previous_head_range {
+            self.tree.set_head_range(ty, range);
         }
-        if let Some(span) = previous_main_span {
-            self.tree.set_main_span(expression_id, span);
+        if let Some(range) = previous_main_range {
+            self.tree.set_main_range(ty, range);
         }
 
-        Ok(Some(expression_id))
+        Ok(Some(ty))
     }
 
-    /// Parse a type dot postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// Namespace.Type
-    /// Namespace.Type<T>
-    /// A.B.C
-    /// ```
-    fn eat_type_dot_postfix(
+    /// Parse one type member postfix.
+    fn parse_type_member_postfix(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         left: LocalNodeId<TypeExpression>,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::Dot)?;
-        let (name, _) = self.eat_member_name_with_span()?;
-        let generic_arguments = if self.type_generic_arguments_start_here() {
-            self.eat_type_generic_arguments()?
+        let (name, name_range) = self.eat_member_name_with_range()?;
+        let generic_arguments = if self.peek_type_generic_arguments() {
+            self.parse_type_generic_arguments(context)?
         } else {
             Vec::new()
         };
-
-        Ok(self.insert_node(
+        let ty = self.insert_node(
             TypeExpression::Member {
                 left,
                 name,
                 generic_arguments,
             },
-            self.get_span_from(start),
-        ))
+            self.range_since(start),
+        );
+        self.tree.set_main_range(ty, name_range);
+
+        Ok(ty)
     }
 
-    /// Parse a type index postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// T[]
-    /// T[K]
-    /// Tuple[0]
-    /// ```
-    fn eat_type_index_postfix(
+    /// Parse one array or indexed-access type postfix.
+    fn parse_type_index_postfix(
         &mut self,
         left: LocalNodeId<TypeExpression>,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let start = self.span_start();
+        let start = self.mark_parse_start();
         self.eat_token(TokenType::OpenBracket)?;
 
-        // array shorthand
+        // empty brackets form an array type
         if self.peek_is(TokenType::CloseBracket) {
             self.bump();
-            let left_span = self.tree.get_span(left);
-            let index_span = self.get_span_from(&start);
+            let left_range = self.tree.get_range(left);
+            let postfix_range = self.range_since(&start);
 
             return Ok(self.insert_node(
                 TypeExpression::Array { element: left },
-                Span::new(left_span.file, left_span.start, index_span.end),
+                ByteRange {
+                    start: left_range.start,
+                    end: postfix_range.end,
+                },
             ));
         }
 
-        // index access
-        let index = self.eat_type_expression_or_recover_missing(
-            self.flags.nested().in_type(),
-            NodeType::TypeExpression,
-        )?;
+        // nonempty brackets form an indexed access type
+        let index = if self.peek_type_expression_recovery_boundary() {
+            self.recover_missing_type_expression_here(NodeType::TypeExpression)
+        } else {
+            self.parse_type(context.nested())?
+        };
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
-        let left_span = self.tree.get_span(left);
-        let index_span = self.get_span_from(&start);
+        let left_range = self.tree.get_range(left);
+        let postfix_range = self.range_since(&start);
 
         Ok(self.insert_node(
             TypeExpression::Index { left, index },
-            Span::new(left_span.file, left_span.start, index_span.end),
+            ByteRange {
+                start: left_range.start,
+                end: postfix_range.end,
+            },
         ))
     }
 }
