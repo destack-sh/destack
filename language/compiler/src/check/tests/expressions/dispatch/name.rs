@@ -31,3 +31,152 @@ const copy = value;
 "#,
     );
 }
+
+#[test]
+fn test_misspelled_reference_suggests_a_reviewed_rename() {
+    let session = TestSession::single(
+        r#"
+const value = 1;
+const copy = valeu;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const value: 1 = 1;
+const copy = valeu;
+
+=== checked ===
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+
+const copy = valeu;
+/// @type.symbol symbol=copy source=copy type=<error>
+"#,
+        r#"
+/// @diagnostic.error code=EC308 message="cannot find 'valeu'; did you mean 'value'?"
+/// @diagnostic.label line=3 column=14 span="valeu" line_source="const copy = valeu;"
+/// @diagnostic.suggestion message="rename to 'value'" applicability=dangerous patched="const copy = value;"
+"#,
+    );
+}
+
+#[test]
+fn test_case_mismatched_reference_suggests_an_automatic_rename() {
+    let session = TestSession::single(
+        r#"
+const JSON = 1;
+const copy = json;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const JSON: 1 = 1;
+const copy = json;
+
+=== checked ===
+const JSON = 1;
+/// @type.symbol symbol=JSON source=JSON type=1
+
+const copy = json;
+/// @type.symbol symbol=copy source=copy type=<error>
+"#,
+        r#"
+/// @diagnostic.error code=EC308 message="cannot find 'json'; did you mean 'JSON'?"
+/// @diagnostic.label line=3 column=14 span="json" line_source="const copy = json;"
+/// @diagnostic.suggestion message="rename to 'JSON'" applicability=automatic patched="const copy = JSON;"
+"#,
+    );
+}
+
+#[test]
+fn test_redundant_cast_suggests_removal() {
+    let session = TestSession::single(
+        r#"
+const value: int32 = 1;
+const same = value as int32;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const value: int32 = 1;
+const same: int32 = value as int32;
+
+=== checked ===
+const value: int32 = 1;
+/// @type.symbol symbol=value source=value type=int32
+
+const same = value as int32;
+/// @type.symbol symbol=same source=same type=int32
+/// @resolution.name source=value target=value
+"#,
+        r#"
+/// @diagnostic.warning code=WC104 message="cast to 'int32' has no effect"
+/// @diagnostic.label line=3 column=20 span="as" line_source="const same = value as int32;"
+/// @diagnostic.suggestion message="remove the cast" applicability=automatic patched="const same = value int32;"
+"#,
+    );
+}
+
+#[test]
+fn test_misspelled_member_suggests_a_rename() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    length: int32;
+}
+
+declare const point: Point;
+const size = point.lenght;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    length: int32;
+}
+
+declare const point: Point;
+const size = point.lenght;
+
+=== checked ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.length source="length: int32" key=length type=int32
+
+    length: int32;
+    /// @type.symbol symbol=Point.length source="length: int32" type=int32
+
+}
+
+declare const point: Point;
+/// @type.symbol symbol=point source=point type=Point
+/// @resolution.name source=Point target=Point
+
+const size = point.lenght;
+/// @type.symbol symbol=size source=size type=<error>
+/// @resolution.name source=point target=point
+"#,
+        r#"
+/// @diagnostic.error code=EC300 message="member 'lenght' does not exist on type 'Point'; did you mean 'length'?"
+/// @diagnostic.label line=7 column=20 span="lenght" line_source="const size = point.lenght;"
+/// @diagnostic.suggestion message="rename to 'length'" applicability=dangerous patched="const size = point.length;"
+"#,
+    );
+}
