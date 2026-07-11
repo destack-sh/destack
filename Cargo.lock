@@ -1025,6 +1025,7 @@ version = "0.55.4"
 dependencies = [
  "destack_source",
  "destack_unicode",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]

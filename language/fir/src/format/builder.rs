@@ -3,9 +3,9 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 
 use crate::format::{
-    Argument, Arguments, BestFittingMode, BestFittingVariants, Buffer, Condition, DedentMode,
-    FormatContext, FormatError, FormatOptions, FormatTag, GroupId, GroupMode, Interned, PrintMode,
-    TextWidth, VecBuffer, tag,
+    ArenaVec, Argument, Arguments, BestFittingMode, BestFittingVariants, Buffer, Condition,
+    DedentMode, FormatContext, FormatError, FormatOptions, FormatTag, GroupId, GroupMode,
+    NodeSlice, PrintMode, TextWidth, VecBuffer, tag,
 };
 use crate::prelude::*;
 use crate::write;
@@ -53,8 +53,8 @@ impl Line {
     }
 }
 
-impl<Context> Format<Context> for Line {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for Line {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Line(self.mode));
         Ok(())
     }
@@ -84,8 +84,8 @@ pub struct Token {
     text: &'static str,
 }
 
-impl<Context> Format<Context> for Token {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for Token {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Token { text: self.text });
         Ok(())
     }
@@ -97,11 +97,9 @@ impl std::fmt::Debug for Token {
     }
 }
 
-/// Creates a text from a dynamic string.
-///
-/// This is done by allocating a new string internally.
+/// Create text borrowed for the formatted document lifetime.
 pub fn text(text: &str) -> Text<'_> {
-    debug_assert_no_newlines(text);
+    debug_assert_no_carriage_returns(text);
     Text { text }
 }
 
@@ -110,13 +108,13 @@ pub struct Text<'a> {
     text: &'a str,
 }
 
-impl<Context> Format<Context> for Text<'_>
+impl<'a, Context> Format<'a, Context> for Text<'a>
 where
     Context: FormatContext,
 {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Text {
-            text: self.text.to_string().into_boxed_str(),
+            text: self.text,
             width: TextWidth::from_text(self.text, f.options().indent_width()),
         });
 
@@ -130,9 +128,43 @@ impl std::fmt::Debug for Text<'_> {
     }
 }
 
+/// Create text copied into the formatter arena.
+pub fn copied_text(text: &str) -> CopiedText<'_> {
+    debug_assert_no_carriage_returns(text);
+    CopiedText { text }
+}
+
+/// Text copied into the formatter arena when formatted.
+#[derive(Eq, PartialEq)]
+pub struct CopiedText<'a> {
+    text: &'a str,
+}
+
+impl<'source, 'a, Context> Format<'a, Context> for CopiedText<'source>
+where
+    Context: FormatContext,
+{
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
+        let text = f.allocator().alloc_str(self.text);
+
+        f.write_node(FormatNode::Text {
+            text,
+            width: TextWidth::from_text(text, f.options().indent_width()),
+        });
+
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for CopiedText<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::write!(f, "CopiedText({})", self.text)
+    }
+}
+
 /// Emits a text as it is written in the source document. Optimized to avoid allocations.
-pub const fn source_text_slice(range: Span) -> FileSliceBuilder {
-    FileSliceBuilder { span: range }
+pub const fn source_text_slice(span: Span) -> FileSliceBuilder {
+    FileSliceBuilder { span }
 }
 
 /// Emit one source position marker for subsequent generated output.
@@ -145,8 +177,8 @@ pub struct SourcePosition {
     source: u32,
 }
 
-impl<Context> Format<Context> for SourcePosition {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for SourcePosition {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::SourcePosition {
             source: self.source,
         });
@@ -160,20 +192,19 @@ pub struct FileSliceBuilder {
     span: Span,
 }
 
-impl<Context> Format<Context> for FileSliceBuilder
+impl<'a, Context> Format<'a, Context> for FileSliceBuilder
 where
     Context: FormatContext,
 {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         let source = f.context().file();
-
         let text = source
             .get_span_str(self.span)
             .ok_or(FormatError::SourceTextUnavailable { span: self.span })?;
         let text_width = TextWidth::from_text(text, f.context().options().indent_width());
 
         f.write_node(FormatNode::FileSlice {
-            slice: self.span,
+            range: self.span.range(),
             width: text_width,
         });
 
@@ -181,7 +212,7 @@ where
     }
 }
 
-fn debug_assert_no_newlines(text: &str) {
+fn debug_assert_no_carriage_returns(text: &str) {
     debug_assert!(
         !text.contains('\r'),
         "The content '{text}' contains an unsupported '\\r' line terminator character but text must only use line feeds '\\n' as line separator. Use '\\n' instead of '\\r' and '\\r\\n' to insert a line break in strings."
@@ -190,9 +221,9 @@ fn debug_assert_no_newlines(text: &str) {
 
 /// Pushes some content to the end of the current line.
 #[inline]
-pub fn line_suffix<Content, Context>(inner: &Content) -> LineSuffix<'_, Context>
+pub fn line_suffix<'a, Content, Context>(inner: &Content) -> LineSuffix<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     LineSuffix {
         content: Argument::new(inner),
@@ -200,12 +231,12 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct LineSuffix<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct LineSuffix<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
 }
 
-impl<Context> Format<Context> for LineSuffix<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for LineSuffix<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartLineSuffix));
         Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndLineSuffix));
@@ -214,7 +245,7 @@ impl<Context> Format<Context> for LineSuffix<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for LineSuffix<'_, Context> {
+impl<Context> std::fmt::Debug for LineSuffix<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("LineSuffix").field(&"{{content}}").finish()
     }
@@ -229,8 +260,8 @@ pub const fn line_suffix_boundary() -> LineSuffixBoundary {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LineSuffixBoundary;
 
-impl<Context> Format<Context> for LineSuffixBoundary {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for LineSuffixBoundary {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::LineSuffixBoundary);
 
         Ok(())
@@ -246,8 +277,8 @@ pub const fn space() -> Space {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Space;
 
-impl<Context> Format<Context> for Space {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for Space {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Space);
         Ok(())
     }
@@ -261,9 +292,9 @@ impl<Context> Format<Context> for Space {
 /// This helper should be used only in rare cases, instead you should rely more on
 /// [`block_indent`] and [`soft_block_indent`]
 #[inline]
-pub fn indent<Content, Context>(content: &Content) -> Indent<'_, Context>
+pub fn indent<'a, Content, Context>(content: &Content) -> Indent<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     Indent {
         content: Argument::new(content),
@@ -271,12 +302,12 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct Indent<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct Indent<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
 }
 
-impl<Context> Format<Context> for Indent<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for Indent<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartIndent));
         Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndIndent));
@@ -285,7 +316,7 @@ impl<Context> Format<Context> for Indent<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for Indent<'_, Context> {
+impl<Context> std::fmt::Debug for Indent<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Indent").field(&"{{content}}").finish()
     }
@@ -297,9 +328,9 @@ impl<Context> std::fmt::Debug for Indent<'_, Context> {
 ///
 /// This is a No-op if the indentation level is zero.
 #[inline]
-pub fn dedent<Content, Context>(content: &Content) -> Dedent<'_, Context>
+pub fn dedent<'a, Content, Context>(content: &Content) -> Dedent<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     Dedent {
         content: Argument::new(content),
@@ -308,13 +339,13 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct Dedent<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct Dedent<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     mode: DedentMode,
 }
 
-impl<Context> Format<Context> for Dedent<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for Dedent<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartDedent(self.mode)));
         Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndDedent(self.mode)));
@@ -323,7 +354,7 @@ impl<Context> Format<Context> for Dedent<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for Dedent<'_, Context> {
+impl<Context> std::fmt::Debug for Dedent<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Dedent").field(&"{{content}}").finish()
     }
@@ -335,9 +366,9 @@ impl<Context> std::fmt::Debug for Dedent<'_, Context> {
 ///
 /// This resembles the behaviour of Prettier's `align(Number.NEGATIVE_INFINITY, content)` IR node.
 #[inline]
-pub fn dedent_to_root<Content, Context>(content: &Content) -> Dedent<'_, Context>
+pub fn dedent_to_root<'a, Content, Context>(content: &Content) -> Dedent<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     Dedent {
         content: Argument::new(content),
@@ -352,9 +383,9 @@ where
 ///
 /// You should use [align] when you want to indent a content by a specific number of spaces.
 /// Using [indent] is preferred in all other situations as it respects the users preferred indent character.
-pub fn align<Content, Context>(count: u8, content: &Content) -> Align<'_, Context>
+pub fn align<'a, Content, Context>(count: u8, content: &Content) -> Align<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     Align {
         count,
@@ -363,13 +394,13 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct Align<'a, Context> {
+pub struct Align<'fmt, 'a, Context> {
     count: u8,
-    content: Argument<'a, Context>,
+    content: Argument<'fmt, 'a, Context>,
 }
 
-impl<Context> Format<Context> for Align<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for Align<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartAlign(self.count)));
         Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndAlign));
@@ -378,7 +409,7 @@ impl<Context> Format<Context> for Align<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for Align<'_, Context> {
+impl<Context> std::fmt::Debug for Align<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Align")
             .field("count", &self.count)
@@ -392,9 +423,11 @@ impl<Context> std::fmt::Debug for Align<'_, Context> {
 /// Block indents indent a block of code, such as in a function body, and therefore insert a line
 /// break before and after the content.
 ///
-/// Doesn't create an indentation if the passed in content is [`FormatNode.is_empty`].
+/// Empty content emits no indentation.
 #[inline]
-pub fn block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, Context> {
+pub fn block_indent<'a, Context>(
+    content: &impl Format<'a, Context>,
+) -> BlockIndent<'_, 'a, Context> {
     BlockIndent {
         content: Argument::new(content),
         mode: IndentMode::Block,
@@ -405,7 +438,9 @@ pub fn block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, 
 /// the indentation level for the content by one if the enclosing group doesn't fit on a single line.
 /// Doesn't change the formatting if the enclosing group fits on a single line.
 #[inline]
-pub fn soft_block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, Context> {
+pub fn soft_block_indent<'a, Context>(
+    content: &impl Format<'a, Context>,
+) -> BlockIndent<'_, 'a, Context> {
     BlockIndent {
         content: Argument::new(content),
         mode: IndentMode::Soft,
@@ -418,9 +453,9 @@ pub fn soft_block_indent<Context>(content: &impl Format<Context>) -> BlockIndent
 /// Line indents are used to break a single line of code, and therefore only insert a line
 /// break before the content and not after the content.
 #[inline]
-pub fn soft_line_indent_or_space<Context>(
-    content: &impl Format<Context>,
-) -> BlockIndent<'_, Context> {
+pub fn soft_line_indent_or_space<'a, Context>(
+    content: &impl Format<'a, Context>,
+) -> BlockIndent<'_, 'a, Context> {
     BlockIndent {
         content: Argument::new(content),
         mode: IndentMode::SoftLineOrSpace,
@@ -428,8 +463,8 @@ pub fn soft_line_indent_or_space<Context>(
 }
 
 #[derive(Copy, Clone)]
-pub struct BlockIndent<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct BlockIndent<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     mode: IndentMode,
 }
 
@@ -441,17 +476,17 @@ enum IndentMode {
     SoftLineOrSpace,
 }
 
-impl<Context> Format<Context> for BlockIndent<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for BlockIndent<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         let content = {
-            let mut content_buffer = VecBuffer::new(f.state_mut());
-            content_buffer.write_format(Arguments::from(&self.content))?;
-            content_buffer.into_vec()
+            let mut buffer = VecBuffer::new(f.state_mut());
+            buffer.write_format(Arguments::from(&self.content))?;
+            buffer.into_vec()
         };
 
-        let Some(content) = prepare_block_indent_content(content) else {
+        if content.is_empty() {
             return Ok(());
-        };
+        }
 
         f.write_node(FormatNode::Tag(StartIndent));
 
@@ -463,8 +498,8 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
             }
         }
 
-        match content {
-            BlockIndentContent::Flat(nodes) => f.write_nodes(nodes),
+        match BlockIndentContent::from(content) {
+            BlockIndentContent::Flat(nodes) => f.write_nodes(nodes.iter().cloned()),
             BlockIndentContent::Nested(node) => f.write_node(node),
         }
 
@@ -480,37 +515,41 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
 }
 
 /// Prepared block-indent content.
-enum BlockIndentContent {
+enum BlockIndentContent<'a> {
     /// Nodes that can stay in the surrounding buffer.
-    Flat(Vec<FormatNode>),
+    Flat(ArenaVec<'a, FormatNode<'a>>),
     /// One node that contains nested indent structure.
-    Nested(FormatNode),
+    Nested(FormatNode<'a>),
 }
 
-/// Prepare block-indent content for the surrounding indentation tags.
-fn prepare_block_indent_content(mut content: Vec<FormatNode>) -> Option<BlockIndentContent> {
-    if content.is_empty() {
-        return None;
-    }
+impl<'a> From<ArenaVec<'a, FormatNode<'a>>> for BlockIndentContent<'a> {
+    fn from(mut content: ArenaVec<'a, FormatNode<'a>>) -> Self {
+        let has_nested_structure = content.iter().any(|node| {
+            matches!(
+                node,
+                FormatNode::Slice(_) | FormatNode::Tag(StartIndent) | FormatNode::Tag(EndIndent)
+            )
+        });
 
-    let needs_single_node_body = content.iter().any(|node| {
-        matches!(
-            node,
-            FormatNode::Interned(_) | FormatNode::Tag(StartIndent) | FormatNode::Tag(EndIndent)
-        )
-    });
-
-    if needs_single_node_body {
-        Some(BlockIndentContent::Nested(match content.len() {
-            1 => content.remove(0),
-            _ => FormatNode::Interned(Interned::new(content)),
-        }))
-    } else {
-        Some(BlockIndentContent::Flat(content))
+        // append simple content directly to the surrounding buffer
+        if !has_nested_structure {
+            Self::Flat(content)
+        }
+        // preserve an existing single-node chunk
+        else if content.len() == 1 {
+            match content.pop() {
+                Some(node) => Self::Nested(node),
+                None => Self::Flat(content),
+            }
+        }
+        // bound parent-buffer growth with one nested slice
+        else {
+            Self::Nested(FormatNode::Slice(NodeSlice::new(content)))
+        }
     }
 }
 
-impl<Context> std::fmt::Debug for BlockIndent<'_, Context> {
+impl<Context> std::fmt::Debug for BlockIndent<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self.mode {
             IndentMode::Soft => "SoftBlockIndent",
@@ -524,9 +563,9 @@ impl<Context> std::fmt::Debug for BlockIndent<'_, Context> {
 }
 
 /// Adds spaces around the content if its enclosing group fits on a line, otherwise indents the content and separates it by line breaks.
-pub fn soft_space_or_block_indent<Context>(
-    content: &impl Format<Context>,
-) -> BlockIndent<'_, Context> {
+pub fn soft_space_or_block_indent<'a, Context>(
+    content: &impl Format<'a, Context>,
+) -> BlockIndent<'_, 'a, Context> {
     BlockIndent {
         content: Argument::new(content),
         mode: IndentMode::SoftSpace,
@@ -542,7 +581,7 @@ pub fn soft_space_or_block_indent<Context>(
 /// the configured line width, and thus it must print all its content on multiple lines,
 /// emitting line breaks for all line break kinds.
 #[inline]
-pub fn group<Context>(content: &impl Format<Context>) -> Group<'_, Context> {
+pub fn group<'a, Context>(content: &impl Format<'a, Context>) -> Group<'_, 'a, Context> {
     Group {
         content: Argument::new(content),
         id: None,
@@ -551,13 +590,13 @@ pub fn group<Context>(content: &impl Format<Context>) -> Group<'_, Context> {
 }
 
 #[derive(Copy, Clone)]
-pub struct Group<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct Group<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     id: Option<GroupId>,
     should_expand: bool,
 }
 
-impl<Context> Group<'_, Context> {
+impl<Context> Group<'_, '_, Context> {
     #[must_use]
     pub fn with_id(mut self, group_id: Option<GroupId>) -> Self {
         self.id = group_id;
@@ -577,8 +616,8 @@ impl<Context> Group<'_, Context> {
     }
 }
 
-impl<Context> Format<Context> for Group<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for Group<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         let mode = if self.should_expand {
             GroupMode::Expand
         } else {
@@ -597,7 +636,7 @@ impl<Context> Format<Context> for Group<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for Group<'_, Context> {
+impl<Context> std::fmt::Debug for Group<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Group")
             .field("id", &self.id)
@@ -612,9 +651,9 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 ///
 /// The node breaks from left-to-right because it uses the unintended version as *expanded* layout, the same as the above showed best fitting example.
 #[inline]
-pub fn best_fit_parenthesize<Context>(
-    content: &impl Format<Context>,
-) -> BestFitParenthesize<'_, Context> {
+pub fn best_fit_parenthesize<'a, Context>(
+    content: &impl Format<'a, Context>,
+) -> BestFitParenthesize<'_, 'a, Context> {
     BestFitParenthesize {
         content: Argument::new(content),
         group_id: None,
@@ -622,12 +661,12 @@ pub fn best_fit_parenthesize<Context>(
 }
 
 #[derive(Copy, Clone)]
-pub struct BestFitParenthesize<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct BestFitParenthesize<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     group_id: Option<GroupId>,
 }
 
-impl<Context> BestFitParenthesize<'_, Context> {
+impl<Context> BestFitParenthesize<'_, '_, Context> {
     /// Optional ID that can be used in conditional content that supports [`Condition`] to gate content
     /// depending on whether the parentheses are rendered (flat: no parentheses, expanded: parentheses).
     #[must_use]
@@ -637,8 +676,8 @@ impl<Context> BestFitParenthesize<'_, Context> {
     }
 }
 
-impl<Context> Format<Context> for BestFitParenthesize<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for BestFitParenthesize<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartBestFitParenthesize {
             id: self.group_id,
         }));
@@ -651,7 +690,7 @@ impl<Context> Format<Context> for BestFitParenthesize<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for BestFitParenthesize<'_, Context> {
+impl<Context> std::fmt::Debug for BestFitParenthesize<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BestFitParenthesize")
             .field("group_id", &self.group_id)
@@ -663,12 +702,12 @@ impl<Context> std::fmt::Debug for BestFitParenthesize<'_, Context> {
 /// Sets the `condition` for the group. The node will behave as a regular group if `condition` is met,
 /// and as *ungrouped* content if the condition is not met.
 #[inline]
-pub fn conditional_group<Content, Context>(
+pub fn conditional_group<'a, Content, Context>(
     content: &Content,
     condition: Condition,
-) -> ConditionalGroup<'_, Context>
+) -> ConditionalGroup<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     ConditionalGroup {
         content: Argument::new(content),
@@ -677,13 +716,13 @@ where
 }
 
 #[derive(Clone)]
-pub struct ConditionalGroup<'content, Context> {
-    content: Argument<'content, Context>,
+pub struct ConditionalGroup<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     condition: Condition,
 }
 
-impl<Context> Format<Context> for ConditionalGroup<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for ConditionalGroup<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartConditionalGroup(
             crate::format::group::ConditionalGroup::new(self.condition),
         )));
@@ -694,7 +733,7 @@ impl<Context> Format<Context> for ConditionalGroup<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for ConditionalGroup<'_, Context> {
+impl<Context> std::fmt::Debug for ConditionalGroup<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ConditionalGroup")
             .field("condition", &self.condition)
@@ -716,8 +755,8 @@ pub const fn expand_parent() -> ExpandParent {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ExpandParent;
 
-impl<Context> Format<Context> for ExpandParent {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for ExpandParent {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::ExpandParent);
 
         Ok(())
@@ -732,9 +771,9 @@ impl<Context> Format<Context> for ExpandParent {
 ///
 /// If you're looking for a way to only print something if the `Group` fits on a single line see [`self::if_group_fits_on_line`].
 #[inline]
-pub fn if_group_breaks<Content, Context>(content: &Content) -> IfGroupBreaks<'_, Context>
+pub fn if_group_breaks<'a, Content, Context>(content: &Content) -> IfGroupBreaks<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     IfGroupBreaks {
         content: Argument::new(content),
@@ -748,9 +787,11 @@ where
 ///
 /// See [`if_group_breaks`] if you're looking for a way to print content only for groups spanning multiple lines.
 #[inline]
-pub fn if_group_fits_on_line<Content, Context>(flat_content: &Content) -> IfGroupBreaks<'_, Context>
+pub fn if_group_fits_on_line<'a, Content, Context>(
+    flat_content: &Content,
+) -> IfGroupBreaks<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     IfGroupBreaks {
         mode: PrintMode::Flat,
@@ -760,13 +801,13 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct IfGroupBreaks<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct IfGroupBreaks<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     group_id: Option<GroupId>,
     mode: PrintMode,
 }
 
-impl<Context> IfGroupBreaks<'_, Context> {
+impl<Context> IfGroupBreaks<'_, '_, Context> {
     /// Inserts some content that the printer only prints if the group with the specified `group_id`
     /// is printed in multiline mode. The referred group must appear before this node in the document
     /// but doesn't have to one of its ancestors.
@@ -777,8 +818,8 @@ impl<Context> IfGroupBreaks<'_, Context> {
     }
 }
 
-impl<Context> Format<Context> for IfGroupBreaks<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for IfGroupBreaks<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartConditionalContent(
             Condition::new(self.mode).with_group_id(self.group_id),
         )));
@@ -789,7 +830,7 @@ impl<Context> Format<Context> for IfGroupBreaks<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for IfGroupBreaks<'_, Context> {
+impl<Context> std::fmt::Debug for IfGroupBreaks<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self.mode {
             PrintMode::Flat => "IfGroupFitsOnLine",
@@ -812,12 +853,12 @@ impl<Context> std::fmt::Debug for IfGroupBreaks<'_, Context> {
 /// Use [`if_group_breaks`] or [`if_group_fits_on_line`] if the fitting and breaking content differs more than just the
 /// indentation level.
 #[inline]
-pub fn indent_if_group_breaks<Content, Context>(
+pub fn indent_if_group_breaks<'a, Content, Context>(
     content: &Content,
     group_id: GroupId,
-) -> IndentIfGroupBreaks<'_, Context>
+) -> IndentIfGroupBreaks<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     IndentIfGroupBreaks {
         group_id,
@@ -826,13 +867,13 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct IndentIfGroupBreaks<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct IndentIfGroupBreaks<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     group_id: GroupId,
 }
 
-impl<Context> Format<Context> for IndentIfGroupBreaks<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for IndentIfGroupBreaks<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartIndentIfGroupBreaks(self.group_id)));
         Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndIndentIfGroupBreaks(self.group_id)));
@@ -841,7 +882,7 @@ impl<Context> Format<Context> for IndentIfGroupBreaks<'_, Context> {
     }
 }
 
-impl<Context> std::fmt::Debug for IndentIfGroupBreaks<'_, Context> {
+impl<Context> std::fmt::Debug for IndentIfGroupBreaks<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IndentIfGroupBreaks")
             .field("group_id", &self.group_id)
@@ -858,9 +899,9 @@ impl<Context> std::fmt::Debug for IndentIfGroupBreaks<'_, Context> {
 /// meaning that a [`hard_line_break`] will not cause the parent group to expand.
 ///
 /// Useful in conjunction with a group with a condition.
-pub fn fits_expanded<Content, Context>(content: &Content) -> FitsExpanded<'_, Context>
+pub fn fits_expanded<'a, Content, Context>(content: &Content) -> FitsExpanded<'_, 'a, Context>
 where
-    Content: Format<Context>,
+    Content: Format<'a, Context>,
 {
     FitsExpanded {
         content: Argument::new(content),
@@ -869,12 +910,12 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct FitsExpanded<'a, Context> {
-    content: Argument<'a, Context>,
+pub struct FitsExpanded<'fmt, 'a, Context> {
+    content: Argument<'fmt, 'a, Context>,
     condition: Option<Condition>,
 }
 
-impl<Context> FitsExpanded<'_, Context> {
+impl<Context> FitsExpanded<'_, '_, Context> {
     /// Sets a `condition` to when the content should fit in expanded mode. The content uses the regular fits
     /// declaration if the `condition` is not met.
     #[must_use]
@@ -884,8 +925,8 @@ impl<Context> FitsExpanded<'_, Context> {
     }
 }
 
-impl<Context> Format<Context> for FitsExpanded<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for FitsExpanded<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartFitsExpanded(
             tag::FitsExpanded::new().with_condition(self.condition),
         )));
@@ -903,12 +944,12 @@ pub struct FormatWith<Context, T> {
     context: PhantomData<Context>,
 }
 
-impl<Context, T> Format<Context> for FormatWith<Context, T>
+impl<'a, Context, T> Format<'a, Context> for FormatWith<Context, T>
 where
-    T: Fn(&mut Formatter<'_, Context>) -> FormatResult<()>,
+    T: Fn(&mut Formatter<'_, 'a, Context>) -> FormatResult<()>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         (self.formatter)(f)
     }
 }
@@ -920,9 +961,9 @@ impl<Context, T> std::fmt::Debug for FormatWith<Context, T> {
 }
 
 /// Creates an object implementing `Format` that calls the passed closure to perform the formatting.
-pub const fn format_with<Context, T>(formatter: T) -> FormatWith<Context, T>
+pub const fn format_with<'a, Context, T>(formatter: T) -> FormatWith<Context, T>
 where
-    T: Fn(&mut Formatter<'_, Context>) -> FormatResult<()>,
+    T: Fn(&mut Formatter<'_, 'a, Context>) -> FormatResult<()>,
 {
     FormatWith {
         formatter,
@@ -940,9 +981,9 @@ where
 /// # Panics
 ///
 /// Panics if the object gets formatted more than once.
-pub const fn format_once<T, Context>(formatter: T) -> FormatOnce<T, Context>
+pub const fn format_once<'a, T, Context>(formatter: T) -> FormatOnce<T, Context>
 where
-    T: FnOnce(&mut Formatter<'_, Context>) -> FormatResult<()>,
+    T: FnOnce(&mut Formatter<'_, 'a, Context>) -> FormatResult<()>,
 {
     FormatOnce {
         formatter: Cell::new(Some(formatter)),
@@ -955,12 +996,12 @@ pub struct FormatOnce<T, Context> {
     context: PhantomData<Context>,
 }
 
-impl<T, Context> Format<Context> for FormatOnce<T, Context>
+impl<'a, T, Context> Format<'a, Context> for FormatOnce<T, Context>
 where
-    T: FnOnce(&mut Formatter<'_, Context>) -> FormatResult<()>,
+    T: FnOnce(&mut Formatter<'_, 'a, Context>) -> FormatResult<()>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         let formatter = self.formatter.take().expect("tried to format a `format_once` at least twice. This is not allowed. You may want to use `format_with` or `format.memoized` instead.");
 
         (formatter)(f)
@@ -977,19 +1018,19 @@ impl<T, Context> std::fmt::Debug for FormatOnce<T, Context> {
 /// See [`Formatter::join`]
 #[must_use = "must eventually call `finish()` on Format builders"]
 #[derive(Debug)]
-pub struct JoinBuilder<'fmt, 'buf, Separator, Context> {
+pub struct JoinBuilder<'fmt, 'buf, 'a, Separator, Context> {
     result: FormatResult<()>,
-    fmt: &'fmt mut Formatter<'buf, Context>,
+    fmt: &'fmt mut Formatter<'buf, 'a, Context>,
     with: Option<Separator>,
     has_nodes: bool,
 }
 
-impl<'fmt, 'buf, Separator, Context> JoinBuilder<'fmt, 'buf, Separator, Context>
+impl<'fmt, 'buf, 'a, Separator, Context> JoinBuilder<'fmt, 'buf, 'a, Separator, Context>
 where
-    Separator: Format<Context>,
+    Separator: Format<'a, Context>,
 {
     /// Creates a new instance that joins the nodes without a separator
-    pub(super) fn new(fmt: &'fmt mut Formatter<'buf, Context>) -> Self {
+    pub(super) fn new(fmt: &'fmt mut Formatter<'buf, 'a, Context>) -> Self {
         Self {
             result: Ok(()),
             fmt,
@@ -999,7 +1040,10 @@ where
     }
 
     /// Creates a new instance that prints the passed separator between every two entries.
-    pub(super) fn with_separator(fmt: &'fmt mut Formatter<'buf, Context>, with: Separator) -> Self {
+    pub(super) fn with_separator(
+        fmt: &'fmt mut Formatter<'buf, 'a, Context>,
+        with: Separator,
+    ) -> Self {
         Self {
             result: Ok(()),
             fmt,
@@ -1009,7 +1053,7 @@ where
     }
 
     /// Adds a new entry to the join output.
-    pub fn entry(&mut self, entry: &dyn Format<Context>) -> &mut Self {
+    pub fn entry(&mut self, entry: &dyn Format<'a, Context>) -> &mut Self {
         self.result = self.result.and_then(|()| {
             if let Some(with) = &self.with
                 && self.has_nodes
@@ -1027,7 +1071,7 @@ where
     /// Adds the contents of an iterator of entries to the join output.
     pub fn entries<F, I>(&mut self, entries: I) -> &mut Self
     where
-        F: Format<Context>,
+        F: Format<'a, Context>,
         I: IntoIterator<Item = F>,
     {
         for entry in entries {
@@ -1046,14 +1090,14 @@ where
 /// Builder to fill as many nodes as possible on a single line.
 #[must_use = "must eventually call `finish()` on Format builders"]
 #[derive(Debug)]
-pub struct FillBuilder<'fmt, 'buf, Context> {
+pub struct FillBuilder<'fmt, 'buf, 'a, Context> {
     result: FormatResult<()>,
-    fmt: &'fmt mut Formatter<'buf, Context>,
+    fmt: &'fmt mut Formatter<'buf, 'a, Context>,
     empty: bool,
 }
 
-impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
-    pub(crate) fn new(fmt: &'a mut Formatter<'buf, Context>) -> Self {
+impl<'fmt, 'buf, 'a, Context> FillBuilder<'fmt, 'buf, 'a, Context> {
+    pub(crate) fn new(fmt: &'fmt mut Formatter<'buf, 'a, Context>) -> Self {
         fmt.write_node(FormatNode::Tag(StartFill));
 
         Self {
@@ -1064,9 +1108,9 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
     }
 
     /// Adds an iterator of entries to the fill output. Uses the passed `separator` to separate any two items.
-    pub fn entries<F, I>(&mut self, separator: &dyn Format<Context>, entries: I) -> &mut Self
+    pub fn entries<F, I>(&mut self, separator: &dyn Format<'a, Context>, entries: I) -> &mut Self
     where
-        F: Format<Context>,
+        F: Format<'a, Context>,
         I: IntoIterator<Item = F>,
     {
         for entry in entries {
@@ -1079,8 +1123,8 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
     /// Adds a new entry to the fill output. The `separator` isn't written if this is the first node in the list.
     pub fn entry(
         &mut self,
-        separator: &dyn Format<Context>,
-        entry: &dyn Format<Context>,
+        separator: &dyn Format<'a, Context>,
+        entry: &dyn Format<'a, Context>,
     ) -> &mut Self {
         self.result = self.result.and_then(|()| {
             if self.empty {
@@ -1111,12 +1155,12 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
 
 /// The first variant is the most flat, and the last is the most expanded variant.
 #[derive(Copy, Clone, Debug)]
-pub struct BestFitting<'a, Context> {
-    variants: Arguments<'a, Context>,
+pub struct BestFitting<'fmt, 'a, Context> {
+    variants: Arguments<'fmt, 'a, Context>,
     mode: BestFittingMode,
 }
 
-impl<'a, Context> BestFitting<'a, Context> {
+impl<'fmt, 'a, Context> BestFitting<'fmt, 'a, Context> {
     /// Creates a new best fitting IR with the given variants.
     ///
     /// Callers are required to ensure that the number of variants given
@@ -1127,7 +1171,7 @@ impl<'a, Context> BestFitting<'a, Context> {
     /// # Panics
     ///
     /// When the slice contains less than two variants.
-    pub const fn from_arguments_unchecked(variants: Arguments<'a, Context>) -> Self {
+    pub const fn from_arguments_unchecked(variants: Arguments<'fmt, 'a, Context>) -> Self {
         assert!(
             variants.0.len() >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -1147,11 +1191,11 @@ impl<'a, Context> BestFitting<'a, Context> {
     }
 }
 
-impl<Context> Format<Context> for BestFitting<'_, Context> {
-    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+impl<'a, Context> Format<'a, Context> for BestFitting<'_, 'a, Context> {
+    fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         let variants = self.variants.items();
 
-        let mut variant_nodes = Vec::with_capacity(variants.len());
+        let mut variant_nodes = ArenaVec::with_capacity_in(variants.len(), f.state().allocator());
 
         for variant in variants {
             let mut buffer = VecBuffer::with_capacity(8, f.state_mut());
@@ -1160,7 +1204,7 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
             buffer.write_format(Arguments::from(variant))?;
             buffer.write_node(FormatNode::Tag(EndEntry));
 
-            variant_nodes.push(Interned::new(buffer.into_vec()));
+            variant_nodes.push(NodeSlice::new(buffer.into_vec()));
         }
 
         // OK because the constructor guarantees that there are always at
@@ -1188,7 +1232,9 @@ mod tests {
     /// Soft line breaks are omitted if the enclosing Group fits on a single line
     #[test]
     fn test_soft_line_break_fits_on_single_line() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
@@ -1204,6 +1250,7 @@ mod tests {
     /// Source text slices require text files.
     #[test]
     fn test_source_text_slice_reports_binary_source() {
+        let allocator = Allocator::default();
         let file_id = FileId::from_logical_str("binary.bin");
         let file = File::from_binary(
             file_id,
@@ -1216,7 +1263,7 @@ mod tests {
         let span = Span::new(file_id, 0, 1);
         let context = SimpleFormatContext::new(SimpleFormatOptions::default(), file);
 
-        let error = format!(context, [source_text_slice(span)]).unwrap_err();
+        let error = format!(&allocator, context, [source_text_slice(span)]).unwrap_err();
 
         assert_eq!(error, FormatError::SourceTextUnavailable { span });
     }
@@ -1224,6 +1271,7 @@ mod tests {
     /// Soft line breaks are emitted if the enclosing Group doesn't fit on a single line
     #[test]
     fn test_soft_line_break_breaks_when_group_doesnt_fit() {
+        let allocator = Allocator::default();
         let context = SimpleFormatContext::new(
             SimpleFormatOptions {
                 line_width: 10,
@@ -1233,6 +1281,7 @@ mod tests {
         );
 
         let nodes = format!(
+            &allocator,
             context,
             [group(&format_args![
                 token("a long word,"),
@@ -1251,7 +1300,9 @@ mod tests {
     /// Hard line breaks are always printed, even if the enclosing Group fits on a single line
     #[test]
     fn test_hard_line_break_always_breaks() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
@@ -1268,7 +1319,9 @@ mod tests {
     /// Empty line inserts enough line breaks for nodes to be separated by an empty line
     #[test]
     fn test_empty_line_separates_nodes() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
@@ -1285,7 +1338,9 @@ mod tests {
     /// Soft line break or space emits spaces when group fits on single line
     #[test]
     fn test_soft_line_break_or_space_fits_on_line() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
@@ -1301,6 +1356,7 @@ mod tests {
     /// Soft line break or space breaks lines when group doesn't fit
     #[test]
     fn test_soft_line_break_or_space_breaks_when_group_doesnt_fit() {
+        let allocator = Allocator::default();
         let context = SimpleFormatContext::new(
             SimpleFormatOptions {
                 line_width: 10,
@@ -1310,6 +1366,7 @@ mod tests {
         );
 
         let nodes = format!(
+            &allocator,
             context,
             [group(&format_args![
                 token("a long word,"),
@@ -1328,6 +1385,7 @@ mod tests {
     /// Soft line break or space should break inside one parent group's expanded indent shell
     #[test]
     fn test_soft_line_break_or_space_breaks_inside_expanded_parent_group() {
+        let allocator = Allocator::default();
         let context = SimpleFormatContext::new(
             SimpleFormatOptions {
                 line_width: 30,
@@ -1337,6 +1395,7 @@ mod tests {
         );
 
         let nodes = format!(
+            &allocator,
             context,
             [group(&format_args![
                 token("const longVariableName"),
@@ -1368,7 +1427,13 @@ mod tests {
     /// Token writes content as-is to output
     #[test]
     fn test_token_writes_content() {
-        let nodes = format!(SimpleFormatContext::empty_destack(), [token("Hello World")]).unwrap();
+        let allocator = Allocator::default();
+        let nodes = format!(
+            &allocator,
+            SimpleFormatContext::empty_destack(),
+            [token("Hello World")]
+        )
+        .unwrap();
 
         assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
@@ -1376,7 +1441,9 @@ mod tests {
     /// Token properly handles escaped string literals
     #[test]
     fn test_token_handles_escaped_strings() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [token("\"Hello\\tWorld\"")]
         )
@@ -1388,7 +1455,9 @@ mod tests {
     /// Line suffix pushes content to end of current line
     #[test]
     fn test_line_suffix_pushes_to_end() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [token("a"), line_suffix(&token("c")), token("b")]
         )
@@ -1400,7 +1469,9 @@ mod tests {
     /// Soft line indents should still keep line suffix comments inline when the group fits.
     #[test]
     fn test_soft_line_indent_or_space_keeps_line_suffix_inline() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("if (done)"),
@@ -1421,7 +1492,9 @@ mod tests {
     /// Nested control-head groups should still keep inline line suffix comments when they fit.
     #[test]
     fn test_grouped_control_head_keeps_inline_line_suffix_comments() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("if"),
@@ -1446,7 +1519,9 @@ mod tests {
     /// Line suffix boundary forces printing of pending line suffixes
     #[test]
     fn test_line_suffix_boundary_forces_printing() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("a"),
@@ -1464,7 +1539,9 @@ mod tests {
     /// Closing content after one nested trailing line comment should still print.
     #[test]
     fn test_nested_line_suffix_before_container_close_keeps_trailing_tokens() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("switch (state)"),
@@ -1497,7 +1574,9 @@ mod tests {
     /// Space inserts single space between tokens
     #[test]
     fn test_space_separates_tokens() {
+        let allocator = Allocator::default();
         let nodes = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [token("a"), space(), token("b")]
         )
@@ -1509,7 +1588,9 @@ mod tests {
     /// Indent adds level of indentation to content
     #[test]
     fn test_indent_adds_indentation_level() {
+        let allocator = Allocator::default();
         let block = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("switch {"),
@@ -1531,6 +1612,7 @@ mod tests {
     /// Indent should apply to a leading hard line.
     #[test]
     fn test_indent_applies_to_leading_hard_line() {
+        let allocator = Allocator::default();
         let content = format_with(|f| {
             write!(
                 f,
@@ -1543,6 +1625,7 @@ mod tests {
             )
         });
         let block = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![token("yield task"), indent(&content)])]
         )
@@ -1557,7 +1640,9 @@ mod tests {
     /// Block indent adds indentation and line breaks around content
     #[test]
     fn test_block_indent_adds_indentation_and_breaks() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("switch {"),
@@ -1579,7 +1664,9 @@ mod tests {
     /// Soft block indent adds indentation and soft line breaks
     #[test]
     fn test_soft_block_indent_adds_soft_breaks() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("switch {"),
@@ -1601,6 +1688,7 @@ mod tests {
     /// If group breaks shows content only when group breaks
     #[test]
     fn test_if_group_breaks_shows_when_breaking() {
+        let allocator = Allocator::default();
         let context = SimpleFormatContext::new(
             SimpleFormatOptions {
                 indent_style: IndentStyle::Tab,
@@ -1611,6 +1699,7 @@ mod tests {
         );
 
         let formatted = format!(
+            &allocator,
             context,
             [group(&format_args![
                 token("["),
@@ -1636,7 +1725,9 @@ mod tests {
     /// If group fits on line shows content only when group fits
     #[test]
     fn test_if_group_fits_on_line_shows_when_fitting() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("["),
@@ -1659,6 +1750,7 @@ mod tests {
     /// Indent if group breaks adds indentation when specific group breaks
     #[test]
     fn test_indent_if_group_breaks() {
+        let allocator = Allocator::default();
         let content = format_with(|f| {
             let group_id = f.group_id("header");
             write!(
@@ -1693,7 +1785,7 @@ mod tests {
             File::empty_text(FileType::Destack),
         );
 
-        let formatted = format!(context, [content]).unwrap();
+        let formatted = format!(&allocator, context, [content]).unwrap();
 
         assert_eq!(
             "const fn = (\n\tparam1,\n\tparam2\n) =>\n\tbody",
@@ -1704,6 +1796,7 @@ mod tests {
     /// Fits expanded allows content to exceed line width
     #[test]
     fn test_fits_expanded_allows_exceeding_line_width() {
+        let allocator = Allocator::default();
         let content = format_with(|f| {
             f.group_id("header");
             write!(
@@ -1732,6 +1825,7 @@ mod tests {
         });
 
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -1753,8 +1847,14 @@ mod tests {
     /// Text creates dynamic text content
     #[test]
     fn test_text_creates_dynamic_content() {
+        let allocator = Allocator::default();
         let dynamic_text = "Hello World";
-        let nodes = format!(SimpleFormatContext::empty_destack(), [text(dynamic_text)]).unwrap();
+        let nodes = format!(
+            &allocator,
+            SimpleFormatContext::empty_destack(),
+            [text(dynamic_text)]
+        )
+        .unwrap();
 
         assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
@@ -1762,6 +1862,7 @@ mod tests {
     /// Best fitting chooses first variant that fits
     #[test]
     fn test_best_fitting_chooses_first_variant_that_fits() {
+        let allocator = Allocator::default();
         let document = format_with(|f| {
             write!(
                 f,
@@ -1784,6 +1885,7 @@ mod tests {
 
         // First variant fits
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -1800,6 +1902,7 @@ mod tests {
 
         // First variant doesn't fit, use second
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -1818,7 +1921,9 @@ mod tests {
     /// Best fit parenthesize keeps content flat when it fits
     #[test]
     fn test_best_fit_parenthesize_content_fits() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [format_with(|f| {
                 write!(
@@ -1841,7 +1946,9 @@ mod tests {
     /// Best fit parenthesize adds parentheses when content exceeds line width but fits parenthesized
     #[test]
     fn test_best_fit_parenthesize_content_fits_parenthesized() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
                 File::empty_text(FileType::Destack)
@@ -1869,7 +1976,8 @@ mod tests {
     /// Best fit parenthesize keeps content flat when even parenthesizing doesn't help
     #[test]
     fn test_best_fit_parenthesize_content_exceeds_even_parenthesized() {
-        let formatted = format!(
+        let allocator = Allocator::default();
+        let formatted = format!(&allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
                 File::empty_text(FileType::Destack)

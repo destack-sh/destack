@@ -3,34 +3,34 @@ use std::fmt::Debug;
 use super::{Buffer, Format, FormatResult, Formatter};
 
 /// A convenience wrapper for representing a formattable argument.
-pub struct Argument<'fmt, Context> {
-    value: &'fmt dyn Format<Context>,
+pub struct Argument<'fmt, 'a, Context> {
+    value: &'fmt dyn Format<'a, Context>,
 }
 
-impl<Context> Debug for Argument<'_, Context> {
+impl<Context> Debug for Argument<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Argument").finish()
     }
 }
 
-impl<Context> Clone for Argument<'_, Context> {
+impl<Context> Clone for Argument<'_, '_, Context> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<Context> Copy for Argument<'_, Context> {}
+impl<Context> Copy for Argument<'_, '_, Context> {}
 
-impl<'fmt, Context> Argument<'fmt, Context> {
+impl<'fmt, 'a, Context> Argument<'fmt, 'a, Context> {
     /// Called by the [destack_fir::format_args] macro.
     #[doc(hidden)]
     #[inline]
-    pub const fn new<F: Format<Context>>(value: &'fmt F) -> Self {
+    pub const fn new<F: Format<'a, Context>>(value: &'fmt F) -> Self {
         Self { value }
     }
 
     /// Format the value stored by this argument using the given formatter.
     #[inline]
-    pub(super) fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    pub(super) fn format(&self, f: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         self.value.format(f)
     }
 }
@@ -40,45 +40,45 @@ impl<'fmt, Context> Argument<'fmt, Context> {
 /// The [`format_args!`] macro will safely create an instance of this structure.
 /// You can use the `Arguments<a>` that [`format_args!`] return in `Format` context as seen below.
 /// It will call the `format` function for each of its objects.
-pub struct Arguments<'fmt, Context>(pub &'fmt [Argument<'fmt, Context>]);
+pub struct Arguments<'fmt, 'a, Context>(pub &'fmt [Argument<'fmt, 'a, Context>]);
 
-impl<'fmt, Context> Arguments<'fmt, Context> {
+impl<'fmt, 'a, Context> Arguments<'fmt, 'a, Context> {
     #[doc(hidden)]
     #[inline]
-    pub const fn new(arguments: &'fmt [Argument<'fmt, Context>]) -> Self {
+    pub const fn new(arguments: &'fmt [Argument<'fmt, 'a, Context>]) -> Self {
         Self(arguments)
     }
 
     /// Get the arguments.
     #[inline]
-    pub(super) fn items(&self) -> &'fmt [Argument<'fmt, Context>] {
+    pub(super) fn items(&self) -> &'fmt [Argument<'fmt, 'a, Context>] {
         self.0
     }
 }
 
-impl<Context> Copy for Arguments<'_, Context> {}
+impl<Context> Copy for Arguments<'_, '_, Context> {}
 
-impl<Context> Clone for Arguments<'_, Context> {
+impl<Context> Clone for Arguments<'_, '_, Context> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<Context> Format<Context> for Arguments<'_, Context> {
+impl<'a, Context> Format<'a, Context> for Arguments<'_, 'a, Context> {
     #[inline]
-    fn format(&self, formatter: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, formatter: &mut Formatter<'_, 'a, Context>) -> FormatResult<()> {
         formatter.write_format(*self)
     }
 }
 
-impl<Context> std::fmt::Debug for Arguments<'_, Context> {
+impl<Context> std::fmt::Debug for Arguments<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Arguments[...]")
     }
 }
 
-impl<'fmt, Context> From<&'fmt Argument<'fmt, Context>> for Arguments<'fmt, Context> {
-    fn from(argument: &'fmt Argument<'fmt, Context>) -> Self {
+impl<'fmt, 'a, Context> From<&'fmt Argument<'fmt, 'a, Context>> for Arguments<'fmt, 'a, Context> {
+    fn from(argument: &'fmt Argument<'fmt, 'a, Context>) -> Self {
         Arguments::new(std::slice::from_ref(argument))
     }
 }
@@ -92,7 +92,8 @@ mod tests {
     /// Format nested arguments and verify the output structure.
     #[test]
     fn test_nesting() {
-        let mut context = FormatState::new(SimpleFormatContext::empty_destack());
+        let allocator = Allocator::default();
+        let mut context = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
         let mut buffer = VecBuffer::new(&mut context);
 
         write!(
@@ -108,8 +109,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            buffer.into_vec(),
-            vec![
+            buffer.into_vec().as_slice(),
+            &[
                 FormatNode::Token { text: "function" },
                 FormatNode::Space,
                 FormatNode::Token { text: "a" },

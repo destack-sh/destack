@@ -38,8 +38,8 @@ macro_rules! write {
 /// Additional parameters passed get formatted by using their [`crate::Format`] implementation.
 #[macro_export]
 macro_rules! format {
-    ($context:expr, [$($arg:expr),+ $(,)?]) => {{
-        ($crate::format::format($context, $crate::format_args!($($arg),+)))
+    ($allocator:expr, $context:expr, [$($arg:expr),+ $(,)?]) => {{
+        ($crate::format::format($allocator, $context, $crate::format_args!($($arg),+)))
     }}
 }
 
@@ -88,8 +88,8 @@ mod tests {
 
     struct TestFormat;
 
-    impl Format<SimpleFormatContext> for TestFormat {
-        fn format(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
+    impl<'a> Format<'a, SimpleFormatContext> for TestFormat {
+        fn format(&self, f: &mut Formatter<'_, 'a, SimpleFormatContext>) -> FormatResult<()> {
             write!(f, [token("test")])
         }
     }
@@ -97,18 +97,23 @@ mod tests {
     /// Write a single format node to buffer.
     #[test]
     fn test_single_node() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
+        let allocator = Allocator::default();
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
         let mut buffer = VecBuffer::new(&mut state);
 
         write![&mut buffer, [TestFormat]].unwrap();
 
-        assert_eq!(buffer.into_vec(), vec![FormatNode::Token { text: "test" }]);
+        assert_eq!(
+            buffer.into_vec().as_slice(),
+            &[FormatNode::Token { text: "test" }]
+        );
     }
 
     /// Write multiple format nodes to buffer.
     #[test]
     fn test_multiple_nodes() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
+        let allocator = Allocator::default();
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
         let mut buffer = VecBuffer::new(&mut state);
 
         write![
@@ -118,8 +123,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            buffer.into_vec(),
-            vec![
+            buffer.into_vec().as_slice(),
+            &[
                 FormatNode::Token { text: "a" },
                 FormatNode::Space,
                 FormatNode::Token { text: "simple" },
@@ -132,7 +137,9 @@ mod tests {
     /// Format arguments can be used in Format contexts.
     #[test]
     fn test_format_args_basic() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [format_args!(token("Hello World"))]
         )
@@ -144,15 +151,16 @@ mod tests {
     /// Write macro accepts buffer and format arguments.
     #[test]
     fn test_write_macro_basic() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
+        let allocator = Allocator::default();
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
         let mut buffer = VecBuffer::new(&mut state);
 
         write!(&mut buffer, [token("Hello"), space()]).unwrap();
         write!(&mut buffer, [token("World")]).unwrap();
 
         assert_eq!(
-            buffer.into_vec(),
-            vec![
+            buffer.into_vec().as_slice(),
+            &[
                 FormatNode::Token { text: "Hello" },
                 FormatNode::Space,
                 FormatNode::Token { text: "World" },
@@ -163,7 +171,13 @@ mod tests {
     /// Format macro creates formatted document from arguments.
     #[test]
     fn test_format_macro_basic() {
-        let formatted = format!(SimpleFormatContext::empty_destack(), [token("test")]).unwrap();
+        let allocator = Allocator::default();
+        let formatted = format!(
+            &allocator,
+            SimpleFormatContext::empty_destack(),
+            [token("test")]
+        )
+        .unwrap();
 
         assert_eq!("test", formatted.print().unwrap().as_str());
     }
@@ -171,6 +185,7 @@ mod tests {
     /// Format macro respects context options like line width.
     #[test]
     fn test_format_macro_with_options() {
+        let allocator = Allocator::default();
         let options = SimpleFormatOptions {
             indent_style: IndentStyle::Tab,
             line_width: 10,
@@ -179,6 +194,7 @@ mod tests {
         let context = SimpleFormatContext::new(options, File::empty_text(FileType::Destack));
 
         let formatted = format!(
+            &allocator,
             context,
             [
                 token("a"),
@@ -200,7 +216,9 @@ mod tests {
     /// Best fitting selects first variant that fits within line width.
     #[test]
     fn test_best_fitting_with_two_variants_in_first_line_mode() {
+        let allocator = Allocator::default();
         let document = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -270,7 +288,9 @@ mod tests {
     /// Best fitting handles complex multi-variant scenarios.
     #[test]
     fn test_best_fitting_with_three_variants_in_first_line_mode() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
@@ -384,6 +404,7 @@ mod tests {
     /// Best fitting with mode all variants tries all options.
     #[test]
     fn test_best_fitting_with_three_variants_in_all_lines_mode() {
+        let allocator = Allocator::default();
         let document = format_with(|f| {
             write!(
                 f,
@@ -452,6 +473,7 @@ mod tests {
 
         // Takes the first variant if everything fits on a single line
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -471,6 +493,7 @@ mod tests {
         // It takes the second if the first variant doesn't fit on a single line. The second variant
         // has some additional line breaks to make sure inner groups don't break
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -489,6 +512,7 @@ mod tests {
 
         // Prints the last option as last resort
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -509,7 +533,9 @@ mod tests {
     /// Best fitting works with groups that have should_expand set to true.
     #[test]
     fn test_best_fitting_with_should_expand() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
@@ -581,8 +607,10 @@ mod tests {
     /// Best fitting selects the appropriate variant based on line width.
     #[test]
     fn test_best_fitting_selects_variant_by_width() {
+        let allocator = Allocator::default();
         // the second variant below should be selected when printing at a width of 30
         let formatted_best_fitting = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
@@ -652,8 +680,10 @@ mod tests {
     /// Best fitting variants print identically to equivalent normal format args.
     #[test]
     fn test_best_fitting_prints_like_normal_format_args() {
+        let allocator = Allocator::default();
         // create a best fitting with multiple variants
         let formatted_best_fitting = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
@@ -701,6 +731,7 @@ mod tests {
         // this matches the IR above except that the `best_fitting` was replaced with
         // the contents of its second variant
         let formatted_normal_list = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
