@@ -6,7 +6,7 @@ import { Owned } from "./owned.ds";
 /// `Unique<T>` is the low-level storage handle behind types such as `Box<T>`.
 /// It is compiler-known because tracing, drop, and move checking must understand the handle.
 @languageItem("memory.Unique")
-export newtype Unique<T> = intrinsic;
+export newtype Unique<out T> = intrinsic;
 
 export extension<T> of Unique<Owned<T>> {
     /// Leak this allocation and borrow it for static lifetime.

@@ -7,7 +7,7 @@ import { Unpin } from "./capability.ds";
 
 /// Address-stable storage wrapper.
 @languageItem("memory.Pin")
-export newtype Pin<T> = intrinsic;
+export newtype Pin<out T> = intrinsic;
 
 export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<T> {
     /// The projected result form.

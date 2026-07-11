@@ -9,7 +9,7 @@ export newtype interface Drop {
 
 /// Owned storage whose `Drop` does not run automatically.
 @languageItem("memory.ManuallyDrop")
-export newtype ManuallyDrop<T> = intrinsic;
+export newtype ManuallyDrop<out T> = intrinsic;
 
 export extension<T> of ManuallyDrop<T> {
     /// Wrap `value` without scheduling its destructor.
