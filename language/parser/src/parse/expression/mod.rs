@@ -1,11 +1,8 @@
 mod assignment;
 mod declaration;
 mod expression;
-mod generic;
+mod group;
 mod infix;
-mod lambda;
-mod node;
 pub(crate) mod operator;
-mod parenthesis;
 mod postfix;
 mod primary;

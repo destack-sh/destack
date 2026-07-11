@@ -1,436 +1,241 @@
-use crate::parse::expression::operator::ExpressionInfixOperator;
-use crate::parse::scope::ExpressionScope;
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, Expression, Key, LocalNodeId,
     Name, Property, UnaryOperator,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
-
-/// One pending right-associative assignment expression.
-struct PendingAssignmentExpression {
-    /// The assignment source start.
-    start: ParserSpanStart,
-    /// The assignment target.
-    left: LocalNodeId<AssignPattern>,
-    /// The assignment operator.
-    operator: AssignOperator,
-    /// The assignment operator span.
-    operator_span: Span,
-}
+use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 impl Parser {
-    /// Eat an assignment expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// target = value
-    /// object.field += amount
-    /// [first, second = fallback] = values
-    /// ```
-    pub(crate) fn eat_assignment(
+    /// Lower one value expression into an assignment target.
+    pub(in crate::parse) fn lower_assignment_target(
         &mut self,
-        start: &ParserSpanStart,
-        scope: ExpressionScope,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let left = self.eat_conditional(start, scope)?;
-
-        self.eat_assignment_rest(start, left, scope)
-    }
-
-    /// Eat an assignment tail after an already parsed left value.
-    ///
-    /// Examples:
-    /// ```ds
-    /// = value
-    /// += amount
-    /// ??= fallback
-    /// ```
-    pub(in crate::parse::expression) fn eat_assignment_rest(
-        &mut self,
-        start: &ParserSpanStart,
-        left_expression: LocalNodeId<Expression>,
-        scope: ExpressionScope,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let Some(operator) = self.current_assignment_operator(scope) else {
-            return Ok(left_expression);
-        };
-        let operator_span = self.eat_assignment_operator_span();
-
-        self.eat_assignment_chain(start, left_expression, operator, operator_span)
-    }
-
-    /// Eat an assignment chain after its first operator has been consumed.
-    fn eat_assignment_chain(
-        &mut self,
-        start: &ParserSpanStart,
-        left_expression: LocalNodeId<Expression>,
+        expression: LocalNodeId<Expression>,
         operator: AssignOperator,
-        operator_span: Span,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        // validate expression target
-        let left = self.assignment_pattern_from_expression(left_expression)?;
-        self.require_assignable_operator(left, operator)?;
-        let pending = vec![PendingAssignmentExpression {
-            start: *start,
-            left,
-            operator,
-            operator_span,
-        }];
-
-        self.eat_assignment_right_fold(pending)
-    }
-
-    /// Return the expression scope for assignment right sides.
-    fn assignment_right_scope(&self) -> ExpressionScope {
-        ExpressionScope::from_flags(self.flags.not_in_position()).with_newline_call_boundary(true)
-    }
-
-    /// Eat a right-associative assignment tail and fold it from the right.
-    fn eat_assignment_right_fold(
-        &mut self,
-        mut pending: Vec<PendingAssignmentExpression>,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        loop {
-            let right_start = self.span_start();
-            let right_scope = self.assignment_right_scope();
-
-            // parse up to the next assignment operator
-            let right = self.with_flags(right_scope.flags, |parser| {
-                parser.eat_conditional(&right_start, right_scope)
-            })?;
-            let Some(operator) = self.current_assignment_operator(right_scope) else {
-                return Ok(self.finish_pending_assignment_expressions(pending, right));
-            };
-
-            let left = self.assignment_pattern_from_expression(right)?;
-            let operator_span = self.eat_assignment_operator_span();
-            self.require_assignable_operator(left, operator)?;
-            pending.push(PendingAssignmentExpression {
-                start: right_start,
-                left,
-                operator,
-                operator_span,
-            });
-        }
-    }
-
-    /// Finish pending right-associative assignment expression nodes.
-    fn finish_pending_assignment_expressions(
-        &mut self,
-        pending: Vec<PendingAssignmentExpression>,
-        mut right: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        for frame in pending.into_iter().rev() {
-            right = self.insert_assignment_expression(
-                &frame.start,
-                frame.left,
-                frame.operator,
-                frame.operator_span,
-                right,
-            );
-        }
-
-        right
-    }
-
-    /// Build an assignment expression node.
-    fn insert_assignment_expression(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<AssignPattern>,
-        operator: AssignOperator,
-        operator_span: Span,
-        right: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        let expression_id = self.insert_node(
-            Expression::Assign {
-                left,
-                operator,
-                right,
-            },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(expression_id, operator_span);
-
-        expression_id
-    }
-
-    /// Return the assignment operator owned by this expression scope.
-    fn current_assignment_operator(&self, scope: ExpressionScope) -> Option<AssignOperator> {
-        let operator_is_outer =
-            scope.stops_before(ExpressionInfixOperator::Assign(AssignOperator::Assign));
-        if operator_is_outer {
-            return None;
-        }
-
-        AssignOperator::from_token(self.peek_token_type())
-    }
-
-    /// Eat the current assignment operator and return its span.
-    fn eat_assignment_operator_span(&mut self) -> Span {
-        let operator_start = self.span_start();
-        self.bump();
-
-        self.get_span_from(&operator_start)
-    }
-
-    /// Require compound assignment to target a simple expression pattern.
-    fn require_assignable_operator(
-        &self,
-        left: LocalNodeId<AssignPattern>,
-        operator: AssignOperator,
-    ) -> ParserResult<()> {
-        if operator != AssignOperator::Assign
-            && !matches!(self.tree.get(left), AssignPattern::Place { .. })
-        {
-            Err(ParserError::unexpected(self.tree.get_span(left)))
-        } else {
-            Ok(())
-        }
-    }
-
-    /// Build an assignment pattern from an already parsed value expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// target
-    /// object.field
-    /// array[index]
-    /// ```
-    fn assignment_pattern_from_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let is_destructuring_expression = matches!(
-            self.tree.get(expression_id),
+        let is_destructuring = matches!(
+            self.tree.get(expression),
             Expression::ArrayExpression { .. }
                 | Expression::TupleExpression { .. }
                 | Expression::ObjectExpression { .. }
         );
-
-        // lower recursive destructuring under stack growth
-        if is_destructuring_expression {
-            ensure_sufficient_stack(|| self.lower_assignment_pattern_expression(expression_id))
+        let target = if is_destructuring {
+            ensure_sufficient_stack(|| self.lower_assignment_pattern(expression))?
         } else {
-            self.lower_assignment_pattern_expression(expression_id)
+            self.lower_assignment_pattern(expression)?
+        };
+
+        // compound assignment requires one writable place
+        if operator != AssignOperator::Assign
+            && !matches!(self.tree.get(target), AssignPattern::Place { .. })
+        {
+            return Err(ParserError::unexpected(self.tree.get_range(target)));
         }
+
+        Ok(target)
     }
 
-    /// Lower an assignment pattern expression at the current stack depth.
-    fn lower_assignment_pattern_expression(
+    /// Lower one assignment target at the current stack depth.
+    fn lower_assignment_pattern(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let expression = self.tree.get(expression_id).clone();
-        let is_parenthesized = matches!(expression, Expression::Parenthesized { .. })
+        let unparenthesized = self.strip_expression_parentheses(expression);
+        let has_parentheses = unparenthesized != expression
             || self
                 .tree
-                .get_side_span(expression_id, NodeSpanType::Region(NodeSpanRegion::Wrapper))
+                .get_side_range(
+                    expression,
+                    NodeSpanType::Region(NodeSpanRegion::Parentheses),
+                )
                 .is_some();
 
-        // reject unparenthesized assertions
+        // assertions must be parenthesized before assignment
         if matches!(
-            self.tree.get(expression_id),
+            self.tree.get(unparenthesized),
             Expression::As { .. } | Expression::Satisfies { .. }
-        ) && !is_parenthesized
+        ) && !has_parentheses
         {
-            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_range(expression)));
         }
 
-        // reject parenthesized assignments and destructuring expressions
-        if let Expression::Parenthesized { expression } = &expression {
-            match self.tree.get(*expression) {
-                Expression::Assign { .. } => {
-                    return Err(ParserError::unexpected(self.tree.get_span(*expression)));
-                }
-                Expression::ArrayExpression { .. }
-                | Expression::TupleExpression { .. }
-                | Expression::ObjectExpression { .. } => {
-                    return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
-                }
-                _ => {}
-            }
-        }
-        if is_parenthesized
+        // assignments and destructuring cannot be hidden by parentheses
+        if has_parentheses
             && matches!(
-                self.tree.get(expression_id),
+                self.tree.get(unparenthesized),
                 Expression::Assign { .. }
                     | Expression::ArrayExpression { .. }
+                    | Expression::TupleExpression { .. }
                     | Expression::ObjectExpression { .. }
             )
         {
-            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_range(expression)));
         }
 
-        match expression {
-            Expression::ArrayExpression { elements } => {
-                return self.assignment_pattern_from_array_expression(expression_id, elements);
-            }
-            Expression::TupleExpression { elements } => {
-                return self.assignment_pattern_from_tuple_expression(expression_id, elements);
-            }
-            Expression::ObjectExpression { properties } => {
-                return self.assignment_pattern_from_object_expression(expression_id, properties);
-            }
-            Expression::Assign {
-                left,
-                operator: AssignOperator::Assign,
-                right,
-            } => {
-                return Ok(self.insert_node(
-                    AssignPattern::Default {
-                        pattern: left,
-                        value: right,
-                    },
-                    self.tree.get_span(expression_id),
-                ));
-            }
-            Expression::Assign { .. } => {
-                return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
-            }
-            _ => {}
+        // lower array destructuring recursively
+        if let Expression::ArrayExpression { elements } = self.tree.get(unparenthesized) {
+            let elements = elements.clone();
+
+            return self.lower_sequence_assignment(expression, elements);
         }
 
-        // reject non assignable values
-        if !self.expression_is_simple_assignment_target(expression_id) {
-            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
+        // lower tuple destructuring recursively
+        if let Expression::TupleExpression { elements } = self.tree.get(unparenthesized) {
+            let elements = elements.clone();
+
+            return self.lower_tuple_assignment(expression, elements);
         }
 
-        let target_id = self.without_parentheses_expression(expression_id);
+        // lower object destructuring recursively
+        if let Expression::ObjectExpression { properties } = self.tree.get(unparenthesized) {
+            let properties = properties.clone();
+
+            return self.lower_object_assignment(expression, properties);
+        }
+
+        // lower default values into assignment patterns
+        if let Expression::Assign {
+            left,
+            operator,
+            right,
+        } = self.tree.get(unparenthesized)
+        {
+            let left = *left;
+            let operator = *operator;
+            let right = *right;
+            let range = self.tree.get_range(expression);
+
+            if operator != AssignOperator::Assign {
+                return Err(ParserError::unexpected(range));
+            }
+
+            let pattern = AssignPattern::Default {
+                pattern: left,
+                value: right,
+            };
+
+            return Ok(self.insert_node(pattern, range));
+        }
+
+        // every remaining target must denote one writable place
+        if !self.is_assignment_place(expression) {
+            return Err(ParserError::unexpected(self.tree.get_range(expression)));
+        }
+
+        let place = self.strip_expression_parentheses(expression);
 
         Ok(self.insert_node(
-            AssignPattern::Place {
-                expression: target_id,
-            },
-            self.tree.get_span(expression_id),
+            AssignPattern::Place { expression: place },
+            self.tree.get_range(expression),
         ))
     }
 
-    /// Build a sequence assignment pattern from an array expression.
-    fn assignment_pattern_from_array_expression(
+    /// Lower one array expression into a sequence assignment target.
+    fn lower_sequence_assignment(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression: LocalNodeId<Expression>,
         elements: Vec<LocalNodeId<Argument>>,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
         let fields = elements
             .into_iter()
-            .map(|argument_id| self.assignment_field_from_argument(argument_id))
+            .map(|argument| self.lower_sequence_assignment_field(argument))
             .collect::<ParserResult<Vec<_>>>()?;
 
         Ok(self.insert_node(
             AssignPattern::Sequence { fields },
-            self.tree.get_span(expression_id),
+            self.tree.get_range(expression),
         ))
     }
 
-    /// Build one sequence assignment field from an array expression argument.
-    fn assignment_field_from_argument(
+    /// Lower one array element into a sequence assignment field.
+    fn lower_sequence_assignment_field(
         &mut self,
-        argument_id: LocalNodeId<Argument>,
+        argument: LocalNodeId<Argument>,
     ) -> ParserResult<LocalNodeId<AssignPatternField>> {
-        let argument = self.tree.get(argument_id).clone();
-        let span = self.tree.get_span(argument_id);
-
-        let field = match argument {
+        let node = self.tree.get(argument).clone();
+        let range = self.tree.get_range(argument);
+        let field = match node {
             Argument::Elision => AssignPatternField::Elision,
-            Argument::Positional { value } => {
-                let pattern = self.assignment_pattern_from_expression(value)?;
-
-                AssignPatternField::Positional { pattern }
-            }
-            Argument::Spread { value, .. } => {
-                let pattern = self.assignment_pattern_from_expression(value)?;
-
-                AssignPatternField::Rest {
-                    pattern: Some(pattern),
-                }
-            }
+            Argument::Positional { value } => AssignPatternField::Positional {
+                pattern: self.lower_assignment_pattern(value)?,
+            },
+            Argument::Spread { value, .. } => AssignPatternField::Rest {
+                pattern: Some(self.lower_assignment_pattern(value)?),
+            },
             Argument::Named { .. } | Argument::Labeled { .. } | Argument::Error => {
-                return Err(ParserError::unexpected(span));
+                return Err(ParserError::unexpected(range));
             }
         };
 
-        Ok(self.insert_node(field, span))
+        Ok(self.insert_node(field, range))
     }
 
-    /// Build a tuple assignment pattern from a tuple expression.
-    fn assignment_pattern_from_tuple_expression(
+    /// Lower one tuple expression into a tuple assignment target.
+    fn lower_tuple_assignment(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression: LocalNodeId<Expression>,
         elements: Vec<LocalNodeId<Argument>>,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
         let fields = elements
             .into_iter()
-            .map(|argument_id| self.assignment_tuple_field_from_argument(argument_id))
+            .map(|argument| self.lower_tuple_assignment_field(argument))
             .collect::<ParserResult<Vec<_>>>()?;
 
         Ok(self.insert_node(
             AssignPattern::Tuple { fields },
-            self.tree.get_span(expression_id),
+            self.tree.get_range(expression),
         ))
     }
 
-    /// Build one tuple assignment field from one tuple expression argument.
-    fn assignment_tuple_field_from_argument(
+    /// Lower one tuple element into a tuple assignment field.
+    fn lower_tuple_assignment_field(
         &mut self,
-        argument_id: LocalNodeId<Argument>,
+        argument: LocalNodeId<Argument>,
     ) -> ParserResult<LocalNodeId<AssignPatternField>> {
-        let argument = self.tree.get(argument_id).clone();
-        let span = self.tree.get_span(argument_id);
-
-        let field = match argument {
-            Argument::Positional { value } => {
-                let pattern = self.assignment_pattern_from_expression(value)?;
-
-                AssignPatternField::Positional { pattern }
-            }
-            Argument::Named { .. }
-            | Argument::Labeled { .. }
-            | Argument::Spread { .. }
-            | Argument::Elision
-            | Argument::Error => return Err(ParserError::unexpected(span)),
+        let node = self.tree.get(argument).clone();
+        let range = self.tree.get_range(argument);
+        let Argument::Positional { value } = node else {
+            return Err(ParserError::unexpected(range));
         };
+        let pattern = self.lower_assignment_pattern(value)?;
 
-        Ok(self.insert_node(field, span))
+        Ok(self.insert_node(AssignPatternField::Positional { pattern }, range))
     }
 
-    /// Build an object assignment pattern from an object expression.
-    fn assignment_pattern_from_object_expression(
+    /// Lower one object expression into an object assignment target.
+    fn lower_object_assignment(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        expression: LocalNodeId<Expression>,
         properties: Vec<LocalNodeId<Property>>,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
         let fields = properties
             .into_iter()
-            .map(|property_id| self.assignment_field_from_property(property_id))
+            .map(|property| self.lower_object_assignment_field(property))
             .collect::<ParserResult<Vec<_>>>()?;
 
         Ok(self.insert_node(
             AssignPattern::Object { fields },
-            self.tree.get_span(expression_id),
+            self.tree.get_range(expression),
         ))
     }
 
-    /// Build one object assignment field from an object expression property.
-    fn assignment_field_from_property(
+    /// Lower one object property into an object assignment field.
+    fn lower_object_assignment_field(
         &mut self,
-        property_id: LocalNodeId<Property>,
+        property: LocalNodeId<Property>,
     ) -> ParserResult<LocalNodeId<AssignPatternField>> {
-        let property = self.tree.get(property_id).clone();
-        let span = self.tree.get_span(property_id);
-
-        let field = match property {
+        let node = self.tree.get(property).clone();
+        let range = self.tree.get_range(property);
+        let field = match node {
             Property::Field {
                 key: Key::Name(name),
                 value,
                 is_shorthand,
             } => {
                 let pattern = if is_shorthand {
-                    self.shorthand_assignment_pattern(name, value)?
+                    self.lower_shorthand_assignment(name, value)?
                 } else {
-                    self.assignment_pattern_from_expression(value)?
+                    self.lower_assignment_pattern(value)?
                 };
 
                 AssignPatternField::Named {
@@ -443,104 +248,116 @@ impl Parser {
                 key: Key::Expression(key),
                 value,
                 ..
-            } => {
-                let pattern = self.assignment_pattern_from_expression(value)?;
-
-                AssignPatternField::Computed { key, pattern }
-            }
+            } => AssignPatternField::Computed {
+                key,
+                pattern: self.lower_assignment_pattern(value)?,
+            },
+            Property::Spread { value } => AssignPatternField::Rest {
+                pattern: Some(self.lower_assignment_pattern(value)?),
+            },
             Property::Method { .. } | Property::Error => {
-                return Err(ParserError::unexpected(span));
-            }
-            Property::Spread { value } => {
-                let pattern = self.assignment_pattern_from_expression(value)?;
-
-                AssignPatternField::Rest {
-                    pattern: Some(pattern),
-                }
+                return Err(ParserError::unexpected(range));
             }
         };
 
-        Ok(self.insert_node(field, span))
+        Ok(self.insert_node(field, range))
     }
 
-    /// Build the place target for one shorthand assignment field.
-    fn shorthand_assignment_pattern(
+    /// Lower one shorthand object assignment field.
+    fn lower_shorthand_assignment(
         &mut self,
         name: Name,
         value: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let value_span = self.tree.get_span(value);
+        let range = self.tree.get_range(value);
 
-        match self.tree.get(value).clone() {
+        let assignment = match self.tree.get(value) {
             Expression::Assign {
-                operator: AssignOperator::Assign,
+                operator,
                 left,
                 right,
-                ..
-            } => Ok(self.insert_node(
-                AssignPattern::Default {
-                    pattern: left,
-                    value: right,
-                },
-                value_span,
-            )),
-            Expression::Assign { .. } => Err(ParserError::unexpected(value_span)),
-            _ => self.shorthand_assignment_place(name, value_span),
-        }
-    }
-
-    /// Build one shorthand assignment place expression.
-    fn shorthand_assignment_place(
-        &mut self,
-        name: Name,
-        span: Span,
-    ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let Name::Identifier(name) = name else {
-            return Err(ParserError::unexpected(span));
+            } => Some((*operator, *left, *right)),
+            _ => None,
         };
 
-        let expression = self.insert_node(Expression::Identifier { name }, span);
+        // lower shorthand defaults without copying the value expression
+        if let Some((operator, left, right)) = assignment {
+            if operator != AssignOperator::Assign {
+                return Err(ParserError::unexpected(range));
+            }
 
-        Ok(self.insert_node(AssignPattern::Place { expression }, span))
+            let pattern = AssignPattern::Default {
+                pattern: left,
+                value: right,
+            };
+
+            return Ok(self.insert_node(pattern, range));
+        }
+
+        self.lower_shorthand_assignment_place(name, range)
     }
 
-    /// Return whether one expression is a simple assignment target.
-    fn expression_is_simple_assignment_target(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        let expression_id = self.without_parentheses_expression(expression_id);
+    /// Create one shorthand assignment place.
+    fn lower_shorthand_assignment_place(
+        &mut self,
+        name: Name,
+        range: ByteRange,
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
+        let Name::Identifier(name) = name else {
+            return Err(ParserError::unexpected(range));
+        };
+        let expression = self.insert_node(Expression::Identifier { name }, range);
 
-        match self.tree.get(expression_id) {
-            Expression::Identifier { .. } => true,
-            Expression::Member { .. } | Expression::Index { .. } => {
-                !self.expression_contains_optional_chain(expression_id)
+        Ok(self.insert_node(AssignPattern::Place { expression }, range))
+    }
+
+    /// Return whether one expression denotes a writable place.
+    fn is_assignment_place(&self, mut expression: LocalNodeId<Expression>) -> bool {
+        loop {
+            expression = self.strip_expression_parentheses(expression);
+
+            // accept direct writable places
+            match self.tree.get(expression) {
+                Expression::Identifier { .. } => return true,
+                Expression::Member { .. } | Expression::Index { .. } => {
+                    return !self.contains_optional_chain(expression);
+                }
+                Expression::As {
+                    expression: left, ..
+                }
+                | Expression::Satisfies {
+                    expression: left, ..
+                } => expression = *left,
+                Expression::Unary {
+                    operator: UnaryOperator::Dereference,
+                    right,
+                } => expression = *right,
+                Expression::Must { left, .. } => expression = *left,
+                _ => return false,
             }
-            Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
-                self.expression_is_simple_assignment_target(*expression)
-            }
-            Expression::Unary {
-                operator: UnaryOperator::Dereference,
-                right,
-            } => self.expression_is_simple_assignment_target(*right),
-            Expression::Must { left, .. } => self.expression_is_simple_assignment_target(*left),
-            _ => false,
         }
     }
 
-    /// Return whether one expression target contains optional chaining.
-    fn expression_contains_optional_chain(&self, expression_id: LocalNodeId<Expression>) -> bool {
-        let expression_id = self.without_parentheses_expression(expression_id);
+    /// Return whether one expression contains optional chaining.
+    fn contains_optional_chain(&self, mut expression: LocalNodeId<Expression>) -> bool {
+        loop {
+            expression = self.strip_expression_parentheses(expression);
 
-        match self.tree.get(expression_id) {
-            Expression::Maybe { .. } => true,
-            Expression::Member { left, .. } => self.expression_contains_optional_chain(*left),
-            Expression::Index { left, .. } => self.expression_contains_optional_chain(*left),
-            Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
-                self.expression_contains_optional_chain(*expression)
+            // follow the left edge of the place expression
+            match self.tree.get(expression) {
+                Expression::Maybe { .. } => return true,
+                Expression::Member { left, .. } | Expression::Index { left, .. } => {
+                    expression = *left;
+                }
+                Expression::As {
+                    expression: left, ..
+                }
+                | Expression::Satisfies {
+                    expression: left, ..
+                } => expression = *left,
+                Expression::Must { left, .. } => expression = *left,
+                _ => return false,
             }
-            Expression::Must { left, .. } => self.expression_contains_optional_chain(*left),
-            _ => false,
         }
     }
 }

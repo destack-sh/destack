@@ -1,43 +1,33 @@
-use crate::parse::RecoveryPoint;
-use crate::parse::scan::DelimiterDepth;
-use crate::{Parser, ParserResult, ParserSpanStart};
+use crate::parse::context::{ExpressionContext, TypeContext, TypeMode, TypeStops};
+use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
-use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
+use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 impl Parser {
-    /// Parse type parentheses.
-    ///
-    /// Examples:
-    /// ```ds
-    /// (T)
-    /// ()
-    /// (first: string, second?: number)
-    /// ```
-    pub(super) fn eat_parenthesized_type(
+    /// Parse one parenthesized type, tuple, or function head.
+    pub(super) fn parse_parenthesized_type(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
         // empty tuple
         if self.peek_is(TokenType::CloseParenthesis) {
-            return Ok(self.eat_empty_parenthesized_type(start));
+            return Ok(self.parse_empty_tuple_type(start));
         }
 
         // tuple head
-        if self.starts_type_tuple_head() {
-            return self.eat_parenthesized_tuple_type(start);
+        if self.peek_type_tuple() {
+            return self.parse_parenthesized_tuple_type(start, context);
         }
 
-        // inner expression
-        let inner = self.eat_type_expression_or_recover_missing(
-            self.flags.nested().in_type(),
-            NodeType::TypeExpression,
-        )?;
+        // first type
+        let ty = self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
 
         // tuple tail
-        if self.peek_is(TokenType::Comma) || self.current_type_tuple_element_is_optional() {
-            return self.eat_parenthesized_tuple_tail_type(start, inner);
+        if self.peek_is(TokenType::Comma) || self.peek_tuple_element_optional() {
+            return self.parse_parenthesized_tuple_tail(start, ty, context);
         }
 
         // grouped type
@@ -46,121 +36,96 @@ impl Parser {
             NodeType::TypeExpression,
         )?;
 
-        Ok(self.wrap_parenthesized_type(start, inner))
+        Ok(self.retain_type_parentheses(start, ty))
     }
 
-    /// Eat an empty parenthesized tuple type.
-    ///
-    /// Examples:
-    /// ```ds
-    /// ()
-    /// (() => void)
-    /// Array<()>
-    /// ```
-    fn eat_empty_parenthesized_type(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> LocalNodeId<TypeExpression> {
+    /// Parse one empty tuple type after its opening parenthesis.
+    fn parse_empty_tuple_type(&mut self, start: &ParseStart) -> LocalNodeId<TypeExpression> {
         self.bump();
 
         self.insert_node(
             TypeExpression::Tuple {
                 elements: Vec::new(),
             },
-            self.get_span_from(start),
+            self.range_since(start),
         )
     }
 
-    /// Eat a parenthesized tuple type with an explicit tuple head.
-    ///
-    /// Examples:
-    /// ```ds
-    /// (...items: string[])
-    /// (readonly first: string)
-    /// (name?: string, age: number)
-    /// ```
-    fn eat_parenthesized_tuple_type(
+    /// Parse one parenthesized tuple with an explicit tuple head.
+    fn parse_parenthesized_tuple_type(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.eat_type_tuple_elements_body()?;
+        let elements = self.parse_type_tuple_elements_body(context)?;
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::TypeExpression,
         )?;
 
-        Ok(self.insert_node(
-            TypeExpression::Tuple { elements },
-            self.get_span_from(start),
-        ))
+        Ok(self.insert_node(TypeExpression::Tuple { elements }, self.range_since(start)))
     }
 
-    /// Eat a parenthesized tuple type after the first element.
-    ///
-    /// Examples:
-    /// ```ds
-    /// (string,)
-    /// (string, number)
-    /// (string, ...boolean[])
-    /// ```
-    fn eat_parenthesized_tuple_tail_type(
+    /// Parse one parenthesized tuple after its first type.
+    fn parse_parenthesized_tuple_tail(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         first: LocalNodeId<TypeExpression>,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.eat_type_tuple_tail(start, first)?;
+        let elements = self.parse_type_tuple_tail(start, first, context)?;
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::TypeExpression,
         )?;
 
-        Ok(self.insert_node(
-            TypeExpression::Tuple { elements },
-            self.get_span_from(start),
-        ))
+        Ok(self.insert_node(TypeExpression::Tuple { elements }, self.range_since(start)))
     }
 
-    /// Wrap or mark one parenthesized type.
-    fn wrap_parenthesized_type(
+    /// Retain type parentheses as a node or source region.
+    fn retain_type_parentheses(
         &mut self,
-        start: &ParserSpanStart,
-        inner: LocalNodeId<TypeExpression>,
+        start: &ParseStart,
+        ty: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
-        if self.preserves_parenthesized_wrappers() {
+        if self.retains_parentheses() {
             return self.insert_node(
-                TypeExpression::Parenthesized { expression: inner },
-                self.get_span_from(start),
+                TypeExpression::Parenthesized { expression: ty },
+                self.range_since(start),
             );
         }
 
-        let inner_span = self.tree.get_span(inner);
-        let leading_span = Span::new(inner_span.file, start.token_end(), inner_span.start);
-        if leading_span.start < leading_span.end {
-            self.tree.set_side_span(
-                inner,
+        let type_range = self.tree.get_range(ty);
+        let leading_range = ByteRange {
+            start: start.token_end(),
+            end: type_range.start,
+        };
+        if leading_range.start < leading_range.end {
+            self.tree.set_side_range(
+                ty,
                 NodeSpanType::Boundary(NodeSpanBoundary::Leading),
-                leading_span,
+                leading_range,
             );
         }
-        self.set_node_wrapper_span(inner, self.get_span_from(start));
+        self.extend_node_region_range(ty, NodeSpanRegion::Parentheses, self.range_since(start));
 
-        inner
+        ty
     }
 
     /// Return whether the current token starts a constructor type expression.
-    pub(super) fn can_start_construct_type_expression(&mut self) -> bool {
-        if self.current_keyword() == Some(Keyword::New) {
+    pub(super) fn peek_construct_type(&self) -> bool {
+        if self.peek_keyword() == Some(Keyword::New) {
             return matches!(
-                self.next_token_type(),
+                self.peek_next_token_type(),
                 TokenType::LessThan | TokenType::OpenParenthesis
             );
         }
 
-        if self.keyword_at_offset(0) == Some(Keyword::Abstract)
-            && self.keyword_at_offset(1) == Some(Keyword::New)
+        if self.peek_keyword_at(0) == Some(Keyword::Abstract)
+            && self.peek_keyword_at(1) == Some(Keyword::New)
         {
             return matches!(
-                self.token_type_at_offset(2),
+                self.peek_token_type_at(2),
                 TokenType::LessThan | TokenType::OpenParenthesis
             );
         }
@@ -169,209 +134,72 @@ impl Parser {
     }
 
     /// Return whether the current parenthesis group is a function type head.
-    pub(super) fn can_start_parenthesized_function_type(&mut self) -> bool {
+    pub(super) fn peek_parenthesized_function_type(&self, context: TypeContext) -> bool {
         if self.peek_token_type() != TokenType::OpenParenthesis {
             return false;
         }
 
-        self.lookahead(|parser| parser.current_parenthesis_is_function_type_head())
-    }
+        let Some(follow) =
+            self.peek_token_after_group(0, TokenType::OpenParenthesis, TokenType::CloseParenthesis)
+        else {
+            return false;
+        };
 
-    /// Return whether the current parenthesized type starts a function type.
-    fn current_parenthesis_is_function_type_head(&mut self) -> bool {
-        self.bump();
-
-        if self.peek_is(TokenType::CloseParenthesis) {
-            return self.close_parenthesized_type_head_has_function_follow();
+        if follow.is(TokenType::Colon) {
+            return !context.stops.contains(TypeStops::CONDITIONAL_COLON);
         }
-
-        if self.peek_is(TokenType::Spread) {
-            return self.skip_parenthesized_type_head_to_function_follow();
-        }
-
-        if !self.skip_type_function_parameter_start() {
+        if !follow.is(TokenType::ArrowWide) {
             return false;
         }
 
-        if matches!(
-            self.peek_token_type(),
-            TokenType::Colon | TokenType::Maybe | TokenType::Assign | TokenType::Comma
-        ) {
-            return self.skip_parenthesized_type_head_to_function_follow();
-        }
-
-        if self.peek_is(TokenType::CloseParenthesis) {
-            return self.close_parenthesized_type_head_has_function_follow();
-        }
-
-        false
+        context.mode != TypeMode::ArrowReturn || self.peek_parenthesized_parameter_list()
     }
 
-    /// Return whether a closed parenthesized type head is followed by function syntax.
-    fn close_parenthesized_type_head_has_function_follow(&mut self) -> bool {
-        self.bump();
-
-        if matches!(self.peek_token_type(), TokenType::ArrowWide) {
-            return !self.flags.is_in_arrow_return_type();
-        }
-
-        self.peek_token_type() == TokenType::Colon && !self.flags.is_in_type_conditional_right()
-    }
-
-    /// Skip a parenthesized type head and test for a function follow token.
-    fn skip_parenthesized_type_head_to_function_follow(&mut self) -> bool {
-        let mut depth = DelimiterDepth::type_expression();
-
-        while self.has_more_tokens() {
-            let token_type = self.peek_token_type();
-
-            // recover before rescanning later statements
-            if self.semicolon_precedes_recovery_point(RecoveryPoint::Statement) {
-                return false;
-            }
-
-            if token_type == TokenType::CloseParenthesis && depth.is_top_level() {
-                self.bump();
-
-                return matches!(self.peek_token_type(), TokenType::ArrowWide)
-                    || self.peek_token_type() == TokenType::Colon
-                        && !self.flags.is_in_type_conditional_right();
-            }
-
-            if !depth.advance(token_type) {
-                return false;
-            }
-
-            self.bump();
-        }
-
-        false
-    }
-
-    /// Skip the first token shape of a signature parameter.
-    fn skip_type_function_parameter_start(&mut self) -> bool {
-        if self.skip_type_function_receiver_start() {
-            return true;
-        }
-
-        if self.is_keyword(Keyword::Comptime) {
-            self.bump();
-            return self.skip_type_function_parameter_start();
-        }
-
-        if self.current_keyword() == Some(Keyword::This) || self.peek_is(TokenType::Identifier) {
-            self.bump();
-            return true;
-        }
-
-        if self.peek_is(TokenType::OpenBracket) {
-            return self.skip_balanced_delimiter(TokenType::OpenBracket, TokenType::CloseBracket);
-        }
-
-        if self.peek_is(TokenType::OpenBrace) {
-            return self.skip_balanced_delimiter(TokenType::OpenBrace, TokenType::CloseBrace);
-        }
-
-        false
-    }
-
-    /// Skip one receiver shorthand in a function type head.
-    fn skip_type_function_receiver_start(&mut self) -> bool {
-        if self.current_keyword() == Some(Keyword::This) {
-            self.bump();
-            return true;
-        }
-
-        if self.current_keyword() == Some(Keyword::Readonly)
-            && self.next_keyword() == Some(Keyword::This)
-        {
-            self.bump();
-            self.bump();
-            return true;
-        }
-
-        if !matches!(
-            self.peek_token_type(),
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor
-        ) {
-            return false;
-        }
-
-        self.bump();
-        if self.current_keyword() == Some(Keyword::This) {
-            self.bump();
-            return true;
-        }
-
-        let has_access_modifier = matches!(
-            self.current_keyword(),
-            Some(Keyword::Readonly | Keyword::Const | Keyword::Exclusive)
-        );
-        if has_access_modifier && self.next_keyword() == Some(Keyword::This) {
-            self.bump();
-            self.bump();
-            return true;
-        }
-
-        false
-    }
-
-    /// Parse a type bracket primary.
-    ///
-    /// Examples:
-    /// ```ds
-    /// [string]
-    /// [string; 4]
-    /// [readonly string]
-    /// ```
-    pub(super) fn eat_bracket_type(
+    /// Parse one slice or fixed-array type.
+    pub(super) fn parse_bracket_type(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
 
         // element type
-        let element = self.eat_type_expression_or_recover_missing(
-            self.flags.nested().in_type(),
-            NodeType::TypeExpression,
-        )?;
+        let element =
+            self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
 
         // fixed array
         if self.peek_is(TokenType::Semicolon) {
-            return self.eat_fixed_array_type(start, element);
+            return self.parse_fixed_array_type(start, element, context);
         }
 
         // slice close
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
-        Ok(self.insert_node(TypeExpression::Slice { element }, self.get_span_from(start)))
+        Ok(self.insert_node(TypeExpression::Slice { element }, self.range_since(start)))
     }
 
-    /// Eat a fixed array type.
-    ///
-    /// Examples:
-    /// ```ds
-    /// [u8; 16]
-    /// [string; count]
-    /// [T; N + 1]
-    /// ```
-    fn eat_fixed_array_type(
+    /// Parse one fixed-array type after its element.
+    fn parse_fixed_array_type(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         element: LocalNodeId<TypeExpression>,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.bump();
-        let length = if self.current_identifier_str_is("_") {
-            let length_start = self.span_start();
-            let ty = self.eat_type_infer_hole(&length_start);
+        let length = if self.peek_identifier_is("_") {
+            let length_start = self.mark_parse_start();
+            let ty = self.parse_type_infer_hole(&length_start);
 
             self.insert_node(
                 Expression::Type { value: ty },
-                self.get_span_from(&length_start),
+                self.range_since(&length_start),
             )
         } else {
-            self.eat_expression_or_recover_missing(
-                self.flags.nested().with_type(false),
+            self.parse_expression_or_recover_missing(
+                ExpressionContext {
+                    function: context.function,
+                    ..ExpressionContext::default()
+                },
                 NodeType::Expression,
             )?
         };
@@ -379,7 +207,7 @@ impl Parser {
 
         Ok(self.insert_node(
             TypeExpression::FixedArray { element, length },
-            self.get_span_from(start),
+            self.range_since(start),
         ))
     }
 }

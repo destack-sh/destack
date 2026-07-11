@@ -1,203 +1,98 @@
-use crate::Parser;
-use crate::parse::r#type::operator::TypeBinaryOperator;
+use crate::parse::r#type::operator::TypeRelation;
 use destack_dir::{
-    AssignOperator, BinaryOperator, Keyword, OperatorPrecedence, RangeEnd, TokenType, UnaryOperator,
+    AssignOperator, BinaryOperator, Keyword, OperatorPrecedence, RangeEnd, TokenType,
 };
 
-/// One classified value infix operator with binding power.
+/// One value infix operation.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub(in crate::parse::expression) struct CurrentExpressionInfixOperator {
-    /// The classified operator.
-    pub(in crate::parse::expression) operator: ExpressionInfixOperator,
-    /// The Pratt binding power.
-    pub(in crate::parse::expression) precedence: u16,
-    /// Whether this operator groups right to left.
-    pub(in crate::parse::expression) is_right_associative: bool,
-}
-
-/// One value expression infix operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub(in crate::parse) enum ExpressionInfixOperator {
-    /// Value binary operator.
+pub(in crate::parse) enum ExpressionOperator {
+    /// A value binary operation.
     Binary(BinaryOperator),
-    /// Type relation operator parsed from value space.
-    TypeBinary(TypeBinaryOperator),
-    /// Value assignment operator.
+    /// A type relation entered from value syntax.
+    Type(TypeRelation),
+    /// A value assignment operation.
     Assign(AssignOperator),
-    /// Runtime type predicate.
+    /// A runtime type predicate.
     Is,
-    /// Runtime constructor predicate.
+    /// A runtime constructor predicate.
     InstanceOf,
-    /// TypeScript `as` assertion.
+    /// A type assertion.
     As,
-    /// TypeScript `satisfies` assertion.
+    /// A type conformance assertion.
     Satisfies,
-    /// Destack range operator.
-    Range(destack_dir::RangeEnd),
+    /// A value range operation.
+    Range(RangeEnd),
 }
 
-impl ExpressionInfixOperator {
-    /// Return this operator precedence.
-    pub(in crate::parse) fn precedence(self) -> u16 {
-        match self {
-            Self::Binary(operator) => operator.precedence(),
-            Self::TypeBinary(operator) => operator.precedence(),
-            Self::Assign(operator) => operator.precedence(),
-            Self::Is | Self::InstanceOf | Self::As | Self::Satisfies => {
-                OperatorPrecedence::Comparison as u16
-            }
-            Self::Range(_) => OperatorPrecedence::Range as u16,
-        }
-    }
-
-    /// Return whether this operator groups right to left.
-    pub(in crate::parse) fn is_right_associative(self) -> bool {
-        matches!(self, Self::Assign(_))
-    }
-}
-
-impl Parser {
-    /// Return a classified binary operator with precedence for one token type.
+impl ExpressionOperator {
+    /// Classify one value infix token and optional identifier keyword.
     #[inline]
-    fn value_binary_infix_from_token_type(
-        token_type: TokenType,
-    ) -> Option<CurrentExpressionInfixOperator> {
-        let operator = match token_type {
-            TokenType::Multiply => BinaryOperator::Multiply,
-            TokenType::Exponent => BinaryOperator::Exponent,
-            TokenType::Divide => BinaryOperator::Divide,
-            TokenType::Remainder => BinaryOperator::Remainder,
-            TokenType::Add => BinaryOperator::Add,
-            TokenType::Subtract => BinaryOperator::Subtract,
-            TokenType::ShiftLeft => BinaryOperator::ShiftLeft,
-            TokenType::ShiftRight => BinaryOperator::ShiftRight,
-            TokenType::UnsignedShiftRight => BinaryOperator::UnsignedShiftRight,
-            TokenType::ElementwiseAnd => BinaryOperator::ElementwiseAnd,
-            TokenType::ElementwiseXor => BinaryOperator::ElementwiseXor,
-            TokenType::ElementwiseOr => BinaryOperator::ElementwiseOr,
-            TokenType::Equal => BinaryOperator::Equal,
-            TokenType::EqualWide => BinaryOperator::EqualStrict,
-            TokenType::NotEqual => BinaryOperator::NotEqual,
-            TokenType::NotEqualWide => BinaryOperator::NotEqualStrict,
-            TokenType::LessThan => BinaryOperator::LessThan,
-            TokenType::LessThanOrEqual => BinaryOperator::LessThanOrEqual,
-            TokenType::GreaterThan => BinaryOperator::GreaterThan,
-            TokenType::GreaterThanOrEqual => BinaryOperator::GreaterThanOrEqual,
-            TokenType::LogicalAnd => BinaryOperator::And,
-            TokenType::LogicalOr => BinaryOperator::Or,
-            TokenType::Coalesce => BinaryOperator::Coalesce,
+    pub(in crate::parse) fn from_token(token: TokenType, keyword: Option<Keyword>) -> Option<Self> {
+        if let Some(operator) = AssignOperator::from_token(token) {
+            return Some(Self::Assign(operator));
+        }
+
+        let operator = match token {
+            TokenType::Multiply => Self::Binary(BinaryOperator::Multiply),
+            TokenType::Exponent => Self::Binary(BinaryOperator::Exponent),
+            TokenType::Divide => Self::Binary(BinaryOperator::Divide),
+            TokenType::Remainder => Self::Binary(BinaryOperator::Remainder),
+            TokenType::Add => Self::Binary(BinaryOperator::Add),
+            TokenType::Subtract => Self::Binary(BinaryOperator::Subtract),
+            TokenType::ShiftLeft => Self::Binary(BinaryOperator::ShiftLeft),
+            TokenType::ShiftRight => Self::Binary(BinaryOperator::ShiftRight),
+            TokenType::UnsignedShiftRight => Self::Binary(BinaryOperator::UnsignedShiftRight),
+            TokenType::ElementwiseAnd => Self::Binary(BinaryOperator::ElementwiseAnd),
+            TokenType::ElementwiseXor => Self::Binary(BinaryOperator::ElementwiseXor),
+            TokenType::ElementwiseOr => Self::Binary(BinaryOperator::ElementwiseOr),
+            TokenType::Equal => Self::Binary(BinaryOperator::Equal),
+            TokenType::EqualWide => Self::Binary(BinaryOperator::EqualStrict),
+            TokenType::NotEqual => Self::Binary(BinaryOperator::NotEqual),
+            TokenType::NotEqualWide => Self::Binary(BinaryOperator::NotEqualStrict),
+            TokenType::LessThan => Self::Binary(BinaryOperator::LessThan),
+            TokenType::LessThanOrEqual => Self::Binary(BinaryOperator::LessThanOrEqual),
+            TokenType::GreaterThan => Self::Binary(BinaryOperator::GreaterThan),
+            TokenType::GreaterThanOrEqual => Self::Binary(BinaryOperator::GreaterThanOrEqual),
+            TokenType::LogicalAnd => Self::Binary(BinaryOperator::And),
+            TokenType::LogicalOr => Self::Binary(BinaryOperator::Or),
+            TokenType::Coalesce => Self::Binary(BinaryOperator::Coalesce),
+            TokenType::Range => Self::Range(RangeEnd::Open),
+            TokenType::RangeInclusive => Self::Range(RangeEnd::Inclusive),
+            TokenType::Identifier => match keyword? {
+                Keyword::In => Self::Binary(BinaryOperator::In),
+                Keyword::InstanceOf => Self::InstanceOf,
+                Keyword::As => Self::As,
+                Keyword::Is => Self::Is,
+                Keyword::Satisfies => Self::Satisfies,
+                Keyword::Extends => Self::Type(TypeRelation::Extends),
+                Keyword::Implements => Self::Type(TypeRelation::Implements),
+                _ => return None,
+            },
             _ => return None,
         };
 
-        Some(CurrentExpressionInfixOperator {
-            operator: ExpressionInfixOperator::Binary(operator),
-            precedence: operator.precedence(),
-            is_right_associative: false,
-        })
-    }
-
-    /// Return a value prefix operator at the current token.
-    pub fn peek_unary_prefix_operator_maybe(&mut self) -> Option<UnaryOperator> {
-        let token_type = self.peek_token_type();
-        if token_type == TokenType::Identifier {
-            return self
-                .current_keyword()
-                .and_then(UnaryOperator::from_prefix_keyword);
-        }
-
-        let operator = UnaryOperator::from_prefix_token(token_type)?;
         Some(operator)
     }
 
-    /// Return true when the next token is an assignment operator.
-    pub fn peek_next_assign_operator_is(&mut self) -> bool {
-        AssignOperator::from_token(self.next_token_type()).is_some()
-    }
-
-    /// Return true when the current token could start an infix or assignment operator.
-    pub(crate) fn current_token_can_start_infix_or_assign_operator(&mut self) -> bool {
-        self.current_infix_operator_maybe().is_some()
-    }
-
-    /// Return an infix operator at the current token.
-    pub(super) fn peek_infix_operator_maybe(&mut self) -> Option<ExpressionInfixOperator> {
-        self.current_infix_operator_maybe()
-            .map(|operator| operator.operator)
-    }
-
-    /// Return an infix operator at the current token with binding power.
-    #[inline]
-    pub(in crate::parse::expression) fn current_infix_operator_maybe(
-        &self,
-    ) -> Option<CurrentExpressionInfixOperator> {
-        Self::infix_operator_from_token(self.current_token().ty(), self.current_token().keyword())
-    }
-
-    /// Return a parser infix operator for one token and optional keyword.
-    #[inline]
-    fn infix_operator_from_token(
-        token_type: TokenType,
-        keyword: Option<Keyword>,
-    ) -> Option<CurrentExpressionInfixOperator> {
-        if let Some(operator) = AssignOperator::from_token(token_type) {
-            return Some(CurrentExpressionInfixOperator {
-                operator: ExpressionInfixOperator::Assign(operator),
-                precedence: operator.precedence(),
-                is_right_associative: true,
-            });
-        }
-
-        if token_type == TokenType::Range {
-            return Some(CurrentExpressionInfixOperator {
-                operator: ExpressionInfixOperator::Range(RangeEnd::Open),
-                precedence: OperatorPrecedence::Range as u16,
-                is_right_associative: false,
-            });
-        }
-
-        if token_type == TokenType::RangeInclusive {
-            return Some(CurrentExpressionInfixOperator {
-                operator: ExpressionInfixOperator::Range(RangeEnd::Inclusive),
-                precedence: OperatorPrecedence::Range as u16,
-                is_right_associative: false,
-            });
-        }
-
-        if let Some(operator) = Self::value_binary_infix_from_token_type(token_type) {
-            return Some(operator);
-        }
-
-        if token_type != TokenType::Identifier {
-            return None;
-        }
-
-        match keyword? {
-            Keyword::In => Some(CurrentExpressionInfixOperator {
-                operator: ExpressionInfixOperator::Binary(BinaryOperator::In),
-                precedence: BinaryOperator::In.precedence(),
-                is_right_associative: false,
-            }),
-            Keyword::InstanceOf => Some(Self::keyword_infix(ExpressionInfixOperator::InstanceOf)),
-            Keyword::As => Some(Self::keyword_infix(ExpressionInfixOperator::As)),
-            Keyword::Is => Some(Self::keyword_infix(ExpressionInfixOperator::Is)),
-            Keyword::Satisfies => Some(Self::keyword_infix(ExpressionInfixOperator::Satisfies)),
-            Keyword::Extends => Some(Self::keyword_infix(ExpressionInfixOperator::TypeBinary(
-                TypeBinaryOperator::Extends,
-            ))),
-            Keyword::Implements => Some(Self::keyword_infix(ExpressionInfixOperator::TypeBinary(
-                TypeBinaryOperator::Implements,
-            ))),
-            _ => None,
+    /// Return the precedence of this operation.
+    pub(in crate::parse) const fn precedence(self) -> OperatorPrecedence {
+        match self {
+            ExpressionOperator::Binary(operator) => operator.precedence(),
+            ExpressionOperator::Type(_) => OperatorPrecedence::TypeRelation,
+            ExpressionOperator::Assign(operator) => operator.precedence(),
+            ExpressionOperator::Is
+            | ExpressionOperator::InstanceOf
+            | ExpressionOperator::As
+            | ExpressionOperator::Satisfies => OperatorPrecedence::Comparison,
+            ExpressionOperator::Range(_) => OperatorPrecedence::Range,
         }
     }
 
-    /// Return one non-assignment keyword operator record.
-    #[inline]
-    fn keyword_infix(operator: ExpressionInfixOperator) -> CurrentExpressionInfixOperator {
-        CurrentExpressionInfixOperator {
-            operator,
-            precedence: operator.precedence(),
-            is_right_associative: false,
-        }
+    /// Return whether this operation consumes a type operand.
+    pub(in crate::parse) const fn has_type_operand(self) -> bool {
+        matches!(
+            self,
+            ExpressionOperator::Is | ExpressionOperator::As | ExpressionOperator::Satisfies
+        )
     }
 }

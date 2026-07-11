@@ -1,114 +1,289 @@
 use crate::parse::DeclarationHeader;
-use crate::parse::scope::TypeScope;
-use crate::parse::r#type::operator::TypeUnaryOperator;
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::parse::context::TypeContext;
+use crate::parse::r#type::operator::{TypeOperator, TypePrefixOperator};
+use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
-    BinaryOperator, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, TokenType,
-    TypeExpression, UnaryOperator,
+    LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, ScalarLiteral, TokenType,
+    TypeExpression, UnaryOperator, VarianceBound,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
+use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanType};
+use smallvec::{SmallVec, smallvec};
+
+/// One consumed type prefix operation.
+#[derive(Debug, Copy, Clone)]
+enum TypePrefix {
+    /// One ordinary type prefix.
+    Unary {
+        /// The classified prefix operation.
+        operator: TypePrefixOperator,
+        /// The operator source range.
+        range: ByteRange,
+    },
+    /// One owned reference prefix.
+    Owned {
+        /// The mutability modifier.
+        mutability: Option<Mutability>,
+        /// The variance modifier.
+        variance: Option<VarianceBound>,
+        /// The operator source range.
+        range: ByteRange,
+    },
+    /// One borrowed reference prefix.
+    Borrowed {
+        /// The mutability modifier.
+        mutability: Option<Mutability>,
+        /// The variance modifier.
+        variance: Option<VarianceBound>,
+        /// The operator source range.
+        range: ByteRange,
+    },
+    /// One pointer prefix.
+    Pointer {
+        /// The mutability modifier.
+        mutability: Option<Mutability>,
+        /// The operator source range.
+        range: ByteRange,
+    },
+}
 
 impl Parser {
-    /// Eat type prefix operators or one primary type.
-    ///
-    /// Examples:
-    /// ```ds
-    /// keyof T
-    /// readonly string[]
-    /// (value: string) => number
-    /// ```
-    pub(super) fn eat_type_prefix_or_primary(
+    /// Parse one type operand through all prefix and postfix operations.
+    #[inline(never)]
+    pub(in crate::parse::r#type) fn parse_type_operand(
         &mut self,
-        start: &ParserSpanStart,
+        context: TypeContext,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        // parse prefixes only when the operand actually has one
+        let prefixes = if let Some(first) = self.parse_type_prefix()? {
+            let mut prefixes: SmallVec<[TypePrefix; 4]> = smallvec![first];
+            while let Some(prefix) = self.parse_type_prefix()? {
+                prefixes.push(prefix);
+            }
+
+            Some(prefixes)
+        } else {
+            None
+        };
+
+        // parse the primary type and every postfix
+        let primary_start = self.mark_parse_start();
+        let mut ty = if prefixes.is_some() && self.peek_type_expression_recovery_boundary() {
+            self.recover_missing_type_expression_here(NodeType::TypeExpression)
+        } else {
+            let ty = self.parse_type_primary(&primary_start, context)?;
+
+            self.parse_type_postfix(&primary_start, ty, context)?
+        };
+
+        // fold consumed prefixes from the operand outward
+        if let Some(prefixes) = prefixes {
+            for prefix in prefixes.into_iter().rev() {
+                ty = self.insert_type_prefix(prefix, ty);
+            }
+        }
+
+        Ok(ty)
+    }
+
+    /// Parse one ordinary or reference type prefix when present.
+    fn parse_type_prefix(&mut self) -> ParserResult<Option<TypePrefix>> {
+        let token_type = self.peek_token_type();
+        let keyword = (token_type == TokenType::Identifier)
+            .then(|| self.peek_keyword())
+            .flatten();
+
+        // parse one ordinary type prefix
+        if let Some(operator) = TypePrefixOperator::from_token(token_type, keyword) {
+            let range = self.peek_token().range();
+            self.bump();
+
+            return Ok(Some(TypePrefix::Unary { operator, range }));
+        }
+
+        // parse one owned or borrowed reference prefix
+        if matches!(
+            token_type,
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd
+        ) {
+            let token = self.eat_reference_prefix_operator()?.token;
+            let mutability = Some(self.parse_reference_mutability());
+            let variance = self.parse_variance_bound_if_present();
+            let prefix = if token.is(TokenType::ElementwiseAnd) {
+                TypePrefix::Borrowed {
+                    mutability,
+                    variance,
+                    range: token.range(),
+                }
+            } else {
+                TypePrefix::Owned {
+                    mutability,
+                    variance,
+                    range: token.range(),
+                }
+            };
+
+            return Ok(Some(prefix));
+        }
+
+        // parse one pointer prefix
+        if token_type == TokenType::Multiply {
+            let range = self.peek_token().range();
+            self.bump();
+            let mutability = Some(self.parse_reference_mutability());
+
+            return Ok(Some(TypePrefix::Pointer { mutability, range }));
+        }
+
+        Ok(None)
+    }
+
+    /// Fold one consumed type prefix around its operand.
+    fn insert_type_prefix(
+        &mut self,
+        prefix: TypePrefix,
+        target_type: LocalNodeId<TypeExpression>,
+    ) -> LocalNodeId<TypeExpression> {
+        let (ty, operator_range) = match prefix {
+            TypePrefix::Unary { operator, range } => {
+                let ty = match operator {
+                    TypePrefixOperator::Keyof => TypeExpression::KeyOf { target_type },
+                    TypePrefixOperator::Readonly => TypeExpression::Readonly { target_type },
+                    TypePrefixOperator::Local => TypeExpression::Local { target_type },
+                    TypePrefixOperator::Shared => TypeExpression::Shared { target_type },
+                    TypePrefixOperator::Not => TypeExpression::Not { target_type },
+                };
+
+                (ty, range)
+            }
+            TypePrefix::Owned {
+                mutability,
+                variance,
+                range,
+            } => (
+                TypeExpression::OwnedOf {
+                    mutability,
+                    variance,
+                    target_type,
+                },
+                range,
+            ),
+            TypePrefix::Borrowed {
+                mutability,
+                variance,
+                range,
+            } => (
+                TypeExpression::BorrowedOf {
+                    mutability,
+                    variance,
+                    target_type,
+                },
+                range,
+            ),
+            TypePrefix::Pointer { mutability, range } => (
+                TypeExpression::PointerOf {
+                    mutability,
+                    target_type,
+                },
+                range,
+            ),
+        };
+        let target_range = self.tree.get_range(target_type);
+        let source_range = ByteRange {
+            start: operator_range.start,
+            end: target_range.end,
+        };
+        let ty = self.insert_node(ty, source_range);
+        self.tree.set_main_range(ty, operator_range);
+
+        ty
+    }
+
+    /// Parse one primary type without prefix or postfix operations.
+    fn parse_type_primary(
+        &mut self,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         match self.peek_token_type() {
-            TokenType::Identifier => self.eat_identifier_type_primary(start),
-            TokenType::Not => self.eat_type_prefix(start, TypeUnaryOperator::Not),
-            TokenType::OpenParenthesis if self.can_start_parenthesized_function_type() => {
-                self.eat_function_type_expression(start, DeclarationHeader::default())
+            TokenType::Identifier => self.parse_identifier_type_primary(start, context),
+            TokenType::OpenParenthesis if self.peek_parenthesized_function_type(context) => {
+                self.parse_function_type(start, DeclarationHeader::default(), context)
             }
-            TokenType::OpenParenthesis => self.eat_parenthesized_type(start),
-            TokenType::LessThan if self.peek_generic_arrow_after_type_parameters(false) => {
-                self.eat_function_type_expression(start, DeclarationHeader::default())
+            TokenType::OpenParenthesis => self.parse_parenthesized_type(start, context),
+            TokenType::LessThan if self.peek_generic_function_type() => {
+                self.parse_function_type(start, DeclarationHeader::default(), context)
             }
-            TokenType::OpenBracket => self.eat_bracket_type(start),
-            TokenType::OpenBrace => self.eat_type_object_primary(start),
-            TokenType::ElementwiseOr => {
-                self.eat_type_leading_binary_list(start, BinaryOperator::ElementwiseOr)
-            }
+            TokenType::OpenBracket => self.parse_bracket_type(start, context),
+            TokenType::OpenBrace => self.parse_object_type_primary(start, context),
+            TokenType::ElementwiseOr => self.parse_leading_type_list(context, TypeOperator::Union),
             TokenType::TemplateString | TokenType::TemplateStringStart
-                if self.is_template_literal_start() =>
+                if self.peek_template_literal_start() =>
             {
-                self.eat_type_template_literal_expression()
+                self.parse_type_template_literal(context)
             }
-            TokenType::Add | TokenType::Subtract => self.eat_type_signed_scalar_primary(start),
-            TokenType::Literal if self.is_scalar_literal_start() => {
-                let value = self.eat_scalar_literal()?;
+            TokenType::Add | TokenType::Subtract => self.parse_signed_type_literal(start),
+            TokenType::Literal if self.peek_scalar_literal_start() => {
+                let value = self.parse_scalar_literal()?;
 
                 Ok(self.insert_node(
                     TypeExpression::ScalarLiteral { value },
-                    self.get_span_from(start),
+                    self.range_since(start),
                 ))
             }
-            TokenType::Range | TokenType::RangeInclusive => self.eat_type_startless_range(start),
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd => {
-                self.eat_type_reference_operator(start)
+            TokenType::Range | TokenType::RangeInclusive => {
+                self.parse_startless_range_type(start, context)
             }
-            TokenType::Multiply => self.eat_type_pointer_prefix(start),
-            _ => Err(ParserError::unexpected(self.peek())),
+            _ => Err(ParserError::unexpected(self.peek_token_span())),
         }
     }
 
-    /// Eat an identifier or keyword primary in type space.
-    ///
-    /// Examples:
-    /// ```ds
-    /// User
-    /// keyof T
-    /// type Alias = string
-    /// ```
-    fn eat_identifier_type_primary(
+    /// Parse one identifier-shaped primary type.
+    fn parse_identifier_type_primary(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        if self.can_start_construct_type_expression() {
-            return self.eat_function_type_expression(start, DeclarationHeader::default());
+        if self.peek_construct_type() {
+            return self.parse_function_type(start, DeclarationHeader::default(), context);
         }
-
-        if let Some(operator) = self.peek_type_unary_prefix_operator_maybe() {
-            return self.eat_type_prefix(start, operator);
-        }
-
-        if let Some(keyword) = self.current_keyword()
-            && let Some(type_expression_id) = self.eat_type_keyword_expression(start, keyword)?
+        if let Some(keyword) = self.peek_keyword()
+            && let Some(ty) = self.parse_type_keyword_expression(start, keyword, context)?
         {
-            return Ok(type_expression_id);
+            return Ok(ty);
         }
 
-        self.eat_type_reference_primary(start)
+        self.parse_type_reference(start, context)
     }
 
-    /// Eat a literal signed by the current token when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// -1
-    /// +1
-    /// -3.14
-    /// ```
-    fn eat_type_signed_scalar_primary(
+    /// Parse one object or mapped primary type.
+    fn parse_object_type_primary(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let Some(operator) = self.peek_unary_prefix_operator_maybe() else {
-            return Err(ParserError::unexpected(self.peek()));
+        if self.peek_mapped_type() {
+            return self.parse_mapped_type(context);
+        }
+
+        let members = self.parse_type_object_literal(context.function)?;
+
+        Ok(self.insert_node(TypeExpression::Object { members }, self.range_since(start)))
+    }
+
+    /// Parse a scalar literal with one explicit sign.
+    fn parse_signed_type_literal(
+        &mut self,
+        start: &ParseStart,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        let Some(operator) = UnaryOperator::from_prefix_token(self.peek_token_type()) else {
+            return Err(ParserError::unexpected(self.peek_token_span()));
         };
         if !matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate) {
-            return Err(ParserError::unexpected(self.peek()));
+            return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
         self.bump();
-        let value = self.eat_scalar_literal()?;
+        let value = self.parse_scalar_literal()?;
         let value = match (operator, value) {
             (UnaryOperator::Negate, ScalarLiteral::Integer(number)) => {
                 ScalarLiteral::Integer(-number)
@@ -122,227 +297,93 @@ impl Parser {
 
         Ok(self.insert_node(
             TypeExpression::ScalarLiteral { value },
-            self.get_span_from(start),
+            self.range_since(start),
         ))
     }
 
-    /// Parse an object primary in type space.
-    ///
-    /// Examples:
-    /// ```ds
-    /// { id: string }
-    /// { readonly [K in keyof T]?: T[K] }
-    /// { call(value: string): number }
-    /// ```
-    fn eat_type_object_primary(
+    /// Parse a type list with one leading separator.
+    fn parse_leading_type_list(
         &mut self,
-        start: &ParserSpanStart,
+        context: TypeContext,
+        operator: TypeOperator,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        if self.can_start_type_mapped_expression() {
-            return self.eat_type_mapped_expression();
-        }
-
-        let flags = self.flags.not_in_position();
-        let members = self.with_flags(flags, |parser| parser.eat_type_object_literal())?;
-
-        Ok(self.insert_node(
-            TypeExpression::Object { members },
-            self.get_span_from(start),
-        ))
-    }
-
-    /// Parse a pointer type prefix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// *T
-    /// *mut T
-    /// *shared Node
-    /// ```
-    fn eat_type_pointer_prefix(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let operator_start = self.span_start();
+        let operator_range = self.peek_token().range();
         self.bump();
-        let operator_span = self.get_span_from(&operator_start);
-
-        let mutability = self.eat_reference_mutability_maybe()?;
-        let target_type = self.eat_type_prefix_operand(OperatorPrecedence::Prefix as u16)?;
-
-        let id = self.insert_node(
-            TypeExpression::PointerOf {
-                mutability,
-                target_type,
-            },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(id, operator_span);
-
-        Ok(id)
-    }
-
-    /// Parse a type list with a leading separator.
-    ///
-    /// Examples:
-    /// ```ds
-    /// | A
-    /// | A | B
-    /// & A & B
-    /// ```
-    fn eat_type_leading_binary_list(
-        &mut self,
-        start: &ParserSpanStart,
-        operator: BinaryOperator,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut elements = Vec::new();
-        let minimum_precedence = operator.precedence();
-        let operator_span = start.token_span(self.file_id);
+        let first = self.parse_type(context.right(operator.precedence()))?;
+        let mut last = first;
+        elements.push(first);
 
-        // elements
-        while matches!(
-            (self.peek_token_type(), operator),
-            (TokenType::ElementwiseOr, BinaryOperator::ElementwiseOr)
-                | (TokenType::ElementwiseAnd, BinaryOperator::ElementwiseAnd)
-        ) {
-            let element = self.eat_type_leading_binary_element(minimum_precedence)?;
+        while self.peek_is(TokenType::ElementwiseOr) {
+            self.bump();
+            let element = self.parse_type(context.right(operator.precedence()))?;
+            last = element;
             elements.push(element);
         }
 
-        // node
-        let first_element = elements.first().copied();
-        let source_span = if let (Some(first), Some(last)) = (elements.first(), elements.last()) {
-            let first_span = self.tree.get_span(*first);
-            let last_span = self.tree.get_span(*last);
-
-            Span::new(first_span.file, first_span.start, last_span.end)
-        } else {
-            self.get_span_from(start)
+        let first_range = self.tree.get_range(first);
+        let last_range = self.tree.get_range(last);
+        let source_range = ByteRange {
+            start: first_range.start,
+            end: last_range.end,
         };
-        let expression = if operator == BinaryOperator::ElementwiseOr {
+        let ty = if operator == TypeOperator::Union {
             TypeExpression::Union { elements }
         } else {
             TypeExpression::Intersection { elements }
         };
-        let id = self.insert_node(expression, source_span);
+        let ty = self.insert_node(ty, source_range);
+        self.tree
+            .set_head_range(ty, self.type_expression_head_range(first));
+        self.tree.set_side_range(
+            ty,
+            NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+            ByteRange {
+                start: operator_range.start,
+                end: first_range.start,
+            },
+        );
+        self.tree.set_side_range(
+            ty,
+            NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
+            operator_range,
+        );
 
-        // spans
-        if let Some(first) = first_element {
-            let head_span = self.type_expression_head_span(first);
-            self.tree.set_head_span(id, head_span);
-            self.tree.set_side_span(
-                id,
-                NodeSpanType::Boundary(NodeSpanBoundary::Leading),
-                Span::new(source_span.file, start.token_start(), source_span.start),
-            );
-            self.tree.set_side_span(
-                id,
-                NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
-                operator_span,
-            );
-        }
-
-        Ok(id)
+        Ok(ty)
     }
 
-    /// Parse one element in a leading type binary list.
-    ///
-    /// Examples:
-    /// ```ds
-    /// | A
-    /// | readonly A
-    /// | A<T>
-    /// ```
-    fn eat_type_leading_binary_element(
+    /// Parse one startless range type.
+    fn parse_startless_range_type(
         &mut self,
-        minimum_precedence: u16,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        self.bump();
-        let flags = self
-            .flags
-            .not_in_position()
-            .in_type()
-            .disallow_type_conditional();
-        let scope = TypeScope::from_flags(flags).at_precedence(Some(minimum_precedence));
-
-        // recover a missing leading binary operand
-        if self.is_type_expression_recovery_boundary() {
-            return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
-        }
-
-        self.with_recursive_descent(NodeType::TypeExpression, |parser| {
-            parser.eat_type_operand(scope)
-        })
-    }
-
-    /// Parse one type prefix operator.
-    ///
-    /// Examples:
-    /// ```ds
-    /// keyof T
-    /// readonly T
-    /// local shared T
-    /// ```
-    pub(crate) fn eat_type_prefix(
-        &mut self,
-        start: &ParserSpanStart,
-        operator: TypeUnaryOperator,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let operator_start = self.span_start();
-        self.bump();
-        let operator_span = self.get_span_from(&operator_start);
-        let target_type = self.eat_type_prefix_operand(operator.precedence())?;
-
-        let expression = match operator {
-            TypeUnaryOperator::Keyof => TypeExpression::KeyOf { target_type },
-            TypeUnaryOperator::Readonly => TypeExpression::Readonly { target_type },
-            TypeUnaryOperator::Local => TypeExpression::Local { target_type },
-            TypeUnaryOperator::Shared => TypeExpression::Shared { target_type },
-            TypeUnaryOperator::Not => TypeExpression::Not { target_type },
+        let operator_range = self.peek_token().range();
+        let end_kind = if self.peek_is(TokenType::RangeInclusive) {
+            RangeEnd::Inclusive
+        } else {
+            RangeEnd::Open
         };
+        self.bump();
+        let end = if self.peek_type_range_end_omitted() {
+            if end_kind == RangeEnd::Open {
+                None
+            } else {
+                Some(self.recover_missing_type_expression_here(NodeType::TypeExpression))
+            }
+        } else {
+            Some(self.parse_type(context.right(OperatorPrecedence::Range))?)
+        };
+        let ty = self.insert_node(
+            TypeExpression::Range {
+                start: None,
+                end,
+                end_kind,
+            },
+            self.range_since(start),
+        );
+        self.tree.set_main_range(ty, operator_range);
 
-        let id = self.insert_node(expression, self.get_span_from(start));
-        self.tree.set_main_span(id, operator_span);
-
-        Ok(id)
-    }
-
-    /// Parse the operand after one type prefix operator.
-    ///
-    /// Examples:
-    /// ```ds
-    /// T
-    /// keyof T
-    /// Array<T>
-    /// ```
-    fn eat_type_prefix_operand(
-        &mut self,
-        minimum_precedence: u16,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let flags = self.type_nested_flags();
-        let scope = TypeScope::from_flags(flags).at_precedence(Some(minimum_precedence));
-
-        // recover a missing prefix operand
-        if self.is_type_expression_recovery_boundary() {
-            return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
-        }
-
-        self.with_recursive_descent(NodeType::TypeExpression, |parser| {
-            parser.eat_type_operand(scope)
-        })
-    }
-
-    /// Return whether a type can receive tagged object literal construction.
-    pub(crate) fn can_start_tagged_object_literal_type(
-        &self,
-        type_expression_id: LocalNodeId<TypeExpression>,
-    ) -> bool {
-        matches!(
-            self.tree.get(type_expression_id),
-            TypeExpression::Reference { .. }
-                | TypeExpression::Member { .. }
-                | TypeExpression::Function(_)
-                | TypeExpression::Constructor(_)
-        )
+        Ok(ty)
     }
 }

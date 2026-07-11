@@ -1,11 +1,12 @@
-use crate::parse::DeclarationHeader;
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::parse::PathGrammar;
+use crate::parse::context::{ExpressionContext, ExpressionMode, TypeContext};
+use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
     Expression, InferForm, Keyword, LocalNodeId, NodeType, Path, TokenType, TypeExpression,
     TypeLiteral,
 };
-use destack_source::{NodeSpanList, NodeSpanType, Span};
+use destack_source::{ByteRange, NodeSpanList, NodeSpanType};
 use smallvec::SmallVec;
 
 impl Parser {
@@ -17,35 +18,31 @@ impl Parser {
     /// this
     /// infer U
     /// ```
-    pub(super) fn eat_type_reference_primary(
+    pub(super) fn parse_type_reference(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // infer hole
-        if self.current_token_starts_infer_hole() {
-            return Ok(self.eat_type_infer_hole(start));
+        if self.peek_identifier_is("_") {
+            return Ok(self.parse_type_infer_hole(start));
         }
 
         // keyword identifiers
-        if let Some(type_expression) = self.eat_type_identifier_keyword(start)? {
+        if let Some(type_expression) = self.parse_type_identifier_keyword(start, context)? {
             return Ok(type_expression);
         }
 
         // literal types
-        if let Some(type_expression) = self.eat_type_literal_primary(start)? {
+        if let Some(type_expression) = self.parse_type_literal_primary(start)? {
             return Ok(type_expression);
         }
 
         // path reference
-        self.eat_type_path_reference(start)
+        self.parse_type_path_reference(start, context)
     }
 
-    /// Return whether the current token starts a Destack infer hole.
-    fn current_token_starts_infer_hole(&self) -> bool {
-        self.current_identifier_str_is("_")
-    }
-
-    /// Eat a Destack infer hole.
+    /// Parse a Destack infer hole.
     ///
     /// Examples:
     /// ```ds
@@ -53,11 +50,11 @@ impl Parser {
     /// _[]
     /// Promise<_>
     /// ```
-    pub(super) fn eat_type_infer_hole(
+    pub(super) fn parse_type_infer_hole(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
     ) -> LocalNodeId<TypeExpression> {
-        let name_span = self.current_token().span(self.file_id);
+        let name_range = self.peek_token().range();
         self.bump();
         let id = self.insert_node(
             TypeExpression::Infer {
@@ -65,14 +62,14 @@ impl Parser {
                 name: None,
                 constraint: None,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         );
-        self.tree.set_main_span(id, name_span);
+        self.tree.set_main_range(id, name_range);
 
         id
     }
 
-    /// Eat type primary keywords that appear in identifier position.
+    /// Parse type primary keywords that appear in identifier position.
     ///
     /// Examples:
     /// ```ds
@@ -80,35 +77,35 @@ impl Parser {
     /// infer T
     /// intrinsic
     /// ```
-    fn eat_type_identifier_keyword(
+    fn parse_type_identifier_keyword(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        if self.current_keyword() == Some(Keyword::This) {
+        if self.peek_keyword() == Some(Keyword::This) {
             self.bump();
             return Ok(Some(
-                self.insert_node(TypeExpression::This, self.get_span_from(start)),
+                self.insert_node(TypeExpression::This, self.range_since(start)),
             ));
         }
 
-        if self.current_keyword() == Some(Keyword::Infer) {
-            return self.eat_type_infer_expression().map(Some);
+        if self.peek_keyword() == Some(Keyword::Infer) {
+            return self.parse_type_infer(context).map(Some);
         }
 
-        if self.current_identifier_str_is("intrinsic")
-            && Self::is_type_expression_boundary_token(self.next_token_type())
+        if self.peek_identifier_is("intrinsic")
+            && Self::is_type_expression_boundary_token(self.peek_next_token_type())
         {
             self.bump();
-            return Ok(Some(self.insert_node(
-                TypeExpression::Intrinsic,
-                self.get_span_from(start),
-            )));
+            return Ok(Some(
+                self.insert_node(TypeExpression::Intrinsic, self.range_since(start)),
+            ));
         }
 
         Ok(None)
     }
 
-    /// Eat a literal type primary when present.
+    /// Parse a literal type primary when present.
     ///
     /// Examples:
     /// ```ds
@@ -116,24 +113,24 @@ impl Parser {
     /// undefined
     /// "open"
     /// ```
-    fn eat_type_literal_primary(
+    fn parse_type_literal_primary(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        let Some(literal) = self.peek_type_literal().ok() else {
+        if self.peek_type_literal().is_none() {
             return Ok(None);
-        };
+        }
 
-        let literal = self.eat_type_literal(Some(literal))?;
+        let literal = self.parse_type_literal()?;
         let type_expression = self.insert_node(
             TypeExpression::Literal { value: literal },
-            self.get_span_from(start),
+            self.range_since(start),
         );
 
         Ok(Some(type_expression))
     }
 
-    /// Eat a path reference type.
+    /// Parse a path reference type.
     ///
     /// Examples:
     /// ```ds
@@ -141,31 +138,32 @@ impl Parser {
     /// namespace.User
     /// Result<string, Error>
     /// ```
-    fn eat_type_path_reference(
+    fn parse_type_path_reference(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let (first, first_span) = self.eat_identifier_with_span()?;
+        let (first, first_range) = self.eat_identifier_with_range()?;
 
-        if !self.path_continues_to_identifier(false) {
-            return self.eat_single_segment_type_path_reference(start, first, first_span);
+        if !self.peek_path_continuation(PathGrammar::Regular) {
+            return self.parse_single_type_reference(start, first, first_range, context);
         }
 
         let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
-        let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
+        let mut segment_ranges: SmallVec<[ByteRange; 3]> = SmallVec::new();
         segments.push(first);
-        segment_spans.push(first_span);
+        segment_ranges.push(first_range);
 
-        while self.path_continues_to_identifier(false) {
+        while self.peek_path_continuation(PathGrammar::Regular) {
             self.bump();
-            let (segment, segment_span) = self.eat_identifier_with_span()?;
+            let (segment, segment_range) = self.eat_identifier_with_range()?;
             segments.push(segment);
-            segment_spans.push(segment_span);
+            segment_ranges.push(segment_range);
         }
 
         let path = Path { segments };
-        let generic_arguments = if self.type_generic_arguments_start_here() {
-            self.eat_type_generic_arguments()?
+        let generic_arguments = if self.peek_type_generic_arguments() {
+            self.parse_type_generic_arguments(context)?
         } else {
             Vec::new()
         };
@@ -174,14 +172,14 @@ impl Parser {
                 path,
                 generic_arguments,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         );
-        self.set_path_type_expression_spans(id, &segment_spans)?;
+        self.record_type_path(id, &segment_ranges)?;
 
         Ok(id)
     }
 
-    /// Eat a single-segment path reference type.
+    /// Parse a single-segment path reference type.
     ///
     /// Examples:
     /// ```ds
@@ -189,17 +187,18 @@ impl Parser {
     /// Result<T>
     /// Promise<string>
     /// ```
-    fn eat_single_segment_type_path_reference(
+    fn parse_single_type_reference(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         segment: StringId,
-        segment_span: Span,
+        segment_range: ByteRange,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
         segments.push(segment);
 
-        let generic_arguments = if self.type_generic_arguments_start_here() {
-            self.eat_type_generic_arguments()?
+        let generic_arguments = if self.peek_type_generic_arguments() {
+            self.parse_type_generic_arguments(context)?
         } else {
             Vec::new()
         };
@@ -209,20 +208,20 @@ impl Parser {
                 path: Path { segments },
                 generic_arguments,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         );
-        self.tree.set_main_span(id, segment_span);
+        self.tree.set_main_range(id, segment_range);
 
         Ok(id)
     }
 
     /// Return whether type generic arguments start here.
     #[inline]
-    pub(crate) fn type_generic_arguments_start_here(&mut self) -> bool {
+    pub(crate) fn peek_type_generic_arguments(&self) -> bool {
         matches!(
             self.peek_token_type(),
             TokenType::LessThan | TokenType::ShiftLeft
-        ) && !self.current_token_is_on_new_line()
+        ) && !self.peek_is_on_new_line()
     }
 
     /// Parse type keyword dispatch.
@@ -233,23 +232,23 @@ impl Parser {
     /// interface Shape { id: string }
     /// typeof value
     /// ```
-    pub(super) fn eat_type_keyword_expression(
+    pub(super) fn parse_type_keyword_expression(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         keyword: Keyword,
+        context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        let header = DeclarationHeader::default();
         let type_expression = match keyword {
             Keyword::Type | Keyword::Newtype | Keyword::Readonly => {
-                Some(self.eat_type(start, header)?)
+                Some(self.parse_type_declaration(start, context)?)
             }
             Keyword::Const => {
                 self.bump();
-                Some(self.insert_node(TypeExpression::Const, self.get_span_from(start)))
+                Some(self.insert_node(TypeExpression::Const, self.range_since(start)))
             }
             Keyword::This => {
                 self.bump();
-                Some(self.insert_node(TypeExpression::This, self.get_span_from(start)))
+                Some(self.insert_node(TypeExpression::This, self.range_since(start)))
             }
             Keyword::Null => {
                 self.bump();
@@ -257,7 +256,7 @@ impl Parser {
                     TypeExpression::Literal {
                         value: TypeLiteral::Null,
                     },
-                    self.get_span_from(start),
+                    self.range_since(start),
                 ))
             }
             Keyword::Undefined => {
@@ -266,11 +265,11 @@ impl Parser {
                     TypeExpression::Literal {
                         value: TypeLiteral::Undefined,
                     },
-                    self.get_span_from(start),
+                    self.range_since(start),
                 ))
             }
-            Keyword::Infer => Some(self.eat_type_infer_expression()?),
-            Keyword::Typeof => Some(self.eat_typeof_query(start)?),
+            Keyword::Infer => Some(self.parse_type_infer(context)?),
+            Keyword::Typeof => Some(self.parse_typeof_query(start, context)?),
             _ => None,
         };
 
@@ -285,17 +284,18 @@ impl Parser {
     /// typeof namespace.value
     /// typeof infer T
     /// ```
-    fn eat_typeof_query(
+    fn parse_typeof_query(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_keyword(Keyword::Typeof)?;
-        let value = self.eat_typeof_query_value()?;
+        let value = self.parse_typeof_query_value(context)?;
 
-        Ok(self.insert_node(TypeExpression::TypeOf { value }, self.get_span_from(start)))
+        Ok(self.insert_node(TypeExpression::TypeOf { value }, self.range_since(start)))
     }
 
-    /// Eat the value operand of a `typeof` type query.
+    /// Parse the value operand of a `typeof` type query.
     ///
     /// Examples:
     /// ```ds
@@ -303,27 +303,31 @@ impl Parser {
     /// namespace.value
     /// call().result
     /// ```
-    fn eat_typeof_query_value(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        if self.current_keyword() == Some(Keyword::Infer) {
-            let type_expression = self.eat_type_expression()?;
+    fn parse_typeof_query_value(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        if self.peek_keyword() == Some(Keyword::Infer) {
+            let type_expression = self.parse_type(context.nested())?;
 
             return Ok(self.insert_type_expression_value(type_expression));
         }
 
         if self.peek_is(TokenType::Identifier) {
-            return self.eat_typeof_reference_value();
+            return self.parse_typeof_reference_value(context);
         }
 
-        let value_flags = self
-            .flags
-            .not_in_position()
-            .with_type(false)
-            .in_typeof_query();
-
-        self.eat_expression_or_recover_missing(value_flags, NodeType::Expression)
+        self.parse_expression_or_recover_missing(
+            ExpressionContext {
+                function: context.function,
+                mode: ExpressionMode::TypeofQuery,
+                ..ExpressionContext::default()
+            },
+            NodeType::Expression,
+        )
     }
 
-    /// Eat an identifier or member path in a `typeof` type query.
+    /// Parse an identifier or member path in a `typeof` type query.
     ///
     /// Examples:
     /// ```ds
@@ -332,27 +336,30 @@ impl Parser {
     /// namespace.value.member
     /// namespace.value<T>
     /// ```
-    fn eat_typeof_reference_value(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
-        let mut value = self.eat_identifier_expression_path(&start)?;
+    fn parse_typeof_reference_value(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
+        let mut value = self.parse_identifier_expression(&start)?;
 
-        while self.current_token_continues_typeof_reference() {
+        while self.peek_typeof_reference_continuation() {
             self.bump();
             let name = self.eat_typeof_member_name()?;
             value = self.insert_node(
                 Expression::Member { left: value, name },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
         }
 
-        if self.type_generic_arguments_start_here() {
-            let generic_arguments = self.eat_type_generic_arguments()?;
+        if self.peek_type_generic_arguments() {
+            let generic_arguments = self.parse_type_generic_arguments(context)?;
             value = self.insert_node(
                 Expression::Instantiation {
                     left: value,
                     generic_arguments,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
         }
 
@@ -360,8 +367,8 @@ impl Parser {
     }
 
     /// Return whether the current token continues a typeof reference path.
-    fn current_token_continues_typeof_reference(&mut self) -> bool {
-        !self.current_token_is_on_new_line() && self.peek_is(TokenType::Dot)
+    fn peek_typeof_reference_continuation(&self) -> bool {
+        !self.peek_is_on_new_line() && self.peek_is(TokenType::Dot)
     }
 
     /// Eat an optional typeof member name after a dot.
@@ -374,37 +381,39 @@ impl Parser {
     /// ```
     fn eat_typeof_member_name(&mut self) -> ParserResult<Option<StringId>> {
         if self.peek_is(TokenType::Identifier) || self.peek_is(TokenType::Literal) {
-            return self.eat_member_name_with_span().map(|(name, _)| Some(name));
+            return self
+                .eat_member_name_with_range()
+                .map(|(name, _)| Some(name));
         }
 
         Ok(None)
     }
 
-    /// Set path spans for a type reference.
-    fn set_path_type_expression_spans(
+    /// Record path source regions for one type reference.
+    fn record_type_path(
         &mut self,
         type_expression_id: LocalNodeId<TypeExpression>,
-        segment_spans: &[Span],
+        segment_ranges: &[ByteRange],
     ) -> ParserResult<()> {
-        if let Some(last) = segment_spans.last().copied() {
-            self.tree.set_main_span(type_expression_id, last);
+        if let Some(last) = segment_ranges.last().copied() {
+            self.tree.set_main_range(type_expression_id, last);
         }
-        if segment_spans.len() <= 1 {
+        if segment_ranges.len() <= 1 {
             return Ok(());
         }
 
-        if let Some(first) = segment_spans.first().copied() {
-            self.tree.set_head_span(type_expression_id, first);
+        if let Some(first) = segment_ranges.first().copied() {
+            self.tree.set_head_range(type_expression_id, first);
         }
 
-        for (index, span) in segment_spans.iter().copied().enumerate() {
+        for (index, range) in segment_ranges.iter().copied().enumerate() {
             let Ok(index) = u16::try_from(index) else {
-                return Err(ParserError::unexpected(span));
+                return Err(ParserError::unexpected(range));
             };
-            self.tree.set_side_span(
+            self.tree.set_side_range(
                 type_expression_id,
                 NodeSpanType::ListItem(NodeSpanList::Segment, index),
-                span,
+                range,
             );
         }
 

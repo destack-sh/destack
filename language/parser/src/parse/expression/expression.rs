@@ -1,533 +1,449 @@
-use crate::parse::flags::ParserFlags;
-use crate::parse::scope::ExpressionScope;
-use crate::parse::{
-    DeclarationHeader, PendingDecorators, is_declaration_keyword, is_type_relation_keyword,
+use crate::parse::context::{
+    DecoratorContext, ExpressionContext, ExpressionMode, ExpressionStops, StatementPosition,
+    TypeContext,
 };
-use crate::{Parser, ParserResult, ParserSpanStart};
-use destack_core::StringId;
+use crate::parse::expression::operator::ExpressionOperator;
+use crate::{Parser, ParserResult};
 use destack_dir::{
-    Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, ExportKind,
-    Expression, Keyword, LocalNodeId, NodeType, TokenLiteral, TokenType, TypeExpression,
+    BinaryOperator, Condition, Expression, IfForm, LocalNodeId, NodeType, OperatorPrecedence,
+    RangeEnd, TokenType,
 };
-use destack_source::Span;
-use std::mem;
+use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use smallvec::{SmallVec, smallvec};
+
+/// One right associative value operation awaiting its final right operand.
+struct ExpressionInfix {
+    /// The left operand.
+    left: LocalNodeId<Expression>,
+    /// The infix operator.
+    operator: ExpressionOperator,
+    /// The operator source range.
+    range: ByteRange,
+}
+
+/// One conditional expression branch awaiting its final false branch.
+struct ConditionalExpressionBranch {
+    /// The branch condition.
+    condition: LocalNodeId<Expression>,
+    /// The true branch expression.
+    then_expression: LocalNodeId<Expression>,
+    /// The question mark source range.
+    question: ByteRange,
+    /// The colon source range or recovery anchor.
+    colon: ByteRange,
+}
 
 impl Parser {
-    /// Insert one explicit `Expression::Type` wrapper.
-    pub(crate) fn insert_type_expression_value(
-        &mut self,
-        type_expression_id: LocalNodeId<TypeExpression>,
-    ) -> LocalNodeId<Expression> {
-        let expression_id = self.insert_node(
-            Expression::Type {
-                value: type_expression_id,
-            },
-            self.tree.get_span(type_expression_id),
-        );
-        if let Some(span) = self.tree.get_main_span(type_expression_id) {
-            self.tree.set_main_span(expression_id, span);
-        }
-        if let Some(span) = self.tree.get_head_span(type_expression_id) {
-            self.tree.set_head_span(expression_id, span);
-        }
-
-        expression_id
-    }
-
-    /// Eat an expression with an explicit minimum infix precedence.
+    /// Parse one complete value expression.
     ///
     /// Examples:
     /// ```ds
-    /// left * right
-    /// left as Type
-    /// left satisfies Constraint
+    /// left + right * 2
     /// ```
-    pub(crate) fn eat_expression_at_precedence(
+    pub(crate) fn parse_expression(
         &mut self,
-        flags: ParserFlags,
-        minimum_precedence: u16,
+        context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let scope = ExpressionScope::from_flags(flags).at_precedence(Some(minimum_precedence));
-
         self.with_recursive_descent(NodeType::Expression, |parser| {
-            parser.eat_expression_scope(scope)
+            parser.parse_expression_after_descent(context)
         })
     }
 
-    /// Eat an expression using the given scope.
-    ///
-    /// Examples:
-    /// ```ds
-    /// call(argument)
-    /// await load()
-    /// match value { case => result }
-    /// ```
-    pub(crate) fn eat_expression(
+    /// Parse one value expression after entering recursive descent state.
+    fn parse_expression_after_descent(
         &mut self,
-        flags: ParserFlags,
+        context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let scope = ExpressionScope::from_flags(flags);
-
-        self.with_recursive_descent(NodeType::Expression, |parser| {
-            parser.eat_expression_scope(scope)
-        })
-    }
-
-    /// Eat one parenthesized expression and return its expression node.
-    ///
-    /// Examples:
-    /// ```ds
-    /// (value)
-    /// (value + other)
-    /// (condition ? yes : no)
-    /// ```
-    pub(crate) fn eat_parenthesized_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let expression_id = self.eat_expression(self.flags)?;
-        self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
-
-        Ok(expression_id)
-    }
-
-    /// Parse a plain identifier expression without consuming unrelated syntax when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value
-    /// namespace.value
-    /// module { export const value = 1 }
-    /// ```
-    pub(crate) fn eat_plain_identifier_expression(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if self.peek_token_type() != TokenType::Identifier || self.current_keyword().is_some() {
-            return Ok(None);
-        }
-
-        if self.is_module_identifier() && self.next_token_type() == TokenType::OpenBrace {
-            self.bump();
-            let declaration = self.eat_module_body(start)?;
-            return Ok(Some(self.insert_node(
-                Expression::Declaration(declaration),
-                self.get_span_from(start),
-            )));
-        }
-
-        if self.is_global_identifier() && self.next_token_type() == TokenType::OpenBrace {
-            let header = DeclarationHeader {
-                is_ambient: self.is_ambient,
-                ..DeclarationHeader::default()
+        // parse decorators only at their owning expression level
+        let decorators =
+            if context.decorator == DecoratorContext::None && self.peek_is(TokenType::At) {
+                Some(self.parse_decorators(context.function))
+            } else {
+                None
             };
-            self.bump();
-            let declaration = self.eat_global_body(start, header)?;
-            return Ok(Some(self.insert_node(
-                Expression::Declaration(declaration),
-                self.get_span_from(start),
-            )));
-        }
 
-        // let identifier-arrow parsing claim the head
-        if self.next_token_type() == TokenType::ArrowWide {
-            return Ok(None);
-        }
-
-        let expression_id = self.eat_identifier_expression_path(start)?;
-        let expression_id = self.eat_expression_continuation(start, expression_id, false)?;
-
-        Ok(Some(expression_id))
-    }
-
-    /// Eat one identifier path expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// namespace.value
-    /// value
-    /// module.value.member
-    /// ```
-    pub(crate) fn eat_identifier_expression_path(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let (name, name_span) = self.eat_identifier_with_span()?;
-
-        Ok(self.insert_identifier_expression(start, name, name_span))
-    }
-
-    /// Insert one already consumed identifier expression.
-    pub(in crate::parse::expression) fn insert_identifier_expression(
-        &mut self,
-        start: &ParserSpanStart,
-        name: StringId,
-        name_span: Span,
-    ) -> LocalNodeId<Expression> {
-        let expression = Expression::Identifier { name };
-        let expression_id = self.insert_node(expression, self.get_span_from(start));
-        self.tree.set_main_span(expression_id, name_span);
-
-        expression_id
-    }
-
-    /// Parse expression continuation after an already parsed left value.
-    ///
-    /// Examples:
-    /// ```ds
-    /// .member(argument)
-    /// [index]!
-    /// <T>(argument)
-    /// ```
-    pub(crate) fn eat_expression_continuation(
-        &mut self,
-        start: &ParserSpanStart,
-        left_expression_id: LocalNodeId<Expression>,
-        left_is_parenthesized: bool,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let scope = ExpressionScope::from_flags(self.flags);
-        let (left_expression_id, _) =
-            self.eat_postfix(start, left_expression_id, left_is_parenthesized, scope)?;
-        let left_expression_id = self.eat_binary_rest(start, left_expression_id, scope)?;
-        let left_expression_id = self.eat_conditional_rest(start, left_expression_id, scope)?;
-        let left_expression_id = self.eat_assignment_rest(start, left_expression_id, scope)?;
-
-        Ok(left_expression_id)
-    }
-
-    /// Eat one complete value expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// left ? then : else
-    /// target = value
-    /// ```
-    pub(super) fn eat_expression_body(
-        &mut self,
-        scope: ExpressionScope,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
-        if !self.flags.is_in_decorator() && self.peek_is(TokenType::At) {
-            return self.eat_decorated_expression(&start, scope);
-        }
-
-        self.eat_assignment(&start, scope)
-    }
-
-    /// Eat an expression with leading decorators.
-    #[cold]
-    fn eat_decorated_expression(
-        &mut self,
-        start: &ParserSpanStart,
-        scope: ExpressionScope,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let mut decorators = self.eat_decorators_maybe()?;
-        let expression_id = self.eat_assignment(start, scope)?;
-        let expression_id = self.wrap_decorated_default_export(start, expression_id, &decorators);
-        self.attach_pending_decorators_to_expression(&mut decorators, expression_id);
-
-        Ok(expression_id)
-    }
-
-    /// Eat one complete expression under an explicit parser scope.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value + other
-    /// target = value
-    /// condition ? yes : no
-    /// ```
-    pub(super) fn eat_expression_scope(
-        &mut self,
-        scope: ExpressionScope,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        self.with_flags(scope.flags, |parser| parser.eat_expression_body(scope))
-    }
-
-    /// Eat one operator operand under an explicit expression scope.
-    ///
-    /// Examples:
-    /// ```ds
-    /// right * other
-    /// call(argument)
-    /// value as Type
-    /// ```
-    pub(super) fn eat_value_operand(
-        &mut self,
-        scope: ExpressionScope,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        self.with_flags(scope.flags, |parser| {
-            let start = parser.span_start();
-
-            parser.eat_conditional(&start, scope)
-        })
-    }
-
-    /// Return whether object literal syntax is valid in statement position.
-    pub(crate) fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
-        if !self.flags.is_in_statement_position() {
-            return true;
-        }
-
-        if self.flags.is_in_before_block() {
-            return false;
-        }
-
-        let next_token = self.next_token();
-        if next_token.ty() == TokenType::Spread {
-            return true;
-        }
-
-        if next_token.ty() == TokenType::OpenBracket {
-            return self.bracket_key_starts_statement_object();
-        }
-
-        if !self.token_can_start_statement_object_key(next_token.ty()) {
-            return false;
-        }
-
-        if !self.literal_can_start_statement_object_key(next_token.ty(), next_token.literal()) {
-            return false;
-        }
-
-        let after_key_token_type = self.token_type_at_offset(2);
-        after_key_token_type == TokenType::Colon
-    }
-
-    /// Return whether a bracket key starts a statement object literal.
-    fn bracket_key_starts_statement_object(&mut self) -> bool {
-        self.lookahead(|parser| parser.scan_bracket_follow_token_at_offset(1))
-            == Some(TokenType::Colon)
-    }
-
-    /// Return whether a token can start a statement object key.
-    fn token_can_start_statement_object_key(&self, token_type: TokenType) -> bool {
-        matches!(token_type, TokenType::Identifier | TokenType::Literal)
-    }
-
-    /// Return whether a literal token can start a statement object key.
-    fn literal_can_start_statement_object_key(
-        &self,
-        token_type: TokenType,
-        literal: Option<TokenLiteral>,
-    ) -> bool {
-        if token_type != TokenType::Literal {
-            return true;
-        }
-
-        matches!(
-            literal,
-            Some(
-                TokenLiteral::String { .. } | TokenLiteral::Int { .. } | TokenLiteral::Float { .. }
-            )
-        )
-    }
-
-    /// Return true when a type-family keyword can begin a type form.
-    pub(super) fn keyword_begins_type_form(
-        &mut self,
-        keyword: Keyword,
-        next_token_type: TokenType,
-        next_is_on_new_line: bool,
-        next_keyword: Option<Keyword>,
-        following_token_type: TokenType,
-    ) -> bool {
-        if keyword == Keyword::Type && next_is_on_new_line {
-            return false;
-        }
-
-        if keyword == Keyword::Type
-            && self.flags.is_in_for_each()
-            && matches!(next_keyword, Some(Keyword::In | Keyword::Of))
-        {
-            return false;
-        }
-
-        let is_type_operator_value = keyword == Keyword::Type
-            && is_type_relation_keyword(next_keyword)
-            && !matches!(
-                following_token_type,
-                TokenType::Assign | TokenType::LessThan | TokenType::ShiftLeft
-            );
-        if is_type_operator_value {
-            return false;
-        }
-
-        matches!(
-            next_token_type,
-            TokenType::Identifier
-                | TokenType::OpenBrace
-                | TokenType::OpenParenthesis
-                | TokenType::OpenBracket
-                | TokenType::Literal
-        )
-    }
-
-    /// Return true when a declaration descriptor starts here.
-    pub(crate) fn should_parse_declaration_descriptor(&mut self) -> bool {
-        self.current_keyword().is_some_and(is_declaration_keyword)
-    }
-
-    /// Return true when a using declaration is valid after modifiers.
-    pub(crate) fn can_parse_using_declaration(
-        &mut self,
-        _header: &DeclarationHeader,
-        asynchrony: Asynchrony,
-    ) -> bool {
-        let Some(token_type) = self.using_binding_head_token(asynchrony) else {
-            return false;
+        // parse the operand and iterative operator tail
+        let first = if self.peek_is(TokenType::ElementwiseOr) {
+            self.parse_leading_or_expression(context)?
+        } else {
+            self.parse_expression_operand(context)?
         };
+        let expression = self.parse_expression_tail_after_descent(first, context)?;
 
-        self.token_can_start_using_binding_pattern(token_type)
-    }
-
-    /// Return whether current keyword starts a do-while statement.
-    pub(crate) fn is_do_while_statement(&mut self, next_token_type: TokenType) -> bool {
-        if next_token_type != TokenType::OpenBrace {
-            return false;
+        // attach decorators to declarations rather than their expression wrappers
+        if let Some(decorators) = decorators {
+            let owner = match self.tree.get(expression) {
+                Expression::Declaration(declaration) => declaration.id,
+                _ => expression.id,
+            };
+            self.attach_decorators(owner, decorators);
         }
 
-        self.lookahead(|parser| {
-            parser
-                .scan_brace_follow_token_at_offset(1)
-                .is_some_and(|_| parser.current_keyword() == Some(Keyword::While))
-        })
+        Ok(expression)
     }
 
-    /// Return whether optional chaining starts after `?`.
-    pub(super) fn is_optional_chain_after_question_mark(&mut self) -> bool {
-        self.next_token_type() == TokenType::Dot
+    /// Parse one value operator tail after entering recursive descent state.
+    #[inline(never)]
+    fn parse_expression_tail_after_descent(
+        &mut self,
+        mut left: LocalNodeId<Expression>,
+        context: ExpressionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        loop {
+            // parse one conditional tail at its fixed precedence
+            if self.peek_is(TokenType::Maybe)
+                && !context
+                    .stops
+                    .contains(ExpressionStops::CONDITIONAL_QUESTION)
+                && OperatorPrecedence::Conditional > context.minimum_precedence
+            {
+                left = self.parse_conditional_expression(left, context)?;
+
+                continue;
+            }
+
+            // classify one infix operation owned by this expression level
+            let Some(operator) = self.peek_expression_operator(left, context) else {
+                break;
+            };
+            let precedence = operator.precedence();
+
+            // type relations transfer the complete tail to the type reducer
+            if matches!(operator, ExpressionOperator::Type(_)) {
+                let type_left = self.promote_expression_type(left)?;
+                let ty = self.parse_type_tail(type_left, TypeContext::from(context))?;
+                left = self.insert_type_expression_value(ty);
+
+                continue;
+            }
+
+            let range = self.peek_token().range();
+            self.bump();
+
+            // type-valued operations switch grammar for their complete right operand
+            if operator.has_type_operand() {
+                let target_type = self.parse_type_or_recover_missing(
+                    TypeContext::from(context),
+                    NodeType::Expression,
+                )?;
+                left = self.insert_expression_type_infix(left, operator, range, target_type)?;
+
+                continue;
+            }
+
+            // open ranges may omit their right endpoint
+            if matches!(operator, ExpressionOperator::Range(RangeEnd::Open))
+                && self.peek_expression_range_end_omitted()
+            {
+                left = self.insert_open_range_expression(left, range);
+
+                break;
+            }
+
+            // collect right associative runs without recursive chain depth
+            if precedence.is_right_associative() {
+                left = self.parse_right_associative_expression(
+                    left, operator, range, precedence, context,
+                )?;
+
+                continue;
+            }
+
+            // parse the complete right operand at this operator's binding power
+            let right_context = context.right(precedence);
+            let right =
+                self.parse_expression_or_recover_missing(right_context, NodeType::Expression)?;
+            left = self.insert_expression_infix(left, operator, range, right)?;
+        }
+
+        Ok(left)
     }
 
-    /// Eat one member name and its span.
-    ///
-    /// Examples:
-    /// ```ds
-    /// member
-    /// default
-    /// true
-    /// ```
-    pub(crate) fn eat_member_name_with_span(&mut self) -> ParserResult<(StringId, Span)> {
-        if self.peek_is(TokenType::Literal)
+    /// Parse one right associative infix run without recursive chain depth.
+    fn parse_right_associative_expression(
+        &mut self,
+        left: LocalNodeId<Expression>,
+        operator: ExpressionOperator,
+        range: ByteRange,
+        precedence: OperatorPrecedence,
+        context: ExpressionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let mut operations: SmallVec<[ExpressionInfix; 4]> = smallvec![ExpressionInfix {
+            left,
+            operator,
+            range,
+        }];
+
+        loop {
+            // parse operators stronger than this right associative run
+            let mut right_context = context.right(precedence);
+            if matches!(operator, ExpressionOperator::Assign(_)) {
+                right_context.stops = right_context
+                    .stops
+                    .with(ExpressionStops::NEWLINE_CALL)
+                    .without(ExpressionStops::CONDITIONAL_QUESTION);
+            }
+            let right =
+                self.parse_expression_or_recover_missing(right_context, NodeType::Expression)?;
+
+            // collect another operation at exactly this precedence
+            if let Some(next) = self.peek_expression_operator(right, context)
+                && next.precedence() == precedence
+                && next.precedence().is_right_associative()
+            {
+                // record the next operation in the right associative run
+                let range = self.peek_token().range();
+                self.bump();
+                operations.push(ExpressionInfix {
+                    left: right,
+                    operator: next,
+                    range,
+                });
+
+                continue;
+            }
+
+            // fold the right associative run from its final operand
+            return operations
+                .into_iter()
+                .rev()
+                .try_fold(right, |right, operation| {
+                    self.insert_expression_infix(
+                        operation.left,
+                        operation.operator,
+                        operation.range,
+                        right,
+                    )
+                });
+        }
+    }
+
+    /// Parse one conditional expression after its condition.
+    fn parse_conditional_expression(
+        &mut self,
+        mut condition: LocalNodeId<Expression>,
+        context: ExpressionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let mut branches: SmallVec<[ConditionalExpressionBranch; 4]> = SmallVec::new();
+
+        loop {
+            // parse ? thenExpression
+            let question = self.peek_token().range();
+            self.bump();
+            let then_expression = self.parse_expression_or_recover_missing(
+                ExpressionContext {
+                    stops: context.stops.with(ExpressionStops::CONDITIONAL_COLON),
+                    minimum_precedence: OperatorPrecedence::Lowest,
+                    ..context
+                },
+                NodeType::Expression,
+            )?;
+
+            // parse or recover the conditional colon
+            let colon =
+                self.eat_token_range_or_recover_missing(TokenType::Colon, NodeType::Expression);
+            branches.push(ConditionalExpressionBranch {
+                condition,
+                then_expression,
+                question,
+                colon,
+            });
+
+            // parse the next false-branch head without recursive conditional depth
+            condition = self.parse_expression_or_recover_missing(
+                ExpressionContext {
+                    stops: context.stops.with(ExpressionStops::CONDITIONAL_QUESTION),
+                    minimum_precedence: OperatorPrecedence::Lowest,
+                    ..context
+                },
+                NodeType::Expression,
+            )?;
+            if !self.peek_is(TokenType::Maybe) {
+                break;
+            }
+        }
+
+        // fold the right associative conditional ladder from its final branch
+        let expression = branches
+            .into_iter()
+            .rev()
+            .fold(condition, |else_expression, branch| {
+                self.insert_conditional_expression(
+                    branch.condition,
+                    branch.then_expression,
+                    else_expression,
+                    branch.question,
+                    branch.colon,
+                )
+            });
+
+        Ok(expression)
+    }
+
+    /// Return the current infix operation owned by one expression.
+    fn peek_expression_operator(
+        &self,
+        left: LocalNodeId<Expression>,
+        context: ExpressionContext,
+    ) -> Option<ExpressionOperator> {
+        // classify the source token before evaluating contextual ownership
+        let token_type = self.peek_token_type();
+        let keyword = (token_type == TokenType::Identifier)
+            .then(|| self.peek_keyword())
+            .flatten();
+        let operator = ExpressionOperator::from_token(token_type, keyword)?;
+
+        if self.is_expression_operator_stopped(left, operator, context) {
+            return None;
+        }
+
+        if matches!(operator, ExpressionOperator::Range(_)) && self.peek_is_on_new_line() {
+            return None;
+        }
+
+        (operator.precedence() > context.minimum_precedence).then_some(operator)
+    }
+
+    /// Parse an elementwise-or expression with a leading separator.
+    fn parse_leading_or_expression(
+        &mut self,
+        context: ExpressionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
+        let operator = BinaryOperator::ElementwiseOr;
+        let precedence = operator.precedence();
+        self.bump();
+
+        let mut left = self.parse_expression(context.right(precedence))?;
+        let mut has_binary = false;
+        while self.peek_is(TokenType::ElementwiseOr) {
+            let operator_range = self.peek_token_span().token.range();
+            self.bump();
+            let right = self.parse_expression(context.right(precedence))?;
+            left = self.insert_expression_infix(
+                left,
+                ExpressionOperator::Binary(operator),
+                operator_range,
+                right,
+            )?;
+            has_binary = true;
+        }
+
+        // preserve the leading separator in the binary chain source range
+        if has_binary {
+            self.tree.set_range(left, self.range_since(&start));
+        }
+
+        Ok(left)
+    }
+
+    /// Return whether the current source position omits a range end.
+    pub(in crate::parse::expression) fn peek_expression_range_end_omitted(&self) -> bool {
+        self.peek_is_on_new_line() || self.peek_expression_slot_boundary()
+    }
+
+    /// Return whether the current token belongs to an enclosing value grammar.
+    fn is_expression_operator_stopped(
+        &self,
+        left: LocalNodeId<Expression>,
+        operator: ExpressionOperator,
+        context: ExpressionContext,
+    ) -> bool {
+        // leave every operator outside a constructor receiver
+        if context.mode == ExpressionMode::NewReceiver {
+            return true;
+        }
+
+        // leave generic closing angles to the enclosing argument list
+        if context.stops.contains(ExpressionStops::ANGLE_CLOSE)
             && matches!(
-                self.current_token().literal(),
-                Some(TokenLiteral::Boolean { .. })
+                operator,
+                ExpressionOperator::Binary(
+                    BinaryOperator::GreaterThan
+                        | BinaryOperator::ShiftRight
+                        | BinaryOperator::UnsignedShiftRight
+                )
             )
         {
-            let span = self.peek().span;
-            let name = self.intern_span(span);
-            self.bump();
-            return Ok((name, span));
+            return true;
         }
 
-        self.eat_identifier_with_span()
-    }
-
-    /// Return the head span for a type expression.
-    pub(crate) fn type_expression_head_span(
-        &self,
-        type_expression_id: LocalNodeId<TypeExpression>,
-    ) -> Span {
-        self.tree
-            .get_head_span(type_expression_id)
-            .or_else(|| self.tree.get_main_span(type_expression_id))
-            .unwrap_or_else(|| self.tree.get_span(type_expression_id))
-    }
-
-    /// Return the head span for an expression.
-    pub(crate) fn expression_head_span(&self, expression_id: LocalNodeId<Expression>) -> Span {
-        if let Some(span) = self.tree.get_head_span(expression_id) {
-            return span;
+        // terminate typeof queries at a line boundary
+        if context.mode == ExpressionMode::TypeofQuery && self.peek_is_on_new_line() {
+            return true;
         }
 
-        match self.tree.get(expression_id) {
-            Expression::Type { value } => self.type_expression_head_span(*value),
-            Expression::Parenthesized { expression }
-            | Expression::As { expression, .. }
-            | Expression::Satisfies { expression, .. } => self.expression_head_span(*expression),
-            _ => self
-                .tree
-                .get_main_span(expression_id)
-                .unwrap_or_else(|| self.tree.get_span(expression_id)),
+        // keep line-leading type assertions outside the preceding expression
+        if self.peek_is_on_new_line()
+            && matches!(
+                operator,
+                ExpressionOperator::As | ExpressionOperator::Satisfies
+            )
+        {
+            return true;
         }
+
+        // leave match continuation lines to the enclosing case
+        if context.stops.contains(ExpressionStops::MATCH_LINE) && self.peek_is_on_new_line() {
+            return true;
+        }
+
+        // leave iteration relation keywords to the enclosing loop
+        if context.stops.contains(ExpressionStops::FOR_EACH)
+            && matches!(operator, ExpressionOperator::Binary(BinaryOperator::In))
+        {
+            return true;
+        }
+
+        // keep a line-leading tree outside a completed statement
+        if context.statement == StatementPosition::Direct
+            && self.peek_is_on_new_line()
+            && matches!(
+                operator,
+                ExpressionOperator::Binary(BinaryOperator::LessThan)
+            )
+            && self.peek_tree_literal_start()
+        {
+            return true;
+        }
+
+        // honor expressions that terminate a direct statement on newline
+        context.statement == StatementPosition::Direct
+            && self.peek_is_on_new_line()
+            && self.tree.get(left).ends_statement_on_newline()
     }
 
-    /// Attach pending decorators to an expression.
-    pub(in crate::parse::expression) fn attach_pending_decorators_to_expression(
+    /// Insert one conditional expression.
+    fn insert_conditional_expression(
         &mut self,
-        decorators: &mut PendingDecorators,
-        expression_id: LocalNodeId<Expression>,
-    ) {
-        if !decorators.is_empty() {
-            let owner_id = match self.tree.get(expression_id) {
-                Expression::Declaration(declaration_id) => declaration_id.id,
-                _ => expression_id.id,
-            };
-            self.attach_decorators(owner_id, mem::take(decorators));
-        }
-    }
-
-    /// Wrap a default export declaration when leading decorators need an export owner.
-    fn wrap_decorated_default_export(
-        &mut self,
-        start: &ParserSpanStart,
-        expression_id: LocalNodeId<Expression>,
-        decorators: &PendingDecorators,
+        condition: LocalNodeId<Expression>,
+        then_expression: LocalNodeId<Expression>,
+        else_expression: LocalNodeId<Expression>,
+        question_range: ByteRange,
+        colon_range: ByteRange,
     ) -> LocalNodeId<Expression> {
-        if decorators.is_empty() {
-            return expression_id;
-        }
-
-        let Expression::Declaration(declaration_id) = self.tree.get(expression_id) else {
-            return expression_id;
+        let condition_range = self.tree.get_range(condition);
+        let else_range = self.tree.get_range(else_expression);
+        let range = ByteRange {
+            start: condition_range.start,
+            end: else_range.end,
         };
-        if self.tree.get(*declaration_id).export() != Some(ExportKind::Default) {
-            return expression_id;
-        }
-
-        self.clear_declaration_export(*declaration_id);
-        let item = self.insert_node(
-            DependencyItem::Binding {
-                binding: DependencyBinding::Default,
-                form: Some(DependencyForm::Plain),
-                name: None,
-                alias: None,
-                value: Some(expression_id),
+        let expression = self.insert_node(
+            Expression::If {
+                form: IfForm::Ternary,
+                condition: Condition::expression(condition),
+                then_expression,
+                else_expression: Some(else_expression),
             },
-            self.get_span_from(start),
+            range,
+        );
+        self.tree.set_main_range(expression, question_range);
+        self.tree.set_side_range(
+            expression,
+            NodeSpanType::Region(NodeSpanRegion::Clause),
+            colon_range,
         );
 
-        self.insert_node(
-            Expression::Export {
-                form: DependencyForm::Plain,
-                target: None,
-                items: vec![item],
-                attributes: None,
-            },
-            self.get_span_from(start),
-        )
-    }
-
-    /// Clear the inline export marker from one declaration.
-    fn clear_declaration_export(&mut self, declaration_id: LocalNodeId<Declaration>) {
-        match self.tree.get_mut(declaration_id) {
-            Declaration::Type(declaration) => declaration.export = None,
-            Declaration::Struct(declaration) => declaration.export = None,
-            Declaration::Class(declaration) => declaration.export = None,
-            Declaration::Enum(declaration) => declaration.export = None,
-            Declaration::Interface(declaration) => declaration.export = None,
-            Declaration::Extension(declaration) => declaration.export = None,
-            Declaration::Function(declaration) => declaration.export = None,
-            Declaration::Global(_) | Declaration::Module(_) => {}
-        }
-    }
-
-    /// Attach pending decorators to a type expression.
-    pub(crate) fn attach_pending_decorators_to_type_expression(
-        &mut self,
-        decorators: &mut PendingDecorators,
-        type_expression_id: LocalNodeId<TypeExpression>,
-    ) {
-        if !decorators.is_empty() {
-            self.attach_decorators(type_expression_id.id, mem::take(decorators));
-        }
+        expression
     }
 }

@@ -5,10 +5,10 @@ use destack_dir::{
 };
 
 impl Parser {
-    /// Map identifier text to always-available type literals.
+    /// Return the always-available type literal at the current token.
     #[inline]
-    fn type_literal_always_available_str(&self, identifier: &str) -> Option<TypeLiteral> {
-        match identifier {
+    fn peek_universal_type_literal(&self) -> Option<TypeLiteral> {
+        match self.peek_token_str() {
             "undefined" => Some(TypeLiteral::Undefined),
             "unknown" => Some(TypeLiteral::Unknown),
             "object" => Some(TypeLiteral::Object),
@@ -19,14 +19,10 @@ impl Parser {
         }
     }
 
-    /// Map identifier text to type-only literals.
+    /// Return the type-only literal at the current token sequence.
     #[inline]
-    fn type_literal_type_context_str(
-        &self,
-        identifier: &str,
-        next_identifier: Option<&str>,
-    ) -> Option<TypeLiteral> {
-        match identifier {
+    fn peek_contextual_type_literal(&self) -> Option<TypeLiteral> {
+        match self.peek_token_str() {
             "boolean" => Some(TypeLiteral::Boolean),
             "void" => Some(TypeLiteral::Void),
             "char" => Some(TypeLiteral::Character),
@@ -43,12 +39,12 @@ impl Parser {
             })),
             "float" => Some(TypeLiteral::Alias(ScalarAlias::Float)),
             "symbol" => Some(TypeLiteral::Symbol),
-            "unique" if next_identifier == Some("symbol") => Some(TypeLiteral::UniqueSymbol),
+            "unique" if self.peek_next_identifier_is("symbol") => Some(TypeLiteral::UniqueSymbol),
             _ => None,
         }
     }
 
-    /// Eat a variance bound when present.
+    /// Parse a variance bound when present.
     ///
     /// Examples:
     /// ```ds
@@ -57,12 +53,12 @@ impl Parser {
     /// super Base
     /// ```
     #[inline]
-    pub fn eat_variance_bound_if_present(&mut self) -> ParserResult<Option<VarianceBound>> {
-        let bound = if self.is_keyword(Keyword::Implements) {
+    pub fn parse_variance_bound_if_present(&mut self) -> Option<VarianceBound> {
+        let bound = if self.peek_is_keyword(Keyword::Implements) {
             Some(VarianceBound::Implements)
-        } else if self.is_keyword(Keyword::Extends) {
+        } else if self.peek_is_keyword(Keyword::Extends) {
             Some(VarianceBound::Extends)
-        } else if self.is_keyword(Keyword::Super) {
+        } else if self.peek_is_keyword(Keyword::Super) {
             Some(VarianceBound::Super)
         } else {
             None
@@ -72,108 +68,105 @@ impl Parser {
             self.bump();
         }
 
-        Ok(bound)
+        bound
     }
 
-    /// Return the explicit width encoded in one type literal name.
+    /// Return the explicit width encoded in the current type literal.
     #[inline]
-    fn type_width_if_present(&self, prefix: &'static str, target: &str) -> Option<u16> {
-        if let Some(target) = target.strip_prefix(prefix) {
-            target.parse::<u16>().ok()
-        } else {
-            None
-        }
+    fn peek_type_width(&self, prefix: &'static str) -> Option<u16> {
+        self.peek_token_str()
+            .strip_prefix(prefix)
+            .and_then(|width| width.parse::<u16>().ok())
     }
 
     /// Return whether the next token is the given identifier text.
     #[inline]
-    fn next_identifier_str_is(&mut self, expected: &str) -> bool {
-        let token = self.next_token();
+    fn peek_next_identifier_is(&self, expected: &str) -> bool {
+        let token = self.peek_next_token();
 
-        token.is(TokenType::Identifier) && self.get_token_str(token) == expected
+        token.is(TokenType::Identifier) && self.token_str(token) == expected
     }
 
-    /// Peek one non composite type literal.
-    pub fn peek_type_literal(&mut self) -> ParserResult<TypeLiteral> {
-        // require identifier text
-        let next = self.peek();
-        if next.token.ty() != TokenType::Identifier {
-            return Err(ParserError::unexpected(next));
-        }
+    /// Return the explicitly sized type literal at the current token.
+    fn peek_sized_type_literal(&self) -> Option<TypeLiteral> {
+        let identifier = self.peek_token_str();
 
-        // resolve literals available in all grammar spaces
-        let identifier = self.get_span_str(next.span);
-        if let Some(literal) = self.type_literal_always_available_str(identifier) {
-            return Ok(literal);
-        }
-
-        // require type space for contextual literals
-        if !self.flags.is_in_type() && !self.flags.is_in_static() {
-            return Err(ParserError::unexpected(next));
-        }
-
-        // resolve one token contextual literals
-        if let Some(literal) = self.type_literal_type_context_str(identifier, None) {
-            return Ok(literal);
-        }
-
-        // resolve the only composite literal
-        if identifier == "unique" {
-            if self.next_identifier_str_is("symbol") {
-                return Ok(TypeLiteral::UniqueSymbol);
-            }
-
-            return Err(ParserError::unexpected(next));
-        }
-
-        // resolve numeric literals with width suffixes
         match identifier {
-            int if let Some(width) = self.type_width_if_present("int", int) => {
-                Ok(TypeLiteral::Integer(IntegerType::Fixed {
+            _ if let Some(width) = self.peek_type_width("int") => {
+                Some(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: true,
                 }))
             }
-            uint if let Some(width) = self.type_width_if_present("uint", uint) => {
-                Ok(TypeLiteral::Integer(IntegerType::Fixed {
+            _ if let Some(width) = self.peek_type_width("uint") => {
+                Some(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: false,
                 }))
             }
-            uint if let Some(width) = self.type_width_if_present("u", uint) => {
-                Ok(TypeLiteral::Integer(IntegerType::Fixed {
+            _ if let Some(width) = self.peek_type_width("u") => {
+                Some(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: false,
                 }))
             }
-            "float16" => Ok(TypeLiteral::Float(FloatType::Float16)),
-            "bfloat16" => Ok(TypeLiteral::Float(FloatType::Bfloat16)),
-            "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
-            "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
-            _ => Err(ParserError::unexpected(next)),
+            "float16" => Some(TypeLiteral::Float(FloatType::Float16)),
+            "bfloat16" => Some(TypeLiteral::Float(FloatType::Bfloat16)),
+            "float32" => Some(TypeLiteral::Float(FloatType::Float32)),
+            "float64" => Some(TypeLiteral::Float(FloatType::Float64)),
+            _ => None,
         }
     }
 
-    /// Eat one non composite type literal.
+    /// Return an unambiguous intrinsic type literal in value space.
+    pub(crate) fn peek_intrinsic_type_literal(&self) -> Option<TypeLiteral> {
+        if !self.peek_is(TokenType::Identifier) {
+            return None;
+        }
+
+        self.peek_sized_type_literal()
+    }
+
+    /// Return the type literal represented by the current token sequence.
+    pub fn peek_type_literal(&self) -> Option<TypeLiteral> {
+        // require identifier text
+        if !self.peek_is(TokenType::Identifier) {
+            return None;
+        }
+
+        // resolve literals available in all grammar spaces
+        if let Some(literal) = self.peek_universal_type_literal() {
+            return Some(literal);
+        }
+
+        // resolve one token contextual literals
+        if let Some(literal) = self.peek_contextual_type_literal() {
+            return Some(literal);
+        }
+
+        // resolve numeric literals with width suffixes
+        self.peek_sized_type_literal()
+    }
+
+    /// Parse one type literal token sequence.
     ///
     /// Examples:
     /// ```ds
     /// string
-    /// uint32
+    /// int32
     /// unique symbol
     /// ```
-    pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParserResult<TypeLiteral> {
-        // resolve the literal kind first
-        let literal = match literal {
-            Some(literal) => literal,
-            None => self.peek_type_literal()?,
-        };
+    pub fn parse_type_literal(&mut self) -> ParserResult<TypeLiteral> {
+        let literal = self
+            .peek_type_literal()
+            .ok_or_else(|| ParserError::unexpected(self.peek_token_span()))?;
 
         // consume the literal tokens
         self.bump();
         if let TypeLiteral::UniqueSymbol = literal {
             self.bump();
         }
+
         Ok(literal)
     }
 }

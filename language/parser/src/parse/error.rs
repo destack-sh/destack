@@ -26,15 +26,12 @@ pub struct ParserErrorLocation {
     actual: Option<TokenType>,
 }
 
-impl From<Span> for ParserErrorLocation {
-    /// Create a parser error location from a source span.
+impl From<ByteRange> for ParserErrorLocation {
+    /// Create a parser error location from a source byte range.
     #[inline]
-    fn from(span: Span) -> Self {
+    fn from(range: ByteRange) -> Self {
         Self {
-            range: ByteRange {
-                start: span.start,
-                end: span.end,
-            },
+            range,
             actual: None,
         }
     }
@@ -45,10 +42,7 @@ impl From<TokenSpan> for ParserErrorLocation {
     #[inline]
     fn from(token: TokenSpan) -> Self {
         Self {
-            range: ByteRange {
-                start: token.span.start,
-                end: token.span.end,
-            },
+            range: token.span.range(),
             actual: Some(token.token.ty()),
         }
     }
@@ -59,16 +53,16 @@ pub type ParserResult<T> = Result<T, ParserError>;
 
 /// Extension methods for parser operation results.
 pub trait ParserResultExt<T> {
-    /// Set the node type of the error.
-    fn for_node_type(self, node_type: NodeType) -> Result<T, ParserError>;
+    /// Attach the grammar node containing the error.
+    fn in_node(self, node_type: NodeType) -> Result<T, ParserError>;
 }
 
 impl<T> ParserResultExt<T> for Result<T, ParserError> {
-    /// Set the node type of the error if not already set.
+    /// Attach the grammar node when the error has no existing owner.
     #[inline]
-    fn for_node_type(self, node_type: NodeType) -> Self {
+    fn in_node(self, node_type: NodeType) -> Self {
         match self {
-            Err(error) if error.node_type.is_none() => Err(error.for_node_type(node_type)),
+            Err(error) if error.node_type.is_none() => Err(error.in_node(node_type)),
             result => result,
         }
     }
@@ -94,19 +88,6 @@ impl ParserError {
         }
     }
 
-    /// Create a parser error for an unexpected location and node type.
-    #[inline]
-    pub fn unexpected_for(location: impl Into<ParserErrorLocation>, node_type: NodeType) -> Self {
-        let location = location.into();
-
-        Self {
-            range: location.range,
-            actual: location.actual,
-            expected: None,
-            node_type: Some(node_type),
-        }
-    }
-
     /// Create a parser error with an expected alternative at a location.
     #[inline]
     pub fn expected(location: impl Into<ParserErrorLocation>, expected: TokenType) -> Self {
@@ -120,28 +101,35 @@ impl ParserError {
         }
     }
 
-    /// Create a parser error with an expected alternative and node type.
+    /// Attach the grammar node containing this error.
     #[inline]
-    pub fn expected_for(
-        location: impl Into<ParserErrorLocation>,
-        expected: TokenType,
-        node_type: NodeType,
-    ) -> Self {
-        let location = location.into();
+    pub fn in_node(mut self, node_type: NodeType) -> Self {
+        self.node_type = Some(node_type);
 
-        Self {
-            range: location.range,
-            actual: location.actual,
-            expected: Some(expected),
-            node_type: Some(node_type),
-        }
+        self
     }
 
-    /// Set the node type of the error.
-    #[inline]
-    pub fn for_node_type(mut self, node_type: NodeType) -> Self {
-        self.node_type = Some(node_type);
-        self
+    /// Convert this parse error into one source diagnostic.
+    pub fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
+        let node = self
+            .node_type
+            .map_or_else(String::new, |node_type| format!(" in {node_type:?}"));
+
+        // describe the expected or actual token
+        let label = if let Some(expected) = self.expected {
+            format!("expected {expected}{node}")
+        } else if let Some(actual) = self.actual {
+            format!("unexpected {actual}{node}")
+        } else {
+            format!("unexpected syntax{node}")
+        };
+
+        // anchor the diagnostic at the parser error range
+        let message = format!("parse error: {label}");
+        let span = self.span(file_id);
+        let primary = DiagnosticLabel::message(content, span, label);
+
+        Diagnostic::error("EP001", message, primary)
     }
 }
 
@@ -160,35 +148,3 @@ impl fmt::Display for ParserError {
 }
 
 impl Error for ParserError {}
-
-impl ParserError {
-    /// Convert this parse error into one source diagnostic.
-    pub fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
-        let in_node_str = match self.node_type {
-            Some(node_type) => format!(" in {node_type:?}"),
-            None => "".to_string(),
-        };
-
-        let (message, label) = match self.expected {
-            Some(token_type) => (
-                format!("parse error: expected {token_type}{in_node_str}"),
-                format!("expected {token_type}{in_node_str}"),
-            ),
-            None => {
-                let actual_str = match self.actual {
-                    Some(actual) => actual.to_string(),
-                    None => "syntax".to_string(),
-                };
-
-                (
-                    format!("parse error: unexpected {actual_str}{in_node_str}"),
-                    format!("unexpected {actual_str}{in_node_str}"),
-                )
-            }
-        };
-        let span = self.span(file_id);
-        let primary = DiagnosticLabel::message(content, span, label);
-
-        Diagnostic::error("EP001", message, primary)
-    }
-}
