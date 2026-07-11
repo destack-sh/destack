@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDependency};
 use destack_dir as dir;
-use destack_parser::{Parser, ParserOptions};
+use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::{Module, Repository, Revision};
 use destack_source::{ContentId, File, FileId, LanguageType, ProfileId, Span};
 
@@ -65,10 +65,10 @@ fn parse_module_file(
 
     // parse the file with the shared tree
     let tree_in = std::mem::replace(tree, dir::Tree::new(tree.module_id));
-    let mut parser = Parser::lex_into_tree_with_options(
+    let mut parser = Parser::lex_into_tree_with_trivia(
         source_file.clone(),
         language_type,
-        ParserOptions::default(),
+        ParserTriviaMode::Documentation,
         repository.string_pool().clone(),
         tree_in,
     );

@@ -375,16 +375,11 @@ impl ModuleLowerer<'_> {
         language_item: dir::LanguageItem,
         decorator_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<String>> {
-        let decorator_expression =
-            unwrap_parenthesized_expression(&parsed.tree, decorator_expression);
         let expression = parsed.tree.get(decorator_expression);
         let (callee, arguments) = match expression {
             dir::Expression::Call {
                 left, arguments, ..
-            } => (
-                unwrap_parenthesized_expression(&parsed.tree, *left),
-                Some(arguments.as_slice()),
-            ),
+            } => (*left, Some(arguments.as_slice())),
             _ => (decorator_expression, None),
         };
         if !host_decorator_matches(
@@ -533,21 +528,6 @@ fn host_decorator_matches(
 
     let expression = tree.get(callee);
     expression_is_unqualified_name(expression, language_item.export_name())
-}
-
-/// Unwrap parenthesized decorator expressions.
-fn unwrap_parenthesized_expression(
-    tree: &dir::Tree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    let mut current = expression_id;
-    loop {
-        let expression = tree.get(current);
-        let dir::Expression::Parenthesized { expression } = expression else {
-            return current;
-        };
-        current = *expression;
-    }
 }
 
 /// Return whether one expression is an unqualified reference to a name.

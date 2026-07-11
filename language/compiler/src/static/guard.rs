@@ -43,10 +43,6 @@ fn static_guard_expression(
     decorator: dir::LocalNodeIdAny,
 ) -> StaticGuard {
     match view.get(expression) {
-        // unwrap parenthesized decorators
-        dir::Expression::Parenthesized { expression } => {
-            static_guard_expression(view, strings, *expression, decorator)
-        }
         // read decorator calls
         dir::Expression::Call {
             left, arguments, ..
@@ -96,11 +92,6 @@ fn is_static_if_callee(
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     match view.get(expression) {
-        // unwrap parenthesized callees
-        dir::Expression::Parenthesized { expression } => {
-            is_static_if_callee(view, strings, *expression)
-        }
-
         // match bare @if
         dir::Expression::Identifier { name } => strings.get(*name) == "if",
 

@@ -1151,13 +1151,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<StringRef<'_>> {
-        let mut current = argument_id;
-        while let dir::Expression::Parenthesized { expression } = self.context.dir_tree.get(current)
-        {
-            current = *expression;
-        }
-
-        let Some(symbol) = self.resolved_member_symbol(current) else {
+        let Some(symbol) = self.resolved_member_symbol(argument_id) else {
             return Err(self
                 .error(
                     expression_id,

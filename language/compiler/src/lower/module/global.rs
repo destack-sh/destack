@@ -127,9 +127,6 @@ impl ModuleLowerer<'_> {
             dir::Expression::ScalarLiteral(value) => {
                 self.lower_const_scalar_literal(value, mir_type)
             }
-            dir::Expression::Parenthesized { expression } => {
-                return self.lower_const_initializer(*expression, mir_type);
-            }
             dir::Expression::As { expression, .. }
             | dir::Expression::Satisfies { expression, .. } => {
                 return self.lower_const_initializer(*expression, mir_type);

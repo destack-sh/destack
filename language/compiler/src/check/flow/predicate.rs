@@ -75,10 +75,6 @@ impl CheckState<'_> {
 
                 Some(path)
             }
-            // (value)
-            dir::Expression::Parenthesized { expression } => {
-                self.flow_path(expression.into_global(node.module_id))
-            }
             // not a stable flow path
             _ => None,
         }

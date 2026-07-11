@@ -536,10 +536,6 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
-            dir::Expression::Parenthesized { expression } => {
-                self.lower_value_expression(*expression)
-            }
-
             dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let target_symbol = self.resolve_expression_symbol(expression_id)?;
 

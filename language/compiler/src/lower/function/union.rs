@@ -266,8 +266,8 @@ impl FunctionLowerer<'_> {
         }
 
         // unwrap implicit casts and parens before matching
-        let left = self.unwrap_expression(left);
-        let right = self.unwrap_expression(right);
+        let left = self.strip_type_relations(left);
+        let right = self.strip_type_relations(right);
 
         // match member access against a literal
         let literal_value = if let Some(literal) = self.discriminant_literal_for_expression(left)
@@ -425,8 +425,8 @@ impl FunctionLowerer<'_> {
         }
 
         // unwrap implicit casts and parens before matching
-        let left = self.unwrap_expression(left);
-        let right = self.unwrap_expression(right);
+        let left = self.strip_type_relations(left);
+        let right = self.strip_type_relations(right);
 
         // resolve union operand
         let left_type_id = self.type_for_expression_or_error(left)?;
@@ -598,7 +598,7 @@ impl FunctionLowerer<'_> {
         else_block: mir::LocalNodeId<mir::Block>,
     ) -> CompilerResult<bool> {
         // unwrap implicit casts and parens before matching
-        let condition_id = self.unwrap_expression(condition_id);
+        let condition_id = self.strip_type_relations(condition_id);
 
         // match on binary expressions
         let dir::Expression::Binary {

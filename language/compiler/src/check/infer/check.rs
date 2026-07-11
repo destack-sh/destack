@@ -101,9 +101,6 @@ impl CheckState<'_> {
             dir::Expression::Block(block) => {
                 self.check_block_expression(site, block, target, relation, origin, use_)
             }
-            dir::Expression::Parenthesized { expression } => {
-                self.check_transparent_expression(site, expression, target, relation, origin, use_)
-            }
             dir::Expression::Comptime { body } => {
                 self.check_transparent_expression(site, body, target, relation, origin, use_)
             }

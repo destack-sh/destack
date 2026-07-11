@@ -398,11 +398,6 @@ impl WalkState<'_, '_> {
 
                 // tree construction infers from its queued value use
             }
-            // (value)
-            dir::Expression::Parenthesized { expression: child } => {
-                let child = *child;
-                self.walk_expression(child, self.tree.get(child))?;
-            }
             // type T
             dir::Expression::Type { value } => {
                 let ty = self.walk_frame_type_expression(*value)?;

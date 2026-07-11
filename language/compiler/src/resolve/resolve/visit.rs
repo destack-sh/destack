@@ -326,9 +326,6 @@ impl ResolveState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         match tree.get(expression) {
-            dir::Expression::Parenthesized { expression } => {
-                self.is_static_if_decorator_expression(tree, *expression)
-            }
             dir::Expression::Call { left, .. } => {
                 self.is_static_if_decorator_expression(tree, *left)
             }
@@ -350,9 +347,6 @@ impl ResolveState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) {
         match tree.get(expression) {
-            dir::Expression::Parenthesized { expression } => {
-                self.walk_static_if_decorator_arguments(tree, *expression);
-            }
             dir::Expression::Call { arguments, .. } => {
                 for argument in arguments {
                     let Some(value) = tree.get(*argument).value() else {
