@@ -42,10 +42,6 @@ class CompilerOptions:
     root_dir: str | None
     # output directory for compiled files
     out_dir: str | None
-    # output directory for declaration files. Defaults to out_dir
-    declaration_dir: str | None
-    # emit declaration maps for `.d.ts` output
-    declaration_map: bool
     # do not emit output files
     no_emit: bool
     # emit phase stats sidecars

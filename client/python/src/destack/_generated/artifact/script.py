@@ -66,62 +66,6 @@ def from_json_script_language(value: Json) -> ScriptLanguage:
 
 
 @dataclass(frozen=True, slots=True)
-class Declaration:
-    """One emitted declaration payload."""
-
-    # the emitted declaration text
-    text: str
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_declaration(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> Declaration:
-        """Decode one Declaration."""
-        return decode_declaration(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_declaration(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> Declaration:
-        """Return one Declaration from one JSON value."""
-        return from_json_declaration(value)
-
-
-def encode_declaration(writer: BinaryWriter, value: Declaration) -> None:
-    """Encode one Declaration."""
-    writer.write_string(value.text)
-
-
-def decode_declaration(reader: BinaryReader) -> Declaration:
-    """Decode one Declaration."""
-    text = reader.read_string()
-
-    return Declaration(
-        text=text,
-    )
-
-
-def to_json_declaration(value: Declaration) -> Json:
-    """Return one JSON value for one Declaration."""
-    return {
-        "text": value.text,
-    }
-
-
-def from_json_declaration(value: Json) -> Declaration:
-    """Return one Declaration from one JSON value."""
-    object_ = json_object(value)
-
-    return Declaration(
-        text=json_string(json_field(object_, "text")),
-    )
-
-
-@dataclass(frozen=True, slots=True)
 class ScriptBodyEcmaScript:
     """ECMAScript-family module IR."""
 
@@ -198,8 +142,6 @@ class Script:
     language: ScriptLanguage
     # the structured script body
     body: ScriptBody
-    # the emitted declaration when one exists
-    declaration: Declaration | None
     # the source map when one exists
     map: destack._generated.artifact.map.SourceMap | None
     # whether this script has top level side effects
@@ -228,11 +170,6 @@ def encode_script(writer: BinaryWriter, value: Script) -> None:
     """Encode one Script."""
     encode_script_language(writer, value.language)
     encode_script_body(writer, value.body)
-    if value.declaration is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        encode_declaration(writer, value.declaration)
     if value.map is None:
         writer.write_byte(0)
     else:
@@ -245,7 +182,6 @@ def decode_script(reader: BinaryReader) -> Script:
     """Decode one Script."""
     language = decode_script_language(reader)
     body = decode_script_body(reader)
-    declaration = reader.read_option(lambda: decode_declaration(reader))
     map = reader.read_option(
         lambda: destack._generated.artifact.map.decode_source_map(reader)
     )
@@ -254,7 +190,6 @@ def decode_script(reader: BinaryReader) -> Script:
     return Script(
         language=language,
         body=body,
-        declaration=declaration,
         map=map,
         has_top_level_side_effects=has_top_level_side_effects,
     )
@@ -265,11 +200,6 @@ def to_json_script(value: Script) -> Json:
     return {
         "language": to_json_script_language(value.language),
         "body": to_json_script_body(value.body),
-        **(
-            {}
-            if value.declaration is None
-            else {"declaration": to_json_declaration(value.declaration)}
-        ),
         **(
             {}
             if value.map is None
@@ -286,9 +216,6 @@ def from_json_script(value: Json) -> Script:
     return Script(
         language=from_json_script_language(json_field(object_, "language")),
         body=from_json_script_body(json_field(object_, "body")),
-        declaration=json_optional(
-            object_, "declaration", lambda value: from_json_declaration(value)
-        ),
         map=json_optional(
             object_,
             "map",
@@ -306,11 +233,6 @@ __all__ = [
     "decode_script_language",
     "to_json_script_language",
     "from_json_script_language",
-    "Declaration",
-    "encode_declaration",
-    "decode_declaration",
-    "to_json_declaration",
-    "from_json_declaration",
     "ScriptBody",
     "encode_script_body",
     "decode_script_body",

@@ -10,7 +10,6 @@ from destack.protocol.serde import (
     BinaryWriter,
     Json,
     SerdeError,
-    json_bool,
     json_field,
     json_object,
     json_optional,
@@ -26,10 +25,6 @@ class TargetOutputOptions:
     directory: str
     # output file for single-file targets
     file: str | None
-    # whether to emit declaration files
-    declaration: bool
-    # separate directory for declaration files
-    declaration_directory: str | None
     # source map emission mode
     source_map: SourceMapMode | None
 
@@ -62,12 +57,6 @@ def encode_target_output_options(
     else:
         writer.write_byte(1)
         writer.write_string(value.file)
-    writer.write_bool(value.declaration)
-    if value.declaration_directory is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        writer.write_string(value.declaration_directory)
     if value.source_map is None:
         writer.write_byte(0)
     else:
@@ -79,15 +68,11 @@ def decode_target_output_options(reader: BinaryReader) -> TargetOutputOptions:
     """Decode one TargetOutputOptions."""
     directory = reader.read_string()
     file = reader.read_option(lambda: reader.read_string())
-    declaration = reader.read_bool()
-    declaration_directory = reader.read_option(lambda: reader.read_string())
     source_map = reader.read_option(lambda: decode_source_map_mode(reader))
 
     return TargetOutputOptions(
         directory=directory,
         file=file,
-        declaration=declaration,
-        declaration_directory=declaration_directory,
         source_map=source_map,
     )
 
@@ -97,12 +82,6 @@ def to_json_target_output_options(value: TargetOutputOptions) -> Json:
     return {
         "directory": value.directory,
         **({} if value.file is None else {"file": value.file}),
-        "declaration": value.declaration,
-        **(
-            {}
-            if value.declaration_directory is None
-            else {"declarationDirectory": value.declaration_directory}
-        ),
         **(
             {}
             if value.source_map is None
@@ -118,10 +97,6 @@ def from_json_target_output_options(value: Json) -> TargetOutputOptions:
     return TargetOutputOptions(
         directory=json_string(json_field(object_, "directory")),
         file=json_optional(object_, "file", lambda value: json_string(value)),
-        declaration=json_bool(json_field(object_, "declaration")),
-        declaration_directory=json_optional(
-            object_, "declarationDirectory", lambda value: json_string(value)
-        ),
         source_map=json_optional(
             object_, "sourceMap", lambda value: from_json_source_map_mode(value)
         ),

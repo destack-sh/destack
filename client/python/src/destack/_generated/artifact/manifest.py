@@ -235,7 +235,6 @@ BuildManifestLoader: typing.TypeAlias = (
     | typing.Literal["ts"]
     | typing.Literal["map"]
     | typing.Literal["json"]
-    | typing.Literal["dts"]
     | typing.Literal["wasm"]
     | typing.Literal["object"]
     | typing.Literal["asset"]
@@ -256,14 +255,12 @@ def encode_build_manifest_loader(
         writer.write_unsigned(3)
     elif value == "json":
         writer.write_unsigned(4)
-    elif value == "dts":
-        writer.write_unsigned(5)
     elif value == "wasm":
-        writer.write_unsigned(6)
+        writer.write_unsigned(5)
     elif value == "object":
-        writer.write_unsigned(7)
+        writer.write_unsigned(6)
     elif value == "asset":
-        writer.write_unsigned(8)
+        writer.write_unsigned(7)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -283,12 +280,10 @@ def decode_build_manifest_loader(reader: BinaryReader) -> BuildManifestLoader:
     elif variant == 4:
         return "json"
     elif variant == 5:
-        return "dts"
-    elif variant == 6:
         return "wasm"
-    elif variant == 7:
+    elif variant == 6:
         return "object"
-    elif variant == 8:
+    elif variant == 7:
         return "asset"
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -313,8 +308,6 @@ def from_json_build_manifest_loader(value: Json) -> BuildManifestLoader:
         return "map"
     elif variant == "json":
         return "json"
-    elif variant == "dts":
-        return "dts"
     elif variant == "wasm":
         return "wasm"
     elif variant == "object":

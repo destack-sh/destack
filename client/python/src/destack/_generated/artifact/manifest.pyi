@@ -66,7 +66,6 @@ BuildManifestLoader: typing.TypeAlias = (
     | typing.Literal["ts"]
     | typing.Literal["map"]
     | typing.Literal["json"]
-    | typing.Literal["dts"]
     | typing.Literal["wasm"]
     | typing.Literal["object"]
     | typing.Literal["asset"]

@@ -11,7 +11,7 @@ import { decodeFileType, encodeFileType, fromJsonFileType, toJsonFileType } from
 import { decodeUri, encodeUri, fromJsonUri, toJsonUri } from "../source/file/path/uri.js";
 
 /** One section of a linked bundle. */
-export type BundleSection = "module" | "entry" | "declaration" | "asset" | "manifest" | "sourceMap" | "native";
+export type BundleSection = "module" | "entry" | "asset" | "manifest" | "sourceMap" | "native";
 
 export const BundleSection = {
     /** Encode this value. */
@@ -44,20 +44,17 @@ export function encodeBundleSection(writer: BinaryWriter, value: BundleSection):
         case "entry":
             writer.writeUnsigned(1);
             return;
-        case "declaration":
+        case "asset":
             writer.writeUnsigned(2);
             return;
-        case "asset":
+        case "manifest":
             writer.writeUnsigned(3);
             return;
-        case "manifest":
+        case "sourceMap":
             writer.writeUnsigned(4);
             return;
-        case "sourceMap":
-            writer.writeUnsigned(5);
-            return;
         case "native":
-            writer.writeUnsigned(6);
+            writer.writeUnsigned(5);
             return;
     }
 
@@ -74,14 +71,12 @@ export function decodeBundleSection(reader: BinaryReader): BundleSection {
         case 1:
             return "entry";
         case 2:
-            return "declaration";
-        case 3:
             return "asset";
-        case 4:
+        case 3:
             return "manifest";
-        case 5:
+        case 4:
             return "sourceMap";
-        case 6:
+        case 5:
             return "native";
     }
 
@@ -102,8 +97,6 @@ export function fromJsonBundleSection(value: Json): BundleSection {
             return "module";
         case "entry":
             return "entry";
-        case "declaration":
-            return "declaration";
         case "asset":
             return "asset";
         case "manifest":

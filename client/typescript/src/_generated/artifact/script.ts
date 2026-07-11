@@ -78,64 +78,6 @@ export function fromJsonScriptLanguage(value: Json): ScriptLanguage {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** One emitted declaration payload. */
-export type Declaration = {
-    /** The emitted declaration text. */
-    readonly text: string;
-};
-
-export const Declaration = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Declaration): void {
-        encodeDeclaration(writer, value);
-    },
-
-    /** Decode one Declaration. */
-    decode(reader: BinaryReader): Declaration {
-        return decodeDeclaration(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Declaration): Json {
-        return toJsonDeclaration(value);
-    },
-
-    /** Return one Declaration from one JSON value. */
-    fromJson(value: Json): Declaration {
-        return fromJsonDeclaration(value);
-    },
-};
-
-/** Encode one Declaration. */
-export function encodeDeclaration(writer: BinaryWriter, value: Declaration): void {
-    writer.writeString(value.text);
-}
-
-/** Decode one Declaration. */
-export function decodeDeclaration(reader: BinaryReader): Declaration {
-    const text = reader.readString();
-
-    return {
-        text,
-    };
-}
-
-/** Return one JSON value for one Declaration. */
-export function toJsonDeclaration(value: Declaration): Json {
-    return {
-        text: value.text,
-    };
-}
-
-/** Return one Declaration from one JSON value. */
-export function fromJsonDeclaration(value: Json): Declaration {
-    const object = jsonObject(value);
-
-    return {
-        text: jsonString(jsonField(object, "text")),
-    };
-}
-
 /** One structured script body. */
 export type ScriptBody =
     /** ECMAScript-family module IR. */
@@ -234,8 +176,6 @@ export type Script = {
     readonly language: ScriptLanguage;
     /** The structured script body. */
     readonly body: ScriptBody;
-    /** The emitted declaration when one exists. */
-    readonly declaration?: Declaration;
     /** The source map when one exists. */
     readonly map?: SourceMap;
     /** Whether this script has top level side effects. */
@@ -268,11 +208,8 @@ export const Script = {
 export function encodeScript(writer: BinaryWriter, value: Script): void {
     encodeScriptLanguage(writer, value.language);
     encodeScriptBody(writer, value.body);
-    writer.writeOption(value.declaration, (value2) => {
-        encodeDeclaration(writer, value2);
-    });
-    writer.writeOption(value.map, (value3) => {
-        encodeSourceMap(writer, value3);
+    writer.writeOption(value.map, (value2) => {
+        encodeSourceMap(writer, value2);
     });
     writer.writeBool(value.hasTopLevelSideEffects);
 }
@@ -281,14 +218,12 @@ export function encodeScript(writer: BinaryWriter, value: Script): void {
 export function decodeScript(reader: BinaryReader): Script {
     const language = decodeScriptLanguage(reader);
     const body = decodeScriptBody(reader);
-    const declaration = reader.readOption(() => decodeDeclaration(reader));
     const map = reader.readOption(() => decodeSourceMap(reader));
     const hasTopLevelSideEffects = reader.readBool();
 
     return {
         language,
         body,
-        ...(declaration === undefined ? {} : { declaration }),
         ...(map === undefined ? {} : { map }),
         hasTopLevelSideEffects,
     };
@@ -299,7 +234,6 @@ export function toJsonScript(value: Script): Json {
     return {
         language: toJsonScriptLanguage(value.language),
         body: toJsonScriptBody(value.body),
-        ...(value.declaration === undefined ? {} : { declaration: toJsonDeclaration(value.declaration) }),
         ...(value.map === undefined ? {} : { map: toJsonSourceMap(value.map) }),
         hasTopLevelSideEffects: value.hasTopLevelSideEffects,
     };
@@ -312,7 +246,6 @@ export function fromJsonScript(value: Json): Script {
     return {
         language: fromJsonScriptLanguage(jsonField(object, "language")),
         body: fromJsonScriptBody(jsonField(object, "body")),
-        declaration: jsonOptional(object, "declaration", (value) => fromJsonDeclaration(value)),
         map: jsonOptional(object, "map", (value) => fromJsonSourceMap(value)),
         hasTopLevelSideEffects: jsonBool(jsonField(object, "hasTopLevelSideEffects")),
     };

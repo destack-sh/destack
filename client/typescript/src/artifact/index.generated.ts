@@ -127,7 +127,6 @@ export {
     ArtifactReference,
 } from "../_generated/artifact/reference.js";
 export {
-    Declaration,
     Script,
     ScriptBody,
     ScriptLanguage,

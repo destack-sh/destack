@@ -17,7 +17,6 @@ import destack._generated.source.file.path.uri
 BundleSection: typing.TypeAlias = (
     typing.Literal["module"]
     | typing.Literal["entry"]
-    | typing.Literal["declaration"]
     | typing.Literal["asset"]
     | typing.Literal["manifest"]
     | typing.Literal["sourceMap"]
