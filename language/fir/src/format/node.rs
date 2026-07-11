@@ -1,62 +1,66 @@
-use std::hash::{Hash, Hasher};
-use std::mem::ManuallyDrop;
 use std::ops::Deref;
-use std::rc::Rc;
 
-use destack_source::Span;
+use destack_source::ByteRange;
 
-use crate::format::{BestFittingMode, BestFittingVariants, FormatTag, FormatTagKind, TextWidth};
+use crate::format::{
+    ArenaVec, BestFittingMode, BestFittingVariants, FormatTag, FormatTagKind, TextWidth,
+};
 
+const _: () = assert!(!std::mem::needs_drop::<FormatNode<'_>>());
+
+#[cfg(all(target_pointer_width = "64", debug_assertions))]
+const _: () = assert!(std::mem::size_of::<FormatNode<'_>>() == 48);
+
+#[cfg(all(target_pointer_width = "64", not(debug_assertions)))]
+const _: () = assert!(std::mem::size_of::<FormatNode<'_>>() == 24);
+
+/// The printing behavior of one line node.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LineMode {
-    /// Linebreak only if the enclosing group doesn't fit on a single line.
+    /// Break when the enclosing group expands.
     Soft,
-    /// Linebreak only if the enclosing group doesn't fit on a single line, a space otherwise.
+    /// Break when the enclosing group expands, or print one space otherwise.
     SoftOrSpace,
-    /// Linebreak (forced).
+    /// Always break the line.
     Hard,
-    /// Empty line (forced).
+    /// Always print one empty line.
     Empty,
 }
 
-/// Language agnostic IR for formatting source code.
-///
-/// Use the helper functions like [`crate::builders::space`], [`crate::builders::soft_line_break`] etc. defined in this file to create nodes.
+/// One language-independent formatting instruction.
 #[derive(Clone, PartialEq)]
-pub enum FormatNode {
-    /// A space token, see [`crate::builders::space`] for documentation.
+pub enum FormatNode<'a> {
+    /// One space.
     Space,
-    /// Newline, see [`crate::builders::soft_line_break`], [`crate::builders::hard_line_break`], and [`crate::builders::soft_line_break_or_space`] for documentation.
+    /// One conditional or unconditional line break.
     Line(LineMode),
-    /// Forces the parent group to print in expanded mode.
+    /// Force the enclosing group to expand.
     ExpandParent,
-    /// An ASCII Token that contains no line breaks or tab characters.
+    /// Static ASCII text without line breaks or tabs.
     Token { text: &'static str },
-    /// An arbitrary text that can contain tabs, newlines, and unicode characters.
-    Text { text: Box<str>, width: TextWidth },
-    /// A source position marker for subsequent emitted output.
+    /// Borrowed text with precomputed display width.
+    Text { text: &'a str, width: TextWidth },
+    /// The source position for subsequent output.
     SourcePosition { source: u32 },
-    /// Text that gets emitted as it is in the source code.
-    FileSlice { slice: Span, width: TextWidth },
-    /// Prevents that line suffixes move past this boundary.
-    /// Forces the printer to print any pending line suffixes, potentially by inserting a hard line break.
+    /// One verbatim file-local source range.
+    FileSlice { range: ByteRange, width: TextWidth },
+    /// A boundary that flushes pending line suffixes.
     LineSuffixBoundary,
-    /// Interned format node.
-    /// Useful when the same content must be emitted multiple times to avoid deep cloning the IR when using the `best_fitting!` macro or `if_group_fits_on_line` and `if_group_breaks`.
-    Interned(Interned),
-    /// List of different variants representing the same content.
-    /// The printer picks the best fitting content.
-    /// Line breaks inside of a best fitting don't propagate to parent groups.
+    /// One reusable arena-backed node slice.
+    Slice(NodeSlice<'a>),
+    /// Alternative layouts ordered from most flat to most expanded.
     BestFitting {
-        variants: BestFittingVariants,
+        /// The available layouts.
+        variants: BestFittingVariants<'a>,
+        /// The measurement policy used to choose a layout.
         mode: BestFittingMode,
     },
-    /// [Tag]s mark the start/end of some content to which some special formatting is applied.
+    /// One structural formatting tag.
     Tag(FormatTag),
 }
 
-impl FormatNode {
-    /// Gets the tag kind if this node is a Tag.
+impl FormatNode<'_> {
+    /// Return this node's tag kind when present.
     pub fn tag_kind(&self) -> Option<FormatTagKind> {
         if let FormatNode::Tag(tag) = self {
             Some(tag.kind())
@@ -66,23 +70,34 @@ impl FormatNode {
     }
 }
 
-impl std::fmt::Debug for FormatNode {
+impl<'a> ArenaVec<'a, FormatNode<'a>> {
+    /// Collapse this sequence into one optional node.
+    pub fn collapse(mut self) -> Option<FormatNode<'a>> {
+        match self.len() {
+            0 => None,
+            1 => self.pop(),
+            _ => Some(FormatNode::Slice(NodeSlice::new(self))),
+        }
+    }
+}
+
+impl std::fmt::Debug for FormatNode<'_> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FormatNode::Space => write!(fmt, "Space"),
             FormatNode::Line(mode) => fmt.debug_tuple("Line").field(mode).finish(),
             FormatNode::ExpandParent => write!(fmt, "ExpandParent"),
             FormatNode::Token { text } => fmt.debug_tuple("Token").field(text).finish(),
-            FormatNode::Text { text, .. } => fmt.debug_tuple("DynamicText").field(text).finish(),
+            FormatNode::Text { text, .. } => fmt.debug_tuple("Text").field(text).finish(),
             FormatNode::SourcePosition { source } => {
                 fmt.debug_tuple("SourcePosition").field(source).finish()
             }
             FormatNode::FileSlice {
-                slice,
+                range,
                 width: text_width,
             } => fmt
-                .debug_tuple("Text")
-                .field(slice)
+                .debug_tuple("FileSlice")
+                .field(range)
                 .field(text_width)
                 .finish(),
             FormatNode::LineSuffixBoundary => write!(fmt, "LineSuffixBoundary"),
@@ -91,106 +106,46 @@ impl std::fmt::Debug for FormatNode {
                 .field("variants", variants)
                 .field("mode", &mode)
                 .finish(),
-            FormatNode::Interned(interned) => fmt.debug_list().entries(&**interned).finish(),
+            FormatNode::Slice(slice) => fmt.debug_list().entries(&**slice).finish(),
             FormatNode::Tag(tag) => fmt.debug_tuple("Tag").field(tag).finish(),
         }
     }
 }
 
-/// Shared format-node slice.
-pub struct Interned(ManuallyDrop<Rc<Vec<FormatNode>>>);
+/// One reusable arena-backed FIR node slice.
+#[derive(Clone, Copy)]
+pub struct NodeSlice<'a>(&'a [FormatNode<'a>]);
 
-impl Interned {
-    /// Create a shared node slice.
-    pub(super) fn new(content: Vec<FormatNode>) -> Self {
-        Self(ManuallyDrop::new(Rc::new(content)))
+impl<'a> NodeSlice<'a> {
+    /// Store one node vector as a stable slice.
+    pub(super) fn new(content: ArenaVec<'a, FormatNode<'a>>) -> Self {
+        Self(content.into_slice())
     }
 
-    /// Return owned nodes when this is the last shared reference.
-    fn into_nodes(self) -> Option<Vec<FormatNode>> {
-        let mut interned = ManuallyDrop::new(self);
-
-        // SAFETY: take the Rc field while the outer value is manually dropped
-        let nodes = unsafe { ManuallyDrop::take(&mut interned.0) };
-
-        Rc::try_unwrap(nodes).ok()
-    }
-
-    /// Return the pointer identity for this shared node slice.
-    pub(super) fn nodes_ptr(&self) -> *const Vec<FormatNode> {
-        Rc::as_ptr(&self.0)
+    /// Return the pointer identity for this node slice.
+    pub(super) fn as_ptr(&self) -> *const FormatNode<'a> {
+        self.0.as_ptr()
     }
 }
 
-impl Clone for Interned {
-    fn clone(&self) -> Self {
-        Self(ManuallyDrop::new(Rc::clone(&self.0)))
+impl PartialEq for NodeSlice<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0, other.0)
     }
 }
 
-impl Drop for Interned {
-    fn drop(&mut self) {
-        // SAFETY: drop runs once, and the Rc field is consumed by this implementation
-        let nodes = unsafe { ManuallyDrop::take(&mut self.0) };
+impl Eq for NodeSlice<'_> {}
 
-        if let Ok(nodes) = Rc::try_unwrap(nodes) {
-            drop_owned_nodes(nodes);
-        }
-    }
-}
-
-impl PartialEq for Interned {
-    fn eq(&self, other: &Interned) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl Eq for Interned {}
-
-impl Hash for Interned {
-    fn hash<H>(&self, hasher: &mut H)
-    where
-        H: Hasher,
-    {
-        self.nodes_ptr().hash(hasher);
-    }
-}
-
-impl std::fmt::Debug for Interned {
+impl std::fmt::Debug for NodeSlice<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.deref().fmt(f)
     }
 }
 
-impl Deref for Interned {
-    type Target = [FormatNode];
+impl<'a> Deref for NodeSlice<'a> {
+    type Target = [FormatNode<'a>];
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_slice()
-    }
-}
-
-/// Drop owned node trees from an explicit work stack.
-fn drop_owned_nodes(nodes: Vec<FormatNode>) {
-    let mut pending = vec![nodes];
-
-    while let Some(nodes) = pending.pop() {
-        for node in nodes {
-            match node {
-                FormatNode::Interned(interned) => {
-                    if let Some(nodes) = interned.into_nodes() {
-                        pending.push(nodes);
-                    }
-                }
-                FormatNode::BestFitting { variants, .. } => {
-                    for interned in variants.into_vec() {
-                        if let Some(nodes) = interned.into_nodes() {
-                            pending.push(nodes);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
+        self.0
     }
 }
