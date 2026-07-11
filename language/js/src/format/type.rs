@@ -15,7 +15,7 @@ use crate::format::property::{
 };
 use crate::{FormatNode, JsFormatContext, JsFormatter};
 
-impl<'ast> Format<JsFormatContext<'ast>> for PrimitiveType {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for PrimitiveType {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             PrimitiveType::Boolean => write!(f, [token("boolean")]),
@@ -28,7 +28,7 @@ impl<'ast> Format<JsFormatContext<'ast>> for PrimitiveType {
     }
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for TypeLiteral {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for TypeLiteral {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),

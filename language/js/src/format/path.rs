@@ -6,7 +6,7 @@ use destack_fir::write;
 
 use crate::{JsFormatContext, JsFormatter};
 
-impl<'ast> Format<JsFormatContext<'ast>> for Path {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for Path {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         // a.b.c
         write!(

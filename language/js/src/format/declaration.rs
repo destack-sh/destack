@@ -74,7 +74,7 @@ pub(crate) fn format_interface_heritage_clause<'ast>(
     )
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for Visibility {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for Visibility {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Visibility::Public => write!(f, [Keyword::Public]),
@@ -84,7 +84,7 @@ impl<'ast> Format<JsFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for DependencyBinding {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for DependencyBinding {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             DependencyBinding::Named => write!(f, [Keyword::Export]),

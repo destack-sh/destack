@@ -739,8 +739,7 @@ impl<'a> Printer<'a> {
 #[cfg(test)]
 mod tests {
     use destack_core::StringPool;
-    use destack_fir::format::{Document, FormatState, Formatter, VecBuffer};
-    use destack_fir::print::Printer as FirPrinter;
+    use destack_fir::format::{Allocator, format_with};
     use destack_source::{File, FileId, FileType, Uri};
 
     use crate::{
@@ -998,18 +997,10 @@ mod tests {
             strings,
             source_map: &NOOP_JS_SOURCE_MAP,
         };
-        let mut state = FormatState::new(context);
-        let mut buffer = VecBuffer::new(&mut state);
-
-        {
-            let mut formatter = Formatter::new(&mut buffer);
-            format_roots(&mut formatter, roots).unwrap();
-        }
-
-        let document = Document::from(buffer.into_vec());
-        let printed = FirPrinter::new(&file, state.context().options.as_print_options())
-            .print(&document)
-            .unwrap();
+        let allocator = Allocator::default();
+        let roots = format_with(|formatter| format_roots(formatter, roots));
+        let formatted = destack_fir::format!(&allocator, context, [roots]).unwrap();
+        let printed = formatted.print().unwrap();
 
         printed.as_str().to_string()
     }

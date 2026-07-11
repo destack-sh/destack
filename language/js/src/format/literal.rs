@@ -18,11 +18,11 @@ pub(crate) fn format_scalar_literal<'ast>(
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Bigint(value) => {
             let value_str = value.to_string();
-            write!(f, [text(&value_str), token("n")])?;
+            write!(f, [copied_text(&value_str), token("n")])?;
         }
         ScalarLiteral::Number(value) => {
             let value_str = value.to_string();
-            write!(f, [text(&value_str)])?;
+            write!(f, [copied_text(&value_str)])?;
         }
         ScalarLiteral::String(value) => {
             format_quoted_string_literal(*value, f)?;
@@ -53,7 +53,7 @@ pub(crate) fn format_string_literal_with_source_span<'ast>(
             f,
             [
                 source_position(source_span.start),
-                text(&encoded),
+                copied_text(&encoded),
                 source_position(source_span.end)
             ]
         )?;
@@ -114,14 +114,14 @@ pub(crate) fn format_template_literal<'ast>(
     Ok(())
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for ScalarLiteral {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for ScalarLiteral {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         format_scalar_literal(self, f)
     }
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for TemplateLiteral {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for TemplateLiteral {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         format_template_literal(self, f)
@@ -135,7 +135,7 @@ fn format_quoted_string_literal<'ast>(
 ) -> FormatResult<()> {
     let encoded = encode_js_string_literal(value, f);
 
-    write!(f, [text(&encoded)])?;
+    write!(f, [copied_text(&encoded)])?;
 
     Ok(())
 }
