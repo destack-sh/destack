@@ -57,7 +57,7 @@ const full: Args = ("Ada", 1);
 === annotated ===
 type Args = Parameters<(name: string, count?: number) => boolean>;
 
-const short: Args = ("Ada",);
+const short: Args = ("Ada",) as Args;
 const full: Args = ("Ada", 1 as float64 | undefined);
 
 === checked ===
@@ -96,7 +96,7 @@ const ok: Args = ("Ada", true, false);
 === annotated ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 
-const ok: Args = ("Ada", true, false);
+const ok: Args = ("Ada", true, false) as Args;
 
 === checked ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
