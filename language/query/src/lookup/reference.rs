@@ -134,7 +134,7 @@ impl ModuleQueryContext<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
         if self.is_member_receiver_expression(expression_id) {
-            return self.namespace_receiver_symbol_target(expression_id);
+            return self.expression_symbol_target(expression_id);
         }
 
         self.expression_symbol_target(expression_id)
@@ -237,7 +237,7 @@ impl ModuleQueryContext<'_> {
             }
 
             if options.include_namespace_receivers {
-                if let Some(symbol_id) = self.namespace_receiver_symbol_target(*left) {
+                if let Some(symbol_id) = self.expression_symbol_target(*left) {
                     let span = self.get_main_span(self.view(), (*left).into());
                     self.push_span_if_matching(symbol_id, target_symbol, options, span, spans);
                 }

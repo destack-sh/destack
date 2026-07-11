@@ -8,24 +8,13 @@ impl ModuleQueryContext<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
-        let view = self.view();
-        let expression = view.get::<dir::Expression>(expression_id);
-
-        match expression {
-            // preserve the underlying symbol through wrappers
-            dir::Expression::Parenthesized { expression } => {
-                self.expression_symbol_target(*expression)
-            }
-            _ => {
-                let node_id = expression_id.into_global_any(self.module_id());
-                let symbol_id = self.resolutions().symbol_resolution(node_id)?;
-                if !self.symbol_is_visible(symbol_id) {
-                    return None;
-                }
-
-                Some(symbol_id)
-            }
+        let node_id = expression_id.into_global_any(self.module_id());
+        let symbol_id = self.resolutions().symbol_resolution(node_id)?;
+        if !self.symbol_is_visible(symbol_id) {
+            return None;
         }
+
+        Some(symbol_id)
     }
 
     /// Return the recorded symbol target for one dependency item.
@@ -49,22 +38,6 @@ impl ModuleQueryContext<'_> {
         item_id: dir::LocalNodeId<dir::DependencyItem>,
     ) -> Option<dir::GlobalSymbolId> {
         self.global_node_symbol(item_id.into())
-    }
-
-    /// Return the recorded namespace receiver symbol for a member access.
-    pub(crate) fn namespace_receiver_symbol_target(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        let view = self.view();
-        let expression = view.get::<dir::Expression>(expression_id);
-
-        match expression {
-            dir::Expression::Parenthesized { expression } => {
-                self.namespace_receiver_symbol_target(*expression)
-            }
-            _ => self.expression_symbol_target(expression_id),
-        }
     }
 
     /// Return the recorded symbol target for one plain path segment.

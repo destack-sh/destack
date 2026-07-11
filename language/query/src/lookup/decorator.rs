@@ -27,9 +27,6 @@ impl ModuleQueryContext<'_> {
         let mut expression_id = decorator.expression;
         loop {
             match self.tree().get(expression_id) {
-                dir::Expression::Parenthesized { expression } => {
-                    expression_id = *expression;
-                }
                 dir::Expression::Call { left, .. } => {
                     expression_id = *left;
                 }

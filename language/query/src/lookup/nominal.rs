@@ -19,16 +19,13 @@ impl ModuleQueryContext<'_> {
         let view = self.view();
         let expression = view.get::<dir::Expression>(expression_id);
 
-        // unwrap type operators and wrappers to the underlying nominal expression
+        // unwrap type operators to the underlying nominal expression
         match expression {
             dir::Expression::BorrowOf { right, .. }
             | dir::Expression::MoveOf { right, .. }
             | dir::Expression::Maybe { left: right, .. }
             | dir::Expression::Must { left: right, .. } => {
                 return self.resolve_nominal_symbol_from_type_expression(*right);
-            }
-            dir::Expression::Parenthesized { expression } => {
-                return self.resolve_nominal_symbol_from_type_expression(*expression);
             }
             dir::Expression::Instantiation { left, .. } => {
                 return self.resolve_nominal_symbol_from_type_expression(*left);

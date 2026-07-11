@@ -146,8 +146,7 @@ impl ExpressionSlotPosition {
     ) -> Option<Self> {
         match expression {
             dir::Expression::ObjectExpression { .. } => None,
-            dir::Expression::Parenthesized { expression }
-            | dir::Expression::Comptime { body: expression }
+            dir::Expression::Comptime { body: expression }
             | dir::Expression::Await { expression }
             | dir::Expression::Unary {
                 right: expression, ..

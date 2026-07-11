@@ -128,7 +128,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // use the namespace receiver target when it resolves
-        if let Some(receiver_symbol) = self.namespace_receiver_symbol_target(*left) {
+        if let Some(receiver_symbol) = self.expression_symbol_target(*left) {
             return Some(receiver_symbol);
         }
 
@@ -544,7 +544,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // resolve the checked namespace receiver target
-        let symbol_id = self.namespace_receiver_symbol_target(left)?;
+        let symbol_id = self.expression_symbol_target(left)?;
 
         Some(SymbolHit::new(symbol_id, left.into(), left_span))
     }
@@ -558,7 +558,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> Option<SymbolHit> {
         // resolve the checked namespace receiver target
-        let symbol_id = self.namespace_receiver_symbol_target(left)?;
+        let symbol_id = self.expression_symbol_target(left)?;
 
         // build the receiver span before the member name
         let member_span = self.get_main_span(self.view(), expression_id.into());
