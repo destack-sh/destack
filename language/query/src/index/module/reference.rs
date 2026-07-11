@@ -109,7 +109,7 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
 
         // collect namespace receiver target on the left side
         if let dir::Expression::Member { left, .. } = expression {
-            if let Some(receiver_symbol) = self.module.namespace_receiver_symbol_target(*left) {
+            if let Some(receiver_symbol) = self.module.expression_symbol_target(*left) {
                 let source = left.into_global_any(self.module.module_id());
 
                 self.push_reference(receiver_symbol, source, dir::ReferenceKind::Name);
