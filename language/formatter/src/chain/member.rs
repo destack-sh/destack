@@ -1,9 +1,7 @@
 use super::groups::{
     MemberChainGroup, TailChainGroups, build_tail_chain_groups, chain_head_member_count,
 };
-use crate::expression::{
-    should_preserve_parenthesized_expression, should_preserve_source_parentheses,
-};
+use crate::expression::should_preserve_source_parentheses;
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_core::StringId;
@@ -484,8 +482,7 @@ pub(crate) fn assignment_like_parent(
                 let is_wrapper_parent = match parent_expr {
                     Expression::Await { expression }
                     | Expression::AwaitMaybe { expression }
-                    | Expression::AwaitMust { expression }
-                    | Expression::Parenthesized { expression } => expression.id == current_id,
+                    | Expression::AwaitMust { expression } => expression.id == current_id,
                     _ => false,
                 };
 
@@ -523,13 +520,6 @@ pub(crate) fn transparent_inner_expression(
         }
 
         let next_id = match context.tree.get(current_id) {
-            Expression::Parenthesized { expression } => {
-                if should_preserve_parenthesized_expression(context, current_id, *expression) {
-                    None
-                } else {
-                    Some(*expression)
-                }
-            }
             Expression::Await { expression }
             | Expression::AwaitMaybe { expression }
             | Expression::AwaitMust { expression } => Some(*expression),

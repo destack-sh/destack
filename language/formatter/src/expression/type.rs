@@ -2797,9 +2797,6 @@ fn write_type_expression_body_inner<'ast>(
     layout: TypeExpressionLayout,
 ) -> FormatResult<()> {
     match expression {
-        TypeExpression::Parenthesized { expression } => {
-            write!(f, [token("("), *expression, token(")")])?;
-        }
         TypeExpression::ScalarLiteral { value } => {
             format_scalar_literal(value, f.context().span(node_id), f)?;
         }

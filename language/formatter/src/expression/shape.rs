@@ -29,7 +29,6 @@ impl ExpressionLeftPath {
     /// Advance to the current expression's left operand.
     pub(crate) fn next(self, context: &DestackFormatContext<'_>) -> Option<Self> {
         let expression_id = match context.tree.get(self.expression_id) {
-            Expression::Parenthesized { expression } => Some(*expression),
             Expression::Member { left, .. }
             | Expression::Index { left, .. }
             | Expression::Call { left, .. }

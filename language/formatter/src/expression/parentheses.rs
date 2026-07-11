@@ -114,35 +114,6 @@ fn type_cast_like_needs_parentheses(
     }
 }
 
-/// Return the effective expression parent and outermost child in that parent.
-fn effective_expression_parent(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Option<(u32, NodeType, LocalNodeId<Expression>)> {
-    let mut current_id = node_id;
-    let mut parent_child_id = node_id;
-
-    loop {
-        let (parent_id, parent_type) = context.parent(current_id)?;
-
-        if parent_type != NodeType::Expression {
-            return Some((parent_id, parent_type, parent_child_id));
-        }
-
-        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-
-        match context.tree.get(parent_expression_id) {
-            // explicit parens stay transparent for parent lookup
-            Expression::Parenthesized { expression } if *expression == current_id => {
-                parent_child_id = parent_expression_id;
-                current_id = parent_expression_id;
-            }
-
-            _ => return Some((parent_id, parent_type, parent_child_id)),
-        }
-    }
-}
-
 /// Return whether one expression is a statement-sensitive identifier.
 fn expression_is_statement_sensitive_identifier(
     context: &DestackFormatContext<'_>,
@@ -208,11 +179,6 @@ fn expression_is_type_relation_left_chain_in_statement_context(
         let parent_expression = context.tree.get(parent_expression_id);
 
         match parent_expression {
-            // explicit parens do not break the chain
-            Expression::Parenthesized { expression } if *expression == current_id => {
-                current_id = parent_expression_id;
-            }
-
             // adjacent type relations stay in the same chain
             Expression::As { expression, .. } | Expression::Satisfies { expression, .. }
                 if *expression == current_id =>
@@ -596,38 +562,6 @@ fn expression_range_needs_parentheses_in_parent(
     )
 }
 
-/// Return whether one expression has lower precedence than update, member, or call positions.
-fn expression_is_update_or_lower_precedence(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    matches!(
-        context.tree.get(node_id),
-        Expression::Declaration(_)
-            | Expression::ObjectExpression { .. }
-            | Expression::StructExpression { .. }
-            | Expression::Unary { .. }
-            | Expression::Await { .. }
-            | Expression::AwaitMaybe { .. }
-            | Expression::AwaitMust { .. }
-            | Expression::Comptime { .. }
-            | Expression::RangeExpression { .. }
-            | Expression::Binary { .. }
-            | Expression::Is { .. }
-            | Expression::InstanceOf { .. }
-            | Expression::If {
-                form: IfForm::Ternary,
-                ..
-            }
-            | Expression::Match { .. }
-            | Expression::Try { .. }
-            | Expression::As { .. }
-            | Expression::Satisfies { .. }
-            | Expression::Assign { .. }
-            | Expression::Yield { .. }
-    )
-}
-
 /// Return whether one statement-like value needs parentheses in a tighter parent.
 fn statement_like_value_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
@@ -651,58 +585,6 @@ fn statement_like_value_needs_parentheses_in_parent(
                 | Expression::Is { .. }
                 | Expression::InstanceOf { .. }
         )
-}
-
-/// Return whether one explicit parenthesized expression is required by its parent.
-fn is_parenthesized_expression_required_by_parent(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if !expression_is_update_or_lower_precedence(context, expression_id) {
-        return false;
-    }
-
-    let Some((parent_id, parent_type, parent_child_id)) =
-        effective_expression_parent(context, node_id)
-    else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return expression_is_statement_like_value(context.tree.get(expression_id))
-            && expression_is_spread_value(context, parent_id, parent_type, parent_child_id);
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let parent_expression = context.tree.get(parent_expression_id);
-
-    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
-        || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
-}
-
-/// Return whether parentheses change one postfix parent.
-fn does_parenthesized_expression_change_postfix_parent(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type, parent_child_id)) =
-        effective_expression_parent(context, node_id)
-    else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let parent_expression = context.tree.get(parent_expression_id);
-
-    is_postfix_parent_changed_by_parentheses(
-        context.tree.get(expression_id),
-        parent_expression,
-        parent_child_id,
-    )
 }
 
 /// Return the elided source parentheses around one expression.
@@ -765,11 +647,11 @@ pub(crate) fn should_preserve_source_parentheses(
     }
 
     // preserve comments owned by the parentheses interior
-    let expression_end = context.node_token_end(node_id);
-    if !context
-        .comment_tokens_in_range(expression_end, parentheses_span.end)
-        .is_empty()
-    {
+    let expression_end = context.span(node_id).end;
+    let interior_comments = context
+        .comments()
+        .comments_in_range(expression_end, parentheses_span.end);
+    if !interior_comments.is_empty() {
         return true;
     }
 
@@ -791,10 +673,15 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    // preserve source parentheses that own interior comments or postfix meaning
+    if should_preserve_source_parentheses(context, node_id) {
+        return true;
+    }
+
     // statement-sensitive identifiers on the left of `as` and `satisfies` must stay parenthesized
     if !matches!(
         context.tree.get(node_id),
-        Expression::Parenthesized { .. } | Expression::As { .. } | Expression::Satisfies { .. }
+        Expression::As { .. } | Expression::Satisfies { .. }
     ) && expression_is_statement_sensitive_identifier(context, node_id)
         && expression_is_type_relation_left_chain_in_statement_context(context, node_id)
     {
@@ -811,11 +698,10 @@ pub(crate) fn expression_needs_parentheses_in_parent(
         return true;
     }
 
-    let Some((parent_id, parent_type, parent_child_id)) =
-        effective_expression_parent(context, node_id)
-    else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
+    let parent_child_id = node_id;
 
     // statement context
     if parent_type != NodeType::Expression {
@@ -868,16 +754,10 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
 
-    // elided source parentheses are preserved when they carry parse meaning
-    if should_preserve_source_parentheses(context, node_id) {
-        return true;
-    }
-
     // assignment expressions need parentheses unless they are already in assignment position
     if let Expression::Assign { .. } = context.tree.get(node_id) {
         return match parent_expression {
             Expression::Assign { .. } => false,
-            Expression::Parenthesized { .. } => false,
             Expression::Index { .. } => false,
             Expression::For {
                 initialization,
@@ -1004,94 +884,4 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     }
 
     false
-}
-
-/// Return whether one explicit parenthesized expression must stay visible.
-pub(crate) fn should_preserve_parenthesized_expression(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    // object expressions need statement start disambiguation
-    if expression_is_in_statement_context(context, node_id)
-        && matches!(
-            context.tree.get(expression_id),
-            Expression::ObjectExpression { .. }
-        )
-    {
-        return true;
-    }
-
-    // comments before `)` stay inside the parentheses
-    let inner_token_end = context.node_token_end(expression_id);
-    let outer_token_end = context.node_token_end(node_id);
-    if !context
-        .comment_tokens_in_range(inner_token_end, outer_token_end)
-        .is_empty()
-    {
-        return true;
-    }
-
-    // statement context owns its parentheses directly
-    if expression_is_in_statement_context(context, node_id) {
-        return false;
-    }
-
-    // parentheses can carry postfix parse meaning
-    if does_parenthesized_expression_change_postfix_parent(context, node_id, expression_id) {
-        return true;
-    }
-
-    // inner expressions that already need parentheses must not gain another pair
-    if expression_needs_parentheses_in_parent(context, expression_id) {
-        return false;
-    }
-
-    // postfix parents require parentheses around lower precedence children
-    if is_parenthesized_expression_required_by_parent(context, node_id, expression_id) {
-        return true;
-    }
-
-    // parenthesized class and function expressions defer to the inner expression
-    if expression_is_class_or_function_declaration(context, expression_id) {
-        let Some((parent_id, parent_type, parent_child_id)) =
-            effective_expression_parent(context, node_id)
-        else {
-            return false;
-        };
-
-        if parent_type == NodeType::Expression {
-            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            let parent_expression = context.tree.get(parent_expression_id);
-
-            if type_cast_like_needs_parentheses(parent_expression, parent_child_id)
-                || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
-            {
-                return false;
-            }
-        }
-    }
-
-    // parenthesis span
-    let outer_span = context.span(node_id);
-    let outer_token_start = context.node_token_start(node_id);
-    let inner_token_start = context.node_token_start(expression_id);
-    let parentheses_start = Span::new(outer_span.file, outer_token_start, outer_token_start);
-
-    // comment scan start
-    let comment_scan_start = context
-        .previous_token_before_span(parentheses_start)
-        .map_or(outer_span.start, |token| token.span.end);
-
-    // comments before `(` stay attached to the parentheses
-    let has_leading_parentheses_comments = context
-        .comment_tokens_in_range(comment_scan_start, inner_token_start)
-        .iter()
-        .any(|comment| comment.span.start < outer_token_start);
-    if has_leading_parentheses_comments {
-        return true;
-    }
-
-    // multiline parentheses stay visible
-    context.has_newline(outer_span)
 }

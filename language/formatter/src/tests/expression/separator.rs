@@ -39,7 +39,20 @@ fn test_format_template_member_separator_comments() {
 fn test_format_parenthesized_trailing_comment() {
     assert_format_program_roundtrip_with_file_type(
         "code || (!escapeless && (true /* 1 */ || false /* 2 */))\n",
-        "code || (!escapeless && (true /* 1 */ || false) /* 2 */);\n",
+        "code || (!escapeless && (true /* 1 */ || false /* 2 */));\n",
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
+/// Comments from nested source parentheses should survive canonicalization.
+#[test]
+fn test_format_nested_parentheses_comments() {
+    let input =
+        "const value = (/* outer */ (/* inner */ source /* inner-tail */) /* outer-tail */)\n";
+    assert_format_program_roundtrip_with_file_type(
+        input,
+        "const value = /* outer */ /* inner */ (source /* inner-tail */ /* outer-tail */);\n",
         FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );

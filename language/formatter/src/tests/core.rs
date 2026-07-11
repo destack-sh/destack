@@ -5,7 +5,7 @@ use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::Format;
-use destack_parser::{Parser, ParserOptions, ParserResult, ParserTriviaMode};
+use destack_parser::{Parser, ParserResult, ParserTriviaMode};
 use destack_repository::FormatterOptions;
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
@@ -69,13 +69,10 @@ impl TestFormatter {
         // parse
         let language = LanguageType::try_from(file_type).expect("file type has no parser language");
         let (side_span, tree, parents, tokens, side_tokens, strings, n) = {
-            let mut parser = Parser::lex_file_with_options(
+            let mut parser = Parser::lex_file_with_trivia(
                 file.clone(),
                 language,
-                ParserOptions {
-                    trivia_mode: ParserTriviaMode::Full,
-                    retain_parentheses: false,
-                },
+                ParserTriviaMode::Full,
                 Arc::new(StringPool::new()),
             );
             let n = parse_fn(&mut parser)?;

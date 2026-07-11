@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_core::StringPool;
-use destack_parser::{Parser, ParserOptions, ParserTriviaMode, source_colorizer};
+use destack_parser::{Parser, ParserTriviaMode, source_colorizer};
 use destack_repository::FormatterOptions;
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
@@ -170,13 +170,10 @@ fn print_parse_diagnostics(path: &Path, logical_path: &Path, source: &str) {
         }
     };
 
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         file.clone(),
         LanguageType::Destack,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
     parser.parse();

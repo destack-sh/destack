@@ -541,7 +541,6 @@ fn write_wrapped_adjacent_statement_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let wrapped_expression_id = adjacent_statement_wrapped_expression(f.context(), expression_id);
     let leading_expression_id = ExpressionLeftPath::new(expression_id)
         .leftmost(f.context())
         .expression_id();
@@ -556,35 +555,19 @@ fn write_wrapped_adjacent_statement_expression<'ast>(
         write!(f, [format_leading_comments(leading_token_span)])?;
 
         if matches!(
-            f.context().tree.get(wrapped_expression_id),
+            f.context().tree.get(expression_id),
             Expression::If {
                 form: IfForm::Ternary,
                 ..
             }
         ) {
-            return write_expanded_adjacent_statement_value(f, wrapped_expression_id);
+            return write_expanded_adjacent_statement_value(f, expression_id);
         }
 
-        write!(f, [wrapped_expression_id])
+        write!(f, [expression_id])
     });
 
     write_wrapped_adjacent_statement_value(f, &wrapped_value)
-}
-
-/// Return the expression that should print inside an adjacent wrapper.
-fn adjacent_statement_wrapped_expression(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    let mut current_id = expression_id;
-
-    loop {
-        let Expression::Parenthesized { expression } = context.tree.get(current_id) else {
-            return current_id;
-        };
-
-        current_id = *expression;
-    }
 }
 
 /// Write one expanded adjacent statement value, preserving ternary expansion.
@@ -1157,19 +1140,12 @@ pub(crate) fn format_break_expression<'ast>(
     Ok(())
 }
 
-/// Return the lone identifier inside one break value, unwrapping parentheses.
+/// Return the lone identifier inside one break value.
 fn break_value_identifier(
     context: &DestackFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
-    let mut current_id = value_id;
-
-    // unwrap parenthesized layers down to the operand
-    while let Expression::Parenthesized { expression } = context.tree.get(current_id) {
-        current_id = *expression;
-    }
-
-    matches!(context.tree.get(current_id), Expression::Identifier { .. }).then_some(current_id)
+    matches!(context.tree.get(value_id), Expression::Identifier { .. }).then_some(value_id)
 }
 
 /// Format one continue expression in statement position.

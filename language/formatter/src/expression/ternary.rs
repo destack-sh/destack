@@ -179,38 +179,12 @@ fn expression_is_ternary(
     )
 }
 
-/// Return the outermost parenthesized expression that still belongs to one ternary.
-fn outermost_parenthesized_ternary_expression(
-    context: &DestackFormatContext<'_>,
-    mut node_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    loop {
-        let Some((parent_id, parent_type)) = context.parent(node_id) else {
-            return node_id;
-        };
-        if parent_type != NodeType::Expression {
-            return node_id;
-        }
-
-        let parent_id = LocalNodeId::<Expression>::new(parent_id);
-        let Expression::Parenthesized { expression } = context.tree.get(parent_id) else {
-            return node_id;
-        };
-        if *expression != node_id {
-            return node_id;
-        }
-
-        node_id = parent_id;
-    }
-}
-
 /// Return the layout position for one ternary expression.
 fn ternary_layout(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> ConditionalLayout {
-    let parenthesized_id = outermost_parenthesized_ternary_expression(context, node_id);
-    let Some((parent_id, parent_type)) = context.parent(parenthesized_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return ConditionalLayout::Root;
     };
     if parent_type != NodeType::Expression {
@@ -225,17 +199,15 @@ fn ternary_layout(
         return ConditionalLayout::Root;
     };
 
-    if condition_id.id == parenthesized_id.id {
+    if condition_id.id == node_id.id {
         return ConditionalLayout::NestedTest;
     }
 
-    if then_expression_id.id == parenthesized_id.id {
+    if then_expression_id.id == node_id.id {
         return ConditionalLayout::NestedConsequent;
     }
 
-    if else_expression_id
-        .is_some_and(|else_expression_id| else_expression_id.id == parenthesized_id.id)
-    {
+    if else_expression_id.is_some_and(|else_expression_id| else_expression_id.id == node_id.id) {
         return ConditionalLayout::NestedAlternate;
     }
 
