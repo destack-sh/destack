@@ -1,15 +1,15 @@
-#![allow(clippy::too_many_arguments)]
-
 use std::fmt;
 use std::sync::Arc;
 
 use destack_core::Color;
 
-use crate::{AnnotateError, File, LabeledSpan};
+use crate::{AnnotateError, File, LabeledSpan, Span};
 
 const HEADER_PREFIX: &str = "──▶";
-const BODY_PREFIX: &str = " │ ";
-const HIGHLIGHT: char = '^';
+const GUTTER: &str = " │ ";
+const PRIMARY_GLYPH: char = '^';
+const SECONDARY_GLYPH: char = '-';
+const CONNECTOR: char = '│';
 const ELIDE: &str = "··";
 
 /// A function that colorizes a slice of source code.
@@ -17,6 +17,44 @@ const ELIDE: &str = "··";
 /// Takes a file, byte range (start, end), and a brightness flag. When `bright`
 /// is true, use full brightness colors; when false, use dimmed colors.
 pub type SourceColorizer = Arc<dyn Fn(&File, u32, u32, bool) -> String + Send + Sync>;
+
+/// One span annotated inside a source window.
+#[derive(Debug, Clone)]
+pub struct AnnotateSpan {
+    /// The annotated span.
+    pub span: Span,
+    /// The label shown at the span, empty for a bare underline.
+    pub label: String,
+    /// Whether the span carries the diagnostic itself.
+    pub is_primary: bool,
+}
+
+impl AnnotateSpan {
+    /// Create one primary annotated span.
+    pub fn primary(span: Span, label: impl Into<String>) -> Self {
+        Self {
+            span,
+            label: label.into(),
+            is_primary: true,
+        }
+    }
+
+    /// Create one secondary annotated span.
+    pub fn secondary(span: Span, label: impl Into<String>) -> Self {
+        Self {
+            span,
+            label: label.into(),
+            is_primary: false,
+        }
+    }
+}
+
+impl From<&LabeledSpan> for AnnotateSpan {
+    /// Annotate one labeled span as the primary span.
+    fn from(labeled: &LabeledSpan) -> Self {
+        Self::primary(labeled.span, labeled.label.clone())
+    }
+}
 
 /// Options controlling how annotation is rendered.
 #[derive(Clone, Default)]
@@ -35,8 +73,10 @@ pub struct AnnotateOptions {
     pub color_dim: Color = Color::White,
     /// Color for metadata like line numbers and separators.
     pub color_meta: Color = Color::BrightMagenta,
-    /// Color for highlights and labels.
+    /// Color for the primary highlight and its label.
     pub color_highlight: Color = Color::BrightYellow,
+    /// Color for secondary highlights and their labels.
+    pub color_secondary: Color = Color::BrightCyan,
     /// Optional syntax colorizer for source code.
     pub colorizer: Option<SourceColorizer> = None,
 }
@@ -84,554 +124,604 @@ impl fmt::Debug for AnnotateOptions {
             .field("color_dim", &self.color_dim)
             .field("color_meta", &self.color_meta)
             .field("color_highlight", &self.color_highlight)
+            .field("color_secondary", &self.color_secondary)
             .field("colorizer", &self.colorizer.as_ref().map(|_| "..."))
             .finish()
     }
 }
 
-/// Annotate source lines around a labeled span.
+/// One label segment placed on a caret row.
+#[derive(Debug, Clone)]
+struct PlacedLabel {
+    /// The column of the span start inside the visible slice.
+    column: u32,
+    /// The label text.
+    label: String,
+    /// Whether the label belongs to the primary span.
+    is_primary: bool,
+}
+
+/// Annotate source lines around one or more labeled spans in one window.
 ///
-/// The `span` must come from the same `source`. The output includes a header
-/// with file name and 1-based line and column, a body with the requested
-/// surrounding lines, the original code, and a highlight caret line with the
-/// label attached on the first highlighted line:
+/// All spans must come from `source`; the first primary span anchors the
+/// header position. The output is one source window with an underline row
+/// per annotated line and stacked connector rows when labels share a line:
 ///
 /// ```text
-/// ==> file.ds:2:5
-///  |
-///  | 1 | fn main() {
-///  | 2 |     let variable = 42;
-///  |   |         ^^^^^^^^ label: explanation
-///  | 3 | }
-///  |
+/// ──▶ file.ds:2:9
+///   │
+/// 1 │ fn main() {
+/// 2 │     let variable: int8 = value;
+///   │         ^^^^^^^^  ---- expected because of this
+///   │         │
+///   │         this binding
+/// 3 │ }
+///   │
 /// ```
-///
-/// Prefix and suffix line counts control how many lines are shown before and
-/// after the highlighted region.
-/// Lines longer than `max_line_width` are clipped to keep the highlight visible.
 pub fn annotate_file(
     source: &File,
-    span: &LabeledSpan,
+    spans: &[AnnotateSpan],
     options: AnnotateOptions,
 ) -> Result<String, AnnotateError> {
-    if source.id != span.span.file {
-        return Err(AnnotateError::FileMismatch {
-            source_file: source.id,
-            span_file: span.span.file,
-        });
+    let Some(anchor) = spans
+        .iter()
+        .find(|span| span.is_primary)
+        .or_else(|| spans.first())
+    else {
+        return Ok(String::new());
+    };
+    for span in spans {
+        if source.id != span.span.file {
+            return Err(AnnotateError::FileMismatch {
+                source_file: source.id,
+                span_file: span.span.file,
+            });
+        }
     }
 
-    // compute span bounds
-    let Some((span_start_line, start_col)) = source.get_position(span.span.start) else {
-        return Err(AnnotateError::InvalidSpanStart {
-            file: source.id,
-            offset: span.span.start,
-        });
-    };
-    let span_end_line = source
-        .get_position(span.span.end)
-        .map(|(line, _)| line)
-        .ok_or(AnnotateError::InvalidSpanEnd {
-            file: source.id,
-            offset: span.span.end,
-        })?;
+    // compute the line range covered by every span
+    let mut lines = Vec::with_capacity(spans.len());
+    for span in spans {
+        let start =
+            source
+                .get_position(span.span.start)
+                .ok_or(AnnotateError::InvalidSpanStart {
+                    file: source.id,
+                    offset: span.span.start,
+                })?;
+        let end = source
+            .get_position(span.span.end)
+            .map(|(line, _)| line)
+            .ok_or(AnnotateError::InvalidSpanEnd {
+                file: source.id,
+                offset: span.span.end,
+            })?;
+        lines.push((start.0, end));
+    }
+    let first_line = lines.iter().map(|(start, _)| *start).min().unwrap_or(0);
+    let last_line = lines.iter().map(|(_, end)| *end).max().unwrap_or(0);
+    let (anchor_line, anchor_col) =
+        source
+            .get_position(anchor.span.start)
+            .ok_or(AnnotateError::InvalidSpanStart {
+                file: source.id,
+                offset: anchor.span.start,
+            })?;
 
-    // compute source window
-    let (window_start_line, window_end_line) = get_source_window(
-        source,
-        span_start_line,
-        span_end_line,
-        options.prefix_lines,
-        options.suffix_lines,
-    );
-    let width = (window_end_line + 1).to_string().len() as u32;
+    // compute the source window
+    let window_start = first_line.saturating_sub(options.prefix_lines as u32);
+    let window_end = last_line
+        .saturating_add(options.suffix_lines as u32)
+        .min(source.line_count().saturating_sub(1));
+    let width = (window_end + 1).to_string().len() as u32;
 
-    // build string
     let mut buffer = String::new();
     write_header(
         &mut buffer,
         source,
-        span_start_line,
-        start_col,
-        options.use_color,
-        options.color_normal,
-        options.color_meta,
+        anchor_line,
+        anchor_col,
+        width,
+        &options,
     );
-    write_body_separator(&mut buffer, options.use_color, options.color_meta);
-    for line in window_start_line..=window_end_line {
-        let (line_str, bounds, truncate_left, truncate_right) = get_visible_source_slice(
-            source,
-            line,
-            span,
-            span_start_line,
-            span_end_line,
-            options.line_width,
-        )?;
-        let is_in_span = line >= span_start_line && line <= span_end_line;
-        write_source_line(
-            &mut buffer,
-            source,
-            line,
-            width,
-            line_str,
-            bounds,
-            is_in_span,
-            truncate_left,
-            truncate_right,
-            &options,
-        );
-        if is_in_span {
-            let (offset_spaces, highlight_count, left_trunc, right_trunc) =
-                get_highlight_offset(bounds, span, line, span_start_line, span_end_line);
-            write_highlight_line(
-                &mut buffer,
-                width,
-                offset_spaces,
-                highlight_count,
-                line == span_start_line,
-                &span.label,
-                left_trunc,
-                right_trunc,
-                options.use_color,
-                options.color_meta,
-                options.color_highlight,
-            );
-        }
+    write_separator(&mut buffer, width, &options);
+    for line in window_start..=window_end {
+        write_annotated_line(&mut buffer, source, line, width, spans, &lines, &options)?;
     }
-    write_body_separator(&mut buffer, options.use_color, options.color_meta);
+    write_separator(&mut buffer, width, &options);
 
     Ok(buffer)
 }
 
-/// Write the header line: `==> name:line:col`.
-#[inline]
+/// Write one source line and its caret and label rows.
+fn write_annotated_line(
+    buffer: &mut String,
+    source: &File,
+    line: u32,
+    width: u32,
+    spans: &[AnnotateSpan],
+    lines: &[(u32, u32)],
+    options: &AnnotateOptions,
+) -> Result<(), AnnotateError> {
+    // collect the spans intersecting and starting on this line
+    let mut intersecting = Vec::new();
+    for (index, span) in spans.iter().enumerate() {
+        let (start_line, end_line) = lines[index];
+        if line >= start_line && line <= end_line {
+            intersecting.push((index, span, start_line, end_line));
+        }
+    }
+    let is_annotated = !intersecting.is_empty();
+
+    // clip the line around the union of its annotated ranges
+    let (visible, bounds, truncate_left, truncate_right) =
+        visible_slice(source, line, &intersecting, options.line_width)?;
+    let (visible_start, visible_end, line_start, line_end) = bounds;
+
+    // source row
+    write_gutter(buffer, Some(line), width, is_annotated, options);
+    if truncate_left {
+        buffer.push_str(ELIDE);
+    }
+    if options.use_color {
+        if let Some(colorizer) = &options.colorizer {
+            buffer.push_str(&colorizer(source, visible_start, visible_end, is_annotated));
+        } else if is_annotated {
+            buffer.push_str(&options.color_normal.apply(visible));
+        } else {
+            buffer.push_str(&options.color_dim.apply(visible));
+        }
+    } else {
+        buffer.push_str(visible);
+    }
+    if truncate_right {
+        buffer.push_str(ELIDE);
+    }
+    buffer.push('\n');
+    if !is_annotated {
+        return Ok(());
+    }
+
+    // caret row: overlay every intersecting span, primary wins overlaps
+    let elide_offset = if truncate_left {
+        ELIDE.chars().count() as u32
+    } else {
+        0
+    };
+    let visible_len = (visible_end - visible_start) + elide_offset;
+    let mut cells: Vec<Option<bool>> = vec![None; visible_len as usize + 1];
+    let mut labels = Vec::new();
+    for (_, span, start_line, end_line) in &intersecting {
+        let segment_start = if line == *start_line {
+            span.span.start
+        } else {
+            line_start
+        };
+        let segment_end = if line == *end_line {
+            span.span.end
+        } else {
+            line_end
+        };
+        let clipped_start = segment_start.max(visible_start).min(visible_end);
+        let clipped_end = segment_end.max(visible_start).min(visible_end);
+        let from = clipped_start - visible_start + elide_offset;
+        // zero-width spans still show one caret
+        let to = (clipped_end - visible_start + elide_offset).max(from + 1);
+        for cell in from..to.min(visible_len + 1) {
+            let cell = &mut cells[cell as usize];
+            *cell = Some(span.is_primary || cell.unwrap_or(false));
+        }
+        if line == *start_line && !span.label.is_empty() {
+            labels.push(PlacedLabel {
+                column: from,
+                label: span.label.clone(),
+                is_primary: span.is_primary,
+            });
+        }
+    }
+
+    // labels sort by column; the rightmost label sits inline on the caret row
+    labels.sort_by_key(|label| label.column);
+    let inline = labels.pop();
+
+    write_gutter(buffer, None, width, true, options);
+    write_caret_cells(buffer, &cells, options);
+    if let Some(inline) = &inline {
+        buffer.push(' ');
+        push_label_text(buffer, inline, options);
+    }
+    buffer.push('\n');
+
+    // remaining labels stack under connector rows, right to left
+    if !labels.is_empty() {
+        write_gutter(buffer, None, width, true, options);
+        write_connectors(buffer, &labels, labels.len(), options);
+        buffer.push('\n');
+        for index in (0..labels.len()).rev() {
+            write_gutter(buffer, None, width, true, options);
+            let column = write_connectors(buffer, &labels, index, options);
+            for _ in column..labels[index].column {
+                buffer.push(' ');
+            }
+            push_label_text(buffer, &labels[index], options);
+            buffer.push('\n');
+        }
+    }
+
+    Ok(())
+}
+
+/// Write connector columns for the first `count` pending labels.
+///
+/// Returns the column after the last written connector.
+fn write_connectors(
+    buffer: &mut String,
+    labels: &[PlacedLabel],
+    count: usize,
+    options: &AnnotateOptions,
+) -> u32 {
+    let mut column = 0;
+    for label in labels.iter().take(count) {
+        for _ in column..label.column {
+            buffer.push(' ');
+        }
+        let color = label_color(label, options);
+        if options.use_color {
+            buffer.push_str(&color.apply_bold(&CONNECTOR.to_string()));
+        } else {
+            buffer.push(CONNECTOR);
+        }
+        column = label.column + 1;
+    }
+
+    column
+}
+
+/// Write one caret row from overlaid cells, coloring by span kind.
+fn write_caret_cells(buffer: &mut String, cells: &[Option<bool>], options: &AnnotateOptions) {
+    let mut run = String::new();
+    let mut run_kind: Option<bool> = None;
+    let flush = |buffer: &mut String, run: &mut String, kind: Option<bool>| {
+        if run.is_empty() {
+            return;
+        }
+        if options.use_color {
+            let color = match kind {
+                Some(true) => options.color_highlight,
+                Some(false) => options.color_secondary,
+                None => options.color_meta,
+            };
+            buffer.push_str(&color.apply_bold(run));
+        } else {
+            buffer.push_str(run);
+        }
+        run.clear();
+    };
+
+    for cell in cells {
+        if *cell != run_kind {
+            flush(buffer, &mut run, run_kind);
+            run_kind = *cell;
+        }
+        run.push(match cell {
+            Some(true) => PRIMARY_GLYPH,
+            Some(false) => SECONDARY_GLYPH,
+            None => ' ',
+        });
+    }
+    // trailing blank cells never print
+    while run.ends_with(' ') {
+        run.pop();
+    }
+    flush(buffer, &mut run, run_kind);
+}
+
+/// Write one label text in its span color.
+fn push_label_text(buffer: &mut String, label: &PlacedLabel, options: &AnnotateOptions) {
+    if options.use_color {
+        let color = label_color(label, options);
+        buffer.push_str(&color.apply_bold(&label.label));
+    } else {
+        buffer.push_str(&label.label);
+    }
+}
+
+/// Return the color for one placed label.
+fn label_color(label: &PlacedLabel, options: &AnnotateOptions) -> Color {
+    if label.is_primary {
+        options.color_highlight
+    } else {
+        options.color_secondary
+    }
+}
+
+/// Write the header row: `──▶ name:line:col` aligned to the gutter.
 fn write_header(
     buffer: &mut String,
     source: &File,
     line: u32,
     col: u32,
-    use_color: bool,
-    color_normal: Color,
-    color_meta: Color,
-) {
-    if use_color {
-        // prefix
-        buffer.push_str(&color_normal.apply(HEADER_PREFIX));
-        buffer.push_str(&color_normal.apply(" "));
-        // name
-        buffer.push_str(&color_normal.apply(source.uri.as_ref()));
-        buffer.push_str(&color_normal.apply(":"));
-        // line
-        buffer.push_str(&color_meta.apply(&line.saturating_add(1).to_string()));
-        buffer.push_str(&color_normal.apply(":"));
-        // column
-        buffer.push_str(&color_meta.apply(&col.saturating_add(1).to_string()));
-    } else {
-        // prefix
-        buffer.push_str(HEADER_PREFIX);
-        buffer.push(' ');
-        // name
-        buffer.push_str(source.uri.as_ref());
-        buffer.push(':');
-        // line
-        buffer.push_str(&line.saturating_add(1).to_string());
-        buffer.push(':');
-        // column
-        buffer.push_str(&col.saturating_add(1).to_string());
-    }
-    buffer.push('\n');
-}
-
-/// Write a blank body separator line: ` | `.
-#[inline]
-fn write_body_separator(buffer: &mut String, use_color: bool, color_meta: Color) {
-    if use_color {
-        buffer.push_str(&color_meta.apply(BODY_PREFIX));
-    } else {
-        buffer.push_str(BODY_PREFIX);
-    }
-    buffer.push('\n');
-}
-
-/// Write a line with source code, including the line number column.
-#[inline]
-fn write_source_line(
-    buffer: &mut String,
-    source: &File,
-    line: u32,
     width: u32,
-    line_str: &str,
-    bounds: (u32, u32, u32, u32),
-    is_in_span: bool,
-    truncate_left: bool,
-    truncate_right: bool,
     options: &AnnotateOptions,
 ) {
-    let (absolute_visible_start, absolute_visible_end, _, _) = bounds;
-
-    // prefix
-    if options.use_color {
-        buffer.push_str(&options.color_meta.apply(BODY_PREFIX));
-    } else {
-        buffer.push_str(BODY_PREFIX);
-    }
-    let line_num = line.saturating_add(1).to_string();
-    for _ in 0..(width - line_num.len() as u32) {
-        buffer.push(' ');
-    }
-
-    // line number
-    if options.use_color {
-        if is_in_span {
-            buffer.push_str(&options.color_meta.apply(&line_num));
-        } else {
-            buffer.push_str(&options.color_dim.apply(&line_num));
-        }
-        buffer.push_str(&options.color_meta.apply(" │ "));
-    } else {
-        buffer.push_str(&line_num);
-        buffer.push_str(" │ ");
-    }
-
-    // content with elision markers
-    if truncate_left {
-        buffer.push_str(ELIDE);
-    }
-
-    // colorize source (highlighted lines are bright, context lines are dimmed)
-    if options.use_color {
-        if let Some(colorizer) = &options.colorizer {
-            let colorized = colorizer(
-                source,
-                absolute_visible_start,
-                absolute_visible_end,
-                is_in_span,
-            );
-            buffer.push_str(&colorized);
-        } else if is_in_span {
-            buffer.push_str(&options.color_normal.apply(line_str));
-        } else {
-            buffer.push_str(&options.color_dim.apply(line_str));
-        }
-    } else {
-        buffer.push_str(line_str);
-    }
-
-    if truncate_right {
-        buffer.push_str(ELIDE);
-    }
-    buffer.push('\n');
-}
-
-/// Write the highlight line containing carets and the optional label.
-fn write_highlight_line(
-    buffer: &mut String,
-    width: u32,
-    offset_spaces: u32,
-    highlight_count: u32,
-    is_first: bool,
-    label: &str,
-    truncate_left: bool,
-    truncate_right: bool,
-    use_color: bool,
-    color_meta: Color,
-    color_highlight: Color,
-) {
-    // prefix
-    if use_color {
-        buffer.push_str(&color_meta.apply(BODY_PREFIX));
-    } else {
-        buffer.push_str(BODY_PREFIX);
-    }
     for _ in 0..width {
         buffer.push(' ');
     }
-    if use_color {
-        buffer.push_str(&color_meta.apply(" │ "));
-    } else {
-        buffer.push_str(" │ ");
-    }
-    for _ in 0..offset_spaces {
+    let location = format!(
+        "{}:{}:{}",
+        source.uri.as_ref(),
+        line.saturating_add(1),
+        col.saturating_add(1)
+    );
+    if options.use_color {
+        buffer.push_str(&options.color_meta.apply(HEADER_PREFIX));
         buffer.push(' ');
-    }
-    // highlight (with elision markers if truncated)
-    let show_elide = truncate_left || truncate_right;
-    let mut caret_text = String::new();
-    if show_elide {
-        caret_text.push_str(ELIDE);
-    }
-    for _ in 0..highlight_count {
-        caret_text.push(HIGHLIGHT);
-    }
-    if show_elide {
-        caret_text.push_str(ELIDE);
-    }
-    if use_color {
-        buffer.push_str(&color_highlight.apply_bold(&caret_text));
+        buffer.push_str(&options.color_normal.apply(&location));
     } else {
-        buffer.push_str(&caret_text);
-    }
-    // label
-    if is_first && !label.is_empty() {
+        buffer.push_str(HEADER_PREFIX);
         buffer.push(' ');
-        if use_color {
-            buffer.push_str(&color_highlight.apply_bold(label));
-        } else {
-            buffer.push_str(label);
-        }
+        buffer.push_str(&location);
     }
-
     buffer.push('\n');
 }
 
-/// Get the first and last line indices to display (inclusive).
-#[inline]
-fn get_source_window(
-    source: &File,
-    start_line: u32,
-    end_line: u32,
-    prefix_lines: u8,
-    suffix_lines: u8,
-) -> (u32, u32) {
-    let first = start_line.saturating_sub(prefix_lines as u32);
-    let last_needed = end_line.saturating_add(suffix_lines as u32);
-    let last_available = source.line_count().saturating_sub(1);
-    (first, last_needed.min(last_available))
+/// Write one blank gutter separator row.
+fn write_separator(buffer: &mut String, width: u32, options: &AnnotateOptions) {
+    for _ in 0..width {
+        buffer.push(' ');
+    }
+    let gutter = GUTTER.trim_end();
+    if options.use_color {
+        buffer.push_str(&options.color_meta.apply(gutter));
+    } else {
+        buffer.push_str(gutter);
+    }
+    buffer.push('\n');
 }
 
-/// Compute the visible source code slice for a line and return it with absolute bounds.
+/// Write one gutter prefix, with the line number when given.
+fn write_gutter(
+    buffer: &mut String,
+    line: Option<u32>,
+    width: u32,
+    is_annotated: bool,
+    options: &AnnotateOptions,
+) {
+    let number = line.map(|line| line.saturating_add(1).to_string());
+    let pad = width - number.as_deref().map_or(0, str::len) as u32;
+    for _ in 0..pad {
+        buffer.push(' ');
+    }
+    if let Some(number) = &number {
+        if options.use_color {
+            if is_annotated {
+                buffer.push_str(&options.color_meta.apply(number));
+            } else {
+                buffer.push_str(&options.color_dim.apply(number));
+            }
+        } else {
+            buffer.push_str(number);
+        }
+    }
+    if options.use_color {
+        buffer.push_str(&options.color_meta.apply(GUTTER));
+    } else {
+        buffer.push_str(GUTTER);
+    }
+}
+
+/// Compute the visible slice of one line around its annotated ranges.
 ///
-/// Bounds are (absolute_visible_start, absolute_visible_end, line_start, line_end).
-fn get_visible_source_slice<'a>(
+/// Bounds are (visible_start, visible_end, line_start, line_end) in absolute
+/// byte offsets.
+fn visible_slice<'a>(
     source: &'a File,
-    current_line: u32,
-    span: &LabeledSpan,
-    start_line: u32,
-    end_line: u32,
+    line: u32,
+    intersecting: &[(usize, &AnnotateSpan, u32, u32)],
     max_line_width: u32,
 ) -> Result<(&'a str, (u32, u32, u32, u32), bool, bool), AnnotateError> {
     let line_text = source
-        .get_line_str(current_line)
+        .get_line_str(line)
         .ok_or(AnnotateError::MissingLineText {
             file: source.id,
-            line: current_line,
+            line,
         })?;
     let line_span = source
-        .get_line_span(current_line)
+        .get_line_span(line)
         .ok_or(AnnotateError::MissingLineSpan {
             file: source.id,
-            line: current_line,
+            line,
         })?;
-    let line_len_bytes = line_span.len();
+    let line_len = line_span.len();
 
-    // determine slice bounds within the line
-    let mut slice_start_in_line: u32 = 0;
-    let mut slice_end_in_line: u32 = line_len_bytes;
+    let mut slice_start: u32 = 0;
+    let mut slice_end: u32 = line_len;
 
-    // truncate long lines to fit within max_line_width
-    if max_line_width > 0 && line_len_bytes > max_line_width {
-        // calculate where the highlight appears within this line
-        let highlight_start_in_line = if current_line == start_line {
-            (span.span.start).saturating_sub(line_span.start)
-        } else {
-            0
-        };
-        let highlight_end_in_line = if current_line == end_line {
-            (span.span.end).saturating_sub(line_span.start)
-        } else if current_line >= start_line && current_line <= end_line {
-            line_len_bytes
-        } else {
-            highlight_start_in_line
-        };
+    // clip long lines around the union of annotated ranges
+    if max_line_width > 0 && line_len > max_line_width {
+        let union_end = intersecting
+            .iter()
+            .map(|(_, span, _, end_line)| {
+                if line == *end_line {
+                    span.span.end.saturating_sub(line_span.start)
+                } else {
+                    line_len
+                }
+            })
+            .max()
+            .unwrap_or(0);
 
-        // position the slice to show the highlight
-        let needed_end = highlight_end_in_line.min(line_len_bytes);
+        let needed_end = union_end.min(line_len);
         if needed_end <= max_line_width {
-            slice_start_in_line = 0;
-            slice_end_in_line = max_line_width;
+            slice_end = max_line_width;
         } else {
-            slice_end_in_line = needed_end;
-            slice_start_in_line = slice_end_in_line.saturating_sub(max_line_width);
+            slice_end = needed_end;
+            slice_start = slice_end.saturating_sub(max_line_width);
         }
 
-        // adjust slice bounds to respect UTF-8 character boundaries
-        let abs_slice_start = line_span.start + slice_start_in_line;
-        let abs_slice_end = line_span.start + slice_end_in_line;
-        let mut start_b = abs_slice_start;
-        while start_b > line_span.start && !source.text().is_char_boundary(start_b as usize) {
-            start_b -= 1;
+        // respect UTF-8 character boundaries
+        let mut start = line_span.start + slice_start;
+        while start > line_span.start && !source.text().is_char_boundary(start as usize) {
+            start -= 1;
         }
-        let mut end_b = abs_slice_end;
-        while end_b < line_span.end && !source.text().is_char_boundary(end_b as usize) {
-            end_b += 1;
+        let mut end = line_span.start + slice_end;
+        while end < line_span.end && !source.text().is_char_boundary(end as usize) {
+            end += 1;
         }
-        slice_start_in_line = start_b - line_span.start;
-        slice_end_in_line = (end_b - line_span.start).min(line_len_bytes);
+        slice_start = start - line_span.start;
+        slice_end = (end - line_span.start).min(line_len);
     }
 
-    // extract the visible portion and compute absolute bounds
     let visible = line_text
-        .get(slice_start_in_line as usize..slice_end_in_line as usize)
+        .get(slice_start as usize..slice_end as usize)
         .ok_or(AnnotateError::InvalidVisibleSlice {
             file: source.id,
-            start: slice_start_in_line,
-            end: slice_end_in_line,
+            start: slice_start,
+            end: slice_end,
         })?;
-    let absolute_visible_start = line_span.start + slice_start_in_line;
-    let absolute_visible_end = line_span.start + slice_end_in_line;
-    let truncate_left = slice_start_in_line > 0;
-    let truncate_right = slice_end_in_line < line_len_bytes;
+
     Ok((
         visible,
         (
-            absolute_visible_start,
-            absolute_visible_end,
+            line_span.start + slice_start,
+            line_span.start + slice_end,
             line_span.start,
             line_span.end,
         ),
-        truncate_left,
-        truncate_right,
+        slice_start > 0,
+        slice_end < line_len,
     ))
-}
-
-/// Get the offset and length of the highlight within the visible slice.
-fn get_highlight_offset(
-    bounds: (u32, u32, u32, u32),
-    span: &LabeledSpan,
-    current_line: u32,
-    start_line: u32,
-    end_line: u32,
-) -> (u32, u32, bool, bool) {
-    let (absolute_visible_start, absolute_visible_end, line_start_byte, line_end_byte) = bounds;
-
-    // determine the absolute span of the highlight on this line
-    let segment_start_abs = if current_line == start_line {
-        span.span.start
-    } else {
-        line_start_byte
-    };
-    let segment_end_abs = if current_line == end_line {
-        span.span.end
-    } else {
-        line_end_byte
-    };
-
-    // clip the highlight to the visible portion
-    let hl_start = segment_start_abs
-        .max(absolute_visible_start)
-        .min(absolute_visible_end);
-    let hl_end = segment_end_abs
-        .max(absolute_visible_start)
-        .min(absolute_visible_end);
-
-    // ensure zero-width spans show at least one character
-    let mut highlight_count = hl_end.saturating_sub(hl_start);
-    if highlight_count == 0 && current_line == start_line {
-        highlight_count = 1;
-    }
-
-    let offset_spaces = hl_start.saturating_sub(absolute_visible_start);
-    let truncate_left = segment_start_abs < absolute_visible_start;
-    let truncate_right = segment_end_abs > absolute_visible_end;
-    (
-        offset_spaces,
-        highlight_count,
-        truncate_left,
-        truncate_right,
-    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FileId, FileType, Span, Uri};
+    use crate::{FileId, FileType, Uri};
 
-    #[test]
-    fn test_annotate_single_line() {
-        let id = FileId::new(0);
-        let content = r#"fn main() {
-    let variable = 42;
-}"#
-        .to_string();
-        let source = File::from_text(
-            id,
-            "<test>".to_string(),
-            Uri::from_string("<test>"),
-            None,
-            FileType::Destack,
-            content.clone(),
-        );
-        let start = content.find("variable").unwrap();
-        let end = start + "variable".len();
-        let span = LabeledSpan {
-            span: Span::new(id, start as u32, end as u32),
-            label: "variable name".to_string(),
-        };
-        let options = AnnotateOptions {
-            line_width: 80,
-            prefix_lines: 1,
-            suffix_lines: 1,
-            use_color: false,
-            color_normal: Color::White,
-            color_dim: Color::White,
-            color_meta: Color::BrightMagenta,
-            color_highlight: Color::BrightYellow,
-            colorizer: None,
-        };
-        let annotated = annotate_file(&source, &span, options).unwrap();
-
-        let expected = concat!(
-            "──▶ <test>:2:9\n",
-            " │ \n",
-            " │ 1 │ fn main() {\n",
-            " │ 2 │     let variable = 42;\n",
-            " │   │         ^^^^^^^^ variable name\n",
-            " │ 3 │ }\n",
-            " │ \n",
-        );
-
-        assert_eq!(annotated, expected);
-    }
-
-    #[test]
-    fn test_annotate_wrapped_line() {
-        let content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
-        let id = FileId::new(0);
-        let source = File::from_text(
-            id,
+    fn test_file(content: &str) -> File {
+        File::from_text(
+            FileId::new(0),
             "<test>".to_string(),
             Uri::from_string("<test>"),
             None,
             FileType::Destack,
             content.to_string(),
+        )
+    }
+
+    fn plain_options() -> AnnotateOptions {
+        AnnotateOptions {
+            line_width: 80,
+            prefix_lines: 1,
+            suffix_lines: 1,
+            use_color: false,
+            ..AnnotateOptions::default()
+        }
+    }
+
+    #[test]
+    fn test_annotate_single_line() {
+        let content = "fn main() {\n    let variable = 42;\n}";
+        let source = test_file(content);
+        let start = content.find("variable").unwrap() as u32;
+        let span = AnnotateSpan::primary(Span::new(source.id, start, start + 8), "variable name");
+
+        let annotated = annotate_file(&source, &[span], plain_options()).unwrap();
+
+        let expected = concat!(
+            " ──▶ <test>:2:9\n",
+            "  │\n",
+            "1 │ fn main() {\n",
+            "2 │     let variable = 42;\n",
+            "  │         ^^^^^^^^ variable name\n",
+            "3 │ }\n",
+            "  │\n",
         );
-        let start = 150usize;
-        let end = 155usize;
-        let span = LabeledSpan {
-            span: Span::new(id, start as u32, end as u32),
-            label: "tail".to_string(),
-        };
+        assert_eq!(annotated, expected);
+    }
+
+    #[test]
+    fn test_annotate_stacked_labels() {
+        let content = "const overflows: int8 = 300;";
+        let source = test_file(content);
+        let annotation = content.find("int8").unwrap() as u32;
+        let value = content.find("300").unwrap() as u32;
+        let spans = [
+            AnnotateSpan::primary(
+                Span::new(source.id, value, value + 3),
+                "this value does not fit",
+            ),
+            AnnotateSpan::secondary(
+                Span::new(source.id, annotation, annotation + 4),
+                "expected `int8` because of this annotation",
+            ),
+        ];
+
+        let annotated = annotate_file(&source, &spans, plain_options()).unwrap();
+
+        let expected = concat!(
+            " ──▶ <test>:1:25\n",
+            "  │\n",
+            "1 │ const overflows: int8 = 300;\n",
+            "  │                  ----   ^^^ this value does not fit\n",
+            "  │                  │\n",
+            "  │                  expected `int8` because of this annotation\n",
+            "  │\n",
+        );
+        assert_eq!(annotated, expected);
+    }
+
+    #[test]
+    fn test_annotate_labels_on_separate_lines() {
+        let content = "function get(): int8 {\n    return 300;\n}";
+        let source = test_file(content);
+        let annotation = content.find("int8").unwrap() as u32;
+        let value = content.find("300").unwrap() as u32;
+        let spans = [
+            AnnotateSpan::primary(Span::new(source.id, value, value + 3), "does not fit"),
+            AnnotateSpan::secondary(
+                Span::new(source.id, annotation, annotation + 4),
+                "declared here",
+            ),
+        ];
+
+        let annotated = annotate_file(&source, &spans, plain_options()).unwrap();
+
+        let expected = concat!(
+            " ──▶ <test>:2:12\n",
+            "  │\n",
+            "1 │ function get(): int8 {\n",
+            "  │                 ---- declared here\n",
+            "2 │     return 300;\n",
+            "  │            ^^^ does not fit\n",
+            "3 │ }\n",
+            "  │\n",
+        );
+        assert_eq!(annotated, expected);
+    }
+
+    #[test]
+    fn test_annotate_wrapped_line() {
+        let content = format!("{}\n", "a".repeat(204));
+        let source = test_file(&content);
+        let span = AnnotateSpan::primary(Span::new(source.id, 150, 155), "tail");
         let options = AnnotateOptions {
             line_width: 60,
             prefix_lines: 0,
             suffix_lines: 0,
             use_color: false,
-            color_normal: Color::White,
-            color_dim: Color::White,
-            color_meta: Color::BrightMagenta,
-            color_highlight: Color::BrightYellow,
-            colorizer: None,
+            ..AnnotateOptions::default()
         };
-        let annotated = annotate_file(&source, &span, options).unwrap();
+
+        let annotated = annotate_file(&source, &[span], options).unwrap();
 
         let expected = concat!(
-            "──▶ <test>:1:151\n",
-            " │ \n",
-            " │ 1 │ ··aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa··\n",
-            " │   │                                                        ^^^^^ tail\n",
-            " │ \n",
+            " ──▶ <test>:1:151\n",
+            "  │\n",
+            "1 │ ··aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa··\n",
+            "  │                                                          ^^^^^ tail\n",
+            "  │\n",
         );
-
         assert_eq!(annotated, expected);
     }
 }
