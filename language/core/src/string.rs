@@ -714,6 +714,105 @@ impl StringPool {
     }
 }
 
+/// How strongly one name match resembles the searched name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NameMatchTier {
+    /// Same name up to letter case.
+    Case,
+    /// Same name up to case and `_`/`-` separators.
+    Separators,
+    /// Within the edit distance budget.
+    Edit(usize),
+    /// One name is a case-insensitive prefix of the other.
+    Prefix,
+}
+
+/// One ranked candidate for a misspelled name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NameMatch<C> {
+    /// The matched candidate.
+    pub candidate: C,
+    /// The strength of the match.
+    pub tier: NameMatchTier,
+    /// Whether no other candidate matched at the same tier.
+    pub is_unique: bool,
+}
+
+/// Return the best candidate for a misspelled name.
+///
+/// Candidate order breaks ties: earlier candidates win, so callers pass
+/// nearer scopes first.
+pub fn find_best_match<C>(
+    value: &str,
+    candidates: impl IntoIterator<Item = C>,
+    max_distance: usize,
+) -> Option<NameMatch<C>>
+where
+    C: AsRef<str>,
+{
+    let chars = value.chars().collect::<Vec<_>>();
+    let folded = fold_case(value);
+    let stripped = strip_separators(&folded);
+    let mut best: Option<NameMatch<C>> = None;
+
+    for candidate in candidates {
+        // skip the identical name
+        let text = candidate.as_ref();
+        if text == value {
+            continue;
+        }
+
+        // rank the candidate at its strongest tier
+        let candidate_folded = fold_case(text);
+        let tier = if candidate_folded == folded {
+            // same name up to letter case
+            NameMatchTier::Case
+        } else if strip_separators(&candidate_folded) == stripped {
+            // same name up to case and separators
+            NameMatchTier::Separators
+        } else if let Some(distance) =
+            edit_distance_chars_at_most(&chars, text, max_distance).filter(|distance| *distance > 0)
+        {
+            // close enough within the edit budget
+            NameMatchTier::Edit(distance)
+        } else if chars.len() >= 3
+            && text.chars().count() >= 3
+            && (candidate_folded.starts_with(&folded) || folded.starts_with(&candidate_folded))
+        {
+            // one name is a case-insensitive prefix of the other
+            NameMatchTier::Prefix
+        } else {
+            // no meaningful resemblance
+            continue;
+        };
+
+        match &mut best {
+            // stronger tier replaces the current best
+            Some(best) if tier < best.tier => {
+                *best = NameMatch {
+                    candidate,
+                    tier,
+                    is_unique: true,
+                };
+            }
+            // another candidate ties the current best tier
+            Some(best) if tier == best.tier => best.is_unique = false,
+            // weaker tier keeps the current best
+            Some(_) => {}
+            // first matching candidate seeds the best
+            None => {
+                best = Some(NameMatch {
+                    candidate,
+                    tier,
+                    is_unique: true,
+                });
+            }
+        }
+    }
+
+    best
+}
+
 /// Return the closest candidate within a maximum edit distance.
 pub fn closest_string<C>(
     value: &str,
@@ -723,55 +822,61 @@ pub fn closest_string<C>(
 where
     C: AsRef<str>,
 {
-    let value = value.chars().collect::<Vec<_>>();
-    let mut closest: Option<(usize, C)> = None;
+    find_best_match(value, candidates, max_distance).map(|best| best.candidate)
+}
 
-    // keep only close non-identical candidates
-    for candidate in candidates {
-        let distance =
-            edit_distance_chars_at_most(value.as_slice(), candidate.as_ref(), max_distance);
-        let Some(distance) = distance else {
-            continue;
-        };
-        if distance == 0 {
-            continue;
-        }
+/// Lowercase one name for case-insensitive comparison.
+fn fold_case(value: &str) -> String {
+    value.to_lowercase()
+}
 
-        if closest.as_ref().is_none_or(|(best, _)| distance < *best) {
-            closest = Some((distance, candidate));
-        }
-    }
-
-    closest.map(|(_, candidate)| candidate)
+/// Drop `_` and `-` separators from one case-folded name.
+fn strip_separators(value: &str) -> String {
+    value.chars().filter(|c| *c != '_' && *c != '-').collect()
 }
 
 /// Return the bounded edit distance from pre-collected left characters.
 fn edit_distance_chars_at_most(left: &[char], right: &str, max_distance: usize) -> Option<usize> {
+    // reject when the length gap alone exceeds the budget
     let right = right.chars().collect::<Vec<_>>();
     let length_difference = left.len().abs_diff(right.len());
     if length_difference > max_distance {
         return None;
     }
 
-    // compute classic two-row levenshtein distance
+    // compute three-row optimal string alignment distance
+    let mut before = vec![0; right.len() + 1];
     let mut previous = (0..=right.len()).collect::<Vec<_>>();
     let mut current = vec![0; right.len() + 1];
-    for (row, left) in left.iter().enumerate() {
+    for (row, left_char) in left.iter().enumerate() {
         current[0] = row + 1;
         let mut row_minimum = current[0];
 
-        for (column, right) in right.iter().enumerate() {
-            let substitution = previous[column] + usize::from(left != right);
-            current[column + 1] = substitution
+        for (column, right_char) in right.iter().enumerate() {
+            // take the cheapest of substitution, insertion, and deletion
+            let substitution = previous[column] + usize::from(left_char != right_char);
+            let mut best = substitution
                 .min(previous[column + 1] + 1)
                 .min(current[column] + 1);
-            row_minimum = row_minimum.min(current[column + 1]);
+
+            // count one adjacent transposition as a single edit
+            if row > 0
+                && column > 0
+                && *left_char == right[column - 1]
+                && left[row - 1] == *right_char
+            {
+                best = best.min(before[column - 1] + 1);
+            }
+            current[column + 1] = best;
+            row_minimum = row_minimum.min(best);
         }
 
+        // stop once the whole row exceeds the budget
         if row_minimum > max_distance {
             return None;
         }
 
+        std::mem::swap(&mut before, &mut previous);
         std::mem::swap(&mut previous, &mut current);
     }
 
@@ -782,6 +887,57 @@ fn edit_distance_chars_at_most(left: &[char], right: &str, max_distance: usize) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_find_best_match_prefers_case_over_edits() {
+        let candidates = ["jsom", "JSON", "Jason"];
+
+        let best = find_best_match("json", candidates, 2).unwrap();
+        assert_eq!(best.candidate, "JSON");
+        assert_eq!(best.tier, NameMatchTier::Case);
+        assert!(best.is_unique);
+    }
+
+    #[test]
+    fn test_find_best_match_bridges_separator_styles() {
+        let candidates = ["fooBaz", "foo_bar"];
+
+        let best = find_best_match("fooBar", candidates, 1).unwrap();
+        assert_eq!(best.candidate, "foo_bar");
+        assert_eq!(best.tier, NameMatchTier::Separators);
+    }
+
+    #[test]
+    fn test_find_best_match_marks_tier_ties() {
+        let candidates = ["valye", "valus"];
+
+        let best = find_best_match("value", candidates, 2).unwrap();
+        assert_eq!(best.candidate, "valye");
+        assert!(!best.is_unique);
+    }
+
+    #[test]
+    fn test_find_best_match_falls_back_to_prefixes() {
+        let candidates = ["configuration_reload_interval"];
+
+        let best = find_best_match("configuration", candidates, 4).unwrap();
+        assert_eq!(best.tier, NameMatchTier::Prefix);
+    }
+
+    #[test]
+    fn test_find_best_match_skips_short_prefixes() {
+        let candidates = ["about"];
+
+        assert!(find_best_match("ab", candidates, 1).is_none());
+    }
+
+    #[test]
+    fn test_find_best_match_counts_transpositions_once() {
+        let candidates = ["value"];
+
+        let best = find_best_match("valeu", candidates, 1).unwrap();
+        assert_eq!(best.tier, NameMatchTier::Edit(1));
+    }
 
     #[test]
     fn test_closest_string_ignores_identical_candidates() {
@@ -803,7 +959,8 @@ mod tests {
         let candidates = ["alpha", "alhpa", "omega"];
 
         assert_eq!(closest_string("alpha", candidates, 2), Some("alhpa"));
-        assert_eq!(closest_string("alpha", candidates, 1), None);
+        assert_eq!(closest_string("alpha", candidates, 1), Some("alhpa"));
+        assert_eq!(closest_string("alpine", candidates, 1), None);
     }
 
     #[test]
