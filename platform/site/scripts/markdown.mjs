@@ -1,86 +1,19 @@
 import { marked } from "marked";
-import {
-    existsSync,
-    mkdirSync,
-    readFileSync,
-    readdirSync,
-    renameSync,
-    statSync,
-    writeFileSync,
-} from "node:fs";
-import { dirname, extname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
+import { extname, relative, resolve } from "node:path";
 
 import { highlightCode } from "./highlight.mjs";
+import { searchTextFor } from "./text.mjs";
 
-const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const siteDirectory = join(repositoryDirectory, "platform/site");
-const contentDirectory = join(siteDirectory, "src/content/blog");
-const generatedDirectory = join(siteDirectory, "src/generated");
-const generatedPostFile = join(generatedDirectory, "posts.ts");
-const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
-const isCheck = process.argv.includes("--check");
+const codeExtensions = {
+    bash: "sh",
+    javascript: "js",
+    shell: "sh",
+    typescript: "ts",
+};
 
-const posts = readPosts();
-const postSource = renderPostModule(posts);
-const routeSource = renderRouteModule(posts);
-
-if (isCheck) {
-    checkGeneratedFile(generatedPostFile, postSource);
-    checkGeneratedFile(generatedRouteFile, routeSource);
-} else {
-    mkdirSync(generatedDirectory, { recursive: true });
-    writeGeneratedFile(generatedPostFile, postSource);
-    writeGeneratedFile(generatedRouteFile, routeSource);
-}
-
-function readPosts() {
-    if (!existsSync(contentDirectory)) {
-        return [];
-    }
-
-    const slugs = readdirSync(contentDirectory)
-        .filter((entry) => statSync(join(contentDirectory, entry)).isDirectory())
-        .sort();
-    const seen = new Set();
-
-    return slugs.map((slug) => {
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-            throw new Error(`invalid blog slug: ${slug}`);
-        }
-
-        if (seen.has(slug)) {
-            throw new Error(`duplicate blog slug: ${slug}`);
-        }
-        seen.add(slug);
-
-        const postDirectory = join(contentDirectory, slug);
-        const sourceFile = join(postDirectory, "index.md");
-        if (!existsSync(sourceFile)) {
-            throw new Error(`missing blog post entrypoint: ${sourceFile}`);
-        }
-
-        const source = readFileSync(sourceFile, "utf8");
-        const { markdown, metadata } = parseFrontmatter(source, sourceFile);
-        const context = {
-            assets: [],
-            postDirectory,
-            slug,
-        };
-        const html = renderMarkdown(markdown, context);
-
-        return {
-            ...metadata,
-            assets: context.assets,
-            html,
-            route: `/blog/${slug}/`,
-            slug,
-            tableOfContents: headingsFor(markdown),
-        };
-    });
-}
-
-function parseFrontmatter(source, file) {
+/// Split one content source into metadata and Markdown.
+export function parseFrontmatter(source, file) {
     const match = source.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
     if (match == undefined) {
         throw new Error(`missing frontmatter: ${file}`);
@@ -94,6 +27,7 @@ function parseFrontmatter(source, file) {
     };
 }
 
+/// Parse the supported frontmatter subset.
 function parseMetadata(source, file) {
     const metadata = {};
     const lines = source.split("\n");
@@ -111,18 +45,10 @@ function parseMetadata(source, file) {
         metadata[match[1]] = parseMetadataValue(match[2]);
     }
 
-    requireString(metadata, "title", file);
-    requireString(metadata, "subtitle", file);
-    requireString(metadata, "date", file);
-    requireString(metadata, "author", file);
-
-    if (!Array.isArray(metadata.tags) || !metadata.tags.every((tag) => typeof tag === "string")) {
-        throw new Error(`invalid tags in ${file}`);
-    }
-
     return metadata;
 }
 
+/// Parse one scalar or array frontmatter value.
 function parseMetadataValue(value) {
     const trimmed = value.trim();
 
@@ -138,6 +64,7 @@ function parseMetadataValue(value) {
     return parseQuotedString(trimmed);
 }
 
+/// Remove matching quotes from one metadata scalar.
 function parseQuotedString(value) {
     if (
         (value.startsWith("\"") && value.endsWith("\"")) ||
@@ -149,23 +76,27 @@ function parseQuotedString(value) {
     return value;
 }
 
-function requireString(metadata, field, file) {
+/// Require one non-empty string metadata field.
+export function requireString(metadata, field, file) {
     if (typeof metadata[field] !== "string" || metadata[field] === "") {
         throw new Error(`missing ${field} in ${file}`);
     }
 }
 
-function renderMarkdown(markdown, context) {
+/// Render trusted Markdown with collection-aware links and assets.
+export function renderMarkdown(markdown, context) {
     const footnotes = extractFootnotes(markdown, context);
     const renderer = new marked.Renderer();
     const headingSlugs = new Map();
     const counters = {
         figure: 0,
+        section: "",
     };
 
     renderer.heading = (token) => {
         const id = uniqueSlug(token.text, headingSlugs);
         const content = marked.parseInline(token.text);
+        counters.section = searchTextFor(token.text);
 
         return `<h${token.depth} id="${id}">${content}</h${token.depth}>`;
     };
@@ -184,6 +115,7 @@ function renderMarkdown(markdown, context) {
 
         return `<img alt="${escapeAttribute(token.text)}" src="${escapeAttribute(src)}"${title}>`;
     };
+    renderer.table = (token) => renderTable(token, renderer);
     renderer.code = (token) => renderCode(token, counters);
 
     const withDirectives = renderDirectives(footnotes.markdown, context, renderer, counters);
@@ -193,6 +125,21 @@ function renderMarkdown(markdown, context) {
     return `${html}${notes}`;
 }
 
+/// Render one horizontally scrollable GFM table.
+function renderTable(token, renderer) {
+    const header = token.header.map((cell) => renderer.tablecell(cell)).join("");
+    const head = renderer.tablerow({ text: header });
+    const rows = token.rows.map((row) => {
+        const cells = row.map((cell) => renderer.tablecell(cell)).join("");
+
+        return renderer.tablerow({ text: cells });
+    }).join("");
+    const body = rows === "" ? "" : `<tbody>${rows}</tbody>`;
+
+    return `<div class="markdown-table" tabindex="0"><table><thead>${head}</thead>${body}</table></div>`;
+}
+
+/// Extract footnote definitions and replace their references.
 function extractFootnotes(markdown, context) {
     const notes = [];
     const lines = markdown.split("\n");
@@ -222,12 +169,13 @@ function extractFootnotes(markdown, context) {
         const reference = escapeAttribute(referenceId);
         nextIndex.set(id, count);
 
-        return `<sup class="blog-footnote-ref" id="fnref-${reference}"><a href="#fn-${noteId}">${escapeHtml(String(note.number))}</a></sup><span class="blog-margin-note" aria-hidden="true"><span>${escapeHtml(String(note.number))}</span>${marked.parseInline(note.text)}</span>`;
+        return `<sup class="markdown-footnote-ref" id="fnref-${reference}"><a href="#fn-${noteId}">${escapeHtml(String(note.number))}</a></sup><span class="markdown-margin-note" aria-hidden="true"><span>${escapeHtml(String(note.number))}</span>${marked.parseInline(note.text)}</span>`;
     });
 
     return { markdown: rewritten, notes };
 }
 
+/// Render collected footnotes below the article.
 function renderFootnotes(notes, renderer) {
     if (notes.length === 0) {
         return "";
@@ -238,13 +186,14 @@ function renderFootnotes(notes, renderer) {
             const body = marked.parseInline(note.text, { renderer });
             const id = escapeAttribute(note.id);
 
-            return `<li id="fn-${id}"><span class="blog-footnote-number">${note.number}</span><span>${body} <a class="blog-footnote-back" href="#fnref-${id}">back</a></span></li>`;
+            return `<li id="fn-${id}"><span class="markdown-footnote-number">${note.number}</span><span>${body} <a class="markdown-footnote-back" href="#fnref-${id}">back</a></span></li>`;
         })
         .join("");
 
-    return `<section class="blog-footnotes"><h2>notes</h2><ol>${items}</ol></section>`;
+    return `<section class="markdown-footnotes"><h2>notes</h2><ol>${items}</ol></section>`;
 }
 
+/// Expand supported block directives before Markdown parsing.
 function renderDirectives(markdown, context, renderer, counters) {
     const lines = markdown.split("\n");
     const output = [];
@@ -284,6 +233,7 @@ function renderDirectives(markdown, context, renderer, counters) {
     return output.join("\n");
 }
 
+/// Parse quoted and unquoted directive or fence attributes.
 function parseAttributes(source) {
     const attributes = {};
 
@@ -298,12 +248,13 @@ function parseAttributes(source) {
     return attributes;
 }
 
+/// Render one supported Markdown directive.
 function renderDirective(name, attributes, body, context, renderer, counters) {
     if (name === "callout") {
         const kind = attributes.kind ?? "note";
         const html = marked.parse(body, { gfm: true, renderer });
 
-        return `<aside class="blog-callout" data-kind="${escapeAttribute(kind)}"><strong>${escapeHtml(kind)}</strong>${html}</aside>`;
+        return `<aside class="markdown-callout" data-kind="${escapeAttribute(kind)}"><strong>${escapeHtml(kind)}</strong>${html}</aside>`;
     }
 
     if (name === "figure") {
@@ -313,12 +264,13 @@ function renderDirective(name, attributes, body, context, renderer, counters) {
         const url = resolveAsset(src, context);
         const label = nextFigureLabel(counters, "figure");
 
-        return `<figure class="blog-figure"><img alt="${escapeAttribute(alt)}" src="${escapeAttribute(url)}"><figcaption><span>${label}</span>${marked.parseInline(caption, { renderer })}</figcaption></figure>`;
+        return `<figure class="markdown-figure"><img alt="${escapeAttribute(alt)}" src="${escapeAttribute(url)}"><figcaption><span>${label}</span>${marked.parseInline(caption, { renderer })}</figcaption></figure>`;
     }
 
     throw new Error(`unknown directive in ${context.slug}: ${name}`);
 }
 
+/// Require one non-empty directive attribute.
 function requireAttribute(attributes, attribute, slug, directive) {
     const value = attributes[attribute];
     if (value == undefined || value === "") {
@@ -328,6 +280,7 @@ function requireAttribute(attributes, attribute, slug, directive) {
     return value;
 }
 
+/// Render one titled and highlighted code listing.
 function renderCode(token, counters) {
     const fence = parseCodeFence(token.lang ?? "");
     const language = fence.language;
@@ -336,34 +289,46 @@ function renderCode(token, counters) {
         const label = nextFigureLabel(counters, "figure");
         const caption = fence.caption ?? fence.title ?? "diagram";
 
-        return `<figure class="blog-diagram"><figcaption><span>${label}</span>${escapeHtml(caption)}</figcaption><pre><code>${escapeHtml(token.text)}</code></pre></figure>`;
+        return `<figure class="markdown-diagram"><figcaption><span>${label}</span>${escapeHtml(caption)}</figcaption><pre tabindex="0"><code>${escapeHtml(token.text)}</code></pre></figure>`;
     }
 
     const highlighted = highlightCode(token.text, language);
-    const caption = fence.caption ?? fence.title ?? (language === "" ? "text" : language);
-    const number = nextFigureLabel(counters, "listing");
+    const caption = fence.caption ?? fence.title ?? counters.section ?? "Example";
+    const format = codeFormat(language);
     const code = renderCodeBody(token.text, highlighted);
 
-    return `<figure class="blog-code"><figcaption><span>${number}</span>${escapeHtml(caption)}</figcaption><pre>${code}</pre></figure>`;
+    return `<figure class="markdown-code"><figcaption><span class="markdown-code__title">${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption><pre tabindex="0">${code}</pre></figure>`;
 }
 
+/// Convert a fence language into its visible file format.
+function codeFormat(language) {
+    const extension = codeExtensions[language] ?? language;
+
+    return extension === "" || extension === "text" ? "text" : `.${extension}`;
+}
+
+/// Allocate the next figure label.
 function nextFigureLabel(counters, kind) {
     counters.figure += 1;
 
     return `${kind} ${counters.figure}`;
 }
 
+/// Parse the language and attributes from a code fence.
 function parseCodeFence(language) {
     const [head, ...tail] = language.trim().split(/\s+/);
     const attributes = parseAttributes(tail.join(" "));
+    const [name, qualifier] = (head ?? "").split(":", 2);
+    const shorthandTitle = qualifier === "unchecked" ? undefined : qualifier;
 
     return {
         caption: attributes.caption,
-        language: head ?? "",
-        title: attributes.title,
+        language: name,
+        title: attributes.title ?? shorthandTitle,
     };
 }
 
+/// Add stable line structure and gutters to highlighted code.
 function renderCodeBody(source, highlighted) {
     const lines = highlighted.split("\n");
     if (source.split("\n").length <= 1) {
@@ -374,28 +339,43 @@ function renderCodeBody(source, highlighted) {
         .map((line, index) => {
             const text = line === "" ? " " : line;
 
-            return `<span class="blog-code-line"><span class="blog-code-gutter">${index + 1}</span><span class="blog-code-text">${text}</span></span>`;
+            return `<span class="markdown-code-line"><span class="markdown-code-gutter">${index + 1}</span><span class="markdown-code-text">${text}</span></span>`;
         })
         .join("");
 
-    return `<code class="blog-code-lines">${rows}</code>`;
+    return `<code class="markdown-code-lines">${rows}</code>`;
 }
 
+/// Resolve and validate one content link.
 function resolveLink(href, context) {
-    if (isExternalLink(href) || href.startsWith("#")) {
+    if (isExternalLink(href)) {
         return href;
     }
 
-    if (href.endsWith(".md")) {
-        const target = resolve(context.postDirectory, href);
-        const relativeTarget = relative(contentDirectory, target).replaceAll("\\", "/");
-        const [slug] = relativeTarget.split("/");
+    if (href.startsWith("#")) {
+        return resolveHeadingLink(href, context);
+    }
+
+    const markdownLink = href.match(/^(.+\.md)(#[a-z0-9-]+)?$/);
+    if (markdownLink != undefined) {
+        const target = resolve(context.markdownDirectory, markdownLink[1]);
 
         if (!existsSync(target)) {
             throw new Error(`missing markdown link in ${context.slug}: ${href}`);
         }
 
-        return `/blog/${slug}/`;
+        const content = context.sourceRoutes.get(target);
+        if (content == undefined) {
+            throw new Error(`markdown link leaves its content collection in ${context.slug}: ${href}`);
+        }
+
+        const fragment = markdownLink[2] ?? "";
+        const id = fragment.slice(1);
+        if (id !== "" && !content.headings.has(id)) {
+            throw new Error(`missing heading in ${context.slug}: ${href}`);
+        }
+
+        return `${content.route}${fragment}`;
     }
 
     if (href.startsWith("./") || href.startsWith("../") || isBareAssetLink(href)) {
@@ -405,10 +385,21 @@ function resolveLink(href, context) {
     return href;
 }
 
+/// Validate one local heading link.
+function resolveHeadingLink(href, context) {
+    if (!context.ownHeadings.has(href.slice(1))) {
+        throw new Error(`missing local heading in ${context.slug}: ${href}`);
+    }
+
+    return href;
+}
+
+/// Return whether a link carries an absolute URI scheme.
 function isExternalLink(href) {
     return /^[a-z][a-z0-9+.-]*:/i.test(href);
 }
 
+/// Return whether a relative link looks like an asset path.
 function isBareAssetLink(href) {
     if (href.startsWith("/") || href.startsWith("#")) {
         return false;
@@ -419,12 +410,16 @@ function isBareAssetLink(href) {
     return extname(path) !== "";
 }
 
+/// Resolve one content asset into a build-time placeholder.
 function resolveAsset(href, context) {
-    const target = resolve(context.postDirectory, href);
-    const relativeTarget = relative(context.postDirectory, target);
+    const target = resolve(context.markdownDirectory, href);
+    const contentDirectory = context.kind === "document"
+        ? context.documentDirectory
+        : context.markdownDirectory;
+    const relativeTarget = relative(contentDirectory, target);
 
     if (relativeTarget.startsWith("..") || relativeTarget === "") {
-        throw new Error(`asset escapes post directory in ${context.slug}: ${href}`);
+        throw new Error(`asset escapes content directory in ${context.slug}: ${href}`);
     }
 
     if (!existsSync(target)) {
@@ -444,27 +439,34 @@ function resolveAsset(href, context) {
     const asset = {
         importName: `asset${index}`,
         path: target,
-        placeholder: `__BLOG_ASSET_${index}__`,
+        placeholder: `__CONTENT_ASSET_${index}__`,
     };
     context.assets.push(asset);
 
     return asset.placeholder;
 }
 
-function headingsFor(markdown) {
+/// Extract real headings while ignoring fenced examples.
+export function headingsFor(markdown) {
     const slugs = new Map();
+    const headings = [];
 
-    return markdown
-        .split("\n")
-        .map((line) => line.match(/^(#{2,3})\s+(.+)$/))
-        .filter((match) => match != undefined)
-        .map((match) => ({
-            depth: match[1].length,
-            id: uniqueSlug(match[2], slugs),
-            text: match[2].replace(/`/g, ""),
-        }));
+    for (const token of marked.lexer(markdown, { gfm: true })) {
+        if (token.type !== "heading" || token.depth > 4) {
+            continue;
+        }
+
+        headings.push({
+            depth: token.depth,
+            id: uniqueSlug(token.text, slugs),
+            text: token.text.replace(/`/g, ""),
+        });
+    }
+
+    return headings;
 }
 
+/// Allocate one stable GitHub-style heading identifier.
 function uniqueSlug(text, slugs) {
     const base = text
         .toLowerCase()
@@ -477,105 +479,48 @@ function uniqueSlug(text, slugs) {
     return count === 0 ? base : `${base}-${count + 1}`;
 }
 
-function renderPostModule(posts) {
-    const imports = posts.flatMap((post) =>
-        post.assets.map((asset) => {
-            const path = relative(generatedDirectory, asset.path).replaceAll("\\", "/");
+/// Split Markdown into independently searchable heading sections.
+export function searchSectionsFor(markdown) {
+    const sections = [];
+    const slugs = new Map();
+    let section;
 
-            const importPath = JSON.stringify(`${path}?url`);
-            const importName = `${post.slug.replaceAll("-", "_")}_${asset.importName}`;
+    for (const token of marked.lexer(markdown, { gfm: true })) {
+        if (token.type === "heading" && token.depth <= 3) {
+            if (section != undefined) {
+                sections.push(renderSearchSection(section));
+            }
 
-            return `import ${importName} from ${importPath};`;
-        }),
-    );
-    const records = posts.map((post) => renderPostRecord(post)).join(",\n");
+            section = {
+                depth: token.depth,
+                id: uniqueSlug(token.text, slugs),
+                source: [],
+                title: token.text.replace(/`/g, ""),
+            };
+            continue;
+        }
 
-    return `${imports.join("\n")}${imports.length === 0 ? "" : "\n\n"}export type Post = {
-    author: string;
-    date: string;
-    html: string;
-    route: string;
-    slug: string;
-    subtitle: string;
-    tableOfContents: readonly TableOfContentsEntry[];
-    tags: readonly string[];
-    title: string;
-};
-
-export type TableOfContentsEntry = {
-    depth: number;
-    id: string;
-    text: string;
-};
-
-export const posts = [
-${records}
-] as const satisfies readonly Post[];
-
-export const postBySlug: ReadonlyMap<string, Post> = new Map(
-    posts.map((post): [string, Post] => [post.slug, post]),
-);
-
-function resolveAssets(html: string, assets: Record<string, string>) {
-    let resolved = html;
-
-    for (const [placeholder, asset] of Object.entries(assets)) {
-        resolved = resolved.replaceAll(placeholder, asset);
+        section?.source.push(token.raw);
     }
 
-    return resolved;
-}
-`;
-}
-
-function renderPostRecord(post) {
-    const assetMap = Object.fromEntries(
-        post.assets.map((asset) => [
-            asset.placeholder,
-            `${post.slug.replaceAll("-", "_")}_${asset.importName}`,
-        ]),
-    );
-    const assets = Object.entries(assetMap)
-        .map(([placeholder, importName]) => `${JSON.stringify(placeholder)}: ${importName}`)
-        .join(", ");
-
-    return `    {
-        author: ${JSON.stringify(post.author)},
-        date: ${JSON.stringify(post.date)},
-        html: resolveAssets(${JSON.stringify(post.html)}, { ${assets} }),
-        route: ${JSON.stringify(post.route)},
-        slug: ${JSON.stringify(post.slug)},
-        subtitle: ${JSON.stringify(post.subtitle)},
-        tableOfContents: ${JSON.stringify(post.tableOfContents)},
-        tags: ${JSON.stringify(post.tags)},
-        title: ${JSON.stringify(post.title)},
-    }`;
-}
-
-function renderRouteModule(posts) {
-    const routes = ["/", "/blog/", ...posts.map((post) => post.route)];
-
-    return `export const prerenderRoutes = ${JSON.stringify(routes, null, 4)} as const;\n`;
-}
-
-function checkGeneratedFile(file, source) {
-    if (!existsSync(file)) {
-        throw new Error(`missing generated post file: ${file}`);
+    if (section != undefined) {
+        sections.push(renderSearchSection(section));
     }
 
-    const current = readFileSync(file, "utf8");
-    if (current !== source) {
-        throw new Error("generated posts are out of date, run `just platform/site/format`");
-    }
+    return sections;
 }
 
-function writeGeneratedFile(file, source) {
-    const temporaryFile = `${file}.${process.pid}.tmp`;
-
-    writeFileSync(temporaryFile, source);
-    renameSync(temporaryFile, file);
+/// Normalize one accumulated search section.
+function renderSearchSection(section) {
+    return {
+        depth: section.depth,
+        id: section.id,
+        text: searchTextFor(section.source.join("")),
+        title: section.title,
+    };
 }
 
+/// Escape text for an HTML text node.
 function escapeHtml(value) {
     return value
         .replaceAll("&", "&amp;")
@@ -584,6 +529,7 @@ function escapeHtml(value) {
         .replaceAll("\"", "&quot;");
 }
 
+/// Escape text for an HTML attribute.
 function escapeAttribute(value) {
     return escapeHtml(value).replaceAll("'", "&#39;");
 }

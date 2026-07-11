@@ -1,8 +1,8 @@
 import { A } from "@solidjs/router";
 import { For } from "solid-js";
 
-import { Seo } from "../component/seo";
-import { Shell } from "../component/shell";
+import { Seo } from "../site/seo";
+import { Shell } from "../site/shell";
 import { posts, type Post } from "../generated/posts";
 
 /// Render the blog archive.

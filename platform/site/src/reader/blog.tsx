@@ -1,0 +1,147 @@
+import { A } from "@solidjs/router";
+import { For, Show } from "solid-js";
+
+import { type Post, type PostContent } from "../generated/posts";
+import { Breadcrumbs } from "./breadcrumbs";
+import { Reader } from "./reader";
+
+type BlogArticleProps = {
+    /// The rendered post body.
+    content: PostContent;
+
+    /// The current post.
+    post: Post;
+
+    /// Every post in reverse chronological order.
+    posts: readonly Post[];
+};
+
+/// Render a blog post and its navigation.
+export function BlogArticle(props: BlogArticleProps) {
+    return (
+        <Reader
+            contents={props.post.tableOfContents}
+            location={<BlogLocation post={props.post} />}
+            navigation={<BlogNavigation current={props.post} posts={props.posts} />}
+            source={props.post}
+        >
+            <BlogArticleHeader post={props.post} />
+            <div class="markdown" innerHTML={props.content.html} />
+            <PostNavigation post={props.post} posts={props.posts} />
+        </Reader>
+    );
+}
+
+type BlogLocationProps = {
+    /// The current post.
+    post: Post;
+};
+
+/// Render the post path and publication metadata.
+function BlogLocation(props: BlogLocationProps) {
+    return (
+        <div class="blog-location">
+            <Breadcrumbs items={[
+                { href: "/blog/", label: "blog" },
+                { label: props.post.title },
+            ]} />
+            <span>
+                <time>{props.post.date}</time> / {props.post.author}
+            </span>
+        </div>
+    );
+}
+
+type BlogNavigationProps = {
+    /// The current post.
+    current: Post;
+
+    /// Every post in reverse chronological order.
+    posts: readonly Post[];
+};
+
+/// Render the blog collection beside an article.
+function BlogNavigation(props: BlogNavigationProps) {
+    return (
+        <nav aria-label="blog" class="blog-book">
+            <A class="blog-book__title" href="/blog/">
+                [blog]
+            </A>
+
+            <ol>
+                <For each={props.posts}>
+                    {(post) => (
+                        <li>
+                            <A
+                                classList={{ "blog-book__active": post.slug === props.current.slug }}
+                                href={post.route}
+                            >
+                                <time>{post.date.slice(0, 4)}</time>
+                                <span>{post.title}</span>
+                            </A>
+                        </li>
+                    )}
+                </For>
+            </ol>
+        </nav>
+    );
+}
+
+type BlogArticleHeaderProps = {
+    /// The current post.
+    post: Post;
+};
+
+/// Render the post title and metadata.
+function BlogArticleHeader(props: BlogArticleHeaderProps) {
+    return (
+        <header class="blog-article__header">
+            <h1>{props.post.title}</h1>
+            <p>{props.post.subtitle}</p>
+        </header>
+    );
+}
+
+type PostNavigationProps = {
+    /// The current post.
+    post: Post;
+
+    /// Every post in reverse chronological order.
+    posts: readonly Post[];
+};
+
+/// Render adjacent posts when they exist.
+function PostNavigation(props: PostNavigationProps) {
+    const index = () => props.posts.findIndex((post) => post.slug === props.post.slug);
+    const newer = () => props.posts[index() - 1];
+    const older = () => props.posts[index() + 1];
+
+    return (
+        <nav aria-label="post navigation" class="blog-post-navigation">
+            <Show when={newer()}>
+                {(post) => <PostNavigationLink label="newer" post={post()} />}
+            </Show>
+
+            <Show when={older()}>
+                {(post) => <PostNavigationLink label="older" post={post()} />}
+            </Show>
+        </nav>
+    );
+}
+
+type PostNavigationLinkProps = {
+    /// The link label.
+    label: string;
+
+    /// The adjacent post.
+    post: Post;
+};
+
+/// Render one adjacent post link.
+function PostNavigationLink(props: PostNavigationLinkProps) {
+    return (
+        <A href={props.post.route}>
+            [{props.label}] {props.post.title}
+        </A>
+    );
+}

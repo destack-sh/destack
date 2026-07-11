@@ -1,9 +1,9 @@
-import { createMemo, createSignal, onCleanup, onMount, type Component } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
 
-import { Seo } from "../component/seo";
-import { Shell } from "../component/shell";
-import { createSweep } from "../component/sweep";
+import { homePoints } from "../content/site";
+import { Seo } from "../site/seo";
+import { Shell } from "../site/shell";
+import { createSweep } from "../site/sweep";
 
 /// The ordered Destack-token luminance ramp for the planet surface.
 const surfaceGlyphRamp = ".:-|=+*&%#@";
@@ -56,9 +56,6 @@ const lakePatterns = [
     "..=||==~~",
 ] as const;
 
-/// The public installation command.
-const installCommand = "curl -fsSL https://destack.sh/install | sh";
-
 /// Properties supplied to one lower action section.
 type ActionSectionProps = {
     /// The selected action.
@@ -71,77 +68,11 @@ type ActionSectionProps = {
     number: string;
 };
 
-/// One linked product action and its lower section.
-type Point = {
-    /// The action identifier.
-    action: string;
-
-    /// The short action description.
-    description: string;
-
-    /// The lower section rendered for the action.
-    section: Component<ActionSectionProps>;
-};
-
-/// The current Destack product outline.
-const points = [
-    {
-        action: "install",
-        description: installCommand,
-        section: PlaceholderSection,
-    },
-    {
-        action: "write",
-        description: "familiar TS / TSX, Node, and Web code",
-        section: PlaceholderSection,
-    },
-    {
-        action: "use",
-        description: "standardized libraries",
-        section: PlaceholderSection,
-    },
-    {
-        action: "compile",
-        description: "to sandboxed VM and true AOT native targets",
-        section: PlaceholderSection,
-    },
-    {
-        action: "control",
-        description: "precise access over every host binding",
-        section: PlaceholderSection,
-    },
-    {
-        action: "check",
-        description: "strong typing and userland lints",
-        section: PlaceholderSection,
-    },
-    {
-        action: "test",
-        description: "every byte and cycle of your systems",
-        section: PlaceholderSection,
-    },
-    {
-        action: "simulate",
-        description: "the entire application end-to-end",
-        section: PlaceholderSection,
-    },
-    {
-        action: "debug",
-        description: "backward, in parallel or slow motion",
-        section: PlaceholderSection,
-    },
-    {
-        action: "ship",
-        description: "... web and native (really)",
-        section: PlaceholderSection,
-    },
-] as const satisfies readonly Point[];
-
 /// One public action identifier.
-type Action = (typeof points)[number]["action"];
+type Action = (typeof homePoints)[number]["action"];
 
 /// The first non-install action shown when the URL does not select one.
-const defaultPoint = points.find((point) => point.action !== "install") ?? points[0];
+const defaultPoint = homePoints.find((point) => point.action !== "install") ?? homePoints[0];
 
 /// The real Destack mark sampled into a fixed-width luminance field.
 const planet = [
@@ -227,15 +158,15 @@ export function HomePage() {
     });
     const [selectedAction, setSelectedAction] = createSignal<Action>(defaultPoint.action);
     const selectedPoint = createMemo(
-        () => points.find((point) => point.action === selectedAction()) ?? defaultPoint,
+        () => homePoints.find((point) => point.action === selectedAction()) ?? defaultPoint,
     );
-    const selectedIndex = createMemo(() => points.indexOf(selectedPoint()));
+    const selectedIndex = createMemo(() => homePoints.indexOf(selectedPoint()));
 
     // select URL-addressed actions after hydration and on navigation
     onMount(() => {
         const selectHash = () => {
             const action = window.location.hash.slice(1);
-            const point = points.find((candidate) => candidate.action === action);
+            const point = homePoints.find((candidate) => candidate.action === action);
 
             setSelectedAction(point?.action ?? defaultPoint.action);
         };
@@ -268,7 +199,7 @@ export function HomePage() {
                             </div>
 
                             <ol class="home-points">
-                                {points.map((point, index) => (
+                                {homePoints.map((point, index) => (
                                     <li>
                                         <a
                                             aria-current={
@@ -278,6 +209,8 @@ export function HomePage() {
                                             }
                                             href={`#${point.action}`}
                                             onClick={() => setSelectedAction(point.action)}
+                                            data-shortcut={String(index)}
+                                            title={`Alt+${index}: ${point.action}`}
                                         >
                                             <span class="home-points__number">
                                                 {pointNumber(
@@ -303,7 +236,7 @@ export function HomePage() {
 
                 {/* Selected action */}
                 <section class="home-stage">
-                    {points.map((point) => (
+                    {homePoints.map((point) => (
                         <span
                             aria-hidden="true"
                             class="home-stage__anchor"
@@ -311,9 +244,8 @@ export function HomePage() {
                         />
                     ))}
 
-                    <Dynamic
+                    <PlaceholderSection
                         action={selectedPoint().action}
-                        component={selectedPoint().section}
                         description={selectedPoint().description}
                         number={String(selectedIndex()).padStart(2, "0")}
                     />
