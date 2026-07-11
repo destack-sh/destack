@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_block_closure_completion_keeps_void_return() {
     let session = TestSession::single(
         r#"
-declare class Box<T> {}
+declare class Box<in out T> {}
 declare function use<T>(callback: () => T | Box<T>): T;
 
 const value = use(() => {});
@@ -16,17 +16,17 @@ const value = use(() => {});
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare class Box<T> {}
+declare class Box<in out T> {}
 declare function use<T>(callback: () => T | Box<T>): T;
 
 const value: void = use<void>((): void | Box<void> => {});
 
 === checked ===
-declare class Box<T> {}
-/// @generic.template symbol=Box parameters=(T#1)
-/// @type.symbol symbol=Box source="declare class Box<T> {}" type=Box
-/// @definition.class symbol=Box source="declare class Box<T> {}" template=(T#1)
-/// @type.symbol symbol=Box.T source=T type=T#1
+declare class Box<in out T> {}
+/// @generic.template symbol=Box parameters=(in out T#1)
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
+/// @type.symbol symbol=Box.T source="in out T" type=T#1
 
 declare function use<T>(callback: () => T | Box<T>): T;
 /// @generic.template symbol=use parameters=(T#2)
@@ -126,7 +126,7 @@ const mapped = box.map((value) => value);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare class Box<T> {
+declare class Box<out T> {
     map<U>(callback: (arg0: T) => U): Box<U>;
 }
 
@@ -188,7 +188,7 @@ const mapped = box.map((value) => value);
 fn test_infer_closure_return_through_union() {
     let session = TestSession::single(
         r#"
-declare class Box<T> {}
+declare class Box<in out T> {}
 declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 
 const value = map(1, (item) => item);
@@ -200,17 +200,17 @@ const value = map(1, (item) => item);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare class Box<T> {}
+declare class Box<in out T> {}
 declare function map<T, U>(value: T, callback: (arg0: T) => U | Box<U>): U;
 
 const value: 1 = map<1, 1>(1, (item: 1): 1 | Box<1> => item as 1 | Box<1>);
 
 === checked ===
-declare class Box<T> {}
-/// @generic.template symbol=Box parameters=(T#1)
-/// @type.symbol symbol=Box source="declare class Box<T> {}" type=Box
-/// @definition.class symbol=Box source="declare class Box<T> {}" template=(T#1)
-/// @type.symbol symbol=Box.T source=T type=T#1
+declare class Box<in out T> {}
+/// @generic.template symbol=Box parameters=(in out T#1)
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
+/// @type.symbol symbol=Box.T source="in out T" type=T#1
 
 declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 /// @generic.template symbol=map parameters=(T#2, U)
@@ -267,7 +267,7 @@ const value = box.map((item) => item);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare class Box<T> {
+declare class Box<out T> {
     map<U>(callback: (arg0: T) => U | Box<U>): U;
 }
 

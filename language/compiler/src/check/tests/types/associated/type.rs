@@ -18,7 +18,7 @@ declare const value: Box<string>.Item;
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-struct Box<T> {
+struct Box<out T> {
     type Item = T;
     value: T;
 }

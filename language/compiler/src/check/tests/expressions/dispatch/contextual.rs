@@ -15,7 +15,7 @@ class Bag<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class Bag<T> {
+class Bag<in out T> {
     values: T[] = Array.new<T>() as T[];
 }
 
@@ -130,7 +130,7 @@ export extension<T: Numeric> of Pair<T> {
 === annotated ===
 import { Numeric } from "destack:math";
 
-struct Pair<T> {
+struct Pair<out T> {
     x: T;
     y: T;
 }
@@ -198,7 +198,7 @@ fn test_phantom_parameters_instantiate_from_the_declared_result() {
     // instantiation from the declared result type
     let session = TestSession::single(
         r#"
-struct Tag<T> {
+struct Tag<in out T> {
     name: string;
 }
 
@@ -215,7 +215,7 @@ export extension<T> of Tag<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Tag<T> {
+struct Tag<in out T> {
     name: string;
 }
 
@@ -226,12 +226,12 @@ export extension<T> of Tag<T> {
 }
 
 === checked ===
-struct Tag<T> {
-/// @generic.template symbol=Tag parameters=(T#1)
+struct Tag<in out T> {
+/// @generic.template symbol=Tag parameters=(in out T#1)
 /// @type.symbol symbol=Tag type=Tag
-/// @definition.struct symbol=Tag template=(T#1)
+/// @definition.struct symbol=Tag template=(in out T#1)
 /// @definition.field symbol=Tag.name source="name: string" key=name type=string
-/// @type.symbol symbol=Tag.T source=T type=T#1
+/// @type.symbol symbol=Tag.T source="in out T" type=T#1
 
     name: string;
     /// @type.symbol symbol=Tag.name source="name: string" type=string

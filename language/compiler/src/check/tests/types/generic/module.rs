@@ -28,7 +28,7 @@ type Wrapped<T> = Box<T>;
 === lib.ds ===
 
 === annotated ===
-export interface Box<T> {
+export interface Box<in out T> {
     value: T;
 }
 
@@ -100,11 +100,11 @@ type Used = Equal<string>;
 === ops.ds ===
 
 === annotated ===
-export newtype interface PartialEqual<T = this> {
+export newtype interface PartialEqual<in T = this> {
     equal(other: T): boolean;
 }
 
-export newtype interface Equal<T = this> extends PartialEqual<T> {}
+export newtype interface Equal<in T = this> extends PartialEqual<T> {}
 
 === checked ===
 export newtype interface PartialEqual<T = this> {
@@ -311,7 +311,7 @@ const text = identity("x");
 fn test_defaulted_parameter_fills_omitted_annotation_argument() {
     let session = TestSession::single(
         r#"
-interface Iter<T, R = unknown> {
+interface Iter<T, in out R = unknown> {
     next(): T;
 }
 
@@ -325,7 +325,7 @@ const value = probe(todo("iter"));
         DirRows::checked(),
         r#"
 === annotated ===
-interface Iter<T, R = unknown> {
+interface Iter<out T, in out R = unknown> {
     next(): T;
 }
 
@@ -333,14 +333,14 @@ declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === checked ===
-interface Iter<T, R = unknown> {
-/// @generic.template symbol=Iter parameters=(T, R = unknown)
+interface Iter<T, in out R = unknown> {
+/// @generic.template symbol=Iter parameters=(T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(T, R = unknown)
+/// @definition.interface symbol=Iter template=(T, in out R = unknown)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
-/// @type.symbol symbol=Iter.R source="R = unknown" type=R
+/// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
     /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
@@ -373,7 +373,7 @@ fn test_defaulted_parameter_fills_through_reexport_chain() {
         .module(
             "inner.ds",
             r#"
-export newtype interface Iter<T, R = unknown> {
+export newtype interface Iter<T, in out R = unknown> {
     next(): T;
 }
 "#,
@@ -402,19 +402,19 @@ const value = probe(todo("iter"));
 === inner.ds ===
 
 === annotated ===
-export newtype interface Iter<T, R = unknown> {
+export newtype interface Iter<out T, in out R = unknown> {
     next(): T;
 }
 
 === checked ===
-export newtype interface Iter<T, R = unknown> {
-/// @generic.template symbol=Iter parameters=(T, R = unknown)
+export newtype interface Iter<T, in out R = unknown> {
+/// @generic.template symbol=Iter parameters=(T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(T, R = unknown) nominal=true
+/// @definition.interface symbol=Iter template=(T, in out R = unknown) nominal=true
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
-/// @type.symbol symbol=Iter.R source="R = unknown" type=R
+/// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
     /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
@@ -481,7 +481,7 @@ const value = probe(todo("iter"));
             r#"
 import { Marker } from "./a.ds";
 
-export interface Iter<T, R = unknown> {
+export interface Iter<T, in out R = unknown> {
     next(): T;
     mark(): Marker;
 }
@@ -537,7 +537,7 @@ const value = probe(todo("iter"));
 === annotated ===
 import { Marker } from "./a.ds";
 
-export interface Iter<T, R = unknown> {
+export interface Iter<out T, in out R = unknown> {
     next(): T;
     mark(): Marker;
 }
@@ -545,15 +545,15 @@ export interface Iter<T, R = unknown> {
 === checked ===
 import { Marker } from "./a.ds";
 
-export interface Iter<T, R = unknown> {
-/// @generic.template symbol=Iter parameters=(T, R = unknown)
+export interface Iter<T, in out R = unknown> {
+/// @generic.template symbol=Iter parameters=(T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(T, R = unknown)
+/// @definition.interface symbol=Iter template=(T, in out R = unknown)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: Iter<T, R>) => a.Marker
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
-/// @type.symbol symbol=Iter.R source="R = unknown" type=R
+/// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
     /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
@@ -594,7 +594,7 @@ const out = unwrap(built);
         DirRows::checked(),
         r#"
 === annotated ===
-struct Wrap<T> {
+struct Wrap<out T> {
     value: T;
 }
 

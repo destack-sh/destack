@@ -72,7 +72,7 @@ function wrap<T>(value: T): Box<T> {
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-struct Box<T> {
+struct Box<out T> {
     value: T;
 }
 
@@ -114,7 +114,7 @@ function wrap<T>(value: T): Box<T> {
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 
-/// @check.stats.solve variables=0 types=8 constraints=4 obligations=1 solutions=0 bounds=0 decisions=6
+/// @check.stats.solve variables=0 types=8 constraints=4 obligations=2 solutions=0 bounds=0 decisions=6
 "#,
     );
 }
@@ -146,7 +146,7 @@ newtype interface Zero {
     static zero(): this;
 }
 
-struct Box<T: Zero> {
+struct Box<out T: Zero> {
     value: T;
 }
 
@@ -224,7 +224,7 @@ function doubled<T: Float>(value: T): Box<T> {
 === annotated ===
 import { Float } from "destack:math";
 
-struct Box<T: Float> {
+struct Box<out T: Float> {
     value: T;
 }
 

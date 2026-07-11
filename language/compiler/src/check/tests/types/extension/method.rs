@@ -191,7 +191,7 @@ point.length();
 fn test_extension_getter_selects_through_a_borrowed_receiver() {
     let session = TestSession::single(
         r#"
-struct Slice<T> {
+struct Slice<in out T> {
     length: usize;
 }
 
@@ -212,7 +212,7 @@ extension<T> of Slice<T> {
         DirRows::checked(),
         r#"
 === annotated ===
-struct Slice<T> {
+struct Slice<in out T> {
     length: usize;
 }
 
@@ -227,12 +227,12 @@ extension<T> of Slice<T> {
 }
 
 === checked ===
-struct Slice<T> {
-/// @generic.template symbol=Slice parameters=(T#1)
+struct Slice<in out T> {
+/// @generic.template symbol=Slice parameters=(in out T#1)
 /// @type.symbol symbol=Slice type=Slice
-/// @definition.struct symbol=Slice template=(T#1)
+/// @definition.struct symbol=Slice template=(in out T#1)
 /// @definition.field symbol=Slice.length source="length: usize" key=length type=usize
-/// @type.symbol symbol=Slice.T source=T type=T#1
+/// @type.symbol symbol=Slice.T source="in out T" type=T#1
 
     length: usize;
     /// @type.symbol symbol=Slice.length source="length: usize" type=usize

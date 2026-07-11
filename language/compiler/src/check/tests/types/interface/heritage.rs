@@ -205,7 +205,7 @@ interface Both extends Left, Right {}
         DirRows::checked(),
         r#"
 === annotated ===
-interface Base<T> {
+interface Base<out T> {
     value(): T;
 }
 

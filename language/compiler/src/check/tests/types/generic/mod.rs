@@ -7,4 +7,6 @@ mod method;
 mod module;
 mod parameter;
 mod r#return;
+mod unused;
 mod variance;
+mod widens;

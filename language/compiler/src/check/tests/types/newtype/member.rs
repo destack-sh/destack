@@ -25,13 +25,13 @@ extension<T> of Sealed<T> {
         DirRows::checked(),
         r#"
 === annotated ===
-class Wrapper<T> {
+class Wrapper<out T> {
     open(): T {
         throw "unreachable";
     }
 }
 
-newtype Sealed<T> = Wrapper<T>;
+newtype Sealed<out T> = Wrapper<T>;
 
 extension<T> of Sealed<T> {
     reveal(): T {

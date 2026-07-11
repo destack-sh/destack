@@ -19,7 +19,7 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-struct InlineBuffer<T, comptime N: 0..=4096> {
+struct InlineBuffer<out T, comptime N: 0..=4096> {
     storage: [T; N];
 }
 
@@ -73,7 +73,7 @@ type TooLarge = InlineBuffer<uint8, 4097>;
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-struct InlineBuffer<T, comptime N: 0..=4096> {
+struct InlineBuffer<out T, comptime N: 0..=4096> {
     storage: [T; N];
 }
 

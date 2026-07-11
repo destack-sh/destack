@@ -99,7 +99,11 @@ const value = add(1, 2);
 }
 
 #[test]
-fn test_optional_parameter_function_satisfies_required_parameter_target() {
+fn test_optional_parameter_function_needs_a_thunk_for_required_targets() {
+    // an optional-parameter callback stores its parameter as a union
+    //  carrier, so passing it where a required-parameter function type is
+    //  expected changes the interior representation; a compiler-synthesized
+    //  thunk coercion is the designed path to make this flow again
     let session = TestSession::single(
         r#"
 function source(value?: unknown): void {}
@@ -109,7 +113,7 @@ use(source);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -135,6 +139,10 @@ use(source);
 /// @resolution.call source=use(source) parameters=(Function<(unknown,), void>) arguments=(provided(source) as Function<(unknown,), void>) return=void kind=symbol target=use
 /// @type.node source=source type=(Dynamic<unknown> | undefined) => void
 /// @resolution.name source=source target=source
+"#,
+        r#"
+/// @diagnostic.error code=EC209 message="argument of type '(Dynamic<unknown> | undefined) => void' is not assignable to parameter of type '(unknown) => void'"
+/// @diagnostic.label line=5 column=5 span="source" line_source="use(source);"
 "#,
     );
 }

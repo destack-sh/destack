@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_associated_constant_uses_static_type_argument() {
     let session = TestSession::single(
         r#"
-class Segment<Row> {
+class Segment<in out Row> {
     comptime const Width: uint = Row extends string ? 8 : 4;
     type Lane = [uint8; this.Width];
 }
@@ -18,7 +18,7 @@ declare const lane: Segment<string>.Lane;
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-class Segment<Row> {
+class Segment<in out Row> {
     comptime const Width: uint = Row extends string ? 8 : 4;
     type Lane = [uint8; this.Width];
 }
@@ -26,13 +26,13 @@ class Segment<Row> {
 declare const lane: Segment<string>.Lane;
 
 === checked ===
-class Segment<Row> {
-/// @generic.template symbol=Segment parameters=(Row)
+class Segment<in out Row> {
+/// @generic.template symbol=Segment parameters=(in out Row)
 /// @type.symbol symbol=Segment type=Segment
-/// @definition.class symbol=Segment template=(Row)
+/// @definition.class symbol=Segment template=(in out Row)
 /// @definition.associated.type symbol=Segment.Lane source="type Lane = [uint8; this.Width]" key=Lane value="FixedArray<uint8, this.Width>"
 /// @definition.associated.const symbol=Segment.Width source="comptime const Width: uint = Row extends string ? 8 : 4" key=Width type=uint64
-/// @type.symbol symbol=Segment.Row source=Row type=Row
+/// @type.symbol symbol=Segment.Row source="in out Row" type=Row
 
     comptime const Width: uint = Row extends string ? 8 : 4;
     /// @type.symbol symbol=Segment.Width source="comptime const Width: uint = Row extends string ? 8 : 4" type=uint64

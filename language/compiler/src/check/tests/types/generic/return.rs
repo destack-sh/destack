@@ -66,12 +66,12 @@ function pending<T>(): State<T> {
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-interface Pending<T> {
+interface Pending<in out T> {
     kind: "pending";
     reactions: T[];
 }
 
-interface Done<T> {
+interface Done<in out T> {
     kind: "done";
     value: T;
 }
@@ -147,7 +147,7 @@ function pending<T>(): State<T> {
 /// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
 
-/// @check.stats.solve variables=0 types=24 constraints=4 obligations=2 solutions=0 bounds=0 decisions=8
+/// @check.stats.solve variables=0 types=24 constraints=4 obligations=4 solutions=0 bounds=0 decisions=8
 "#,
     );
 }
@@ -156,7 +156,7 @@ function pending<T>(): State<T> {
 fn test_generic_return_contextualizes_nested_call_result() {
     let session = TestSession::single(
         r#"
-declare class Promise<T> {
+declare class Promise<in out T> {
     static resolve<T>(value: Promise<T>): Promise<T>;
     static resolve<T>(value: T): Promise<T>;
 }
@@ -195,23 +195,23 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
             .with_check_stats(),
         r#"
 === annotated ===
-declare class Promise<T> {
+declare class Promise<in out T> {
     static resolve<T>(value: Promise<T>): Promise<T>;
     static resolve<T>(value: T): Promise<T>;
 }
 
-struct Ok<T> {
+struct Ok<out T> {
     kind: "Ok" = "Ok";
     value: T;
 }
 
-struct Err<E> {
+struct Err<out E> {
     kind: "Err" = "Err";
     error: E;
 }
 
 @derive(Tagged)
-newtype Result<T, E> = Ok<T> | Err<E>;
+newtype Result<out T, out E> = Ok<T> | Err<E>;
 
 extension<T, E> of Result<T, E> {
     static ok(value: T): Result<T, E> {
@@ -219,20 +219,20 @@ extension<T, E> of Result<T, E> {
     }
 }
 
-newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+newtype AsyncResult<in out T, in out E> = Promise<Result<T, E>>;
 
 function ok<T, E>(value: T): AsyncResult<T, E> {
     return AsyncResult(Promise.resolve<Result<T, E>>(Result.ok<T, E>(value)));
 }
 
 === checked ===
-declare class Promise<T> {
-/// @generic.template symbol=Promise parameters=(T#1)
+declare class Promise<in out T> {
+/// @generic.template symbol=Promise parameters=(in out T#1)
 /// @type.symbol symbol=Promise type=Promise
-/// @definition.class symbol=Promise template=(T#1)
+/// @definition.class symbol=Promise template=(in out T#1)
 /// @definition.method symbol=Promise.resolve#1 source="static resolve<T>(value: Promise<T>): Promise<T>" slot=resolve static=true type=<T#2>(Promise<T#2>) => Promise<T#2>
 /// @definition.method symbol=Promise.resolve#2 source="static resolve<T>(value: T): Promise<T>" slot=resolve static=true type=<T#3>(T#3) => Promise<T#3>
-/// @type.symbol symbol=Promise.T source=T type=T#1
+/// @type.symbol symbol=Promise.T source="in out T" type=T#1
 
     static resolve<T>(value: Promise<T>): Promise<T>;
     /// @generic.template symbol=Promise.resolve#1 parent=template#0 parameters=(T#2)
@@ -408,7 +408,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 
-/// @check.stats.solve variables=5 types=63 constraints=12 obligations=6 solutions=5 bounds=6 decisions=44
+/// @check.stats.solve variables=7 types=67 constraints=12 obligations=11 solutions=7 bounds=5 decisions=44
 "#,
     );
 }
@@ -443,18 +443,18 @@ extension<T, E> of Result<T, E> {
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-struct Ok<T> {
+struct Ok<out T> {
     kind: "Ok" = "Ok";
     value: T;
 }
 
-struct Err<E> {
+struct Err<out E> {
     kind: "Err" = "Err";
     error: E;
 }
 
 @derive(Tagged)
-newtype Result<T, E> = Ok<T> | Err<E>;
+newtype Result<out T, out E> = Ok<T> | Err<E>;
 
 extension<T, E> of Result<T, E> {
     static ok(value: T): Result<T, E> {
@@ -554,7 +554,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=2 types=31 constraints=5 obligations=5 solutions=2 bounds=9 decisions=18
+/// @check.stats.solve variables=4 types=35 constraints=5 obligations=8 solutions=4 bounds=5 decisions=18
 "#,
     );
 }

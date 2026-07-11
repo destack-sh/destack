@@ -274,11 +274,11 @@ const ok = compare(Badge {}, Badge {});
         DirRows::checked(),
         r#"
 === annotated ===
-newtype interface PartialEqual<T = this> {
+newtype interface PartialEqual<in T = this> {
     equal(other: T): boolean;
 }
 
-newtype interface Equal<T = this> extends PartialEqual<T> {}
+newtype interface Equal<in T = this> extends PartialEqual<T> {}
 
 struct Badge {}
 
@@ -677,7 +677,7 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
         DirRows::checked(),
         r#"
 === annotated ===
-interface Source<T> {
+interface Source<in T> {
     static from(value: T): this;
 }
 
@@ -685,7 +685,7 @@ interface Carrier extends Source<this.Error> {
     type Error;
 }
 
-newtype Result<T, E> = T | E;
+newtype Result<out T, out E> = T | E;
 
 extension<T, E> of Result<T, E> implements Source<E>, Carrier {
     type Error = E;
@@ -1004,7 +1004,7 @@ extension of Cell implements Writing {
 fn test_extension_implements_one_interface_at_many_instantiations() {
     let session = TestSession::single(
         r#"
-interface Emits<T> {}
+interface Emits<in out T> {}
 
 struct Channel {}
 
@@ -1017,19 +1017,19 @@ extension of Channel implements Emits<int32>, Emits<string> {}
         DirRows::checked(),
         r#"
 === annotated ===
-interface Emits<T> {}
+interface Emits<in out T> {}
 
 struct Channel {}
 
 extension of Channel implements Emits<int32>, Emits<string> {}
 
 === checked ===
-interface Emits<T> {}
-/// @generic.template symbol=Emits parameters=(T)
-/// @type.symbol symbol=Emits source="interface Emits<T> {}" type=Emits
-/// @definition.interface symbol=Emits source="interface Emits<T> {}" template=(T)
-/// @definition.where symbol=Emits source="interface Emits<T> {}" relation=satisfies left=this right=Emits<T>
-/// @type.symbol symbol=Emits.T source=T type=T
+interface Emits<in out T> {}
+/// @generic.template symbol=Emits parameters=(in out T)
+/// @type.symbol symbol=Emits source="interface Emits<in out T> {}" type=Emits
+/// @definition.interface symbol=Emits source="interface Emits<in out T> {}" template=(in out T)
+/// @definition.where symbol=Emits source="interface Emits<in out T> {}" relation=satisfies left=this right=Emits<T>
+/// @type.symbol symbol=Emits.T source="in out T" type=T
 
 struct Channel {}
 /// @type.symbol symbol=Channel source="struct Channel {}" type=Channel
@@ -1076,15 +1076,15 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-interface Eq<T> {
+interface Eq<in out T> {
     equals(other: Borrowed<T, L0, "readonly">): boolean;
 }
 
-interface Has<T> {
+interface Has<in out T> {
     has(value: Borrowed<T, L0, "readonly">): boolean;
 }
 
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 
@@ -1171,7 +1171,6 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @generic.instance id=Eq<T#1> template=Eq arguments=(T#1)
 /// @generic.instance id=Has<T#2> template=Has arguments=(T#2)
 /// @generic.instance id=Pack<T#4> template=Pack arguments=(T#4)
-
 "#,
         r#""#,
     );
@@ -1206,11 +1205,11 @@ export extension<T> of Pack<T> implements Has<T> {
 === annotated ===
 interface Marker {}
 
-interface Has<T> {
+interface Has<in out T> {
     has(value: Borrowed<T, L0, "readonly">): boolean;
 }
 
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 
@@ -1282,7 +1281,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.instance id=Has<T#1> template=Has arguments=(T#1)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 "#,
-        r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has'"
+        r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has<T>'"
 /// @diagnostic.label line=12 column=43 span="Has" line_source="export extension<T> of Pack<T> implements Has<T> {"
 "#,
     );
@@ -1313,11 +1312,11 @@ export extension<T> of Pack<T> implements Has<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-interface Has<T> {
+interface Has<in out T> {
     has(value: Borrowed<T, L0, "readonly">): boolean;
 }
 
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 
@@ -1383,10 +1382,200 @@ export extension<T> of Pack<T> implements Has<T> {
 
 /// @generic.instance id=Has<T#1> template=Has arguments=(T#1)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-
 "#,
-        r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has'"
+        r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has<T>'"
 /// @diagnostic.label line=10 column=43 span="Has" line_source="export extension<T> of Pack<T> implements Has<T> {"
+"#,
+    );
+}
+
+#[test]
+fn test_borrowed_entry_iterables_conform_through_elided_lifetimes() {
+    let session = TestSession::single(
+        r#"
+import { Iterable, Iterator } from "destack:iter";
+import { Access, WithAccess } from "destack:memory";
+import { todo } from "destack:error";
+
+export struct Entry<K, V> {
+    key: K;
+    value: V;
+}
+
+export class Bag<K, V> {
+    keys: K[] = [];
+    values: V[] = [];
+}
+
+export extension<K, V> of Bag<K, V>
+    implements
+        Iterable<(K, V)>,
+        Iterable<Entry<&readonly K, &V>> {
+    iterator(): Iterator<(K, V)> {
+        todo("Bag.iterator")
+    }
+
+    iterator<comptime A: Access = "readonly">(
+        this: WithAccess<&Bag<K, V>, A>,
+    ): Iterator<Entry<&readonly K, WithAccess<&V, A>>> {
+        todo("Bag.iterator")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { Access, WithAccess } from "destack:memory";
+
+export struct Entry<out K, out V> {
+    key: K;
+    value: V;
+}
+
+export class Bag<in out K, in out V> {
+    keys: K[] = [];
+    values: V[] = [];
+}
+
+export extension<K, V, comptime L2: Lifetime, comptime L3: Lifetime> of Bag<K, V>
+    implements
+        Iterable<(K, V)>,
+        Iterable<Entry<&readonly K, &V>> {
+    iterator(): Iterator<(K, V), unknown> {
+        todo("Bag.iterator" as string | undefined)
+    }
+
+    iterator<comptime A: Access = "readonly">(
+        this: WithAccess<&Bag<K, V>, A>,
+    ): Iterator<
+        Entry<Borrowed<K, L1, "readonly">, WithAccess<Borrowed<V, L1, "mutable">, A>>,
+        unknown
+    > {
+        todo("Bag.iterator" as string | undefined)
+    }
+}
+
+=== checked ===
+import { Iterable, Iterator } from "destack:iter";
+import { Access, WithAccess } from "destack:memory";
+import { todo } from "destack:error";
+
+export struct Entry<K, V> {
+/// @generic.template symbol=Entry parameters=(K#1, V#1)
+/// @type.symbol symbol=Entry type=Entry
+/// @definition.struct symbol=Entry template=(K#1, V#1)
+/// @definition.field symbol=Entry.key source="key: K" key=key type=K#1
+/// @definition.field symbol=Entry.value source="value: V" key=value type=V#1
+/// @type.symbol symbol=Entry.K source=K type=K#1
+/// @type.symbol symbol=Entry.V source=V type=V#1
+
+    key: K;
+    /// @type.symbol symbol=Entry.key source="key: K" type=K#1
+    /// @resolution.name source=K target=Entry.K
+
+    value: V;
+    /// @type.symbol symbol=Entry.value source="value: V" type=V#1
+    /// @resolution.name source=V target=Entry.V
+
+}
+
+export class Bag<K, V> {
+/// @generic.template symbol=Bag parameters=(K#2, V#2)
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.class symbol=Bag template=(K#2, V#2)
+/// @definition.field symbol=Bag.keys source="keys: K[] = []" key=keys type=Array<K#2>
+/// @definition.field symbol=Bag.values source="values: V[] = []" key=values type=Array<V#2>
+/// @type.symbol symbol=Bag.K source=K type=K#2
+/// @type.symbol symbol=Bag.V source=V type=V#2
+
+    keys: K[] = [];
+    /// @type.symbol symbol=Bag.keys source="keys: K[] = []" type=Array<K#2>
+    /// @resolution.name source=K target=Bag.K
+
+    values: V[] = [];
+    /// @type.symbol symbol=Bag.values source="values: V[] = []" type=Array<V#2>
+    /// @resolution.name source=V target=Bag.V
+
+}
+
+export extension<K, V> of Bag<K, V>
+/// @generic.template symbol=<module>#2 parameters=(K#3, V#3, comptime L2: Lifetime, comptime L3: Lifetime)
+/// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
+/// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target=iter.iterator.Iterable arguments=((K#3, V#3))
+/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target=iter.iterator.Iterable arguments=(Entry<Borrowed<K#3, <module>#2.L2, "readonly">, Borrowed<V#3, <module>#2.L3, "mutable">>)
+/// @definition.method symbol=iterator#1 slot=iterator type=(this: Bag<K#3, V#3>) => iter.iterator.Iterator<(K#3, V#3), unknown>
+/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", comptime iterator#2.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A>) => iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>>, unknown>
+/// @type.symbol symbol=K source=K type=K#3
+/// @type.symbol symbol=V source=V type=V#3
+/// @resolution.name source=Bag target=Bag
+/// @resolution.name source=K target=K
+/// @resolution.name source=V target=V
+
+    implements
+        Iterable<(K, V)>,
+        /// @resolution.name source=Iterable target=iter.iterator.Iterable
+        /// @resolution.name source=K target=K
+        /// @resolution.name source=V target=V
+
+        Iterable<Entry<&readonly K, &V>> {
+        /// @resolution.name source=Iterable target=iter.iterator.Iterable
+        /// @resolution.name source=Entry target=Entry
+        /// @resolution.name source=K target=K
+        /// @resolution.name source=V target=V
+
+    iterator(): Iterator<(K, V)> {
+    /// @type.symbol symbol=iterator#1 type=(this: Bag<K#3, V#3>) => iter.iterator.Iterator<(K#3, V#3), unknown>
+    /// @resolution.name source=Iterator target=iter.iterator.Iterator
+    /// @resolution.name source=K target=K
+    /// @resolution.name source=V target=V
+
+        todo("Bag.iterator")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"Bag.iterator\")" parameters=(string | undefined) arguments=(provided("Bag.iterator") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+
+    iterator<comptime A: Access = "readonly">(
+    /// @generic.template symbol=iterator#2 parent=template#2 parameters=(comptime A: memory.access.Access = "readonly", comptime L1: Lifetime)
+    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", comptime iterator#2.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A>) => iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>>, unknown> reduced=<comptime A: memory.access.Access = "readonly", comptime iterator#2.L1: Lifetime>(this: Borrowed<Bag<K#3, V#3>, iterator#2.L1, A>) => iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, "readonly">, Borrowed<V#3, iterator#2.L1, A>>, unknown>
+    /// @type.symbol symbol=iterator.A source="comptime A: Access = \"readonly\"" type=A
+    /// @resolution.name source=Access target=memory.access.Access
+
+        this: WithAccess<&Bag<K, V>, A>,
+        /// @type.symbol symbol=iterator.this#2 source="this: WithAccess<&Bag<K, V>, A>" type=memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A> reduced=Borrowed<Bag<K#3, V#3>, iterator#2.L1, A>
+        /// @resolution.name source=WithAccess target=memory.type.WithAccess
+        /// @resolution.name source=Bag target=Bag
+        /// @resolution.name source=K target=K
+        /// @resolution.name source=V target=V
+        /// @resolution.name source=A target=iterator.A
+
+    ): Iterator<Entry<&readonly K, WithAccess<&V, A>>> {
+    /// @resolution.name source=Iterator target=iter.iterator.Iterator
+    /// @resolution.name source=Entry target=Entry
+    /// @resolution.name source=K target=K
+    /// @resolution.name source=WithAccess target=memory.type.WithAccess
+    /// @resolution.name source=V target=V
+    /// @resolution.name source=A target=iterator.A
+
+        todo("Bag.iterator")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"Bag.iterator\")" parameters=(string | undefined) arguments=(provided("Bag.iterator") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+/// @generic.instance id="Bag<K#3, V#3>" template=Bag arguments=(K#3, V#3)
+/// @generic.instance id="Entry<Borrowed<K#3, iterator#2.L1, \"readonly\">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, \"mutable\">, A>>" template=Entry arguments=(Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>)
+/// @generic.instance id="iter.iterator.Iterator<(K#3, V#3), unknown>" template=iter.iterator.Iterator arguments=((K#3, V#3), unknown)
+/// @generic.instance id="iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, \"readonly\">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, \"mutable\">, A>>, unknown>" template=iter.iterator.Iterator arguments=(Entry<Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>>, unknown)
+/// @generic.instance id="memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A)
+/// @generic.instance id="memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<V#3, iterator#2.L1, "mutable">, A)
 "#,
     );
 }
