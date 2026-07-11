@@ -132,10 +132,8 @@ pub fn format<Context>(
 where
     Context: FormatContext,
 {
-    let source_length = context.file().len;
-    let estimated_buffer_size = source_length / 2;
     let mut state = FormatState::new(context);
-    let mut buffer = VecBuffer::with_capacity(estimated_buffer_size as usize, &mut state);
+    let mut buffer = VecBuffer::new(&mut state);
 
     buffer.write_format(arguments)?;
 
