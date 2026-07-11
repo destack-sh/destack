@@ -156,10 +156,10 @@ impl FileType {
     /// Get a source format from a file path.
     pub fn from_path(path: &Path) -> Option<Self> {
         // detect compound extensions first
-        if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
-            if file_name.ends_with(".d.ds") {
-                return Some(FileType::DestackDeclaration);
-            }
+        if let Some(file_name) = path.file_name().and_then(|name| name.to_str())
+            && file_name.ends_with(".d.ds")
+        {
+            return Some(FileType::DestackDeclaration);
         }
 
         // fall back to the simple extension
