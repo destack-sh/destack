@@ -3,8 +3,9 @@ import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
 import { Suspense } from "solid-js";
 
-import "./style.css";
+import "./style/site.css";
 
+/// Render the site router and shared document providers.
 export default function App() {
     return (
         <Router

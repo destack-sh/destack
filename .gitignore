@@ -133,6 +133,8 @@ destack-infra/.*
 *.tfstate.*
 *.tfvars
 platform/site/public/brand/
+platform/site/public/blog/
+platform/site/public/docs/
 .DS_Store
 
 *.destack

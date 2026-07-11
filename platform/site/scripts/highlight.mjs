@@ -4,13 +4,25 @@ import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    renameSync,
+    rmSync,
+    writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const scriptFile = fileURLToPath(import.meta.url);
+const repositoryDirectory = resolve(dirname(scriptFile), "../../..");
 const treeSitter = join(repositoryDirectory, "node_modules/.bin/tree-sitter");
+const cacheDirectory = join(tmpdir(), "destack-highlight-cache");
+const highlighterFingerprint = createHash("sha256").update(readFileSync(scriptFile)).digest("hex");
 
 const languages = {
     destack: loadGrammar(join(repositoryDirectory, "language/grammar/destack"), "destack"),
@@ -33,11 +45,28 @@ function loadGrammar(directory, name) {
         throw new Error(`missing ${name} grammar in ${directory}`);
     }
 
+    const queries = (grammar.highlights ?? []).map((query) => resolveQuery(directory, query));
+
     return {
         directory,
         extension: grammar["file-types"][0],
-        queries: (grammar.highlights ?? []).map((query) => resolveQuery(directory, query)),
+        fingerprint: grammarFingerprint(join(directory, grammar.path ?? ""), queries),
+        queries,
     };
+}
+
+function grammarFingerprint(directory, queries) {
+    const parser = join(directory, "src/parser.c");
+    const files = [parser, ...queries];
+    const hash = createHash("sha256");
+
+    // invalidate cached output whenever the parser or highlighting queries change
+    for (const file of files) {
+        hash.update(file);
+        hash.update(readFileSync(file));
+    }
+
+    return hash.digest("hex");
 }
 
 function resolveQuery(directory, query) {
@@ -75,7 +104,7 @@ export function highlightDestackFile(file, source) {
 }
 
 function normalizeLanguage(language) {
-    return (language ?? "").trim().split(/\s+/)[0].toLowerCase();
+    return (language ?? "").trim().split(/[:\s]+/)[0].toLowerCase();
 }
 
 function grammarFor(language) {
@@ -91,13 +120,29 @@ function grammarFor(language) {
 }
 
 function highlightGrammarSource(source, grammar) {
+    const key = createHash("sha256")
+        .update(highlighterFingerprint)
+        .update(grammar.fingerprint)
+        .update(source)
+        .digest("hex");
+    const cached = join(cacheDirectory, key);
+    if (existsSync(cached)) {
+        return readFileSync(cached, "utf8");
+    }
+
     const directory = mkdtempSync(join(tmpdir(), "destack-highlight-"));
     const file = join(directory, `source.${grammar.extension}`);
 
     try {
         writeFileSync(file, source);
 
-        return highlightGrammarFile(file, source, grammar);
+        const highlighted = highlightGrammarFile(file, source, grammar);
+        mkdirSync(cacheDirectory, { recursive: true });
+        const temporary = `${cached}.${process.pid}.tmp`;
+        writeFileSync(temporary, highlighted);
+        renameSync(temporary, cached);
+
+        return highlighted;
     } finally {
         rmSync(directory, { force: true, recursive: true });
     }
@@ -138,7 +183,7 @@ function parseQueryRanges(output, source) {
 
         const start = starts[Number(match[2])] + Number(match[3]);
         const end = starts[Number(match[4])] + Number(match[5]);
-        ranges.push({ start, end, kind, priority: 2 });
+        ranges.push({ start, end, kind, priority: capturePriority(kind) });
     }
 
     return ranges;
@@ -181,7 +226,7 @@ function diagnosticRanges(source) {
                 start,
                 end: start + squiggle[0].length,
                 kind: "squiggle",
-                priority: 3,
+                priority: 4,
             });
         }
 
@@ -192,7 +237,7 @@ function diagnosticRanges(source) {
                 start,
                 end: start + message[0].length,
                 kind: "message",
-                priority: 3,
+                priority: 4,
             });
         }
     }
@@ -225,7 +270,7 @@ function captureKind(capture) {
         return "keyword";
     }
 
-    if (capture === "type" || capture === "type.builtin") {
+    if (capture === "type" || capture.startsWith("type.") || capture === "constructor") {
         return "type";
     }
 
@@ -242,16 +287,19 @@ function captureKind(capture) {
         return "string";
     }
 
-    if (capture === "comment") {
+    if (capture === "comment" || capture.startsWith("comment.")) {
         return "comment";
     }
 
-    if (
-        capture === "function" ||
-        capture === "property" ||
-        capture === "variable" ||
-        capture === "variable.parameter"
-    ) {
+    if (capture === "function" || capture.startsWith("function.")) {
+        return "function";
+    }
+
+    if (capture === "property" || capture.startsWith("property.")) {
+        return "property";
+    }
+
+    if (capture === "variable" || capture.startsWith("variable.")) {
         return "name";
     }
 
@@ -260,6 +308,14 @@ function captureKind(capture) {
     }
 
     return undefined;
+}
+
+function capturePriority(kind) {
+    if (kind === "function" || kind === "property" || kind === "type") {
+        return 3;
+    }
+
+    return 2;
 }
 
 function mergeRanges(ranges) {
