@@ -119,6 +119,15 @@ impl NamedExport {
             Self::Indirect(export) => export.key,
         }
     }
+
+    /// Return the export clause item that declared this export.
+    #[inline]
+    pub fn item(self) -> Option<LocalNodeId<DependencyItem>> {
+        match self {
+            Self::Local(export) => export.item,
+            Self::Indirect(export) => Some(export.item),
+        }
+    }
 }
 
 /// One `export * from` edge.
