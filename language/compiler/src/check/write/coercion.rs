@@ -219,6 +219,28 @@ impl CheckState<'_> {
         // classify the settled heads at the DIR level
         let source_head = self.ty(judged_source)?;
         let target_head = self.ty(judged_target)?;
+
+        // tuples reshape when their element layouts differ
+        if let (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple)) =
+            (source_head, target_head)
+        {
+            let reshapes = self.tuple_layouts_differ(
+                judged_source,
+                &source_tuple,
+                judged_target,
+                &target_tuple,
+            )?;
+
+            return Ok(reshapes.then(|| {
+                dir::Coercion::new(
+                    source,
+                    target,
+                    dir::CoercionKind::Carrier,
+                    dir::CastOrigin::Implicit,
+                )
+            }));
+        }
+
         let Some(kind) = dir::Coercion::classify(&source_head, &target_head) else {
             return Ok(None);
         };
@@ -229,6 +251,30 @@ impl CheckState<'_> {
             kind,
             dir::CastOrigin::Implicit,
         )))
+    }
+
+    /// Return whether two tuple types store their elements differently.
+    fn tuple_layouts_differ(
+        &self,
+        source: dir::GlobalTypeId,
+        source_tuple: &dir::TupleType,
+        target: dir::GlobalTypeId,
+        target_tuple: &dir::TupleType,
+    ) -> CompilerResult<bool> {
+        let source_elements = self.tuple_elements(source.module_id, source_tuple.elements)?;
+        let target_elements = self.tuple_elements(target.module_id, target_tuple.elements)?;
+        if source_elements.len() != target_elements.len() {
+            return Ok(true);
+        }
+
+        // optional slots store as their unioned value, so only rest
+        //  slots change the stored layout at equal arity
+        let differs = source_elements
+            .iter()
+            .zip(target_elements)
+            .any(|(source, target)| source.is_rest != target.is_rest);
+
+        Ok(differs)
     }
 
     /// Return the type used to judge coercion representation.
