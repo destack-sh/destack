@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Declaration, DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat,
-    Script, ScriptBody, ScriptLanguage,
+    DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat, Script,
+    ScriptBody, ScriptLanguage,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -90,12 +90,6 @@ impl<'a> ScriptGenerator<'a> {
             checked,
         )?;
         let errors = lower.errors;
-        let declaration =
-            if self.target.output.declaration && matches!(self.target.emit, EmitFormat::Js) {
-                Some(Declaration::default())
-            } else {
-                None
-            };
 
         // language selection
         let language = match self.target.emit {
@@ -109,7 +103,6 @@ impl<'a> ScriptGenerator<'a> {
         let script = Script {
             language,
             body: ScriptBody::EcmaScript(lower.module),
-            declaration,
             map: None,
             has_top_level_side_effects: true,
         };

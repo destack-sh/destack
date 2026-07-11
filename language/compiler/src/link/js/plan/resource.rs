@@ -1,7 +1,7 @@
 use crate::emit::js;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use destack_artifact::{Data, Declaration, EmitFormat, Script, ScriptBody, ScriptLanguage};
+use destack_artifact::{Data, EmitFormat, Script, ScriptBody, ScriptLanguage};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
@@ -366,17 +366,9 @@ impl<'a> JsLinker<'a> {
                 });
             }
         };
-        let declaration =
-            if self.target.output.declaration && matches!(self.target.emit, EmitFormat::Js) {
-                Some(Declaration::default())
-            } else {
-                None
-            };
-
         Ok(Script {
             language,
             body: ScriptBody::EcmaScript(script_module),
-            declaration,
             map: None,
             has_top_level_side_effects: false,
         })
