@@ -29,10 +29,6 @@ impl Compiler {
 
     /// Return the manifest loader string for one emitted file.
     pub(crate) fn build_manifest_loader(&self, file: &BundleFile) -> BuildManifestLoader {
-        if file.section == BundleSection::Declaration {
-            return BuildManifestLoader::Dts;
-        }
-
         let is_typescript = file
             .uri
             .last_segment()

@@ -206,36 +206,6 @@ impl JsLinker<'_> {
         Ok(SourceMapBuilder::new(vec![source_path], markers))
     }
 
-    /// Link one declaration output file when the target requests one.
-    fn link_script_declaration_file(
-        &self,
-        module: &Module,
-        declaration_text: &str,
-        target: &Target,
-        package_dir: &Path,
-        root_dir: Option<&Path>,
-    ) -> Result<BundleFile, String> {
-        let output_path = OutputLayout::module_output_path(
-            package_dir,
-            root_dir,
-            target,
-            module,
-            ScriptFormat::Declaration.extension(),
-        )?;
-
-        let content = Compiler::text_output_content(declaration_text.to_string());
-
-        self.compiler
-            .intern_output_file(
-                BundleSection::Declaration,
-                Uri::from_path(&output_path),
-                FileType::Script,
-                content,
-                None,
-            )
-            .map_err(|error| error.to_string())
-    }
-
     /// Link one JS output into output files.
     pub(crate) fn link_js_output_files(
         &self,
@@ -271,34 +241,14 @@ impl JsLinker<'_> {
         let map = self.script_module_map(package_dir, module, &printed, context)?;
 
         // link the script and optional source map file
-        let mut entries = self
-            .link_script_text_files(
-                target,
-                &output_path,
-                printed.code,
-                Some(map),
-                map_path.as_deref(),
-            )
-            .map_err(|message| CompilerError::Internal { message })?;
-
-        // declarations
-        if let Some(declaration) = &artifact.declaration
-            && target.output.declaration
-        {
-            let declaration = self
-                .link_script_declaration_file(
-                    module,
-                    &declaration.text,
-                    target,
-                    package_dir,
-                    root_dir,
-                )
-                .map_err(|message| CompilerError::Internal { message })?;
-
-            entries.push(declaration);
-        }
-
-        Ok(entries)
+        self.link_script_text_files(
+            target,
+            &output_path,
+            printed.code,
+            Some(map),
+            map_path.as_deref(),
+        )
+        .map_err(|message| CompilerError::Internal { message })
     }
 
     /// Link one final JS text output and any related sidecars.
