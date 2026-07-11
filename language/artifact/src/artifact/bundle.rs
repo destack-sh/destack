@@ -13,8 +13,6 @@ pub enum BundleSection {
     Module,
     /// Primary runnable entry output.
     Entry,
-    /// Declaration or type surface.
-    Declaration,
     /// Asset collection emitted by this target.
     Asset,
     /// Build manifest or output index.
@@ -31,7 +29,6 @@ impl BundleSection {
         match self {
             Self::Module => "module",
             Self::Entry => "entry",
-            Self::Declaration => "declaration",
             Self::Asset => "asset",
             Self::Manifest => "manifest",
             Self::SourceMap => "sourceMap",

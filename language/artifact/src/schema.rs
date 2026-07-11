@@ -3,12 +3,12 @@ use destack_serde::SchemaRegistry;
 use crate::{
     ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
     ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
-    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, Declaration,
-    DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
-    LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
-    ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex, PackageLinted,
-    Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, Runtime, Script, ScriptBody,
+    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, DirBound,
+    DirChecked, DirCheckedComponent, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host, LanguageEnvironment,
+    LanguageIntrinsics, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleGraph,
+    ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex, PackageLinted, Platform,
+    Product, ProductTarget, ProgramAnalysis, ProgramIndex, Runtime, Script, ScriptBody,
     ScriptLanguage, SourceMap, WorkspaceLinted,
 };
 
@@ -64,7 +64,6 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<ObjectFormat>();
     registry.register::<Object>();
     registry.register::<ScriptLanguage>();
-    registry.register::<Declaration>();
     registry.register::<ScriptBody>();
     registry.register::<Script>();
     registry.register::<Asset>();

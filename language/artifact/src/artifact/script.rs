@@ -11,8 +11,6 @@ pub struct Script {
     pub language: ScriptLanguage,
     /// The structured script body.
     pub body: ScriptBody,
-    /// The emitted declaration when one exists.
-    pub declaration: Option<Declaration>,
     /// The source map when one exists.
     pub map: Option<SourceMap>,
     /// Whether this script has top level side effects.
@@ -45,13 +43,6 @@ impl Script {
 pub enum ScriptBody {
     /// ECMAScript-family module IR.
     EcmaScript(Module),
-}
-
-/// One emitted declaration payload.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
-pub struct Declaration {
-    /// The emitted declaration text.
-    pub text: String,
 }
 
 /// One structured target language.

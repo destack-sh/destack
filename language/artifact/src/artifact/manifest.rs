@@ -72,9 +72,6 @@ pub enum BuildManifestLoader {
     Map,
     /// JSON output.
     Json,
-    /// TypeScript declaration output.
-    #[serde(rename = "dts")]
-    Dts,
     /// WebAssembly output.
     Wasm,
     /// Native object output.
