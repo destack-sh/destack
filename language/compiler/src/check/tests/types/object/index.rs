@@ -664,9 +664,9 @@ const value = bag["name"];
 
 === checked ===
 interface Bag<T> {
-/// @generic.template symbol=Bag parameters=(T)
+/// @generic.template symbol=Bag parameters=(in out T)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.interface symbol=Bag template=(T)
+/// @definition.interface symbol=Bag template=(in out T)
 /// @definition.where symbol=Bag relation=satisfies left=this right=Bag<T>
 /// @definition.signature kind=index source="[key: string]: T" key=string type=T
 /// @type.symbol symbol=Bag.T source=T type=T

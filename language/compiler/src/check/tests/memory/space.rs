@@ -249,9 +249,9 @@ struct Payload {
 }
 
 struct Request<T> {
-/// @generic.template symbol=Request parameters=(T)
+/// @generic.template symbol=Request parameters=(out T)
 /// @type.symbol symbol=Request type=Request
-/// @definition.struct symbol=Request template=(T)
+/// @definition.struct symbol=Request template=(out T)
 /// @definition.field symbol=Request.body source="body: T" key=body type=T
 /// @definition.field symbol=Request.header source="header: Header" key=header type=Header
 /// @type.symbol symbol=Request.T source=T type=T

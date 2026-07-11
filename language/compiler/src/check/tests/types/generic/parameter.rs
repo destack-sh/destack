@@ -507,9 +507,9 @@ class Bucket<in out K: Equal<K>> {
 
 === checked ===
 interface Equal<T> {
-/// @generic.template symbol=Equal parameters=(T)
+/// @generic.template symbol=Equal parameters=(in T)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=(T)
+/// @definition.interface symbol=Equal template=(in T)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T>, T) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T
@@ -522,9 +522,9 @@ interface Equal<T> {
 }
 
 class Bucket<K: Equal<K>> {
-/// @generic.template symbol=Bucket parameters=(K: Equal<K>)
+/// @generic.template symbol=Bucket parameters=(in out K: Equal<K>)
 /// @type.symbol symbol=Bucket type=Bucket
-/// @definition.class symbol=Bucket template=(K: Equal<K>)
+/// @definition.class symbol=Bucket template=(in out K: Equal<K>)
 /// @definition.field symbol=Bucket.key source="key: K" key=key type=K
 /// @definition.method symbol=Bucket.constructor slot=constructor role=constructor type=(K) => Bucket<K>
 /// @definition.method symbol=Bucket.pair slot=pair type=(this: Bucket<K>) => Bucket<K>
@@ -619,9 +619,9 @@ extension<K> of Box<K> where K: Equal<K> {
 
 === checked ===
 interface Equal<T> {
-/// @generic.template symbol=Equal parameters=(T#1)
+/// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=(T#1)
+/// @definition.interface symbol=Equal template=(in T#1)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
@@ -643,9 +643,9 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
-/// @generic.template symbol=Box parameters=(K#1)
+/// @generic.template symbol=Box parameters=(in out K#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(K#1)
+/// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
 /// @type.symbol symbol=Box.K source=K type=K#1
@@ -745,9 +745,9 @@ class Box<in out K> {
 
 === checked ===
 interface Equal<T> {
-/// @generic.template symbol=Equal parameters=(T#1)
+/// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=(T#1)
+/// @definition.interface symbol=Equal template=(in T#1)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
@@ -769,9 +769,9 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
-/// @generic.template symbol=Box parameters=(K)
+/// @generic.template symbol=Box parameters=(in out K)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(K)
+/// @definition.class symbol=Box template=(in out K)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K
 /// @definition.method symbol=Box.check slot=check type=(this: Box<K>) => boolean
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K) => Box<K>
@@ -864,9 +864,9 @@ declare function probe<T>(value: T): boolean;
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
-/// @generic.template symbol=Box parameters=(K#1)
+/// @generic.template symbol=Box parameters=(in out K#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(K#1)
+/// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
 /// @type.symbol symbol=Box.K source=K type=K#1
@@ -983,9 +983,9 @@ interface Hash {
 }
 
 interface Equal<T> {
-/// @generic.template symbol=Equal parameters=(T#1)
+/// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=(T#1)
+/// @definition.interface symbol=Equal template=(in T#1)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
@@ -1007,9 +1007,9 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
-/// @generic.template symbol=Box parameters=(K#1)
+/// @generic.template symbol=Box parameters=(in out K#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(K#1)
+/// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
 /// @type.symbol symbol=Box.K source=K type=K#1
@@ -1175,9 +1175,9 @@ declare function todo(message: string): never;
 /// @type.symbol symbol=todo.message source="message: string" type=string
 
 newtype Inner<T> = intrinsic;
-/// @generic.template symbol=Inner parameters=(T#1)
+/// @generic.template symbol=Inner parameters=(in out T#1)
 /// @type.symbol symbol=Inner source="newtype Inner<T> = intrinsic" type=Inner
-/// @definition.newtype symbol=Inner source="newtype Inner<T> = intrinsic" template=(T#1) value=intrinsic
+/// @definition.newtype symbol=Inner source="newtype Inner<T> = intrinsic" template=(in out T#1) value=intrinsic
 /// @type.symbol symbol=Inner.T source=T type=T#1
 
 extension<T> of Inner<T> {
@@ -1203,9 +1203,9 @@ extension<T> of Inner<T> {
 }
 
 export struct Cell<T> {
-/// @generic.template symbol=Cell parameters=(T#3)
+/// @generic.template symbol=Cell parameters=(in out T#3)
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.struct symbol=Cell template=(T#3)
+/// @definition.struct symbol=Cell template=(in out T#3)
 /// @definition.field symbol=Cell.storage source="storage: Inner<T>" key=storage type=Inner<T#3>
 /// @type.symbol symbol=Cell.T source=T type=T#3
 
@@ -1513,9 +1513,9 @@ extension<T> of Box<T> {
 
 === checked ===
 class Box<T> {
-/// @generic.template symbol=Box parameters=(T#1)
+/// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(T#1)
+/// @definition.class symbol=Box template=(in out T#1)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(T#1) => Box<T#1>
 /// @type.symbol symbol=Box.T source=T type=T#1
@@ -1644,9 +1644,9 @@ extension<T> of Outer<T> {
 
 === checked ===
 struct Inner<T> {
-/// @generic.template symbol=Inner parameters=(T#1)
+/// @generic.template symbol=Inner parameters=(out T#1)
 /// @type.symbol symbol=Inner type=Inner
-/// @definition.struct symbol=Inner template=(T#1)
+/// @definition.struct symbol=Inner template=(out T#1)
 /// @definition.field symbol=Inner.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Inner.T source=T type=T#1
 
@@ -1679,9 +1679,9 @@ extension<T> of Inner<T> {
 }
 
 struct Outer<T> {
-/// @generic.template symbol=Outer parameters=(T#3)
+/// @generic.template symbol=Outer parameters=(out T#3)
 /// @type.symbol symbol=Outer type=Outer
-/// @definition.struct symbol=Outer template=(T#3)
+/// @definition.struct symbol=Outer template=(out T#3)
 /// @definition.field symbol=Outer.inner source="inner: Inner<T>" key=inner type=Inner<T#3>
 /// @type.symbol symbol=Outer.T source=T type=T#3
 

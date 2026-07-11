@@ -45,9 +45,9 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
 === checked ===
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#1)
+/// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#1)
+/// @definition.struct symbol=Pack template=(out T#1)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Pack.T source=T type=T#1
 
@@ -266,9 +266,9 @@ export extension<T, E> of Outcome<T, E> {
 
 === checked ===
 struct Ok<T> {
-/// @generic.template symbol=Ok parameters=(T#1)
+/// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
-/// @definition.struct symbol=Ok template=(T#1)
+/// @definition.struct symbol=Ok template=(out T#1)
 /// @definition.field symbol=Ok.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Ok.T source=T type=T#1
 
@@ -279,9 +279,9 @@ struct Ok<T> {
 }
 
 struct Err<E> {
-/// @generic.template symbol=Err parameters=(E#1)
+/// @generic.template symbol=Err parameters=(out E#1)
 /// @type.symbol symbol=Err type=Err
-/// @definition.struct symbol=Err template=(E#1)
+/// @definition.struct symbol=Err template=(out E#1)
 /// @definition.field symbol=Err.error source="error: E" key=error type=E#1
 /// @type.symbol symbol=Err.E source=E type=E#1
 
@@ -292,9 +292,9 @@ struct Err<E> {
 }
 
 newtype Outcome<T, E> = Ok<T> | Err<E>;
-/// @generic.template symbol=Outcome parameters=(T#2, E#2)
+/// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(T#2, E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -475,9 +475,9 @@ function wrap(): Packed<string> {
 
 === checked ===
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#1)
+/// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#1)
+/// @definition.struct symbol=Pack template=(out T#1)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Pack.T source=T type=T#1
 
@@ -577,9 +577,9 @@ function read<T, comptime L1: Lifetime>(pack: Borrowed<Pack<T>, L1, "readonly">)
 
 === checked ===
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#1)
+/// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#1)
+/// @definition.struct symbol=Pack template=(out T#1)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Pack.T source=T type=T#1
 
@@ -653,9 +653,9 @@ function check<T, comptime L1: Lifetime>(
 
 === checked ===
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#1)
+/// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#1)
+/// @definition.struct symbol=Pack template=(out T#1)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Pack.T source=T type=T#1
 

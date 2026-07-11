@@ -348,9 +348,9 @@ function adopt<T>(value: T): void {
 
 === checked ===
 class Deferred<T> {
-/// @generic.template symbol=Deferred parameters=(T#1)
+/// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=Deferred
-/// @definition.class symbol=Deferred template=(T#1)
+/// @definition.class symbol=Deferred template=(out T#1)
 /// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: Deferred<T#1>, Function<(T#1,), void>) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
 
@@ -433,9 +433,9 @@ function adopt<T>(value: T | Deferred<T>): void {
 
 === checked ===
 class Deferred<T> {
-/// @generic.template symbol=Deferred parameters=(T#1)
+/// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=Deferred
-/// @definition.class symbol=Deferred template=(T#1)
+/// @definition.class symbol=Deferred template=(out T#1)
 /// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: Deferred<T#1>, Function<(T#1,), void>) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
 

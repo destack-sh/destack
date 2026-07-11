@@ -43,9 +43,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 
@@ -123,9 +123,9 @@ class Square extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 
@@ -184,9 +184,9 @@ const wide: Holder<int32> = one;
 
 === checked ===
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 
@@ -250,9 +250,9 @@ class Circle {}
 /// @definition.class symbol=Circle source="class Circle {}"
 
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 
@@ -326,9 +326,9 @@ class Circle implements Draw {}
 /// @resolution.name source=Draw target=Draw
 
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 
@@ -404,9 +404,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 
@@ -484,9 +484,9 @@ class Square extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 
@@ -561,9 +561,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare class Box<T> {
-/// @generic.template symbol=Box parameters=(T)
+/// @generic.template symbol=Box parameters=(in out T)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(T)
+/// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
 
@@ -637,9 +637,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare class Label<T> {
-/// @generic.template symbol=Label parameters=(T)
+/// @generic.template symbol=Label parameters=(out T)
 /// @type.symbol symbol=Label type=Label
-/// @definition.class symbol=Label template=(T)
+/// @definition.class symbol=Label template=(out T)
 /// @definition.field symbol=Label.value source="readonly value: T" key=value type=T
 /// @type.symbol symbol=Label.T source=T type=T
 
@@ -709,9 +709,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare class Box<T> {
-/// @generic.template symbol=Box parameters=(T)
+/// @generic.template symbol=Box parameters=(in out T)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(T)
+/// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
 
@@ -785,9 +785,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare class Pipe<T> {
-/// @generic.template symbol=Pipe parameters=(T)
+/// @generic.template symbol=Pipe parameters=(in out T)
 /// @type.symbol symbol=Pipe type=Pipe
-/// @definition.class symbol=Pipe template=(T)
+/// @definition.class symbol=Pipe template=(in out T)
 /// @definition.field symbol=Pipe.store source="store: T" key=store type=T
 /// @definition.method symbol=Pipe.put source="put(this, value: T): void" slot=put type=(this: Pipe<T>, T) => void
 /// @type.symbol symbol=Pipe.T source=T type=T
@@ -881,9 +881,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 class Stack<T> {
-/// @generic.template symbol=Stack parameters=(T#1)
+/// @generic.template symbol=Stack parameters=(in out T#1)
 /// @type.symbol symbol=Stack type=Stack
-/// @definition.class symbol=Stack template=(T#1)
+/// @definition.class symbol=Stack template=(in out T#1)
 /// @definition.field symbol=Stack.items source="items: T[] = []" key=items type=Array<T#1>
 /// @type.symbol symbol=Stack.T source=T type=T#1
 
@@ -992,9 +992,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 class Stack<T> {
-/// @generic.template symbol=Stack parameters=(T#1)
+/// @generic.template symbol=Stack parameters=(in out T#1)
 /// @type.symbol symbol=Stack type=Stack
-/// @definition.class symbol=Stack template=(T#1)
+/// @definition.class symbol=Stack template=(in out T#1)
 /// @definition.field symbol=Stack.items source="items: T[] = []" key=items type=Array<T#1>
 /// @type.symbol symbol=Stack.T source=T type=T#1
 
@@ -1095,9 +1095,9 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 class Bag<T> {
-/// @generic.template symbol=Bag parameters=(T)
+/// @generic.template symbol=Bag parameters=(in out T)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.class symbol=Bag template=(T)
+/// @definition.class symbol=Bag template=(in out T)
 /// @definition.field symbol=Bag.items source="items: T[] = []" key=items type=Array<T>
 /// @definition.method symbol=Bag.refill slot=refill type=(this: Bag<T>, T) => void
 /// @type.symbol symbol=Bag.T source=T type=T
@@ -1399,9 +1399,9 @@ class Square extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 struct Holder<T> {
-/// @generic.template symbol=Holder parameters=(T)
+/// @generic.template symbol=Holder parameters=(out T)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(T)
+/// @definition.struct symbol=Holder template=(out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source=T type=T
 

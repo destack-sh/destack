@@ -82,9 +82,9 @@ function wrap<T>(value: T): Box<T> {
 
 === checked ===
 struct Box<T> {
-/// @generic.template symbol=Box parameters=(T#1)
+/// @generic.template symbol=Box parameters=(out T#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(T#1)
+/// @definition.struct symbol=Box template=(out T#1)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source=T type=T#1
 
@@ -166,9 +166,9 @@ newtype interface Zero {
 }
 
 struct Box<T: Zero> {
-/// @generic.template symbol=Box parameters=(T#1: Zero)
+/// @generic.template symbol=Box parameters=(out T#1: Zero)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(T#1: Zero)
+/// @definition.struct symbol=Box template=(out T#1: Zero)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source="T: Zero" type=T#1
 /// @resolution.name source=Zero target=Zero
@@ -236,9 +236,9 @@ function doubled<T: Float>(value: T): Box<T> {
 import { Float } from "destack:math";
 
 struct Box<T: Float> {
-/// @generic.template symbol=Box parameters=(T#1: math.scalar.Float)
+/// @generic.template symbol=Box parameters=(out T#1: math.scalar.Float)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(T#1: math.scalar.Float)
+/// @definition.struct symbol=Box template=(out T#1: math.scalar.Float)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source="T: Float" type=T#1
 /// @resolution.name source=Float target=math.scalar.Float

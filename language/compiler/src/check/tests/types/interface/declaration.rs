@@ -92,9 +92,9 @@ interface Serializer {
 }
 
 interface Serialize<S: Serializer> {
-/// @generic.template symbol=Serialize parameters=(S: Serializer)
+/// @generic.template symbol=Serialize parameters=(in S: Serializer)
 /// @type.symbol symbol=Serialize type=Serialize
-/// @definition.interface symbol=Serialize template=(S: Serializer)
+/// @definition.interface symbol=Serialize template=(in S: Serializer)
 /// @definition.where symbol=Serialize relation=satisfies left=this right=Serialize<S>
 /// @definition.method symbol=Serialize.serialize source="serialize(target: S): void" slot=serialize type=(this: Serialize<S>, S) => void
 /// @type.symbol symbol=Serialize.S source="S: Serializer" type=S

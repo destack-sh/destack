@@ -240,7 +240,11 @@ fn template_label(
     let parameters = parameters
         .iter()
         .map(|parameter| {
-            generic_template_parameter_label(generics.get_parameter(*parameter), builder)
+            generic_template_parameter_label(
+                *parameter,
+                generics.get_parameter(*parameter),
+                builder,
+            )
         })
         .collect::<Vec<_>>()
         .join(", ");

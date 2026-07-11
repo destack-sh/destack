@@ -47,7 +47,11 @@ impl SnapshotTable for dir::GenericSegment {
                 .tuple_field(
                     "parameters",
                     template.parameters.iter().map(|parameter| {
-                        generic_template_parameter_label(self.get_parameter(*parameter), builder)
+                        generic_template_parameter_label(
+                            *parameter,
+                            self.get_parameter(*parameter),
+                            builder,
+                        )
                     }),
                 );
 
@@ -69,12 +73,23 @@ impl SnapshotTable for dir::GenericSegment {
 
 /// Return one generic template parameter label.
 pub(super) fn generic_template_parameter_label(
+    parameter_id: dir::LocalGenericParameterId,
     parameter: &dir::GenericParameterBinding,
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
     // spell the parameter head with its modifiers
     let name = generic_parameter_name(parameter.key, builder);
-    let name = builder.generic_parameter_binding_head_label(parameter, name);
+    let mut name = builder.generic_parameter_binding_head_label(parameter, name);
+
+    // unannotated parameters show the variance check derived
+    if parameter.variance.is_none()
+        && let Some(derived) = builder
+            .generics
+            .as_ref()
+            .and_then(|generics| generics.derived_variance(parameter_id))
+    {
+        name = format!("{} {name}", derived.as_str());
+    }
 
     // spell the constraint and default suffixes
     let constraint = parameter

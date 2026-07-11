@@ -170,9 +170,9 @@ function capture(): void {
 
 === checked ===
 class Cell<T> {
-/// @generic.template symbol=Cell parameters=(T)
+/// @generic.template symbol=Cell parameters=(out T)
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.class symbol=Cell template=(T)
+/// @definition.class symbol=Cell template=(out T)
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Function<(T,), void>) => Cell<T>
 /// @type.symbol symbol=Cell.T source=T type=T
 

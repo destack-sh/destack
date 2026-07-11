@@ -29,9 +29,9 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
 
 === checked ===
 struct InlineBuffer<T, comptime N: 0..=4096> {
-/// @generic.template symbol=InlineBuffer parameters=(T, comptime N: 0..=4096)
+/// @generic.template symbol=InlineBuffer parameters=(out T, comptime N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer
-/// @definition.struct symbol=InlineBuffer template=(T, comptime N: 0..=4096)
+/// @definition.struct symbol=InlineBuffer template=(out T, comptime N: 0..=4096)
 /// @definition.field symbol=InlineBuffer.storage source="storage: [T; N]" key=storage type=FixedArray<T, N>
 /// @type.symbol symbol=InlineBuffer.T source=T type=T
 /// @type.symbol symbol=InlineBuffer.N source="comptime N: 0..=4096" type=N
@@ -81,9 +81,9 @@ type TooLarge = InlineBuffer<uint8, 4097>;
 
 === checked ===
 struct InlineBuffer<T, comptime N: 0..=4096> {
-/// @generic.template symbol=InlineBuffer parameters=(T, comptime N: 0..=4096)
+/// @generic.template symbol=InlineBuffer parameters=(out T, comptime N: 0..=4096)
 /// @type.symbol symbol=InlineBuffer type=InlineBuffer
-/// @definition.struct symbol=InlineBuffer template=(T, comptime N: 0..=4096)
+/// @definition.struct symbol=InlineBuffer template=(out T, comptime N: 0..=4096)
 /// @definition.field symbol=InlineBuffer.storage source="storage: [T; N]" key=storage type=FixedArray<T, N>
 /// @type.symbol symbol=InlineBuffer.T source=T type=T
 /// @type.symbol symbol=InlineBuffer.N source="comptime N: 0..=4096" type=N

@@ -296,9 +296,9 @@ const ok: boolean = compare<Badge>(Badge {}, Badge {});
 
 === checked ===
 newtype interface PartialEqual<T = this> {
-/// @generic.template symbol=PartialEqual parameters=(T#1 = this)
+/// @generic.template symbol=PartialEqual parameters=(in T#1 = this)
 /// @type.symbol symbol=PartialEqual type=PartialEqual
-/// @definition.interface symbol=PartialEqual template=(T#1 = this) nominal=true
+/// @definition.interface symbol=PartialEqual template=(in T#1 = this) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
 /// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: PartialEqual<T#1>, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
@@ -311,9 +311,9 @@ newtype interface PartialEqual<T = this> {
 }
 
 newtype interface Equal<T = this> extends PartialEqual<T> {}
-/// @generic.template symbol=Equal parameters=(T#2 = this)
+/// @generic.template symbol=Equal parameters=(in T#2 = this)
 /// @type.symbol symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal
-/// @definition.interface symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(T#2 = this) nominal=true
+/// @definition.interface symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(in T#2 = this) nominal=true
 /// @definition.where symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" relation=satisfies left=this right=Equal<T#2>
 /// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual arguments=(T#2)
 /// @type.symbol symbol=Equal.T source="T = this" type=T#2
@@ -697,9 +697,9 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
 
 === checked ===
 interface Source<T> {
-/// @generic.template symbol=Source parameters=(T#1)
+/// @generic.template symbol=Source parameters=(in T#1)
 /// @type.symbol symbol=Source type=Source
-/// @definition.interface symbol=Source template=(T#1)
+/// @definition.interface symbol=Source template=(in T#1)
 /// @definition.where symbol=Source relation=satisfies left=this right=Source<T#1>
 /// @definition.method symbol=Source.from source="static from(value: T): this" slot=from static=true type=(T#1) => this
 /// @type.symbol symbol=Source.T source=T type=T#1
@@ -722,9 +722,9 @@ interface Carrier extends Source<this.Error> {
 }
 
 newtype Result<T, E> = T | E;
-/// @generic.template symbol=Result parameters=(T#2, E#1)
+/// @generic.template symbol=Result parameters=(out T#2, out E#1)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(T#2, E#1) value=T#2 | E#1
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#2, out E#1) value=T#2 | E#1
 /// @type.symbol symbol=Result.T source=T type=T#2
 /// @type.symbol symbol=Result.E source=E type=E#1
 /// @resolution.name source=T target=Result.T
@@ -1096,9 +1096,9 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 
 === checked ===
 interface Eq<T> {
-/// @generic.template symbol=Eq parameters=(T#1)
+/// @generic.template symbol=Eq parameters=(in out T#1)
 /// @type.symbol symbol=Eq type=Eq
-/// @definition.interface symbol=Eq template=(T#1)
+/// @definition.interface symbol=Eq template=(in out T#1)
 /// @definition.where symbol=Eq relation=satisfies left=this right=Eq<T#1>
 /// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<comptime Eq.equals.L0: Lifetime>(this: Eq<T#1>, Borrowed<T#1, Eq.equals.L0, "readonly">) => boolean
 /// @type.symbol symbol=Eq.T source=T type=T#1
@@ -1112,9 +1112,9 @@ interface Eq<T> {
 }
 
 interface Has<T> {
-/// @generic.template symbol=Has parameters=(T#2)
+/// @generic.template symbol=Has parameters=(in out T#2)
 /// @type.symbol symbol=Has type=Has
-/// @definition.interface symbol=Has template=(T#2)
+/// @definition.interface symbol=Has template=(in out T#2)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#2>
 /// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: Has<T#2>, Borrowed<T#2, Has.has.L0, "readonly">) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#2
@@ -1128,9 +1128,9 @@ interface Has<T> {
 }
 
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#3)
+/// @generic.template symbol=Pack parameters=(out T#3)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#3)
+/// @definition.struct symbol=Pack template=(out T#3)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#3
 /// @type.symbol symbol=Pack.T source=T type=T#3
 
@@ -1225,9 +1225,9 @@ interface Marker {}
 /// @definition.interface symbol=Marker source="interface Marker {}"
 
 interface Has<T> {
-/// @generic.template symbol=Has parameters=(T#1)
+/// @generic.template symbol=Has parameters=(in out T#1)
 /// @type.symbol symbol=Has type=Has
-/// @definition.interface symbol=Has template=(T#1)
+/// @definition.interface symbol=Has template=(in out T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
 /// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
@@ -1241,9 +1241,9 @@ interface Has<T> {
 }
 
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#2)
+/// @generic.template symbol=Pack parameters=(out T#2)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#2)
+/// @definition.struct symbol=Pack template=(out T#2)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#2
 /// @type.symbol symbol=Pack.T source=T type=T#2
 
@@ -1328,9 +1328,9 @@ export extension<T> of Pack<T> implements Has<T> {
 
 === checked ===
 interface Has<T> {
-/// @generic.template symbol=Has parameters=(T#1)
+/// @generic.template symbol=Has parameters=(in out T#1)
 /// @type.symbol symbol=Has type=Has
-/// @definition.interface symbol=Has template=(T#1)
+/// @definition.interface symbol=Has template=(in out T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
 /// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
@@ -1344,9 +1344,9 @@ interface Has<T> {
 }
 
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#2)
+/// @generic.template symbol=Pack parameters=(out T#2)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#2)
+/// @definition.struct symbol=Pack template=(out T#2)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#2
 /// @type.symbol symbol=Pack.T source=T type=T#2
 
@@ -1467,9 +1467,9 @@ import { Access, WithAccess } from "destack:memory";
 import { todo } from "destack:error";
 
 export struct Entry<K, V> {
-/// @generic.template symbol=Entry parameters=(K#1, V#1)
+/// @generic.template symbol=Entry parameters=(out K#1, out V#1)
 /// @type.symbol symbol=Entry type=Entry
-/// @definition.struct symbol=Entry template=(K#1, V#1)
+/// @definition.struct symbol=Entry template=(out K#1, out V#1)
 /// @definition.field symbol=Entry.key source="key: K" key=key type=K#1
 /// @definition.field symbol=Entry.value source="value: V" key=value type=V#1
 /// @type.symbol symbol=Entry.K source=K type=K#1
@@ -1486,9 +1486,9 @@ export struct Entry<K, V> {
 }
 
 export class Bag<K, V> {
-/// @generic.template symbol=Bag parameters=(K#2, V#2)
+/// @generic.template symbol=Bag parameters=(in out K#2, in out V#2)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.class symbol=Bag template=(K#2, V#2)
+/// @definition.class symbol=Bag template=(in out K#2, in out V#2)
 /// @definition.field symbol=Bag.keys source="keys: K[] = []" key=keys type=Array<K#2>
 /// @definition.field symbol=Bag.values source="values: V[] = []" key=values type=Array<V#2>
 /// @type.symbol symbol=Bag.K source=K type=K#2
