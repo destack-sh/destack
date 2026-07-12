@@ -69,7 +69,8 @@ let { x, x: other } = point;
 "#,
         r#"
 /// @diagnostic.error code=EC428 message="field 'x' appears more than once in pattern"
-/// @diagnostic.label line=4 column=10 span="x: other" line_source="let { x, x: other } = point;"
+/// @diagnostic.label line=4 column=10 span="x" line_source="let { x, x: other } = point;"
+/// @diagnostic.related line=4 column=7 span="x" line_source="let { x, x: other } = point;" message="first matched here"
 "#,
     );
 }

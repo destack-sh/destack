@@ -185,9 +185,9 @@ impl BodyState<'_, '_> {
         let mut seen = SmallVec::<[(dir::StaticKey, dir::LocalNodeIdAny); 8]>::new();
         for (source, key) in keys {
             // report every repeated field at its repeated key
-            if seen.iter().any(|(existing, _)| *existing == key) {
+            if let Some((_, first)) = seen.iter().find(|(existing, _)| *existing == key) {
                 let key = self.format_static_key(&key);
-                self.report_duplicate_pattern_field(module, source, key);
+                self.report_duplicate_pattern_field(module, source, *first, key);
             } else {
                 seen.push((key, source));
             }
