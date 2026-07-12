@@ -96,13 +96,10 @@ impl<'a> CoercionTable<'a> {
 }
 
 /// One representation change performed by a coercion.
-///
-/// A coercion is required exactly when a value cannot widen naturally:
-/// literals store directly in their base scalars and classes upcast freely,
-/// while entering a union, an existential, another scalar carrier, or another
-/// value carrier converts the stored representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum CoercionKind {
+    /// Borrow one value with the target lifetime and access.
+    Borrow,
     /// Tag the value into or out of a union carrier.
     Union,
     /// Box the value into or out of an existential carrier, like `Dynamic<T>`.
