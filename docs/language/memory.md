@@ -68,7 +68,10 @@ Importantly, this is still memory safe because all operations that may invalidat
 |------|--------|
 | `&readonly T` | may overlap, cannot mutate through the borrow |
 | `&T` | may overlap, can mutate through the borrow |
-| `&exclusive T` | cannot overlap another borrow of the same place, can mutate through the borrow |
+| `&exclusive T` | cannot overlap another loan of the same place in execution, can mutate through the borrow |
+
+For local managed storage, exclusivity applies to execution through loans rather than ownership or reachability: ordinary managed aliases may still exist, but only one continuation executes between suspension points.
+An exclusive borrow therefore grants exclusive borrowed access for the operation without implying unique ownership, sole reachability, or a `noalias` optimization guarantee.
 
 Borrow checking is just rule 2 applied per "access path", so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
 
@@ -469,7 +472,24 @@ Reference conversions follow directly from [the four memory rules](#memory), and
 | owned `^T` | `&T` / `&readonly T` / `&exclusive T` | owned sources may also cross suspension |
 | shared owned `shared ^T` | `shared &T` / `shared &readonly T` / `shared &exclusive T` | owned storage stays unique even in shared space, since the handle itself still has one holder |
 | shared managed `T` | `&T` / `&readonly T` | mutation routes through `Sync` APIs and atomic field access (see [Synchronization](#synchronization)) |
-| shared managed `T` | `&exclusive T` | never: a shared managed handle cannot prove uniqueness |
+| shared managed `T` | `&exclusive T` | never: independent Workers prevent exclusive execution |
+
+When a local managed value appears where a borrow is required, the compiler inserts a borrow coercion whose lifetime is inferred from that use:
+
+```ds
+declare function inspect(value: &readonly User): void;
+declare function modify(value: &User): void;
+declare function replace(value: &exclusive User): void;
+
+inspect(user); // implicit `User` to `&readonly User`
+modify(user);  // implicit `User` to `&User`
+replace(user); // implicit `User` to `&exclusive User`
+```
+
+This rule applies to normalized memory forms rather than particular source spellings: a source that reduces to local managed storage may coerce to a compatible borrowed view wherever those forms are nested.
+The coercion changes the runtime carrier from a managed handle to a borrowed address and retains the managed root for the inferred loan.
+It is inserted only when an expected type requires a borrowed form, so `const same = user` still infers the ordinary managed `User` type.
+Readonly managed views only coerce to readonly borrows, and no managed-derived borrow may cross a suspension point.
 
 Borrows can weaken freely, but cannot be upgraded (obviously):
 

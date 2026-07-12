@@ -39,7 +39,7 @@ Destack supports only ESM syntax: one static module graph, nothing mutable at ru
 
 | Feature | Example | Ruling |
 | --- | --- | --- |
-| **Type-only imports / exports** | `import type { User } from "./user"` | supported as plain `import` / `export` aliases |
+| **Type-qualified imports / exports** | `import type { User } from "./user"` | not supported, plain imports and exports preserve the declaration's symbol space |
 | **CommonJS** | `require("x")`, `module.exports` | not supported, a legacy mutable runtime module system |
 | **Namespace declarations** | `namespace Name { ... }` | not supported, use real modules |
 | **String module declarations** | `declare module "pkg" { ... }` | not supported, declare real modules instead |
@@ -62,6 +62,7 @@ Bindings are strict-mode `const` and `let` with definite assignment, and the leg
 | **Destructuring** | `const { name } = user` | supported in declarations, assignments, parameters, catch bindings, and loops |
 | **Shadowable `undefined`** | `let undefined = value` | not supported, `undefined` is a literal keyword just like `null` |
 | **Sequence expressions** | `(a, b, c)` | not supported, parenthesized comma lists are explicit tuples in `.ds` |
+| **Array-form tuple types** | `[string, number]` | supported and preserved as the TypeScript-compatible spelling of a tuple type |
 | **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds`, locals and fields must be initialized before use |
 | **Sloppy mode** | duplicate declarations, `with` | not supported, Destack targets strict mode |
 | **Callable `Symbol`** | `Symbol("name")` | not supported, use `Symbol.create("name")` |
