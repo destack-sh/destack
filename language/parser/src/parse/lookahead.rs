@@ -446,8 +446,10 @@ impl Parser {
 
                     return Some(probe.peek_token());
                 }
+
+                // treat the remainder of a wider compound close as the follow operator
                 if close_width > angle_depth {
-                    return None;
+                    return Some(probe.peek_token());
                 }
 
                 // update angle depth for compound angle tokens

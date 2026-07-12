@@ -120,25 +120,15 @@ impl Parser {
                 TokenType::OpenBracket => {
                     Some(self.parse_index(left, PostfixPosition::Direct, context, false)?)
                 }
-                TokenType::Dot => Some(self.parse_dot_postfix(
-                    start,
-                    left,
-                    is_first_postfix,
-                    context,
-                    false,
-                )?),
+                TokenType::Dot => {
+                    Some(self.parse_dot_postfix(start, left, is_first_postfix, context, false)?)
+                }
                 // ?. makes the access it introduces optional
                 TokenType::Maybe if self.peek_token_type_at(1) == TokenType::Dot => {
                     self.bump();
                     has_chain = true;
 
-                    Some(self.parse_dot_postfix(
-                        start,
-                        left,
-                        is_first_postfix,
-                        context,
-                        true,
-                    )?)
+                    Some(self.parse_dot_postfix(start, left, is_first_postfix, context, true)?)
                 }
                 TokenType::Maybe if is_question_postfix => {
                     Some(self.parse_assertion_postfix(start, left, true, PostfixPosition::Direct))
@@ -366,7 +356,8 @@ impl Parser {
         let is_generic_start =
             self.peek_is(TokenType::LessThan) || self.peek_shift_left_generic_function_argument();
         if is_generic_start
-            && let Some(expression) = self.parse_generic_postfix(start, left, context, is_optional)?
+            && let Some(expression) =
+                self.parse_generic_postfix(start, left, context, is_optional)?
         {
             return Ok(expression);
         }

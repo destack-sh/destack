@@ -3,7 +3,7 @@ use crate::{assert_comment, assert_expression_path, assert_node, assert_path, as
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, CommentKind, Declaration,
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, NodeType, Parameter,
-    PostfixPosition, ScalarLiteral, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
+    ScalarLiteral, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 
 /// Type casts bind to the full addition expression on the left.

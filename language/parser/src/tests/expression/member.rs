@@ -4,9 +4,10 @@ use crate::{
     assert_value_expression_path,
 };
 use destack_dir::{
-    Argument, CommentKind, Expression, PostfixPosition, RangeEnd, ScalarLiteral, TokenType,
-    TypeExpression, TypeLiteral,
+    Argument, CommentKind, Expression, RangeEnd, ScalarLiteral, TokenType, TypeExpression,
+    TypeLiteral,
 };
+
 #[test]
 fn test_parse_member_expression_as_member_chain() {
     let test = TestParser::new("foo.bar");
