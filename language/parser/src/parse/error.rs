@@ -1,6 +1,6 @@
 use core::fmt;
 
-use destack_dir::{NodeType, TokenSpan, TokenType};
+use destack_dir::{NodeType, Token, TokenSpan, TokenType};
 use destack_source::{ByteRange, ContentId, Diagnostic, DiagnosticLabel, FileId, Span};
 use std::error::Error;
 
@@ -33,6 +33,17 @@ impl From<ByteRange> for ParserErrorLocation {
         Self {
             range,
             actual: None,
+        }
+    }
+}
+
+impl From<Token> for ParserErrorLocation {
+    /// Create a parser error location from a compact source token.
+    #[inline]
+    fn from(token: Token) -> Self {
+        Self {
+            range: token.range(),
+            actual: Some(token.ty()),
         }
     }
 }

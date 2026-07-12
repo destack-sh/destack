@@ -202,7 +202,7 @@ impl Parser {
                 ));
             }
 
-            let else_range = self.eat_keyword(Keyword::Else)?.token.range();
+            let else_range = self.eat_keyword(Keyword::Else)?.range();
 
             // else { ... }
             if !self.peek_is(TokenType::OpenBrace) {
@@ -277,7 +277,7 @@ impl Parser {
             Ok(head)
         } else {
             Err(ParserError::expected(
-                self.require_token(TokenType::Identifier)?.span.range(),
+                self.require_token(TokenType::Identifier)?.range(),
                 TokenType::Identifier,
             ))
         }

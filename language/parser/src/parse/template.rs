@@ -1,5 +1,5 @@
 use destack_dir::{
-    Argument, Expression, LocalNodeId, StringId, TemplateLiteral, TokenSpan, TokenType,
+    Argument, Expression, LocalNodeId, StringId, TemplateLiteral, Token, TokenSpan, TokenType,
     TypeExpression,
 };
 use destack_source::ByteRange;
@@ -106,7 +106,7 @@ impl Parser {
 
         // template string without interpolation
         if next.token.ty() == TokenType::TemplateString {
-            let string = Self::template_chunk_body(next, next_str, 1, 1)?;
+            let string = Self::template_chunk_body(next.token, next_str, 1, 1)?;
             Self::validate_template_chunk(next.span.range(), string, allow_legacy_octal_escapes)?;
 
             let string_id = self.strings.intern(string);
@@ -119,7 +119,7 @@ impl Parser {
             let mut spans: Vec<T> = Vec::new();
 
             // start chunk: remove ` prefix and ${ suffix
-            let string = Self::template_chunk_body(next, next_str, 1, 2)?;
+            let string = Self::template_chunk_body(next.token, next_str, 1, 2)?;
             Self::validate_template_chunk(next.span.range(), string, allow_legacy_octal_escapes)?;
 
             let string_id = self.strings.intern(string);
@@ -131,7 +131,7 @@ impl Parser {
                 if self.peek_is(TokenType::TemplateStringMiddle) {
                     let token = self.eat();
                     let token_str = self.file.span_str(token.span);
-                    let string = Self::template_chunk_body(token, token_str, 1, 2)?;
+                    let string = Self::template_chunk_body(token.token, token_str, 1, 2)?;
                     Self::validate_template_chunk(
                         token.span.range(),
                         string,
@@ -155,9 +155,10 @@ impl Parser {
 
             // end chunk: remove } prefix and ` suffix
             let token = self.eat_token(TokenType::TemplateStringEnd)?;
-            let token_str = self.file.span_str(token.span);
+            let range = token.range();
+            let token_str = &self.file.text()[range.start as usize..range.end as usize];
             let string = Self::template_chunk_body(token, token_str, 1, 1)?;
-            Self::validate_template_chunk(token.span.range(), string, allow_legacy_octal_escapes)?;
+            Self::validate_template_chunk(range, string, allow_legacy_octal_escapes)?;
 
             let string_id = self.strings.intern(string);
             strings.push(string_id);
@@ -170,7 +171,7 @@ impl Parser {
 
     /// Return the body of one lexer-shaped template chunk.
     fn template_chunk_body(
-        token: TokenSpan,
+        token: Token,
         token_str: &str,
         prefix_len: usize,
         suffix_len: usize,

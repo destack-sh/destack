@@ -34,7 +34,7 @@ impl Parser {
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         // enum
-        let enum_range = self.eat_keyword(Keyword::Enum)?.span.range();
+        let enum_range = self.eat_keyword(Keyword::Enum)?.range();
 
         // require declaration heads on one line
         if self.peek_is_on_new_line() && self.peek_is(TokenType::Identifier) {
@@ -226,10 +226,10 @@ impl Parser {
 
             let name = if self.peek_is(TokenType::Literal)
                 && matches!(
-                    self.peek_token_span().token.literal(),
+                    self.peek_token().literal(),
                     Some(TokenLiteral::String { .. })
                 ) {
-                let token = self.peek_token_span();
+                let token = self.peek_token();
                 let content = self.string_literal_str(token).to_owned();
                 let string_id = self.strings.intern(&content);
                 self.bump();

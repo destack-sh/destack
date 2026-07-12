@@ -328,8 +328,8 @@ impl Parser {
             self.strings.intern(&decoded)
         } else {
             let content_range = ByteRange {
-                start: token.span.start + 1,
-                end: token.span.end - 1,
+                start: token.start() + 1,
+                end: token.end() - 1,
             };
             self.intern_range(content_range)
         };

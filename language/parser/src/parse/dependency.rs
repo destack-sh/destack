@@ -463,7 +463,7 @@ impl Parser {
 
         // module targets accept regular string literals, including unterminated ones for recovery
         let is_valid_target = matches!(
-            token.token.literal(),
+            token.literal(),
             Some(TokenLiteral::String {
                 has_invalid_escape: false,
                 ..
@@ -477,7 +477,7 @@ impl Parser {
         let string_id = self.strings.intern(&content);
         self.bump();
 
-        Ok((string_id, token.token.range()))
+        Ok((string_id, token.range()))
     }
 
     /// Parse a dependency items block.
