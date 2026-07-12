@@ -740,11 +740,11 @@ fn element_addr_for_pointer(
     // require a direct element address computation
     match tree.get(inst_id) {
         mir::Instruction::ElementAddr {
-            array,
+            base,
             index,
             result_type,
             ..
-        } => Some((*array, *index, *result_type)),
+        } => Some((*base, *index, *result_type)),
         _ => None,
     }
 }
@@ -806,7 +806,7 @@ fn arrays_are_value_types(
 /// Return the space for a reference type.
 fn reference_space(ty_id: mir::TypeId, tree: &mir::Tree) -> Option<mir::Space> {
     match tree.get(ty_id) {
-        mir::Type::Reference { space, .. } => Some(space.clone()),
+        mir::Type::Reference { space, .. } => Some(*space),
         _ => None,
     }
 }
@@ -917,7 +917,7 @@ fn emit_memset(
     // compute the base reference for the memset
     let ptr_inst = tree.insert(mir::Instruction::ElementAddr {
         destination: function.next_typed_value(element_addr_type),
-        array,
+        base: array,
         index: start,
         result_type: element_addr_type,
     });
@@ -954,7 +954,7 @@ fn emit_memcpy_or_memmove(
     // compute the destination base reference
     let dest_ptr_inst = tree.insert(mir::Instruction::ElementAddr {
         destination: function.next_typed_value(dest_element_addr_type),
-        array: dest_array,
+        base: dest_array,
         index: start,
         result_type: dest_element_addr_type,
     });
@@ -963,7 +963,7 @@ fn emit_memcpy_or_memmove(
     // compute the source base reference
     let src_ptr_inst = tree.insert(mir::Instruction::ElementAddr {
         destination: function.next_typed_value(src_element_addr_type),
-        array: src_array,
+        base: src_array,
         index: start,
         result_type: src_element_addr_type,
     });

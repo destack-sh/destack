@@ -178,7 +178,7 @@ impl ReferenceSpec {
 
         Some(Self {
             kind: *kind,
-            space: space.clone(),
+            space: *space,
             access: *access,
             nullability: *nullability,
         })
@@ -359,12 +359,12 @@ fn analyze_uses(
                     mir::Instruction::FieldAddr {
                         destination,
                         aggregate,
-                        index,
+                        field,
                         ..
                     } if *aggregate == value => {
                         uses.push(UseInfo {
                             instruction: inst_id,
-                            index: *index as usize,
+                            index: *field as usize,
                             destination: *destination,
                         });
 
@@ -375,10 +375,10 @@ fn analyze_uses(
                     // element address: supported if index is constant
                     mir::Instruction::ElementAddr {
                         destination,
-                        array,
+                        base,
                         index,
                         ..
-                    } if *array == value => {
+                    } if *base == value => {
                         // check if index is a constant
                         let const_index = resolve_constant_index(*index, block_id, constants)?;
 
@@ -412,10 +412,7 @@ fn analyze_uses(
                     }
 
                     // calls: check if value is passed as argument (escapes)
-                    mir::Instruction::Call { .. }
-                    | mir::Instruction::CallVirtual { .. }
-                    | mir::Instruction::CallDynamic { .. }
-                    | mir::Instruction::CallIndirect { .. } => {
+                    mir::Instruction::Call { .. } => {
                         // arguments are stored externally, access via argument_slice
                         if let Some(arg_slice) = inst.argument_slice() {
                             for &arg in tree.get_values(arg_slice) {
@@ -500,7 +497,7 @@ fn split_allocation(
         let result_type = tree.insert_type(mir::Type::Reference {
             kind: candidate.reference_spec.kind,
             lifetime: mir::Lifetime::empty(),
-            space: candidate.reference_spec.space.clone(),
+            space: candidate.reference_spec.space,
             access: candidate.reference_spec.access,
             pointee: elem_type,
             nullability: candidate.reference_spec.nullability,
@@ -643,8 +640,7 @@ fn rewrite_base_load(
     }
 
     // rebuild the aggregate value from the loaded elements
-    let aggregate_inst =
-        build_aggregate_instruction(tree, candidate.layout, destination, &element_values);
+    let aggregate_inst = build_aggregate_instruction(tree, destination, &element_values);
     let aggregate_id = tree.insert(aggregate_inst);
     new_instructions.push(aggregate_id);
 
@@ -675,13 +671,21 @@ fn rewrite_base_store(
         let element_value = function.next_typed_value(element_type);
 
         // extract the static aggregate slot
-        let field_get = mir::Instruction::FieldGet {
-            destination: element_value,
-            aggregate: stored_value,
-            index: index as u32,
+        let slot_get = if matches!(tree.get(candidate.layout), mir::Type::FixedArray { .. }) {
+            mir::Instruction::ElementGet {
+                destination: element_value,
+                aggregate: stored_value,
+                index: index as u32,
+            }
+        } else {
+            mir::Instruction::FieldGet {
+                destination: element_value,
+                aggregate: stored_value,
+                field: index as u32,
+            }
         };
-        let field_get_id = tree.insert(field_get);
-        new_instructions.push(field_get_id);
+        let slot_get = tree.insert(slot_get);
+        new_instructions.push(slot_get);
 
         // store scalar into the split allocation slot
         let store_inst = mir::Instruction::Store {
@@ -698,32 +702,15 @@ fn rewrite_base_store(
 /// Build an aggregate construction instruction for the given layout.
 fn build_aggregate_instruction(
     tree: &mut mir::Tree,
-    layout: mir::LocalNodeId<mir::Type>,
     destination: mir::Value,
     element_values: &[mir::Value],
 ) -> mir::Instruction {
     // prepare aggregate arguments and layout
     let arguments: Vec<_> = element_values.to_vec();
     let arguments = tree.add_values(&arguments);
-    let layout_type = tree.get(layout);
-
-    match layout_type {
-        mir::Type::Struct { .. } => mir::Instruction::Struct {
-            destination,
-            ty: layout,
-            fields: arguments,
-        },
-        mir::Type::Tuple { .. } => mir::Instruction::Tuple {
-            destination,
-            ty: layout,
-            elements: arguments,
-        },
-        mir::Type::FixedArray { .. } => mir::Instruction::Array {
-            destination,
-            ty: layout,
-            elements: arguments,
-        },
-        _ => panic!("split-aggregates base load expects an aggregate layout type"),
+    mir::Instruction::Aggregate {
+        destination,
+        values: arguments,
     }
 }
 
@@ -1250,7 +1237,7 @@ entry:
     v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
     v1: int32 = 1
     v2: int32 = 2
-    v3: Point = struct Point (v1, v2)
+    v3: Point = aggregate (v1, v2)
     store v0, v3
     v4: Point = load v0
     v5: int32 = field.get v4, 0
@@ -1269,14 +1256,14 @@ entry:
     v6: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1
     v2: int32 = 2
-    v3: Point = struct Point (v1, v2)
+    v3: Point = aggregate (v1, v2)
     v8: int32 = field.get v3, 0
     store v6, v8
     v9: int32 = field.get v3, 1
     store v7, v9
     v10: int32 = load v6
     v11: int32 = load v7
-    v4: Point = struct Point (v10, v11)
+    v4: Point = aggregate (v10, v11)
     v5: int32 = field.get v4, 0
     return v5
 }
@@ -1296,11 +1283,11 @@ entry:
     v0: ref<[int32; 2], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 2]
     v1: int32 = 10
     v2: int32 = 20
-    v3: [int32; 2] = array [int32; 2] (v1, v2)
+    v3: [int32; 2] = aggregate (v1, v2)
     store v0, v3
     v4: [int32; 2] = load v0
     v5: int64 = 1
-    v6: int32 = field.get v4, 1
+    v6: int32 = element.get v4, 1
     return v6
 }
 "#;
@@ -1311,16 +1298,16 @@ entry:
     v7: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 10
     v2: int32 = 20
-    v3: [int32; 2] = array [int32; 2] (v1, v2)
-    v9: int32 = field.get v3, 0
+    v3: [int32; 2] = aggregate (v1, v2)
+    v9: int32 = element.get v3, 0
     store v7, v9
-    v10: int32 = field.get v3, 1
+    v10: int32 = element.get v3, 1
     store v8, v10
     v11: int32 = load v7
     v12: int32 = load v8
-    v4: [int32; 2] = array [int32; 2] (v11, v12)
+    v4: [int32; 2] = aggregate (v11, v12)
     v5: int64 = 1
-    v6: int32 = field.get v4, 1
+    v6: int32 = element.get v4, 1
     return v6
 }
 "#;

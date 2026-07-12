@@ -143,6 +143,16 @@ impl TestProgram {
             .0
     }
 
+    /// Return the type id for a named type.
+    pub(crate) fn type_id_by_name(&self, name: &str) -> mir::TypeId {
+        self.optimized
+            .tree
+            .iter_nodes::<mir::TypeAlias>()
+            .find(|(_, alias)| self.strings.get(alias.name) == name)
+            .map(|(_, alias)| alias.ty)
+            .unwrap_or_else(|| panic!("missing type {name}"))
+    }
+
     /// Return the entry block id for a function.
     pub(crate) fn entry_block_id(
         &self,
@@ -375,7 +385,6 @@ impl TestProgram {
         // build the canonical virtual table fixture
         let table = mir::VirtualTable {
             ty: class,
-            destructor: None,
             methods: vec![callee],
         };
 
@@ -422,14 +431,12 @@ impl TestProgram {
             .expect("missing call instruction");
 
         // read the callee from the call instruction
-        let mir::Instruction::Call {
-            function: callee, ..
-        } = self.optimized.tree.get(call_inst)
-        else {
+        let mir::Instruction::Call { call, .. } = self.optimized.tree.get(call_inst) else {
             panic!("expected call instruction");
         };
+        let callee = call.callee.function().expect("expected direct call");
 
-        (call_inst, *callee)
+        (call_inst, callee)
     }
 
     /// Insert a function reference type for a callee signature.
@@ -1362,14 +1369,14 @@ entry:
         let field_addr = mir::Instruction::FieldAddr {
             destination,
             aggregate,
-            index: 0,
+            field: 0,
             result_type: borrowed_ref,
         };
         assert!(!instruction_is_speculatable(&field_addr, &tree));
 
         let element_addr = mir::Instruction::ElementAddr {
             destination,
-            array,
+            base: array,
             index,
             result_type: borrowed_ref,
         };

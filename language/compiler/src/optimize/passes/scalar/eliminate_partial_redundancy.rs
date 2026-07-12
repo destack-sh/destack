@@ -141,7 +141,9 @@ enum ExpressionTemplate {
     /// Select expression template.
     Select,
     /// Field access expression template.
-    FieldGet { index: u32 },
+    FieldGet { field: u32 },
+    /// Element access expression template.
+    ElementGet { index: u32 },
 }
 
 /// Run PRE on a single function and report whether it changed.
@@ -429,7 +431,10 @@ fn template_from_instruction(instruction: &mir::Instruction) -> ExpressionTempla
             to_type: *to_type,
         },
         mir::Instruction::Select { .. } => ExpressionTemplate::Select,
-        mir::Instruction::FieldGet { index, .. } => ExpressionTemplate::FieldGet { index: *index },
+        mir::Instruction::FieldGet { field, .. } => ExpressionTemplate::FieldGet { field: *field },
+        mir::Instruction::ElementGet { index, .. } => {
+            ExpressionTemplate::ElementGet { index: *index }
+        }
         _ => panic!("unsupported expression template: {instruction:?}"),
     }
 }
@@ -446,6 +451,7 @@ fn expression_operands(key: &PureExpression) -> Vec<mir::Value> {
             else_value,
         } => vec![*condition, *then_value, *else_value],
         PureExpression::FieldGet { aggregate, .. } => vec![*aggregate],
+        PureExpression::ElementGet { aggregate, .. } => vec![*aggregate],
     }
 }
 
@@ -718,13 +724,21 @@ fn build_instruction_from_key(
             then_value: (*then_value),
             else_value: (*else_value),
         },
-        (PureExpression::FieldGet { aggregate, .. }, ExpressionTemplate::FieldGet { index }) => {
+        (PureExpression::FieldGet { aggregate, .. }, ExpressionTemplate::FieldGet { field }) => {
             mir::Instruction::FieldGet {
                 destination,
                 aggregate: (*aggregate),
-                index: *index,
+                field: *field,
             }
         }
+        (
+            PureExpression::ElementGet { aggregate, .. },
+            ExpressionTemplate::ElementGet { index },
+        ) => mir::Instruction::ElementGet {
+            destination,
+            aggregate: *aggregate,
+            index: *index,
+        },
         _ => panic!("mismatched expression template"),
     }
 }

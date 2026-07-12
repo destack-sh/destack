@@ -620,14 +620,14 @@ entry(v0: (int32, int32)):
         test.assert_unchanged(input);
     }
 
-    /// Array slot accesses with same base and index are CSE'd.
+    /// Repeated element gets with the same base and index are eliminated.
     #[test]
-    fn test_eliminate_array_slot_field_get() {
+    fn test_eliminate_repeated_element_get() {
         let input = r#"
 function test(v0: [int32; 10], v1: int64): int32 {
 entry(v0: [int32; 10], v1: int64):
-    v2: int32 = field.get v0, 0
-    v3: int32 = field.get v0, 0
+    v2: int32 = element.get v0, 0
+    v3: int32 = element.get v0, 0
     v4: int32 = int.add v2, v3
     return v4
 }
@@ -635,7 +635,7 @@ entry(v0: [int32; 10], v1: int64):
         let expected = r#"
 function test(v0: [int32; 10], v1: int64): int32 {
 entry(v0: [int32; 10], v1: int64):
-    v2: int32 = field.get v0, 0
+    v2: int32 = element.get v0, 0
     v4: int32 = int.add v2, v2
     return v4
 }

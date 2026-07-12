@@ -152,24 +152,16 @@ fn run_propagate_copies(
                     record_predecessor(unwind);
                 }
             }
-            mir::Terminator::Call { target, unwind, .. }
-            | mir::Terminator::CallIndirect { target, unwind, .. }
-            | mir::Terminator::CallVirtual { target, unwind, .. }
-            | mir::Terminator::CallDynamic { target, unwind, .. } => {
+            mir::Terminator::Invoke { target, unwind, .. } => {
                 record_predecessor(target);
-                if let Some(unwind) = unwind {
-                    record_predecessor(unwind);
-                }
+                record_predecessor(unwind);
             }
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
-            | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallVirtual { .. }
-            | mir::Terminator::TailCallDynamic { .. }
-            | mir::Terminator::TailCallIndirect { .. } => {}
+            | mir::Terminator::TailCall { .. } => {}
         }
     }
 

@@ -326,22 +326,7 @@ fn collect_written_globals(
                 }
 
                 // detect calls that may write memory
-                if let mir::Instruction::Call { call, .. }
-                | mir::Instruction::CallVirtual { call, .. }
-                | mir::Instruction::CallDynamic { call, .. } = instruction
-                    && call_writes_memory(instruction_id, instruction, effects, function_effects)
-                    && any_argument_global(&call.arguments, &definitions, addr_info, tree)
-                {
-                    written.extend(globals_from_arguments(
-                        &call.arguments,
-                        &definitions,
-                        addr_info,
-                        tree,
-                    ));
-                    continue;
-                }
-
-                if let mir::Instruction::CallIndirect { call, .. } = instruction
+                if let mir::Instruction::Call { call, .. } = instruction
                     && call_writes_memory(instruction_id, instruction, effects, function_effects)
                     && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
@@ -355,7 +340,7 @@ fn collect_written_globals(
                 }
             }
 
-            // detect call terminators that may write memory
+            // detect invokes and tail calls that may write memory
             let terminator = tree.get(block.terminator);
             let terminator_arguments =
                 terminator_write_arguments(tree, block_id, terminator, effects, function_effects);
@@ -456,8 +441,8 @@ fn global_addr_base(
             mir::Instruction::FieldAddr { aggregate, .. } => {
                 current = *aggregate;
             }
-            mir::Instruction::ElementAddr { array, .. } => {
-                current = *array;
+            mir::Instruction::ElementAddr { base, .. } => {
+                current = *base;
             }
             mir::Instruction::Cast { argument, .. } => {
                 current = *argument;
@@ -524,20 +509,11 @@ fn terminator_write_arguments(
     function_effects: &FunctionEffectAnalysis,
 ) -> Option<Vec<mir::Value>> {
     match terminator {
-        mir::Terminator::Call { function, call, .. } => {
-            function_memory_writes(function_effects, *function)
-                .then(|| tree.get_values(call.arguments).to_vec())
-        }
-        mir::Terminator::CallIndirect { call, .. } => {
-            Some(tree.get_values(call.arguments).to_vec())
-        }
-        mir::Terminator::CallVirtual { receiver, call, .. }
-        | mir::Terminator::CallDynamic { receiver, call, .. }
-        | mir::Terminator::TailCallVirtual { receiver, call, .. }
-        | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
+        mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
             let target = effects
                 .call(mir::CallSite::Terminator(block_id))
-                .and_then(|effect| effect.target);
+                .and_then(|effect| effect.target)
+                .or_else(|| call.callee.function());
 
             let may_write = target
                 .map(|function| function_memory_writes(function_effects, function))
@@ -547,16 +523,7 @@ fn terminator_write_arguments(
                 return None;
             }
 
-            let mut values = tree.get_values(call.arguments).to_vec();
-            values.push(*receiver);
-            Some(values)
-        }
-        mir::Terminator::TailCall { function, call, .. } => {
-            function_memory_writes(function_effects, *function)
-                .then(|| tree.get_values(call.arguments).to_vec())
-        }
-        mir::Terminator::TailCallIndirect { call, .. } => {
-            Some(tree.get_values(call.arguments).to_vec())
+            Some(call.uses(tree).into_iter().collect())
         }
         _ => None,
     }
@@ -669,7 +636,7 @@ entry:
 
     /// Call terminators keep written globals mutable.
     #[test]
-    fn test_optimize_globals_skips_call_terminator_global_write() {
+    fn test_optimize_globals_skips_invoke_global_write() {
         let input = r#"
 global value: int32 = 0
 
@@ -680,16 +647,16 @@ entry(v0: ref<int32, raw, mutable>):
     return
 }
 
-function root(v0: ref<void, managed, readonly>): void {
-entry(v0: ref<void, managed, readonly>):
+function root(): void {
+entry:
     v1: ref<int32, raw, mutable> = global.address value
-    call write(v1) => b1
+    invoke write(v1) => b1 | b2
 
 b1:
     return
 
-b2(v2: ref<void, managed, readonly>):
-    panic v2
+b2:
+    unwind.resume
 }
 "#;
 

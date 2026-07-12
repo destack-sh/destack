@@ -182,14 +182,15 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
 
-                if let Some(dispatch) = instruction.call_dispatch_kind() {
-                    if let mir::CallDispatchKind::Direct = dispatch
-                        && let mir::Instruction::Call { function, call, .. } = instruction
+                if let Some(dispatch) = instruction.call_dispatch() {
+                    if let mir::CallDispatch::Direct = dispatch
+                        && let mir::Instruction::Call { call, .. } = instruction
+                        && let Some(function) = call.callee.function()
                     {
                         let arguments = tree.get_values(call.arguments).to_vec();
 
                         data.direct_calls
-                            .entry(*function)
+                            .entry(function)
                             .or_default()
                             .push(DirectCallArgs {
                                 caller: caller_id,
@@ -208,41 +209,18 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
             }
 
             match terminator {
-                mir::Terminator::Call { function, call, .. } => {
-                    let arguments = tree.get_values(call.arguments).to_vec();
+                mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
+                    if let Some(function) = call.callee.function() {
+                        let arguments = tree.get_values(call.arguments).to_vec();
 
-                    data.direct_calls
-                        .entry(*function)
-                        .or_default()
-                        .push(DirectCallArgs {
-                            caller: caller_id,
-                            arguments,
-                        });
-                }
-                mir::Terminator::CallIndirect { call, .. }
-                | mir::Terminator::CallVirtual { call, .. }
-                | mir::Terminator::CallDynamic { call, .. } => {
-                    if let Some(signature) =
-                        SignatureKey::from_signature_type(tree, &call.signature)
-                    {
-                        data.indirect_signatures.insert(signature);
-                    }
-                }
-                mir::Terminator::TailCall { function, call, .. } => {
-                    let arguments = tree.get_values(call.arguments).to_vec();
-
-                    data.direct_calls
-                        .entry(*function)
-                        .or_default()
-                        .push(DirectCallArgs {
-                            caller: caller_id,
-                            arguments,
-                        });
-                }
-                mir::Terminator::TailCallIndirect { call, .. }
-                | mir::Terminator::TailCallVirtual { call, .. }
-                | mir::Terminator::TailCallDynamic { call, .. } => {
-                    if let Some(signature) =
+                        data.direct_calls
+                            .entry(function)
+                            .or_default()
+                            .push(DirectCallArgs {
+                                caller: caller_id,
+                                arguments,
+                            });
+                    } else if let Some(signature) =
                         SignatureKey::from_signature_type(tree, &call.signature)
                     {
                         data.indirect_signatures.insert(signature);
@@ -520,9 +498,9 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Direct call terminators contribute constants to the callee.
+    /// Direct invokes contribute constants to the callee.
     #[test]
-    fn test_propagate_interprocedural_constants_propagates_call_terminator() {
+    fn test_propagate_interprocedural_constants_propagates_invoke() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -532,13 +510,13 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 4
-    call callee(v0) => b1
+    invoke callee(v0) => b1 | b2
 
 b1(v1: int32):
     return v1
 
-b2(v2: ref<int32, managed, readonly>):
-    panic v2
+b2:
+    unwind.resume
 }
 "#;
 
@@ -552,13 +530,13 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 4
-    call callee(v0) => b1
+    invoke callee(v0) => b1 | b2
 
 b1(v1: int32):
     return v1
 
-b2(v2: ref<int32, managed, readonly>):
-    panic v2
+b2:
+    unwind.resume
 }
 "#;
 

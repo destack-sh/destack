@@ -79,7 +79,7 @@ impl ModulePass for EliminateDeadArguments {
 enum DirectCallSite {
     /// Direct call instruction.
     Instruction(mir::LocalNodeId<mir::Instruction>),
-    /// Direct call terminator.
+    /// Direct invoke or tail call.
     Terminator(mir::LocalNodeId<mir::Block>),
 }
 
@@ -157,12 +157,12 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
 
-                if let Some(dispatch) = instruction.call_dispatch_kind() {
-                    if let mir::CallDispatchKind::Direct = dispatch
-                        && let mir::Instruction::Call { function, .. } = instruction
+                if let Some(dispatch) = instruction.call_dispatch() {
+                    if let mir::CallDispatch::Direct = dispatch
+                        && let Some(function) = instruction.call_direct_target()
                     {
                         data.direct_calls
-                            .entry(*function)
+                            .entry(function)
                             .or_default()
                             .push(DirectCallSite::Instruction(instruction_id));
                         continue;
@@ -177,38 +177,16 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 }
             }
 
-            // record call terminators
+            // record invokes and tail calls
             let terminator = tree.get(block.terminator);
             match terminator {
-                mir::Terminator::Call { function, .. } => {
-                    let function = *function;
-
-                    data.direct_calls
-                        .entry(function)
-                        .or_default()
-                        .push(DirectCallSite::Terminator(block_id));
-                }
-                mir::Terminator::CallIndirect { call, .. }
-                | mir::Terminator::CallVirtual { call, .. }
-                | mir::Terminator::CallDynamic { call, .. } => {
-                    if let Some(signature) =
-                        SignatureKey::from_signature_type(tree, &call.signature)
-                    {
-                        data.indirect_signatures.insert(signature);
-                    }
-                }
-                mir::Terminator::TailCall { function, .. } => {
-                    let function = *function;
-
-                    data.direct_calls
-                        .entry(function)
-                        .or_default()
-                        .push(DirectCallSite::Terminator(block_id));
-                }
-                mir::Terminator::TailCallIndirect { call, .. }
-                | mir::Terminator::TailCallVirtual { call, .. }
-                | mir::Terminator::TailCallDynamic { call, .. } => {
-                    if let Some(signature) =
+                mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
+                    if let Some(function) = call.callee.function() {
+                        data.direct_calls
+                            .entry(function)
+                            .or_default()
+                            .push(DirectCallSite::Terminator(block_id));
+                    } else if let Some(signature) =
                         SignatureKey::from_signature_type(tree, &call.signature)
                     {
                         data.indirect_signatures.insert(signature);
@@ -289,12 +267,12 @@ fn update_call_sites(
     for site in call_sites {
         match *site {
             DirectCallSite::Instruction(instruction_id) => {
-                let (destination, function, slice, call) = match tree.get(instruction_id) {
-                    mir::Instruction::Call {
-                        destination,
-                        function,
-                        call,
-                    } => (*destination, *function, call.arguments, call.clone()),
+                let (destination, slice, call) = match tree.get(instruction_id) {
+                    mir::Instruction::Call { destination, call }
+                        if call.callee.function() == Some(function_id) =>
+                    {
+                        (*destination, call.arguments, call.clone())
+                    }
                     _ => panic!("stale direct callsite instruction: {instruction_id:?}"),
                 };
 
@@ -317,11 +295,7 @@ fn update_call_sites(
                 call.arguments = new_slice;
                 call.signature = signature;
 
-                let updated = mir::Instruction::Call {
-                    destination,
-                    function,
-                    call,
-                };
+                let updated = mir::Instruction::Call { destination, call };
                 *tree.get_mut(instruction_id) = updated;
 
                 // preserve tables when the callsite carries it
@@ -334,12 +308,11 @@ fn update_call_sites(
                 let terminator_id = block.terminator;
                 let terminator = tree.get(terminator_id).clone();
                 match &terminator {
-                    mir::Terminator::Call {
-                        function,
+                    mir::Terminator::Invoke {
                         call,
                         target,
                         unwind,
-                    } => {
+                    } if call.callee.function() == Some(function_id) => {
                         // filter the argument list
                         let mut new_call = call.clone();
                         let arguments = remap.filter_by_index(tree.get_values(call.arguments));
@@ -352,15 +325,16 @@ fn update_call_sites(
                             })
                         };
 
-                        let new_terminator = mir::Terminator::Call {
-                            function: *function,
+                        let new_terminator = mir::Terminator::Invoke {
                             call: new_call,
                             target: target.clone(),
                             unwind: unwind.clone(),
                         };
                         tree.set(terminator_id, new_terminator);
                     }
-                    mir::Terminator::TailCall { function, call } => {
+                    mir::Terminator::TailCall { call }
+                        if call.callee.function() == Some(function_id) =>
+                    {
                         // filter the argument list
                         let mut new_call = call.clone();
                         let arguments = remap.filter_by_index(tree.get_values(call.arguments));
@@ -373,10 +347,7 @@ fn update_call_sites(
                             })
                         };
 
-                        let new_terminator = mir::Terminator::TailCall {
-                            function: *function,
-                            call: new_call,
-                        };
+                        let new_terminator = mir::Terminator::TailCall { call: new_call };
                         tree.set(terminator_id, new_terminator);
                     }
                     _ => panic!("stale direct callsite terminator: {block_id:?}"),
@@ -463,9 +434,9 @@ entry(v0: int32):
         test.assert_output(expected);
     }
 
-    /// Direct call terminators are trimmed for unused parameters.
+    /// Direct invokes are trimmed for unused parameters.
     #[test]
-    fn test_eliminate_dead_arguments_updates_call_terminator() {
+    fn test_eliminate_dead_arguments_updates_invoke() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -474,7 +445,7 @@ entry(v0: int32, v1: int32):
 
 function root(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    call callee(v0, v1) => b1
+    invoke callee(v0, v1) => b1 | b2
 
 b1(v2: int32):
     return v2
@@ -492,7 +463,7 @@ entry(v0: int32):
 
 function root(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) => b1
+    invoke callee(v0) => b1 | b2
 
 b1(v2: int32):
     return v2

@@ -455,40 +455,25 @@ fn process_block(
         let instruction = tree.get(instruction_id);
 
         // track aggregate construction operands for cross block forwarding
-        match instruction {
-            mir::Instruction::Struct {
-                destination,
-                fields,
-                ..
-            } => {
-                // record struct operands for forwarding
-                let destination = *destination;
-
-                let args = tree.get_values(*fields);
-                value_table.insert_aggregate(destination, args.to_vec());
-            }
-            mir::Instruction::Tuple {
-                destination,
-                elements,
-                ..
-            }
-            | mir::Instruction::Array {
-                destination,
-                elements,
-                ..
-            } => {
-                // record tuple or array operands for forwarding
-                let destination = *destination;
-
-                let args = tree.get_values(*elements);
-                value_table.insert_aggregate(destination, args.to_vec());
-            }
-            _ => {}
+        if let mir::Instruction::Aggregate {
+            destination,
+            values,
+        } = instruction
+        {
+            // record aggregate operands for forwarding
+            let args = tree.get_values(*values);
+            value_table.insert_aggregate(*destination, args.to_vec());
         }
 
         // check for aggregate field or element extraction simplification
         let aggregate_simplification = match instruction {
             mir::Instruction::FieldGet {
+                destination,
+                aggregate,
+                field: index,
+                ..
+            }
+            | mir::Instruction::ElementGet {
                 destination,
                 aggregate,
                 index,
@@ -1044,7 +1029,7 @@ b1:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     jump b1
 
 b1:
@@ -1057,7 +1042,7 @@ b1:
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     jump b1
 
 b1:
@@ -1082,7 +1067,7 @@ type Point {
 
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
+    v2: Point = aggregate (v0, v1)
     jump b1
 
 b1:
@@ -1100,7 +1085,7 @@ type Point {
 
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
+    v2: Point = aggregate (v0, v1)
     jump b1
 
 b1:
@@ -1120,7 +1105,7 @@ b1:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     jump b1
 
 b1:
@@ -1137,7 +1122,7 @@ b3:
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     jump b1
 
 b1:
@@ -1165,11 +1150,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
 b1:
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v3: (int32, int32) = aggregate (v0, v1)
     jump b3(v3)
 
 b2:
-    v4: (int32, int32) = tuple (int32, int32) (v1, v0)
+    v4: (int32, int32) = aggregate (v1, v0)
     v5: int32 = field.get v4, 0
     jump b3(v4)
 
@@ -1184,11 +1169,11 @@ entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
 b1:
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v3: (int32, int32) = aggregate (v0, v1)
     jump b3(v3)
 
 b2:
-    v4: (int32, int32) = tuple (int32, int32) (v1, v0)
+    v4: (int32, int32) = aggregate (v1, v0)
     jump b3(v4)
 
 b3(v6: (int32, int32)):
@@ -1208,7 +1193,7 @@ b3(v6: (int32, int32)):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v3: (int32, int32) = aggregate (v0, v1)
     branch v2, b1, b2
 
 b1:
@@ -1226,7 +1211,7 @@ b3(v6: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v3: (int32, int32) = aggregate (v0, v1)
     branch v2, b1, b2
 
 b1:
@@ -1252,7 +1237,7 @@ b3(v6: int32):
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
-    v3: (int32, int32) = tuple (int32, int32) (v2, v1)
+    v3: (int32, int32) = aggregate (v2, v1)
     jump b1
 
 b1:
@@ -1266,7 +1251,7 @@ b1:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
-    v3: (int32, int32) = tuple (int32, int32) (v2, v1)
+    v3: (int32, int32) = aggregate (v2, v1)
     jump b1
 
 b1:

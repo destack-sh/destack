@@ -521,57 +521,14 @@ fn remap_terminator_blocks(
                 cases,
             }
         }
-        mir::Terminator::Call {
-            function,
+        mir::Terminator::Invoke {
             call,
             target,
             unwind,
-        } => mir::Terminator::Call {
-            function: *function,
+        } => mir::Terminator::Invoke {
             call: call.clone(),
             target: clone_target(target),
-            unwind: unwind.as_ref().map(&clone_target),
-        },
-        mir::Terminator::CallIndirect {
-            callee,
-            call,
-            target,
-            unwind,
-        } => mir::Terminator::CallIndirect {
-            callee: *callee,
-            call: call.clone(),
-            target: clone_target(target),
-            unwind: unwind.as_ref().map(&clone_target),
-        },
-        mir::Terminator::CallVirtual {
-            receiver,
-            call,
-            class,
-            slot,
-            target,
-            unwind,
-        } => mir::Terminator::CallVirtual {
-            receiver: *receiver,
-            call: call.clone(),
-            class: *class,
-            slot: *slot,
-            target: clone_target(target),
-            unwind: unwind.as_ref().map(&clone_target),
-        },
-        mir::Terminator::CallDynamic {
-            receiver,
-            call,
-            constraint,
-            slot,
-            target,
-            unwind,
-        } => mir::Terminator::CallDynamic {
-            receiver: *receiver,
-            call: call.clone(),
-            constraint: *constraint,
-            slot: *slot,
-            target: clone_target(target),
-            unwind: unwind.as_ref().map(clone_target),
+            unwind: clone_target(unwind),
         },
         // return, unreachable, tailcall don't reference blocks that need remapping
         mir::Terminator::Return { .. }
@@ -579,10 +536,7 @@ fn remap_terminator_blocks(
         | mir::Terminator::Panic { .. }
         | mir::Terminator::UnwindResume
         | mir::Terminator::Unreachable
-        | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallVirtual { .. }
-        | mir::Terminator::TailCallDynamic { .. }
-        | mir::Terminator::TailCallIndirect { .. } => terminator.clone(),
+        | mir::Terminator::TailCall { .. } => terminator.clone(),
         // remap yield continuations
         mir::Terminator::Yield {
             value,
@@ -610,19 +564,15 @@ fn update_recursive_calls_to_impl(
         let instr = tree.get(instr_id).clone();
         if let mir::Instruction::Call {
             destination,
-            function,
-            call,
-            ..
+            mut call,
         } = instr
-            && function == original_function_id
+            && call.callee.function() == Some(original_function_id)
         {
-            let mut call = call;
-            call.signature = signature;
-            let new_instr = mir::Instruction::Call {
-                destination,
+            call.callee = mir::Callee::Direct {
                 function: impl_function_id,
-                call,
             };
+            call.signature = signature;
+            let new_instr = mir::Instruction::Call { destination, call };
             tree.set(instr_id, new_instr);
         }
     }
@@ -664,8 +614,13 @@ fn rewrite_as_wrapper(
     let signature = SignatureKey::insert_function_type(impl_function_id, tree);
     let call_instr = mir::Instruction::Call {
         destination: Some(result_value),
-        function: impl_function_id,
-        call: mir::Call::new(call_arguments, signature),
+        call: mir::Call::new(
+            mir::Callee::Direct {
+                function: impl_function_id,
+            },
+            call_arguments,
+            signature,
+        ),
     };
     let call_id = tree.insert(call_instr);
 
@@ -728,8 +683,8 @@ fn find_external_call_sites(
             // check all instructions for calls to target
             for (idx, &instr_id) in block.instructions.iter().enumerate() {
                 let instr = tree.get(instr_id);
-                if let mir::Instruction::Call { function, .. } = instr
-                    && *function == target_function_id
+                if let mir::Instruction::Call { call, .. } = instr
+                    && call.callee.function() == Some(target_function_id)
                 {
                     call_sites.push(CallSite {
                         function_id: func_id,
@@ -756,11 +711,12 @@ fn update_call_site(
     let call_instr = tree.get(call_site.instruction_id).clone();
     let mir::Instruction::Call {
         destination,
-        function,
-        call,
-        ..
+        mut call,
     } = call_instr
     else {
+        return;
+    };
+    let Some(function) = call.callee.function() else {
         return;
     };
 
@@ -778,15 +734,10 @@ fn update_call_site(
 
     // create new call with extended arguments
     let new_arguments = tree.add_values(&new_args);
-    let mut call = call;
     call.arguments = new_arguments;
     call.signature = SignatureKey::insert_function_type(function, tree);
 
-    let new_call = mir::Instruction::Call {
-        destination,
-        function,
-        call,
-    };
+    let new_call = mir::Instruction::Call { destination, call };
     let new_call_id = tree.insert(new_call);
 
     // update the block: insert const before call, replace call
@@ -936,10 +887,9 @@ fn detect_accumulator_pattern(
         }
         if let mir::Instruction::Call {
             destination: Some(destination),
-            function: called_func,
-            ..
+            call,
         } = instr
-            && *called_func == current_function_id
+            && call.callee.function() == Some(current_function_id)
         {
             recursive_call_results.insert(*destination);
         }
@@ -950,13 +900,11 @@ fn detect_accumulator_pattern(
         let instr = tree.get(instr_id);
         if let mir::Instruction::Call {
             destination: Some(call_dest),
-            function: called_func,
             call,
-            ..
         } = instr
         {
             // must be calling ourselves
-            if *called_func != current_function_id {
+            if call.callee.function() != Some(current_function_id) {
                 continue;
             }
 
@@ -1038,7 +986,7 @@ fn find_base_case_blocks(
         // check if block contains a recursive call
         let has_recursive_call = block.instructions.iter().any(|&instr_id| {
             let instr = tree.get(instr_id);
-            matches!(instr, mir::Instruction::Call { function, .. } if *function == current_function_id)
+            matches!(instr, mir::Instruction::Call { call, .. } if call.callee.function() == Some(current_function_id))
         });
         if has_recursive_call {
             continue;
@@ -1223,18 +1171,12 @@ fn transform_self_recursive_tail_call(
 
     // last instruction must be a call
     let last_instruction = tree.get(last_instruction_id);
-    let mir::Instruction::Call {
-        destination,
-        function: called_function,
-        call,
-        ..
-    } = last_instruction
-    else {
+    let mir::Instruction::Call { destination, call } = last_instruction else {
         return false;
     };
 
     // must be calling ourselves
-    if *called_function != current_function_id {
+    if call.callee.function() != Some(current_function_id) {
         return false;
     }
 
@@ -1300,14 +1242,9 @@ fn transform_sibling_tail_call(
     let last_instruction = tree.get(last_instruction_id).clone();
 
     match &last_instruction {
-        mir::Instruction::Call {
-            destination,
-            function: called_function,
-            call,
-            ..
-        } => {
+        mir::Instruction::Call { destination, call } => {
             // skip self-recursive calls (handled by transform_self_recursive_tail_call)
-            if *called_function == current_function_id {
+            if call.callee.function() == Some(current_function_id) {
                 return false;
             }
 
@@ -1326,8 +1263,6 @@ fn transform_sibling_tail_call(
             let call_args: Vec<mir::Value> = tree.get_values(call.arguments).to_vec();
 
             // rewrite the block: remove call, replace return with TailCall
-            let called_function = *called_function;
-            let signature = call.signature;
             let (terminator_id, mut new_instructions) = {
                 let block = tree.get(block_id);
                 (block.terminator, block.instructions.clone())
@@ -1336,48 +1271,7 @@ fn transform_sibling_tail_call(
 
             let call_args = tree.add_values(&call_args);
             let new_terminator = mir::Terminator::TailCall {
-                function: called_function,
-                call: mir::Call::new(call_args, signature),
-            };
-
-            tree.set(terminator_id, new_terminator);
-            tree.replace_block_instructions(current_function_id, block_id, new_instructions);
-
-            true
-        }
-        mir::Instruction::CallIndirect {
-            destination,
-            callee,
-            call,
-            ..
-        } => {
-            // return value must match call result
-            let is_tail_position = match (destination, returned_value) {
-                (Some(call_result), Some(return_val)) => *call_result == return_val,
-                (None, None) => true,
-                _ => false,
-            };
-
-            if !is_tail_position {
-                return false;
-            }
-
-            // extract call info before mutating
-            let callee_value = *callee;
-            let call_args: Vec<mir::Value> = tree.get_values(call.arguments).to_vec();
-
-            // rewrite the block: remove call, replace return with TailCallIndirect
-            let signature = call.signature;
-            let (terminator_id, mut new_instructions) = {
-                let block = tree.get(block_id);
-                (block.terminator, block.instructions.clone())
-            };
-            new_instructions.pop();
-
-            let call_args = tree.add_values(&call_args);
-            let new_terminator = mir::Terminator::TailCallIndirect {
-                callee: callee_value,
-                call: mir::Call::new(call_args, signature),
+                call: call.remap(call.callee.clone(), call_args),
             };
 
             tree.set(terminator_id, new_terminator);

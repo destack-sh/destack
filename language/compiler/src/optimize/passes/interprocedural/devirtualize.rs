@@ -135,16 +135,20 @@ impl Devirtualization {
         function: mir::FunctionId,
     ) -> Option<mir::Instruction> {
         match instruction {
-            mir::Instruction::CallVirtual {
-                destination, call, ..
+            mir::Instruction::Call { destination, call }
+                if matches!(
+                    call.callee,
+                    mir::Callee::Virtual { .. } | mir::Callee::Dynamic { .. }
+                ) =>
+            {
+                Some(mir::Instruction::Call {
+                    destination: *destination,
+                    call: mir::Call {
+                        callee: mir::Callee::Direct { function },
+                        ..call.clone()
+                    },
+                })
             }
-            | mir::Instruction::CallDynamic {
-                destination, call, ..
-            } => Some(mir::Instruction::Call {
-                destination: *destination,
-                function,
-                call: call.clone(),
-            }),
             _ => None,
         }
     }
@@ -155,28 +159,38 @@ impl Devirtualization {
         function: mir::FunctionId,
     ) -> Option<mir::Terminator> {
         match terminator {
-            mir::Terminator::CallVirtual {
+            mir::Terminator::Invoke {
                 call,
                 target,
                 unwind,
                 ..
+            } if matches!(
+                call.callee,
+                mir::Callee::Virtual { .. } | mir::Callee::Dynamic { .. }
+            ) =>
+            {
+                Some(mir::Terminator::Invoke {
+                    call: mir::Call {
+                        callee: mir::Callee::Direct { function },
+                        ..call.clone()
+                    },
+                    target: target.clone(),
+                    unwind: unwind.clone(),
+                })
             }
-            | mir::Terminator::CallDynamic {
-                call,
-                target,
-                unwind,
-                ..
-            } => Some(mir::Terminator::Call {
-                function,
-                call: call.clone(),
-                target: target.clone(),
-                unwind: unwind.clone(),
-            }),
-            mir::Terminator::TailCallVirtual { call, .. }
-            | mir::Terminator::TailCallDynamic { call, .. } => Some(mir::Terminator::TailCall {
-                function,
-                call: call.clone(),
-            }),
+            mir::Terminator::TailCall { call }
+                if matches!(
+                    call.callee,
+                    mir::Callee::Virtual { .. } | mir::Callee::Dynamic { .. }
+                ) =>
+            {
+                Some(mir::Terminator::TailCall {
+                    call: mir::Call {
+                        callee: mir::Callee::Direct { function },
+                        ..call.clone()
+                    },
+                })
+            }
             _ => None,
         }
     }
@@ -227,9 +241,9 @@ entry(v0: int32):
         );
     }
 
-    /// Virtual call terminators become direct call terminators.
+    /// Virtual invokes become direct invokes.
     #[test]
-    fn test_devirtualize_virtual_call_terminator() {
+    fn test_devirtualize_virtual_invoke() {
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -238,9 +252,12 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    call.virtual v0, int32, 0(v0): (int32) => int32 => b1
+    invoke.virtual v0, int32, 0(v0): (int32) => int32 => b1 | cleanup
 b1(v1: int32):
     return v1
+
+cleanup:
+    unwind.resume
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -259,10 +276,13 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) => b1
+    invoke callee(v0) => b1 | cleanup
 
 b1(v1: int32):
     return v1
+
+cleanup:
+    unwind.resume
 }
 "#,
         );

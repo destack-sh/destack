@@ -4344,17 +4344,9 @@ entry:
                         check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
                     }
                 }
-                mir::Terminator::Call { target, .. } => {
+                mir::Terminator::Invoke { target, unwind, .. } => {
                     check_edge(target.block, target.arguments(tree), &mut mismatches);
-                }
-                mir::Terminator::CallIndirect { target, .. } => {
-                    check_edge(target.block, target.arguments(tree), &mut mismatches);
-                }
-                mir::Terminator::CallVirtual { target, .. } => {
-                    check_edge(target.block, target.arguments(tree), &mut mismatches);
-                }
-                mir::Terminator::CallDynamic { target, .. } => {
-                    check_edge(target.block, target.arguments(tree), &mut mismatches);
+                    check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
                 }
                 mir::Terminator::NewZeroedTry {
                     success, failure, ..
@@ -4379,10 +4371,7 @@ entry:
                 | mir::Terminator::Panic { .. }
                 | mir::Terminator::UnwindResume
                 | mir::Terminator::Trap { .. }
-                | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallVirtual { .. }
-                | mir::Terminator::TailCallDynamic { .. }
-                | mir::Terminator::TailCallIndirect { .. } => {}
+                | mir::Terminator::TailCall { .. } => {}
             }
         }
 

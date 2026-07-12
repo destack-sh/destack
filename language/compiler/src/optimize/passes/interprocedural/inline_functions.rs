@@ -558,15 +558,11 @@ fn resolve_inline_target(
 )> {
     // inspect call instruction variants
     match instruction {
-        mir::Instruction::Call {
-            destination,
-            function,
-            call,
-            ..
-        } => {
+        mir::Instruction::Call { destination, call } => {
             // capture call arguments for a direct call
+            let function = call.callee.function()?;
             let args = tree.get_values(call.arguments).to_vec();
-            Some((*function, args, *destination))
+            Some((function, args, *destination))
         }
         _ => None,
     }
@@ -1049,10 +1045,7 @@ fn has_tail_calls(tree: &mir::Tree, function: &mir::Function) -> bool {
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        if matches!(
-            terminator,
-            mir::Terminator::TailCall { .. } | mir::Terminator::TailCallIndirect { .. }
-        ) {
+        if matches!(terminator, mir::Terminator::TailCall { .. }) {
             return true;
         }
     }

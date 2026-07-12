@@ -135,32 +135,22 @@ fn run_combine_instructions(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             match instruction {
-                mir::Instruction::Struct {
+                mir::Instruction::Aggregate {
                     destination,
-                    fields,
-                    ..
+                    values,
                 } => {
                     let destination = *destination;
 
-                    let args = tree.get_values(*fields);
-                    aggregate_operands.insert(destination, args.to_vec());
-                }
-                mir::Instruction::Tuple {
-                    destination,
-                    elements,
-                    ..
-                }
-                | mir::Instruction::Array {
-                    destination,
-                    elements,
-                    ..
-                } => {
-                    let destination = *destination;
-
-                    let args = tree.get_values(*elements);
+                    let args = tree.get_values(*values);
                     aggregate_operands.insert(destination, args.to_vec());
                 }
                 mir::Instruction::FieldSet {
+                    destination,
+                    aggregate,
+                    field: index,
+                    value,
+                }
+                | mir::Instruction::ElementSet {
                     destination,
                     aggregate,
                     index,
@@ -176,6 +166,11 @@ fn run_combine_instructions(
                     );
                 }
                 mir::Instruction::FieldGet {
+                    destination,
+                    aggregate,
+                    field: index,
+                }
+                | mir::Instruction::ElementGet {
                     destination,
                     aggregate,
                     index,
@@ -245,10 +240,23 @@ fn run_combine_instructions(
                     ),
 
                     mir::Instruction::FieldGet {
+                        aggregate,
+                        field: index,
+                        ..
+                    } => simplify_field_get(*aggregate, *index, &aggregate_operands, &field_sets),
+
+                    mir::Instruction::ElementGet {
                         aggregate, index, ..
                     } => simplify_field_get(*aggregate, *index, &aggregate_operands, &field_sets),
 
                     mir::Instruction::FieldSet {
+                        aggregate,
+                        field: index,
+                        value,
+                        ..
+                    } => simplify_field_set(*aggregate, *index, *value, &field_gets),
+
+                    mir::Instruction::ElementSet {
                         aggregate,
                         index,
                         value,
@@ -1532,7 +1540,7 @@ entry(v0: boolean):
         let input = r#"
 function test(v0: int32, v1: int64): int32 {
 entry(v0: int32, v1: int64):
-    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    v2: (int32, int64) = aggregate (v0, v1)
     v3: int32 = field.get v2, 0
     return v3
 }
@@ -1540,7 +1548,7 @@ entry(v0: int32, v1: int64):
         let expected = r#"
 function test(v0: int32, v1: int64): int32 {
 entry(v0: int32, v1: int64):
-    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    v2: (int32, int64) = aggregate (v0, v1)
     return v0
 }
 "#;
@@ -1556,7 +1564,7 @@ entry(v0: int32, v1: int64):
         let input = r#"
 function test(v0: int32, v1: int64): int64 {
 entry(v0: int32, v1: int64):
-    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    v2: (int32, int64) = aggregate (v0, v1)
     v3: int64 = field.get v2, 1
     return v3
 }
@@ -1564,7 +1572,7 @@ entry(v0: int32, v1: int64):
         let expected = r#"
 function test(v0: int32, v1: int64): int64 {
 entry(v0: int32, v1: int64):
-    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    v2: (int32, int64) = aggregate (v0, v1)
     return v1
 }
 "#;
@@ -1585,7 +1593,7 @@ type Point {
 
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
+    v2: Point = aggregate (v0, v1)
     v3: int32 = field.get v2, 0
     v4: int32 = field.get v2, 1
     v5: int32 = int.add v3, v4
@@ -1601,7 +1609,7 @@ type Point {
 
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
+    v2: Point = aggregate (v0, v1)
     v5: int32 = int.add v0, v1
     return v5
 }
@@ -1612,23 +1620,23 @@ entry(v0: int32, v1: int32):
         test.assert_output(expected);
     }
 
-    /// field.get(array(...), i) simplifies to the i-th array slot.
+    /// element.get(aggregate(...), i) simplifies to the selected array element.
     #[test]
-    fn test_simplify_field_get_array() {
+    fn test_simplify_element_get_array() {
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     v4: int64 = 1
-    v5: int32 = field.get v3, 1
+    v5: int32 = element.get v3, 1
     return v5
 }
 "#;
-        // field.get with constant index 1 replaced with v1
+        // element.get with static index 1 is replaced with v1
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     v4: int64 = 1
     return v1
 }
@@ -1701,7 +1709,7 @@ type Point {
 
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: Point = struct Point (v0, v1)
+    v3: Point = aggregate (v0, v1)
     v4: Point = field.set v3, 0, v2
     v5: int32 = field.get v4, 1
     return v5
@@ -1716,7 +1724,7 @@ type Point {
 
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: Point = struct Point (v0, v1)
+    v3: Point = aggregate (v0, v1)
     v4: Point = field.set v3, 0, v2
     return v1
 }
@@ -1767,24 +1775,24 @@ entry(v0: Point, v1: int32, v2: int32):
         test.assert_output(expected);
     }
 
-    /// field.get(field.set(..., i, v), i) returns the inserted array-slot value.
+    /// Element get after element set returns the inserted value at the same index.
     #[test]
-    fn test_simplify_array_slot_field_get_field_set_same_index() {
+    fn test_simplify_element_get_after_element_set_same_index() {
         let input = r#"
 function test(v0: [int32; 3], v1: int32): int32 {
 entry(v0: [int32; 3], v1: int32):
     v2: int64 = 1
-    v3: [int32; 3] = field.set v0, 1, v1
-    v4: int32 = field.get v3, 1
+    v3: [int32; 3] = element.set v0, 1, v1
+    v4: int32 = element.get v3, 1
     return v4
 }
 "#;
-        // field.get of the just-set array slot returns the inserted value
+        // read the value inserted at the same element index
         let expected = r#"
 function test(v0: [int32; 3], v1: int32): int32 {
 entry(v0: [int32; 3], v1: int32):
     v2: int64 = 1
-    v3: [int32; 3] = field.set v0, 1, v1
+    v3: [int32; 3] = element.set v0, 1, v1
     return v1
 }
 "#;
@@ -1794,27 +1802,27 @@ entry(v0: [int32; 3], v1: int32):
         test.assert_output(expected);
     }
 
-    /// field.get(field.set(..., i, v), j) passes through array slots by index.
+    /// Element get after element set reads the original value at another index.
     #[test]
-    fn test_simplify_array_slot_field_get_field_set_different_index() {
+    fn test_simplify_element_get_after_element_set_different_index() {
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: [int32; 2] = array [int32; 2] (v0, v1)
+    v3: [int32; 2] = aggregate (v0, v1)
     v4: int64 = 0
-    v5: [int32; 2] = field.set v3, 0, v2
+    v5: [int32; 2] = element.set v3, 0, v2
     v6: int64 = 1
-    v7: int32 = field.get v5, 1
+    v7: int32 = element.get v5, 1
     return v7
 }
 "#;
-        // field.get of different index passes through to original
+        // read the original value from the untouched element index
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    v3: [int32; 2] = array [int32; 2] (v0, v1)
+    v3: [int32; 2] = aggregate (v0, v1)
     v4: int64 = 0
-    v5: [int32; 2] = field.set v3, 0, v2
+    v5: [int32; 2] = element.set v3, 0, v2
     v6: int64 = 1
     return v1
 }
@@ -1886,26 +1894,26 @@ entry(v0: (int32, int64), v1: int32):
         test.assert_output(expected);
     }
 
-    /// Chained field.set on an array slot with same index: second value wins.
+    /// Chained element sets at one index retain the second value.
     #[test]
-    fn test_simplify_array_slot_field_set_overwrite_same_index() {
+    fn test_simplify_element_set_overwrite_same_index() {
         let input = r#"
 function test(v0: [int32; 2], v1: int32, v2: int32): int32 {
 entry(v0: [int32; 2], v1: int32, v2: int32):
     v3: int64 = 0
-    v4: [int32; 2] = field.set v0, 0, v1
-    v5: [int32; 2] = field.set v4, 0, v2
-    v6: int32 = field.get v5, 0
+    v4: [int32; 2] = element.set v0, 0, v1
+    v5: [int32; 2] = element.set v4, 0, v2
+    v6: int32 = element.get v5, 0
     return v6
 }
 "#;
-        // second set at index 0 overwrites first, get returns v2
+        // the second update at index zero overwrites the first
         let expected = r#"
 function test(v0: [int32; 2], v1: int32, v2: int32): int32 {
 entry(v0: [int32; 2], v1: int32, v2: int32):
     v3: int64 = 0
-    v4: [int32; 2] = field.set v0, 0, v1
-    v5: [int32; 2] = field.set v4, 0, v2
+    v4: [int32; 2] = element.set v0, 0, v1
+    v5: [int32; 2] = element.set v4, 0, v2
     return v2
 }
 "#;
@@ -1942,7 +1950,7 @@ entry(v0: Point):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: [int32; 2] = array [int32; 2] (v0, v1)
+    v2: [int32; 2] = aggregate (v0, v1)
     v3: int64 = 10
     v4: int32 = field.get v2, 10
     return v4
@@ -1987,15 +1995,15 @@ entry(v0: Point):
         test.assert_output(expected);
     }
 
-    /// Identity field.set: field.set(array, i, field.get(array, i)) -> array.
+    /// Element set preserves an array when replacing an element with itself.
     #[test]
-    fn test_identity_array_slot_field_set() {
+    fn test_identity_element_set() {
         let input = r#"
 function test(v0: [int32; 3]): [int32; 3] {
 entry(v0: [int32; 3]):
     v1: int64 = 1
-    v2: int32 = field.get v0, 1
-    v3: [int32; 3] = field.set v0, 1, v2
+    v2: int32 = element.get v0, 1
+    v3: [int32; 3] = element.set v0, 1, v2
     return v3
 }
 "#;
@@ -2003,7 +2011,7 @@ entry(v0: [int32; 3]):
 function test(v0: [int32; 3]): [int32; 3] {
 entry(v0: [int32; 3]):
     v1: int64 = 1
-    v2: int32 = field.get v0, 1
+    v2: int32 = element.get v0, 1
     return v0
 }
 "#;
@@ -2056,14 +2064,14 @@ entry(v0: Point, v1: Point):
         test.assert_unchanged(input);
     }
 
-    /// Non-identity field.set on array slots: different index should not simplify.
+    /// Element set from another index is not an identity update.
     #[test]
-    fn test_non_identity_array_slot_field_set_different_index() {
+    fn test_non_identity_element_set_different_index() {
         let input = r#"
 function test(v0: [int32; 3]): [int32; 3] {
 entry(v0: [int32; 3]):
-    v1: int32 = field.get v0, 0
-    v2: [int32; 3] = field.set v0, 1, v1
+    v1: int32 = element.get v0, 0
+    v2: [int32; 3] = element.set v0, 1, v1
     return v2
 }
 "#;
@@ -2073,15 +2081,15 @@ entry(v0: [int32; 3]):
         test.assert_unchanged(input);
     }
 
-    /// Non-identity field.set on array slots: different array should not simplify.
+    /// Element set from another array is not an identity update.
     #[test]
-    fn test_non_identity_field_set_different_array() {
+    fn test_non_identity_element_set_different_array() {
         let input = r#"
 function test(v0: [int32; 3], v1: [int32; 3]): [int32; 3] {
 entry(v0: [int32; 3], v1: [int32; 3]):
     v2: int64 = 0
-    v3: int32 = field.get v0, 0
-    v4: [int32; 3] = field.set v1, 0, v3
+    v3: int32 = element.get v0, 0
+    v4: [int32; 3] = element.set v1, 0, v3
     return v4
 }
 "#;

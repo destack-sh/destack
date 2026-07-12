@@ -719,12 +719,6 @@ fn update_terminator_arguments(
                     value: remap_value_reference(*value, substitutions),
                     expected: *expected,
                 },
-                mir::CheckConstraint::Variant { value, expected } => {
-                    mir::CheckConstraint::Variant {
-                        value: remap_value_reference(*value, substitutions),
-                        expected: expected.clone(),
-                    }
-                }
                 mir::CheckConstraint::IsSubtype { value, expected } => {
                     mir::CheckConstraint::IsSubtype {
                         value: remap_value_reference(*value, substitutions),
@@ -830,65 +824,14 @@ fn update_terminator_arguments(
                 }),
             }
         }
-        mir::Terminator::Call {
-            function,
+        mir::Terminator::Invoke {
             call,
             target,
             unwind,
-        } => mir::Terminator::Call {
-            function: *function,
+        } => mir::Terminator::Invoke {
             call: remap_call(tree, call, substitutions),
             target: extend_target(tree, target, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
-        },
-        mir::Terminator::CallIndirect {
-            callee,
-            call,
-            target,
-            unwind,
-        } => mir::Terminator::CallIndirect {
-            callee: remap_value_reference(*callee, substitutions),
-            call: remap_call(tree, call, substitutions),
-            target: extend_target(tree, target, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
-        },
-        mir::Terminator::CallVirtual {
-            receiver,
-            call,
-            class,
-            slot,
-            target,
-            unwind,
-        } => mir::Terminator::CallVirtual {
-            receiver: remap_value_reference(*receiver, substitutions),
-            call: remap_call(tree, call, substitutions),
-            class: *class,
-            slot: *slot,
-            target: extend_target(tree, target, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
-        },
-        mir::Terminator::CallDynamic {
-            receiver,
-            call,
-            constraint,
-            slot,
-            target,
-            unwind,
-        } => mir::Terminator::CallDynamic {
-            receiver: remap_value_reference(*receiver, substitutions),
-            call: remap_call(tree, call, substitutions),
-            constraint: *constraint,
-            slot: *slot,
-            target: extend_target(tree, target, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
+            unwind: extend_target(tree, unwind, block_params, value_stacks, substitutions),
         },
         mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
@@ -902,34 +845,7 @@ fn update_terminator_arguments(
         },
         mir::Terminator::UnwindResume => mir::Terminator::UnwindResume,
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
-        mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
-            function: *function,
-            call: remap_call(tree, call, substitutions),
-        },
-        mir::Terminator::TailCallVirtual {
-            receiver,
-            call,
-            class,
-            slot,
-        } => mir::Terminator::TailCallVirtual {
-            receiver: remap_value_reference(*receiver, substitutions),
-            call: remap_call(tree, call, substitutions),
-            class: *class,
-            slot: *slot,
-        },
-        mir::Terminator::TailCallDynamic {
-            receiver,
-            call,
-            constraint,
-            slot,
-        } => mir::Terminator::TailCallDynamic {
-            receiver: remap_value_reference(*receiver, substitutions),
-            call: remap_call(tree, call, substitutions),
-            constraint: *constraint,
-            slot: *slot,
-        },
-        mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {
-            callee: remap_value_reference(*callee, substitutions),
+        mir::Terminator::TailCall { call } => mir::Terminator::TailCall {
             call: remap_call(tree, call, substitutions),
         },
     }
@@ -960,20 +876,20 @@ fn extend_target(
 /// Remap one compact call argument slice.
 fn remap_call(
     tree: &mut mir::Tree,
-    call: &mir::Call<mir::ValueSlice>,
+    call: &mir::Call,
     substitutions: &HashMap<mir::Value, mir::Value>,
-) -> mir::Call<mir::ValueSlice> {
+) -> mir::Call {
     let arguments: Vec<_> = tree
         .get_values(call.arguments)
         .iter()
         .copied()
         .map(|value| remap_value_reference(value, substitutions))
         .collect();
+    let callee = call
+        .callee
+        .map_values(|value| remap_value_reference(value, substitutions));
 
-    mir::Call {
-        arguments: tree.add_values(&arguments),
-        ..call.clone()
-    }
+    call.remap(callee, tree.add_values(&arguments))
 }
 
 /// Extend existing arguments with block arguments for a target block.

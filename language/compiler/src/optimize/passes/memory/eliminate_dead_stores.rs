@@ -1045,7 +1045,7 @@ entry:
     v1: int32 = 42
     store v0, v1
     v2: int32 = 0
-    v3: (ref<int32, raw, mutable>, int32) = tuple (ref<int32, raw, mutable>, int32) (v0, v2)
+    v3: (ref<int32, raw, mutable>, int32) = aggregate (v0, v2)
     return v3
 }
 "#;
@@ -1279,11 +1279,11 @@ function test(v0: ref<Point, raw, mutable>): void {
 entry(v0: ref<Point, raw, mutable>):
     v1: int32 = 1
     v2: int32 = 2
-    v3: Point = struct Point (v1, v2)
+    v3: Point = aggregate (v1, v2)
     store v0, v3
     v4: int32 = 3
     v5: int32 = 4
-    v6: Point = struct Point (v4, v5)
+    v6: Point = aggregate (v4, v5)
     store v0, v6
     return
 }

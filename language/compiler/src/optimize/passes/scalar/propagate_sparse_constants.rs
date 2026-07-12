@@ -545,28 +545,20 @@ impl<'a> PropagateSparseConstantsState<'a> {
                     self.mark_edge_executable(block_id, unwind_block, arguments);
                 }
             }
-            mir::Terminator::Call { target, unwind, .. }
-            | mir::Terminator::CallIndirect { target, unwind, .. }
-            | mir::Terminator::CallVirtual { target, unwind, .. }
-            | mir::Terminator::CallDynamic { target, unwind, .. } => {
+            mir::Terminator::Invoke { target, unwind, .. } => {
                 let target_block = target.block;
                 let arguments = target.arguments(self.tree);
 
                 self.mark_edge_executable(block_id, target_block, arguments);
-                if let Some(unwind) = unwind {
-                    let arguments = unwind.arguments(self.tree);
-                    self.mark_edge_executable(block_id, unwind.block, arguments);
-                }
+                let arguments = unwind.arguments(self.tree);
+                self.mark_edge_executable(block_id, unwind.block, arguments);
             }
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
-            | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallVirtual { .. }
-            | mir::Terminator::TailCallDynamic { .. }
-            | mir::Terminator::TailCallIndirect { .. } => {}
+            | mir::Terminator::TailCall { .. } => {}
         }
     }
 
@@ -750,17 +742,17 @@ impl<'a> PropagateSparseConstantsState<'a> {
                     _ => LatticeValue::Unknown,
                 }
             }
-            mir::Instruction::Struct { fields, .. } => {
-                // evaluate aggregate fields
-                let arguments = self.tree.get_values(*fields);
-                self.evaluate_aggregate(arguments)
-            }
-            mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
-                // evaluate aggregate elements
-                let arguments = self.tree.get_values(*elements);
+            mir::Instruction::Aggregate { values, .. } => {
+                // evaluate aggregate values
+                let arguments = self.tree.get_values(*values);
                 self.evaluate_aggregate(arguments)
             }
             mir::Instruction::FieldGet {
+                aggregate,
+                field: index,
+                ..
+            }
+            | mir::Instruction::ElementGet {
                 aggregate, index, ..
             } => {
                 // evaluate field get from aggregates
@@ -768,6 +760,12 @@ impl<'a> PropagateSparseConstantsState<'a> {
                 self.evaluate_field_get(aggregate_state, *index as usize)
             }
             mir::Instruction::FieldSet {
+                aggregate,
+                field: index,
+                value,
+                ..
+            }
+            | mir::Instruction::ElementSet {
                 aggregate,
                 index,
                 value,
@@ -1542,7 +1540,7 @@ function test(): int32 {
 entry:
     v0: int32 = 5
     v1: int32 = 7
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v2: { int32, int32 } = aggregate (v0, v1)
     v3: int32 = field.get v2, 0
     return v3
 }
@@ -1552,7 +1550,7 @@ function test(): int32 {
 entry:
     v0: int32 = 5
     v1: int32 = 7
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v2: { int32, int32 } = aggregate (v0, v1)
     v3: int32 = 5
     return v3
 }
@@ -1570,7 +1568,7 @@ entry:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 4
-    v2: { int32, int32 } = struct { int32, int32 } (v1, v0)
+    v2: { int32, int32 } = aggregate (v1, v0)
     v3: int32 = field.get v2, 0
     return v3
 }
@@ -1579,7 +1577,7 @@ entry(v0: int32):
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 4
-    v2: { int32, int32 } = struct { int32, int32 } (v1, v0)
+    v2: { int32, int32 } = aggregate (v1, v0)
     v3: int32 = 4
     return v3
 }
@@ -1598,7 +1596,7 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v2: { int32, int32 } = aggregate (v0, v1)
     v3: int32 = 9
     v4: { int32, int32 } = field.set v2, 1, v3
     v5: int32 = field.get v4, 1
@@ -1610,7 +1608,7 @@ function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
+    v2: { int32, int32 } = aggregate (v0, v1)
     v3: int32 = 9
     v4: { int32, int32 } = field.set v2, 1, v3
     v5: int32 = 9
@@ -1623,18 +1621,18 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Array slot access folds for constant field indices.
+    /// Element get folds for a statically selected fixed-array element.
     #[test]
-    fn test_array_field_get_constant_index() {
+    fn test_fold_element_get() {
         let input = r#"
 function test(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 20
     v2: int32 = 30
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     v4: int64 = 1
-    v5: int32 = field.get v3, 1
+    v5: int32 = element.get v3, 1
     return v5
 }
 "#;
@@ -1644,7 +1642,7 @@ entry:
     v0: int32 = 10
     v1: int32 = 20
     v2: int32 = 30
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     v4: int64 = 1
     v5: int32 = 20
     return v5
@@ -1656,20 +1654,20 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Array slot updates fold into later static slot access.
+    /// Element set folds into a later element get at the same index.
     #[test]
-    fn test_array_field_set_constant_index() {
+    fn test_fold_element_set_then_get() {
         let input = r#"
 function test(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
     v2: int32 = 3
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     v4: int64 = 1
     v5: int32 = 9
-    v6: [int32; 3] = field.set v3, 1, v5
-    v7: int32 = field.get v6, 1
+    v6: [int32; 3] = element.set v3, 1, v5
+    v7: int32 = element.get v6, 1
     return v7
 }
 "#;
@@ -1679,10 +1677,10 @@ entry:
     v0: int32 = 1
     v1: int32 = 2
     v2: int32 = 3
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     v4: int64 = 1
     v5: int32 = 9
-    v6: [int32; 3] = field.set v3, 1, v5
+    v6: [int32; 3] = element.set v3, 1, v5
     v7: int32 = 9
     return v7
 }

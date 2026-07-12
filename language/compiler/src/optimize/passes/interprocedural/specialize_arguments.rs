@@ -300,15 +300,11 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 let instruction = tree.get(instruction_id);
 
                 // record callsites and signatures
-                if let Some(dispatch) = instruction.call_dispatch_kind() {
-                    if let mir::CallDispatchKind::Direct = dispatch
-                        && let mir::Instruction::Call {
-                            function: callee,
-                            call,
-                            ..
-                        } = instruction
+                if let Some(dispatch) = instruction.call_dispatch() {
+                    if let mir::CallDispatch::Direct = dispatch
+                        && let mir::Instruction::Call { call, .. } = instruction
+                        && let Some(callee) = call.callee.function()
                     {
-                        let callee = *callee;
                         let arguments = tree.get_values(call.arguments).to_vec();
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
@@ -666,14 +662,13 @@ fn update_callsite(
     };
 
     let mut call = call;
+    call.callee = mir::Callee::Direct {
+        function: new_callee,
+    };
     call.arguments = new_slice;
     call.signature = signature_type.unwrap_or(call.signature);
 
-    let updated = mir::Instruction::Call {
-        destination,
-        function: new_callee,
-        call,
-    };
+    let updated = mir::Instruction::Call { destination, call };
     tree.set(callsite.call_instruction, updated);
 
     let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);

@@ -7,7 +7,7 @@ use crate::optimize::{DevirtualizeGuardedOptions, MirOptimized, ModulePass, Pipe
 use mir::{Mutation, ProfilePoint, ValueProfile};
 
 declare_pass! {
-    /// Rewrite hot virtual and dynamic calls to guarded direct calls.
+    /// Rewrite hot dynamic calls to guarded direct calls.
     #[pass(id = "devirtualize-guarded")]
     pub DevirtualizeGuarded,
     "Devirtualize hot calls with receiver guards"
@@ -140,6 +140,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         };
 
         let mut function = tree.get(function_id).clone();
+        function.recompute_next_value_id(tree);
         promotion.apply(&mut function, tree);
         tree.set(function_id, function);
 
@@ -205,7 +206,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
             functions_by_symbol,
         )?;
         let expected = self.profiled_receiver_type(function_profile, profile_map, callsite)?;
-        let call = DispatchCall::from_node(tree, node)?;
+        let call = DynamicCall::from_node(tree, node)?;
         if call.target(self.dispatch, expected) != Some(function) {
             return None;
         }
@@ -213,7 +214,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         Some(Promotion {
             node,
             function,
-            receiver: call.receiver(),
+            receiver: call.receiver,
             expected,
         })
     }
@@ -312,9 +313,13 @@ impl Promotion {
         let original = tree.get(instruction).clone();
         let destination = original.destination();
         let block_node = tree.get(block).clone();
-        let prefix = block_node.instructions[..position].to_vec();
+        let mut prefix = block_node.instructions[..position].to_vec();
         let suffix = block_node.instructions[position + 1..].to_vec();
         let old_terminator = tree.insert(tree.get(block_node.terminator).clone());
+
+        // materialize the runtime identity carried by the dynamic receiver
+        let (type_projection, type_id) = self.insert_type_projection(function, tree);
+        prefix.push(type_projection);
 
         // build continuation block around the original suffix and terminator
         let mut continuation = mir::Block::new(old_terminator);
@@ -329,8 +334,12 @@ impl Promotion {
             });
         }
         let continuation = tree.insert(continuation);
+
+        // preserve instruction-call unwinding through one explicit resume block
+        let unwind_terminator = tree.insert(mir::Terminator::UnwindResume);
+        let unwind = tree.insert(mir::Block::new(unwind_terminator));
         let (direct, fallback) = self
-            .instruction_terminators(&original, continuation)
+            .instruction_terminators(&original, continuation, unwind)
             .unwrap_or_else(|| unreachable!("promoted instruction is not a dispatch call"));
 
         // build hot and fallback call blocks
@@ -339,13 +348,14 @@ impl Promotion {
 
         // replace the original block with the dispatch guard
         function.replace_block_instructions(block, prefix, tree);
-        let check = self.check_terminator(hot, fallback);
+        let check = self.check_terminator(type_id, hot, fallback);
         tree.set(tree.get(block).terminator, check);
 
         // keep the promoted blocks next to the original control flow
         function.insert_block_after(block, hot, tree);
         function.insert_block_after(hot, fallback, tree);
         function.insert_block_after(fallback, continuation, tree);
+        function.insert_block_after(continuation, unwind, tree);
     }
 
     /// Apply a promotion to a terminator call by inserting guarded call blocks.
@@ -360,12 +370,18 @@ impl Promotion {
             .terminator_replacements(&terminator)
             .unwrap_or_else(|| unreachable!("promoted terminator is not a dispatch call"));
 
+        // materialize the runtime identity carried by the dynamic receiver
+        let (type_projection, type_id) = self.insert_type_projection(function, tree);
+        let mut instructions = tree.get(block).instructions.clone();
+        instructions.push(type_projection);
+        function.replace_block_instructions(block, instructions, tree);
+
         // build hot and fallback terminator blocks
         let hot = Self::insert_block_with_terminator(tree, direct);
         let fallback = Self::insert_block_with_terminator(tree, fallback);
 
         // replace the original terminator with the guard
-        let check = self.check_terminator(hot, fallback);
+        let check = self.check_terminator(type_id, hot, fallback);
         tree.set(tree.get(block).terminator, check);
 
         // place the cloned calls after the guard block
@@ -373,11 +389,32 @@ impl Promotion {
         function.insert_block_after(hot, fallback, tree);
     }
 
+    /// Insert the concrete type projection for this promotion.
+    fn insert_type_projection(
+        &self,
+        function: &mut mir::Function,
+        tree: &mut mir::Tree,
+    ) -> (mir::LocalNodeId<mir::Instruction>, mir::Value) {
+        let type_id = tree.insert_type(mir::Type::TypeId);
+        let destination = function.next_typed_value(type_id);
+        let instruction = tree.insert(mir::Instruction::DynamicType {
+            destination,
+            dynamic: self.receiver,
+        });
+
+        (instruction, destination)
+    }
+
     /// Return the type guard terminator for this promotion.
-    fn check_terminator(&self, hot: mir::BlockId, fallback: mir::BlockId) -> mir::Terminator {
+    fn check_terminator(
+        &self,
+        type_id: mir::Value,
+        hot: mir::BlockId,
+        fallback: mir::BlockId,
+    ) -> mir::Terminator {
         mir::Terminator::Check {
             constraint: mir::CheckConstraint::IsType {
-                value: self.receiver,
+                value: type_id,
                 expected: self.expected,
             },
             success: mir::BlockTarget::new(hot, mir::ValueSlice::default()),
@@ -400,54 +437,24 @@ impl Promotion {
         &self,
         instruction: &mir::Instruction,
         continuation: mir::BlockId,
+        unwind: mir::BlockId,
     ) -> Option<(mir::Terminator, mir::Terminator)> {
         let target = mir::BlockTarget::new(continuation, mir::ValueSlice::default());
+        let unwind = mir::BlockTarget::new(unwind, mir::ValueSlice::default());
 
         match instruction {
-            mir::Instruction::CallVirtual {
-                receiver,
-                class,
-                slot,
-                call,
-                ..
-            } => {
-                let direct = mir::Terminator::Call {
-                    function: self.function,
-                    call: call.clone(),
+            mir::Instruction::Call { call, .. }
+                if DynamicCall::from_callee(&call.callee).is_some() =>
+            {
+                let direct = mir::Terminator::Invoke {
+                    call: self.direct_call(call),
                     target: target.clone(),
-                    unwind: None,
+                    unwind: unwind.clone(),
                 };
-                let fallback = mir::Terminator::CallVirtual {
-                    receiver: *receiver,
-                    class: *class,
-                    slot: *slot,
+                let fallback = mir::Terminator::Invoke {
                     call: call.clone(),
                     target,
-                    unwind: None,
-                };
-
-                Some((direct, fallback))
-            }
-            mir::Instruction::CallDynamic {
-                receiver,
-                constraint,
-                slot,
-                call,
-                ..
-            } => {
-                let direct = mir::Terminator::Call {
-                    function: self.function,
-                    call: call.clone(),
-                    target: target.clone(),
-                    unwind: None,
-                };
-                let fallback = mir::Terminator::CallDynamic {
-                    receiver: *receiver,
-                    constraint: *constraint,
-                    slot: *slot,
-                    call: call.clone(),
-                    target,
-                    unwind: None,
+                    unwind,
                 };
 
                 Some((direct, fallback))
@@ -462,95 +469,44 @@ impl Promotion {
         terminator: &mir::Terminator,
     ) -> Option<(mir::Terminator, mir::Terminator)> {
         match terminator {
-            mir::Terminator::CallVirtual {
-                receiver,
-                class,
-                slot,
+            mir::Terminator::Invoke {
                 call,
                 target,
                 unwind,
-            } => {
-                let direct = mir::Terminator::Call {
-                    function: self.function,
+            } if DynamicCall::from_callee(&call.callee).is_some() => {
+                let direct = mir::Terminator::Invoke {
+                    call: self.direct_call(call),
+                    target: target.clone(),
+                    unwind: unwind.clone(),
+                };
+                let fallback = mir::Terminator::Invoke {
                     call: call.clone(),
                     target: target.clone(),
                     unwind: unwind.clone(),
                 };
-                let fallback = mir::Terminator::CallVirtual {
-                    receiver: *receiver,
-                    class: *class,
-                    slot: *slot,
-                    call: call.clone(),
-                    target: target.clone(),
-                    unwind: unwind.clone(),
-                };
-
                 Some((direct, fallback))
             }
-            mir::Terminator::CallDynamic {
-                receiver,
-                constraint,
-                slot,
-                call,
-                target,
-                unwind,
-            } => {
-                let direct = mir::Terminator::Call {
-                    function: self.function,
-                    call: call.clone(),
-                    target: target.clone(),
-                    unwind: unwind.clone(),
-                };
-                let fallback = mir::Terminator::CallDynamic {
-                    receiver: *receiver,
-                    constraint: *constraint,
-                    slot: *slot,
-                    call: call.clone(),
-                    target: target.clone(),
-                    unwind: unwind.clone(),
-                };
-
-                Some((direct, fallback))
-            }
-            mir::Terminator::TailCallVirtual {
-                receiver,
-                class,
-                slot,
-                call,
-            } => {
+            mir::Terminator::TailCall { call }
+                if DynamicCall::from_callee(&call.callee).is_some() =>
+            {
                 let direct = mir::Terminator::TailCall {
-                    function: self.function,
-                    call: call.clone(),
+                    call: self.direct_call(call),
                 };
-                let fallback = mir::Terminator::TailCallVirtual {
-                    receiver: *receiver,
-                    class: *class,
-                    slot: *slot,
-                    call: call.clone(),
-                };
-
-                Some((direct, fallback))
-            }
-            mir::Terminator::TailCallDynamic {
-                receiver,
-                constraint,
-                slot,
-                call,
-            } => {
-                let direct = mir::Terminator::TailCall {
-                    function: self.function,
-                    call: call.clone(),
-                };
-                let fallback = mir::Terminator::TailCallDynamic {
-                    receiver: *receiver,
-                    constraint: *constraint,
-                    slot: *slot,
-                    call: call.clone(),
-                };
+                let fallback = mir::Terminator::TailCall { call: call.clone() };
 
                 Some((direct, fallback))
             }
             _ => None,
+        }
+    }
+
+    /// Return one call with the promoted direct target.
+    fn direct_call(&self, call: &mir::Call) -> mir::Call {
+        mir::Call {
+            callee: mir::Callee::Direct {
+                function: self.function,
+            },
+            ..call.clone()
         }
     }
 }
@@ -574,30 +530,18 @@ impl CallNode {
     }
 }
 
-/// Static dispatch data for a virtual or dynamic call.
+/// Static dispatch data for one dynamic call.
 #[derive(Debug, Clone, Copy)]
-enum DispatchCall {
-    /// Virtual call dispatch data.
-    Virtual {
-        /// The receiver value.
-        receiver: mir::Value,
-        /// The class type declaring the dispatch slot.
-        ty: mir::TypeId,
-        /// The dispatch slot.
-        slot: mir::DispatchSlot,
-    },
-    /// Dynamic call dispatch data.
-    Dynamic {
-        /// The receiver value.
-        receiver: mir::Value,
-        /// The dynamic constraint type declaring the dispatch slot.
-        ty: mir::TypeId,
-        /// The dispatch slot.
-        slot: mir::DispatchSlot,
-    },
+struct DynamicCall {
+    /// The receiver value.
+    receiver: mir::Value,
+    /// The dynamic constraint type declaring the dispatch slot.
+    constraint: mir::TypeId,
+    /// The dispatch slot.
+    slot: mir::DispatchSlot,
 }
 
-impl DispatchCall {
+impl DynamicCall {
     /// Return static dispatch data for one profiled call node.
     fn from_node(tree: &mir::Tree, node: CallNode) -> Option<Self> {
         match node {
@@ -611,26 +555,7 @@ impl DispatchCall {
     /// Return static dispatch data for one instruction call.
     fn from_instruction(instruction: &mir::Instruction) -> Option<Self> {
         match instruction {
-            mir::Instruction::CallVirtual {
-                receiver,
-                class,
-                slot,
-                ..
-            } => Some(Self::Virtual {
-                receiver: *receiver,
-                ty: *class,
-                slot: *slot,
-            }),
-            mir::Instruction::CallDynamic {
-                receiver,
-                constraint,
-                slot,
-                ..
-            } => Some(Self::Dynamic {
-                receiver: *receiver,
-                ty: *constraint,
-                slot: *slot,
-            }),
+            mir::Instruction::Call { call, .. } => Self::from_callee(&call.callee),
             _ => None,
         }
     }
@@ -638,46 +563,26 @@ impl DispatchCall {
     /// Return static dispatch data for one terminator call.
     fn from_terminator(terminator: &mir::Terminator) -> Option<Self> {
         match terminator {
-            mir::Terminator::CallVirtual {
-                receiver,
-                class,
-                slot,
-                ..
+            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
+                Self::from_callee(&call.callee)
             }
-            | mir::Terminator::TailCallVirtual {
-                receiver,
-                class,
-                slot,
-                ..
-            } => Some(Self::Virtual {
-                receiver: *receiver,
-                ty: *class,
-                slot: *slot,
-            }),
-            mir::Terminator::CallDynamic {
-                receiver,
-                constraint,
-                slot,
-                ..
-            }
-            | mir::Terminator::TailCallDynamic {
-                receiver,
-                constraint,
-                slot,
-                ..
-            } => Some(Self::Dynamic {
-                receiver: *receiver,
-                ty: *constraint,
-                slot: *slot,
-            }),
             _ => None,
         }
     }
 
-    /// Return the receiver value.
-    fn receiver(self) -> mir::Value {
-        match self {
-            Self::Virtual { receiver, .. } | Self::Dynamic { receiver, .. } => receiver,
+    /// Return static dispatch data for one callee.
+    fn from_callee(callee: &mir::Callee) -> Option<Self> {
+        match callee {
+            mir::Callee::Dynamic {
+                receiver,
+                constraint,
+                slot,
+            } => Some(Self {
+                receiver: *receiver,
+                constraint: *constraint,
+                slot: *slot,
+            }),
+            _ => None,
         }
     }
 
@@ -687,24 +592,14 @@ impl DispatchCall {
         dispatch: &mir::DispatchTable,
         receiver_type: mir::TypeId,
     ) -> Option<mir::FunctionId> {
-        match self {
-            Self::Virtual { ty, slot, .. } if ty == receiver_type => dispatch
-                .virtual_table(receiver_type)?
-                .methods
-                .get(slot.index())
-                .copied(),
-            Self::Virtual { .. } => None,
-            Self::Dynamic { ty, slot, .. } => {
-                let entry = dispatch
-                    .dynamic_table(receiver_type, ty)?
-                    .entries
-                    .get(slot.index())?;
+        let entry = dispatch
+            .dynamic_table(receiver_type, self.constraint)?
+            .entries
+            .get(self.slot.index())?;
 
-                match entry {
-                    mir::DynamicEntry::Function { function } => Some(*function),
-                    mir::DynamicEntry::Field { .. } => None,
-                }
-            }
+        match entry {
+            mir::DynamicEntry::Function { function } => Some(*function),
+            mir::DynamicEntry::Field { .. } => None,
         }
     }
 }
@@ -716,52 +611,71 @@ mod tests {
 
     use super::DevirtualizeGuarded;
 
-    /// Hot virtual instruction calls split into a receiver guard and two call edges.
+    /// Hot dynamic instruction calls project the receiver type before branching.
     #[test]
-    fn test_devirtualize_guarded_rewrites_virtual_instruction_call() {
+    fn test_devirtualize_guarded_rewrites_dynamic_instruction_call() {
         let input = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
+type Reader {
+    read: fn(dynamic<Reader>) => int32;
 }
 
-function test(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
-    v2: int32 = int.add v1, v0
+type ReaderImpl { }
+
+function callee(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = 7
+    return v1
+}
+
+function test(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32
+    v2: int32 = int.add v1, v1
     return v2
 }
 "#;
         let mut test = TestProgram::new(input);
         let caller = test.function_id_by_name("test");
         let callee = test.function_id_by_name("callee");
-        let class = int32_type(&test);
-        let callsite = first_virtual_instruction_call(&test, caller);
-        test.add_virtual_method_table(class, callee);
-        let profile = test.profile_dispatch_call(caller, callsite, callee, class, 900, 0);
+        let concrete = test.type_id_by_name("ReaderImpl");
+        let constraint = test.type_id_by_name("Reader");
+        let callsite = first_dynamic_instruction_call(&test, caller);
+        test.add_dynamic_method_table(concrete, constraint, callee);
+        let profile = test.profile_dispatch_call(caller, callsite, callee, concrete, 900, 0);
 
         test.run_module_pass_with_profile(&DevirtualizeGuarded, profile);
 
         test.assert_output(
             r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
+type Reader {
+    read: fn(dynamic<Reader>) => int32;
 }
 
-function test(v0: int32): int32 {
-entry(v0: int32):
-    check is.type v0, int32 => b1, b2
+type ReaderImpl { }
+
+function callee(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = 7
+    return v1
+}
+
+function test(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v3: typeId = dynamic.type v0
+    check is.type v3, ReaderImpl => b1, b2
 
 b1:
-    call callee(v0) => b3
+    invoke callee(v0) => b3 | b4
 
 b2:
-    call.virtual v0, int32, 0(v0): (int32) => int32 => b3
+    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32 => b3 | b4
 
 b3(v1: int32):
-    v2: int32 = int.add v1, v0
+    v2: int32 = int.add v1, v1
     return v2
+
+b4:
+    unwind.resume
 }
 "#,
         );
@@ -771,47 +685,69 @@ b3(v1: int32):
     #[test]
     fn test_devirtualize_guarded_rewrites_dynamic_terminator_call() {
         let input = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
+type Reader {
+    read: fn(dynamic<Reader>) => int32;
 }
 
-function test(v0: int32): int32 {
-entry(v0: int32):
-    call.dynamic v0, int32, 0(v0): (int32) => int32 => b1
+type ReaderImpl { }
+
+function callee(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = 7
+    return v1
+}
+
+function test(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32 => b1 | cleanup
 b1(v1: int32):
     return v1
+
+cleanup:
+    unwind.resume
 }
 "#;
         let mut test = TestProgram::new(input);
         let caller = test.function_id_by_name("test");
         let callee = test.function_id_by_name("callee");
-        let constraint = int32_type(&test);
+        let concrete = test.type_id_by_name("ReaderImpl");
+        let constraint = test.type_id_by_name("Reader");
         let callsite = mir::CallSite::Terminator(test.entry_block_id(caller));
-        test.add_dynamic_method_table(constraint, constraint, callee);
-        let profile = test.profile_dispatch_call(caller, callsite, callee, constraint, 900, 0);
+        test.add_dynamic_method_table(concrete, constraint, callee);
+        let profile = test.profile_dispatch_call(caller, callsite, callee, concrete, 900, 0);
 
         test.run_module_pass_with_profile(&DevirtualizeGuarded, profile);
 
         test.assert_output(
             r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
+type Reader {
+    read: fn(dynamic<Reader>) => int32;
 }
 
-function test(v0: int32): int32 {
-entry(v0: int32):
-    check is.type v0, int32 => b1, b2
+type ReaderImpl { }
+
+function callee(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = 7
+    return v1
+}
+
+function test(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v2: typeId = dynamic.type v0
+    check is.type v2, ReaderImpl => b1, b2
 
 b1:
-    call callee(v0) => b1_1
+    invoke callee(v0) => b1_1 | cleanup
 
 b2:
-    call.dynamic v0, int32, 0(v0): (int32) => int32 => b1_1
+    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32 => b1_1 | cleanup
 
 b1_1(v1: int32):
     return v1
+
+cleanup:
+    unwind.resume
 }
 "#,
         );
@@ -819,26 +755,31 @@ b1_1(v1: int32):
 
     /// Cold profiles leave dispatch untouched.
     #[test]
-    fn test_devirtualize_guarded_preserves_cold_virtual_call() {
+    fn test_devirtualize_guarded_preserves_cold_dynamic_call() {
         let input = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
+type Reader { }
+type ReaderImpl { }
+
+function callee(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = 7
+    return v1
 }
 
-function test(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
+function test(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32
     return v1
 }
 "#;
         let mut test = TestProgram::new(input);
         let caller = test.function_id_by_name("test");
         let callee = test.function_id_by_name("callee");
-        let class = int32_type(&test);
-        let callsite = first_virtual_instruction_call(&test, caller);
-        test.add_virtual_method_table(class, callee);
-        let profile = test.profile_dispatch_call(caller, callsite, callee, class, 20, 0);
+        let concrete = test.type_id_by_name("ReaderImpl");
+        let constraint = test.type_id_by_name("Reader");
+        let callsite = first_dynamic_instruction_call(&test, caller);
+        test.add_dynamic_method_table(concrete, constraint, callee);
+        let profile = test.profile_dispatch_call(caller, callsite, callee, concrete, 20, 0);
 
         test.run_module_pass_with_profile(&DevirtualizeGuarded, profile);
 
@@ -849,23 +790,28 @@ entry(v0: int32):
     #[test]
     fn test_devirtualize_guarded_preserves_missing_receiver_profile() {
         let input = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
+type Reader { }
+type ReaderImpl { }
+
+function callee(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = 7
+    return v1
 }
 
-function test(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
+function test(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32
     return v1
 }
 "#;
         let mut test = TestProgram::new(input);
         let caller = test.function_id_by_name("test");
         let callee = test.function_id_by_name("callee");
-        let class = int32_type(&test);
-        let callsite = first_virtual_instruction_call(&test, caller);
-        test.add_virtual_method_table(class, callee);
+        let concrete = test.type_id_by_name("ReaderImpl");
+        let constraint = test.type_id_by_name("Reader");
+        let callsite = first_dynamic_instruction_call(&test, caller);
+        test.add_dynamic_method_table(concrete, constraint, callee);
         let mut profile = mir::Profile::new();
         test.record_function_entry(&mut profile, caller, 900);
 
@@ -881,24 +827,29 @@ entry(v0: int32):
     #[test]
     fn test_devirtualize_guarded_preserves_stale_profile() {
         let input = r#"
-function callee(v0: int32): int32 {
-entry(v0: int32):
-    return v0
+type Reader { }
+type ReaderImpl { }
+
+function callee(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = 7
+    return v1
 }
 
-function test(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
+function test(v0: dynamic<Reader>): int32 {
+entry(v0: dynamic<Reader>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32
     return v1
 }
 "#;
         let mut test = TestProgram::new(input);
         let caller = test.function_id_by_name("test");
         let callee = test.function_id_by_name("callee");
-        let class = int32_type(&test);
-        let callsite = first_virtual_instruction_call(&test, caller);
-        test.add_virtual_method_table(class, callee);
-        let mut profile = test.profile_dispatch_call(caller, callsite, callee, class, 900, 0);
+        let concrete = test.type_id_by_name("ReaderImpl");
+        let constraint = test.type_id_by_name("Reader");
+        let callsite = first_dynamic_instruction_call(&test, caller);
+        test.add_dynamic_method_table(concrete, constraint, callee);
+        let mut profile = test.profile_dispatch_call(caller, callsite, callee, concrete, 900, 0);
         profile
             .functions
             .get_mut(&test.optimized.tree.get(caller).symbol)
@@ -910,18 +861,8 @@ entry(v0: int32):
         test.assert_unchanged(input);
     }
 
-    /// Return the canonical int32 type id.
-    fn int32_type(test: &TestProgram) -> mir::TypeId {
-        test.optimized
-            .tree
-            .iter_nodes::<mir::Type>()
-            .find(|(_, ty)| **ty == mir::Type::INT32)
-            .expect("missing int32 type")
-            .0
-    }
-
-    /// Return the first virtual instruction call in a function.
-    fn first_virtual_instruction_call(
+    /// Return the first dynamic instruction call in a function.
+    fn first_dynamic_instruction_call(
         test: &TestProgram,
         function: mir::FunctionId,
     ) -> mir::CallSite {
@@ -930,15 +871,18 @@ entry(v0: int32):
         // scan blocks in layout order
         for &block in function.blocks() {
             for &instruction in &test.optimized.tree.get(block).instructions {
-                if matches!(
-                    test.optimized.tree.get(instruction),
-                    mir::Instruction::CallVirtual { .. }
-                ) {
+                if test
+                    .optimized
+                    .tree
+                    .get(instruction)
+                    .call_dispatch()
+                    .is_some_and(|dispatch| matches!(dispatch, mir::CallDispatch::Dynamic { .. }))
+                {
                     return mir::CallSite::Instruction(instruction);
                 }
             }
         }
 
-        unreachable!("missing virtual instruction call");
+        unreachable!("missing dynamic instruction call");
     }
 }
