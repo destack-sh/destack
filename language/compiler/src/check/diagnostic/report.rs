@@ -1149,16 +1149,19 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
+        first_source: dir::LocalNodeIdAny,
         key: String,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
+        let first = self.diagnostic_anchor(module, first_source);
         let error = CheckError::DuplicatePatternField {
             anchor,
             module,
             key,
         };
+        let diagnostic = DiagnosticBuilder::new(error).label(first, "first matched here");
 
-        self.report(module, error);
+        self.report(module, diagnostic);
     }
 
     /// Report one repeated pattern binding.
