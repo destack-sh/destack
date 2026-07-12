@@ -168,7 +168,7 @@ impl Parser {
             return Ok(None);
         }
 
-        let as_range = self.eat_keyword(Keyword::As)?.span.range();
+        let as_range = self.eat_keyword(Keyword::As)?.range();
         self.set_node_trailing_range(source_type, as_range.start);
         let remap_expression =
             self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;

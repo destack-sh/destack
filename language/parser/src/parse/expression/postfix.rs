@@ -293,7 +293,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let dot_range = self.eat_token(TokenType::Dot)?.token.range();
+        let dot_range = self.eat_token(TokenType::Dot)?.range();
         if self.is_decimal_integer_before_dot(left, dot_range) {
             return Err(ParserError::unexpected(dot_range));
         }

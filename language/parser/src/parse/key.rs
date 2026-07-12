@@ -1,9 +1,7 @@
 use crate::parse::context::{AwaitContext, ExpressionContext, FunctionContext, YieldContext};
 use crate::{Parser, ParserError, ParserResult};
 use destack_core::StringId;
-use destack_dir::{
-    Key, Keyword, Name, NodeType, ScalarLiteral, TokenLiteral, TokenSpan, TokenType,
-};
+use destack_dir::{Key, Keyword, Name, NodeType, ScalarLiteral, Token, TokenLiteral, TokenType};
 use destack_source::ByteRange;
 use std::str::FromStr;
 
@@ -37,10 +35,11 @@ impl Parser {
     #[inline]
     pub fn eat_identifier_with_range(&mut self) -> ParserResult<(StringId, ByteRange)> {
         let token = self.eat_token(TokenType::Identifier)?;
-        let raw = self.file.span_str(token.span);
+        let range = token.range();
+        let raw = &self.file.text()[range.start as usize..range.end as usize];
 
         // validate escaped identifiers once after tokenization
-        if token.token.is_identifier_escaped() {
+        if token.is_identifier_escaped() {
             let Some(decoded) = Self::decode_identifier_unicode_escapes(raw) else {
                 return Err(ParserError::unexpected(token));
             };
@@ -49,7 +48,7 @@ impl Parser {
             }
         }
         let string_id = self.strings.intern(raw);
-        Ok((string_id, token.token.range()))
+        Ok((string_id, range))
     }
 
     /// Eat a binding identifier and return its string ID and byte range.
@@ -82,12 +81,12 @@ impl Parser {
         let content = self.string_literal_str(token).to_owned();
         let string_id = self.strings.intern(&content);
         self.bump();
-        Ok((string_id, token.token.range()))
+        Ok((string_id, token.range()))
     }
 
     /// Peek an identifier that matches a given string.
     #[inline]
-    pub fn peek_identifier_str(&self, string: &str) -> ParserResult<TokenSpan> {
+    pub fn peek_identifier_str(&self, string: &str) -> ParserResult<Token> {
         if self.peek_identifier_is(string) {
             self.require_token(TokenType::Identifier)
         } else {
@@ -171,8 +170,9 @@ impl Parser {
     /// Eat an identifier that matches a given string.
     #[inline]
     pub fn eat_identifier_str(&mut self, string: &str) -> ParserResult<StringId> {
-        let span = self.peek_identifier_str(string)?;
-        let string = self.file.span_str(span.span);
+        let token = self.peek_identifier_str(string)?;
+        let range = token.range();
+        let string = &self.file.text()[range.start as usize..range.end as usize];
         let string_id = self.strings.intern(string);
         self.bump();
         Ok(string_id)
@@ -202,9 +202,9 @@ impl Parser {
     ) -> ParserResult<(StringId, ByteRange)> {
         let mut identifier = String::new();
         let token = self.eat_token(TokenType::Identifier)?;
-        let first_range = token.token.range();
+        let first_range = token.range();
         let mut last_range = first_range;
-        let token_part = self.token_span_str(token);
+        let token_part = self.token_str(token);
 
         // disallow escaped identifiers in tree literals
         if token_part.contains('\\') {
@@ -235,17 +235,17 @@ impl Parser {
             } else {
                 self.eat_token(TokenType::Identifier)?
             };
-            let token_part = self.token_span_str(token);
+            let token_part = self.token_str(token);
 
             // disallow escaped identifiers in tree literals
-            if token.token.ty() == TokenType::Identifier && token_part.contains('\\') {
+            if token.ty() == TokenType::Identifier && token_part.contains('\\') {
                 return Err(ParserError::unexpected(token));
             }
-            last_range = token.token.range();
+            last_range = token.range();
 
             if is_kebab {
                 // keep numeric kebab segments as is, uppercase identifier segments
-                if token.token.ty() == TokenType::Literal {
+                if token.ty() == TokenType::Literal {
                     identifier.push_str(token_part);
                 } else {
                     let mut chars = token_part.chars();
@@ -270,13 +270,13 @@ impl Parser {
 
     /// Peek a string literal.
     #[inline]
-    pub fn peek_string_literal(&self) -> ParserResult<TokenSpan> {
+    pub fn peek_string_literal(&self) -> ParserResult<Token> {
         let token = self.require_token(TokenType::Literal)?;
-        match token.token.literal() {
+        match token.literal() {
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
-            }) => self.require_token(TokenType::Literal),
+            }) => Ok(token),
             _ => Err(ParserError::expected(token, TokenType::Literal)),
         }
     }
@@ -297,10 +297,10 @@ impl Parser {
         )
     }
 
-    /// Get the content of a string literal (without surrounding quotes).
+    /// Return the content of a string literal without surrounding quotes.
     #[inline]
-    pub fn string_literal_str(&self, token: TokenSpan) -> &str {
-        let token_str = self.token_span_str(token);
+    pub fn string_literal_str(&self, token: Token) -> &str {
+        let token_str = self.token_str(token);
 
         // keep the literal content stable even when the closing quote is missing
         if let Some(content) = token_str.strip_prefix('"') {
@@ -316,10 +316,10 @@ impl Parser {
 
     /// Peek a numeric literal (int or float, for object keys).
     #[inline]
-    pub fn peek_numeric_literal(&self) -> ParserResult<TokenSpan> {
-        let token = self.peek_token_span();
-        if token.token.ty() == TokenType::Literal {
-            match token.token.literal() {
+    pub fn peek_numeric_literal(&self) -> ParserResult<Token> {
+        let token = self.peek_token();
+        if token.ty() == TokenType::Literal {
+            match token.literal() {
                 Some(TokenLiteral::Int { .. }) | Some(TokenLiteral::Float { .. }) => Ok(token),
                 _ => Err(ParserError::expected(token, TokenType::Literal)),
             }
@@ -360,7 +360,7 @@ impl Parser {
             let content = self.string_literal_str(token).to_owned();
             let string_id = self.strings.intern(&content);
             self.bump();
-            Ok((Name::String(string_id), token.token.range()))
+            Ok((Name::String(string_id), token.range()))
         }
         // error
         else {
@@ -498,6 +498,6 @@ impl Parser {
 
         let index = usize::try_from(index).map_err(|_| ParserError::unexpected(token))?;
 
-        Ok((index, token.token.range()))
+        Ok((index, token.range()))
     }
 }

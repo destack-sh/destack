@@ -1,5 +1,5 @@
 use crate::{Parser, ParserError, ParserResult};
-use destack_dir::{Keyword, TokenSpan, TokenType};
+use destack_dir::{Keyword, Token, TokenType};
 
 impl Parser {
     /// Return true when the current token is the given keyword.
@@ -10,7 +10,7 @@ impl Parser {
 
     /// Return the current token when it is the requested keyword.
     #[inline]
-    pub fn peek_keyword_token(&self, keyword: Keyword) -> ParserResult<TokenSpan> {
+    pub fn peek_keyword_token(&self, keyword: Keyword) -> ParserResult<Token> {
         let current = self.require_token(TokenType::Identifier)?;
         if !self.peek_is_keyword(keyword) {
             Err(ParserError::expected(current, TokenType::Identifier))
@@ -28,7 +28,7 @@ impl Parser {
     }
 
     /// Eat a keyword.
-    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
+    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParserResult<Token> {
         self.peek_keyword_token(keyword)?;
         self.eat_token(TokenType::Identifier)
     }

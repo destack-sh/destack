@@ -697,8 +697,7 @@ impl Parser {
     /// Intern the source text backing one file-local byte range.
     #[inline]
     pub(crate) fn intern_range(&mut self, range: ByteRange) -> StringId {
-        let span = Span::new(self.file_id, range.start, range.end);
-        let text = self.file.span_str(span);
+        let text = &self.file.text()[range.start as usize..range.end as usize];
 
         self.strings.intern(text)
     }
@@ -706,9 +705,7 @@ impl Parser {
     /// Return the source text backing one file-local byte range.
     #[inline]
     pub fn range_str(&self, range: ByteRange) -> &str {
-        let span = Span::new(self.file_id, range.start, range.end);
-
-        self.span_str(span)
+        &self.file.text()[range.start as usize..range.end as usize]
     }
 
     /// Return the source text backing one token span.
@@ -810,13 +807,13 @@ impl Parser {
 
     /// Require the current token to have one type.
     #[inline]
-    pub fn require_token(&self, token_type: TokenType) -> ParserResult<TokenSpan> {
+    pub fn require_token(&self, token_type: TokenType) -> ParserResult<Token> {
         debug_assert!(
             token_type.is_semantic(),
-            "peek_token requires semantic token type"
+            "require_token requires semantic token type"
         );
-        let current = self.peek_token_span();
-        if current.token.is(token_type) {
+        let current = self.peek_token();
+        if current.is(token_type) {
             Ok(current)
         } else {
             Err(ParserError::expected(current, token_type))
@@ -825,7 +822,7 @@ impl Parser {
 
     /// Eat the current token and require one type.
     #[inline]
-    pub fn eat_token(&mut self, token_type: TokenType) -> ParserResult<TokenSpan> {
+    pub fn eat_token(&mut self, token_type: TokenType) -> ParserResult<Token> {
         debug_assert!(
             token_type.is_semantic(),
             "eat_token requires semantic token type"
