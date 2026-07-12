@@ -26,7 +26,9 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+num_cpus = { workspace = true }
 pprof = { workspace = true }
+rayon = { workspace = true }
 
 [[bench]]
 name = "destack_parse"

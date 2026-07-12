@@ -347,7 +347,7 @@ fn load_file_corpus(name: impl Into<String>, paths: &[PathBuf]) -> Option<Corpus
         lines = lines.saturating_add(content.lines().count() as u64);
         bytes = bytes.saturating_add(content.len() as u64);
 
-        let file_id = FileId::new(files.len() as u128);
+        let file_id = FileId::new(files.len() as u64);
         let (file_name, uri) = Uri::from_path_with_name(path);
         let file = File::from_text(file_id, file_name, uri, None, file_type, content);
         files.push(Arc::new(file));
@@ -385,7 +385,7 @@ fn generated_corpus(
 
         let file_name = format!("{name}_{index}.{extension}");
         let file = File::from_text(
-            FileId::new(index as u128),
+            FileId::new(index as u64),
             file_name.clone(),
             Uri::from_string(&file_name),
             None,
