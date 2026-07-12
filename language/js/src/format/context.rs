@@ -11,7 +11,7 @@ use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
 use destack_source::{File, IndentStyle, LineEnding, NodeSpanType, Span};
 
 /// The formatter type for one JS formatting pass.
-pub type JsFormatter<'context, 'buffer> = Formatter<'buffer, 'context, JsFormatContext<'context>>;
+pub type JsFormatter<'context, 'state> = Formatter<'state, 'context, JsFormatContext<'context>>;
 
 /// One source span provider for JS formatting and printing.
 pub trait JsSourceMap: std::fmt::Debug {
