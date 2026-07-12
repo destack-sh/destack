@@ -96,7 +96,7 @@ fn test_parse_import_path_with_arguments() {
     assert_eq!(
         parser
             .tree
-            .get_side_span(import_id, NodeSpanType::Region(NodeSpanRegion::Clause)),
+            .get_side_span(import_id, NodeSpanType::Region(NodeSpanRegion::Attributes)),
         Some(Span::new(parser.file.id, clause_start, source.len() as u32)),
     );
     assert_eq!(
@@ -935,6 +935,17 @@ fn test_parse_export_with_namespace_alias() {
         });
         assert_string!(parser, *target, "foo");
     });
+}
+
+/// Recover namespace exports without a `from` target.
+#[test]
+fn test_recover_export_namespace_without_target() {
+    let test = TestParser::new("export * as from './module.ds';\nexport type Recovered = string;");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 2);
+    assert_eq!(parser.errors.len(), 1);
 }
 
 #[test]

@@ -3,16 +3,14 @@ use std::sync::Arc;
 use destack_dir::{Comment, Token, TokenSpan, TokenType};
 use destack_source::File;
 
-use super::lexer::{Lexer, ParserTriviaMode};
-use super::trivia::CommentRetention;
+use super::comment::CommentDecision;
+use super::lexer::{CommentRetention, Lexer};
 
 /// Result of lexing one complete source file.
 #[derive(Debug)]
 pub struct LexResult {
     /// The semantic tokens (identifiers, keywords, literals, operators).
     pub tokens: Vec<TokenSpan>,
-    /// The non-semantic tokens (whitespace, comments).
-    pub side_tokens: Vec<TokenSpan>,
     /// The structured comments collected during lexing.
     pub comments: Vec<Comment>,
     /// The end-of-file token.
@@ -20,26 +18,26 @@ pub struct LexResult {
 }
 
 impl Lexer {
-    /// Lex one file into semantic tokens, side tokens, and its end token.
-    ///
-    /// Semantic tokens are identifiers, keywords, literals, operators.
-    /// Side tokens are whitespace and comments.
-    pub fn lex(file: Arc<File>) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
-        let result = Self::lex_file(file);
-        (result.tokens, result.side_tokens, result.eof_token)
+    /// Lex one file into semantic tokens and its end token.
+    pub fn lex(file: Arc<File>) -> (Vec<TokenSpan>, TokenSpan) {
+        let result = Self::lex_with_comment_retention(file, CommentRetention::Ignore);
+
+        (result.tokens, result.eof_token)
     }
 
-    /// Lex one file and return its token buffers.
+    /// Lex one file with all source comments.
     pub fn lex_file(file: Arc<File>) -> LexResult {
-        let mut lexer = Lexer::new(file);
-        lexer.set_trivia_mode(ParserTriviaMode::Full);
-        lexer.lex_to_result()
+        Self::lex_with_comment_retention(file, CommentRetention::All)
     }
 
-    /// Lex one file with explicit trivia retention.
-    pub fn lex_with_options(file: Arc<File>, trivia_mode: ParserTriviaMode) -> LexResult {
+    /// Lex one file with explicit comment retention.
+    pub fn lex_with_comment_retention(
+        file: Arc<File>,
+        comment_retention: CommentRetention,
+    ) -> LexResult {
         let mut lexer = Lexer::new(file);
-        lexer.set_trivia_mode(trivia_mode);
+        lexer.set_comment_retention(comment_retention);
+
         lexer.lex_to_result()
     }
 
@@ -47,30 +45,29 @@ impl Lexer {
     fn lex_to_result(&mut self) -> LexResult {
         let eof_token = self.eof_token_span();
         let comments = self.take_comments();
-        let (tokens, side_tokens) = self.take_token_spans();
+        let tokens = self.take_token_spans();
 
         LexResult {
             tokens,
-            side_tokens,
             comments,
             eof_token,
         }
     }
 
-    /// Set trivia retention before lexing begins.
+    /// Set comment retention before lexing begins.
     #[inline]
-    pub fn set_trivia_mode(&mut self, trivia_mode: ParserTriviaMode) {
+    pub fn set_comment_retention(&mut self, comment_retention: CommentRetention) {
         debug_assert!(
-            self.tokens.is_empty() && self.side_tokens.is_empty(),
-            "trivia retention must be configured before lexing starts"
+            self.tokens.is_empty(),
+            "comment retention must be configured before lexing starts"
         );
-        self.trivia_mode = trivia_mode;
+        self.comment_retention = comment_retention;
     }
 
-    /// Take trivia comments collected during lexing.
+    /// Take comments collected during lexing.
     #[inline]
     pub(crate) fn take_comments(&mut self) -> Vec<Comment> {
-        self.trivia.take_comments()
+        self.comments.take_comments()
     }
 
     /// Return the EOF token span, lexing until the end if needed.
@@ -104,43 +101,35 @@ impl Lexer {
                     return token;
                 }
             }
-            // process side-token trivia and retention
+            // process raw trivia and retained comments
             else {
-                let has_line_terminator = self.side_token_has_line_terminator();
-                self.push_side_token(token, has_line_terminator);
+                let has_line_terminator = self.trivia_token_has_line_terminator();
+                self.record_trivia(token, has_line_terminator);
             }
         }
     }
 
-    /// Return owned token span buffers and leave the stream empty.
-    pub fn take_token_spans(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
+    /// Return owned semantic token spans and leave the stream empty.
+    pub fn take_token_spans(&mut self) -> Vec<TokenSpan> {
         let file_id = self.tokenizer.file_id();
-        let (tokens, side_tokens) = self.take_tokens();
-        let tokens = tokens
+        self.take_tokens()
             .into_iter()
             .map(|token| TokenSpan::new(token, file_id))
-            .collect();
-        let side_tokens = side_tokens
-            .into_iter()
-            .map(|token| TokenSpan::new(token, file_id))
-            .collect();
-
-        (tokens, side_tokens)
+            .collect()
     }
 
-    /// Return owned compact token buffers and leave the stream empty.
-    pub fn take_tokens(&mut self) -> (Vec<Token>, Vec<Token>) {
+    /// Return owned semantic tokens and leave the stream empty.
+    pub fn take_tokens(&mut self) -> Vec<Token> {
         // ensure all tokens are available
         self.lex_to_end();
 
         // drain token buffers
         let tokens = std::mem::take(&mut self.tokens);
-        let side_tokens = std::mem::take(&mut self.side_tokens);
 
         // reset token stream flags for any follow-up access
         self.pending_line_terminator_before_next = false;
 
-        (tokens, side_tokens)
+        tokens
     }
 
     /// Retain one semantic token with its leading line state.
@@ -148,38 +137,28 @@ impl Lexer {
         let token = token.with_on_new_line(self.pending_line_terminator_before_next);
         self.pending_line_terminator_before_next = false;
 
-        if self.trivia_mode.keeps_comments() {
-            self.trivia.record_token(token.ty(), token.start());
+        if self.comment_retention.retains_comments() {
+            self.comments.record_token(token.ty(), token.start());
         }
 
         self.tokens.push(token);
     }
 
-    /// Push a side token and update stream flags that depend on side tokens.
+    /// Record parser-visible state from one trivia token.
     #[inline]
-    fn push_side_token(&mut self, token: Token, has_line_terminator: bool) {
-        self.record_side_token_trivia(token, has_line_terminator);
-
-        if self.trivia_mode.keeps_side_tokens() {
-            self.side_tokens.push(token);
-        }
-    }
-
-    /// Update parser-visible trivia state for one side token.
-    #[inline]
-    fn record_side_token_trivia(&mut self, token: Token, has_line_terminator: bool) {
+    fn record_trivia(&mut self, token: Token, has_line_terminator: bool) {
         let token_type = token.ty();
 
-        if self.trivia_mode.keeps_comments() {
+        if self.comment_retention.retains_comments() {
             match token_type {
                 TokenType::LineComment | TokenType::DocLineComment => {
-                    self.push_line_comment(token, has_line_terminator);
+                    self.record_line_comment(token, has_line_terminator);
                 }
                 TokenType::BlockComment | TokenType::DocBlockComment => {
-                    self.push_block_comment(token, has_line_terminator);
+                    self.record_block_comment(token, has_line_terminator);
                 }
                 TokenType::Newline => {
-                    self.trivia.record_newline(token.start());
+                    self.comments.record_newline();
                 }
                 _ => {}
             }
@@ -190,48 +169,46 @@ impl Lexer {
         }
     }
 
-    /// Push one retained line comment.
-    fn push_line_comment(&mut self, token: Token, has_line_terminator: bool) {
+    /// Record one line comment under the active retention policy.
+    fn record_line_comment(&mut self, token: Token, has_line_terminator: bool) {
         let token_span = TokenSpan::new(token, self.tokenizer.file_id());
         let raw_comment = self.tokenizer.span_str(token_span.span);
-        let retention = self
-            .trivia_mode
+        let decision = self
+            .comment_retention
             .classify_comment(token_span.token.ty(), raw_comment);
 
-        match retention {
-            CommentRetention::Keep { content, .. } => {
-                self.trivia.add_line_comment(token_span, content);
+        match decision {
+            CommentDecision::Keep { content, .. } => {
+                self.comments.add_line_comment(token_span, content);
             }
-            CommentRetention::Skip => {
-                self.record_skipped_comment(token, has_line_terminator);
+            CommentDecision::Skip => {
+                self.record_skipped_comment(has_line_terminator);
             }
         }
     }
 
-    /// Push one retained block comment.
-    fn push_block_comment(&mut self, token: Token, has_line_terminator: bool) {
+    /// Record one block comment under the active retention policy.
+    fn record_block_comment(&mut self, token: Token, has_line_terminator: bool) {
         let token_span = TokenSpan::new(token, self.tokenizer.file_id());
         let raw_comment = self.tokenizer.span_str(token_span.span);
-        let retention = self
-            .trivia_mode
+        let decision = self
+            .comment_retention
             .classify_comment(token_span.token.ty(), raw_comment);
 
-        match retention {
-            CommentRetention::Keep { kind, content } => {
-                self.trivia.add_block_comment(token_span, kind, content);
+        match decision {
+            CommentDecision::Keep { kind, content } => {
+                self.comments.add_block_comment(token_span, kind, content);
             }
-            CommentRetention::Skip => {
-                self.record_skipped_comment(token, has_line_terminator);
+            CommentDecision::Skip => {
+                self.record_skipped_comment(has_line_terminator);
             }
         }
     }
 
     /// Record one skipped comment in attachment state.
-    fn record_skipped_comment(&mut self, token: Token, has_line_terminator: bool) {
+    fn record_skipped_comment(&mut self, has_line_terminator: bool) {
         if has_line_terminator {
-            self.trivia.record_newline(token.start());
-        } else {
-            self.trivia.record_skipped_side_token(token.start());
+            self.comments.record_newline();
         }
     }
 }

@@ -22,7 +22,7 @@ impl Tokenizer {
 
     /// Parse one token from the input string.
     pub(super) fn read_source_token(&mut self) -> Token {
-        self.state.last_side_token_has_line_terminator = false;
+        self.state.last_trivia_token_has_line_terminator = false;
         let start = self.position() as u32;
 
         if self.scanner.is_end() {
@@ -315,7 +315,7 @@ impl Tokenizer {
                 TokenType::LineComment
             };
             self.eat_until(b'\n');
-            self.state.last_side_token_has_line_terminator = true;
+            self.state.last_trivia_token_has_line_terminator = true;
 
             return (token_type, None);
         }
@@ -326,7 +326,7 @@ impl Tokenizer {
             let is_doc_block = is_third_star && !is_fourth_star;
             self.scanner.advance_ascii_byte();
             let (is_terminated, has_line_terminator) = self.eat_block_comment();
-            self.state.last_side_token_has_line_terminator = has_line_terminator;
+            self.state.last_trivia_token_has_line_terminator = has_line_terminator;
 
             if !is_terminated {
                 return (TokenType::Unknown, None);

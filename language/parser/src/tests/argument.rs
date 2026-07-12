@@ -614,13 +614,13 @@ fn test_parse_generic_arguments_first_value_with_boundary_comment() {
     let arguments = parser
         .parse_type_generic_arguments(Default::default())
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_eq!(arguments.len(), 1);
     assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
             assert_node!(parser.tree, *value, TypeExpression::Union { .. });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "first-type-arg");
 }
 
@@ -632,13 +632,13 @@ fn test_parse_generic_arguments_following_value_with_boundary_comment() {
     let arguments = parser
         .parse_type_generic_arguments(Default::default())
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_eq!(arguments.len(), 2);
     assert_node!(parser.tree, arguments[1], GenericArgument::Type { value } => {
             assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "second-type-arg");
 }
 

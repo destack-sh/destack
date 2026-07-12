@@ -5,7 +5,6 @@ use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{
     BlockContext, BlockForm, Declaration, GlobalDeclaration, LocalNodeId, NodeType, TokenType,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use super::DeclarationHeader;
 
@@ -33,14 +32,6 @@ impl Parser {
             expressions,
         });
         let global_id = self.insert_node(global, self.range_since(start));
-
-        if let Some(range) = header.declare_range {
-            self.tree.set_side_range(
-                global_id,
-                NodeSpanType::Region(NodeSpanRegion::Prelude),
-                range,
-            );
-        }
 
         Ok(global_id)
     }

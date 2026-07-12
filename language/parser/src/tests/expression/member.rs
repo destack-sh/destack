@@ -121,7 +121,7 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
     let test = TestParser::new("source /* hop-a */ .first() /* hop-b */ .second()");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert!(arguments.is_empty());
@@ -160,7 +160,7 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
         other => panic!("unexpected expression: {other:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 2);
+    assert_eq!(parser.comments().len(), 2);
 
     let _ = first_member_id;
     let _ = second_member_id;
@@ -174,9 +174,9 @@ fn test_parse_call_boundary_comment_attaches_to_call_separator() {
     let test = TestParser::new("run /* callee-note */ (first, second)");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " callee-note");
     let _ = expression_id;
 }
@@ -186,7 +186,7 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
     let test = TestParser::new("container // marker\n.left as PropertyAccessExpression");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     TestParser::assert_no_errors(&parser);
     assert_node!(
@@ -201,8 +201,8 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
         }
     );
 
-    assert_eq!(parser.tree.comments().len(), 1);
-    let comment = parser.tree.comments()[0];
+    assert_eq!(parser.comments().len(), 1);
+    let comment = parser.comments()[0];
     assert_comment!(parser, 0, CommentKind::Line, "marker");
 
     let token_before = parser
@@ -232,11 +232,11 @@ fn test_parse_function_member_comment_boundary_before_dot() {
     );
     let mut parser = test.prepare();
     let _ = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     TestParser::assert_no_errors(&parser);
-    assert_eq!(parser.tree.comments().len(), 1);
-    let comment = parser.tree.comments()[0];
+    assert_eq!(parser.comments().len(), 1);
+    let comment = parser.comments()[0];
     assert_comment!(parser, 0, CommentKind::Line, "marker");
 
     let token_before = parser
@@ -266,12 +266,12 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
     );
     let mut parser = test.prepare();
     let _ = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     TestParser::assert_no_errors(&parser);
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
 
-    let comment = parser.tree.comments()[0];
+    let comment = parser.comments()[0];
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " boundary note");
 
     let token_after = parser

@@ -717,14 +717,22 @@ impl TokenProbe<'_> {
         loop {
             let token_type = self.peek_token_type();
             let is_top_level = delimiters.is_top_level() && angle_depth == 0;
+
+            // reject an unclosed return type at end of source
+            if token_type == TokenType::End {
+                return false;
+            }
+
+            // accept the lambda arrow after a complete return type
             if is_top_level && token_type == TokenType::ArrowWide {
                 return true;
             }
+
+            // stop at top-level grammar boundaries
             if is_top_level
                 && matches!(
                     token_type,
-                    TokenType::End
-                        | TokenType::Comma
+                    TokenType::Comma
                         | TokenType::Semicolon
                         | TokenType::CloseParenthesis
                         | TokenType::CloseBracket

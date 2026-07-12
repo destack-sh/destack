@@ -7,7 +7,7 @@ use std::sync::Arc;
 use destack_core::{StringId, StringPool};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
-use crate::{Parser, ParserTriviaMode};
+use crate::{CommentRetention, Parser};
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
@@ -48,15 +48,18 @@ impl TestParser {
 
     /// Create a parser for this test.
     pub(crate) fn prepare(&self) -> Parser {
-        self.prepare_with_trivia(ParserTriviaMode::Full)
+        self.prepare_with_comment_retention(CommentRetention::All)
     }
 
-    /// Create a parser with explicit trivia retention for this test.
-    pub(crate) fn prepare_with_trivia(&self, trivia_mode: ParserTriviaMode) -> Parser {
-        Parser::lex_file_with_trivia(
+    /// Create a parser with explicit comment retention for this test.
+    pub(crate) fn prepare_with_comment_retention(
+        &self,
+        comment_retention: CommentRetention,
+    ) -> Parser {
+        Parser::lex_file_with_comment_retention(
             self.file.clone(),
             self.language,
-            trivia_mode,
+            comment_retention,
             Arc::new(StringPool::new()),
         )
     }
@@ -94,17 +97,13 @@ impl TestParser {
     }
 }
 
-/// Return the complete ordinary stream before grammar consumption.
+/// Return the complete semantic stream before grammar consumption.
 #[test]
 fn test_take_tokens_before_parse() {
     let test = TestParser::new("const value = 1;");
     let mut parser = test.prepare();
-    let (tokens, side_tokens) = parser.take_tokens();
+    let tokens = parser.take_tokens();
     let token_types: Vec<_> = tokens.iter().map(|token| token.ty()).collect();
-    let side_tokens: Vec<_> = side_tokens
-        .iter()
-        .map(|token| (token.ty(), parser.token_str(*token)))
-        .collect();
 
     assert_eq!(
         token_types,
@@ -117,14 +116,6 @@ fn test_take_tokens_before_parse() {
             TokenType::End,
         ]
     );
-    assert_eq!(
-        side_tokens,
-        vec![
-            (TokenType::Whitespace, " "),
-            (TokenType::Whitespace, " "),
-            (TokenType::Whitespace, " "),
-        ]
-    );
 }
 
 /// Materialize split compound tokens after parsing.
@@ -133,7 +124,7 @@ fn test_take_tokens_materializes_splits() {
     let test = TestParser::new("const borrowed = &&value; type Nested = Box<Box<int>>;");
     let mut parser = test.prepare();
     parser.parse();
-    let (tokens, _) = parser.take_tokens();
+    let tokens = parser.take_tokens();
     let tokens: Vec<_> = tokens
         .iter()
         .map(|token| (token.ty(), parser.token_str(*token)))
@@ -172,7 +163,7 @@ fn test_take_tokens_materializes_regex() {
     let test = TestParser::new("const pattern = /a+b/g;");
     let mut parser = test.prepare();
     parser.parse();
-    let (tokens, _) = parser.take_tokens();
+    let tokens = parser.take_tokens();
     let tokens: Vec<_> = tokens
         .iter()
         .map(|token| (token.ty(), token.literal(), parser.token_str(*token)))
@@ -202,7 +193,7 @@ fn test_take_tokens_materializes_tree() {
     let test = TestParser::new("const tree = <panel-name title={value}>hello world</panel-name>;");
     let mut parser = test.prepare();
     parser.parse();
-    let (tokens, _) = parser.take_tokens();
+    let tokens = parser.take_tokens();
     let tokens: Vec<_> = tokens
         .iter()
         .map(|token| (token.ty(), token.literal(), parser.token_str(*token)))
@@ -522,10 +513,10 @@ macro_rules! assert_value_expression_path {
 #[macro_export]
 macro_rules! assert_comment {
     ($parser:expr, $index:expr, $expected_kind:expr, $expected_text:expr) => {{
-        let comment = &$parser.tree.comments()[$index];
+        let comment = &$parser.comments()[$index];
         assert_eq!(comment.kind, $expected_kind, "expected comment kind");
 
-        let source = $parser.file.span_str(comment.span);
+        let source = $parser.span_str(comment.span);
         let got = $crate::tests::normalized_comment_payload(source);
         assert_eq!(got.as_ref(), $expected_text, "expected comment text");
     }};

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_core::Color;
-use destack_dir::{TokenLiteral, TokenSpan, TokenType};
-use destack_source::{File, SourceColorizer};
+use destack_dir::{Comment, CommentKind, Token, TokenLiteral, TokenSpan, TokenType};
+use destack_source::{File, FileId, SourceColorizer};
 
 use super::{Lexer, classify_keyword};
 
@@ -57,6 +57,30 @@ fn classify_token_color(file: &File, token: &TokenSpan, bright: bool) -> Option<
     }
 }
 
+/// Convert one canonical comment into its lexical token shape.
+fn tokenize_comment(comment: Comment, file_id: FileId) -> TokenSpan {
+    // select the lexical comment kind
+    let token_type = match (comment.kind, comment.is_jsdoc()) {
+        (CommentKind::Line, false) => TokenType::LineComment,
+        (CommentKind::Line, true) => TokenType::DocLineComment,
+        (CommentKind::SingleLineBlock | CommentKind::MultiLineBlock, false) => {
+            TokenType::BlockComment
+        }
+        (CommentKind::SingleLineBlock | CommentKind::MultiLineBlock, true) => {
+            TokenType::DocBlockComment
+        }
+    };
+
+    // reconstruct the source token span
+    let token = Token::simple(
+        token_type,
+        comment.span.start,
+        comment.span.end - comment.span.start,
+    );
+
+    TokenSpan::new(token, file_id)
+}
+
 /// Create a source colorizer suitable for use with diagnostic printing.
 pub fn source_colorizer() -> SourceColorizer {
     Arc::new(colorize_slice)
@@ -75,9 +99,14 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
         return source.get(start..end).unwrap_or("").to_string();
     }
 
-    // combine both ordered token partitions for complete source highlighting
+    // combine semantic tokens and canonical comments for complete highlighting
     let mut result = Lexer::lex_file(Arc::new(file.clone()));
-    result.tokens.extend(result.side_tokens);
+    result.tokens.extend(
+        result
+            .comments
+            .into_iter()
+            .map(|comment| tokenize_comment(comment, file.id)),
+    );
     result.tokens.sort_unstable_by_key(|token| token.span.start);
     let tokens = result.tokens;
 
@@ -147,7 +176,7 @@ mod tests {
         assert!(colorized.contains("42"));
     }
 
-    /// Colorize retained side tokens together with semantic tokens.
+    /// Colorize retained comments together with semantic tokens.
     #[test]
     fn test_colorize_source_comments() {
         let file = File::from_text(

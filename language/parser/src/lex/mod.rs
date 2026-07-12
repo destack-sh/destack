@@ -1,3 +1,4 @@
+mod comment;
 mod highlight;
 mod html;
 mod identifier;
@@ -10,7 +11,6 @@ mod string;
 mod token;
 mod tokenizer;
 mod tree;
-mod trivia;
 
 pub use highlight::*;
 pub(crate) use identifier::classify_keyword;

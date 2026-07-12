@@ -123,7 +123,7 @@ match (x) {
         assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
             let guard_clause_span = parser
                 .tree
-                .get_side_span(cases[0], NodeSpanType::Region(NodeSpanRegion::Clause))
+                .get_side_span(cases[0], NodeSpanType::Region(NodeSpanRegion::Guard))
                 .expect("expected guard clause span");
             assert_eq!(parser.span_str(guard_clause_span), "if (true)");
 
@@ -675,7 +675,7 @@ fn test_parse_switch_case_boundary_comment_ownership() {
             assert!(default_annotations.is_empty());
         });
     });
-    assert_eq!(parser.tree.comments().len(), 3);
+    assert_eq!(parser.comments().len(), 3);
     assert_comment!(parser, 0, CommentKind::Line, "before-ready");
 
     assert_comment!(parser, 1, CommentKind::Line, "ready-tail");

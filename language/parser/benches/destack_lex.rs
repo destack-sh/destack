@@ -128,8 +128,8 @@ fn bench_lex(criterion: &mut Criterion) {
             bencher.iter(|| {
                 // lex each file
                 for source in source_files {
-                    let (tokens, side_tokens, _) = Lexer::lex(source.file.clone());
-                    black_box((tokens, side_tokens));
+                    let (tokens, eof_token) = Lexer::lex(source.file.clone());
+                    black_box((tokens, eof_token));
                 }
             });
         },

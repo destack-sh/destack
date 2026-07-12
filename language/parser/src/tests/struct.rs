@@ -349,7 +349,7 @@ fn test_parse_class_superclass_boundary_comment_on_super_type() {
             assert!(member_annotations.is_empty());
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "extends-tail");
 
     TestParser::assert_no_errors(&parser);
@@ -390,7 +390,7 @@ Second // impl-second
             assert!(member_annotations.is_empty());
         });
     });
-    assert_eq!(parser.tree.comments().len(), 2);
+    assert_eq!(parser.comments().len(), 2);
     assert_comment!(parser, 0, CommentKind::Line, "impl-first");
     assert_comment!(parser, 1, CommentKind::Line, "impl-second");
 }
@@ -423,7 +423,7 @@ fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() 
         let annotations = parser.tree.get_decorators(first_static_parameter_id.id);
         assert!(annotations.is_empty());
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "box-head");
 }
 

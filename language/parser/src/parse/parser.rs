@@ -1,9 +1,9 @@
-use crate::{ParserError, ParserResult, ParserTriviaMode, classify_keyword};
+use crate::{CommentRetention, ParserError, ParserResult, classify_keyword};
 use core::fmt;
 use destack_core::{LocalStringPool, StringId, StringPool, ensure_sufficient_stack};
 use destack_dir::{
-    BlockContext, BlockForm, Expression, Keyword, LocalNodeId, Node, NodeType, Token, TokenLiteral,
-    TokenSpan, TokenType, Tree, TreeCapacity, TreeStore,
+    BlockContext, BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token,
+    TokenLiteral, TokenSpan, TokenType, Tree, TreeCapacity, TreeStore,
 };
 use destack_source::{
     ByteRange, Diagnostic, DiagnosticCollection, File, FileId, LanguageType, ModuleId,
@@ -29,8 +29,6 @@ pub struct Parser {
     pub file_id: FileId,
     /// The forward token cursor.
     pub(super) cursor: TokenCursor,
-    /// The parser trivia retention mode.
-    trivia_mode: ParserTriviaMode,
     /// Whether the parser is finished.
     is_finished: bool,
     /// The current nested recursive descent depth.
@@ -144,7 +142,6 @@ impl Parser {
         language: LanguageType,
         strings: Arc<StringPool>,
         mut tree: Tree,
-        trivia_mode: ParserTriviaMode,
         cursor: TokenCursor,
     ) -> Self {
         // initialize source-local parser state
@@ -154,7 +151,6 @@ impl Parser {
             file,
             file_id,
             cursor,
-            trivia_mode,
             is_finished: false,
             recursive_descent_depth: 0,
             is_ambient: language.is_declaration(),
@@ -167,39 +163,43 @@ impl Parser {
 
     /// Create a parser for one source file.
     pub fn lex_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
-        Self::lex_file_with_trivia(file, language, ParserTriviaMode::Documentation, strings)
+        Self::lex_file_with_comment_retention(
+            file,
+            language,
+            CommentRetention::Documentation,
+            strings,
+        )
     }
 
-    /// Create a parser for one source file with explicit trivia retention.
-    pub fn lex_file_with_trivia(
+    /// Create a parser for one source file with explicit comment retention.
+    pub fn lex_file_with_comment_retention(
         file: Arc<File>,
         language: LanguageType,
-        trivia_mode: ParserTriviaMode,
+        comment_retention: CommentRetention,
         strings: Arc<StringPool>,
     ) -> Self {
         let module_id = ModuleId::new(PackageId::new(0), file.id.0);
-        let cursor = TokenCursor::new(file.clone(), trivia_mode);
+        let cursor = TokenCursor::new(file.clone(), comment_retention);
         let capacity = TreeCapacity {
             nodes: cursor.token_count(),
-            comments: cursor.comment_count(),
             ..TreeCapacity::default()
         };
         let tree = Tree::with_capacities(module_id, capacity);
 
-        Self::new(file, language, strings, tree, trivia_mode, cursor)
+        Self::new(file, language, strings, tree, cursor)
     }
 
     /// Create a parser that appends one module source file to an existing DIR tree.
-    pub fn lex_into_tree_with_trivia(
+    pub fn lex_into_tree_with_comment_retention(
         file: Arc<File>,
         language: LanguageType,
-        trivia_mode: ParserTriviaMode,
+        comment_retention: CommentRetention,
         strings: Arc<StringPool>,
         tree: Tree,
     ) -> Self {
-        let cursor = TokenCursor::new(file.clone(), trivia_mode);
+        let cursor = TokenCursor::new(file.clone(), comment_retention);
 
-        Self::new(file, language, strings, tree, trivia_mode, cursor)
+        Self::new(file, language, strings, tree, cursor)
     }
 
     /// Publish locally interned strings and return the shared pool.
@@ -408,25 +408,18 @@ impl Parser {
         Self::is_type_angle_close_start(self.peek_token_type())
     }
 
-    /// Return owned token buffers after lexing to EOF.
-    pub fn take_tokens(&mut self) -> (Vec<Token>, Vec<Token>) {
+    /// Return owned semantic tokens after lexing to EOF.
+    pub fn take_tokens(&mut self) -> Vec<Token> {
         self.cursor.take_tokens()
     }
 
-    /// Return owned full token span buffers after lexing to EOF.
-    pub fn take_token_spans(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
+    /// Return owned semantic token spans after lexing to EOF.
+    pub fn take_token_spans(&mut self) -> Vec<TokenSpan> {
         let file_id = self.file_id;
-        let (tokens, side_tokens) = self.take_tokens();
-        let tokens = tokens
+        self.take_tokens()
             .into_iter()
             .map(|token| TokenSpan::new(token, file_id))
-            .collect();
-        let side_tokens = side_tokens
-            .into_iter()
-            .map(|token| TokenSpan::new(token, file_id))
-            .collect();
-
-        (tokens, side_tokens)
+            .collect()
     }
 
     /// Return one ordinary token relative to the parser cursor.
@@ -515,7 +508,7 @@ impl Parser {
         let expressions = self.parse_roots();
 
         // finish retained source metadata
-        self.attach_comments();
+        self.finalize_comments();
         self.is_finished = true;
 
         expressions
@@ -526,17 +519,21 @@ impl Parser {
         self.is_finished
     }
 
-    /// Transfer retained comments into the DIR tree exactly once.
-    pub fn attach_comments(&mut self) {
-        // skip modes that do not retain comments
-        if !self.trivia_mode.keeps_comments() {
-            return;
-        }
+    /// Finalize retained comments after contextual tokenization.
+    pub fn finalize_comments(&mut self) {
+        self.cursor.finalize_comments();
+    }
 
-        // transfer this parser's remaining comments exactly once
-        let comments = self.cursor.take_comments();
+    /// Return retained source comments.
+    pub fn comments(&self) -> &[Comment] {
+        self.cursor.comments()
+    }
 
-        self.tree.comments_mut().extend(comments);
+    /// Take retained source comments.
+    pub fn take_comments(&mut self) -> Vec<Comment> {
+        self.finalize_comments();
+
+        self.cursor.take_comments()
     }
 
     /// Report one parser error unless an identical error was already reported.

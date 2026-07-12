@@ -1,13 +1,11 @@
+use crate::{
+    CommentRetention, TestParser, assert_comment, assert_expression_path, assert_node,
+    assert_string, block_expression_ids,
+};
 use destack_dir::{
     Block, BlockContext, BlockForm, CommentKind, Declaration, Expression, FunctionDeclaration,
     FunctionForm, IfForm, Key, LetKind, MatchCase, Name, NodeType, Property, ScalarLiteral,
     TokenType, TypeExpression, YieldCardinality,
-};
-use destack_source::{NodeSpanRegion, NodeSpanType};
-
-use crate::{
-    ParserTriviaMode, TestParser, assert_comment, assert_expression_path, assert_node,
-    assert_string, block_expression_ids,
 };
 
 #[test]
@@ -631,7 +629,7 @@ fn test_parse_block_statement_before_close_brace_without_semicolon() {
 #[test]
 fn test_parse_statement_leading_semicolon_parenthesized_arrow_call() {
     let test = TestParser::new("{\n;(()=>{})()\n}");
-    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
+    let mut parser = test.prepare_with_comment_retention(CommentRetention::All);
     let block_id = parser
         .parse_block(BlockContext::Expression, Default::default())
         .unwrap();
@@ -648,62 +646,6 @@ fn test_parse_statement_leading_semicolon_parenthesized_arrow_call() {
             });
         });
     });
-}
-
-/// Include written parentheses in statement source spans.
-#[test]
-fn test_parse_statement_span_includes_parentheses() {
-    let test = TestParser::new("(() => value);");
-    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
-
-    let expression_id = parser.parse_statement(Default::default());
-    let statement_span = parser
-        .tree
-        .get_side_span(
-            expression_id,
-            NodeSpanType::Region(NodeSpanRegion::Statement),
-        )
-        .expect("missing statement span");
-
-    assert_eq!(parser.span_str(statement_span), "(() => value);");
-}
-
-/// Record statement source spans for root tail statements.
-#[test]
-fn test_parse_root_statement_span_includes_parentheses() {
-    let test = TestParser::new("(() => value);");
-    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
-
-    let expressions = parser.parse();
-    let statement_span = parser
-        .tree
-        .get_side_span(
-            expressions[0],
-            NodeSpanType::Region(NodeSpanRegion::Statement),
-        )
-        .expect("missing statement span");
-
-    assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.span_str(statement_span), "(() => value);");
-}
-
-/// Record root expression statement spans before skipped wrappers.
-#[test]
-fn test_parse_root_statement_span_preserves_leading_parenthesized_wrapper() {
-    let test = TestParser::new("const a = 1\n\n;(() => {})()");
-    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
-
-    let expressions = parser.parse();
-    let statement_span = parser
-        .tree
-        .get_side_span(
-            expressions[1],
-            NodeSpanType::Region(NodeSpanRegion::Statement),
-        )
-        .expect("missing statement span");
-
-    assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.span_str(statement_span), "(() => {})()");
 }
 
 /// Parse if-body block tails as value expressions.
@@ -1053,7 +995,7 @@ fn test_parse_throw_trailing_comment_on_statement_wrapper_owner() {
 
     let annotations = parser.tree.get_decorators(throw_id.id);
     assert!(annotations.is_empty());
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "throw-tail");
 }
 
@@ -1077,7 +1019,7 @@ fn test_parse_throw_semicolon_trailing_comment_on_statement_wrapper_owner() {
 
     let annotations = parser.tree.get_decorators(throw_id.id);
     assert!(annotations.is_empty());
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "throw-tail");
 }
 
@@ -1103,7 +1045,7 @@ fn test_parse_return_semicolon_trailing_comment_on_statement_wrapper_owner() {
 
     let annotations = parser.tree.get_decorators(return_id.id);
     assert!(annotations.is_empty());
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "return-tail");
 }
 
@@ -1249,7 +1191,7 @@ fn test_parse_function_throw_semicolon_trailing_comment_on_statement_wrapper_own
 
                 let annotations = parser.tree.get_decorators(throw_id.id);
                 assert!(annotations.is_empty());
-                assert_eq!(parser.tree.comments().len(), 1);
+                assert_eq!(parser.comments().len(), 1);
                 assert_comment!(parser, 0, CommentKind::Line, "throw-tail");
             });
         });
@@ -1312,7 +1254,7 @@ fn test_parse_statement_separator_comment_before_semicolon_attaches_to_previous_
 
     let first_annotations = parser.tree.get_decorators(expressions[0].id);
     assert!(first_annotations.is_empty());
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "<- keep-marker");
 }
 

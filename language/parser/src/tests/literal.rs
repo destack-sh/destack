@@ -1163,7 +1163,7 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.parse_tree_literal(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
         assert_eq!(parser.span_str(parser.tree.get_span(*left)), "Widget");
@@ -1175,16 +1175,16 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
         assert_eq!(parser.span_str(parser.tree.get_span(attributes[2])), "{...extra}");
         assert!(children.is_none());
 
-        let comments = parser.tree.comments();
+        let comments = parser.comments();
         assert_eq!(comments.len(), 3);
         assert_eq!(parser.span_str(comments[0].span), "// props-leading");
-        assert_eq!(comments[0].attached_to, parser.tree.get_span(attributes[0]).start);
+        assert_eq!(comments[0].following_token_start(), Some(parser.tree.get_span(attributes[0]).start));
         assert!(comments[0].is_leading());
         assert_eq!(parser.span_str(comments[1].span), "// props-tail");
-        assert_eq!(comments[1].attached_to, 0);
+        assert!(comments[1].is_trailing());
         assert!(!comments[1].is_leading());
         assert_eq!(parser.span_str(comments[2].span), "// extra-leading");
-        assert_eq!(comments[2].attached_to, parser.tree.get_span(attributes[2]).start);
+        assert_eq!(comments[2].following_token_start(), Some(parser.tree.get_span(attributes[2]).start));
         assert!(comments[2].is_leading());
     });
 }
@@ -1307,7 +1307,7 @@ fn test_parse_tree_fragment_with_comments() {
 
 /// Parse tree fragment with a closing tag that has trivia before the slash.
 #[test]
-fn test_parse_tree_fragment_closing_with_trivia() {
+fn test_parse_tree_fragment_closing_with_comment_retention() {
     let test = TestParser::new("<>\n< /* comment */ / >");
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
@@ -2617,9 +2617,7 @@ fn test_parse_object_property_trailing_comments_on_property_owners() {
             assert!(second_annotations.is_empty());
 
             let second_property_span = parser.tree.get_span(properties[1]);
-            let second_comment = parser
-                .tree
-                .comments()
+            let second_comment = parser.comments()
                 .iter()
                 .copied()
                 .find(|comment| parser.span_str(comment.span).contains("second-tail"))
@@ -2632,7 +2630,7 @@ fn test_parse_object_property_trailing_comments_on_property_owners() {
             );
         });
     });
-    assert_eq!(parser.tree.comments().len(), 2);
+    assert_eq!(parser.comments().len(), 2);
     assert_comment!(parser, 0, CommentKind::Line, "first-tail");
     assert_comment!(parser, 1, CommentKind::SingleLineBlock, " second-tail");
 }

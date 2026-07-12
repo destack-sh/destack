@@ -1039,7 +1039,7 @@ fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
         let annotations = parser.tree.get_decorators(declaration_id.id);
         assert!(annotations.is_empty());
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "interface-head");
 }
 

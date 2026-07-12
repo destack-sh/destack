@@ -75,7 +75,7 @@ else {
     let if_id = parser.parse_if(Default::default()).unwrap();
     let else_span = parser
         .tree
-        .get_side_span(if_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+        .get_side_span(if_id, NodeSpanType::Region(NodeSpanRegion::Else))
         .expect("expected else clause span");
 
     assert_eq!(parser.span_str(else_span), "else");
@@ -681,7 +681,7 @@ fn test_parse_if_head_trailing_comment_on_condition_owner() {
         });
     });
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "if-head");
 }
 
@@ -705,7 +705,7 @@ fn test_parse_if_else_boundary_comment_on_else_owner() {
         assert!(annotations.is_empty());
     });
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "else-boundary");
 }
 

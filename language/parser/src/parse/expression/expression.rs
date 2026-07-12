@@ -450,7 +450,7 @@ impl Parser {
         self.tree.set_main_range(expression, question_range);
         self.tree.set_side_range(
             expression,
-            NodeSpanType::Region(NodeSpanRegion::Clause),
+            NodeSpanType::Region(NodeSpanRegion::Alternate),
             colon_range,
         );
 

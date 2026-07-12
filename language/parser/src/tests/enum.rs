@@ -407,7 +407,7 @@ Entry
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 3);
+    assert_eq!(parser.comments().len(), 3);
     assert_comment!(parser, 0, CommentKind::Line, "before-first");
     assert_comment!(parser, 1, CommentKind::Line, "between");
     assert_comment!(parser, 2, CommentKind::Line, "before-name");
@@ -445,7 +445,7 @@ B
             assert!(second_annotations.is_empty());
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "a-tail");
 }
 
@@ -467,6 +467,6 @@ fn test_parse_enum_body_boundary_comment_on_declaration_owner() {
         let annotations = parser.tree.get_decorators(expression_id.id);
         assert!(annotations.is_empty());
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " enum-body");
 }

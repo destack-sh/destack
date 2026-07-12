@@ -331,10 +331,9 @@ fn test_parse_no_semi_for_of_slice_trailing_block_comment_is_not_duplicated() {
     let test = TestParser::new(source);
     let mut parser = test.prepare();
     let _ = parser.parse();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     let trailing_block_comment_count = parser
-        .tree
         .comments()
         .iter()
         .filter(|comment| {

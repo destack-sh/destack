@@ -230,7 +230,7 @@ impl Parser {
             );
             self.tree.set_side_range(
                 let_else_id,
-                NodeSpanType::Region(NodeSpanRegion::Clause),
+                NodeSpanType::Region(NodeSpanRegion::Else),
                 else_range,
             );
 
