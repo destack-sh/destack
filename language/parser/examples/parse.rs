@@ -18,9 +18,33 @@ const DEFAULT_SECONDS: u64 = 10;
 const DEFAULT_SAMPLE_HZ: i32 = 997;
 const DEFAULT_OUTPUT_PATH: &str = "language/parser/target/flamegraphs/parse.svg";
 
+/// One parser pipeline stage measured by the profiler.
+#[derive(Debug, Copy, Clone)]
+enum ParserStage {
+    /// Tokenize the source file into a parser cursor.
+    Lex,
+    /// Parse the complete source file.
+    Parse,
+}
+
+impl ParserStage {
+    /// Return one parser stage from an environment variable.
+    fn from_env(name: &str, default: Self) -> Result<Self, Box<dyn Error>> {
+        let Some(value) = env::var(name).ok() else {
+            return Ok(default);
+        };
+
+        match value.as_str() {
+            "lex" => Ok(Self::Lex),
+            "parse" => Ok(Self::Parse),
+            _ => Err(format!("invalid parser stage for {name}: {value}").into()),
+        }
+    }
+}
+
 /// Options for one parser profile run.
 #[derive(Debug)]
-struct RunOptions {
+struct ProfileOptions {
     /// The source file to parse repeatedly.
     source_path: PathBuf,
     /// The flamegraph output path.
@@ -31,49 +55,20 @@ struct RunOptions {
     sample_hz: i32,
     /// The parser trivia retention mode.
     trivia_mode: ParserTriviaMode,
+    /// The parser pipeline stage to profile.
+    stage: ParserStage,
 }
 
-/// The parser and root expressions retained during profiling.
-type ParserProfileOutput = (Parser, Vec<LocalNodeId<Expression>>);
-
-/// Parse one file repeatedly under the pprof sampler.
-fn main() -> Result<(), Box<dyn Error>> {
-    let options = RunOptions::from_env()?;
-    let file = load_file(&options.source_path)?;
-    let language = file_language(file.ty)?;
-    let trivia_mode = options.trivia_mode;
-
-    // sample only the parse loop
-    let start = Instant::now();
-    let guard = ProfilerGuardBuilder::default()
-        .frequency(options.sample_hz)
-        .blocklist(&["libsystem", "libc", "libpthread", "libdyld"])
-        .build()?;
-
-    let mut parses = 0u64;
-    while start.elapsed() < options.duration {
-        black_box(parse_file(file.clone(), language, trivia_mode));
-        parses += 1;
-    }
-
-    // write artifacts while samples are still live
-    let report = guard.report().build()?;
-    write_flamegraph(&options.output_path, &report)?;
-    write_folded_stacks(&folded_path(&options.output_path), &report)?;
-
-    print_result(&file, &options.output_path, start.elapsed(), parses);
-
-    Ok(())
-}
-
-impl RunOptions {
+impl ProfileOptions {
     /// Build run options from arguments and environment variables.
     fn from_env() -> Result<Self, Box<dyn Error>> {
         let source_path = source_path()?;
         let output_path = output_path();
         let seconds = number_from_env("DESTACK_PARSE_SECONDS", DEFAULT_SECONDS)?;
         let sample_hz = number_from_env("DESTACK_PARSE_HZ", DEFAULT_SAMPLE_HZ)?;
-        let trivia_mode = trivia_mode_from_env("DESTACK_PARSE_TRIVIA", ParserTriviaMode::Full)?;
+        let trivia_mode =
+            trivia_mode_from_env("DESTACK_PARSE_TRIVIA", ParserTriviaMode::Documentation)?;
+        let stage = ParserStage::from_env("DESTACK_PARSE_STAGE", ParserStage::Parse)?;
 
         Ok(Self {
             source_path,
@@ -81,8 +76,60 @@ impl RunOptions {
             duration: Duration::from_secs(seconds),
             sample_hz,
             trivia_mode,
+            stage,
         })
     }
+}
+
+/// Parse one file repeatedly under the pprof sampler.
+fn main() -> Result<(), Box<dyn Error>> {
+    let options = ProfileOptions::from_env()?;
+    let file = load_file(&options.source_path)?;
+    let language = file_language(file.ty)?;
+    let trivia_mode = options.trivia_mode;
+    let stage = options.stage;
+    let strings = Arc::new(StringPool::new());
+
+    // prepare the sampler before measuring parser work
+    let guard = ProfilerGuardBuilder::default()
+        .frequency(options.sample_hz)
+        .blocklist(&["libsystem", "libc", "libpthread", "libdyld"])
+        .build()?;
+
+    // sample only the selected parser stage
+    let start = Instant::now();
+    let mut runs = 0u64;
+    while start.elapsed() < options.duration {
+        match stage {
+            ParserStage::Lex => {
+                black_box(Parser::lex_file_with_trivia(
+                    file.clone(),
+                    language,
+                    trivia_mode,
+                    strings.clone(),
+                ));
+            }
+            ParserStage::Parse => {
+                black_box(parse_file(
+                    file.clone(),
+                    language,
+                    trivia_mode,
+                    strings.clone(),
+                ));
+            }
+        }
+        runs += 1;
+    }
+    let run_elapsed = start.elapsed();
+
+    // write artifacts while samples are still live
+    let report = guard.report().build()?;
+    write_flamegraph(&options.output_path, &report)?;
+    write_folded_stacks(&folded_path(&options.output_path), &report)?;
+
+    print_result(&file, stage, &options.output_path, run_elapsed, runs);
+
+    Ok(())
 }
 
 /// Return the parser language for one file type.
@@ -107,8 +154,8 @@ fn parse_file(
     file: Arc<File>,
     language: LanguageType,
     trivia_mode: ParserTriviaMode,
-) -> ParserProfileOutput {
-    let strings = Arc::new(StringPool::new());
+    strings: Arc<StringPool>,
+) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let mut parser = Parser::lex_file_with_trivia(file, language, trivia_mode, strings);
 
     // attach comments only when retained
@@ -158,14 +205,18 @@ fn write_folded_stacks(path: &Path, report: &pprof::Report) -> Result<(), Box<dy
     Ok(())
 }
 
-/// Print parser throughput for one run.
-fn print_result(file: &File, output_path: &Path, elapsed: Duration, parses: u64) {
+/// Print parser pipeline throughput.
+fn print_result(file: &File, stage: ParserStage, output_path: &Path, elapsed: Duration, runs: u64) {
     let seconds = elapsed.as_secs_f64();
-    let bytes = file.text().len() as u64 * parses;
+    let bytes = file.text().len() as u64 * runs;
     let megabytes = bytes as f64 / 1_000_000.0;
-    let lines = file.text().lines().count() as u64 * parses;
+    let lines = file.text().lines().count() as u64 * runs;
 
-    eprintln!("parsed {parses} files, {megabytes:.2} MB, {lines} lines, {seconds:.3}s");
+    let verb = match stage {
+        ParserStage::Lex => "lexed",
+        ParserStage::Parse => "parsed",
+    };
+    eprintln!("{verb} {runs} files, {megabytes:.2} MB, {lines} lines, {seconds:.3}s");
     eprintln!(
         "throughput: {:.2} MB/s, {:.0} lines/s",
         megabytes / seconds,
