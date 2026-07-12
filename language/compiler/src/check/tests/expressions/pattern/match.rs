@@ -101,7 +101,7 @@ const label = match (status) {
 "#,
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: '\"error\"' is not covered"
-/// @diagnostic.label line=4 column=21 span="(status) {\n    \"ready\" => \"go\"\n}" line_source="const label = match (status) {"
+/// @diagnostic.label line=4 column=15 span="match (status) {\n    \"ready\" => \"go\"\n}" line_source="const label = match (status) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
@@ -157,7 +157,7 @@ const label = match (status) {
 "#,
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: '\"ready\"' is not covered"
-/// @diagnostic.label line=4 column=21 span="(status) {\n    \"ready\" if (true) => \"go\"\n    \"error\" => \"stop\"\n}" line_source="const label = match (status) {"
+/// @diagnostic.label line=4 column=15 span="match (status) {\n    \"ready\" if (true) => \"go\"\n    \"error\" => \"stop\"\n}" line_source="const label = match (status) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
