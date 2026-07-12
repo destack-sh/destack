@@ -14,11 +14,6 @@ impl Compiler {
         _context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::dir_parsed(module));
-        dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.require(ArtifactKey::dir_imported(module, profile));
-        dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require(ArtifactKey::dir_checked(module, profile));
         dependencies.require(ArtifactKey::dir_materialized(module, profile));
 
         Ok(dependencies)
@@ -28,14 +23,12 @@ impl Compiler {
     pub(crate) fn provide_mir(
         &self,
         module: ModuleId,
-        profile: ProfileId,
-        target: TargetId,
+        _profile: ProfileId,
+        _target: TargetId,
         _context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        Err(LowerError::Internal {
+        Err(LowerError::Unavailable {
             anchor: module.into(),
-            module,
-            message: format!("MIR lower is disabled for profile {profile:?}, target {target:?}"),
         }
         .into())
     }
