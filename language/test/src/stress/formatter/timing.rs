@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use super::document::FormatterDocumentStats;
+use destack_fir::format::DocumentStats;
+
+use super::document::format_document_stats;
 
 /// Formatter stress phase timing for one format pass.
 #[derive(Debug, Clone, Copy)]
@@ -24,7 +26,7 @@ pub(super) struct FormatterTiming {
     /// Formatter document printing.
     pub(super) print: Duration,
     /// Formatter document shape after construction.
-    pub(super) document: FormatterDocumentStats,
+    pub(super) document: DocumentStats,
 }
 
 impl FormatterTiming {
@@ -41,7 +43,7 @@ impl FormatterTiming {
             format_duration(self.context),
             format_duration(self.format),
             format_duration(self.print),
-            self.document.format()
+            format_document_stats(self.document)
         )
     }
 }
