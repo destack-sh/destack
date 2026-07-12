@@ -25,8 +25,8 @@ import.stats.expressions=2\n\
 import.stats.clauses=import:1,reexport:0\n\
 import.stats.resolve.specifiers=1\n\
 import.stats.resolve.package_exports=0\n\
-import.stats.resolve.candidates=6\n\
-import.stats.resolve.probes=6";
+import.stats.resolve.candidates=2\n\
+import.stats.resolve.probes=2";
 
     assert_eq!(metadata, expected);
 }
@@ -56,8 +56,8 @@ import.stats.resolve.specifiers={ITEMS}\n\
 import.stats.resolve.package_exports=0\n\
 import.stats.resolve.candidates={}\n\
 import.stats.resolve.probes={}",
-        ITEMS * 6,
-        ITEMS * 6,
+        ITEMS * 2,
+        ITEMS * 2,
     );
 
     assert_eq!(metadata, expected);

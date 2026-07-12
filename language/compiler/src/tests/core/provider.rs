@@ -13,7 +13,6 @@ use destack_repository::{
 };
 use destack_source::{
     Content, ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId, ModuleId,
-    Span,
 };
 
 use super::module::{parse_module, parsed_dependencies};
