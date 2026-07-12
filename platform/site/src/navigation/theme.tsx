@@ -83,7 +83,11 @@ export function ThemeToggle() {
             title={`Alt+T: select ${nextPreference()} theme`}
             type="button"
         >
-            [<ShortcutLabel brackets={false} label={`theme:${preference()}`} shortcut="t" />]
+            [
+            <span class="site-theme-toggle__prefix">
+                <ShortcutLabel brackets={false} label="theme" shortcut="t" />:
+            </span>
+            {preference()}]
         </button>
     );
 }
