@@ -46,30 +46,22 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<AnnotatedSource>> {
         let state = self.module(module_id);
         let file_id = state.module.file_id;
-        let Some(roots) = state.parsed.roots_for_file(file_id) else {
+        let Some(parsed_file) = state.parsed.file(file_id) else {
             return Ok(None);
         };
+        let roots = parsed_file.roots.as_slice();
 
         // write solved types into a cloned source tree
         let tree = SourceReifier::new(self, state).run(coercions)?;
 
         // print the amended tree through the canonical formatter
         let file = self.compiler.file(self.context, file_id)?;
-        let tokens = state
-            .parsed
-            .iter_token_spans_for_file(file_id)
-            .map(|tokens| tokens.collect::<Vec<_>>())
-            .unwrap_or_default();
-        let side_tokens = state
-            .parsed
-            .iter_side_token_spans_for_file(file_id)
-            .map(|tokens| tokens.collect::<Vec<_>>())
-            .unwrap_or_default();
+        let tokens = parsed_file.iter_token_spans().collect::<Vec<_>>();
         let content = format_file_tree(
             file.as_ref(),
             &tree,
             &tokens,
-            &side_tokens,
+            &parsed_file.comments,
             roots,
             state.strings.as_ref(),
             FormatterOptions::default(),
