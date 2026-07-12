@@ -49,7 +49,7 @@ impl<I: PoolId, T: Copy + Eq + Hash> ValuePool<I, T> {
     /// Intern one value.
     pub fn intern(&mut self, value: T) -> I {
         // probe the index for an existing structural hit
-        let hash = FxBuildHasher.hash_one(&value);
+        let hash = FxBuildHasher.hash_one(value);
         if let Some(slots) = self.index.get(&hash) {
             for slot in slots {
                 if self.values.get(slot.raw() - self.first_id) == &value {

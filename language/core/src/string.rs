@@ -4,7 +4,6 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::size_of;
-use xxhash_rust::xxh3::xxh3_128;
 
 use crate::{StableHasher, stable_hash_text};
 
@@ -226,10 +225,7 @@ impl LocalStringPool {
     /// Return the first local index position for one stable string ID.
     #[inline]
     fn index_start(id: StringId, mask: usize) -> usize {
-        let bits = id.raw();
-        let folded = bits as u64 ^ (bits >> 64) as u64;
-
-        folded as usize & mask
+        id.raw() as usize & mask
     }
 }
 
