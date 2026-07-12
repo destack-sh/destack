@@ -98,6 +98,12 @@ pub enum ArtifactKey {
         profile: ProfileId,
         target: TargetId,
     },
+    /// MIR after required executable elaboration.
+    MirElaborated {
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    },
     /// Per-module link summary for whole-program analysis.
     MirAnalyzed {
         module: ModuleId,
@@ -236,6 +242,7 @@ impl ArtifactKey {
             | Self::DirMaterialized { .. }
             | Self::MirLowered { .. }
             | Self::MirVerified { .. }
+            | Self::MirElaborated { .. }
             | Self::MirAnalyzed { .. }
             | Self::MirOptimized { .. }
             | Self::Script { .. }
@@ -360,6 +367,15 @@ impl ArtifactKey {
         }
     }
 
+    /// Build one elaborated MIR artifact key.
+    pub fn mir_elaborated(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirElaborated {
+            module,
+            profile,
+            target,
+        }
+    }
+
     /// Build one analyzed MIR artifact key.
     pub fn mir_analyzed(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
         Self::MirAnalyzed {
@@ -451,6 +467,7 @@ impl ArtifactKey {
             Self::DirCheckedComponent { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::MirLowered { .. }
             | Self::MirVerified { .. }
+            | Self::MirElaborated { .. }
             | Self::MirAnalyzed { .. }
             | Self::ProgramAnalysis { .. }
             | Self::MirOptimized { .. } => ArtifactStage::Lower,
@@ -486,6 +503,7 @@ impl ArtifactKey {
             Self::DirMaterialized { .. } => "dir.materialize",
             Self::MirLowered { .. } => "mir.lower",
             Self::MirVerified { .. } => "mir.verify",
+            Self::MirElaborated { .. } => "mir.elaborate",
             Self::MirAnalyzed { .. } => "mir.analyze",
             Self::MirOptimized { .. } => "mir.optimize",
             Self::ModuleIndex { .. } => "module.index",
@@ -522,6 +540,7 @@ impl ArtifactKey {
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::MirLowered { .. } => "mir_lowered",
             Self::MirVerified { .. } => "mir_verified",
+            Self::MirElaborated { .. } => "mir_elaborated",
             Self::MirAnalyzed { .. } => "mir_analyzed",
             Self::MirOptimized { .. } => "mir_optimized",
             Self::ModuleIndex { .. } => "module_index",
@@ -554,6 +573,7 @@ impl ArtifactKey {
             | Self::DirMaterialized { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirVerified { module, .. }
+            | Self::MirElaborated { module, .. }
             | Self::MirAnalyzed { module, .. }
             | Self::MirOptimized { module, .. }
             | Self::ModuleIndex { module, .. }
@@ -615,6 +635,7 @@ impl ArtifactKey {
             | Self::DirMaterialized { profile, .. }
             | Self::MirLowered { profile, .. }
             | Self::MirVerified { profile, .. }
+            | Self::MirElaborated { profile, .. }
             | Self::MirAnalyzed { profile, .. }
             | Self::MirOptimized { profile, .. }
             | Self::ModuleIndex { profile, .. }

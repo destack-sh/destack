@@ -14,8 +14,8 @@ use crate::{
     ArtifactProjectionFingerprint, ArtifactRecord, ArtifactVersion, Asset, Build, Bundle,
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
-    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex,
-    PackageLinted, Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
+    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
+    PackageIndex, PackageLinted, Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
 };
 
 macro_rules! artifact_getter {
@@ -316,6 +316,7 @@ impl ArtifactTable {
     artifact_getter!(dir_materialized, DirMaterialized, DirMaterialized);
     artifact_getter!(mir_lowered, MirLowered, MirLowered);
     artifact_getter!(mir_verified, MirVerified, MirVerified);
+    artifact_getter!(mir_elaborated, MirElaborated, MirElaborated);
     artifact_getter!(mir_analyzed, MirAnalyzed, MirAnalyzed);
     artifact_getter!(mir_optimized, MirOptimized, MirOptimized);
     artifact_getter!(module_index, ModuleIndex, ModuleIndex);

@@ -41,21 +41,6 @@ impl MirLowered {
             profile: mir::ProfileTable::default(),
         }
     }
-
-    /// Create a verified MIR artifact from this lowered artifact and rewritten tree.
-    pub fn into_verified(self, tree: mir::Tree) -> MirVerified {
-        MirVerified {
-            tree,
-            target: self.target,
-            types: self.types,
-            layouts: self.layouts,
-            dispatch: self.dispatch,
-            drops: self.drops,
-            memory: self.memory,
-            effects: self.effects,
-            profile: self.profile,
-        }
-    }
 }
 
 impl Default for MirLowered {
@@ -64,10 +49,14 @@ impl Default for MirLowered {
     }
 }
 
-/// Verified MIR after required semantic verification.
+/// Successful MIR verification marker.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
+pub struct MirVerified;
+
+/// MIR after required executable elaboration.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct MirVerified {
-    /// The verified MIR tree.
+pub struct MirElaborated {
+    /// The elaborated MIR tree.
     pub tree: mir::Tree,
     /// Target ABI layout.
     pub target: mir::TargetLayout,
@@ -85,23 +74,6 @@ pub struct MirVerified {
     pub effects: mir::EffectTable,
     /// Static profile counter table.
     pub profile: mir::ProfileTable,
-}
-
-impl MirVerified {
-    /// Create an optimized MIR artifact from this verified artifact and rewritten tree.
-    pub fn into_optimized(self, tree: mir::Tree) -> MirOptimized {
-        MirOptimized {
-            tree,
-            target: self.target,
-            types: self.types,
-            layouts: self.layouts,
-            dispatch: self.dispatch,
-            drops: self.drops,
-            memory: self.memory,
-            effects: self.effects,
-            profile: self.profile,
-        }
-    }
 }
 
 /// Optimized MIR payload after pipeline transforms.
