@@ -13,8 +13,8 @@ use super::index::NodeIndexEntry;
 use super::parent::reparent_direct_children;
 use super::sparse::SparseNodeMap;
 use crate::{
-    Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration,
-    Declarator, Decorator, DependencyItem, Documentation, EnumField, Expression, GenericArgument,
+    Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
+    Decorator, DependencyItem, Documentation, EnumField, Expression, GenericArgument,
     GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex,
     NodeType, Origin, Parameter, Path, Pattern, PatternField, Property, TreeAttribute,
     TreeCapacity, TreeChild, TreeMark, TreeStore, TupleElement, TypeExpression,
@@ -63,7 +63,6 @@ pub struct Tree {
     pub(crate) pattern_fields: Arena<PatternField>,
     pub(crate) assign_patterns: Arena<AssignPattern>,
     pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
-    pub(crate) comments: Vec<Comment>,
     pub(crate) decorators: Arena<Decorator>,
 
     // node side data
@@ -149,7 +148,6 @@ impl Tree {
             pattern_fields: Arena::new(),
             assign_patterns: Arena::new(),
             assign_pattern_fields: Arena::new(),
-            comments: Vec::with_capacity(capacity.comments),
             decorators: Arena::new(),
 
             parents: NodeParentIndex::new(),
@@ -236,7 +234,6 @@ impl Tree {
     pub fn mark(&self) -> TreeMark {
         TreeMark {
             next_global_id: self.next_global_id,
-            comments_len: self.comments.len(),
             decorator_attachments_len: self.decorator_attachments.len(),
         }
     }
@@ -252,7 +249,6 @@ impl Tree {
             .prune_from(retained_node_count, mark.next_global_id);
         self.next_global_id = mark.next_global_id;
 
-        self.comments.truncate(mark.comments_len);
         self.restore_decorator_attachments(mark);
         self.prune_node_side_tables(mark.next_global_id);
     }
@@ -1007,24 +1003,6 @@ impl Tree {
     #[inline]
     pub fn decorator_span(&self) -> MultiSpan {
         MultiSpan::new(self.get_side_decorator_spans())
-    }
-
-    /// Return all raw comments in source order.
-    #[inline]
-    pub fn comments(&self) -> &[Comment] {
-        &self.comments
-    }
-
-    /// Return all raw comments in source order, mutably.
-    #[inline]
-    pub fn comments_mut(&mut self) -> &mut Vec<Comment> {
-        &mut self.comments
-    }
-
-    /// Append one raw comment.
-    #[inline]
-    pub fn push_comment(&mut self, comment: Comment) {
-        self.comments.push(comment);
     }
 
     /// Return all decorator attachments.

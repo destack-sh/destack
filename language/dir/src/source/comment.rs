@@ -33,14 +33,15 @@ pub enum CommentContent {
     JsdocLegal,
 }
 
-/// A comment's position relative to a token boundary.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Reflect)]
-pub enum CommentPosition {
-    /// The comment belongs to the following token boundary.
-    #[default]
-    Leading,
-    /// The comment trails the previous token boundary.
-    Trailing,
+/// A comment's attachment to the semantic token stream.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum CommentAnchor {
+    /// The comment belongs before the token at this byte offset.
+    Before(u32),
+    /// The comment belongs after the token at this byte offset.
+    After(u32),
+    /// The comment belongs at the end of the source file.
+    End,
 }
 
 /// Newline shape flags captured around one raw comment.
@@ -48,23 +49,26 @@ pub enum CommentPosition {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Reflect)]
 pub struct CommentNewlines {
     /// Bit flags that describe newline boundaries.
-    pub bits: u8,
+    bits: u8,
 }
 
 impl CommentNewlines {
     /// Leading newline bit.
-    pub const LEADING: u8 = 1 << 0;
+    const LEADING: u8 = 1 << 0;
     /// Trailing newline bit.
-    pub const TRAILING: u8 = 1 << 1;
+    const TRAILING: u8 = 1 << 1;
 
     /// Create flags from booleans.
     #[inline]
     pub fn from_bools(has_leading_newline: bool, has_trailing_newline: bool) -> Self {
         let mut bits = 0u8;
 
+        // leading boundary
         if has_leading_newline {
             bits |= Self::LEADING;
         }
+
+        // trailing boundary
         if has_trailing_newline {
             bits |= Self::TRAILING;
         }
@@ -85,17 +89,15 @@ impl CommentNewlines {
     }
 }
 
-/// A raw source comment attached through the source side table.
+/// One retained source comment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Comment {
-    /// The span of the raw comment, including delimiters.
+    /// The source span of the raw comment, including delimiters.
     pub span: Span,
-    /// The token boundary this leading comment is attached to.
-    pub attached_to: u32,
+    /// The semantic token attachment.
+    pub anchor: CommentAnchor,
     /// The kind of the comment.
     pub kind: CommentKind,
-    /// The token-relative comment position.
-    pub position: CommentPosition,
     /// The newline shape around the comment.
     pub newlines: CommentNewlines,
     /// The structured comment content classification.
@@ -103,19 +105,6 @@ pub struct Comment {
 }
 
 impl Comment {
-    /// Create a comment with one token-relative position.
-    #[inline]
-    pub fn new(span: Span, kind: CommentKind) -> Self {
-        Self {
-            span,
-            attached_to: 0,
-            kind,
-            position: CommentPosition::Trailing,
-            newlines: CommentNewlines::default(),
-            content: CommentContent::None,
-        }
-    }
-
     /// Return the content span inside the comment delimiters.
     #[inline]
     pub fn content_span(self) -> Span {
@@ -148,16 +137,25 @@ impl Comment {
         self.kind == CommentKind::MultiLineBlock
     }
 
-    /// Return whether this comment is before a token boundary.
+    /// Return whether this comment belongs before a token.
     #[inline]
     pub fn is_leading(self) -> bool {
-        self.position == CommentPosition::Leading
+        matches!(self.anchor, CommentAnchor::Before(_))
     }
 
-    /// Return whether this comment is after a token boundary.
+    /// Return whether this comment belongs after a token.
     #[inline]
     pub fn is_trailing(self) -> bool {
-        self.position == CommentPosition::Trailing
+        matches!(self.anchor, CommentAnchor::After(_))
+    }
+
+    /// Return the following token offset for a leading comment.
+    #[inline]
+    pub fn following_token_start(self) -> Option<u32> {
+        match self.anchor {
+            CommentAnchor::Before(offset) => Some(offset),
+            CommentAnchor::After(_) | CommentAnchor::End => None,
+        }
     }
 
     /// Return whether this comment is classified as jsdoc.

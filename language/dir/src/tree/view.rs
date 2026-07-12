@@ -5,8 +5,8 @@ use indexmap::IndexSet;
 use smallvec::SmallVec;
 
 use crate::{
-    Comment, Decorator, Documentation, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeType,
-    Patch, Path, Tree, TreeStore,
+    Decorator, Documentation, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeType, Patch, Path,
+    Tree, TreeStore,
 };
 
 /// A borrowed DIR tree with ordered structural patches.
@@ -250,11 +250,6 @@ impl<'a> View<'a> {
         }
 
         decorators_by_node_id
-    }
-
-    /// Return source comments from the base tree.
-    pub fn comments(&self) -> &'a [Comment] {
-        self.tree.comments()
     }
 
     /// Iterate over visible node ids.
