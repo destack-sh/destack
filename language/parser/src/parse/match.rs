@@ -27,6 +27,8 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
+        let start = self.mark_parse_start();
+
         // match or switch
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
         let form = if keyword == Keyword::Switch {
@@ -34,18 +36,6 @@ impl Parser {
         } else {
             MatchForm::Match
         };
-
-        // (value) { cases }
-        self.parse_match_body(form, function)
-    }
-
-    /// Parse one match body after its keyword.
-    pub(crate) fn parse_match_body(
-        &mut self,
-        form: MatchForm,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.mark_parse_start();
 
         // (value)
         let value_id = self.parse_parenthesized_expression(ExpressionContext {

@@ -243,7 +243,7 @@ match (self) {
 }
 
 #[test]
-fn test_parse_match_parenthesized_value_keeps_inner_span() {
+fn test_parse_match_keeps_expression_and_value_spans() {
     let test = TestParser::new(
         r"
 match (value) {
@@ -255,12 +255,29 @@ match (value) {
 
     let match_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { value, .. } => {
+        let match_span = parser.tree.get_span(match_id);
+        assert_eq!(parser.span_str(match_span), "match (value) {\n    _ => result\n}");
+
         assert_expression_path!(parser, parser.tree.get(*value), "value");
 
         let value_span = parser.tree.get_span(*value);
         let value_text = &parser.file.text()[value_span.start as usize..value_span.end as usize];
         assert_eq!(value_text, "value");
     });
+}
+
+#[test]
+fn test_parse_switch_keeps_keyword_in_source_span() {
+    let test = TestParser::new("switch (value) { default: break }");
+    let mut parser = test.prepare();
+
+    let switch_id = parser.parse_match(Default::default()).unwrap();
+    let switch_span = parser.tree.get_span(switch_id);
+
+    assert_eq!(
+        parser.span_str(switch_span),
+        "switch (value) { default: break }"
+    );
 }
 
 #[test]
