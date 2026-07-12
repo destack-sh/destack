@@ -2,7 +2,7 @@ use crate::parse::context::{
     BraceContext, ExpressionContext, ExpressionStops, FunctionContext, StatementPosition,
 };
 use crate::parse::error::ParserResultExt;
-use crate::{ParseStart, Parser, ParserError, ParserResult};
+use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{
     Block, BlockContext, BlockForm, Expression, Keyword, LocalNodeId, NodeType, Token, TokenType,
 };
@@ -273,7 +273,6 @@ impl Parser {
         function: FunctionContext,
         block: Option<BlockFrame>,
     ) -> BlockItem {
-        let start = self.mark_parse_start();
         let context = ExpressionContext {
             function,
             statement: StatementPosition::Direct,
@@ -290,7 +289,7 @@ impl Parser {
             }
         };
 
-        self.classify_block_item(&start, expression, block)
+        self.classify_block_item(expression, block)
     }
 
     /// Parse one standalone statement expression with local recovery.
@@ -306,14 +305,11 @@ impl Parser {
     /// Classify one expression as a statement or block value tail.
     fn classify_block_item(
         &mut self,
-        start: &ParseStart,
         expression: LocalNodeId<Expression>,
         block: Option<BlockFrame>,
     ) -> BlockItem {
         // expression;
         if self.eat_token_if(TokenType::Semicolon) {
-            self.record_statement_range(expression, start);
-
             return BlockItem::Statement(expression);
         }
 
@@ -346,7 +342,6 @@ impl Parser {
             let error = ParserError::unexpected(self.peek_token_span());
             let recovery_start = self.mark_parse_start();
             self.recover_statement(self.range_since(&recovery_start), error);
-            self.record_statement_range(expression, start);
 
             return BlockItem::Statement(expression);
         }
@@ -355,19 +350,8 @@ impl Parser {
         if keeps_tail {
             BlockItem::Tail(expression)
         } else {
-            self.record_statement_range(expression, start);
-
             BlockItem::Statement(expression)
         }
-    }
-
-    /// Record the source range that makes one expression a statement.
-    fn record_statement_range(&mut self, expression: LocalNodeId<Expression>, start: &ParseStart) {
-        self.tree.set_side_range(
-            expression,
-            NodeSpanType::Region(NodeSpanRegion::Statement),
-            self.range_since(start),
-        );
     }
 
     /// Return true when a token can start a recovered statement item.

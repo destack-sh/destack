@@ -206,7 +206,7 @@ fn test_lex_tagged_template_strings_with_interpolation_nested() {
 /// Unterminated single-quoted strings at EOF should lex without hanging.
 #[test]
 fn test_lex_unterminated_single_quote_eof() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("'");
 
     assert_eq!(
         semantic_tokens,
@@ -223,13 +223,13 @@ fn test_lex_unterminated_single_quote_eof() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(trivia_tokens, vec![]);
 }
 
 /// Unterminated single-quoted strings ending in an escape should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_with_escape_eof() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\x");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens(r"'\x");
 
     assert_eq!(
         semantic_tokens,
@@ -246,13 +246,13 @@ fn test_lex_unterminated_single_quote_with_escape_eof() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(trivia_tokens, vec![]);
 }
 
 /// Unterminated single-quoted strings ending in a backslash should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'\\");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("'\\");
 
     assert_eq!(
         semantic_tokens,
@@ -269,13 +269,13 @@ fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(trivia_tokens, vec![]);
 }
 
 /// Unterminated single-quoted strings with partial hex escapes should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_hex_escape() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\x1");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens(r"'\x1");
 
     assert_eq!(
         semantic_tokens,
@@ -292,13 +292,13 @@ fn test_lex_unterminated_single_quote_hex_escape() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(trivia_tokens, vec![]);
 }
 
 /// Unterminated single-quoted strings with octal escapes should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_octal_escape() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\03");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens(r"'\03");
 
     assert_eq!(
         semantic_tokens,
@@ -315,13 +315,13 @@ fn test_lex_unterminated_single_quote_octal_escape() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(trivia_tokens, vec![]);
 }
 
 /// Single-quoted strings should terminate lexing before raw newlines.
 #[test]
 fn test_lex_single_quote_before_newline_is_unterminated() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'\n");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("'\n");
 
     assert_eq!(
         semantic_tokens,
@@ -338,13 +338,13 @@ fn test_lex_single_quote_before_newline_is_unterminated() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![token(TokenType::Newline, 1, None)]);
+    assert_eq!(trivia_tokens, vec![token(TokenType::Newline, 1, None)]);
 }
 
 /// Double-quoted strings should terminate lexing before raw newlines.
 #[test]
 fn test_lex_double_quote_with_newline_is_unterminated() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("\"hello\nworld\"");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("\"hello\nworld\"");
 
     assert_eq!(
         semantic_tokens,
@@ -370,7 +370,7 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![token(TokenType::Newline, 1, None)]);
+    assert_eq!(trivia_tokens, vec![token(TokenType::Newline, 1, None)]);
 }
 
 /// Legacy escaped digit sequences should be invalid.
@@ -388,7 +388,7 @@ fn test_lex_string_with_legacy_octal_escape_is_invalid() {
 /// Unterminated single-quoted strings inside parentheses should lex without hanging.
 #[test]
 fn test_lex_unterminated_single_quote_inside_parentheses() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("(')");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("(')");
 
     assert_eq!(
         semantic_tokens,
@@ -406,13 +406,13 @@ fn test_lex_unterminated_single_quote_inside_parentheses() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(trivia_tokens, vec![]);
 }
 
 /// Unterminated single-quoted strings should be marked as unterminated.
 #[test]
 fn test_lex_unterminated_single_quote_is_marked() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'abc");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("'abc");
 
     assert_eq!(
         semantic_tokens,
@@ -429,5 +429,5 @@ fn test_lex_unterminated_single_quote_is_marked() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(trivia_tokens, vec![]);
 }

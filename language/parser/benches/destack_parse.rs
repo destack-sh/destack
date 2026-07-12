@@ -2,7 +2,7 @@ use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_core::StringPool;
 use destack_dir::{Expression, TypeExpression};
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -40,7 +40,7 @@ struct Corpus {
 enum Stage {
     /// Lex the file into token buffers without parsing.
     Lex,
-    /// Parse root expressions without attaching comments.
+    /// Parse root expressions without final parser completion.
     ParseRoots,
     /// Parse the file through the full parser pipeline.
     Parse,
@@ -62,8 +62,6 @@ impl Stage {
 struct Stats {
     /// The semantic token count.
     tokens: u64,
-    /// The retained side token count.
-    side_tokens: u64,
     /// The parsed DIR node count.
     nodes: u64,
     /// The parsed expression count.
@@ -82,14 +80,13 @@ struct Stats {
 
 impl Stats {
     /// Summarize one parser after a benchmark stage.
-    fn from_parser(parser: &Parser, token_count: usize, side_token_count: usize) -> Self {
+    fn from_parser(parser: &Parser, token_count: usize) -> Self {
         Self {
             tokens: token_count as u64,
-            side_tokens: side_token_count as u64,
             nodes: parser.tree.node_count() as u64,
             expressions: parser.tree.iter_nodes::<Expression>().count() as u64,
             type_expressions: parser.tree.iter_nodes::<TypeExpression>().count() as u64,
-            comments: parser.tree.comments().len() as u64,
+            comments: parser.comments().len() as u64,
             errors: parser.errors.len() as u64,
             strings: parser.strings.len() as u64,
             string_bytes: parser.strings.owned_bytes() as u64,
@@ -99,7 +96,6 @@ impl Stats {
     /// Accumulate one summary into this summary.
     fn add(&mut self, other: Self) {
         self.tokens += other.tokens;
-        self.side_tokens += other.side_tokens;
         self.nodes += other.nodes;
         self.expressions += other.expressions;
         self.type_expressions += other.type_expressions;
@@ -124,21 +120,21 @@ fn worker_count() -> usize {
 /// Create one parser for a source file.
 fn prepare_parser(
     file: Arc<File>,
-    trivia_mode: ParserTriviaMode,
+    comment_retention: CommentRetention,
     strings: Arc<StringPool>,
 ) -> Parser {
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    Parser::lex_file_with_trivia(file, language_type, trivia_mode, strings)
+    Parser::lex_file_with_comment_retention(file, language_type, comment_retention, strings)
 }
 
 /// Parse one file through the full parser pipeline.
-fn parse_file(file: Arc<File>, trivia_mode: ParserTriviaMode, strings: Arc<StringPool>) -> Parser {
-    let mut parser = prepare_parser(file, trivia_mode, strings);
-    if trivia_mode.keeps_comments() {
-        parser.parse();
-    } else {
-        parser.parse_roots();
-    }
+fn parse_file(
+    file: Arc<File>,
+    comment_retention: CommentRetention,
+    strings: Arc<StringPool>,
+) -> Parser {
+    let mut parser = prepare_parser(file, comment_retention, strings);
+    parser.parse();
 
     parser
 }
@@ -147,27 +143,23 @@ fn parse_file(file: Arc<File>, trivia_mode: ParserTriviaMode, strings: Arc<Strin
 fn run_stage(
     file: Arc<File>,
     stage: Stage,
-    trivia_mode: ParserTriviaMode,
+    comment_retention: CommentRetention,
     strings: Arc<StringPool>,
 ) {
     match stage {
         Stage::Lex => {
-            let mut parser = prepare_parser(file, trivia_mode, strings);
+            let mut parser = prepare_parser(file, comment_retention, strings);
             let tokens = parser.take_tokens();
             black_box(tokens);
         }
         Stage::ParseRoots => {
-            let mut parser = prepare_parser(file, trivia_mode, strings);
+            let mut parser = prepare_parser(file, comment_retention, strings);
             let roots = parser.parse_roots();
             black_box((parser, roots));
         }
         Stage::Parse => {
-            let mut parser = prepare_parser(file, trivia_mode, strings);
-            let roots = if trivia_mode.keeps_comments() {
-                parser.parse()
-            } else {
-                parser.parse_roots()
-            };
+            let mut parser = prepare_parser(file, comment_retention, strings);
+            let roots = parser.parse();
             black_box((parser, roots));
         }
     }
@@ -177,10 +169,10 @@ fn run_stage(
 fn summarize_stage(
     file: Arc<File>,
     stage: Stage,
-    trivia_mode: ParserTriviaMode,
+    comment_retention: CommentRetention,
     strings: Arc<StringPool>,
 ) -> Stats {
-    let mut parser = prepare_parser(file, trivia_mode, strings);
+    let mut parser = prepare_parser(file, comment_retention, strings);
 
     // run the selected stage
     match stage {
@@ -189,29 +181,25 @@ fn summarize_stage(
             parser.parse_roots();
         }
         Stage::Parse => {
-            if trivia_mode.keeps_comments() {
-                parser.parse();
-            } else {
-                parser.parse_roots();
-            }
+            parser.parse();
         }
     }
 
     // summarize retained parser state
-    let (tokens, side_tokens) = parser.take_tokens();
+    let tokens = parser.take_tokens();
 
-    Stats::from_parser(&parser, tokens.len(), side_tokens.len())
+    Stats::from_parser(&parser, tokens.len())
 }
 
 /// Summarize one parser benchmark stage for one corpus.
-fn summarize_corpus(corpus: &Corpus, stage: Stage, trivia_mode: ParserTriviaMode) -> Stats {
+fn summarize_corpus(corpus: &Corpus, stage: Stage, comment_retention: CommentRetention) -> Stats {
     let mut stats = Stats::default();
 
     for file in &corpus.files {
         stats.add(summarize_stage(
             file.clone(),
             stage,
-            trivia_mode,
+            comment_retention,
             corpus.strings.clone(),
         ));
     }
@@ -219,29 +207,26 @@ fn summarize_corpus(corpus: &Corpus, stage: Stage, trivia_mode: ParserTriviaMode
     stats
 }
 
-/// Return the benchmark name for a parser trivia mode.
-fn trivia_mode_name(trivia_mode: ParserTriviaMode) -> &'static str {
-    match trivia_mode {
-        ParserTriviaMode::Ignore => "ignore",
-        ParserTriviaMode::Documentation => "documentation",
-        ParserTriviaMode::Full => "full",
+/// Return the benchmark name for one comment retention mode.
+fn comment_retention_name(comment_retention: CommentRetention) -> &'static str {
+    match comment_retention {
+        CommentRetention::Ignore => "ignore",
+        CommentRetention::Documentation => "documentation",
+        CommentRetention::All => "all",
     }
 }
 
-/// Return the parser trivia mode for benchmarks.
-fn trivia_mode() -> ParserTriviaMode {
-    let Some(value) = env::var("DESTACK_PARSE_TRIVIA")
-        .ok()
-        .or_else(|| env::var("DESTACK_PARSE_RETAIN_TRIVIA").ok())
-    else {
-        return ParserTriviaMode::Documentation;
+/// Return the comment retention mode for benchmarks.
+fn comment_retention() -> CommentRetention {
+    let Some(value) = env::var("DESTACK_PARSE_COMMENTS").ok() else {
+        return CommentRetention::Documentation;
     };
 
     match value.as_str() {
-        "0" | "false" | "False" | "FALSE" | "ignore" => ParserTriviaMode::Ignore,
-        "doc" | "docs" | "documentation" => ParserTriviaMode::Documentation,
-        "1" | "true" | "True" | "TRUE" | "full" | "trivia" => ParserTriviaMode::Full,
-        _ => panic!("invalid parser trivia mode: {value}"),
+        "0" | "false" | "False" | "FALSE" | "ignore" => CommentRetention::Ignore,
+        "doc" | "docs" | "documentation" => CommentRetention::Documentation,
+        "1" | "true" | "True" | "TRUE" | "all" => CommentRetention::All,
+        _ => panic!("invalid parser comment retention: {value}"),
     }
 }
 
@@ -641,23 +626,22 @@ fn bench_parse(criterion: &mut Criterion) {
     );
 
     let mut group = criterion.benchmark_group("destack_parser");
-    let trivia_mode = trivia_mode();
-    let trivia_mode_name = trivia_mode_name(trivia_mode);
+    let comment_retention = comment_retention();
+    let comment_retention_name = comment_retention_name(comment_retention);
     let stage = benchmark_stage();
     let stage_name = stage.name();
 
     for corpus in &corpora {
-        let stats = summarize_corpus(corpus, stage, trivia_mode);
+        let stats = summarize_corpus(corpus, stage, comment_retention);
         eprintln!(
-            "parser corpus {}: {} stage, {} trivia, {} files, {} bytes, {} lines, {} tokens, {} side tokens, {} nodes, {} expressions, {} type expressions, {} comments, {} strings, {} string bytes, {} errors",
+            "parser corpus {}: {} stage, {} comments, {} files, {} bytes, {} lines, {} tokens, {} nodes, {} expressions, {} type expressions, {} retained comments, {} strings, {} string bytes, {} errors",
             corpus.name,
             stage_name,
-            trivia_mode_name,
+            comment_retention_name,
             corpus.files.len(),
             corpus.bytes,
             corpus.lines,
             stats.tokens,
-            stats.side_tokens,
             stats.nodes,
             stats.expressions,
             stats.type_expressions,
@@ -669,14 +653,19 @@ fn bench_parse(criterion: &mut Criterion) {
         group.throughput(Throughput::Bytes(corpus.bytes));
         group.bench_with_input(
             BenchmarkId::new(
-                format!("{stage_name}_{trivia_mode_name}"),
+                format!("{stage_name}_{comment_retention_name}"),
                 corpus.name.as_str(),
             ),
             corpus,
             |bencher, corpus| {
                 bencher.iter(|| {
                     for file in &corpus.files {
-                        run_stage(file.clone(), stage, trivia_mode, corpus.strings.clone());
+                        run_stage(
+                            file.clone(),
+                            stage,
+                            comment_retention,
+                            corpus.strings.clone(),
+                        );
                     }
                 });
             },
@@ -739,18 +728,18 @@ fn bench_parse_single(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("destack_parser_single");
     group.throughput(Throughput::Elements(total_lines));
     let worker_count = worker_count();
-    let trivia_mode = trivia_mode();
-    let trivia_mode_name = trivia_mode_name(trivia_mode);
+    let comment_retention = comment_retention();
+    let comment_retention_name = comment_retention_name(comment_retention);
     let strings = Arc::new(StringPool::new());
 
     // oxc style: single thread parse
     group.bench_with_input(
-        BenchmarkId::new(format!("parse_{trivia_mode_name}"), "single-thread"),
+        BenchmarkId::new(format!("parse_{comment_retention_name}"), "single-thread"),
         &file,
         |bencher, file| {
             bencher.iter(|| {
                 // parse full pipeline
-                let parser = parse_file(file.clone(), trivia_mode, strings.clone());
+                let parser = parse_file(file.clone(), comment_retention, strings.clone());
                 black_box(parser);
             });
         },
@@ -758,21 +747,23 @@ fn bench_parse_single(criterion: &mut Criterion) {
 
     // oxc style: no drop parse
     group.bench_with_input(
-        BenchmarkId::new(format!("parse_{trivia_mode_name}"), "no-drop"),
+        BenchmarkId::new(format!("parse_{comment_retention_name}"), "no-drop"),
         &file,
         |bencher, file| {
-            bencher.iter_with_large_drop(|| parse_file(file.clone(), trivia_mode, strings.clone()));
+            bencher.iter_with_large_drop(|| {
+                parse_file(file.clone(), comment_retention, strings.clone())
+            });
         },
     );
 
     // oxc style: parallel parse throughput
     group.bench_with_input(
-        BenchmarkId::new(format!("parse_{trivia_mode_name}"), "parallel"),
+        BenchmarkId::new(format!("parse_{comment_retention_name}"), "parallel"),
         &file,
         |bencher, file| {
             bencher.iter(|| {
                 (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_file(file.clone(), trivia_mode, strings.clone());
+                    let parser = parse_file(file.clone(), comment_retention, strings.clone());
                     black_box(parser);
                 });
             });

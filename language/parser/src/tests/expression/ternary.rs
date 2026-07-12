@@ -145,7 +145,7 @@ fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
     let test = TestParser::new("cond ? // then-boundary\nleft : // else-boundary\nright");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected ternary else branch");
@@ -164,7 +164,7 @@ fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
         let _ = else_expression_id;
     });
 
-    assert_eq!(parser.tree.comments().len(), 2);
+    assert_eq!(parser.comments().len(), 2);
     assert_comment!(parser, 0, CommentKind::Line, "then-boundary");
     assert_comment!(parser, 1, CommentKind::Line, "else-boundary");
 }
@@ -175,7 +175,7 @@ fn test_parse_if_ternary_inline_branch_comment_keeps_branch_token_span() {
     let test = TestParser::new("condition ? null /* branch-note */ : other");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
         let then_span = parser.tree.get_span(*then_expression);
@@ -191,7 +191,7 @@ fn test_parse_if_ternary_inline_branch_comment_keeps_branch_token_span() {
         assert_eq!(parser.span_str(else_span), "other");
     });
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " branch-note");
 }
 
@@ -201,7 +201,7 @@ fn test_parse_if_ternary_nested_tree_branches_keep_token_spans() {
     let test = TestParser::new("condition ? null /* branch-note */ : other ? <A /> : <B />");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
         let nested_id = else_expression.expect("expected nested else ternary");

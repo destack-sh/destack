@@ -86,7 +86,7 @@ impl Parser {
 
         // set import attribute source ranges
         if let Some(import_clause) = import_clause {
-            self.set_import_attribute_clause_ranges(import_id, &import_clause)?;
+            self.set_import_attribute_ranges(import_id, &import_clause)?;
         }
 
         Ok(import_id)
@@ -181,12 +181,25 @@ impl Parser {
             DependencyForm::Plain
         };
 
-        // export * from
-        let has_namespace_reexport_from = self.peek_is(TokenType::Multiply) && {
-            self.peek_next_keyword() == Some(Keyword::From)
-        };
-        if has_namespace_reexport_from {
+        // namespace export
+        if self.peek_is(TokenType::Multiply) {
+            let item_start = self.mark_parse_start();
             self.bump();
+
+            // optional exported namespace name
+            let (alias, alias_range) = if self.peek_is_keyword(Keyword::As) {
+                self.bump();
+                if self.peek_is_keyword(Keyword::From) {
+                    return Err(ParserError::unexpected(self.peek_token_span()));
+                }
+
+                let (alias, range) = self.eat_dependency_item_alias_with_range(true)?;
+                (Some(alias), Some(range))
+            } else {
+                (None, None)
+            };
+
+            // required module target
             self.eat_keyword(Keyword::From)?;
             let (target, target_range) = self.eat_dependency_target_with_range()?;
             let import_clause = self.parse_import_clause(function)?;
@@ -197,10 +210,15 @@ impl Parser {
                 binding: DependencyBinding::Namespace,
                 form: None,
                 name: None,
-                alias: None,
+                alias,
                 value: None,
             };
-            let item_id = self.insert_node(item, self.range_since(&start));
+            let item_id = self.insert_node(item, self.range_since(&item_start));
+            if let Some(alias_range) = alias_range {
+                self.tree.set_main_range(item_id, alias_range);
+            }
+
+            // export declaration
             let export = self.insert_node(
                 Expression::Export {
                     form,
@@ -216,7 +234,7 @@ impl Parser {
 
             // set import attribute source ranges
             if let Some(import_clause) = import_clause {
-                self.set_import_attribute_clause_ranges(export, &import_clause)?;
+                self.set_import_attribute_ranges(export, &import_clause)?;
             }
 
             return Ok(export);
@@ -230,6 +248,8 @@ impl Parser {
         // binding
         let allow_type_modifier = form != DependencyForm::Type;
         let items = self.parse_dependency_items(allow_type_modifier, true, function)?;
+
+        // optional target for named exports
         let has_from_target = self.peek_is_keyword(Keyword::From);
         let (target, target_range) = if has_from_target {
             self.eat_keyword(Keyword::From)?;
@@ -287,7 +307,7 @@ impl Parser {
 
         // set import attribute source ranges
         if let Some(import_clause) = import_clause {
-            self.set_import_attribute_clause_ranges(export_id, &import_clause)?;
+            self.set_import_attribute_ranges(export_id, &import_clause)?;
         }
 
         Ok(export_id)
@@ -354,14 +374,14 @@ impl Parser {
     }
 
     /// Record source regions for one import attribute clause.
-    fn set_import_attribute_clause_ranges(
+    fn set_import_attribute_ranges(
         &mut self,
         node_id: LocalNodeId<Expression>,
         import_clause: &ImportClause,
     ) -> ParserResult<()> {
         self.tree.set_side_range(
             node_id,
-            NodeSpanType::Region(NodeSpanRegion::Clause),
+            NodeSpanType::Region(NodeSpanRegion::Attributes),
             import_clause.range,
         );
 

@@ -288,7 +288,7 @@ fn test_parse_member_method_body_boundary_comment_on_return_type() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
     assert_node!(parser.tree, member, Member::Method { signature, body: Some(body), .. } => {
         let return_type = signature.return_type.expect("expected return type");
         let return_type_annotations = parser.tree.get_decorators(return_type.id);
@@ -303,7 +303,7 @@ fn test_parse_member_method_body_boundary_comment_on_return_type() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "method-body");
 }
 
@@ -1269,7 +1269,7 @@ fn test_parse_class_member_trailing_comments_stay_on_member_owner() {
             assert!(second_annotations.is_empty());
         });
     });
-    assert_eq!(parser.tree.comments().len(), 2);
+    assert_eq!(parser.comments().len(), 2);
     assert_comment!(parser, 0, CommentKind::Line, "first-tail");
     assert_comment!(parser, 1, CommentKind::Line, "second-tail");
 }

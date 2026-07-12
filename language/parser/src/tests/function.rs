@@ -1,15 +1,15 @@
 use destack_dir::{
-    Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind, CommentPosition,
-    Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
-    GenericArgument, GenericParameter, IntegerType, Mutability, NodeType, Parameter, Pattern,
-    PatternField, ScalarLiteral, ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
+    Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind, Declaration,
+    Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase, GenericArgument,
+    GenericParameter, IntegerType, Mutability, NodeType, Parameter, Pattern, PatternField,
+    ScalarLiteral, ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
     UnaryOperator, VarianceModifier, WhereClause, YieldCardinality,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{
-    ParserTriviaMode, TestParser, assert_comment, assert_expression_path, assert_name, assert_node,
+    CommentRetention, TestParser, assert_comment, assert_expression_path, assert_name, assert_node,
     assert_path, assert_string,
 };
 
@@ -666,6 +666,17 @@ fn test_parse_function_lambda_with_explicit_return_type() {
             assert_string!(parser, *name, "x");
         });
     });
+}
+
+/// Recover an unclosed lambda return type before the following declaration.
+#[test]
+fn test_recover_unclosed_lambda_return_type() {
+    let test = TestParser::new("const broken = (value): { item: ;\nconst recovered = value;");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 2);
+    assert_eq!(parser.errors.len(), 1);
 }
 
 /// Parse parenthesized void return types in arrow functions.
@@ -1640,12 +1651,12 @@ fn test_parse_lambda_head_boundary_comment_on_function_owner() {
     let function_id = parser
         .parse_function(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
     assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { .. }) => {
         let annotations = parser.tree.get_decorators(function_id.id);
         assert!(annotations.is_empty());
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " lambda-head");
 }
 
@@ -1655,7 +1666,7 @@ fn test_parse_lambda_body_boundary_comment_on_body_owner() {
     let mut parser = test.prepare();
 
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             assert_expression_path!(parser, parser.tree.get(*body_id), "x");
@@ -1664,7 +1675,7 @@ fn test_parse_lambda_body_boundary_comment_on_body_owner() {
             assert!(annotations.is_empty());
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "lambda-body");
 }
 
@@ -1675,7 +1686,7 @@ fn test_parse_empty_parenthesized_lambda_with_comment() {
     let mut parser = test.prepare();
 
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -1683,7 +1694,7 @@ fn test_parse_empty_parenthesized_lambda_with_comment() {
             assert!(signature.parameters.is_empty());
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " empty");
 }
 
@@ -1693,20 +1704,20 @@ fn test_parse_lambda_comment_only_block_body_attaches_inside_block() {
     let mut parser = test.prepare();
 
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
             let body_span = parser.tree.get_span(*body_id);
-            let comment = parser.tree.comments()[0];
+            let comment = parser.comments()[0];
 
-            assert_eq!(comment.position, CommentPosition::Leading);
+            assert!(comment.is_leading());
             assert!(comment.span.start >= body_span.start);
             assert!(comment.span.end <= body_span.end);
         });
     });
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "code");
 }
 
@@ -1719,18 +1730,17 @@ fn test_parse_function_body_boundary_line_comment_stays_trailing() {
     let function_id = parser
         .parse_function(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
         let body_span = parser.tree.get_span(*body_id);
-        let comment = parser.tree.comments()[0];
+        let comment = parser.comments()[0];
 
-        assert_eq!(comment.position, CommentPosition::Trailing);
-        assert_eq!(comment.attached_to, 0);
+        assert!(comment.is_trailing());
         assert!(comment.span.end <= body_span.start);
     });
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "body");
 }
 
@@ -1779,7 +1789,7 @@ fn test_parse_parenthesized_arrow_call() {
 fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
     // source: (() => {})()
     let test = TestParser::new("(() => {})()");
-    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
+    let mut parser = test.prepare_with_comment_retention(CommentRetention::All);
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // (() => {})()

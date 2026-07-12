@@ -1,4 +1,4 @@
-use crate::{Lexer, ParserTriviaMode, TokenProbe, Tokenizer};
+use crate::{CommentRetention, Lexer, TokenProbe, Tokenizer};
 use destack_dir::{Comment, Token, TokenLiteral, TokenType};
 use destack_source::{ByteRange, File};
 use std::mem;
@@ -50,11 +50,9 @@ pub(crate) struct TokenCursor {
     edits: Vec<TokenEdit>,
     /// The dense parser-visible tokens referenced by the edits.
     replacements: Vec<Token>,
-    /// The retained non-semantic tokens in source order.
-    side_tokens: Vec<Token>,
     /// The structured comments collected during tokenization.
     comments: Vec<Comment>,
-    /// Contextual ranges whose ordinary trivia classification is invalid.
+    /// Contextual ranges that replace ordinarily recognized comments.
     contextual_ranges: Vec<ByteRange>,
     /// The end offset of the previous parser-visible token.
     previous_end: u32,
@@ -62,13 +60,13 @@ pub(crate) struct TokenCursor {
 
 impl TokenCursor {
     /// Tokenize one file and create a cursor at its first visible token.
-    pub(crate) fn new(file: Arc<File>, trivia_mode: ParserTriviaMode) -> Self {
+    pub(crate) fn new(file: Arc<File>, comment_retention: CommentRetention) -> Self {
         let source_len = file.len;
         let mut lexer = Lexer::new(file);
-        lexer.set_trivia_mode(trivia_mode);
+        lexer.set_comment_retention(comment_retention);
         lexer.lex_to_end();
         let comments = lexer.take_comments();
-        let (tokens, side_tokens) = lexer.take_tokens();
+        let tokens = lexer.take_tokens();
         let current = tokens[0];
         #[cfg(test)]
         let consumed = Vec::with_capacity(tokens.len());
@@ -85,7 +83,6 @@ impl TokenCursor {
             edits: Vec::new(),
             replacements: Vec::new(),
             tokens,
-            side_tokens,
             comments,
             contextual_ranges: Vec::new(),
             previous_end: 0,
@@ -98,10 +95,10 @@ impl TokenCursor {
         self.tokens.len()
     }
 
-    /// Return the number of retained structured comments.
+    /// Return retained comments in source order.
     #[inline]
-    pub(crate) fn comment_count(&self) -> usize {
-        self.comments.len()
+    pub(crate) fn comments(&self) -> &[Comment] {
+        &self.comments
     }
 
     /// Return the current visible token.
@@ -277,7 +274,7 @@ impl TokenCursor {
         token
     }
 
-    /// Record trivia coverage for one contextual tree-text token.
+    /// Record comment coverage for one contextual tree-text token.
     fn record_tree_text_range(&mut self) {
         let current = self.current;
         let is_tree_text = current.is(TokenType::Literal)
@@ -294,8 +291,8 @@ impl TokenCursor {
         }
     }
 
-    /// Finish the parser-visible token stream and return both token buffers.
-    pub(crate) fn take_tokens(&mut self) -> (Vec<Token>, Vec<Token>) {
+    /// Finish and return the parser-visible semantic token stream.
+    pub(crate) fn take_tokens(&mut self) -> Vec<Token> {
         // retain the current contextual token and every pending split suffix
         if !self.is_current_ordinary && !self.current.is(TokenType::End) {
             self.record_edit(self.current);
@@ -304,19 +301,23 @@ impl TokenCursor {
             self.record_edit(split);
         }
 
-        // finalize contextual trivia and materialize sparse token replacements
+        // remove contextual comments and materialize sparse token replacements
         self.record_tree_text_range();
-        self.remove_contextual_trivia();
-        let tokens = self.materialize_tokens();
+        self.remove_contextual_comments();
 
-        (tokens, mem::take(&mut self.side_tokens))
+        self.materialize_tokens()
     }
 
-    /// Return retained comments after removing contextually covered trivia.
+    /// Return retained comments after removing contextually covered comments.
     pub(crate) fn take_comments(&mut self) -> Vec<Comment> {
-        self.remove_contextual_trivia();
+        self.finalize_comments();
 
         mem::take(&mut self.comments)
+    }
+
+    /// Remove comments replaced by contextual tokenization.
+    pub(crate) fn finalize_comments(&mut self) {
+        self.remove_contextual_comments();
     }
 
     /// Read one visible token in one tokenization mode.
@@ -387,7 +388,7 @@ impl TokenCursor {
         }
     }
 
-    /// Record one contextual range that invalidates ordinary trivia tokens.
+    /// Record one contextual range that replaces ordinary comment recognition.
     fn record_contextual_range(&mut self, token: Token) {
         let range = token.range();
 
@@ -478,25 +479,14 @@ impl TokenCursor {
         tokens
     }
 
-    /// Remove ordinary trivia covered by contextual tokenization.
-    fn remove_contextual_trivia(&mut self) {
+    /// Remove comments covered by contextual tokenization.
+    fn remove_contextual_comments(&mut self) {
         if self.contextual_ranges.is_empty() {
             return;
         }
 
-        // remove covered side tokens in one ordered pass
-        let mut range_index = 0;
-        self.side_tokens.retain(|token| {
-            !Self::is_range_covered(
-                &self.contextual_ranges,
-                &mut range_index,
-                token.start(),
-                token.end(),
-            )
-        });
-
         // remove covered structured comments in one ordered pass
-        range_index = 0;
+        let mut range_index = 0;
         self.comments.retain(|comment| {
             !Self::is_range_covered(
                 &self.contextual_ranges,

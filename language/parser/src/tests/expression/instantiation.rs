@@ -1,6 +1,6 @@
 use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::tests::TestParser;
-use crate::{ParserTriviaMode, assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{CommentRetention, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Key, Name,
     Pattern, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
@@ -83,7 +83,7 @@ fn test_parse_instantiation_expression_parenthesized() {
 #[test]
 fn test_parse_parenthesized_instantiation_expression_statement() {
     let test = TestParser::new("(f<T>)<K>;");
-    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
+    let mut parser = test.prepare_with_comment_retention(CommentRetention::All);
     let expressions = parser.parse();
 
     TestParser::assert_no_errors(&parser);

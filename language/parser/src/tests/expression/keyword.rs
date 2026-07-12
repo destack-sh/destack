@@ -191,9 +191,9 @@ fn test_parse_if_is_type_guard_comment_boundaries() {
         TestParser::new("if (value /* checked value */ is /* expected type */ string) { value }");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
-    assert_eq!(parser.tree.comments().len(), 2);
+    assert_eq!(parser.comments().len(), 2);
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");

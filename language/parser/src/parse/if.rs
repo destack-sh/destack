@@ -233,7 +233,7 @@ impl Parser {
         if let Some(clause) = else_clause {
             self.tree.set_side_range(
                 if_id,
-                NodeSpanType::Region(NodeSpanRegion::Clause),
+                NodeSpanType::Region(NodeSpanRegion::Else),
                 clause.range,
             );
         }

@@ -193,7 +193,7 @@ fn test_where_clause_constraint_with_boundary_comment() {
     let test = TestParser::new(source);
     let mut parser = test.prepare();
     let clauses = parser.parse_where(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_eq!(clauses.len(), 1);
 
@@ -213,7 +213,7 @@ fn test_where_clause_constraint_with_boundary_comment() {
     assert_eq!(parser.span_str(type_range), ": // bound-note\nNumeric");
 
     // // bound-note
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "bound-note");
 }
 

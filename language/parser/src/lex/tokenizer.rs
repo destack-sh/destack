@@ -74,10 +74,10 @@ impl Tokenizer {
         self.scanner.position()
     }
 
-    /// Return whether the most recent side token contained a line terminator.
+    /// Return whether the most recent trivia token contained a line terminator.
     #[inline]
-    pub(crate) fn side_token_has_line_terminator(&self) -> bool {
-        self.state.last_side_token_has_line_terminator
+    pub(crate) fn trivia_token_has_line_terminator(&self) -> bool {
+        self.state.last_trivia_token_has_line_terminator
     }
 
     /// Eat characters while one predicate accepts them.
@@ -99,8 +99,8 @@ pub(super) struct TokenizerState {
     pub(super) interpolation_depths: Vec<i32>,
     /// The current grouping delimiter depth.
     pub(super) delimiter_depth: i32,
-    /// Whether the most recent side token contained a line terminator.
-    pub(super) last_side_token_has_line_terminator: bool,
+    /// Whether the most recent trivia token contained a line terminator.
+    pub(super) last_trivia_token_has_line_terminator: bool,
 }
 
 impl TokenizerState {

@@ -25,7 +25,7 @@ fn test_lex_string_literal_after_import_from_without_space() {
 /// Slash after a switch header should remain divide punctuation.
 #[test]
 fn test_lex_divide_after_switch_header() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("switch (x) /foo/");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("switch (x) /foo/");
 
     assert_eq!(
         semantic_tokens,
@@ -42,7 +42,7 @@ fn test_lex_divide_after_switch_header() {
     );
 
     assert_eq!(
-        side_tokens,
+        trivia_tokens,
         vec![
             token(TokenType::Whitespace, 1, None),
             token(TokenType::Whitespace, 1, None),
@@ -53,7 +53,7 @@ fn test_lex_divide_after_switch_header() {
 /// Slash after a catch header should remain divide punctuation.
 #[test]
 fn test_lex_divide_after_catch_header() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("catch (e) /foo/");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("catch (e) /foo/");
 
     assert_eq!(
         semantic_tokens,
@@ -70,7 +70,7 @@ fn test_lex_divide_after_catch_header() {
     );
 
     assert_eq!(
-        side_tokens,
+        trivia_tokens,
         vec![
             token(TokenType::Whitespace, 1, None),
             token(TokenType::Whitespace, 1, None),
@@ -97,7 +97,7 @@ fn test_lex_regex_like_source_stays_raw() {
 /// Regex-like expression source should remain raw slash and identifier tokens.
 #[test]
 fn test_lex_regex_like_source_in_expression_context_stays_raw() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("const f = () => /foo/.test(value)");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("const f = () => /foo/.test(value)");
 
     assert_eq!(
         semantic_tokens,
@@ -121,7 +121,7 @@ fn test_lex_regex_like_source_in_expression_context_stays_raw() {
     );
 
     assert_eq!(
-        side_tokens,
+        trivia_tokens,
         vec![
             token(TokenType::Whitespace, 1, None),
             token(TokenType::Whitespace, 1, None),

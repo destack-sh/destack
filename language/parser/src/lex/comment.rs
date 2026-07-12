@@ -1,56 +1,78 @@
 use memchr::memchr_iter;
+use smallvec::SmallVec;
 
 use destack_dir::{
-    Comment, CommentContent, CommentKind, CommentNewlines, CommentPosition, TokenSpan, TokenType,
+    Comment, CommentAnchor, CommentContent, CommentKind, CommentNewlines, TokenSpan, TokenType,
 };
 
-use super::ParserTriviaMode;
+use super::CommentRetention;
 
-/// Live lexer state for comment attachment.
+/// One retained comment awaiting a token anchor.
 #[derive(Debug, Copy, Clone)]
-struct TriviaState {
-    /// The number of comments already assigned to a following token.
-    processed: usize,
+struct PendingComment {
+    /// The source span of the raw comment, including delimiters.
+    span: destack_source::Span,
+    /// The kind of the comment.
+    kind: CommentKind,
+    /// The newline shape around the comment.
+    newlines: CommentNewlines,
+    /// The structured comment content classification.
+    content: CommentContent,
+}
+
+impl PendingComment {
+    /// Attach this comment to the semantic token stream.
+    fn anchor(self, anchor: CommentAnchor) -> Comment {
+        Comment {
+            span: self.span,
+            anchor,
+            kind: self.kind,
+            newlines: self.newlines,
+            content: self.content,
+        }
+    }
+
+    /// Record whether a newline follows this comment.
+    fn set_followed_by_newline(&mut self, has_newline: bool) {
+        self.newlines =
+            CommentNewlines::from_bools(self.newlines.has_leading_newline(), has_newline);
+    }
+}
+
+/// Live lexer comment state.
+#[derive(Debug)]
+pub(super) struct LexerComments {
+    /// The anchored comments in source order.
+    comments: Vec<Comment>,
+    /// The retained comments awaiting a token anchor.
+    pending: SmallVec<[PendingComment; 2]>,
     /// Whether the cursor is after a newline following the previous token.
-    is_after_token_newline: bool,
+    has_newline_after_previous_token: bool,
     /// Whether the next comment starts after a newline.
     has_newline_before_next_comment: bool,
     /// The previous non-newline semantic token type.
     previous_token_type: TokenType,
+    /// The previous semantic token start.
+    previous_token_start: u32,
 }
 
-impl TriviaState {
-    /// Create attachment state at the beginning of a file.
-    fn new() -> Self {
-        Self {
-            processed: 0,
-            is_after_token_newline: true,
-            has_newline_before_next_comment: true,
-            previous_token_type: TokenType::End,
-        }
-    }
-}
-
-/// Live lexer trivia state.
-#[derive(Debug)]
-pub(super) struct Trivia {
-    /// The collected comments in source order.
-    comments: Vec<Comment>,
-    /// The live state for comment attachment.
-    state: TriviaState,
-}
-
-impl Trivia {
-    /// Create one trivia state with newline-leading initial state.
+impl LexerComments {
+    /// Create one comment buffer with newline-leading initial state.
     pub(super) fn new() -> Self {
         Self {
             comments: Vec::new(),
-            state: TriviaState::new(),
+            pending: SmallVec::new(),
+            has_newline_after_previous_token: true,
+            has_newline_before_next_comment: true,
+            previous_token_type: TokenType::End,
+            previous_token_start: 0,
         }
     }
 
-    /// Take the collected comments and leave the trivia store empty.
+    /// Take the retained comments and leave the comment buffer empty.
     pub(super) fn take_comments(&mut self) -> Vec<Comment> {
+        debug_assert!(self.pending.is_empty());
+
         std::mem::take(&mut self.comments)
     }
 
@@ -70,96 +92,78 @@ impl Trivia {
     }
 
     /// Record one newline boundary after pending comments.
-    pub(super) fn record_newline(&mut self, boundary_start: u32) {
-        let active_comment_end = self.active_comment_end(boundary_start);
+    pub(super) fn record_newline(&mut self) {
+        // mark the final pending comment as line terminated
+        if let Some(last_comment) = self.pending.last_mut() {
+            last_comment.set_followed_by_newline(true);
 
-        if self.state.processed < active_comment_end {
-            let last_comment = &mut self.comments[active_comment_end - 1];
-            last_comment.newlines.bits |= CommentNewlines::TRAILING;
-
-            if !self.state.is_after_token_newline {
-                self.state.processed = active_comment_end;
+            // anchor same line comments after the preceding token
+            if self.is_comment_trailing() {
+                let anchor = CommentAnchor::After(self.previous_token_start);
+                self.anchor_pending(anchor);
             }
         }
 
-        self.state.is_after_token_newline = true;
-        self.state.has_newline_before_next_comment = true;
-    }
-
-    /// Record one skipped side-token boundary.
-    pub(super) fn record_skipped_side_token(&mut self, boundary_start: u32) {
-        let active_comment_end = self.active_comment_end(boundary_start);
-
-        if self.state.processed < active_comment_end {
-            let last_comment = &mut self.comments[active_comment_end - 1];
-            last_comment.newlines.bits |= CommentNewlines::TRAILING;
-        }
+        self.has_newline_after_previous_token = true;
+        self.has_newline_before_next_comment = true;
     }
 
     /// Attach pending leading comments to one semantic token start.
     pub(super) fn record_token(&mut self, token_type: TokenType, start: u32) {
-        self.state.previous_token_type = token_type;
+        // anchor pending comments before this token or at end of source
+        let anchor = if token_type == TokenType::End {
+            CommentAnchor::End
+        } else {
+            CommentAnchor::Before(start)
+        };
+        self.anchor_pending(anchor);
 
-        let active_comment_end = self.active_comment_end(start);
-
-        if self.state.processed < active_comment_end {
-            for index in self.state.processed..active_comment_end {
-                let comment = &mut self.comments[index];
-                comment.position = CommentPosition::Leading;
-                comment.attached_to = start;
-            }
-
-            self.state.processed = active_comment_end;
-        }
-
-        self.state.is_after_token_newline = false;
-        self.state.has_newline_before_next_comment = false;
+        self.previous_token_type = token_type;
+        self.previous_token_start = start;
+        self.has_newline_after_previous_token = false;
+        self.has_newline_before_next_comment = false;
     }
 
     /// Record one comment and classify its token-local attachment.
     fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, content: CommentContent) {
-        let mut comment = Comment::new(token_span.span, kind);
-        comment.newlines =
-            CommentNewlines::from_bools(self.state.has_newline_before_next_comment, false);
-        comment.content = content;
+        let mut comment = PendingComment {
+            span: token_span.span,
+            kind,
+            newlines: CommentNewlines::from_bools(self.has_newline_before_next_comment, false),
+            content,
+        };
 
         // line comments always end the current line
         if kind == CommentKind::Line {
-            comment.newlines.bits |= CommentNewlines::TRAILING;
+            comment.set_followed_by_newline(true);
+            self.pending.push(comment);
 
-            if self.should_attach_comment_to_previous_token() {
-                self.state.processed = self.comments.len() + 1;
+            if self.is_comment_trailing() {
+                let anchor = CommentAnchor::After(self.previous_token_start);
+                self.anchor_pending(anchor);
             }
 
-            self.state.is_after_token_newline = true;
-            self.state.has_newline_before_next_comment = true;
+            self.has_newline_after_previous_token = true;
+            self.has_newline_before_next_comment = true;
         }
         // block comments only affect the local boundary
         else {
-            self.state.has_newline_before_next_comment = false;
+            self.pending.push(comment);
+            self.has_newline_before_next_comment = false;
         }
-
-        self.comments.push(comment);
     }
 
-    /// Return the exclusive end of comments that are before one token boundary.
-    fn active_comment_end(&self, boundary_start: u32) -> usize {
-        let mut comment_index = self.state.processed;
-
-        while comment_index < self.comments.len()
-            && self.comments[comment_index].span.end <= boundary_start
-        {
-            comment_index += 1;
-        }
-
-        comment_index
+    /// Attach every pending comment to one token boundary.
+    fn anchor_pending(&mut self, anchor: CommentAnchor) {
+        self.comments
+            .extend(self.pending.drain(..).map(|comment| comment.anchor(anchor)));
     }
 
     /// Return whether one same-line comment should attach to the previous token.
-    fn should_attach_comment_to_previous_token(&self) -> bool {
-        !self.state.is_after_token_newline
+    fn is_comment_trailing(&self) -> bool {
+        !self.has_newline_after_previous_token
             && !matches!(
-                self.state.previous_token_type,
+                self.previous_token_type,
                 TokenType::Assign | TokenType::OpenParenthesis
             )
     }
@@ -167,7 +171,7 @@ impl Trivia {
 
 /// Retention decision for one comment token.
 #[derive(Debug, Copy, Clone)]
-pub(super) enum CommentRetention {
+pub(super) enum CommentDecision {
     /// Keep the comment with structured metadata.
     Keep {
         /// The line or block comment kind.
@@ -179,19 +183,24 @@ pub(super) enum CommentRetention {
     Skip,
 }
 
-impl ParserTriviaMode {
+impl CommentRetention {
     /// Classify one comment under this retention mode.
     pub(super) fn classify_comment(
         self,
         token_type: TokenType,
         raw_comment: &str,
-    ) -> CommentRetention {
-        // full trivia keeps every comment for formatting
-        if self == Self::Full {
+    ) -> CommentDecision {
+        // discard every comment when retention is disabled
+        if self == Self::Ignore {
+            return CommentDecision::Skip;
+        }
+
+        // retain every comment for formatting
+        if self == Self::All {
             let kind = classify_comment_kind(token_type, raw_comment);
             let content = decode_comment_content(token_type, raw_comment);
 
-            return CommentRetention::Keep { kind, content };
+            return CommentDecision::Keep { kind, content };
         }
 
         // documentation mode keeps documentation, legal, and preserve comments
@@ -201,25 +210,38 @@ impl ParserTriviaMode {
         );
         let is_legal = is_legal_comment(token_type, raw_comment);
         if !is_doc_comment && !is_legal {
-            return CommentRetention::Skip;
+            return CommentDecision::Skip;
         }
 
         let kind = classify_comment_kind(token_type, raw_comment);
         let content = decode_comment_content(token_type, raw_comment);
         if content == CommentContent::None {
-            return CommentRetention::Skip;
+            return CommentDecision::Skip;
         }
 
-        CommentRetention::Keep { kind, content }
+        CommentDecision::Keep { kind, content }
     }
 }
 
 /// Return the line or block kind for one comment token.
 fn classify_comment_kind(token_type: TokenType, raw_comment: &str) -> CommentKind {
-    match token_type {
-        TokenType::LineComment | TokenType::DocLineComment => CommentKind::Line,
-        TokenType::BlockComment | TokenType::DocBlockComment => classify_block_comment(raw_comment),
-        _ => CommentKind::Line,
+    let is_line = matches!(
+        token_type,
+        TokenType::LineComment | TokenType::DocLineComment
+    );
+    debug_assert!(
+        is_line
+            || matches!(
+                token_type,
+                TokenType::BlockComment | TokenType::DocBlockComment
+            )
+    );
+
+    // distinguish line comments from block comment line shapes
+    if is_line {
+        CommentKind::Line
+    } else {
+        classify_block_comment(raw_comment)
     }
 }
 

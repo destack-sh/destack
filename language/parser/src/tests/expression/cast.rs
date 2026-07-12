@@ -513,7 +513,7 @@ fn test_parse_as_rhs_with_line_comment() {
     let test = TestParser::new("value as // as-tail\nnumber");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "value");
@@ -522,7 +522,7 @@ fn test_parse_as_rhs_with_line_comment() {
         });
     });
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "as-tail");
 }
 
@@ -532,14 +532,14 @@ fn test_parse_satisfies_rhs_with_line_comment() {
     let test = TestParser::new("value satisfies // sat-tail\nFoo");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Satisfies { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "value");
         assert_expression_path!(parser, parser.tree.get(*target_type), "Foo");
     });
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "sat-tail");
 }
 

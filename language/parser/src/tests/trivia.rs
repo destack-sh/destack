@@ -1,8 +1,8 @@
 use destack_dir::{
-    Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentContent,
-    CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
-    Expression, FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration,
-    TokenType, TypeDeclaration, TypeExpression, normalize_comment_payload,
+    Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentAnchor,
+    CommentContent, CommentKind, Declaration, Declarator, Decorator, DecoratorPosition, Expression,
+    FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration, TokenType,
+    TypeDeclaration, TypeExpression, normalize_comment_payload,
 };
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ use destack_core::StringPool;
 use destack_source::LanguageType;
 
 use crate::{
-    Lexer, Parser, ParserTriviaMode, TestParser, assert_comment, assert_expression_path,
+    CommentRetention, Lexer, Parser, TestParser, assert_comment, assert_expression_path,
     assert_node,
 };
 
@@ -22,16 +22,16 @@ fn parse_source(source: &str) -> (Parser, Vec<LocalNodeId<Expression>>) {
     (parser, expressions)
 }
 
-/// Parse one whole source string with one trivia mode.
-fn parse_source_with_trivia_mode(
+/// Parse one whole source string with one comment retention mode.
+fn parse_source_with_comment_retention(
     source: &str,
-    trivia_mode: ParserTriviaMode,
+    comment_retention: CommentRetention,
 ) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         test.file.clone(),
         LanguageType::Destack,
-        trivia_mode,
+        comment_retention,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -39,35 +39,35 @@ fn parse_source_with_trivia_mode(
     (parser, expressions)
 }
 
-/// Parse one block expression source and attach comments after the direct entrypoint.
+/// Parse one block expression source and finalize comments after the direct entrypoint.
 fn parse_block_source(source: &str) -> (Parser, LocalNodeId<Block>) {
     let test = TestParser::new(source);
     let mut parser = test.prepare();
     let block_id = parser
         .parse_block(BlockContext::Expression, Default::default())
         .expect("expected block expression in test source");
-    parser.attach_comments();
+    parser.finalize_comments();
     (parser, block_id)
 }
 
-/// Parse one direct property entrypoint and attach comments after parsing.
+/// Parse one direct property entrypoint and finalize comments after parsing.
 fn parse_property_source(source: &str) -> (Parser, LocalNodeId<Property>) {
     let test = TestParser::new(source);
     let mut parser = test.prepare();
     let property_id = parser
         .parse_property(Default::default())
         .expect("expected property in test source");
-    parser.attach_comments();
+    parser.finalize_comments();
     (parser, property_id)
 }
 
-/// Return the normalized payload text for one raw comment.
+/// Return the normalized payload text for one source comment.
 fn comment_text(parser: &Parser, comment: Comment) -> String {
     let source = parser.span_str(comment.span);
     normalize_comment_payload(source).into_owned()
 }
 
-/// Return the nearest non-trivia token before one comment boundary.
+/// Return the nearest semantic token before one comment boundary.
 fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenType> {
     parser
         .consumed_tokens()
@@ -80,7 +80,7 @@ fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<Tok
         .map(|token| token.token.ty())
 }
 
-/// Return the nearest non-trivia token after one comment boundary.
+/// Return the nearest semantic token after one comment boundary.
 fn next_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenType> {
     parser
         .consumed_tokens()
@@ -92,7 +92,7 @@ fn next_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenTy
         .map(|token| token.token.ty())
 }
 
-/// Assert the non-trivia token kinds on both sides of one comment boundary.
+/// Assert the semantic token kinds on both sides of one comment boundary.
 fn assert_comment_boundary_tokens(
     parser: &Parser,
     comment: Comment,
@@ -116,13 +116,13 @@ fn assert_comment_newline_shape(
     );
 }
 
-/// Return the raw comments stored on the parsed tree.
+/// Return retained source comments from the parser.
 fn comments(parser: &Parser) -> &[Comment] {
-    parser.tree.comments()
+    parser.comments()
 }
 
 #[test]
-fn test_parse_runs_attach_comments_for_comments() {
+fn test_parse_retains_comments() {
     let (parser, expressions) = parse_source("// lead\nvalue");
 
     // `value`
@@ -131,8 +131,8 @@ fn test_parse_runs_attach_comments_for_comments() {
     assert!(expression_annotations.is_empty());
 
     // `// lead`
-    assert_eq!(parser.tree.comments().len(), 1);
-    let comment = parser.tree.comments()[0];
+    assert_eq!(parser.comments().len(), 1);
+    let comment = parser.comments()[0];
     assert_eq!(comment_text(&parser, comment), "lead");
 }
 
@@ -157,7 +157,7 @@ const mode = runCli();
 }
 
 #[test]
-fn test_parse_roots_leaves_comments_unattached_until_attach() {
+fn test_parse_roots_retains_comments_before_finalization() {
     let test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
@@ -165,56 +165,74 @@ fn test_parse_roots_leaves_comments_unattached_until_attach() {
     let expressions = parser.parse_roots();
     assert_eq!(expressions.len(), 2);
 
-    // `// lead`
-    assert_eq!(parser.tree.comments().len(), 0);
+    // retain `// lead` while parsing
+    assert_eq!(parser.comments().len(), 1);
 
-    // `// lead`
-    parser.attach_comments();
-    assert_eq!(parser.tree.comments().len(), 1);
+    // preserve `// lead` after finalization
+    parser.finalize_comments();
+    assert_eq!(parser.comments().len(), 1);
 }
 
 #[test]
-fn test_parse_ignore_trivia_mode_drops_comments() {
+fn test_parse_ignore_comment_retention_drops_comments() {
     let source = "/// docs\n/*! legal */\n// raw\nvalue";
-    let (parser, expressions) = parse_source_with_trivia_mode(source, ParserTriviaMode::Ignore);
+    let (parser, expressions) =
+        parse_source_with_comment_retention(source, CommentRetention::Ignore);
 
     // `value`
     assert_eq!(expressions.len(), 1);
 
     // no retained comments
-    assert!(parser.tree.comments().is_empty());
+    assert!(parser.comments().is_empty());
 }
 
 #[test]
-fn test_parse_documentation_trivia_mode_keeps_structured_comments() {
+fn test_parse_documentation_comment_retention_keeps_structured_comments() {
     let source = "/// docs\n// raw\n/*! legal */\n/* ordinary */\n/** block */\nvalue";
     let (parser, expressions) =
-        parse_source_with_trivia_mode(source, ParserTriviaMode::Documentation);
+        parse_source_with_comment_retention(source, CommentRetention::Documentation);
 
     // `value`
     assert_eq!(expressions.len(), 1);
 
     // structured comments only
-    assert_eq!(parser.tree.comments().len(), 3);
-    assert_eq!(comment_text(&parser, parser.tree.comments()[0]), "docs");
-    assert_eq!(parser.tree.comments()[0].content, CommentContent::Jsdoc);
-    assert_eq!(parser.tree.comments()[1].content, CommentContent::Legal);
-    assert_eq!(comment_text(&parser, parser.tree.comments()[2]), " block");
-    assert_eq!(parser.tree.comments()[2].content, CommentContent::Jsdoc);
+    assert_eq!(parser.comments().len(), 3);
+    assert_eq!(comment_text(&parser, parser.comments()[0]), "docs");
+    assert_eq!(parser.comments()[0].content, CommentContent::Jsdoc);
+    assert_eq!(parser.comments()[1].content, CommentContent::Legal);
+    assert_eq!(comment_text(&parser, parser.comments()[2]), " block");
+    assert_eq!(parser.comments()[2].content, CommentContent::Jsdoc);
 }
 
 #[test]
-fn test_lex_documentation_trivia_mode_skips_side_tokens() {
+fn test_parse_documentation_comment_retention_ignores_inline_ordinary_comment_shape() {
+    let source = "/** docs */ /* ordinary */ value";
+    let (parser, expressions) =
+        parse_source_with_comment_retention(source, CommentRetention::Documentation);
+
+    // retain only the documentation comment
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.comments().len(), 1);
+
+    // preserve the physical no-newline shape across the skipped comment
+    let comment = parser.comments()[0];
+    let value_start = parser.tree.get_span(expressions[0]).start;
+    assert_eq!(comment.following_token_start(), Some(value_start));
+    assert!(!comment.followed_by_newline());
+}
+
+#[test]
+fn test_lex_documentation_comment_retention_retains_documentation_comments() {
     let test = TestParser::new("/// docs\n// raw\nvalue");
-    let result = Lexer::lex_with_options(test.file.clone(), ParserTriviaMode::Documentation);
+    let result =
+        Lexer::lex_with_comment_retention(test.file.clone(), CommentRetention::Documentation);
 
-    // comments are retained without formatter side tokens
+    // retain documentation comments only
     assert_eq!(result.comments.len(), 1);
-    assert!(result.side_tokens.is_empty());
 }
 
 #[test]
-fn test_attach_comments_on_direct_entrypoint_emits_output() {
+fn test_finalize_comments_after_direct_entrypoint() {
     let test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
@@ -228,16 +246,16 @@ fn test_attach_comments_on_direct_entrypoint_emits_output() {
         .unwrap();
     assert_eq!(expressions.len(), 2);
 
-    // `// lead`
-    assert_eq!(parser.tree.comments().len(), 0);
+    // retain `// lead` while parsing
+    assert_eq!(parser.comments().len(), 1);
 
-    // `// lead`
-    parser.attach_comments();
-    assert_eq!(parser.tree.comments().len(), 1);
+    // preserve `// lead` after finalization
+    parser.finalize_comments();
+    assert_eq!(parser.comments().len(), 1);
 }
 
 #[test]
-fn test_attach_comments_is_idempotent() {
+fn test_finalize_comments_is_idempotent() {
     let test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
@@ -246,42 +264,42 @@ fn test_attach_comments_is_idempotent() {
     assert_eq!(expressions.len(), 2);
 
     // first `// lead`
-    parser.attach_comments();
-    let first_comment_count = parser.tree.comments().len();
+    parser.finalize_comments();
+    let first_comment_count = parser.comments().len();
     assert_eq!(first_comment_count, 1);
 
     // second `// lead`
-    parser.attach_comments();
-    assert_eq!(parser.tree.comments().len(), first_comment_count);
+    parser.finalize_comments();
+    assert_eq!(parser.comments().len(), first_comment_count);
 }
 
 #[test]
-fn test_attach_comments_appends_to_existing_tree() {
+fn test_keep_comments_source_local() {
     let (first_parser, _) = parse_source("// first\nfirst");
-    let first_comment = first_parser.tree.comments()[0];
+    let first_comment = first_parser.comments()[0];
     assert_eq!(comment_text(&first_parser, first_comment), "first");
 
     let second_test = TestParser::new("// second\nsecond");
-    let mut second_parser = Parser::lex_into_tree_with_trivia(
+    let mut second_parser = Parser::lex_into_tree_with_comment_retention(
         second_test.file.clone(),
         second_test.language,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
         first_parser.tree,
     );
 
     second_parser.parse();
 
-    assert_eq!(second_parser.tree.comments().len(), 2);
-    assert_eq!(second_parser.tree.comments()[0], first_comment);
+    assert_eq!(second_parser.comments().len(), 1);
+    assert_ne!(second_parser.comments()[0], first_comment);
     assert_eq!(
-        comment_text(&second_parser, second_parser.tree.comments()[1]),
+        comment_text(&second_parser, second_parser.comments()[0]),
         "second"
     );
 }
 
 #[test]
-fn test_attach_comments_keeps_one_comment_after_token_probe() {
+fn test_finalize_comments_after_token_probe() {
     let test = TestParser::new("a // note\nb");
     let mut parser = test.prepare();
 
@@ -293,12 +311,12 @@ fn test_attach_comments_keeps_one_comment_after_token_probe() {
     parser.eat();
     parser.eat();
 
-    // attach one raw comment
-    parser.attach_comments();
-    assert_eq!(parser.tree.comments().len(), 1);
-    let comment = parser.tree.comments()[0];
+    // finalize one retained comment
+    parser.finalize_comments();
+    assert_eq!(parser.comments().len(), 1);
+    let comment = parser.comments()[0];
     assert_eq!(comment_text(&parser, comment), "note");
-    assert_eq!(comment.position, CommentPosition::Trailing);
+    assert!(comment.is_trailing());
 }
 
 #[test]
@@ -312,10 +330,11 @@ fn test_parse_comment_only_file_without_expression() {
     assert_eq!(comments(&parser).len(), 1);
     let comment = comments(&parser)[0];
     assert_eq!(comment_text(&parser, comment), "only");
+    assert_eq!(comment.anchor, CommentAnchor::End);
 }
 
 #[test]
-fn test_comment_trivia_keeps_directive_comments_raw() {
+fn test_retain_directive_comment_source() {
     let (parser, expressions) = parse_source(
         "// @ts-ignore\na\n/* @__PURE__ */\nb\n// prettier-ignore\nc\n// prettier-ignore-start\nd\n// prettier-ignore-end\ne",
     );
@@ -340,7 +359,7 @@ fn test_comment_trivia_keeps_directive_comments_raw() {
 }
 
 #[test]
-fn test_comment_trivia_keeps_empty_line_comments() {
+fn test_retain_empty_line_comments() {
     let (parser, expressions) = parse_source(
         r#"function func() {
   /******/ "use strict" //
@@ -359,7 +378,7 @@ fn test_comment_trivia_keeps_empty_line_comments() {
 }
 
 #[test]
-fn test_comment_trivia_normalizes_payload_and_style() {
+fn test_classify_comment_payload_and_kind() {
     let (parser, expressions) = parse_source("// line\n/* block */\nvalue");
 
     // `value`
@@ -378,7 +397,7 @@ fn test_comment_trivia_normalizes_payload_and_style() {
 }
 
 #[test]
-fn test_comment_trivia_classifies_annotation_content() {
+fn test_classify_comment_content() {
     let source = r#"
 /*! keep */
 /** docs */
@@ -404,12 +423,12 @@ value
 
     for (comment, expected_content) in comments(&parser).iter().zip(expected) {
         assert_eq!(comment.content, expected_content);
-        assert_eq!(comment.position, CommentPosition::Leading);
+        assert!(comment.is_leading());
     }
 }
 
 #[test]
-fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
+fn test_anchor_doc_comments_before_declarations() {
     let (parser, expressions) = parse_source("/// docs\nfunction f() {}");
 
     // `function f() {}`
@@ -426,8 +445,8 @@ fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
         assert_eq!(comment_text(&parser, comment), "docs");
-        assert_eq!(comment.position, CommentPosition::Leading);
-        assert_eq!(comment.attached_to, parser.tree.get_span(*declaration_id).start);
+        assert!(comment.is_leading());
+        assert_eq!(comment.following_token_start(), Some(parser.tree.get_span(*declaration_id).start));
     });
 }
 
@@ -542,8 +561,8 @@ fn test_comment_after_open_parenthesis_attaches_to_inner_expression_leading() {
             Some(TokenType::Identifier),
         );
         assert_comment_newline_shape(comment, false, false);
-        assert_eq!(comment.position, CommentPosition::Leading);
-        assert_eq!(comment.attached_to, parser.tree.get_span(*expression).start);
+        assert!(comment.is_leading());
+        assert_eq!(comment.following_token_start(), Some(parser.tree.get_span(*expression).start));
     });
 }
 
@@ -572,7 +591,7 @@ fn test_comment_before_close_parenthesis_attaches_to_inner_expression_trailing()
 }
 
 #[test]
-fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leading() {
+fn test_line_comment_after_unary_prefix_preserves_operand_boundary() {
     let (parser, expressions) = parse_source("-// unary-line-note\n1");
 
     assert_eq!(expressions.len(), 1);
@@ -581,6 +600,7 @@ fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leadin
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
         assert_eq!(comment_text(&parser, comment), "unary-line-note");
+        assert!(comment.is_trailing());
         assert_comment_boundary_tokens(
             &parser,
             comment,
@@ -591,7 +611,7 @@ fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leadin
 }
 
 #[test]
-fn test_line_comment_between_unary_prefix_and_operand_in_initializer_attaches_to_operand_leading() {
+fn test_line_comment_after_initializer_unary_prefix_preserves_operand_boundary() {
     let (parser, expressions) = parse_source("const value = -// unary-line-note\n1");
 
     assert_eq!(expressions.len(), 1);
@@ -605,6 +625,7 @@ fn test_line_comment_between_unary_prefix_and_operand_in_initializer_attaches_to
                 assert_eq!(comments(&parser).len(), 1);
                 let comment = comments(&parser)[0];
                 assert_eq!(comment_text(&parser, comment), "unary-line-note");
+                assert!(comment.is_trailing());
                 assert_comment_boundary_tokens(
                     &parser,
                     comment,
@@ -672,7 +693,7 @@ fn test_doc_comment_attaches_to_call_argument() {
 }
 
 #[test]
-fn test_comment_between_export_and_declaration_head_emits_unowned_boundary_trivia() {
+fn test_comment_between_export_and_declaration_head_preserves_source_boundary() {
     let (parser, expressions) = parse_source("export // boundary\nasync function f() {}");
 
     // `async function f() {}`
@@ -692,7 +713,7 @@ fn test_comment_between_export_and_declaration_head_emits_unowned_boundary_trivi
 }
 
 #[test]
-fn test_comment_after_satisfies_keyword_emits_unowned_boundary_trivia() {
+fn test_comment_after_satisfies_keyword_preserves_source_boundary() {
     let (parser, expressions) = parse_source("value satisfies // boundary\nRecord<A, B>");
 
     // `value satisfies Record<A, B>`
@@ -712,7 +733,7 @@ fn test_comment_after_satisfies_keyword_emits_unowned_boundary_trivia() {
 }
 
 #[test]
-fn test_comment_before_as_keyword_emits_unowned_boundary_trivia() {
+fn test_comment_before_as_keyword_preserves_source_boundary() {
     let (parser, expressions) = parse_source("const value = source /* boundary */ as number");
 
     // `const value = source as number`
@@ -732,7 +753,7 @@ fn test_comment_before_as_keyword_emits_unowned_boundary_trivia() {
 }
 
 #[test]
-fn test_comment_after_as_keyword_emits_unowned_boundary_trivia() {
+fn test_comment_after_as_keyword_preserves_source_boundary() {
     let (parser, expressions) = parse_source("const value = source as // boundary\nnumber");
 
     // `const value = source as number`
@@ -752,7 +773,7 @@ fn test_comment_after_as_keyword_emits_unowned_boundary_trivia() {
 }
 
 #[test]
-fn test_multiline_block_comment_between_as_and_const_emits_unowned_boundary_trivia() {
+fn test_multiline_block_comment_between_as_and_const_preserves_source_boundary() {
     let (parser, expressions) = parse_source("1 as /*\nblock-comment\n*/ const");
 
     // `1 as const`
@@ -772,7 +793,7 @@ fn test_multiline_block_comment_between_as_and_const_emits_unowned_boundary_triv
 }
 
 #[test]
-fn test_variable_trailing_marker_comment_emits_unowned_boundary_trivia() {
+fn test_variable_trailing_marker_comment_preserves_source_boundary() {
     let (parser, expressions) =
         parse_source("declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()");
 
@@ -801,7 +822,7 @@ fn test_variable_trailing_marker_comment_emits_unowned_boundary_trivia() {
 }
 
 #[test]
-fn test_comment_after_if_head_emits_unowned_boundary_trivia() {
+fn test_comment_after_if_head_preserves_source_boundary() {
     let (parser, expressions) = parse_source("if (ready) // if-head\nrun()");
 
     // `if (ready) run()`
@@ -821,7 +842,7 @@ fn test_comment_after_if_head_emits_unowned_boundary_trivia() {
 }
 
 #[test]
-fn test_comment_between_ternary_then_and_colon_emits_unowned_boundary_trivia() {
+fn test_comment_between_ternary_then_and_colon_preserves_source_boundary() {
     let (parser, expressions) = parse_source("const result = cond ? left /* left-note */ : right");
 
     // `const result = cond ? left : right`
@@ -926,7 +947,7 @@ else {
 }
 
 #[test]
-fn test_multiline_trailing_block_comment_inside_block_emits_unowned_boundary_trivia() {
+fn test_multiline_trailing_block_comment_inside_block_preserves_source_boundary() {
     let (parser, expressions) = parse_source(
         "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
     );
@@ -951,7 +972,7 @@ fn test_multiline_trailing_block_comment_inside_block_emits_unowned_boundary_tri
 }
 
 #[test]
-fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_boundary_trivia() {
+fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_preserves_source_boundary() {
     let (parser, _block_id) = parse_block_source(
         "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
     );
@@ -999,8 +1020,7 @@ fn test_line_comment_after_block_opener_stays_trailing() {
     assert_eq!(comments(&parser).len(), 1);
     let trivia = comments(&parser)[0];
     assert_eq!(comment_text(&parser, trivia), "block-note");
-    assert_eq!(trivia.position, CommentPosition::Trailing);
-    assert_eq!(trivia.attached_to, 0);
+    assert_eq!(trivia.anchor, CommentAnchor::After(0));
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -1021,8 +1041,7 @@ fn test_line_comment_after_object_literal_opener_stays_trailing() {
     assert_eq!(comments(&parser).len(), 1);
     let trivia = comments(&parser)[0];
     assert_eq!(comment_text(&parser, trivia), "object-note");
-    assert_eq!(trivia.position, CommentPosition::Trailing);
-    assert_eq!(trivia.attached_to, 0);
+    assert_eq!(trivia.anchor, CommentAnchor::After(1));
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -1030,6 +1049,24 @@ fn test_line_comment_after_object_literal_opener_stays_trailing() {
         Some(TokenType::Identifier),
     );
     assert_comment_newline_shape(trivia, false, true);
+}
+
+/// Anchor consecutive same-line comments after the preceding token.
+#[test]
+fn test_anchor_consecutive_trailing_comments() {
+    let (parser, expressions) =
+        parse_source("const value = 1; /* block */ // line\nconst next = 2;");
+
+    assert_eq!(expressions.len(), 2);
+    assert_eq!(comments(&parser).len(), 2);
+
+    // both comments trail the first declaration terminator
+    let block_comment = comments(&parser)[0];
+    let line_comment = comments(&parser)[1];
+    assert!(matches!(block_comment.anchor, CommentAnchor::After(_)));
+    assert_eq!(line_comment.anchor, block_comment.anchor);
+    assert_comment_newline_shape(block_comment, false, false);
+    assert_comment_newline_shape(line_comment, false, true);
 }
 
 #[test]
@@ -1058,7 +1095,7 @@ fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
 }
 
 #[test]
-fn test_empty_doc_block_comment_falls_back_to_raw_comments() {
+fn test_retain_empty_doc_block_comment() {
     let (parser, expressions) = parse_source("/**/\nvalue");
 
     // `value`
@@ -1217,7 +1254,7 @@ fn test_comments_and_blanks_are_not_semantic_annotations() {
     assert_eq!(expressions.len(), 2);
 
     // `// tail`
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
 
     // `a`, `b`
     let first_annotations = parser.tree.get_decorators(expressions[0].id);
@@ -1591,7 +1628,7 @@ fn test_comment_after_property_return_type_colon_attaches_to_return_type_boundar
 }
 
 #[test]
-fn test_comments_around_member_decorator_chain_remain_raw_trivia() {
+fn test_keep_member_decorator_comments_in_source_order() {
     let (parser, expressions) = parse_source(
         r#"class Box {
     // comment before entity
@@ -1655,7 +1692,7 @@ fn test_comments_around_member_decorator_chain_remain_raw_trivia() {
 }
 
 #[test]
-fn test_empty_call_boundary_line_comments_preserve_raw_call_gap_boundaries() {
+fn test_empty_call_line_comments_preserve_call_boundaries() {
     let (parser, expressions) = parse_source(
         r#"call // direct
 ()
@@ -1692,7 +1729,7 @@ call // optional
 }
 
 #[test]
-fn test_empty_call_boundary_block_comments_preserve_raw_call_gap_boundaries() {
+fn test_empty_call_block_comments_preserve_call_boundaries() {
     let (parser, expressions) = parse_source(
         r#"call/* direct */()
 call/* optional */?.()"#,
@@ -1766,7 +1803,7 @@ fn test_comment_before_postfix_generic_arguments_attaches_forward() {
 }
 
 #[test]
-fn test_statement_trailing_line_comments_preserve_raw_statement_boundaries() {
+fn test_statement_trailing_line_comments_preserve_statement_boundaries() {
     let (parser, expressions) = parse_source(
         r#"call(); // direct
 call?.(); // optional"#,
@@ -1793,7 +1830,7 @@ call?.(); // optional"#,
 }
 
 #[test]
-fn test_if_statement_trailing_line_comments_preserve_raw_if_boundaries() {
+fn test_if_trailing_line_comments_preserve_statement_boundaries() {
     let (parser, expressions) = parse_source(
         r#"if (base.endsWith(".js") || base === `/worker-entries`) base = ""; // for dev
 if (base.endsWith(".js") || base === `/worker-entries`) a; // for dev"#,
@@ -1819,7 +1856,7 @@ if (base.endsWith(".js") || base === `/worker-entries`) a; // for dev"#,
 }
 
 #[test]
-fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
+fn test_array_prefix_comments_preserve_element_boundaries() {
     let (parser, expressions) = parse_source(
         r#"[
   // first
@@ -1863,7 +1900,7 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
 }
 
 #[test]
-fn test_inline_separator_comments_preserve_raw_separator_boundaries() {
+fn test_inline_comments_preserve_separator_boundaries() {
     let (parser, expressions) = parse_source("[a, /* keep */ b]");
 
     // `[a, b]`
@@ -1889,7 +1926,7 @@ fn test_inline_separator_comments_preserve_raw_separator_boundaries() {
 }
 
 #[test]
-fn test_trailing_collection_comments_before_close_remain_unowned() {
+fn test_trailing_collection_comments_remain_before_close() {
     let (parser, expressions) = parse_source(
         r#"[
   1
@@ -1914,7 +1951,7 @@ fn test_trailing_collection_comments_before_close_remain_unowned() {
 }
 
 #[test]
-fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
+fn test_lambda_prefix_comments_preserve_body_boundaries() {
     let (parser, expressions) = parse_source(
         r#"() =>
   // body
@@ -1944,7 +1981,7 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
 }
 
 #[test]
-fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
+fn test_lambda_inline_comments_preserve_body_boundaries() {
     let (parser, expressions) = parse_source("() => /* body */ []");
 
     // `() => []`
@@ -1970,7 +2007,7 @@ fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
 }
 
 #[test]
-fn test_doc_comment_and_decorator_emit_raw_comment_and_decorator_node() {
+fn test_keep_doc_comment_separate_from_decorator_node() {
     let (parser, expressions) = parse_source("/** docs */\n@memo\nfunction f() {}");
 
     // `function f() {}`

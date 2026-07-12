@@ -34,7 +34,7 @@ fn test_lex_block_and_doc_block_comments() {
 #[test]
 fn test_lex_block_comment_stops_at_first_close() {
     let source = "/* a /* b */ c */ d";
-    let (semantic_tokens, side_tokens) = lex_source_tokens(source);
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens(source);
     assert_eq!(
         semantic_tokens,
         vec![
@@ -46,7 +46,7 @@ fn test_lex_block_comment_stops_at_first_close() {
         ]
     );
     assert_eq!(
-        side_tokens,
+        trivia_tokens,
         vec![
             token(TokenType::BlockComment, 12, None),
             token(TokenType::Whitespace, 1, None),

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::{
-    Parser, ParserTriviaMode, assert_expression_path, assert_node, assert_path, assert_string,
+    CommentRetention, Parser, assert_expression_path, assert_node, assert_path, assert_string,
     assert_value_expression_path,
 };
 use destack_core::StringPool;
@@ -185,14 +185,14 @@ fn test_parse_parenthesized_expression_records_source_region() {
 #[test]
 fn test_parse_parenthesized_expression_keeps_inner_expression_span() {
     let test = TestParser::new("(/* keep */ value)");
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         test.file.clone(),
         test.language,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     );
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Identifier { .. });
 
@@ -211,12 +211,12 @@ fn test_parse_parenthesized_expression_keeps_inner_expression_span() {
             NodeSpanType::Region(NodeSpanRegion::Parentheses),
         )
         .expect("missing expression parentheses span");
-    let comment = parser.tree.comments()[0];
+    let comment = parser.comments()[0];
 
     assert_eq!(parser.span_str(expression_span), "value");
     assert_eq!(parser.span_str(leading_span), "/* keep */ ");
     assert_eq!(parser.span_str(parentheses_span), "(/* keep */ value)");
-    assert_eq!(comment.attached_to, expression_span.start);
+    assert_eq!(comment.following_token_start(), Some(expression_span.start));
 }
 
 #[test]

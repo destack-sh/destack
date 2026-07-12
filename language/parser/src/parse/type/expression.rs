@@ -319,7 +319,7 @@ impl Parser {
         );
         self.tree.set_side_range(
             ty,
-            NodeSpanType::Region(NodeSpanRegion::Clause),
+            NodeSpanType::Region(NodeSpanRegion::Alternate),
             colon_range,
         );
 

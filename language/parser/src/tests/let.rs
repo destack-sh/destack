@@ -747,7 +747,7 @@ fn test_parse_let_else_with_block_branch() {
 
         let else_span = parser
             .tree
-            .get_side_span(expression_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+            .get_side_span(expression_id, NodeSpanType::Region(NodeSpanRegion::Else))
             .expect("expected else clause span");
         assert_eq!(parser.span_str(else_span), "else");
 

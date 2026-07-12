@@ -1,12 +1,12 @@
 use crate::parse::{ExpressionContext, StatementPosition};
 use crate::tests::TestParser;
 use destack_dir::{
-    CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
-    Expression, TokenType, TypeDeclaration, TypeExpression, TypeLiteral, normalize_comment_payload,
+    CommentKind, Declaration, Declarator, Decorator, DecoratorPosition, Expression, TokenType,
+    TypeDeclaration, TypeExpression, TypeLiteral, normalize_comment_payload,
 };
 use std::sync::Arc;
 
-use crate::{Parser, ParserTriviaMode, assert_comment, assert_expression_path, assert_node};
+use crate::{CommentRetention, Parser, assert_comment, assert_expression_path, assert_node};
 use destack_core::StringPool;
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
@@ -47,13 +47,9 @@ fn test_parse_type_union_line_comment_on_rhs_separator_owner() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "union-line");
-    assert_eq!(
-        parser.tree.comments()[0].position,
-        CommentPosition::Trailing
-    );
-    assert_eq!(parser.tree.comments()[0].attached_to, 0);
+    assert!(parser.comments()[0].is_trailing());
 }
 
 #[test]
@@ -78,13 +74,9 @@ fn test_parse_type_intersection_line_comment_on_rhs_separator_owner() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "intersection-line");
-    assert_eq!(
-        parser.tree.comments()[0].position,
-        CommentPosition::Trailing
-    );
-    assert_eq!(parser.tree.comments()[0].attached_to, 0);
+    assert!(parser.comments()[0].is_trailing());
 }
 
 #[test]
@@ -172,13 +164,9 @@ fn test_parse_type_union_line_comment_on_leading_separator_owner() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "leading-union");
-    assert_eq!(
-        parser.tree.comments()[0].position,
-        CommentPosition::Trailing
-    );
-    assert_eq!(parser.tree.comments()[0].attached_to, 0);
+    assert!(parser.comments()[0].is_trailing());
 }
 
 #[test]
@@ -212,16 +200,16 @@ fn test_parse_type_union_block_comment_on_leading_separator_owner() {
         node => panic!("expected declaration expression, got {node:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " leading-union");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
         parser.span_str(parser.tree.get_span(first_element_id)),
         "First"
     );
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        parser.tree.get_span(first_element_id).start
+        parser.comments()[0].following_token_start(),
+        Some(parser.tree.get_span(first_element_id).start)
     );
 }
 
@@ -256,16 +244,16 @@ fn test_parse_type_union_doc_comment_on_leading_separator_owner() {
         node => panic!("expected declaration expression, got {node:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " leading-union");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
         parser.span_str(parser.tree.get_span(first_element_id)),
         "First"
     );
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        parser.tree.get_span(first_element_id).start
+        parser.comments()[0].following_token_start(),
+        Some(parser.tree.get_span(first_element_id).start)
     );
 }
 
@@ -293,16 +281,16 @@ fn test_parse_type_union_multiline_doc_comment_on_leading_separator_owner() {
         node => panic!("expected declaration expression, got {node:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 1);
-    assert_eq!(parser.tree.comments()[0].kind, CommentKind::MultiLineBlock);
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert_eq!(parser.comments().len(), 1);
+    assert_eq!(parser.comments()[0].kind, CommentKind::MultiLineBlock);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
         parser.span_str(parser.tree.get_span(first_element_id)),
         "First"
     );
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        parser.tree.get_span(first_element_id).start
+        parser.comments()[0].following_token_start(),
+        Some(parser.tree.get_span(first_element_id).start)
     );
 }
 
@@ -330,16 +318,15 @@ fn test_parse_type_union_multiline_doc_comment_before_first_arm_line() {
         node => panic!("expected declaration expression, got {node:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 1);
-    assert_eq!(parser.tree.comments()[0].kind, CommentKind::MultiLineBlock);
-    assert_eq!(
-        parser.tree.comments()[0].position,
-        CommentPosition::Trailing,
-        "the lexer keeps this comment token-local, and the formatter must still surface it before the first arm",
+    assert_eq!(parser.comments().len(), 1);
+    assert_eq!(parser.comments()[0].kind, CommentKind::MultiLineBlock);
+    assert!(
+        parser.comments()[0].is_trailing(),
+        "the lexer keeps this comment token-relative, and the formatter must still surface it before the first arm",
     );
 
     assert_eq!(
-        normalize_comment_payload(parser.span_str(parser.tree.comments()[0].span)).trim(),
+        normalize_comment_payload(parser.span_str(parser.comments()[0].span)).trim(),
         "leading-union"
     );
     assert_eq!(
@@ -379,12 +366,12 @@ fn test_parse_type_union_doc_comment_before_leading_separator_owner() {
         )
         .expect("missing leading union operator span");
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " leading-union");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        leading_operator_span.start,
+        parser.comments()[0].following_token_start(),
+        Some(leading_operator_span.start,)
     );
 }
 
@@ -426,12 +413,12 @@ fn test_parse_type_comment_after_open_parenthesis_attaches_to_inner_leading() {
     };
     crate::assert_parenthesized!(parser.tree, inner_type_id);
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " keep");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        parser.tree.get_span(inner_type_id).start,
+        parser.comments()[0].following_token_start(),
+        Some(parser.tree.get_span(inner_type_id).start,)
     );
 }
 
@@ -465,12 +452,12 @@ fn test_parse_type_alias_doc_comment_before_leading_separator_owner() {
         )
         .expect("missing leading union operator span");
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " leading-union");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        leading_operator_span.start,
+        parser.comments()[0].following_token_start(),
+        Some(leading_operator_span.start,)
     );
 }
 
@@ -508,13 +495,9 @@ fn test_parse_type_union_line_comment_before_operator_on_left_arm_owner() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "left-union");
-    assert_eq!(
-        parser.tree.comments()[0].position,
-        CommentPosition::Trailing
-    );
-    assert_eq!(parser.tree.comments()[0].attached_to, 0);
+    assert!(parser.comments()[0].is_trailing());
 }
 
 #[test]
@@ -541,12 +524,12 @@ fn test_parse_declarator_type_comment_on_declared_type_leading_owner() {
         node => panic!("expected declaration expression, got {node:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " anno");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        parser.tree.get_span(declared_type_id).start,
+        parser.comments()[0].following_token_start(),
+        Some(parser.tree.get_span(declared_type_id).start,)
     );
 }
 
@@ -575,12 +558,12 @@ fn test_parse_type_argument_comment_on_argument_leading_owner() {
         node => panic!("expected declaration expression, got {node:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " a");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        parser.tree.get_span(argument_id).start,
+        parser.comments()[0].following_token_start(),
+        Some(parser.tree.get_span(argument_id).start,)
     );
 }
 
@@ -609,12 +592,12 @@ fn test_parse_type_argument_line_comment_on_argument_leading_owner() {
         node => panic!("expected declaration expression, got {node:?}"),
     };
 
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "a");
-    assert_eq!(parser.tree.comments()[0].position, CommentPosition::Leading);
+    assert!(parser.comments()[0].is_leading());
     assert_eq!(
-        parser.tree.comments()[0].attached_to,
-        parser.tree.get_span(argument_id).start,
+        parser.comments()[0].following_token_start(),
+        Some(parser.tree.get_span(argument_id).start,)
     );
 }
 
@@ -658,7 +641,7 @@ fn test_parse_type_intersection_line_comment_before_operator_on_left_arm_owner()
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "left-intersection");
 }
 
@@ -701,18 +684,12 @@ fn test_parse_type_union_object_arm_trailing_comments_stay_on_each_arm_owner() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 3);
+    assert_eq!(parser.comments().len(), 3);
     assert_comment!(parser, 0, CommentKind::Line, "null-arm");
     assert_comment!(parser, 1, CommentKind::Line, "object-arm");
     assert_comment!(parser, 2, CommentKind::Line, "void-arm");
-    assert_eq!(
-        parser.span_str(parser.tree.comments()[1].span),
-        "// object-arm"
-    );
-    assert_eq!(
-        parser.span_str(parser.tree.comments()[2].span),
-        "// void-arm"
-    );
+    assert_eq!(parser.span_str(parser.comments()[1].span), "// object-arm");
+    assert_eq!(parser.span_str(parser.comments()[2].span), "// void-arm");
 }
 
 #[test]
@@ -738,12 +715,9 @@ fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "second-tail");
-    assert_eq!(
-        parser.span_str(parser.tree.comments()[0].span),
-        "// second-tail"
-    );
+    assert_eq!(parser.span_str(parser.comments()[0].span), "// second-tail");
 }
 
 #[test]
@@ -769,22 +743,19 @@ fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment_withou
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "last-union");
-    assert_eq!(
-        parser.span_str(parser.tree.comments()[0].span),
-        "// last-union"
-    );
+    assert_eq!(parser.span_str(parser.comments()[0].span), "// last-union");
 }
 
 #[test]
 fn test_parse_type_union_trims_last_arm_span() {
     let source = "type Value = First | Second // second-tail\n;";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         test.file.clone(),
         test.language,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -811,14 +782,14 @@ fn test_parse_type_union_trims_last_arm_span() {
 fn test_parse_parenthesized_type_keeps_inner_span() {
     let source = "type Box = (/* keep */ string);";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         test.file.clone(),
         test.language,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_eq!(expressions.len(), 1);
 
@@ -830,11 +801,11 @@ fn test_parse_parenthesized_type_keeps_inner_span() {
                 .tree
                 .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
                 .expect("missing type leading span");
-            let comment = parser.tree.comments()[0];
+            let comment = parser.comments()[0];
 
             assert_eq!(parser.span_str(value_span), "string");
             assert_eq!(parser.span_str(leading_span), "/* keep */ ");
-            assert_eq!(comment.attached_to, value_span.start);
+            assert_eq!(comment.following_token_start(), Some(value_span.start));
         });
     });
 }
@@ -843,10 +814,10 @@ fn test_parse_parenthesized_type_keeps_inner_span() {
 fn test_parse_leading_union_keeps_parenthesized_chain_head() {
     let source = "type Value = | (A | B);";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         test.file.clone(),
         test.language,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -910,8 +881,8 @@ fn test_parse_union_doc_block_comment_attaches_to_first_union_arm() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
-    let comment = parser.tree.comments()[0];
+    assert_eq!(parser.comments().len(), 1);
+    let comment = parser.comments()[0];
     assert_eq!(
         normalize_comment_payload(parser.span_str(comment.span)),
         "union-doc\n"
@@ -931,7 +902,7 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
             ..ExpressionContext::default()
         })
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -949,9 +920,7 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
                 assert_eq!(parser.span_str(key_remap_head_span), "Capitalize");
 
                 assert_node!(parser.tree, key_remap, TypeExpression::TemplateLiteral { .. } => {
-                    let comment = parser
-                        .tree
-                        .comments()
+                    let comment = parser.comments()
                         .iter()
                         .copied()
                         .find(|comment| comment.is_line())
@@ -965,9 +934,7 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
                     );
                 });
 
-                let _value_comment = parser
-                    .tree
-                    .comments()
+                let _value_comment = parser.comments()
                     .iter()
                     .copied()
                     .find(|comment| normalize_comment_payload(parser.span_str(comment.span)) == "value-note")
@@ -992,7 +959,7 @@ fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
             ..ExpressionContext::default()
         })
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -1004,9 +971,7 @@ fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
                     .get_main_span(key_remap)
                     .map(|span| span.start)
                     .unwrap_or(key_remap_span.start);
-                let comment = parser
-                    .tree
-                    .comments()
+                let comment = parser.comments()
                     .iter()
                     .copied()
                     .find(|comment| comment.is_block())
@@ -1055,14 +1020,12 @@ fn test_parse_type_mapped_expression_records_trailing_comment_owner() {
             ..ExpressionContext::default()
         })
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { .. } => {
-                let comment = parser
-                    .tree
-                    .comments()
+                let comment = parser.comments()
                     .iter()
                     .copied()
                     .find(|comment| comment.is_line())
@@ -1080,10 +1043,10 @@ fn test_parse_mapped_union_trims_last_arm_span() {
     let source =
         "type Value<T> = {\n  [K in keyof T]:\n    | T[K] // arm-a\n    | undefined // arm-b\n}";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         test.file.clone(),
         test.language,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -1122,7 +1085,7 @@ fn test_parse_type_template_interpolation_records_trailing_line_comment_boundary
             ..ExpressionContext::default()
         })
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -1133,15 +1096,13 @@ fn test_parse_type_template_interpolation_records_trailing_line_comment_boundary
                     let interpolation_type = spans[0];
                     let interpolation_span = parser.tree.get_span(interpolation_type);
                     let template_span = parser.tree.get_span(key_remap);
-                    let comment = parser
-                        .tree
-                        .comments()
+                    let comment = parser.comments()
                         .iter()
                         .copied()
                         .find(|comment| normalize_comment_payload(parser.span_str(comment.span)) == "remap-note")
                         .expect("missing remap comment");
 
-                    assert_eq!(comment.position, CommentPosition::Trailing);
+                    assert!(comment.is_trailing());
                     assert!(comment.span.start >= interpolation_span.end);
                     assert!(comment.span.end <= template_span.end);
                 });

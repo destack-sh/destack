@@ -727,7 +727,7 @@ fn test_parse_type_infer_constraint_with_boundary_comment() {
             ..ExpressionContext::default()
         })
         .unwrap();
-    parser.attach_comments();
+    parser.finalize_comments();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -737,7 +737,7 @@ fn test_parse_type_infer_constraint_with_boundary_comment() {
             });
         });
     });
-    assert_eq!(parser.tree.comments().len(), 1);
+    assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "infer-bound");
 }
 

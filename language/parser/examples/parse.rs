@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId};
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use pprof::ProfilerGuardBuilder;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -53,8 +53,8 @@ struct ProfileOptions {
     duration: Duration,
     /// The sampling frequency in hertz.
     sample_hz: i32,
-    /// The parser trivia retention mode.
-    trivia_mode: ParserTriviaMode,
+    /// The parser comment retention mode.
+    comment_retention: CommentRetention,
     /// The parser pipeline stage to profile.
     stage: ParserStage,
 }
@@ -66,8 +66,8 @@ impl ProfileOptions {
         let output_path = output_path();
         let seconds = number_from_env("DESTACK_PARSE_SECONDS", DEFAULT_SECONDS)?;
         let sample_hz = number_from_env("DESTACK_PARSE_HZ", DEFAULT_SAMPLE_HZ)?;
-        let trivia_mode =
-            trivia_mode_from_env("DESTACK_PARSE_TRIVIA", ParserTriviaMode::Documentation)?;
+        let comment_retention =
+            comment_retention_from_env("DESTACK_PARSE_COMMENTS", CommentRetention::Documentation)?;
         let stage = ParserStage::from_env("DESTACK_PARSE_STAGE", ParserStage::Parse)?;
 
         Ok(Self {
@@ -75,7 +75,7 @@ impl ProfileOptions {
             output_path,
             duration: Duration::from_secs(seconds),
             sample_hz,
-            trivia_mode,
+            comment_retention,
             stage,
         })
     }
@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let options = ProfileOptions::from_env()?;
     let file = load_file(&options.source_path)?;
     let language = file_language(file.ty)?;
-    let trivia_mode = options.trivia_mode;
+    let comment_retention = options.comment_retention;
     let stage = options.stage;
     let strings = Arc::new(StringPool::new());
 
@@ -102,10 +102,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     while start.elapsed() < options.duration {
         match stage {
             ParserStage::Lex => {
-                black_box(Parser::lex_file_with_trivia(
+                black_box(Parser::lex_file_with_comment_retention(
                     file.clone(),
                     language,
-                    trivia_mode,
+                    comment_retention,
                     strings.clone(),
                 ));
             }
@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 black_box(parse_file(
                     file.clone(),
                     language,
-                    trivia_mode,
+                    comment_retention,
                     strings.clone(),
                 ));
             }
@@ -153,17 +153,13 @@ fn load_file(path: &Path) -> Result<Arc<File>, Box<dyn Error>> {
 fn parse_file(
     file: Arc<File>,
     language: LanguageType,
-    trivia_mode: ParserTriviaMode,
+    comment_retention: CommentRetention,
     strings: Arc<StringPool>,
 ) -> (Parser, Vec<LocalNodeId<Expression>>) {
-    let mut parser = Parser::lex_file_with_trivia(file, language, trivia_mode, strings);
+    let mut parser =
+        Parser::lex_file_with_comment_retention(file, language, comment_retention, strings);
 
-    // attach comments only when retained
-    let roots = if trivia_mode.keeps_comments() {
-        parser.parse()
-    } else {
-        parser.parse_roots()
-    };
+    let roots = parser.parse();
 
     (parser, roots)
 }
@@ -264,19 +260,19 @@ where
     Ok(value.parse()?)
 }
 
-/// Return one parsed trivia mode environment value.
-fn trivia_mode_from_env(
+/// Return one parsed comment retention environment value.
+fn comment_retention_from_env(
     name: &str,
-    default: ParserTriviaMode,
-) -> Result<ParserTriviaMode, Box<dyn Error>> {
+    default: CommentRetention,
+) -> Result<CommentRetention, Box<dyn Error>> {
     let Some(value) = env::var(name).ok() else {
         return Ok(default);
     };
 
     match value.as_str() {
-        "0" | "false" | "False" | "FALSE" | "ignore" => Ok(ParserTriviaMode::Ignore),
-        "doc" | "docs" | "documentation" => Ok(ParserTriviaMode::Documentation),
-        "1" | "true" | "True" | "TRUE" | "full" | "trivia" => Ok(ParserTriviaMode::Full),
-        _ => Err(format!("invalid trivia mode for {name}: {value}").into()),
+        "0" | "false" | "False" | "FALSE" | "ignore" => Ok(CommentRetention::Ignore),
+        "doc" | "docs" | "documentation" => Ok(CommentRetention::Documentation),
+        "1" | "true" | "True" | "TRUE" | "all" => Ok(CommentRetention::All),
+        _ => Err(format!("invalid comment retention for {name}: {value}").into()),
     }
 }

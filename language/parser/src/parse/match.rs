@@ -1,4 +1,3 @@
-use crate::parse::Decorators;
 use crate::parse::context::{ExpressionContext, ExpressionStops, FunctionContext, PatternContext};
 use crate::parse::error::ParserResultExt;
 use crate::{ParseStart, Parser, ParserError, ParserResult};
@@ -255,8 +254,19 @@ impl Parser {
             )
         };
 
-        // attach source metadata once after every body form
-        self.attach_match_case_metadata(case, guard_range, decorators);
+        // retain the optional guard clause
+        if let Some(guard_range) = guard_range {
+            self.tree.set_side_range(
+                case,
+                NodeSpanType::Region(NodeSpanRegion::Guard),
+                guard_range,
+            );
+        }
+
+        // attach case decorators in source order
+        if !decorators.is_empty() {
+            self.attach_decorators(case.id, decorators);
+        }
 
         Ok(case)
     }
@@ -327,27 +337,5 @@ impl Parser {
             },
             self.range_since(start),
         ))
-    }
-
-    /// Attach source ranges and decorators to one match case.
-    fn attach_match_case_metadata(
-        &mut self,
-        match_case_id: LocalNodeId<MatchCase>,
-        guard_clause_range: Option<ByteRange>,
-        decorators: Decorators,
-    ) {
-        // retain the optional guard clause
-        if let Some(guard_clause_range) = guard_clause_range {
-            self.tree.set_side_range(
-                match_case_id,
-                NodeSpanType::Region(NodeSpanRegion::Clause),
-                guard_clause_range,
-            );
-        }
-
-        // attach case decorators in source order
-        if !decorators.is_empty() {
-            self.attach_decorators(match_case_id.id, decorators);
-        }
     }
 }
