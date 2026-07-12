@@ -357,7 +357,7 @@ impl Parser {
 
         // parse keyof T, readonly T, local T, or shared T as a value
         if TypePrefixOperator::from_token(TokenType::Identifier, Some(keyword)).is_some()
-            && self.peek_type_prefix_value()
+            && self.peek_type_operand_start_at(1)
         {
             let value = self.parse_type(TypeContext {
                 function: context.function,
@@ -442,33 +442,6 @@ impl Parser {
             || next == TokenType::Maybe && self.peek_token_type_at(2) == TokenType::Dot
     }
 
-    /// Return whether a type-prefix keyword starts a first-class type value.
-    fn peek_type_prefix_value(&self) -> bool {
-        let next = self.peek_next_token_type();
-
-        match next {
-            TokenType::Identifier
-            | TokenType::OpenParenthesis
-            | TokenType::OpenBracket
-            | TokenType::OpenBrace
-            | TokenType::LessThan
-            | TokenType::ElementwiseAnd
-            | TokenType::ElementwiseXor
-            | TokenType::LogicalAnd
-            | TokenType::Multiply
-            | TokenType::ElementwiseOr
-            | TokenType::TemplateString
-            | TokenType::TemplateStringStart
-            | TokenType::Literal
-            | TokenType::Range
-            | TokenType::RangeInclusive => true,
-            TokenType::Add | TokenType::Subtract => {
-                self.peek_token_type_at(2) == TokenType::Literal
-            }
-            _ => false,
-        }
-    }
-
     /// Return whether a type-family keyword starts a type value expression.
     fn peek_type_keyword_value(&self, keyword: Keyword, context: ExpressionContext) -> bool {
         // reject keywords outside the type family
@@ -482,13 +455,6 @@ impl Parser {
         // leave line-leading type to declaration parsing
         let next = self.peek_next_token();
         if keyword == Keyword::Type && next.is_on_new_line() {
-            return false;
-        }
-
-        // keep type followed by a value operator in expression grammar
-        if keyword == Keyword::Type
-            && ExpressionOperator::from_token(next.ty(), next.keyword()).is_some()
-        {
             return false;
         }
 
@@ -512,14 +478,19 @@ impl Parser {
             return false;
         }
 
-        matches!(
-            next.ty(),
-            TokenType::Identifier
-                | TokenType::OpenBrace
-                | TokenType::OpenParenthesis
-                | TokenType::OpenBracket
-                | TokenType::Literal
-        )
+        // explicit type markers claim symbolic memory type prefixes
+        if keyword == Keyword::Type && self.peek_memory_type_prefix_at(1) {
+            return true;
+        }
+
+        // keep type followed by any other value operator in expression grammar
+        if keyword == Keyword::Type
+            && ExpressionOperator::from_token(next.ty(), next.keyword()).is_some()
+        {
+            return false;
+        }
+
+        self.peek_type_operand_start_at(1)
     }
 
     /// Parse one non-identifier token primary.
