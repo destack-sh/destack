@@ -37,15 +37,16 @@ function open(): Edge {
 
 === checked ===
 @derive(Tagged)
+/// @resolution.name source=derive target=decorator.derive.derive
+
+newtype Edge =
 /// @type.symbol symbol=Edge type=Edge
 /// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
 /// @type.symbol symbol=Edge.Open type=Edge.Open
 /// @definition.newtype symbol=Edge value={ kind: "bounded"; limit: int32 } | { kind: "open" }
 /// @definition.variant symbol=Edge.Bounded key=Bounded
 /// @definition.variant symbol=Edge.Open key=Open
-/// @resolution.name source=derive target=decorator.derive.derive
 
-newtype Edge =
     | { kind: "bounded"; limit: int32 }
     | { kind: "open" };
 

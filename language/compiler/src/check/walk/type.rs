@@ -46,7 +46,7 @@ impl WalkState<'_, '_> {
             // reject intrinsic markers outside declaration values
             dir::TypeExpression::Intrinsic => self.intern_type(dir::Type::Error),
             // (A, B)
-            dir::TypeExpression::Tuple { elements } => {
+            dir::TypeExpression::Tuple { form, elements } => {
                 let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut element_types = Vec::new();
                 for element in elements {
@@ -55,7 +55,7 @@ impl WalkState<'_, '_> {
                 let elements = self.intern_elements(&element_types)?;
 
                 self.intern_type(dir::Type::Tuple(dir::TupleType {
-                    form: dir::TupleForm::Tuple,
+                    form: *form,
                     elements,
                 }))
             }

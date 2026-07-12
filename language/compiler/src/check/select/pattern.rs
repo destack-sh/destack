@@ -505,14 +505,14 @@ impl BodyState<'_, '_> {
             // T(pattern)
             | dir::PatternField::Positional { pattern }
             // { ...pattern }
-            | dir::PatternField::Spread {
+            | dir::PatternField::Rest {
                 pattern: Some(pattern),
             } => {
                 self.poison_pattern_bindings(module, error, pattern)?;
             }
             // { name }, ...rest without a pattern and holes bind nothing nested
             dir::PatternField::Named { pattern: None, .. }
-            | dir::PatternField::Spread { pattern: None }
+            | dir::PatternField::Rest { pattern: None }
             | dir::PatternField::Elision => {}
         }
 

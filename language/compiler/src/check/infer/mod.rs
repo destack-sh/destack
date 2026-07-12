@@ -11,7 +11,6 @@ mod memory;
 mod node;
 mod object;
 mod operation;
-mod sequence;
 mod statement;
 
 pub(in crate::check) use body::*;

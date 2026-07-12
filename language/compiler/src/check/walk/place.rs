@@ -113,6 +113,7 @@ impl WalkState<'_, '_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => {
                 if !matches!(self.tree.get(*left), dir::Expression::This) {
                     return Ok(None);
