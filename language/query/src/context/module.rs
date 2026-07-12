@@ -40,8 +40,6 @@ pub struct ModuleQueryContext<'a> {
     resolutions: dir::ResolutionTable<'static>,
     /// The source file token spans.
     tokens: Vec<dir::TokenSpan>,
-    /// The source file side token spans.
-    side_tokens: Vec<dir::TokenSpan>,
     /// The profile global environment.
     global_environment: Arc<GlobalEnvironment>,
     /// Shared repository strings.
@@ -84,7 +82,6 @@ impl<'a> ModuleQueryContext<'a> {
         file_id: FileId,
         artifacts: ModuleQueryArtifacts,
         tokens: Vec<dir::TokenSpan>,
-        side_tokens: Vec<dir::TokenSpan>,
     ) -> Self {
         // compose expanded table views
         let bindings = artifacts.expanded.binding_table(&artifacts.bound);
@@ -113,7 +110,6 @@ impl<'a> ModuleQueryContext<'a> {
             definitions,
             resolutions,
             tokens,
-            side_tokens,
             global_environment: artifacts.global_environment,
             strings: repository.string_pool().as_ref(),
             revision,
@@ -194,9 +190,13 @@ impl<'a> ModuleQueryContext<'a> {
         &self.tokens
     }
 
-    /// Return the side token stream for this source file.
-    pub(crate) fn side_tokens(&self) -> &[dir::TokenSpan] {
-        &self.side_tokens
+    /// Return the source comments.
+    pub(crate) fn comments(&self) -> &[dir::Comment] {
+        self.parsed
+            .file(self.file_id)
+            .unwrap_or_else(|| panic!("missing parsed file for {:?}", self.file_id))
+            .comments
+            .as_slice()
     }
 
     /// Return the visible DIR tree view.
@@ -274,7 +274,9 @@ impl<'a> ModuleQueryContext<'a> {
 
     /// Return the top-level roots for this source file.
     pub(crate) fn roots(&self) -> Option<&[dir::LocalNodeId<dir::Expression>]> {
-        self.parsed.roots_for_file(self.file_id)
+        self.parsed
+            .file(self.file_id)
+            .map(|file| file.roots.as_slice())
     }
 
     /// Return the DIR string pool.
@@ -437,8 +439,12 @@ pub fn module_query_context_exact(
             panic!("missing global environment payload: {global_environment_version:?}")
         });
 
-    // read source token streams
-    let (tokens, side_tokens) = module_token_streams(&parsed, module.file_id);
+    // materialize source token spans
+    let tokens = parsed
+        .file(module.file_id)
+        .unwrap_or_else(|| panic!("missing parser output for {:?}", module.file_id))
+        .iter_token_spans()
+        .collect();
     let artifacts = ModuleQueryArtifacts {
         parsed,
         bound,
@@ -457,7 +463,6 @@ pub fn module_query_context_exact(
         module.file_id,
         artifacts,
         tokens,
-        side_tokens,
     )
 }
 
@@ -532,8 +537,12 @@ pub(crate) fn provide_module_query_context<'a>(
     let checked = artifacts.dir_checked(module.id, profile_id)?;
     let global_environment = artifacts.global_environment(profile_id)?;
 
-    // read source token streams
-    let (tokens, side_tokens) = module_token_streams(&parsed, module.file_id);
+    // materialize source token spans
+    let tokens = parsed
+        .file(module.file_id)
+        .unwrap_or_else(|| panic!("missing parser output for {:?}", module.file_id))
+        .iter_token_spans()
+        .collect();
     let artifacts = ModuleQueryArtifacts {
         parsed,
         bound,
@@ -552,26 +561,5 @@ pub(crate) fn provide_module_query_context<'a>(
         module.file_id,
         artifacts,
         tokens,
-        side_tokens,
     ))
-}
-
-/// Return main and side token streams for one parsed module source file.
-fn module_token_streams(
-    parsed: &DirParsed,
-    file_id: FileId,
-) -> (Vec<dir::TokenSpan>, Vec<dir::TokenSpan>) {
-    // read main token spans for the source file
-    let tokens = parsed
-        .iter_token_spans_for_file(file_id)
-        .unwrap_or_else(|| panic!("missing token stream for {file_id:?}"))
-        .collect();
-
-    // read side token spans for the source file
-    let side_tokens = parsed
-        .iter_side_token_spans_for_file(file_id)
-        .unwrap_or_else(|| panic!("missing side token stream for {file_id:?}"))
-        .collect();
-
-    (tokens, side_tokens)
 }

@@ -74,10 +74,9 @@ impl DocComment {
     }
 
     /// Return whether this comment is attached to one source span.
-    fn is_attached_to(&self, span: Span) -> bool {
-        self.comment.is_leading()
-            && self.comment.span.file == span.file
-            && self.comment.attached_to == span.start
+    fn is_anchored_before(&self, span: Span) -> bool {
+        self.comment.span.file == span.file
+            && self.comment.following_token_start() == Some(span.start)
     }
 
     /// Extract this normalized documentation string from source text.
@@ -119,9 +118,9 @@ impl ModuleQueryContext<'_> {
         let mut doc_strings = Vec::new();
 
         // collect leading comments attached to this source node
-        for comment in self.tree().comments().iter().copied() {
+        for comment in self.comments().iter().copied() {
             let comment = DocComment::new(comment);
-            if !comment.is_attached_to(node_span) {
+            if !comment.is_anchored_before(node_span) {
                 continue;
             }
 

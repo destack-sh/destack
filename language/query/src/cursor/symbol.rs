@@ -295,7 +295,7 @@ impl ModuleQueryContext<'_> {
         let enclosing = self.symbol_enclosing_spans(offset)?;
 
         // ignore comments before consulting semantic mappings
-        if self.comment_token_contains_offset(offset) {
+        if self.comment_contains_offset(offset) {
             return None;
         }
 
@@ -344,26 +344,18 @@ impl ModuleQueryContext<'_> {
         Some(enclosing)
     }
 
-    /// Return whether a comment token owns the cursor.
-    fn comment_token_contains_offset(&self, offset: u32) -> bool {
+    /// Return whether a comment owns the cursor.
+    fn comment_contains_offset(&self, offset: u32) -> bool {
         // classify comments in this file at the cursor
-        let is_comment_token = |token: &dir::TokenSpan| {
-            if token.span.file != self.file_id() {
+        let is_comment = |comment: &dir::Comment| {
+            if comment.span.file != self.file_id() {
                 return false;
             }
 
-            matches!(
-                token.token.ty(),
-                dir::TokenType::DocLineComment
-                    | dir::TokenType::DocBlockComment
-                    | dir::TokenType::LineComment
-                    | dir::TokenType::BlockComment
-            ) && token.span.contains(offset)
+            comment.span.contains(offset)
         };
 
-        // check ordinary and side token streams
-        self.tokens().iter().any(is_comment_token)
-            || self.side_tokens().iter().any(is_comment_token)
+        self.comments().iter().any(is_comment)
     }
 
     /// Resolve one member expression symbol from its name span.

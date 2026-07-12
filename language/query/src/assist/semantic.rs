@@ -530,12 +530,12 @@ impl<'owner, 'module> SemanticTokens<'owner, 'module> {
         }
     }
 
-    /// Collect documentation comment tokens.
+    /// Collect documentation comments.
     fn collect_documentation_comments(&mut self) {
         let file = self.module.source_file();
 
         // collect doc line and block comments
-        for comment in self.module.tree().comments().iter().copied() {
+        for comment in self.module.comments().iter().copied() {
             let raw_text = file.span_str(comment.span).trim_start();
             if !raw_text.starts_with("///") && !raw_text.starts_with("/**") {
                 continue;
