@@ -289,13 +289,13 @@ export function HomePage() {
                             onSteer={(column) => sweep.steer(column + planetSweepOffset)}
                             phase={sweep.phase()}
                         />
-                    </div>
 
-                    <AsciiLake
-                        lightColumn={projectLakeColumn(sweep.trailColumn())}
-                        onRelease={sweep.release}
-                        onSteer={(column) => sweep.steer(unprojectLakeColumn(column))}
-                    />
+                        <AsciiLake
+                            lightColumn={projectLakeColumn(sweep.trailColumn())}
+                            onRelease={sweep.release}
+                            onSteer={(column) => sweep.steer(unprojectLakeColumn(column))}
+                        />
+                    </div>
                 </section>
 
                 {/* Selected action */}
@@ -392,6 +392,11 @@ function AsciiPlanet(props: {
 }) {
     // map pointer movement into the shared fixed-width ASCII field
     const steer = (event: PointerEvent & { currentTarget: HTMLDivElement }) => {
+        // preserve native touch scrolling
+        if (event.pointerType === "touch") {
+            return;
+        }
+
         const bounds = event.currentTarget.getBoundingClientRect();
         const progress = (event.clientX - bounds.left) / bounds.width;
 
@@ -447,6 +452,11 @@ function AsciiLake(props: {
 }) {
     // map pointer movement into the wider lake field
     const steer = (event: PointerEvent & { currentTarget: HTMLPreElement }) => {
+        // preserve native touch scrolling
+        if (event.pointerType === "touch") {
+            return;
+        }
+
         const bounds = event.currentTarget.getBoundingClientRect();
         const progress = (event.clientX - bounds.left) / bounds.width;
 
