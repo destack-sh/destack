@@ -10,7 +10,7 @@ TypeScript, like many managed high level languages, does not encode memory "owne
 That is convenient and often what we want, but sometimes we need to take direct control of memory, whether for better performance, or just to express certain invariants in the code.
 
 Destack supports explicit, optional type modifiers for controlling memory _placement_ and _ownership_:
-- **Placement** - where the value is located: ambient by default, explicitly `local` to one Worker, `shared` across Workers (or `static` for constant and `frame` for activation frames).
+- **Placement** - where the value is located: ambient by default, explicitly `local` to one Worker or `shared` across Workers.
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
@@ -435,7 +435,7 @@ Basically, `shared T` is the typed, generalized version of the `SharedArrayBuffe
 It's important to note that _by itself_ shared placement, like any space placement, is **not** a synchronization primitive and does **not** imply atomic access, locking, `Sync`, or anything like that.
 That is by design; it's up to userland libraries to require [capabilities](#capabilities) like `Send` and `Sync` for APIs that transfer or publish values for correctness, but `shared` itself is really only about placement.
 
-### Static Space
+### Shared Module Bindings
 
 Because Destack inherits the JS/TS Worker model for isolation, module-scoped constants are owned by each _Worker_ and are not actually process-global as they would be in most other languages.
 For genuinely _shared_ process-global state, the binding _itself_ can be declared as `shared`.
@@ -471,7 +471,7 @@ Reference conversions follow directly from [the four memory rules](#memory), and
 | local managed `T` | `&T` / `&readonly T` / `&exclusive T` | exclusive needs no overlapping loan; none may cross [suspension](#suspension) |
 | owned `^T` | `&T` / `&readonly T` / `&exclusive T` | owned sources may also cross suspension |
 | shared owned `shared ^T` | `shared &T` / `shared &readonly T` / `shared &exclusive T` | owned storage stays unique even in shared space, since the handle itself still has one holder |
-| shared managed `T` | `&T` / `&readonly T` | mutation routes through `Sync` APIs and atomic field access (see [Synchronization](#synchronization)) |
+| shared managed `T` | `&T` / `&readonly T` | non-exclusive writes remain limited to overwrite-stable places; synchronization is a separate API contract |
 | shared managed `T` | `&exclusive T` | never: independent Workers prevent exclusive execution |
 
 When a local managed value appears where a borrow is required, the compiler inserts a borrow coercion whose lifetime is inferred from that use:
