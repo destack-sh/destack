@@ -1,7 +1,6 @@
 use crate::format::argument::list_like;
 use crate::{FunctionSignature, JsFormatter};
 use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
 use destack_fir::write;
 
 /// Format one function signature parameter list.
