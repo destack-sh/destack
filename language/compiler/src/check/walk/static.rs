@@ -262,6 +262,16 @@ impl WalkState<'_, '_> {
         }
 
         match self.tree.get(expression) {
+            // contextual static hole
+            dir::Expression::Infer {
+                form: dir::InferForm::Hole,
+                name: None,
+            } => {
+                let ty = self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
+                self.commit_node_type(expression, ty)?;
+
+                self.bind_static_term(expression, ty)
+            }
             // type
             dir::Expression::Type { value } => {
                 let ty = if let dir::TypeExpression::Infer {

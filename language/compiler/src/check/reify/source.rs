@@ -419,9 +419,33 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 dir::Expression::StructExpression { ty, .. } => {
                     self.reify_struct_expression_target(module_id, expression_id, *ty)?;
                 }
+                dir::Expression::Infer {
+                    form: dir::InferForm::Hole,
+                    name: None,
+                } => self.reify_static_expression_hole(module_id, expression_id)?,
                 _ => {}
             }
         }
+
+        Ok(())
+    }
+
+    /// Reify one solved static expression hole.
+    fn reify_static_expression_hole(
+        &mut self,
+        module_id: ModuleId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let source = expression_id.into_global_any(module_id);
+        let Some(ty) = self.check.node_type_maybe(source) else {
+            return Ok(());
+        };
+
+        self.anchor(expression_id.into_any());
+        let Some(value) = self.types.reify_static(ty)? else {
+            return Ok(());
+        };
+        *self.types.tree.get_mut(expression_id) = self.types.tree.get(value).clone();
 
         Ok(())
     }
