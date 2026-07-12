@@ -43,8 +43,8 @@ export extension of Sampler {
 
 /// Increment one profile counter.
 @intrinsic("profile.increment")
-declare function incrementCounter(counter: Counter): void;
+declare function incrementCounter(counter: &readonly Counter): void;
 
 /// Record one profile sample.
 @intrinsic("profile.sample")
-declare function sampleValue(sampler: Sampler, value: SampleValue): void;
+declare function sampleValue(sampler: &readonly Sampler, value: SampleValue): void;
