@@ -135,12 +135,9 @@ fn test_parse_fixed_array_type_length_infer_hole() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::FixedArray { length, .. } => {
-                assert_node!(parser.tree, *length, Expression::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Infer { form, name, constraint } => {
-                        assert_eq!(*form, InferForm::Hole);
-                        assert!(name.is_none());
-                        assert!(constraint.is_none());
-                    });
+                assert_node!(parser.tree, *length, Expression::Infer { form, name } => {
+                    assert_eq!(*form, InferForm::Hole);
+                    assert!(name.is_none());
                 });
             });
         });
