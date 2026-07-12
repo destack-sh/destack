@@ -207,42 +207,40 @@ impl ModuleQueryContext<'_> {
         let source_file = self.source_file();
         let mut line_comment_blocks = LineCommentBlocks::default();
 
-        // scan side tokens in source order
-        for token in self.side_tokens() {
-            if token.span.file != source_file.id {
+        // scan comments in source order
+        for comment in self.comments() {
+            if comment.span.file != source_file.id {
                 continue;
             }
 
-            self.collect_token_folding_range(ranges, &mut line_comment_blocks, token, &source_file);
+            self.collect_comment_folding_range(
+                ranges,
+                &mut line_comment_blocks,
+                comment,
+                &source_file,
+            );
         }
 
         line_comment_blocks.flush(ranges);
     }
 
-    /// Collect the folding range for one side token.
-    fn collect_token_folding_range(
+    /// Collect the folding range for one comment.
+    fn collect_comment_folding_range(
         &self,
         ranges: &mut Vec<FoldingRange>,
         line_comment_blocks: &mut LineCommentBlocks,
-        token: &dir::TokenSpan,
+        comment: &dir::Comment,
         source_file: &File,
     ) {
-        match token.token.ty() {
-            dir::TokenType::LineComment | dir::TokenType::DocLineComment => {
-                let Some((start_line, _)) = source_file.get_position(token.span.start) else {
-                    return;
-                };
+        if comment.is_line() {
+            let Some((start_line, _)) = source_file.get_position(comment.span.start) else {
+                return;
+            };
 
-                line_comment_blocks.insert(start_line, ranges);
-            }
-            dir::TokenType::BlockComment | dir::TokenType::DocBlockComment => {
-                line_comment_blocks.flush(ranges);
-                self.collect_block_comment_folding_range(ranges, token, source_file);
-            }
-            dir::TokenType::Whitespace | dir::TokenType::Newline => {}
-            _ => {
-                line_comment_blocks.flush(ranges);
-            }
+            line_comment_blocks.insert(start_line, ranges);
+        } else {
+            line_comment_blocks.flush(ranges);
+            self.collect_block_comment_folding_range(ranges, comment, source_file);
         }
     }
 
@@ -250,13 +248,13 @@ impl ModuleQueryContext<'_> {
     fn collect_block_comment_folding_range(
         &self,
         ranges: &mut Vec<FoldingRange>,
-        token: &dir::TokenSpan,
+        comment: &dir::Comment,
         source_file: &File,
     ) {
-        let Some((start_line, _)) = source_file.get_position(token.span.start) else {
+        let Some((start_line, _)) = source_file.get_position(comment.span.start) else {
             return;
         };
-        let Some((end_line, _)) = source_file.get_position(token.span.end) else {
+        let Some((end_line, _)) = source_file.get_position(comment.span.end) else {
             return;
         };
 
