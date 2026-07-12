@@ -64,16 +64,14 @@ pub enum NodeSpanRegion {
     Parameters,
     /// The body container span of a function-like node.
     Body,
-    /// The statement source span of a statement-position expression.
-    Statement,
-    /// A clause span within a node.
-    Clause,
-    /// A prelude span within a node.
-    Prelude,
-    /// A name span within a node.
-    Name,
-    /// A value span within a node.
-    Value,
+    /// An `else` clause span.
+    Else,
+    /// An alternate separator span in a conditional expression.
+    Alternate,
+    /// A match guard clause span.
+    Guard,
+    /// An import attribute container span.
+    Attributes,
     /// The type declaration span of a node.
     Type,
     /// Parentheses around a value or type expression.
@@ -132,9 +130,9 @@ struct NodeRange {
     range: ByteRange,
 }
 
-/// One sparse side range.
+/// One sparse typed node range.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct NodeRangeEntry {
+struct SparseNodeRange {
     /// The node and span kind.
     key: NodeSpanKey,
     /// The file-local source range.
@@ -210,10 +208,16 @@ pub struct SourceIndex {
     enclosing_ranges: Vec<ByteRange>,
     /// Main ranges keyed by global node id.
     main_ranges: Vec<NodeRange>,
+    /// Head ranges keyed by global node id.
+    head_ranges: Vec<NodeRange>,
     /// Type ranges keyed by global node id.
     type_ranges: Vec<NodeRange>,
-    /// Extra side ranges for non-main/type ranges.
-    side_ranges: Vec<NodeRangeEntry>,
+    /// Parenthesis ranges keyed by global node id.
+    parentheses_ranges: Vec<NodeRange>,
+    /// Tree expression container ranges keyed by global node id.
+    tree_container_ranges: Vec<NodeRange>,
+    /// Sparse ranges for uncommon typed source regions.
+    sparse_ranges: Vec<SparseNodeRange>,
     /// Position index for O(log n + k) enclosing span queries.
     /// Built lazily on first lookup and invalidated on enclosing span mutations.
     position_index: RwLock<Option<PositionIndex>>,
@@ -227,8 +231,11 @@ impl Clone for SourceIndex {
             file_runs: self.file_runs.clone(),
             enclosing_ranges: self.enclosing_ranges.clone(),
             main_ranges: self.main_ranges.clone(),
+            head_ranges: self.head_ranges.clone(),
             type_ranges: self.type_ranges.clone(),
-            side_ranges: self.side_ranges.clone(),
+            parentheses_ranges: self.parentheses_ranges.clone(),
+            tree_container_ranges: self.tree_container_ranges.clone(),
+            sparse_ranges: self.sparse_ranges.clone(),
             position_index: RwLock::new(None),
             position_index_ready: AtomicBool::new(false),
         }
@@ -237,29 +244,29 @@ impl Clone for SourceIndex {
 
 /// Serialized source index shape.
 #[derive(Serialize, Deserialize, Reflect)]
-struct SourceIndexData {
+struct SourceIndexArchive {
     enclosing_spans: Vec<Span>,
     #[serde(default)]
     main_spans: Vec<Option<Span>>,
     #[serde(default)]
     type_spans: Vec<Option<Span>>,
     #[serde(default)]
-    side_spans: FxHashMap<NodeSpanKey, Span>,
+    side_spans: Vec<(NodeSpanKey, Span)>,
 }
 
 impl Reflect for SourceIndex {
     fn reflect(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
-        SourceIndexData::reflect(registry)
+        SourceIndexArchive::reflect(registry)
     }
 }
 
 /// Borrowed source index serialization view.
 #[derive(Serialize)]
-struct SourceIndexRef<'a> {
+struct SourceIndexArchiveRef<'a> {
     enclosing_spans: &'a [Span],
     main_spans: Vec<Option<Span>>,
     type_spans: Vec<Option<Span>>,
-    side_spans: FxHashMap<NodeSpanKey, Span>,
+    side_spans: Vec<(NodeSpanKey, Span)>,
 }
 
 impl Serialize for SourceIndex {
@@ -271,20 +278,21 @@ impl Serialize for SourceIndex {
         let mut main_spans = Vec::with_capacity(self.enclosing_ranges.len());
         let mut type_spans = Vec::with_capacity(self.enclosing_ranges.len());
 
-        // expand sparse ranges under each owning file
+        // expand common range columns under each owning file
         for index in 0..self.enclosing_ranges.len() {
             main_spans.push(
-                self.get_main_range(index as u32)
+                Self::get_node_range(&self.main_ranges, index as u32)
                     .map(|range| self.expand_range(index as u32, range)),
             );
             type_spans.push(
-                self.get_type_range(index as u32)
+                Self::get_node_range(&self.type_ranges, index as u32)
                     .map(|range| self.expand_range(index as u32, range)),
             );
         }
+
         let side_spans = self.collect_side_spans();
 
-        let data = SourceIndexRef {
+        let data = SourceIndexArchiveRef {
             enclosing_spans: &enclosing_spans,
             main_spans,
             type_spans,
@@ -299,7 +307,7 @@ impl<'de> Deserialize<'de> for SourceIndex {
     where
         D: Deserializer<'de>,
     {
-        let data = SourceIndexData::deserialize(deserializer)?;
+        let data = SourceIndexArchive::deserialize(deserializer)?;
         let enclosing_len = data.enclosing_spans.len();
         let (file_runs, enclosing_ranges) = Self::split_spans(data.enclosing_spans);
         // restore main ranges
@@ -324,26 +332,36 @@ impl<'de> Deserialize<'de> for SourceIndex {
             }
         }
 
-        // restore arbitrary side ranges in key order
-        let mut side_ranges: Vec<NodeRangeEntry> = data
+        // restore serialized typed ranges in key order
+        let mut sparse_ranges: Vec<SparseNodeRange> = data
             .side_spans
             .into_iter()
-            .map(|(key, span)| NodeRangeEntry {
+            .map(|(key, span)| SparseNodeRange {
                 key,
                 range: span.range(),
             })
             .collect();
-        side_ranges.sort_unstable_by_key(|entry| entry.key);
+        sparse_ranges.sort_unstable_by_key(|entry| entry.key);
 
-        Ok(Self {
+        let mut source_index = Self {
             file_runs,
             enclosing_ranges,
             main_ranges,
+            head_ranges: Vec::new(),
             type_ranges,
-            side_ranges,
+            parentheses_ranges: Vec::new(),
+            tree_container_ranges: Vec::new(),
+            sparse_ranges: Vec::new(),
             position_index: RwLock::new(None),
             position_index_ready: AtomicBool::new(false),
-        })
+        };
+
+        // restore each typed range into its runtime column
+        for entry in sparse_ranges {
+            source_index.set_side_range(entry.key.source_id, entry.key.span_type, entry.range);
+        }
+
+        Ok(source_index)
     }
 }
 
@@ -378,8 +396,11 @@ impl SourceIndex {
             file_runs: Vec::new(),
             enclosing_ranges: Vec::with_capacity(capacity),
             main_ranges: Vec::new(),
+            head_ranges: Vec::new(),
             type_ranges: Vec::new(),
-            side_ranges: Vec::new(),
+            parentheses_ranges: Vec::new(),
+            tree_container_ranges: Vec::new(),
+            sparse_ranges: Vec::new(),
             position_index: RwLock::new(None),
             position_index_ready: AtomicBool::new(false),
         }
@@ -492,26 +513,22 @@ impl SourceIndex {
     pub fn prune_from(&mut self, retained_node_count: usize, first_pruned_node_id: u32) {
         self.enclosing_ranges.truncate(retained_node_count);
 
-        // truncate each ordered sparse index at the first pruned node
+        // truncate each ordered index at the first pruned node
         let file_run_count = self
             .file_runs
             .partition_point(|run| (run.first_node_id as usize) < retained_node_count);
         self.file_runs.truncate(file_run_count);
 
-        let main_range_count = self
-            .main_ranges
-            .partition_point(|entry| (entry.node_id as usize) < retained_node_count);
-        self.main_ranges.truncate(main_range_count);
+        Self::prune_node_ranges(&mut self.main_ranges, retained_node_count);
+        Self::prune_node_ranges(&mut self.head_ranges, retained_node_count);
+        Self::prune_node_ranges(&mut self.type_ranges, retained_node_count);
+        Self::prune_node_ranges(&mut self.parentheses_ranges, retained_node_count);
+        Self::prune_node_ranges(&mut self.tree_container_ranges, retained_node_count);
 
-        let type_range_count = self
-            .type_ranges
-            .partition_point(|entry| (entry.node_id as usize) < retained_node_count);
-        self.type_ranges.truncate(type_range_count);
-
-        let side_range_count = self
-            .side_ranges
+        let sparse_range_count = self
+            .sparse_ranges
             .partition_point(|entry| entry.key.source_id < first_pruned_node_id);
-        self.side_ranges.truncate(side_range_count);
+        self.sparse_ranges.truncate(sparse_range_count);
 
         self.invalidate_position_index();
     }
@@ -530,14 +547,23 @@ impl SourceIndex {
 
         match span_type {
             NodeSpanType::Main => {
-                self.set_main_range(node_id, span.range());
+                Self::set_node_range(&mut self.main_ranges, node_id, span.range());
+            }
+            NodeSpanType::Head => {
+                Self::set_node_range(&mut self.head_ranges, node_id, span.range());
             }
             NodeSpanType::Region(NodeSpanRegion::Type) => {
-                self.set_type_range(node_id, span.range());
+                Self::set_node_range(&mut self.type_ranges, node_id, span.range());
+            }
+            NodeSpanType::Region(NodeSpanRegion::Parentheses) => {
+                Self::set_node_range(&mut self.parentheses_ranges, node_id, span.range());
+            }
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer) => {
+                Self::set_node_range(&mut self.tree_container_ranges, node_id, span.range());
             }
             _ => {
                 let key = NodeSpanKey::new(node_id, span_type);
-                self.set_sparse_side_range(key, span.range());
+                self.set_sparse_range(key, span.range());
             }
         }
     }
@@ -547,9 +573,18 @@ impl SourceIndex {
     pub fn set_side_range(&mut self, node_id: u32, span_type: NodeSpanType, range: ByteRange) {
         debug_assert!(self.contains_node(node_id));
         match span_type {
-            NodeSpanType::Main => self.set_main_range(node_id, range),
-            NodeSpanType::Region(NodeSpanRegion::Type) => self.set_type_range(node_id, range),
-            _ => self.set_sparse_side_range(NodeSpanKey::new(node_id, span_type), range),
+            NodeSpanType::Main => Self::set_node_range(&mut self.main_ranges, node_id, range),
+            NodeSpanType::Head => Self::set_node_range(&mut self.head_ranges, node_id, range),
+            NodeSpanType::Region(NodeSpanRegion::Type) => {
+                Self::set_node_range(&mut self.type_ranges, node_id, range)
+            }
+            NodeSpanType::Region(NodeSpanRegion::Parentheses) => {
+                Self::set_node_range(&mut self.parentheses_ranges, node_id, range)
+            }
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer) => {
+                Self::set_node_range(&mut self.tree_container_ranges, node_id, range)
+            }
+            _ => self.set_sparse_range(NodeSpanKey::new(node_id, span_type), range),
         }
     }
 
@@ -557,14 +592,24 @@ impl SourceIndex {
     #[inline]
     pub fn get_side(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
         match span_type {
-            NodeSpanType::Main => self
-                .get_main_range(node_id)
+            NodeSpanType::Main => Self::get_node_range(&self.main_ranges, node_id)
                 .map(|range| self.expand_range(node_id, range)),
-            NodeSpanType::Region(NodeSpanRegion::Type) => self
-                .get_type_range(node_id)
+            NodeSpanType::Head => Self::get_node_range(&self.head_ranges, node_id)
                 .map(|range| self.expand_range(node_id, range)),
+            NodeSpanType::Region(NodeSpanRegion::Type) => {
+                Self::get_node_range(&self.type_ranges, node_id)
+                    .map(|range| self.expand_range(node_id, range))
+            }
+            NodeSpanType::Region(NodeSpanRegion::Parentheses) => {
+                Self::get_node_range(&self.parentheses_ranges, node_id)
+                    .map(|range| self.expand_range(node_id, range))
+            }
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer) => {
+                Self::get_node_range(&self.tree_container_ranges, node_id)
+                    .map(|range| self.expand_range(node_id, range))
+            }
             _ => self
-                .get_sparse_side_range(NodeSpanKey::new(node_id, span_type))
+                .get_sparse_range(NodeSpanKey::new(node_id, span_type))
                 .map(|range| self.expand_range(node_id, range)),
         }
     }
@@ -573,9 +618,18 @@ impl SourceIndex {
     #[inline]
     pub fn get_side_range(&self, node_id: u32, span_type: NodeSpanType) -> Option<ByteRange> {
         match span_type {
-            NodeSpanType::Main => self.get_main_range(node_id),
-            NodeSpanType::Region(NodeSpanRegion::Type) => self.get_type_range(node_id),
-            _ => self.get_sparse_side_range(NodeSpanKey::new(node_id, span_type)),
+            NodeSpanType::Main => Self::get_node_range(&self.main_ranges, node_id),
+            NodeSpanType::Head => Self::get_node_range(&self.head_ranges, node_id),
+            NodeSpanType::Region(NodeSpanRegion::Type) => {
+                Self::get_node_range(&self.type_ranges, node_id)
+            }
+            NodeSpanType::Region(NodeSpanRegion::Parentheses) => {
+                Self::get_node_range(&self.parentheses_ranges, node_id)
+            }
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer) => {
+                Self::get_node_range(&self.tree_container_ranges, node_id)
+            }
+            _ => self.get_sparse_range(NodeSpanKey::new(node_id, span_type)),
         }
     }
 
@@ -585,7 +639,19 @@ impl SourceIndex {
         span: Span,
         span_type: NodeSpanType,
     ) -> Option<NodeSpanKey> {
-        self.side_ranges
+        if let Some(ranges) = self.range_column(span_type) {
+            return ranges
+                .iter()
+                .filter(|entry| {
+                    self.file_for_node(entry.node_id) == span.file
+                        && entry.range.start <= span.start
+                        && entry.range.end >= span.end
+                })
+                .min_by_key(|entry| entry.range.end - entry.range.start)
+                .map(|entry| NodeSpanKey::new(entry.node_id, span_type));
+        }
+
+        self.sparse_ranges
             .iter()
             .filter_map(|entry| {
                 (entry.key.span_type == span_type
@@ -603,39 +669,41 @@ impl SourceIndex {
         let mut best_owner = None;
         let mut best_length = u32::MAX;
 
-        // main spans
-        for entry in &self.main_ranges {
-            if self.file_for_node(entry.node_id) == span.file
-                && entry.range.start <= span.start
-                && entry.range.end >= span.end
-            {
+        // common range columns
+        for (span_type, ranges) in [
+            (NodeSpanType::Main, self.main_ranges.as_slice()),
+            (NodeSpanType::Head, self.head_ranges.as_slice()),
+            (
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                self.type_ranges.as_slice(),
+            ),
+            (
+                NodeSpanType::Region(NodeSpanRegion::Parentheses),
+                self.parentheses_ranges.as_slice(),
+            ),
+            (
+                NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+                self.tree_container_ranges.as_slice(),
+            ),
+        ] {
+            for entry in ranges {
+                if self.file_for_node(entry.node_id) != span.file
+                    || entry.range.start > span.start
+                    || entry.range.end < span.end
+                {
+                    continue;
+                }
+
                 let span_length = entry.range.end - entry.range.start;
                 if span_length < best_length {
-                    best_owner = Some(NodeSpanKey::new(entry.node_id, NodeSpanType::Main));
+                    best_owner = Some(NodeSpanKey::new(entry.node_id, span_type));
                     best_length = span_length;
                 }
             }
         }
 
-        // type spans
-        for entry in &self.type_ranges {
-            if self.file_for_node(entry.node_id) == span.file
-                && entry.range.start <= span.start
-                && entry.range.end >= span.end
-            {
-                let span_length = entry.range.end - entry.range.start;
-                if span_length < best_length {
-                    best_owner = Some(NodeSpanKey::new(
-                        entry.node_id,
-                        NodeSpanType::Region(NodeSpanRegion::Type),
-                    ));
-                    best_length = span_length;
-                }
-            }
-        }
-
-        // sparse side spans
-        for entry in &self.side_ranges {
+        // remaining sparse typed ranges
+        for entry in &self.sparse_ranges {
             if self.file_for_node(entry.key.source_id) != span.file
                 || entry.range.start > span.start
                 || entry.range.end < span.end
@@ -651,6 +719,20 @@ impl SourceIndex {
         }
 
         best_owner
+    }
+
+    /// Return the ordered range column for one common span type.
+    fn range_column(&self, span_type: NodeSpanType) -> Option<&[NodeRange]> {
+        match span_type {
+            NodeSpanType::Main => Some(&self.main_ranges),
+            NodeSpanType::Head => Some(&self.head_ranges),
+            NodeSpanType::Region(NodeSpanRegion::Type) => Some(&self.type_ranges),
+            NodeSpanType::Region(NodeSpanRegion::Parentheses) => Some(&self.parentheses_ranges),
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer) => {
+                Some(&self.tree_container_ranges)
+            }
+            _ => None,
+        }
     }
 
     /// Find the innermost enclosing owner that fully contains a span.
@@ -886,108 +968,111 @@ impl SourceIndex {
             .collect()
     }
 
-    /// Collect full sparse side spans for serialization.
-    fn collect_side_spans(&self) -> FxHashMap<NodeSpanKey, Span> {
-        self.side_ranges
-            .iter()
-            .map(|entry| {
-                (
-                    entry.key,
-                    self.expand_range(entry.key.source_id, entry.range),
-                )
-            })
-            .collect()
+    /// Collect full typed side ranges for serialization.
+    fn collect_side_spans(&self) -> Vec<(NodeSpanKey, Span)> {
+        let mut spans = Vec::new();
+
+        // collect explicit scalar range columns
+        self.collect_node_ranges(&mut spans, NodeSpanType::Head, &self.head_ranges);
+        self.collect_node_ranges(
+            &mut spans,
+            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+            &self.parentheses_ranges,
+        );
+        self.collect_node_ranges(
+            &mut spans,
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+            &self.tree_container_ranges,
+        );
+
+        // collect remaining sparse range kinds
+        for entry in &self.sparse_ranges {
+            let span = self.expand_range(entry.key.source_id, entry.range);
+            spans.push((entry.key, span));
+        }
+
+        spans.sort_unstable_by_key(|(key, _)| *key);
+
+        spans
     }
 
-    /// Return one type range by source node id.
-    fn get_type_range(&self, node_id: u32) -> Option<ByteRange> {
-        self.type_ranges
+    /// Collect one explicit node range column for serialization.
+    fn collect_node_ranges(
+        &self,
+        spans: &mut Vec<(NodeSpanKey, Span)>,
+        span_type: NodeSpanType,
+        ranges: &[NodeRange],
+    ) {
+        for entry in ranges {
+            let key = NodeSpanKey::new(entry.node_id, span_type);
+            let span = self.expand_range(entry.node_id, entry.range);
+            spans.push((key, span));
+        }
+    }
+
+    /// Return one ordered node range by source node id.
+    fn get_node_range(ranges: &[NodeRange], node_id: u32) -> Option<ByteRange> {
+        ranges
             .binary_search_by_key(&node_id, |entry| entry.node_id)
             .ok()
-            .map(|index| self.type_ranges[index].range)
+            .map(|index| ranges[index].range)
     }
 
-    /// Return one main range by source node id.
-    fn get_main_range(&self, node_id: u32) -> Option<ByteRange> {
-        self.main_ranges
-            .binary_search_by_key(&node_id, |entry| entry.node_id)
-            .ok()
-            .map(|index| self.main_ranges[index].range)
-    }
-
-    /// Set one main range by source node id.
-    fn set_main_range(&mut self, node_id: u32, range: ByteRange) {
-        if let Some(last) = self.main_ranges.last_mut() {
+    /// Set one ordered node range by source node id.
+    fn set_node_range(ranges: &mut Vec<NodeRange>, node_id: u32, range: ByteRange) {
+        if let Some(last) = ranges.last_mut() {
             if last.node_id == node_id {
                 last.range = range;
                 return;
             }
             if last.node_id < node_id {
-                self.main_ranges.push(NodeRange { node_id, range });
+                ranges.push(NodeRange { node_id, range });
                 return;
             }
         }
 
-        match self
-            .main_ranges
-            .binary_search_by_key(&node_id, |entry| entry.node_id)
-        {
-            Ok(index) => self.main_ranges[index].range = range,
-            Err(index) => self.main_ranges.insert(index, NodeRange { node_id, range }),
+        match ranges.binary_search_by_key(&node_id, |entry| entry.node_id) {
+            Ok(index) => ranges[index].range = range,
+            Err(index) => ranges.insert(index, NodeRange { node_id, range }),
         }
     }
 
-    /// Set one type range by source node id.
-    fn set_type_range(&mut self, node_id: u32, range: ByteRange) {
-        if let Some(last) = self.type_ranges.last_mut() {
-            if last.node_id == node_id {
-                last.range = range;
-                return;
-            }
-            if last.node_id < node_id {
-                self.type_ranges.push(NodeRange { node_id, range });
-                return;
-            }
-        }
-
-        match self
-            .type_ranges
-            .binary_search_by_key(&node_id, |entry| entry.node_id)
-        {
-            Ok(index) => self.type_ranges[index].range = range,
-            Err(index) => self.type_ranges.insert(index, NodeRange { node_id, range }),
-        }
+    /// Prune one ordered node range column after a tree mark.
+    fn prune_node_ranges(ranges: &mut Vec<NodeRange>, retained_node_count: usize) {
+        let retained_range_count =
+            ranges.partition_point(|entry| (entry.node_id as usize) < retained_node_count);
+        ranges.truncate(retained_range_count);
     }
 
-    /// Return one sparse side range by node span key.
-    fn get_sparse_side_range(&self, key: NodeSpanKey) -> Option<ByteRange> {
-        self.side_ranges
+    /// Return one sparse typed range by node span key.
+    fn get_sparse_range(&self, key: NodeSpanKey) -> Option<ByteRange> {
+        self.sparse_ranges
             .binary_search_by_key(&key, |entry| entry.key)
             .ok()
-            .map(|index| self.side_ranges[index].range)
+            .map(|index| self.sparse_ranges[index].range)
     }
 
-    /// Set one sparse side range by node span key.
-    fn set_sparse_side_range(&mut self, key: NodeSpanKey, range: ByteRange) {
-        if let Some(last) = self.side_ranges.last_mut() {
+    /// Set one sparse typed range by node span key.
+    fn set_sparse_range(&mut self, key: NodeSpanKey, range: ByteRange) {
+        if let Some(last) = self.sparse_ranges.last_mut() {
             if last.key == key {
                 last.range = range;
                 return;
             }
             if last.key < key {
-                self.side_ranges.push(NodeRangeEntry { key, range });
+                self.sparse_ranges.push(SparseNodeRange { key, range });
                 return;
             }
         }
 
         match self
-            .side_ranges
+            .sparse_ranges
             .binary_search_by_key(&key, |entry| entry.key)
         {
-            Ok(index) => self.side_ranges[index].range = range,
+            Ok(index) => self.sparse_ranges[index].range = range,
             Err(index) => self
-                .side_ranges
-                .insert(index, NodeRangeEntry { key, range }),
+                .sparse_ranges
+                .insert(index, SparseNodeRange { key, range }),
         }
     }
 
@@ -1166,6 +1251,48 @@ mod tests {
         );
     }
 
+    /// Dedicated and sparse columns preserve the common typed range API.
+    #[test]
+    fn test_route_typed_ranges_through_storage_columns() {
+        let file = FileId::new(7);
+        let mut source_index = SourceIndex::new();
+        source_index.append(Span::new(file, 0, 40));
+
+        let ranges = [
+            (NodeSpanType::Head, Span::new(file, 1, 4)),
+            (
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                Span::new(file, 5, 9),
+            ),
+            (
+                NodeSpanType::Region(NodeSpanRegion::Parentheses),
+                Span::new(file, 10, 20),
+            ),
+            (
+                NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+                Span::new(file, 21, 30),
+            ),
+            (
+                NodeSpanType::Region(NodeSpanRegion::Opening),
+                Span::new(file, 31, 33),
+            ),
+        ];
+
+        // store each typed range through the common API
+        for (span_type, span) in ranges {
+            source_index.set_side(0, span_type, span);
+        }
+
+        // read each range and resolve its owner through the same typed key
+        for (span_type, span) in ranges {
+            assert_eq!(source_index.get_side(0, span_type), Some(span));
+            assert_eq!(
+                source_index.find_innermost_side_owner(span, span_type),
+                Some(NodeSpanKey::new(0, span_type))
+            );
+        }
+    }
+
     #[test]
     fn test_prune_spans_drops_file_runs() {
         let first_file = FileId::new(1);
@@ -1212,6 +1339,17 @@ mod tests {
             NodeSpanType::Region(NodeSpanRegion::Opening),
             Span::new(file, 20, 22),
         );
+        source_index.set_side(2, NodeSpanType::Head, Span::new(file, 20, 24));
+        source_index.set_side(
+            2,
+            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+            Span::new(file, 20, 30),
+        );
+        source_index.set_side(
+            2,
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+            Span::new(file, 20, 30),
+        );
 
         source_index.prune_from(2, 2);
 
@@ -1233,6 +1371,15 @@ mod tests {
             source_index.get_side(2, NodeSpanType::Region(NodeSpanRegion::Opening)),
             None
         );
+        assert_eq!(source_index.get_side(2, NodeSpanType::Head), None);
+        assert_eq!(
+            source_index.get_side(2, NodeSpanType::Region(NodeSpanRegion::Parentheses)),
+            None
+        );
+        assert_eq!(
+            source_index.get_side(2, NodeSpanType::Region(NodeSpanRegion::TreeContainer)),
+            None
+        );
     }
 
     #[test]
@@ -1244,6 +1391,22 @@ mod tests {
         source_index.append(Span::new(first_file, 0, 10));
         source_index.append(Span::new(second_file, 0, 8));
         source_index.set_main(1, Span::new(second_file, 1, 4));
+        source_index.set_side(1, NodeSpanType::Head, Span::new(second_file, 1, 2));
+        source_index.set_side(
+            1,
+            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+            Span::new(second_file, 0, 6),
+        );
+        source_index.set_side(
+            1,
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+            Span::new(second_file, 2, 7),
+        );
+        source_index.set_side(
+            1,
+            NodeSpanType::Region(NodeSpanRegion::Opening),
+            Span::new(second_file, 2, 3),
+        );
 
         let json = serde_json::to_string(&source_index).unwrap();
         let source_index: SourceIndex = serde_json::from_str(&json).unwrap();
@@ -1251,6 +1414,22 @@ mod tests {
         assert_eq!(source_index.get(0), Span::new(first_file, 0, 10));
         assert_eq!(source_index.get(1), Span::new(second_file, 0, 8));
         assert_eq!(source_index.get_main(1), Some(Span::new(second_file, 1, 4)));
+        assert_eq!(
+            source_index.get_side(1, NodeSpanType::Head),
+            Some(Span::new(second_file, 1, 2))
+        );
+        assert_eq!(
+            source_index.get_side(1, NodeSpanType::Region(NodeSpanRegion::Parentheses)),
+            Some(Span::new(second_file, 0, 6))
+        );
+        assert_eq!(
+            source_index.get_side(1, NodeSpanType::Region(NodeSpanRegion::TreeContainer)),
+            Some(Span::new(second_file, 2, 7))
+        );
+        assert_eq!(
+            source_index.get_side(1, NodeSpanType::Region(NodeSpanRegion::Opening)),
+            Some(Span::new(second_file, 2, 3))
+        );
     }
 
     #[test]
