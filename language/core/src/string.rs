@@ -2,12 +2,16 @@ use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::collections::hash_map::Entry;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::size_of;
 use xxhash_rust::xxh3::xxh3_128;
 
 use crate::StableHasher;
+
+const LOCAL_INDEX_MIN_CAPACITY: usize = 16;
+const LOCAL_INDEX_EMPTY_SLOT: u32 = u32::MAX;
+const LOCAL_INDEX_LOAD_NUMERATOR: usize = 3;
+const LOCAL_INDEX_LOAD_DENOMINATOR: usize = 4;
 
 /// Stable content identity for one interned string.
 #[repr(transparent)]
@@ -58,8 +62,8 @@ pub struct LocalStringPool {
     buffer: String,
     /// The strings in insertion order.
     entries: Vec<LocalStringEntry>,
-    /// The dense string index by stable string ID.
-    slot_by_id: FxHashMap<StringId, u32>,
+    /// The open-addressed entry slots by stable string ID.
+    index: Vec<u32>,
 }
 
 impl Debug for LocalStringPool {
@@ -89,7 +93,7 @@ impl LocalStringPool {
     /// Return the string associated with one stable ID when present.
     #[inline]
     pub fn get_maybe(&self, id: StringId) -> Option<&str> {
-        let slot = self.slot_by_id.get(&id).copied()? as usize;
+        let slot = self.find_slot(id)? as usize;
         let entry = self.entries[slot];
         let start = entry.offset as usize;
         let end = start + entry.len as usize;
@@ -102,35 +106,41 @@ impl LocalStringPool {
     pub fn intern(&mut self, text: &str) -> StringId {
         let id = StringId::for_text(text);
 
-        match self.slot_by_id.entry(id) {
-            // return an existing string after checking the content identity
-            Entry::Occupied(entry) => {
-                let entry = self.entries[*entry.get() as usize];
-                let start = entry.offset as usize;
-                let end = start + entry.len as usize;
-                let existing = &self.buffer[start..end];
-                assert_eq!(
-                    existing, text,
-                    "string id collision for {id}: existing {existing:?}, new {text:?}",
-                );
+        // return an existing string after checking the content identity
+        if let Some(slot) = self.find_slot(id) {
+            let entry = self.entries[slot as usize];
+            let start = entry.offset as usize;
+            let end = start + entry.len as usize;
+            let existing = &self.buffer[start..end];
+            assert_eq!(
+                existing, text,
+                "string id collision for {id}: existing {existing:?}, new {text:?}",
+            );
 
-                id
-            }
-            // append a new string to contiguous storage
-            Entry::Vacant(entry) => {
-                debug_assert!(self.buffer.len() <= u32::MAX as usize);
-                debug_assert!(text.len() <= u32::MAX as usize);
-                debug_assert!(self.entries.len() <= u32::MAX as usize);
-                let offset = self.buffer.len() as u32;
-                let len = text.len() as u32;
-                let slot = self.entries.len() as u32;
-                self.buffer.push_str(text);
-                self.entries.push(LocalStringEntry { id, offset, len });
-                entry.insert(slot);
-
-                id
-            }
+            return id;
         }
+
+        // grow before the next insertion would exceed the target load
+        let next_len = self.entries.len() + 1;
+        if self.index.is_empty()
+            || next_len * LOCAL_INDEX_LOAD_DENOMINATOR
+                > self.index.len() * LOCAL_INDEX_LOAD_NUMERATOR
+        {
+            self.grow_index();
+        }
+
+        // append the string and index its stable identity
+        debug_assert!(self.buffer.len() <= u32::MAX as usize);
+        debug_assert!(text.len() <= u32::MAX as usize);
+        debug_assert!(self.entries.len() < u32::MAX as usize);
+        let offset = self.buffer.len() as u32;
+        let len = text.len() as u32;
+        let slot = self.entries.len() as u32;
+        self.buffer.push_str(text);
+        self.entries.push(LocalStringEntry { id, offset, len });
+        self.insert_slot(id, slot);
+
+        id
     }
 
     /// Iterate strings in insertion order.
@@ -160,9 +170,66 @@ impl LocalStringPool {
         let mut bytes = size_of::<Self>();
         bytes += self.buffer.capacity();
         bytes += self.entries.capacity() * size_of::<LocalStringEntry>();
-        bytes += self.slot_by_id.capacity() * size_of::<(StringId, u32)>();
+        bytes += self.index.capacity() * size_of::<u32>();
 
         bytes
+    }
+
+    /// Return the entry slot for one stable string ID.
+    #[inline]
+    fn find_slot(&self, id: StringId) -> Option<u32> {
+        if self.index.is_empty() {
+            return None;
+        }
+
+        let mask = self.index.len() - 1;
+        let mut index = Self::index_start(id, mask);
+        loop {
+            let slot = self.index[index];
+            if slot == LOCAL_INDEX_EMPTY_SLOT {
+                return None;
+            }
+            if self.entries[slot as usize].id == id {
+                return Some(slot);
+            }
+
+            index = (index + 1) & mask;
+        }
+    }
+
+    /// Insert one known-unique stable string ID into the local index.
+    fn insert_slot(&mut self, id: StringId, slot: u32) {
+        let mask = self.index.len() - 1;
+        let mut index = Self::index_start(id, mask);
+        while self.index[index] != LOCAL_INDEX_EMPTY_SLOT {
+            index = (index + 1) & mask;
+        }
+
+        self.index[index] = slot;
+    }
+
+    /// Grow the local index and reinsert existing entry slots.
+    fn grow_index(&mut self) {
+        let new_capacity = if self.index.is_empty() {
+            LOCAL_INDEX_MIN_CAPACITY
+        } else {
+            self.index.len() * 2
+        };
+        self.index = vec![LOCAL_INDEX_EMPTY_SLOT; new_capacity];
+
+        for slot in 0..self.entries.len() {
+            let id = self.entries[slot].id;
+            self.insert_slot(id, slot as u32);
+        }
+    }
+
+    /// Return the first local index position for one stable string ID.
+    #[inline]
+    fn index_start(id: StringId, mask: usize) -> usize {
+        let bits = id.raw();
+        let folded = bits as u64 ^ (bits >> 64) as u64;
+
+        folded as usize & mask
     }
 }
 
@@ -791,6 +858,24 @@ mod tests {
             [(alpha, "alpha"), (beta, "beta")]
         );
         assert_eq!(pool.len(), 2);
+    }
+
+    /// Preserve every local string across index growth.
+    #[test]
+    fn test_local_pool_grows_index() {
+        let mut pool = LocalStringPool::new();
+        let strings = (0..128)
+            .map(|index| format!("identifier_{index}"))
+            .collect::<Vec<_>>();
+        let ids = strings
+            .iter()
+            .map(|string| pool.intern(string))
+            .collect::<Vec<_>>();
+
+        for (id, string) in ids.into_iter().zip(strings) {
+            assert_eq!(pool.intern(&string), id);
+            assert_eq!(pool.get(id), string);
+        }
     }
 
     #[test]
