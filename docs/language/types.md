@@ -44,9 +44,9 @@ const input: unknown = readInput();
 
 TypeScript has two "top" types: `unknown` and `any` can contain _all_ other types.
 Of course, `any` is unsound, because everything can be assigned to and from `any` without any checks, so Destack forbids it in favor of the explicit `unknown`.
-`unknown` is really just a transparent constraint, and so it behaves like an interface with zero members under the regular [representation rules](#representation):
-- In constraint positions, `unknown` induces an implicit generic: `function parse(value: unknown)` behaves like `function parse<T>(value: T)` where the body knows nothing about `T` until it narrows.
-- In storage positions, bare `unknown` has no layout, so it must either induce a generic parameter or be erased behind `Dynamic<unknown>`.
+`unknown` is really just a transparent top constraint, and so it behaves like an interface with zero members under the regular [representation rules](#representation):
+- As a bound or other type-only constraint, `unknown` imposes no requirements.
+- As a value, storage, or ABI type, bare `unknown` has no layout, so it erases to `Dynamic<unknown>` (and then can be narrowed and accessed through the runtime value it carries).
 
 ```ds
 function parse(value: unknown): string {
@@ -57,15 +57,12 @@ function parse(value: unknown): string {
 }
 
 struct Event {
-    payload: unknown; // induces existential T via Event<T>
-}
-
-struct ErasedEvent {
-    payload: Dynamic<unknown>; // one fixed erased representation
+    payload: unknown; // erases to Dynamic<unknown>
 }
 ```
 
-For genuinely heterogeneous storage, `Dynamic<unknown>` serves as the explicit erased universal value: a fat pointer carrying the value and its runtime descriptor, introspectable via [reflection](#reflection) and narrowable (for runtime-discernible forms) via `is`.
+For genuinely heterogeneous storage, `Dynamic<unknown>` is our "erased universal value": a fat pointer carrying the value and its runtime descriptor, introspectable via [reflection](#reflection) and narrowable (for runtime-discernible forms) via `is`.
+By default, `Dynamic<T>` is a managed reference type (like a class), so it can be passed around, aliased, and mutated freely.
 
 ## String
 
@@ -501,6 +498,7 @@ TypeScript visibility modifiers are fully supported, but the `#field` private sy
 
 Destack supports richer sequence forms beyond TypeScript's dynamic arrays - `T[]` / `Array<T>` with explicit slices, fixed arrays, and tuples.
 Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]` for slices and fixed arrays, respectively.
+(This is also why `.ds` does not support `.ts`-style array tuples `[A, B]` and tuples in `.ds` must always be explicit `(A, B)`)
 
 | Forms | Representation | Meaning |
 |------|----------------|---------|
@@ -553,6 +551,7 @@ match (bytes) {
 }
 ```
 
+For tuples, as said above, we still parse the "array tuple" syntax like `[number, string]` in non-`.ds` files, but require explicit tuple syntax like `(number, string)` in `.ds`.
 Tuples are fixed heterogeneous products, and of course also work as patterns:
 
 ```ds
@@ -572,7 +571,7 @@ const empty: () = ();
 ## Readonly
 
 TypeScript's `readonly` is shallow, while in `.ds`, `readonly T` is always a _deep_ read-only view of `T`.
-That is, `readonly T` forbids _any_ mutation through its `T`, and `readonly T` cannot be assigned to `T`, including via nested members.
+That is, `readonly T` forbids _any_ mutation through its `T`, including via nested members, and reads through a readonly view never _widen_.
 
 ```ds
 struct Profile {
@@ -624,19 +623,7 @@ const value = freeze({ kind: "ready", level: 1 });
 value.kind satisfies "ready";
 ```
 
-Dynamic parameters may _also_ be marked `comptime` when the caller should pass an ordinary argument expression that is still required to be evaluatable as a static term during compile time, mostly as a readability affordance where spelling the value as a generic argument would be awkward or constraining.
-(It also means we can progressively make an argument statically known, without forcing a generic signature, which is nice and ergonomic in some situations.)
-
-```ds
-function repeat<T>(value: T, comptime count: uint): [T; count] {
-    // ...
-}
-
-const values = repeat("x", 3);
-values satisfies [string; 3];
-```
-
-Like dynamic parameters, Destack's generic parameters also support `...` forms:
+Generic parameters also support `...` forms:
 
 ```ds
 type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
@@ -646,26 +633,50 @@ Type inference (including generics) works across modules, even when modules circ
 
 ## Variance
 
-Variance describes how typing and subtyping relations work for generic types, including for all the types that managed language users may not even usually think of as generic (like `Array`).
-Mutable covariance - the fact that we can assign `Circle[]` to `Shape[]` and then mutate `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes and a classic footgun.
-Because Destack needs to be actually sound, we only support this sort of widening when it is unambiguously safe:
+Variance describes how subtyping relates generic types, including the types that managed language users may not usually think of as "generic" (like `Array` or `Record`).
+Mutable covariance - the fact that TypeScript lets us assign `Circle[]` to `Shape[]` and then mutate the `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes, so Destack derives variance from one principle: **a position is invariant exactly when a widened value and the original can reach the same mutable storage.**
 
-| Position | Variance | Example |
+Widening compiles to nothing.
+An implicit conversion that must rewrite the representation - injecting a value into a tagged union, erasing behind `Dynamic<T>`, widening a numeric literal into a concrete carrier - only happens where a fresh value materializes: an assignment, an argument, a return.
+Inside an existing value there is no site to convert at, so type arguments only relate along **identity-witnessed** edges:
+
+```ds
+declare const circles: Holder<Circle>;
+
+const shapes: Holder<Shape> = circles;           // OK: class upcasts change nothing physical
+const either: Holder<Circle | Square> = circles; // ERROR: the payload would need a union tag
+const boxed: Holder<unknown> = circles;          // ERROR: the payload would need an existential box
+```
+
+The rejected widenings still flow value by value: constructing `Holder<Circle | Square>` from a `Circle` tags the payload at the construction, and rebuilding an existing value arm by arm converts each payload at its own value position.
+
+The memory form of a handle decides how much of this its payload needs:
+
+| Handle | Payload arguments | Reason |
 | --- | --- | --- |
-| Readonly positions | covariant | `readonly Circle[]` is assignable to `readonly Shape[]` |
-| Mutable storage positions | invariant | `Circle[]` is _not_ assignable to `Shape[]` |
-| Function parameters | contravariant | `(shape: Shape) => void` is assignable to `(circle: Circle) => void` |
-| Function returns | covariant | `() => Circle` is assignable to `() => Shape` |
+| managed `T` | by derived variance under aliasing | other writable aliases persist |
+| owned `^T` | by derived variance, storage covariant | a move leaves no alias behind |
+| `readonly T`, `&readonly T` | by derived variance, storage covariant | the view strips every write path, deeply |
+| `&T`, `&exclusive T` | exact | writes flow through the borrow |
+| `*T` | exact | raw pointers promise nothing |
 
-For generic types, variance is derived per parameter from each generic parameter's usage in the declaration (like in TypeScript): a parameter that only comes "_out_" (returns, readable fields) is covariant, one that only goes "_in_" (parameters, writable fields) is contravariant, and one that does both - a mutable field counts as both at once - is invariant.
+Placement (`local`/`shared`) is orthogonal to ownership and plays no variance role.
+
+For generic declarations, variance is derived per parameter from usage.
+Storage drives it: a readonly field is covariant, a mutable field is invariant under aliasing and covariant for owned copies and readonly views (container elements and managed payloads stay reachable through other aliases even from owned copies, so only a readonly view relaxes them).
+Methods split by dispatch:
+
+- **Class and interface definition methods are carried.** A constructed instance travels with its own method instantiations, so a widened handle would execute code compiled at the old arguments. Definition methods therefore constrain every handle context by their function-position variance, owned moves included.
+- **Extension methods and value-type methods dispatch statically.** Every call instantiates at the receiver's static type, so nothing stale is carried and they never constrain variance - the same rule as Rust, where only fields drive variance and `impl` blocks do not.
 
 ```ds
 class Source<T> { take(): T }                      // T only comes out -> covariant
 class Sink<T>   { put(value: T): void }            // T only goes in   -> contravariant
-class Pipe<T>   { take(): T; put(value: T): void } // both             -> invariant
+class Pipe<T>   { take(): T; put(value: T): void } // both             -> invariant, even as ^Pipe<T>
 ```
 
-And because `Array<T>` is just a regular (well known) standard library type, and it has both readable and writable positions for its generic parameter, `Array<T>` is invariant in `T`:
+A userland collection becomes view-covariant the same way: keep the fields in the class and the methods in extensions.
+`Array<T>` itself is written this way, so a mutable array is invariant while a readonly view widens:
 
 ```ds
 declare const circles: Circle[];
@@ -675,14 +686,22 @@ const view: readonly Shape[] = circles; // OK: readonly views are covariant
 const copies: Shape[] = [...circles];   // OK: explicit copy reifies Shape elements
 ```
 
-For the other spellings of "a collection of shapes", the element representation decides everything:
+Declared variance closes the gaps derivation cannot reach.
+A generic parameter that never occurs in its declaration is an error (`EC442`); an explicit modifier like `out T` keeps a deliberate marker parameter.
+Declared modifiers on derivable declarations are checked against usage - `class Evil<out T> { slot: T }` is rejected (`EC443`) because the mutable field uses `T` invariantly.
+On an intrinsic newtype the compiler cannot derive anything, so the modifier is a trusted assertion about the opaque storage, composed with the handle context like a field: `Unique<out T>` is covariant for owned and viewed storage and still invariant behind a writable alias.
+
+For the other ways to write "a collection of shapes", the element representation decides everything:
 
 | Element type | `Shape[]` means | Holds |
 | --- | --- | --- |
 | `class Shape` | array of managed references | any subclass, open set |
 | `type` / `newtype` union | array of tagged variant layouts | the listed variants, closed set |
-| `interface Shape` | induced generic, `Array<T: Shape>` | one concrete `T`, homogeneous |
+| `interface Shape` | array of `Dynamic<Shape>` | any implementor, open set |
 | `Dynamic<Shape>` | array of erased fat pointers | any implementor, open set |
+
+An array of `class Shape` holds subclasses because upcast references are physically identical; an array of a union holds exactly the listed variants because each element carries the union layout.
+The same reasoning as everywhere else: representation-changing widenings happen at value positions, never inside storage.
 
 ## Static
 
@@ -832,41 +851,33 @@ A `where` clause accepts the same constraint forms as inline bounds, plus a few 
 | Associated member bound | `I.Item: Display` | an associated type must satisfy a constraint |
 | Equality constraint | `T.Output == U` | two static terms must normalize to the same type or value |
 
-## Shapes
-
-Because Destack inherits TypeScript's type forms of `class`, `type` and `interface`, and then _adds_ `struct` value types and nominality via `newtype`, we now have a spectrum of _six_ different ways of spelling that something looks like a `Point { x: number; y: number }`.
-Bleh.
-It is what it is.
-A little unfortunate, but we couldn't figure out a good way to compress these shapes without losing either key additions like nominality and value types or compatibility guarantees like `type`, `interface`, and `class`.
-So, here goes:
-
-| Form | Role | Representation |
-| --- | --- | --- |
-| `type Point = { x: number; y: number }` | Transparent alias for a type expression. | Transparent |
-| `interface Point { x: number; y: number }` | Named structural constraint with extension syntax. | Transparent |
-| `newtype interface Point { x: number; y: number }` | Nominal interface (trait). | Transparent |
-| `newtype Point = { x: number; y: number }` | Nominal wrapper over an (object) shape. | Managed object |
-| `struct Point { x: number; y: number }` | Nominal value product. | Owned value |
-| `class Point { x: number; y: number }` | Nominal identity object. | Managed object |
-
-Hopefully, these mostly behave as expected, even if the assortment is bigger than what one would usually get.
-They do all actually fill slightly different niches, and, fortunately, they compose quite well, and let us think in terms of types, transparency, nominality, and layout as needed, which is quite neat.
-
 ## Representation
 
 Destack's general philosophy is to let users opt _in_ to additional control and complexity as needed - as much as possible, things should "just work" like in TypeScript.
 That said, the actual memory representation of types does matter, and our unique blend of TypeScript type algebra and actual systems-y AOT compilation means that Destack needs to make representation tradeoffs differently from other languages.
-Specifically, we distinguish three main axes of type behavior that affect representation:
+Specifically, we distinguish four type properties that affect representation:
 
 | Axis | Question | Examples |
 | --- | --- | --- |
 | *nominal* vs *structural* | must the type be constructed or implemented explicitly? | `newtype` / `struct` / `class` / `newtype interface` vs `type` / `{ x: number }` |
 | *transparent* vs *opaque* | does the name just expand to a type expression? | `type` vs `interface` / `struct` / `class` / `newtype` |
-| *concrete* vs *abstract* | is there already a representation we can store directly (the builtin `Concrete` bound)? | primitives / `struct` / `class` vs bare constraints |
+| *closed* vs *open* | does the type expression close to one represented shape? | object alias / union alias vs interface / open index signature |
+| *represented* vs *erased* | how is a value slot stored? | direct layout vs `Dynamic<T>` |
 
-The position decides who commits to a representation: a _constraint_ position leaves the choice to each use site, while a _storage_ position makes the declaration commit.
-All storage positions induce an implicit `Concrete` requirement on the value being stored, and `Concrete` is also available explicitly for the few cases where that's helpful (e.g. `type InlineBytes<T: Concrete> = [uint8; sizeOf<T>()]`).
-Wherever a type can have multiple possible runtime representations, Destack induces an _implicit_ generic parameter and monomorphizes all applications of that parameter, just like with an explicit generic type:
+The position a type is used in decides who "commits" to a representation: a _constraint_ position leaves the choice to each use site, while a _storage_ position needs an actually concrete ("storable") representation:
+
+| Form | Type behavior | Storage default |
+| --- | --- | --- |
+| `type Point = { x: number; y: number }` | Structural, transparent, closed when reified. | Anonymous object layout. |
+| `interface Point { x: number; y: number }` | Structural, named, open. | `Dynamic<Point>` |
+| `newtype interface Point { x: number; y: number }` | Nominal constraint, open. | `Dynamic<Point>` |
+| `type Shape = Circle | Rectangle` | Transparent, closed. | Represented union. |
+| `type Flags = Record<"debug" | "trace", boolean>` | Transparent, closed when reified. | Anonymous object layout. |
+| `type Bag = Record<string, Handler>` | Transparent, open index constraint. | `Dynamic<Bag>`. |
+| `struct Point { x: number; y: number }` | Nominal, closed. | Inline value. |
+| `class Point { x: number; y: number }` | Nominal, closed. | Managed reference. |
+| `newtype Point = T` | Nominal, closed when `T` is closed. | Newtype representation. |
+| `<T: PointLike>` | Explicit generic parameter. | Concrete per instantiation. |
 
 ```ds
 type Point = {
@@ -885,13 +896,11 @@ struct Rectangle {
 draw({ x: 1, y: 2, z: 3 }); // OK
 
 const rectangle = Rectangle {
-    position: { x: 1, y: 2, z: 3 } // ERROR: stored `Point` has exact layout
+    position: { x: 1, y: 2, z: 3 } // ERROR: fresh object literal has excess property `z`
 };
 ```
 
-Transparent types - type aliases - induce a generic in constraint positions (like a function parameter) but are encoded directly in storage positions (like a field in an aggregate).
-This is primarily such that the common pattern of `class Player { status: "running" | "walking" | "idle" }` (which is really just a type alias) works as expected without any additional confusing generics.
-Unlike transparent type aliases, interfaces also induce a generic in storage positions (even as both behave like structural types in general):
+Transparent aliases over closed represented types can be represented directly in storage positions, while open constraints and interfaces become `Dynamic<T>` in storage positions (unless the user writes an explicit generic parameter):
 
 ```ds
 interface PointLike {
@@ -909,28 +918,21 @@ struct Rectangle {
 }
 ```
 
-Desugared, that is roughly:
+Desugared, that is basically:
+
+```ds
+struct Rectangle {
+    start: Dynamic<PointLike>;
+    end: Dynamic<PointLike>;
+}
+```
+
+For static storage, spell the generic parameters explicitly:
 
 ```ds
 struct Rectangle<TStart: PointLike, TEnd: PointLike> {
     start: TStart;
     end: TEnd;
-}
-```
-
-Anonymous constraint expressions require a specific type to be filled in at usage sites and thus induce a generic:
-
-```ds
-newtype interface Writer {
-    write(bytes: [uint8]): Result<uint, Error>;
-}
-
-interface Writer {
-    write(bytes: [uint8]): Result<uint, Error>;
-}
-
-type Writer = {
-    write(bytes: [uint8]): Result<uint, Error>;
 }
 ```
 
@@ -973,40 +975,10 @@ A representation change is also exactly what separates a compiled conversion fro
 An implicit conversion reifies as a coercion only when the identity function is not a valid witness for it: injecting a value into a tagged union writes a tag and erasing behind `Dynamic<T>` builds the fat pointer, while readonly and variance widenings change nothing physical and compile to nothing.
 Literals never convert at all; a constant materializes directly at its solved type.
 
-## Dynamic
-
-The default being that structural constraints become hidden generic parameters is _generally_ great for performance in a `type`-heavy language like TypeScript, and it works especially well because we always compile statically from source.
-However, sometimes explicit _runtime_ indirection / erasure is desired, and Destack also provides an intrinsic `Dynamic<T>` wrapper as the explicit erased runtime value satisfying any dynamic-safe `T`:
-
-```ds
-// just like the function, this Logger is implicitly generic over Writer
-struct Logger {
-    writer: Writer;
-}
-
-// the Logger above is the same as Logger<T: Writer>
-struct Logger<T: Writer> {
-    writer: T;
-}
-
-// for fixed layout, erase the constraint
-struct LoggerFor {
-    writer: Dynamic<Writer>;
-}
-```
-
-For a type `T` to become concrete (as required by `Dynamic<T>`), it must have a shape we can actually erase into a value at runtime (the "runtime witness": we call this property `DynamicSafe`.
-Basically, the `T` in `Dynamic<T>` implies `DynamicSafe`, which is very similar to Rust's "object-safe" requirements for `dyn T`:
- - no generic members that introduce new generic parameters
- - no index signatures
- - no unqualified reference to `this`
-
-Of course, the `Dynamic<T>` value _itself_ is always `Concrete`: erasure is precisely what gives an abstract constraint one fixed sized runtime representation.
-
 ## Layout
 
 Layout is the concrete storage and ABI shape selected for a representable type under the active target, the default representation being `@repr("destack")`.
-Only represented types have layout; structural shapes become represented when a representation slot reifies them, while incomplete constraints must be preserved through a generic parameter or erased behind `Dynamic<T>`.
+Only represented types have layout; structural shapes become represented when a value expression materializes a concrete object, while open slots use an explicit generic parameter or become indirect behind `Dynamic<T>`.
 The exact layout of a type can be configured via decorators that constrain its representation as needed, the conventions being very similar to Rust's:
 
 | Decorator | Meaning |

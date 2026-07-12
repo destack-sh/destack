@@ -74,7 +74,7 @@ The TypeScript primitives keep their meaning, but we support more scalar types.
 | --- | --- | --- |
 | **`number`** | `let x: number` | stays the default numeric type, an alias for `float64` |
 | **Integer and float widths** | `int32`, `uint8`, `float32`, ... | added as real scalar types |
-| **Single-quoted literals** | `'A'` | always a `char`; strings use double quotes |
+| **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` |
 | **String indexing** | `text[0]` | yields `char` in `.ds`, and traps on a lone surrogate |
 | **`symbol`** | `let key: symbol` | supported as a regular property key type |
 | **`unique symbol`** | `const key: unique symbol` | supported for statically known singleton keys |
@@ -122,7 +122,7 @@ big.tryInto<int8>();        // checked
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **`any`** | `let x: any` | forbidden in all sources, an unchecked escape hatch in both directions |
-| **`unknown`** | `declare const data: unknown` | supported, and induces a generic in constraint positions |
+| **`unknown`** | `declare const data: unknown` | supported, and represented as `Dynamic<unknown>` in value positions |
 
 #### Any and Unknown
 
@@ -145,7 +145,7 @@ Object shapes are static and exact: no prototype tricks, no runtime mutation, an
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **Interchangeable `type` / `interface`** | data-shaped `interface Point` in a field | diverges in storage positions |
-| **`Record<K, V>`** | `Record<string, User>` | closed utility type, use `Map<K, V>` for dynamic keyed storage |
+| **`Record<K, V>`** | `Record<string, User>` | mapped utility type, use `Map<K, V>` for dynamic keyed storage |
 | **`object`** | `let value: object` | not supported, use a structural shape, `unknown`, or an  interface |
 | **Declaration expressions** | `const C = class {}` | not supported, runtime type generation is not statically knowable |
 | **Prototype objects** | `.prototype`, `.__proto__`, `Object.setPrototypeOf` | not supported |
@@ -157,7 +157,7 @@ Object shapes are static and exact: no prototype tricks, no runtime mutation, an
 #### Type vs Interface
 
 In TypeScript, `type` and `interface` are mostly interchangeable.
-In Destack they diverge in storage positions: aliases are exact data shapes, interfaces are constraints and induce hidden generics when stored.
+In Destack, they diverge in storage positions: closed aliases are exact data shapes, while interfaces are constraints and erase to `Dynamic<T>` when stored.
 
 ```ds
 type Point = { x: number; y: number };
@@ -172,7 +172,7 @@ interface PointLike {
 }
 
 struct Sprite {
-    position: PointLike; // induces a hidden generic: Sprite<T: PointLike>
+    position: PointLike; // erased storage: Dynamic<PointLike>
 }
 ```
 
@@ -737,7 +737,7 @@ Borrows of owned data may cross into scoped child tasks (subject to `Send`), whi
 
 #### Monomorphization
 
-Both languages monomorphize, and Destack additionally induces generics implicitly wherever a constraint appears in a parameter, so `impl Trait` maps to nothing at all:
+Both languages monomorphize explicit generics, and Destack uses `Dynamic<T>` for bare erased constraints, while explicit generic parameters preserve Rust-like zero-cost specialization:
 
 ```rust
 fn draw(shape: impl Shape) { ... }     // argument position: universal
@@ -745,8 +745,8 @@ fn make() -> impl Shape { ... }        // return position: existential
 ```
 
 ```ds:unchecked
-function draw(shape: Shape): void {}   // same universal, no keyword
-function make(): Shape { ... }         // same existential, no keyword
+function draw<T: Shape>(shape: T): void {} // same universal
+function make(): Shape { ... }             // same existential return checking
 ```
 
 #### Constants

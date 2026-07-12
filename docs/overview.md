@@ -6,8 +6,8 @@ order: 10
 
 # Overview
 
-The Destack language (`.ds`) is a superset of a strict subset of TypeScript, with true native AOT compilation, a fully integrated toolchain, and standard JavaScript and TypeScript output targets.
-Strict "modern" TypeScript code within this subset "just works", but Destack has absolutely **no JavaScript or NPM interoperability**  (see [comparison](comparison.md)).
+The Destack language (`.ds`) is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, true native AOT compilation and a fully integrated toolchain, _and_ it can also "compile" nicely to standard JS/TS targets.
+Strict TypeScript code "just works", but Destack has absolutely **no JavaScript or NPM interoperability**  (see [comparison](comparison.md)).
 
 We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated computing stack, and thus by "language" ("TypeScript++") we mean much more than "just" the programming language itself: a language, a runtime, a toolchain, plugins, libraries, and ultimately, a way of programming.
 It's all connected, and to leave out a part would be to betray the whole, which is why we need to begin with an _actual_ programming language.
