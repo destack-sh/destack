@@ -13,8 +13,7 @@ export function TopBar() {
                     <ShortcutLabel brackets={false} label="destack.sh" shortcut="h" />
                 </SiteLink>
 
-                <nav aria-label="Primary navigation">
-                    <CommandPalette />
+                <nav aria-label="Primary navigation" class="site-topbar__primary">
                     {primaryLinks.map(({ label, href, shortcut }) => (
                         <SiteLink
                             href={href}
@@ -24,8 +23,12 @@ export function TopBar() {
                             <ShortcutLabel label={label} shortcut={shortcut} />
                         </SiteLink>
                     ))}
-                    <ThemeToggle />
                 </nav>
+
+                <div class="site-topbar__actions">
+                    <CommandPalette />
+                    <ThemeToggle />
+                </div>
             </div>
         </header>
     );
