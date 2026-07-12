@@ -193,7 +193,7 @@ struct Cell {
     value: int32;
 }
 
-type Reborrow<Q, comptime L: Lifetime = type(LifetimeOr<Q, "static">)> = Borrowed<Q, L>;
+type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
 type StaticCell = Reborrow<Cell>;
 
 declare const cell: StaticCell;
@@ -211,7 +211,7 @@ struct Cell {
     value: int32;
 }
 
-type Reborrow<Q, comptime L: Lifetime = LifetimeOr<Q, "static">> = Borrowed<Q, L>;
+type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
 type StaticCell = Reborrow<Cell>;
 
 declare const cell: StaticCell;
@@ -229,12 +229,12 @@ struct Cell {
 
 }
 
-type Reborrow<Q, comptime L: Lifetime = type(LifetimeOr<Q, "static">)> = Borrowed<Q, L>;
+type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
 /// @generic.template symbol=Reborrow parameters=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">)
 /// @type.symbol symbol=Reborrow type=Borrowed<Q, L, "mutable">
 /// @definition.type symbol=Reborrow template=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">) value=Borrowed<Q, L, "mutable">
 /// @type.symbol symbol=Reborrow.Q source=Q type=Q
-/// @type.symbol symbol=Reborrow.L source="comptime L: Lifetime = type(LifetimeOr<Q, \"static\">)" type=L
+/// @type.symbol symbol=Reborrow.L source="comptime L: Lifetime = type LifetimeOr<Q, \"static\">" type=L
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @resolution.name source=LifetimeOr target=memory.type.LifetimeOr
 /// @resolution.name source=Q target=Reborrow.Q

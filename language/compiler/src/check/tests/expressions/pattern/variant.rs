@@ -33,15 +33,15 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
-/// @type.symbol symbol=Status type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err key=Err
-/// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Status = Ok<string> | Err<int32>;
+/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -110,15 +110,15 @@ match (event) {
 
 === checked ===
 @derive(Tagged)
+/// @resolution.name source=derive target=decorator.derive.derive
+
+newtype Event = { kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string };
 /// @type.symbol symbol=Event type=Event
 /// @type.symbol symbol=Event.Click type=Event.Click
 /// @type.symbol symbol=Event.Key type=Event.Key
 /// @definition.newtype symbol=Event value={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
 /// @definition.variant symbol=Event.Click key=Click
 /// @definition.variant symbol=Event.Key key=Key
-/// @resolution.name source=derive target=decorator.derive.derive
-
-newtype Event = { kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string };
 
 declare const event: Event;
 /// @type.symbol symbol=event source=event type=Event
@@ -194,26 +194,26 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
-/// @type.symbol symbol=Status type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err key=Err
-/// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Status = Ok<string> | Err<int32>;
+/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
 @derive(Tagged)
-/// @type.symbol symbol=Other type=Other
-/// @type.symbol symbol=Other.Ok type=Other.Ok
-/// @definition.newtype symbol=Other value=Ok<string>
-/// @definition.variant symbol=Other.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Other = Ok<string>;
+/// @type.symbol symbol=Other source="newtype Other = Ok<string>" type=Other
+/// @type.symbol symbol=Other.Ok type=Other.Ok
+/// @definition.newtype symbol=Other source="newtype Other = Ok<string>" value=Ok<string>
+/// @definition.variant symbol=Other.Ok source="newtype Other = Ok<string>" key=Ok
 /// @resolution.name source=Ok target=error.result.Ok
 
 declare const status: Status;
@@ -271,15 +271,15 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
-/// @type.symbol symbol=Status type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err key=Err
-/// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Status = Ok<string> | Err<int32>;
+/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -340,15 +340,15 @@ const label: "ok" | "err" = match (status) {
 
 === checked ===
 @derive(Tagged)
-/// @type.symbol symbol=Status type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err key=Err
-/// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Status = Ok<string> | Err<int32>;
+/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -414,15 +414,15 @@ const label: "ok" | "err" = match (status) {
 
 === checked ===
 @derive(Tagged)
-/// @type.symbol symbol=Status type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err key=Err
-/// @definition.variant symbol=Status.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Status = Ok<string> | Err<int32>;
+/// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
+/// @type.symbol symbol=Status.Err type=Status.Err
+/// @type.symbol symbol=Status.Ok type=Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 

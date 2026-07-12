@@ -31,13 +31,14 @@ const mode: Mode = 1;
 
 === checked ===
 @repr("uint8")
+/// @resolution.name source=repr target=decorator.representation.repr
+
+enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
 /// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
 /// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
-/// @resolution.name source=repr target=decorator.representation.repr
 
-enum Mode {
     Read = 1,
     /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
 

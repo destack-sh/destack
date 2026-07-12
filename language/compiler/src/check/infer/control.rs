@@ -46,9 +46,6 @@ impl BodyState<'_, '_> {
                 dir::Expression::Member {
                     left, is_optional, ..
                 }
-                | dir::Expression::PrivateMember {
-                    left, is_optional, ..
-                }
                 | dir::Expression::Index {
                     left, is_optional, ..
                 }

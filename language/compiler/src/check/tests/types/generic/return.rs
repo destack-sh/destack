@@ -292,16 +292,16 @@ struct Err<E> {
 }
 
 @derive(Tagged)
-/// @generic.template symbol=Result parameters=(out T#5, out E#2)
-/// @type.symbol symbol=Result type=Result
-/// @type.symbol symbol=Result.Err type=Result.Err
-/// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result template=(out T#5, out E#2) value=Ok<T#5> | Err<E#2>
-/// @definition.variant symbol=Result.Err key=Err
-/// @definition.variant symbol=Result.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Result<T, E> = Ok<T> | Err<E>;
+/// @generic.template symbol=Result parameters=(out T#5, out E#2)
+/// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
+/// @type.symbol symbol=Result.Err type=Result.Err
+/// @type.symbol symbol=Result.Ok type=Result.Ok
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) value=Ok<T#5> | Err<E#2>
+/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err
+/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok
 /// @type.symbol symbol=Result.T source=T type=T#5
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -500,16 +500,16 @@ struct Err<E> {
 }
 
 @derive(Tagged)
-/// @generic.template symbol=Result parameters=(out T#2, out E#2)
-/// @type.symbol symbol=Result type=Result
-/// @type.symbol symbol=Result.Err type=Result.Err
-/// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
-/// @definition.variant symbol=Result.Err key=Err
-/// @definition.variant symbol=Result.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
 
 newtype Result<T, E> = Ok<T> | Err<E>;
+/// @generic.template symbol=Result parameters=(out T#2, out E#2)
+/// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
+/// @type.symbol symbol=Result.Err type=Result.Err
+/// @type.symbol symbol=Result.Ok type=Result.Ok
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err
+/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok
 /// @type.symbol symbol=Result.T source=T type=T#2
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok

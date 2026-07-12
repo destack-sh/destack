@@ -80,23 +80,20 @@ impl BodyState<'_, '_> {
 
         // collect positional element types, spreads keep ordinary inference
         for element in elements {
-            let value = match self.module(module).view().get(*element) {
+            let ty = match self.module(module).view().get(*element) {
                 dir::Argument::Positional { value }
                 | dir::Argument::Named { value, .. }
-                | dir::Argument::Labeled { value, .. } => *value,
+                | dir::Argument::Labeled { value, .. } => {
+                    let value_site = self.node_site(value.into_global_any(module))?;
+
+                    answer!(self.infer_node_type(value_site, PlaceUse::Read)?)
+                }
                 dir::Argument::Spread { .. } | dir::Argument::Error => {
                     return self.infer_node_type(site, PlaceUse::Read);
                 }
+                dir::Argument::Elision => self.intern_type(module, dir::Type::Undefined)?,
             };
-            let value_site = self.node_site(value.into_global_any(module))?;
-            let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-            fields.push(dir::TypeElement {
-                label: None,
-                ty,
-                is_optional: false,
-                is_readonly: false,
-                is_rest: false,
-            });
+            fields.push(dir::TypeElement::new(ty));
         }
 
         // freeze the literal as a readonly array tuple
@@ -130,14 +127,21 @@ impl BodyState<'_, '_> {
         // collect tuple element types exactly
         for element in elements {
             let (label, value, is_rest) = match self.module(module).view().get(*element) {
-                dir::Argument::Positional { value } => (None, *value, false),
-                dir::Argument::Named { value, .. } => (None, *value, false),
-                dir::Argument::Labeled { label, value } => (Some(*label), *value, false),
-                dir::Argument::Spread { value, .. } => (None, *value, true),
+                dir::Argument::Positional { value } => (None, Some(*value), false),
+                dir::Argument::Named { value, .. } => (None, Some(*value), false),
+                dir::Argument::Labeled { label, value } => (Some(*label), Some(*value), false),
+                dir::Argument::Spread { value, .. } => (None, Some(*value), true),
                 dir::Argument::Error => continue,
+                dir::Argument::Elision => (None, None, false),
             };
-            let value_site = self.node_site(value.into_global_any(module))?;
-            let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+            let ty = match value {
+                Some(value) => {
+                    let value_site = self.node_site(value.into_global_any(module))?;
+
+                    answer!(self.infer_node_type(value_site, PlaceUse::Read)?)
+                }
+                None => self.intern_type(module, dir::Type::Undefined)?,
+            };
             fields.push(dir::TypeElement {
                 label,
                 ty,

@@ -291,7 +291,6 @@ impl BodyState<'_, '_> {
                 dir::Expression::ObjectExpression { .. }
                 | dir::Expression::ArrayExpression { .. }
                 | dir::Expression::TupleExpression { .. } => return true,
-                dir::Expression::Parenthesized { expression } => current = expression.into_any(),
                 dir::Expression::Satisfies { expression, .. } => current = expression.into_any(),
                 _ => return false,
             }

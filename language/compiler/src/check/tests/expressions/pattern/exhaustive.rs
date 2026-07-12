@@ -284,6 +284,9 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 
 === checked ===
 @derive(Tagged)
+/// @resolution.name source=derive target=decorator.derive.derive
+
+newtype Edge<T> =
 /// @generic.template symbol=Edge parameters=(in out T#1)
 /// @type.symbol symbol=Edge type=Edge
 /// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
@@ -291,9 +294,6 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 /// @definition.newtype symbol=Edge template=(in out T#1) value={ kind: "bounded"; limit: T#1 } | { kind: "open" }
 /// @definition.variant symbol=Edge.Bounded key=Bounded
 /// @definition.variant symbol=Edge.Open key=Open
-/// @resolution.name source=derive target=decorator.derive.derive
-
-newtype Edge<T> =
 /// @type.symbol symbol=Edge.T source=T type=T#1
 
     | { kind: "bounded"; limit: T }
@@ -382,6 +382,9 @@ const value: string = match (edge) {
 
 === checked ===
 @derive(Tagged)
+/// @resolution.name source=derive target=decorator.derive.derive
+
+newtype Edge<T> =
 /// @generic.template symbol=Edge parameters=(in out T)
 /// @type.symbol symbol=Edge type=Edge
 /// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
@@ -389,9 +392,6 @@ const value: string = match (edge) {
 /// @definition.newtype symbol=Edge template=(in out T) value={ kind: "bounded"; limit: T } | { kind: "open" }
 /// @definition.variant symbol=Edge.Bounded key=Bounded
 /// @definition.variant symbol=Edge.Open key=Open
-/// @resolution.name source=derive target=decorator.derive.derive
-
-newtype Edge<T> =
 /// @type.symbol symbol=Edge.T source=T type=T
 
     | { kind: "bounded"; limit: T }

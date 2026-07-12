@@ -134,11 +134,9 @@ impl BodyState<'_, '_> {
             // value.member
             dir::Expression::Member {
                 left,
-                name: Some(name), .. }
-            // value.#member
-            | dir::Expression::PrivateMember {
-                left,
-                name: Some(name), .. } => {
+                name: Some(name),
+                ..
+            } => {
                 if let Some(place) = answer!(self.binding_place(source)?) {
                     return Ok(Answer::Ready(Some(place)));
                 }
