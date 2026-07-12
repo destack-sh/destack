@@ -5,6 +5,7 @@ import { type Post, type PostContent } from "../generated/posts";
 import { Breadcrumbs } from "./breadcrumbs";
 import { Reader } from "./reader";
 
+/// Properties for one rendered blog article.
 type BlogArticleProps = {
     /// The rendered post body.
     content: PostContent;
@@ -21,8 +22,8 @@ export function BlogArticle(props: BlogArticleProps) {
     return (
         <Reader
             contents={props.post.tableOfContents}
-            location={<BlogLocation post={props.post} />}
-            navigation={<BlogNavigation current={props.post} posts={props.posts} />}
+            location={() => <BlogLocation post={props.post} />}
+            navigation={() => <BlogNavigation current={props.post} posts={props.posts} />}
             source={props.post}
         >
             <BlogArticleHeader post={props.post} />
@@ -32,6 +33,7 @@ export function BlogArticle(props: BlogArticleProps) {
     );
 }
 
+/// Properties for the blog article location.
 type BlogLocationProps = {
     /// The current post.
     post: Post;
@@ -52,6 +54,7 @@ function BlogLocation(props: BlogLocationProps) {
     );
 }
 
+/// Properties for the blog collection navigation.
 type BlogNavigationProps = {
     /// The current post.
     current: Post;
@@ -87,6 +90,7 @@ function BlogNavigation(props: BlogNavigationProps) {
     );
 }
 
+/// Properties for the blog article heading.
 type BlogArticleHeaderProps = {
     /// The current post.
     post: Post;
@@ -102,6 +106,7 @@ function BlogArticleHeader(props: BlogArticleHeaderProps) {
     );
 }
 
+/// Properties for the adjacent post navigation.
 type PostNavigationProps = {
     /// The current post.
     post: Post;
@@ -112,6 +117,7 @@ type PostNavigationProps = {
 
 /// Render adjacent posts when they exist.
 function PostNavigation(props: PostNavigationProps) {
+    // resolve neighbors from the canonical post order
     const index = () => props.posts.findIndex((post) => post.slug === props.post.slug);
     const newer = () => props.posts[index() - 1];
     const older = () => props.posts[index() + 1];
@@ -129,6 +135,7 @@ function PostNavigation(props: PostNavigationProps) {
     );
 }
 
+/// Properties for one adjacent post link.
 type PostNavigationLinkProps = {
     /// The link label.
     label: string;

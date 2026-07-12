@@ -6,6 +6,7 @@ import { type Document, type DocumentContent, documents } from "../generated/doc
 import { Breadcrumbs, type Breadcrumb } from "./breadcrumbs";
 import { Reader } from "./reader";
 
+/// Properties for one rendered manual chapter.
 type DocumentArticleProps = {
     /// The rendered document body.
     content: DocumentContent;
@@ -19,8 +20,8 @@ export function DocumentArticle(props: DocumentArticleProps) {
     return (
         <Reader
             contents={props.document.tableOfContents}
-            location={<DocumentLocation document={props.document} />}
-            navigation={<DocumentNavigation current={props.document} />}
+            location={() => <DocumentLocation document={props.document} />}
+            navigation={() => <DocumentNavigation current={props.document} />}
             source={props.document}
         >
             <div class="markdown" innerHTML={props.content.html} />
@@ -29,6 +30,7 @@ export function DocumentArticle(props: DocumentArticleProps) {
     );
 }
 
+/// Properties for the manual chapter navigation.
 type DocumentNavigationProps = {
     /// The current document.
     current: Document;
@@ -73,6 +75,7 @@ function DocumentNavigation(props: DocumentNavigationProps) {
 
 /// Return the visual nesting of one manual chapter.
 function documentDepth(document: Document) {
+    // omit each collection index from its visual depth
     const segments = document.path.split("/");
     const isDirectoryIndex = segments.at(-1) === "index.md";
     const depth = segments.length - (isDirectoryIndex ? 2 : 1);
@@ -80,6 +83,7 @@ function documentDepth(document: Document) {
     return String(Math.max(0, depth));
 }
 
+/// Properties for the manual chapter location.
 type DocumentLocationProps = {
     /// The current document.
     document: Document;
@@ -88,9 +92,11 @@ type DocumentLocationProps = {
 /// Render the navigable chapter path.
 function DocumentLocation(props: DocumentLocationProps) {
     const items = (): readonly Breadcrumb[] => {
+        // begin every chapter path at the manual root
         const segments = props.document.route.split("/").filter(Boolean).slice(1);
         const breadcrumbs: Breadcrumb[] = [{ href: "/docs/", label: "docs" }];
 
+        // link each ancestor while leaving the current chapter inert
         for (let index = 0; index < segments.length; index += 1) {
             const isCurrent = index === segments.length - 1;
             const label = isCurrent ? props.document.title : segments[index];
@@ -104,6 +110,7 @@ function DocumentLocation(props: DocumentLocationProps) {
     return <Breadcrumbs items={items()} />;
 }
 
+/// Properties for the adjacent chapter navigation.
 type DocumentPaginationProps = {
     /// The current document.
     current: Document;

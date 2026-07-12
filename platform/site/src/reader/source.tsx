@@ -1,73 +1,136 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
 
 import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
 
+/// Properties for the page source controls.
 type SourceActionsProps = {
-    /// The current page source files.
-    source: PageSource;
+    /// The shared page source commands.
+    commands: PageSourceCommands;
 };
 
 /// The latest source-copy outcome.
 type SourceState = "" | "error" | "md" | "txt";
 
-/// Render source links and copy controls shared by articles and documentation.
-export function SourceActions(props: SourceActionsProps) {
+/// One portable source format.
+type SourceKind = "md" | "txt";
+
+/// The state and commands shared by responsive source controls.
+export type PageSourceCommands = {
+    /// Copy one source format.
+    copy: (kind: SourceKind) => void;
+
+    /// The current page source files.
+    source: PageSource;
+
+    /// The latest source-copy outcome.
+    state: Accessor<SourceState>;
+
+    /// The formatted token count or copy failure.
+    tokenLabel: Accessor<string>;
+};
+
+/// Create source commands shared by responsive article controls.
+export function createPageSourceCommands(source: PageSource): PageSourceCommands {
     const [state, setState] = createSignal<SourceState>("");
     let reset: ReturnType<typeof setTimeout> | undefined;
 
+    // cancel a pending status reset when the reader is replaced
     onCleanup(() => clearTimeout(reset));
 
-    const copy = async (kind: "md" | "txt") => {
-        const route = kind === "md" ? props.source.markdownRoute : props.source.textRoute;
+    const write = async (kind: SourceKind) => {
+        // load the requested source format
+        const route = kind === "md" ? source.markdownRoute : source.textRoute;
         const response = await fetch(route);
+
+        // surface unavailable generated sources
         if (!response.ok) {
             throw new Error(`failed to load ${route}: ${response.status}`);
         }
 
+        // publish the source and briefly report success
         await navigator.clipboard.writeText(await response.text());
         setState(kind);
         clearTimeout(reset);
         reset = setTimeout(() => setState(""), 1600);
     };
 
-    const copyMaybe = (kind: "md" | "txt") => {
-        void copy(kind).catch((error: unknown) => {
+    const copy = (kind: SourceKind) => {
+        // report clipboard failures through the visible source status
+        void write(kind).catch((error: unknown) => {
             console.error(error);
             setState("error");
         });
     };
 
     onMount(() => {
-        const copyMarkdown = () => copyMaybe("md");
-        const copyText = () => copyMaybe("txt");
+        // bind command palette copy actions to this page
+        const copyMarkdown = () => copy("md");
+        const copyText = () => copy("txt");
 
         document.addEventListener(commandEvents.copyMarkdown, copyMarkdown);
         document.addEventListener(commandEvents.copyText, copyText);
+
+        // unbind page actions when the reader is replaced
         onCleanup(() => {
             document.removeEventListener(commandEvents.copyMarkdown, copyMarkdown);
             document.removeEventListener(commandEvents.copyText, copyText);
         });
     });
 
+    const tokenLabel = () =>
+        state() === "error" ? "copy failed" : `~${formatTokens(source.tokens)} tokens`;
+
+    return { copy, source, state, tokenLabel };
+}
+
+/// Render source links and copy controls shared by articles and documentation.
+export function SourceActions(props: SourceActionsProps) {
+    const commands = props.commands;
+
     return (
-        <nav
-            aria-label="Page formats"
-            class="source-actions"
-            data-markdown-route={props.source.markdownRoute}
-            data-page-source
-            data-text-route={props.source.textRoute}
-        >
+        <div class="source-controls">
+            <nav aria-label="Page formats" class="source-actions">
+                <a
+                    href={commands.source.markdownRoute}
+                    rel="alternate noopener"
+                    target="_blank"
+                    type="text/markdown"
+                >
+                    [source]
+                </a>
+                <SourceLinks commands={commands} />
+                <span class="source-actions__tokens">{commands.tokenLabel()}</span>
+            </nav>
+
+            <details class="source-menu" name="reader-tools">
+                <summary>
+                    <span>[source]</span>
+                    <span class="source-actions__tokens">{commands.tokenLabel()}</span>
+                </summary>
+                <nav aria-label="Page formats" class="source-menu__body">
+                    <span class="source-menu__tokens">{commands.tokenLabel()}</span>
+                    <SourceLinks commands={commands} />
+                </nav>
+            </details>
+        </div>
+    );
+}
+
+/// Properties for the reusable source links.
+type SourceLinksProps = {
+    /// The shared page source commands.
+    commands: PageSourceCommands;
+};
+
+/// Render links and copy controls for the portable source formats.
+function SourceLinks(props: SourceLinksProps) {
+    const commands = props.commands;
+
+    return (
+        <>
             <a
-                href={props.source.markdownRoute}
-                rel="alternate noopener"
-                target="_blank"
-                type="text/markdown"
-            >
-                [source]
-            </a>
-            <a
-                href={props.source.markdownRoute}
+                href={commands.source.markdownRoute}
                 rel="alternate noopener"
                 target="_blank"
                 type="text/markdown"
@@ -75,23 +138,20 @@ export function SourceActions(props: SourceActionsProps) {
                 [.md]
             </a>
             <a
-                href={props.source.textRoute}
+                href={commands.source.textRoute}
                 rel="alternate noopener"
                 target="_blank"
                 type="text/plain"
             >
                 [.txt]
             </a>
-            <button onClick={() => copyMaybe("md")} type="button">
-                [{state() === "md" ? "copied" : "copy .md"}]
+            <button onClick={() => commands.copy("md")} type="button">
+                [{commands.state() === "md" ? "copied" : "copy .md"}]
             </button>
-            <button onClick={() => copyMaybe("txt")} type="button">
-                [{state() === "txt" ? "copied" : "copy .txt"}]
+            <button onClick={() => commands.copy("txt")} type="button">
+                [{commands.state() === "txt" ? "copied" : "copy .txt"}]
             </button>
-            <span class="source-actions__tokens">
-                {state() === "error" ? "copy failed" : `~${formatTokens(props.source.tokens)} tokens`}
-            </span>
-        </nav>
+        </>
     );
 }
 
