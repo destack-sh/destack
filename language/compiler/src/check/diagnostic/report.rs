@@ -6,8 +6,8 @@ use destack_source::{
 };
 
 use crate::check::{
-    BoundSide, CauseId, CheckFailure, CheckState, ObligationFailure, OperatorOperands, Origin,
-    Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
+    BoundSide, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure, OperatorOperands,
+    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
 };
 use crate::{CheckError, CheckWarning, CompilerResult, DiagnosticAnchor};
 
@@ -1337,7 +1337,13 @@ impl CheckState<'_> {
         }
 
         let origin = self.cause_origin(cause);
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let root_kind = self.root_cause(cause).kind;
+        let (module, anchor) = match (root_kind, value_use) {
+            (CauseKind::Initializer { .. }, _) | (_, Some(ValueUse::Store)) => {
+                self.origin_node_anchor(origin)?
+            }
+            _ => self.origin_diagnostic_anchor(origin)?,
+        };
 
         // re-walk failed closed relations to their mismatched leaf
         let blame = match failure {

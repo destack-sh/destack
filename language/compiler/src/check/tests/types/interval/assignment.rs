@@ -80,7 +80,7 @@ const next: Digit = digit + 1;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'Digit'"
-/// @diagnostic.label line=5 column=27 span="+" line_source="const next: Digit = digit + 1;"
+/// @diagnostic.label line=5 column=21 span="digit + 1" line_source="const next: Digit = digit + 1;"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );

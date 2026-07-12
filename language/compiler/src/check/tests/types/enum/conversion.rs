@@ -58,7 +58,7 @@ const mode: Mode = 1;
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'Mode.Read' is not assignable to type 'uint8'"
-/// @diagnostic.label line=8 column=25 span="Read" line_source="const raw: uint8 = Mode.Read;"
+/// @diagnostic.label line=8 column=20 span="Mode.Read" line_source="const raw: uint8 = Mode.Read;"
 /// @diagnostic.error code=EC200 message="type '1' is not assignable to type 'Mode'"
 /// @diagnostic.label line=9 column=20 span="1" line_source="const mode: Mode = 1;"
 "#,
