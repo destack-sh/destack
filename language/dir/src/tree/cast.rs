@@ -72,3 +72,13 @@ pub enum CastOrigin {
     /// Casts inserted implicitly at type boundaries.
     Implicit,
 }
+
+impl CastOrigin {
+    /// Return the stable textual name of this cast origin.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Explicit => "explicit",
+            Self::Implicit => "implicit",
+        }
+    }
+}

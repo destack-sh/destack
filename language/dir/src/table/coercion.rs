@@ -110,6 +110,19 @@ pub enum CoercionKind {
     Carrier,
 }
 
+impl CoercionKind {
+    /// Return the stable textual name of this representation change.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Borrow => "borrow",
+            Self::Union => "union",
+            Self::Existential => "existential",
+            Self::Scalar => "scalar",
+            Self::Carrier => "carrier",
+        }
+    }
+}
+
 /// One type coercion attached to a value node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Coercion {
