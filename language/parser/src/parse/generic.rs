@@ -442,17 +442,6 @@ impl Parser {
         Ok(parameters)
     }
 
-    /// Parse generic arguments, including their angle tokens, when present.
-    pub(crate) fn parse_generic_arguments_if_present(
-        &mut self,
-        context: ExpressionContext,
-    ) -> ParserResult<Option<Vec<LocalNodeId<GenericArgument>>>> {
-        if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
-            return Ok(Some(self.parse_generic_argument_list(context)?));
-        }
-        Ok(None)
-    }
-
     /// Parse type generic arguments, including the angle tokens.
     ///
     /// Examples:

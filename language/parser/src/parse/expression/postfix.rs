@@ -58,6 +58,8 @@ impl Parser {
         mut is_parenthesized: bool,
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
+        let mut is_first_postfix = true;
+
         loop {
             // stop before tokens that cannot continue one value operand
             let token_type = self.peek_token_type();
@@ -107,12 +109,14 @@ impl Parser {
                     if self.is_unparenthesized_lambda_expression(left) && !is_parenthesized {
                         return Err(ParserError::unexpected(self.peek_token_span()));
                     }
-                    Some(self.parse_call(left, None, PostfixPosition::Direct, context)?)
+                    Some(self.parse_call(left, Vec::new(), PostfixPosition::Direct, context)?)
                 }
                 TokenType::OpenBracket => {
                     Some(self.parse_index(left, PostfixPosition::Direct, context)?)
                 }
-                TokenType::Dot => Some(self.parse_dot_postfix(start, left, context)?),
+                TokenType::Dot => {
+                    Some(self.parse_dot_postfix(start, left, is_first_postfix, context)?)
+                }
                 TokenType::Maybe if is_question_postfix => {
                     Some(self.parse_assertion_postfix(start, left, true, PostfixPosition::Direct))
                 }
@@ -150,6 +154,7 @@ impl Parser {
 
             // continue from the newly wrapped expression
             left = next;
+            is_first_postfix = false;
             is_parenthesized = false;
         }
 
@@ -212,12 +217,7 @@ impl Parser {
         let generic_arguments = self.parse_generic_argument_list(context)?;
         if self.peek_is(TokenType::OpenParenthesis) {
             return self
-                .parse_call(
-                    left,
-                    Some(generic_arguments),
-                    PostfixPosition::Direct,
-                    context,
-                )
+                .parse_call(left, generic_arguments, PostfixPosition::Direct, context)
                 .map(Some);
         }
         if matches!(
@@ -291,16 +291,17 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         left: LocalNodeId<Expression>,
+        is_first_postfix: bool,
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let dot_range = self.eat_token(TokenType::Dot)?.range();
-        if self.is_decimal_integer_before_dot(left, dot_range) {
+        if is_first_postfix && self.is_decimal_integer_before_dot(left, dot_range) {
             return Err(ParserError::unexpected(dot_range));
         }
 
         // indirect call
         if self.peek_is(TokenType::OpenParenthesis) {
-            return self.parse_call(left, None, PostfixPosition::Indirect, context);
+            return self.parse_call(left, Vec::new(), PostfixPosition::Indirect, context);
         }
 
         // indirect index

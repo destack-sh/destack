@@ -82,6 +82,24 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Parse one operator right operand within the current recursive-descent level.
+    fn parse_expression_right_operand(
+        &mut self,
+        context: ExpressionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        // recover a missing operand at an enclosing grammar boundary
+        if self.peek_expression_slot_boundary() {
+            return Ok(self.recover_missing_expression_here(NodeType::Expression));
+        }
+
+        // guard source nesting introduced by a leading separator
+        if self.peek_is(TokenType::ElementwiseOr) {
+            return self.parse_expression(context);
+        }
+
+        self.parse_expression_after_descent(context)
+    }
+
     /// Parse one value operator tail after entering recursive descent state.
     #[inline(never)]
     fn parse_expression_tail_after_descent(
@@ -151,8 +169,7 @@ impl Parser {
 
             // parse the complete right operand at this operator's binding power
             let right_context = context.right(precedence);
-            let right =
-                self.parse_expression_or_recover_missing(right_context, NodeType::Expression)?;
+            let right = self.parse_expression_right_operand(right_context)?;
             left = self.insert_expression_infix(left, operator, range, right)?;
         }
 
@@ -183,8 +200,7 @@ impl Parser {
                     .with(ExpressionStops::NEWLINE_CALL)
                     .without(ExpressionStops::CONDITIONAL_QUESTION);
             }
-            let right =
-                self.parse_expression_or_recover_missing(right_context, NodeType::Expression)?;
+            let right = self.parse_expression_right_operand(right_context)?;
 
             // collect another operation at exactly this precedence
             if let Some(next) = self.peek_expression_operator(right, context)
@@ -230,14 +246,11 @@ impl Parser {
             // parse ? thenExpression
             let question = self.peek_token().range();
             self.bump();
-            let then_expression = self.parse_expression_or_recover_missing(
-                ExpressionContext {
-                    stops: context.stops.with(ExpressionStops::CONDITIONAL_COLON),
-                    minimum_precedence: OperatorPrecedence::Lowest,
-                    ..context
-                },
-                NodeType::Expression,
-            )?;
+            let then_expression = self.parse_expression_right_operand(ExpressionContext {
+                stops: context.stops.with(ExpressionStops::CONDITIONAL_COLON),
+                minimum_precedence: OperatorPrecedence::Lowest,
+                ..context
+            })?;
 
             // parse or recover the conditional colon
             let colon =
@@ -250,14 +263,11 @@ impl Parser {
             });
 
             // parse the next false-branch head without recursive conditional depth
-            condition = self.parse_expression_or_recover_missing(
-                ExpressionContext {
-                    stops: context.stops.with(ExpressionStops::CONDITIONAL_QUESTION),
-                    minimum_precedence: OperatorPrecedence::Lowest,
-                    ..context
-                },
-                NodeType::Expression,
-            )?;
+            condition = self.parse_expression_right_operand(ExpressionContext {
+                stops: context.stops.with(ExpressionStops::CONDITIONAL_QUESTION),
+                minimum_precedence: OperatorPrecedence::Lowest,
+                ..context
+            })?;
             if !self.peek_is(TokenType::Maybe) {
                 break;
             }

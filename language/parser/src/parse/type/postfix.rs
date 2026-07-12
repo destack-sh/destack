@@ -91,7 +91,7 @@ impl Parser {
         };
         let expression = self.parse_call(
             head.expression,
-            Some(head.generic_arguments),
+            head.generic_arguments,
             PostfixPosition::Direct,
             ExpressionContext {
                 function: context.function,

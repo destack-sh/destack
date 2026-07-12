@@ -55,7 +55,12 @@ fn test_parse_call_postfix() {
     let mut parser = test.prepare();
     let recv = make_receiver(&mut parser);
     let call_id = parser
-        .parse_call(recv, None, PostfixPosition::Direct, Default::default())
+        .parse_call(
+            recv,
+            Vec::new(),
+            PostfixPosition::Direct,
+            Default::default(),
+        )
         .unwrap();
 
     assert_node!(parser.tree, call_id, Expression::Call { position, left, generic_arguments: _, arguments } => {

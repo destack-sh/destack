@@ -71,14 +71,6 @@ impl Parser {
         bound
     }
 
-    /// Return the explicit width encoded in the current type literal.
-    #[inline]
-    fn peek_type_width(&self, prefix: &'static str) -> Option<u16> {
-        self.peek_token_str()
-            .strip_prefix(prefix)
-            .and_then(|width| width.parse::<u16>().ok())
-    }
-
     /// Return whether the next token is the given identifier text.
     #[inline]
     fn peek_next_identifier_is(&self, expected: &str) -> bool {
@@ -91,25 +83,25 @@ impl Parser {
     fn peek_sized_type_literal(&self) -> Option<TypeLiteral> {
         let identifier = self.peek_token_str();
 
+        // split the common fixed integer families from their decimal width
+        let integer = if let Some(width) = identifier.strip_prefix("int") {
+            Some((width, true))
+        } else if let Some(width) = identifier.strip_prefix("uint") {
+            Some((width, false))
+        } else {
+            identifier.strip_prefix('u').map(|width| (width, false))
+        };
+        if let Some((width, is_signed)) = integer {
+            let width = width.parse::<u16>().ok()?;
+
+            return Some(TypeLiteral::Integer(IntegerType::Fixed {
+                width,
+                is_signed,
+            }));
+        }
+
+        // recognize the fixed floating point type names
         match identifier {
-            _ if let Some(width) = self.peek_type_width("int") => {
-                Some(TypeLiteral::Integer(IntegerType::Fixed {
-                    width,
-                    is_signed: true,
-                }))
-            }
-            _ if let Some(width) = self.peek_type_width("uint") => {
-                Some(TypeLiteral::Integer(IntegerType::Fixed {
-                    width,
-                    is_signed: false,
-                }))
-            }
-            _ if let Some(width) = self.peek_type_width("u") => {
-                Some(TypeLiteral::Integer(IntegerType::Fixed {
-                    width,
-                    is_signed: false,
-                }))
-            }
             "float16" => Some(TypeLiteral::Float(FloatType::Float16)),
             "bfloat16" => Some(TypeLiteral::Float(FloatType::Bfloat16)),
             "float32" => Some(TypeLiteral::Float(FloatType::Float32)),
