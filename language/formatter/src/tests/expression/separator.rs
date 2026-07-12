@@ -4,9 +4,20 @@ use crate::{
     parse_first_expression,
 };
 use destack_dir::{
-    CommentKind, CommentPosition, Declaration, Declarator, Expression, TypeExpression,
+    CommentAnchor, CommentKind, Declaration, Declarator, Expression, TypeExpression,
 };
 use destack_source::FileType;
+
+/// Derive statement source extents from wrappers and semantic tokens.
+#[test]
+fn test_derive_expression_statement_source_extent() {
+    let (formatter, expression_id) =
+        TestFormatter::parse("(() => value);", parse_first_expression).unwrap();
+    let context = formatter.context(DestackFormatOptions::default());
+    let span = context.expression_statement_extent(expression_id);
+
+    assert_eq!(context.span_str(span), "(() => value);");
+}
 
 /// Computed member separator comments should stay on the receiver.
 #[test]
@@ -34,12 +45,12 @@ fn test_format_template_member_separator_comments() {
     );
 }
 
-/// Trailing comments inside explicit parentheses should remain before the close token.
+/// Trailing comments should follow structurally required parentheses.
 #[test]
 fn test_format_parenthesized_trailing_comment() {
     assert_format_program_roundtrip_with_file_type(
         "code || (!escapeless && (true /* 1 */ || false /* 2 */))\n",
-        "code || (!escapeless && (true /* 1 */ || false /* 2 */));\n",
+        "code || (!escapeless && (true /* 1 */ || false) /* 2 */);\n",
         FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -231,16 +242,20 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
     assert_eq!(token_start, inner_start);
 
     assert_eq!(leading_comments[0].kind, CommentKind::SingleLineBlock);
-    assert_eq!(leading_comments[0].position, CommentPosition::Leading);
-    assert_eq!(leading_comments[0].attached_to, inner_start);
+    assert_eq!(
+        leading_comments[0].anchor,
+        CommentAnchor::Before(inner_start)
+    );
     assert_eq!(leading_comments[0].span.start, block_start);
     assert_eq!(leading_comments[0].span.end, block_end);
     assert!(!leading_comments[0].preceded_by_newline());
     assert!(!leading_comments[0].followed_by_newline());
 
     assert_eq!(leading_comments[1].kind, CommentKind::Line);
-    assert_eq!(leading_comments[1].position, CommentPosition::Leading);
-    assert_eq!(leading_comments[1].attached_to, inner_start);
+    assert_eq!(
+        leading_comments[1].anchor,
+        CommentAnchor::Before(inner_start)
+    );
     assert_eq!(leading_comments[1].span.start, line_start);
     assert_eq!(leading_comments[1].span.end, line_end);
     assert!(!leading_comments[1].preceded_by_newline());

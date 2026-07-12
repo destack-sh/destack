@@ -527,16 +527,16 @@ fn write_dependency_gap_comments<'ast>(
 ) -> FormatResult<u32> {
     let mut previous_end = start;
 
-    let comment_ids = {
-        let comments = f.context().comments();
-        comments.comments_in_range(start, end).to_vec()
+    let comments = {
+        let comment_cursor = f.context().comments();
+        comment_cursor.comments_in_range(start, end).to_vec()
     };
 
-    for comment_id in comment_ids {
-        let comment_span = comment_id.span;
+    for comment in comments {
+        let comment_span = comment.span;
 
         write_dependency_gap_spacing(f, previous_end, comment_span.start, false)?;
-        format_comment(f, comment_id)?;
+        format_comment(f, comment)?;
 
         previous_end = comment_span.end;
     }
@@ -719,7 +719,7 @@ fn format_dependency_with_arguments<'ast>(
     let attribute_clause_span = f
         .context()
         .tree
-        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Clause));
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Attributes));
     let first_attribute_segment_span = f
         .context()
         .tree

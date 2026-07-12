@@ -28,7 +28,7 @@ use destack_dir::{
     Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
     FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration, Keyword, LetKind,
     LocalNodeId, Member, ModuleDeclaration, Mutability, NodeType, PlaceModifier, TokenSpan,
-    TokenType, TypeDeclaration, TypeExpression, WhereClause,
+    TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
     ArenaVec, FormatError, FormatNode as FirNode, FormatNodes, FormatResult,
@@ -36,7 +36,7 @@ use destack_fir::format::{
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 const MIN_OVERLAP_FOR_BREAK: u32 = 3;
 
@@ -51,7 +51,6 @@ pub(crate) fn declaration_export_token(
         .tokens
         .iter()
         .copied()
-        .chain(context.side_tokens.iter().copied())
         .filter(|token| {
             token.span.file == declaration_span.file
                 && token.span.start >= declaration_span.start
@@ -73,16 +72,16 @@ fn declaration_export_head_comments(
         return Vec::new();
     };
 
-    let mut comment_ids: Vec<Comment> = Vec::new();
+    let mut comments: Vec<Comment> = Vec::new();
 
     // export separator
     if let Some(next_token) = context.next_token_after_span(export_token.span)
         && next_token.span.file == export_token.span.file
         && next_token.span.start > export_token.span.end
     {
-        let comments = context.comments();
-        comment_ids
-            .extend(comments.comments_in_range(export_token.span.end, next_token.span.start));
+        let comment_cursor = context.comments();
+        comments
+            .extend(comment_cursor.comments_in_range(export_token.span.end, next_token.span.start));
     }
 
     // default separator
@@ -91,7 +90,6 @@ fn declaration_export_head_comments(
             .tokens
             .iter()
             .copied()
-            .chain(context.side_tokens.iter().copied())
             .filter(|token| {
                 token.span.file == declaration_span.file
                     && token.span.start >= export_token.span.end
@@ -105,16 +103,17 @@ fn declaration_export_head_comments(
             && next_token.span.file == default_token.span.file
             && next_token.span.start > default_token.span.end
         {
-            let comments = context.comments();
-            comment_ids
-                .extend(comments.comments_in_range(default_token.span.end, next_token.span.start));
+            let comment_cursor = context.comments();
+            comments.extend(
+                comment_cursor.comments_in_range(default_token.span.end, next_token.span.start),
+            );
         }
     }
 
-    comment_ids.sort_by_key(|comment| comment.span.start);
-    comment_ids.dedup();
+    comments.sort_by_key(|comment| comment.span.start);
+    comments.dedup();
 
-    comment_ids
+    comments
 }
 
 /// Write comments between `export` and the declaration head.
@@ -123,26 +122,18 @@ pub(crate) fn write_declaration_export_head_comments<'ast>(
     node_id: LocalNodeId<Declaration>,
     export: ExportKind,
 ) -> FormatResult<()> {
-    let comment_ids = declaration_export_head_comments(f.context(), node_id, export);
+    let comments = declaration_export_head_comments(f.context(), node_id, export);
 
     // empty separator
-    if comment_ids.is_empty() {
+    if comments.is_empty() {
         return Ok(());
     }
 
     // comment sequence
-    for comment_id in comment_ids {
-        format_comment(f, comment_id)?;
+    for comment in comments {
+        format_comment(f, comment)?;
 
-        let is_line_comment = f
-            .context()
-            .comment_token_type_at_span(comment_id.span)
-            .is_some_and(|token_type| {
-                matches!(
-                    token_type,
-                    TokenType::LineComment | TokenType::DocLineComment
-                )
-            });
+        let is_line_comment = comment.is_line();
 
         if is_line_comment {
             write!(f, [hard_line_break()])?;
@@ -294,6 +285,31 @@ fn type_expression_is_assignment_like_generic_condition(
     }
 }
 
+/// Return whether JSDoc precedes a type declaration value.
+fn type_declaration_has_jsdoc_before_value(
+    context: &DestackFormatContext<'_>,
+    declaration: &TypeDeclaration,
+) -> bool {
+    let value_start = context.span(declaration.value).start;
+    let content_start = context
+        .tree
+        .get_side_span(
+            declaration.value,
+            NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
+        )
+        .map_or(value_start, |span| span.start);
+    let content_span = Span::new(context.file.id, content_start, content_start);
+    let Some(previous_token) = context.previous_token_before_span(content_span) else {
+        return false;
+    };
+
+    context
+        .source_comments_in_range(previous_token.span.end, content_start)
+        .iter()
+        .copied()
+        .any(|comment| comment.is_jsdoc() && comment.followed_by_newline())
+}
+
 /// Return whether one type declaration rhs should break after `=`.
 fn type_declaration_should_break_after_operator(
     context: &DestackFormatContext<'_>,
@@ -311,8 +327,10 @@ fn type_declaration_should_break_after_operator(
                 || comments.has_comment_before(value_start)
         }
 
-        // unions own their indentation logic
-        TypeExpression::Union { .. } => false,
+        // break before union-leading jsdoc so the declaration owns its indentation
+        TypeExpression::Union { .. } => {
+            type_declaration_has_jsdoc_before_value(context, declaration)
+        }
 
         _ => comments.has_comment_before(value_start),
     }
@@ -716,7 +734,7 @@ pub(crate) fn format_let_else_statement_expression<'ast>(
 
     let let_else_id = LocalNodeId::<Expression>::new(parent_id);
     let else_span = tree
-        .get_side_span(let_else_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+        .get_side_span(let_else_id, NodeSpanType::Region(NodeSpanRegion::Else))
         .ok_or(FormatError::SyntaxError {
             message: "let-else expression requires else span",
         })?;
@@ -831,12 +849,10 @@ fn format_global_declaration<'ast>(
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, None)?;
-    if f.context()
-        .tree
-        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Prelude))
-        .is_some()
-    {
-        write_ambient_prefix(f, declaration.is_ambient)?;
+    let should_declare =
+        declaration.is_ambient && !f.context().options.language_type.is_declaration();
+    if should_declare {
+        write_ambient_prefix(f, true)?;
     }
 
     // head

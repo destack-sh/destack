@@ -2,9 +2,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use super::source::{line_prefix_text, write_source_span};
-use destack_dir::{LocalNodeId, Node, TokenSpan, Tree, TreeStore};
+use destack_dir::{Comment, LocalNodeId, Node, NodeType, Tree, TreeStore};
 use destack_fir::format::FormatResult;
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use destack_source::Span;
 
 use crate::{DestackFormatContext, DestackFormatter};
 
@@ -75,44 +75,41 @@ fn marker_matches_prefix(marker: &str, prefixes: &[&str]) -> bool {
     })
 }
 
-/// Parse one directive token from one comment token span.
+/// Parse one formatter directive from one comment.
 #[inline]
-fn directive_token_for_comment_token(
+fn parse_comment_directive(
     ctx: &DestackFormatContext<'_>,
-    token: TokenSpan,
+    comment: Comment,
 ) -> Option<IgnoreDirective> {
-    parse_directive_token_from_comment_text(ctx.token_str(token))
+    parse_comment_text_directive(ctx.source_text().text_for(&comment.span))
 }
 
-/// Return the last comment token that starts before or at one node offset.
-fn last_prefix_comment_token_before(
-    comment_tokens: &[TokenSpan],
-    node_start: u32,
-) -> Option<TokenSpan> {
-    let mut last_prefix_token = None;
-    for token in comment_tokens {
-        if token.span.start <= node_start {
-            last_prefix_token = Some(*token);
+/// Return the last comment that starts before or at one node offset.
+fn last_comment_before(source_comments: &[Comment], node_start: u32) -> Option<Comment> {
+    let mut last_comment = None;
+    for comment in source_comments {
+        if comment.span.start <= node_start {
+            last_comment = Some(*comment);
         } else {
             break;
         }
     }
 
-    last_prefix_token
+    last_comment
 }
 
-/// Return one line-leading comment token that prefixes one node span.
-fn prefix_comment_token_for_node(
+/// Return one line-leading comment that prefixes one node span.
+fn prefix_comment(
     ctx: &DestackFormatContext<'_>,
     node_span: Span,
-    comment_tokens: &[TokenSpan],
-) -> Option<TokenSpan> {
-    let token = last_prefix_comment_token_before(comment_tokens, node_span.start)?;
-    if !comment_token_is_line_leading(ctx, token) {
+    source_comments: &[Comment],
+) -> Option<Comment> {
+    let comment = last_comment_before(source_comments, node_span.start)?;
+    if !comment_starts_line(ctx, comment) {
         return None;
     }
 
-    Some(token)
+    Some(comment)
 }
 
 /// Return the source span used for ignore directive preservation.
@@ -123,11 +120,13 @@ fn ignore_target_span<T: Node + Clone>(
 where
     Tree: TreeStore<T>,
 {
-    let node_span = ctx.span(node_id);
+    if T::TYPE == NodeType::Expression {
+        let expression_id = LocalNodeId::new(node_id.id);
 
-    ctx.tree
-        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Statement))
-        .unwrap_or(node_span)
+        return ctx.expression_statement_extent(expression_id);
+    }
+
+    ctx.tree.get_source_extent(node_id)
 }
 
 /// Return the source line distance between two byte offsets.
@@ -142,9 +141,9 @@ fn line_distance_between_offsets(
     end_line.checked_sub(start_line)
 }
 
-/// Return whether one comment token starts at the first non-whitespace position on its line.
-fn comment_token_is_line_leading(ctx: &DestackFormatContext<'_>, token: TokenSpan) -> bool {
-    let Some(prefix) = line_prefix_text(ctx, token.span.start) else {
+/// Return whether one comment starts at the first non-whitespace position on its line.
+fn comment_starts_line(ctx: &DestackFormatContext<'_>, comment: Comment) -> bool {
+    let Some(prefix) = line_prefix_text(ctx, comment.span.start) else {
         return false;
     };
 
@@ -159,30 +158,31 @@ fn trailing_ignore_gap_is_allowed(ctx: &DestackFormatContext<'_>, span: Span) ->
         .all(|byte| matches!(*byte, b' ' | b'\t' | b'\r' | b'\n' | b';' | b','))
 }
 
-/// Return one same-line trailing ignore directive token for a node span.
-fn trailing_ignore_comment_token_for_node(
+/// Return one same-line trailing ignore directive for a node span.
+fn trailing_ignore_comment(
     ctx: &DestackFormatContext<'_>,
     node_span: Span,
-    comment_tokens: &[TokenSpan],
-) -> Option<TokenSpan> {
-    let token_index = comment_tokens.partition_point(|token| token.span.start < node_span.end);
+    source_comments: &[Comment],
+) -> Option<Comment> {
+    let comment_index =
+        source_comments.partition_point(|comment| comment.span.start < node_span.end);
 
-    let token = comment_tokens[token_index..].iter().copied().next()?;
+    let comment = source_comments[comment_index..].iter().copied().next()?;
 
-    if line_distance_between_offsets(ctx, node_span.end, token.span.start) != Some(0) {
+    if line_distance_between_offsets(ctx, node_span.end, comment.span.start) != Some(0) {
         return None;
     }
 
-    let gap_span = Span::new(node_span.file, node_span.end, token.span.start);
+    let gap_span = Span::new(node_span.file, node_span.end, comment.span.start);
     if !trailing_ignore_gap_is_allowed(ctx, gap_span) {
         return None;
     }
 
     matches!(
-        directive_token_for_comment_token(ctx, token),
+        parse_comment_directive(ctx, comment),
         Some(IgnoreDirective::Ignore)
     )
-    .then_some(token)
+    .then_some(comment)
 }
 
 /// Return whether one node has a same-line trailing ignore directive.
@@ -198,9 +198,9 @@ where
     }
 
     let node_span = ignore_target_span(ctx, node_id);
-    let comment_tokens = ctx.comment_tokens();
+    let source_comments = ctx.source_comments();
 
-    trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens).is_some()
+    trailing_ignore_comment(ctx, node_span, source_comments).is_some()
 }
 
 /// Return whether one node has a same-line trailing line ignore directive.
@@ -216,10 +216,9 @@ where
     }
 
     let node_span = ignore_target_span(ctx, node_id);
-    let comment_tokens = ctx.comment_tokens();
+    let source_comments = ctx.source_comments();
 
-    trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens)
-        .is_some_and(|token| ctx.comment_is_line(token))
+    trailing_ignore_comment(ctx, node_span, source_comments).is_some_and(Comment::is_line)
 }
 
 /// Return whether one node has a prefix ignore directive.
@@ -235,22 +234,22 @@ where
     }
 
     let node_span = ignore_target_span(ctx, node_id);
-    let comment_tokens = ctx.comment_tokens();
-    if trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens).is_some() {
+    let source_comments = ctx.source_comments();
+    if trailing_ignore_comment(ctx, node_span, source_comments).is_some() {
         return true;
     }
 
-    let Some(token) = prefix_comment_token_for_node(ctx, node_span, comment_tokens) else {
+    let Some(comment) = prefix_comment(ctx, node_span, source_comments) else {
         return false;
     };
-    let (between_is_whitespace_only, line_distance) = if token.span.end > node_span.start {
+    let (between_is_whitespace_only, line_distance) = if comment.span.end > node_span.start {
         (true, 0)
     } else {
-        let between_is_whitespace_only = token
+        let between_is_whitespace_only = comment
             .span
             .gap_to(node_span)
             .is_none_or(|between_span| !ctx.has_non_whitespace_content(between_span));
-        let line_distance = line_distance_between_offsets(ctx, token.span.end, node_span.start)
+        let line_distance = line_distance_between_offsets(ctx, comment.span.end, node_span.start)
             .map_or(2, |distance| distance as usize);
         (between_is_whitespace_only, line_distance)
     };
@@ -259,7 +258,7 @@ where
     }
 
     matches!(
-        directive_token_for_comment_token(ctx, token),
+        parse_comment_directive(ctx, comment),
         Some(IgnoreDirective::Ignore | IgnoreDirective::IgnoreStart)
     )
 }
@@ -268,7 +267,7 @@ where
 pub fn ignore_range_for_node<T: Node + Clone>(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
-    comment_tokens: &[TokenSpan],
+    source_comments: &[Comment],
 ) -> Option<Span>
 where
     Tree: TreeStore<T>,
@@ -278,36 +277,40 @@ where
     }
 
     let node_span = ignore_target_span(ctx, node_id);
-    if let Some(token) = trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens) {
-        return Some(Span::new(node_span.file, node_span.start, token.span.end));
+    if let Some(comment) = trailing_ignore_comment(ctx, node_span, source_comments) {
+        return Some(Span::new(node_span.file, node_span.start, comment.span.end));
     }
 
-    let token = prefix_comment_token_for_node(ctx, node_span, comment_tokens)?;
+    let comment = prefix_comment(ctx, node_span, source_comments)?;
 
     let is_adjacent =
-        line_distance_between_offsets(ctx, token.span.start, node_span.start) == Some(1);
+        line_distance_between_offsets(ctx, comment.span.start, node_span.start) == Some(1);
     if !is_adjacent {
         return None;
     }
 
-    match directive_token_for_comment_token(ctx, token) {
+    match parse_comment_directive(ctx, comment) {
         Some(IgnoreDirective::Ignore) => {
-            let range_span = Span::new(node_span.file, token.span.start, node_span.end);
+            let range_span = Span::new(node_span.file, comment.span.start, node_span.end);
             Some(ctx.extend_span_with_trailing_line_tokens(range_span))
         }
         Some(IgnoreDirective::IgnoreStart) => {
-            let end_token = find_ignore_range_end(ctx, comment_tokens, token.span.end)?;
-            let mut end_span = ctx.extend_span_with_trailing_line_tokens(end_token.span);
+            let end_comment = find_ignore_range_end(ctx, source_comments, comment.span.end)?;
+            let mut end_span = ctx.extend_span_with_trailing_line_tokens(end_comment.span);
 
             // line end markers should preserve their trailing newline
-            if ctx.comment_is_line(end_token)
-                && let Some((line_index, _)) = ctx.file.get_position(end_token.span.start)
+            if end_comment.is_line()
+                && let Some((line_index, _)) = ctx.file.get_position(end_comment.span.start)
                 && let Some(next_line_span) = ctx.file.get_line_span(line_index + 1)
             {
                 end_span = Span::new(end_span.file, end_span.start, next_line_span.start);
             }
 
-            Some(Span::new(token.span.file, token.span.start, end_span.end))
+            Some(Span::new(
+                comment.span.file,
+                comment.span.start,
+                end_span.end,
+            ))
         }
         Some(IgnoreDirective::IgnoreFile | IgnoreDirective::IgnoreEnd) | None => None,
     }
@@ -322,26 +325,25 @@ where
     Tree: TreeStore<T>,
 {
     let node_span = ignore_target_span(ctx, node_id);
-    let comment_tokens = ctx.comment_tokens();
+    let source_comments = ctx.source_comments();
 
-    trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens)
-        .map_or(node_span, |token| {
-            Span::new(node_span.file, node_span.start, token.span.end)
-        })
+    trailing_ignore_comment(ctx, node_span, source_comments).map_or(node_span, |comment| {
+        Span::new(node_span.file, node_span.start, comment.span.end)
+    })
 }
 
 /// Collect ignore ranges for a list of nodes keyed by node id.
 pub fn ignore_ranges_for_nodes<T: Node + Clone>(
     ctx: &DestackFormatContext<'_>,
     node_ids: &[LocalNodeId<T>],
-    comment_tokens: &[TokenSpan],
+    source_comments: &[Comment],
 ) -> HashMap<u32, Span>
 where
     Tree: TreeStore<T>,
 {
     let mut ignore_ranges = HashMap::new();
     for node_id in node_ids.iter().copied() {
-        if let Some(range_span) = ignore_range_for_node(ctx, node_id, comment_tokens) {
+        if let Some(range_span) = ignore_range_for_node(ctx, node_id, source_comments) {
             ignore_ranges.insert(node_id.id, range_span);
         }
     }
@@ -352,7 +354,7 @@ where
 pub fn any_ignore_range_for_nodes<T: Node + Clone>(
     ctx: &DestackFormatContext<'_>,
     node_ids: &[LocalNodeId<T>],
-    comment_tokens: &[TokenSpan],
+    source_comments: &[Comment],
 ) -> bool
 where
     Tree: TreeStore<T>,
@@ -360,7 +362,7 @@ where
     node_ids
         .iter()
         .copied()
-        .any(|node_id| ignore_range_for_node(ctx, node_id, comment_tokens).is_some())
+        .any(|node_id| ignore_range_for_node(ctx, node_id, source_comments).is_some())
 }
 
 /// Return whether this file has a formatter ignore-file directive comment.
@@ -369,7 +371,7 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
         return false;
     }
 
-    let Some(first_comment) = ctx.comment_tokens().first().copied() else {
+    let Some(first_comment) = ctx.source_comments().first().copied() else {
         return false;
     };
 
@@ -383,7 +385,7 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
     }
 
     matches!(
-        directive_token_for_comment_token(ctx, first_comment),
+        parse_comment_directive(ctx, first_comment),
         Some(IgnoreDirective::IgnoreFile)
     )
 }
@@ -403,23 +405,23 @@ where
 /// Find the matching ignore range end comment following a start offset.
 fn find_ignore_range_end(
     ctx: &DestackFormatContext<'_>,
-    comment_tokens: &[TokenSpan],
+    source_comments: &[Comment],
     start_offset: u32,
-) -> Option<TokenSpan> {
+) -> Option<Comment> {
     let mut nested_range_depth = 0usize;
 
-    for token in comment_tokens.iter().copied() {
-        if token.span.start < start_offset {
+    for comment in source_comments.iter().copied() {
+        if comment.span.start < start_offset {
             continue;
         }
 
-        match directive_token_for_comment_token(ctx, token) {
+        match parse_comment_directive(ctx, comment) {
             Some(IgnoreDirective::IgnoreStart) => {
                 nested_range_depth += 1;
             }
             Some(IgnoreDirective::IgnoreEnd) => {
                 if nested_range_depth == 0 {
-                    return Some(token);
+                    return Some(comment);
                 }
 
                 nested_range_depth -= 1;
@@ -431,20 +433,20 @@ fn find_ignore_range_end(
     None
 }
 
-/// Parse a directive token from comment text, including markers.
-fn parse_directive_token_from_comment_text(comment_text: &str) -> Option<IgnoreDirective> {
+/// Parse one directive from comment text, including delimiters.
+fn parse_comment_text_directive(comment_text: &str) -> Option<IgnoreDirective> {
     let content = strip_comment_markers(comment_text);
-    parse_directive_token(content.as_ref())
+    parse_directive(content.as_ref())
 }
 
 /// Return whether one comment text contains any recognized ignore directive.
 pub(crate) fn comment_text_has_ignore_directive_marker(comment_text: &str) -> bool {
-    parse_directive_token_from_comment_text(comment_text).is_some()
+    parse_comment_text_directive(comment_text).is_some()
 }
 
 /// Return whether one comment text contains a single-node suppression directive.
 pub(crate) fn comment_text_has_suppression_directive(comment_text: &str) -> bool {
-    parse_directive_token_from_comment_text(comment_text) == Some(IgnoreDirective::Ignore)
+    parse_comment_text_directive(comment_text) == Some(IgnoreDirective::Ignore)
 }
 
 /// Strip comment markers from comment text.
@@ -460,8 +462,8 @@ fn strip_comment_markers(comment_text: &str) -> Cow<'_, str> {
     Cow::Borrowed(trimmed)
 }
 
-/// Parse a directive token from comment content.
-fn parse_directive_token(comment: &str) -> Option<IgnoreDirective> {
+/// Parse one directive from comment content.
+fn parse_directive(comment: &str) -> Option<IgnoreDirective> {
     let mut first_significant_line = None;
     let mut has_additional_significant_line = false;
 

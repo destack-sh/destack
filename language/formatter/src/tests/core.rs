@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
 use destack_core::StringPool;
-use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
+use destack_dir::{Comment, Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::{Allocator, Format};
-use destack_parser::{Parser, ParserResult, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser, ParserResult};
 use destack_repository::FormatterOptions;
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
@@ -16,7 +16,7 @@ use destack_source::{
 pub(crate) struct TestFormatter {
     file: File,
     tokens: Vec<TokenSpan>,
-    side_tokens: Vec<TokenSpan>,
+    comments: Vec<Comment>,
     side_span: MultiSpan,
     tree: Tree,
     parents: NodeParentIndex,
@@ -68,19 +68,17 @@ impl TestFormatter {
 
         // parse
         let language = LanguageType::try_from(file_type).expect("file type has no parser language");
-        let (side_span, tree, parents, tokens, side_tokens, strings, n) = {
-            let mut parser = Parser::lex_file_with_trivia(
+        let (side_span, tree, parents, tokens, comments, strings, n) = {
+            let mut parser = Parser::lex_file_with_comment_retention(
                 file.clone(),
                 language,
-                ParserTriviaMode::Full,
+                CommentRetention::All,
                 Arc::new(StringPool::new()),
             );
             let n = parse_fn(&mut parser)?;
 
-            // finalize retained comments for every entrypoint
-            parser.attach_comments();
-
-            let (tokens, side_tokens) = parser.take_token_spans();
+            let tokens = parser.take_token_spans();
+            let comments = parser.take_comments();
             parser.tree.index_parents();
             let parents = parser.tree.parents().clone();
             let strings = parser.publish_strings().clone();
@@ -90,7 +88,7 @@ impl TestFormatter {
                 parser.tree,
                 parents,
                 tokens,
-                side_tokens,
+                comments,
                 strings,
                 n,
             )
@@ -98,7 +96,7 @@ impl TestFormatter {
         let formatter = Self {
             file: Arc::try_unwrap(file).unwrap(),
             tokens,
-            side_tokens,
+            comments,
             side_span,
             parents,
             tree,
@@ -127,7 +125,7 @@ impl TestFormatter {
             &self.file,
             &self.tree,
             &self.tokens,
-            &self.side_tokens,
+            &self.comments,
             &self.side_span,
             &self.strings,
             &self.parents,

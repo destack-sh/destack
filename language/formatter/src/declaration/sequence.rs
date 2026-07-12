@@ -18,39 +18,23 @@ use crate::file::{
 };
 use destack_dir::{
     Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionForm,
-    FunctionRole, FunctionSignature, IfForm, LocalNodeId, Member, NodeType, Property, TokenSpan,
-    Tree, TypeExpression, TypeLiteral,
+    FunctionRole, FunctionSignature, IfForm, LocalNodeId, Member, NodeType, Property, Tree,
+    TypeExpression, TypeLiteral,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
 use destack_fir::{format_args, write};
-use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{FileId, Span};
 
 use crate::declaration::dependency as imports;
 use crate::{DestackFormatContext, DestackFormatter};
-
-/// Return the statement source span for one expression.
-fn expression_statement_span(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Span {
-    let expression_span = context.span(expression_id);
-
-    context
-        .tree
-        .get_side_span(
-            expression_id,
-            NodeSpanType::Region(NodeSpanRegion::Statement),
-        )
-        .unwrap_or(expression_span)
-}
 
 /// Return whether one expression has a source blank line before it.
 fn expression_has_lines_before(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let expression_span = expression_statement_span(context, expression_id);
+    let expression_span = context.expression_statement_extent(expression_id);
     let expression_start = expression_prefix_start(context, expression_id, expression_span.start);
     let expression_span = Span::new(expression_span.file, expression_start, expression_span.end);
 
@@ -159,7 +143,7 @@ fn expression_following_span_start(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> u32 {
-    let expression_span = expression_statement_span(context, expression_id);
+    let expression_span = context.expression_statement_extent(expression_id);
     let mut start = expression_span.start;
 
     if let Expression::Declaration(declaration_id) = context.tree.get(expression_id) {
@@ -195,7 +179,7 @@ pub(crate) fn expression_postfix_end(
         statement_trailing_comment_anchor_end(context, expression_id).max(default_end);
 
     context
-        .end_of_line_comment_tokens_after(default_end)
+        .source_end_of_line_comments_after(default_end)
         .iter()
         .fold(default_end, |end, comment| end.max(comment.span.end))
 }
@@ -570,12 +554,12 @@ pub(crate) fn format_block_body_wide<'ast>(
 fn ignore_ranges_for_block_expressions(
     ctx: &DestackFormatContext<'_>,
     block: &Block,
-    comment_tokens: &[TokenSpan],
+    source_comments: &[Comment],
 ) -> std::collections::HashMap<u32, Span> {
     let mut ignore_ranges = std::collections::HashMap::new();
 
     for expression_id in block.iter_expressions() {
-        if let Some(range_span) = ignore_range_for_node(ctx, expression_id, comment_tokens) {
+        if let Some(range_span) = ignore_range_for_node(ctx, expression_id, source_comments) {
             ignore_ranges.insert(expression_id.id, range_span);
         }
     }
@@ -591,8 +575,8 @@ pub(crate) fn format_block_statement_sequence<'ast>(
 ) -> FormatResult<()> {
     // ignore ranges: only compute when the file may contain ignore directives
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let comment_tokens = f.context().comment_tokens();
-        ignore_ranges_for_nodes(f.context(), expressions, comment_tokens)
+        let source_comments = f.context().source_comments();
+        ignore_ranges_for_nodes(f.context(), expressions, source_comments)
     } else {
         std::collections::HashMap::new()
     };
@@ -741,8 +725,8 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
 
     // ignore ranges: only compute when the file may contain ignore directives
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let comment_tokens = f.context().comment_tokens();
-        ignore_ranges_for_block_expressions(f.context(), block, comment_tokens)
+        let source_comments = f.context().source_comments();
+        ignore_ranges_for_block_expressions(f.context(), block, source_comments)
     } else {
         std::collections::HashMap::new()
     };
@@ -951,8 +935,8 @@ fn format_program_statement_sequence<'ast>(
 
     // ignore ranges: only compute when the file may contain ignore directives
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let comment_tokens = f.context().comment_tokens();
-        ignore_ranges_for_nodes(f.context(), expressions, comment_tokens)
+        let source_comments = f.context().source_comments();
+        ignore_ranges_for_nodes(f.context(), expressions, source_comments)
     } else {
         std::collections::HashMap::new()
     };
@@ -1352,10 +1336,10 @@ fn type_expression_is_void(
     context: &DestackFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
-    match context.tree.get(type_id) {
+    matches!(
+        context.tree.get(type_id),
         TypeExpression::Literal {
             value: TypeLiteral::Void,
-        } => true,
-        _ => false,
-    }
+        }
+    )
 }

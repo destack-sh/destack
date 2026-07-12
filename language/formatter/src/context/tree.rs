@@ -132,7 +132,7 @@ impl<'a> DestackFormatContext<'a> {
                 newline_offset,
             );
             let line_has_content = token_stream_has_non_whitespace_content(self.tokens, line_span)
-                || token_stream_has_non_whitespace_content(self.side_tokens, line_span);
+                || !self.source_comments_intersecting_span(line_span).is_empty();
 
             if !line_has_content {
                 return true;
@@ -149,7 +149,7 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn has_non_whitespace_content(&self, span: Span) -> bool {
         token_stream_has_non_whitespace_content(self.tokens, span)
-            || token_stream_has_non_whitespace_content(self.side_tokens, span)
+            || !self.source_comments_intersecting_span(span).is_empty()
     }
 
     /// Return whether one span starts on its own line.
@@ -178,12 +178,12 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Return whether one span contains an own-line or multiline comment.
     pub fn has_own_line_or_multiline_comment(&self, span: Span) -> bool {
-        let comment_tokens = self.comment_tokens();
+        let comments = self.source_comments();
         let first_relevant_index =
-            comment_tokens.partition_point(|token| token.span.end <= span.start);
+            comments.partition_point(|comment| comment.span.end <= span.start);
 
-        for token in &comment_tokens[first_relevant_index..] {
-            let comment_span = token.span;
+        for comment in &comments[first_relevant_index..] {
+            let comment_span = comment.span;
 
             // skip unrelated files
             if comment_span.file != span.file {
@@ -201,7 +201,7 @@ impl<'a> DestackFormatContext<'a> {
             }
 
             // own-line and multiline comments both force the same handling
-            let is_multiline = !self.comment_is_line(*token) && self.has_newline(comment_span);
+            let is_multiline = !comment.is_line() && self.has_newline(comment_span);
 
             if is_multiline || self.span_starts_on_own_line(comment_span) {
                 return true;

@@ -5,6 +5,48 @@ use destack_dir::{
 use destack_source::Span;
 
 impl<'a> DestackFormatContext<'a> {
+    /// Return one expression's complete statement source extent.
+    pub fn expression_statement_extent(&self, node_id: LocalNodeId<Expression>) -> Span {
+        let mut expression_id = node_id;
+        let mut span = self.tree.get_source_extent(expression_id);
+
+        // include source wrappers owned by a postfix expression head
+        while let Expression::Member { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } = self.tree.get(expression_id)
+        {
+            span = span.merge(self.tree.get_source_extent(*left));
+            expression_id = *left;
+        }
+
+        let mut start = span.start;
+
+        // include one leading statement protection semicolon
+        start = self
+            .previous_token_before_span(Span::new(span.file, start, span.end))
+            .filter(|token| token.token.is(TokenType::Semicolon) && token.token.is_on_new_line())
+            .map_or(start, |token| token.span.start);
+
+        // include a terminator unless it protects following syntax on the same line
+        let Some(semicolon) = self
+            .next_token_after_span(span)
+            .filter(|token| token.token.is(TokenType::Semicolon))
+        else {
+            return Span::new(span.file, start, span.end);
+        };
+        let next_token = self.next_token_after_span(semicolon.span);
+        let protects_following_statement = semicolon.token.is_on_new_line()
+            && next_token.is_some_and(|token| !token.token.is_on_new_line());
+        if protects_following_statement {
+            return Span::new(span.file, start, span.end);
+        }
+
+        Span::new(span.file, start, semicolon.span.end)
+    }
+
     /// Return the first token start for one node.
     pub fn node_token_start<T>(&self, node_id: LocalNodeId<T>) -> u32
     where
@@ -115,26 +157,12 @@ impl<'a> DestackFormatContext<'a> {
         &remaining[..end_index]
     }
 
-    /// Return the comment token type at one exact comment span.
-    pub fn comment_token_type_at_span(&self, comment_span: Span) -> Option<TokenType> {
-        let comment_tokens = self.comment_tokens();
-        let token_index =
-            comment_tokens.partition_point(|token| token.span.start < comment_span.start);
-        let comment_token = comment_tokens.get(token_index).copied()?;
-
-        if comment_token.span != comment_span {
-            return None;
-        }
-
-        Some(comment_token.token.ty())
-    }
-
-    /// Return comment tokens that intersect one span.
-    pub fn comment_tokens_intersecting_span(&self, span: Span) -> &[TokenSpan] {
-        let tokens = self.comment_tokens();
-        let start_index = tokens.partition_point(|token| token.span.end <= span.start);
-        let remaining = &tokens[start_index..];
-        let end_index = remaining.partition_point(|token| token.span.start < span.end);
+    /// Return source comments that intersect one span.
+    pub fn source_comments_intersecting_span(&self, span: Span) -> &[Comment] {
+        let comments = self.source_comments();
+        let start_index = comments.partition_point(|comment| comment.span.end <= span.start);
+        let remaining = &comments[start_index..];
+        let end_index = remaining.partition_point(|comment| comment.span.start < span.end);
 
         &remaining[..end_index]
     }
@@ -249,67 +277,54 @@ impl<'a> DestackFormatContext<'a> {
             .to_vec()
     }
 
-    /// Return comment tokens in source order.
+    /// Return comments in source order.
     #[inline]
-    pub fn comment_tokens(&self) -> &[TokenSpan] {
-        self.source_index.comment_tokens()
+    pub fn source_comments(&self) -> &[Comment] {
+        self.comments().source_comments()
     }
 
-    /// Return comment tokens that start after one position.
+    /// Return source comments that start after one position.
     #[inline]
-    fn comment_tokens_after(&self, pos: u32) -> &[TokenSpan] {
-        let comment_tokens = self.comment_tokens();
-        let start_index = comment_tokens.partition_point(|token| token.span.end <= pos);
+    fn source_comments_after(&self, pos: u32) -> &[Comment] {
+        let comments = self.source_comments();
+        let start_index = comments.partition_point(|comment| comment.span.end <= pos);
 
-        &comment_tokens[start_index..]
+        &comments[start_index..]
     }
 
-    /// Return comment tokens that fall in one file-local range.
+    /// Return source comments that fall in one file-local range.
     #[inline]
-    pub fn comment_tokens_in_range(&self, start: u32, end: u32) -> &[TokenSpan] {
+    pub fn source_comments_in_range(&self, start: u32, end: u32) -> &[Comment] {
         if start >= end {
             return &[];
         }
 
-        let comment_tokens = self.comment_tokens_after(start);
-        let end_index = comment_tokens.partition_point(|token| token.span.end <= end);
+        let comments = self.source_comments_after(start);
+        let end_index = comments.partition_point(|comment| comment.span.end <= end);
 
-        &comment_tokens[..end_index]
+        &comments[..end_index]
     }
 
-    /// Return end-of-line comment tokens after one position.
-    pub fn end_of_line_comment_tokens_after(&self, mut pos: u32) -> &[TokenSpan] {
-        let comment_tokens = self.comment_tokens_after(pos);
+    /// Return end-of-line comments after one position.
+    pub fn source_end_of_line_comments_after(&self, mut pos: u32) -> &[Comment] {
+        let comments = self.source_comments_after(pos);
         let source_text = self.source_text();
 
-        for (index, token) in comment_tokens.iter().enumerate() {
-            if !source_text.all_bytes_match(pos, token.span.start, |byte| {
+        for (index, comment) in comments.iter().enumerate() {
+            if !source_text.all_bytes_match(pos, comment.span.start, |byte| {
                 matches!(byte, b'\t' | b' ' | b'=' | b':')
             }) {
                 break;
             }
 
-            if matches!(
-                token.token.ty(),
-                TokenType::LineComment | TokenType::DocLineComment
-            ) || self.has_newline(token.span)
-            {
-                return &comment_tokens[..=index];
+            if comment.is_line() || self.has_newline(comment.span) {
+                return &comments[..=index];
             }
 
-            pos = token.span.end;
+            pos = comment.span.end;
         }
 
         &[]
-    }
-
-    /// Return whether one comment token is line-oriented.
-    #[inline]
-    pub fn comment_is_line(&self, token: TokenSpan) -> bool {
-        matches!(
-            token.token.ty(),
-            TokenType::LineComment | TokenType::DocLineComment
-        )
     }
 
     /// Extend one span to the end of its physical source line.

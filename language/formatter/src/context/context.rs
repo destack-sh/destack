@@ -5,7 +5,7 @@ use super::{FormatNodeCache, FormatSourceIndex};
 use destack_core::{StringPool, ensure_sufficient_stack};
 pub use destack_dir::Decorator;
 use destack_dir::{
-    Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
+    Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
     LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern,
     PatternField, Property, TokenSpan, Tree, TreeAttribute, TreeChild, TreeStore, TupleElement,
@@ -61,8 +61,6 @@ pub struct DestackFormatContext<'a> {
     pub file: &'a File,
     /// The semantic tokens in source order.
     pub tokens: &'a [TokenSpan],
-    /// The trivia tokens in source order.
-    pub side_tokens: &'a [TokenSpan],
     /// The side span.
     pub side_span: &'a MultiSpan,
     /// The tree.
@@ -90,19 +88,18 @@ impl<'a> DestackFormatContext<'a> {
         file: &'a File,
         tree: &'a Tree,
         tokens: &'a [TokenSpan],
-        side_tokens: &'a [TokenSpan],
+        comments: &'a [Comment],
         side_span: &'a MultiSpan,
         strings: &'a StringPool,
         parents: &'a NodeParentIndex,
     ) -> Self {
         debug_assert!(tokens.iter().all(|token| token.token.ty().is_semantic()));
-        let source_index = FormatSourceIndex::new(file, side_tokens);
+        let source_index = FormatSourceIndex::new(file, comments);
 
         Self {
             options,
             file,
             tokens,
-            side_tokens,
             side_span,
             tree,
             parents,
@@ -111,7 +108,7 @@ impl<'a> DestackFormatContext<'a> {
             node_cache: FormatNodeCache::default(),
             current_following_span_start: 0,
             should_expand_tree_callback_bodies: false,
-            comments: Comments::new(SourceText::new(file.text()), tree.comments()),
+            comments: Comments::new(SourceText::new(file.text()), comments),
         }
     }
 

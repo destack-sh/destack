@@ -1,7 +1,7 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_dir::{
-    Argument, Expression, IfForm, LocalNodeId, Pattern, Property, ScalarLiteral, TokenType, Tree,
+    Argument, Expression, IfForm, LocalNodeId, Pattern, Property, ScalarLiteral, Tree,
     TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
@@ -238,33 +238,16 @@ pub(crate) fn array_has_only_outer_comments(
     let first_span = context.span(*first_element);
     let last_span = context.span(*last_element);
 
-    let has_internal_comment =
-        context
-            .tokens
-            .iter()
-            .chain(context.side_tokens.iter())
-            .any(|token| {
-                if !array_span.intersects(token.span) || !is_comment_token_type(token.token.ty()) {
-                    return false;
-                }
-
-                let is_before_first = token.span.end <= first_span.start;
-                let is_after_last = token.span.start >= last_span.end;
-                !(is_before_first || is_after_last)
-            });
+    let has_internal_comment = context
+        .source_comments_intersecting_span(array_span)
+        .iter()
+        .any(|comment| {
+            let is_before_first = comment.span.end <= first_span.start;
+            let is_after_last = comment.span.start >= last_span.end;
+            !(is_before_first || is_after_last)
+        });
 
     !has_internal_comment
-}
-
-/// Return whether a token type is a comment token.
-fn is_comment_token_type(token_type: TokenType) -> bool {
-    matches!(
-        token_type,
-        TokenType::LineComment
-            | TokenType::BlockComment
-            | TokenType::DocLineComment
-            | TokenType::DocBlockComment
-    )
 }
 
 /// Return whether a single array element is a concise fill candidate.

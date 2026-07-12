@@ -147,10 +147,10 @@ pub(crate) fn format_primary_array_expression<'ast>(
             let element_span = f.context().span(element_id);
 
             f.context()
-                .comment_tokens_in_range(element_span.start, element_span.end)
+                .source_comments_in_range(element_span.start, element_span.end)
                 .iter()
                 .copied()
-                .any(|comment| f.context().comment_is_line(comment))
+                .any(|comment| comment.is_line())
         });
 
         can_keep_inline_outer_comment_array = elements_are_inline_in_source

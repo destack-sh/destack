@@ -253,7 +253,7 @@ pub(crate) fn has_comment_between_expressions(
     };
 
     !context
-        .comment_tokens_in_range(between_span.start, between_span.end)
+        .source_comments_in_range(between_span.start, between_span.end)
         .is_empty()
 }
 

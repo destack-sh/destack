@@ -23,8 +23,8 @@ use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_core::StringId;
 use destack_dir::{
-    Comment, CommentPosition, Declaration, DecoratorPosition, Expression, FunctionForm, IfForm,
-    LocalNodeId, Member, NodeType, PostfixPosition,
+    Comment, Declaration, DecoratorPosition, Expression, FunctionForm, IfForm, LocalNodeId, Member,
+    NodeType, PostfixPosition,
 };
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
@@ -824,8 +824,7 @@ fn chain_structural_trailing_comments(
                 .unprinted_comments()
                 .iter()
                 .copied()
-                .filter(|comment| comment.position == CommentPosition::Trailing)
-                .filter(|comment| comment.span.file == full_span.file)
+                .filter(|comment| comment.is_trailing())
                 .filter(|comment| {
                     comment.span.start >= main_span.end && comment.span.end <= full_span.end
                 })

@@ -57,8 +57,8 @@ where
 {
     // ignore ranges: only compute when the file may contain ignore directives
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let comment_tokens = f.context().comment_tokens();
-        ignore_ranges_for_nodes(f.context(), node_ids, comment_tokens)
+        let source_comments = f.context().source_comments();
+        ignore_ranges_for_nodes(f.context(), node_ids, source_comments)
     } else {
         std::collections::HashMap::new()
     };

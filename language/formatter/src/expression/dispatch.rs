@@ -3,7 +3,8 @@ use super::ternary::expression_is_ternary_branch;
 use crate::annotation::{format_leading_comments, format_trailing_comments, prefix_annotations};
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::expression::{
-    expression_needs_parentheses_in_parent, format_primary_expression, format_statement_expression,
+    expression_needs_parentheses_in_parent, expression_requires_parentheses_in_parent,
+    format_primary_expression, format_statement_expression,
     write_primary_expression_trailing_annotations, write_statement_expression_trailing_annotations,
 };
 use crate::file::{node_has_ignore_directive, write_ignored_node};
@@ -221,11 +222,12 @@ fn write_expression_body_and_trailing_annotations<'ast>(
 ) -> FormatResult<()> {
     let preserves_source_parentheses =
         should_preserve_source_parentheses(f.context(), expression_id);
-    let needs_parentheses = preserves_source_parentheses
-        || expression_needs_parentheses_in_parent(f.context(), expression_id);
+    let needs_derived_parentheses =
+        expression_requires_parentheses_in_parent(f.context(), expression_id);
+    let needs_parentheses = preserves_source_parentheses || needs_derived_parentheses;
 
-    // keep source owned trailing comments inside their parentheses
-    if preserves_source_parentheses {
+    // retain otherwise redundant parentheses that own trailing comments
+    if preserves_source_parentheses && !needs_derived_parentheses {
         write!(f, [token("(")])?;
         write_expression_without_prefix_annotations_inner(f, expression_id)?;
         write_expression_trailing_node_annotations(f, expression_id)?;
@@ -233,7 +235,7 @@ fn write_expression_body_and_trailing_annotations<'ast>(
         return write!(f, [token(")")]);
     }
 
-    // write any parentheses derived from expression structure
+    // close required parentheses before trailing comments
     if needs_parentheses {
         write!(f, [token("(")])?;
         write_expression_without_prefix_annotations_inner(f, expression_id)?;

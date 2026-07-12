@@ -443,9 +443,25 @@ declare const second: string;
     );
 }
 
-/// Global blocks should preserve the explicit `declare` spelling.
+/// Global blocks should omit redundant `declare` modifiers in declaration files.
 #[test]
-fn test_format_global_preserves_declare_spelling() {
+fn test_format_global_omits_redundant_declare_modifier() {
+    assert_format_program!(
+        r#"declare global {
+    let Buffer: BufferConstructor;
+}
+"#,
+        r#"global {
+    let Buffer: BufferConstructor;
+}
+"#,
+        FileType::DestackDeclaration,
+    );
+}
+
+/// Ambient global blocks should retain `declare` in ordinary source files.
+#[test]
+fn test_format_global_prints_declare_modifier() {
     assert_format_program!(
         r#"declare global {
     let Buffer: BufferConstructor;
@@ -455,7 +471,7 @@ fn test_format_global_preserves_declare_spelling() {
     let Buffer: BufferConstructor;
 }
 "#,
-        FileType::DestackDeclaration,
+        FileType::Destack,
     );
 }
 

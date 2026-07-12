@@ -3,10 +3,10 @@ use std::fmt::{self, Display};
 use std::sync::Arc;
 
 use destack_core::StringPool;
-use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
+use destack_dir::{Comment, Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
 use destack_fir::format::Allocator;
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_repository::FormatterOptions;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, LanguageType, Span};
 
@@ -61,7 +61,7 @@ pub fn format_file_tree(
     file: &File,
     tree: &Tree,
     tokens: &[TokenSpan],
-    side_tokens: &[TokenSpan],
+    comments: &[Comment],
     roots: &[LocalNodeId<Expression>],
     strings: &StringPool,
     options: FormatterOptions,
@@ -73,14 +73,7 @@ pub fn format_file_tree(
     let parents = NodeParentIndex::from_expression_roots(tree, roots);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
-        options,
-        file,
-        tree,
-        tokens,
-        side_tokens,
-        &side_span,
-        strings,
-        &parents,
+        options, file, tree, tokens, comments, &side_span, strings, &parents,
     );
 
     render_program_roots(context, roots)
@@ -124,9 +117,10 @@ pub fn format_source(
     }
 
     // build the formatter context
-    let (tokens, side_tokens) = parser.take_token_spans();
+    let tokens = parser.take_token_spans();
     let side_span = parser.tree.decorator_span();
     parser.tree.index_parents();
+    let comments = parser.comments();
     let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
@@ -134,7 +128,7 @@ pub fn format_source(
         parser_file.as_ref(),
         &parser.tree,
         &tokens,
-        &side_tokens,
+        comments,
         &side_span,
         strings,
         parser.tree.parents(),
@@ -190,9 +184,10 @@ pub fn format_source_range(
     let span = format_replacement_span(source, span);
 
     // build the formatter context
-    let (tokens, side_tokens) = parser.take_token_spans();
+    let tokens = parser.take_token_spans();
     let side_span = parser.tree.decorator_span();
     parser.tree.index_parents();
+    let comments = parser.comments();
     let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
@@ -200,7 +195,7 @@ pub fn format_source_range(
         parser_file.as_ref(),
         &parser.tree,
         &tokens,
-        &side_tokens,
+        comments,
         &side_span,
         strings,
         parser.tree.parents(),
@@ -233,10 +228,10 @@ fn parser_file(file: &File, source: &str) -> Arc<File> {
 
 /// Build a parser configured for source formatting.
 fn source_parser(file: Arc<File>, language_type: LanguageType) -> Parser {
-    Parser::lex_file_with_trivia(
+    Parser::lex_file_with_comment_retention(
         file,
         language_type,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     )
 }

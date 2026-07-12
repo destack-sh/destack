@@ -42,6 +42,12 @@ impl<'a> Comments<'a> {
         !self.comments.is_empty()
     }
 
+    /// Return every source comment.
+    #[inline]
+    pub fn source_comments(&self) -> &'a [Comment] {
+        self.comments
+    }
+
     /// Advance the printed cursor past comments ending before one position.
     #[inline]
     pub fn skip_comments_before(&mut self, pos: u32) {
