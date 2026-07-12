@@ -35,38 +35,13 @@ impl DirParsed {
         }
     }
 
-    /// Return parsed side data for one physical file.
+    /// Return parser output for one physical file.
     pub fn file(&self, file_id: FileId) -> Option<&DirParsedFile> {
         self.files.iter().find(|file| file.file_id == file_id)
     }
-
-    /// Return parsed roots for one physical file.
-    pub fn roots_for_file(&self, file_id: FileId) -> Option<&[dir::LocalNodeId<dir::Expression>]> {
-        self.file(file_id).map(|file| file.roots.as_slice())
-    }
-
-    /// Iterate full token spans for one physical file.
-    pub fn iter_token_spans_for_file(
-        &self,
-        file_id: FileId,
-    ) -> Option<impl Iterator<Item = dir::TokenSpan> + '_> {
-        let file = self.file(file_id)?;
-
-        Some(file.iter_token_spans())
-    }
-
-    /// Iterate full side token spans for one physical file.
-    pub fn iter_side_token_spans_for_file(
-        &self,
-        file_id: FileId,
-    ) -> Option<impl Iterator<Item = dir::TokenSpan> + '_> {
-        let file = self.file(file_id)?;
-
-        Some(file.iter_side_token_spans())
-    }
 }
 
-/// Parsed roots and side data for one physical file in a canonical module.
+/// Parser output for one physical file in a canonical module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirParsedFile {
     /// The source file id.
@@ -75,30 +50,20 @@ pub struct DirParsedFile {
     pub aliases: Vec<String>,
     /// The top-level expressions parsed from this file.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// The source file tokens.
+    /// The semantic source tokens.
     pub tokens: Vec<dir::Token>,
-    /// The source file side tokens.
-    pub side_tokens: Vec<dir::Token>,
+    /// The retained source comments.
+    pub comments: Vec<dir::Comment>,
     /// Stable anchor expression for diagnostics in this file.
     pub anchor_expression: dir::LocalNodeId<dir::Expression>,
 }
 
 impl DirParsedFile {
-    /// Iterate full token spans for this physical file.
+    /// Iterate semantic token spans for this physical file.
     pub fn iter_token_spans(&self) -> impl Iterator<Item = dir::TokenSpan> + '_ {
         let file_id = self.file_id;
 
         self.tokens
-            .iter()
-            .copied()
-            .map(move |token| dir::TokenSpan::new(token, file_id))
-    }
-
-    /// Iterate full side token spans for this physical file.
-    pub fn iter_side_token_spans(&self) -> impl Iterator<Item = dir::TokenSpan> + '_ {
-        let file_id = self.file_id;
-
-        self.side_tokens
             .iter()
             .copied()
             .map(move |token| dir::TokenSpan::new(token, file_id))
