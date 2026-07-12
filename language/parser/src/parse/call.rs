@@ -136,18 +136,12 @@ impl Parser {
     pub(crate) fn parse_call(
         &mut self,
         receiver_id: LocalNodeId<Expression>,
-        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         position: PostfixPosition,
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         let receiver_range = self.tree.get_range(receiver_id);
-
-        // generic arguments from postfix or immediate call form
-        let generic_arguments = match generic_arguments {
-            Some(generic_arguments) => Some(generic_arguments),
-            None => self.parse_generic_arguments_if_present(context)?,
-        };
 
         // dynamic arguments (may be empty)
         let arguments = self.parse_argument_list(context.nested())?;
@@ -157,7 +151,7 @@ impl Parser {
             Expression::Call {
                 position,
                 left: receiver_id,
-                generic_arguments: generic_arguments.unwrap_or_default(),
+                generic_arguments,
                 arguments,
             },
             {
