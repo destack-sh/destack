@@ -9,6 +9,40 @@ use destack_dir::{
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
+/// Parse explicit first-class type values beginning with symbolic prefixes.
+#[test]
+fn test_parse_type_keyword_symbolic_prefix_values() {
+    let test = TestParser::new("(type &User, type ^User, type *User, type !User)");
+    let mut parser = test.prepare();
+    let expression = parser.parse_expression(Default::default()).unwrap();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, expression, Expression::TupleExpression { elements } => {
+        assert_eq!(elements.len(), 4);
+
+        assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { .. });
+            });
+        });
+        assert_node!(parser.tree, elements[1], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::OwnedOf { .. });
+            });
+        });
+        assert_node!(parser.tree, elements[2], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::PointerOf { .. });
+            });
+        });
+        assert_node!(parser.tree, elements[3], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Not { .. });
+            });
+        });
+    });
+}
+
 /// Parse a do block expression with a value tail.
 #[test]
 fn test_parse_do_block_expression() {
@@ -386,7 +420,7 @@ fn test_parse_type_as_variable() {
     let test = TestParser::new(
         r"
 let type = 1
-type = type * 2
+type = type + 2
 ",
     );
     let mut parser = test.prepare();
@@ -403,16 +437,16 @@ type = type * 2
         });
     });
 
-    // type = type * 2
+    // type = type + 2
     let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "type");
         assert_eq!(*operator, AssignOperator::Assign);
 
-        // type * 2
+        // type + 2
         assert_node!(parser.tree, *right, Expression::Binary { left, operator, right, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "type");
-            assert_eq!(*operator, BinaryOperator::Multiply);
+            assert_eq!(*operator, BinaryOperator::Add);
             assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
     });

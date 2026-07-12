@@ -47,6 +47,54 @@ enum TypePrefix {
 }
 
 impl Parser {
+    /// Return whether one token offset starts a symbolic memory type prefix.
+    pub(in crate::parse) fn peek_memory_type_prefix_at(&self, offset: usize) -> bool {
+        matches!(
+            self.peek_token_type_at(offset),
+            TokenType::ElementwiseAnd
+                | TokenType::ElementwiseXor
+                | TokenType::LogicalAnd
+                | TokenType::Multiply
+        )
+    }
+
+    /// Return whether one token offset can start a type operand.
+    pub(in crate::parse) fn peek_type_operand_start_at(&self, offset: usize) -> bool {
+        let token = self.peek_token_type_at(offset);
+        let keyword = (token == TokenType::Identifier)
+            .then(|| self.peek_keyword_at(offset))
+            .flatten();
+
+        // accept every type prefix
+        if TypePrefixOperator::from_token(token, keyword).is_some()
+            || self.peek_memory_type_prefix_at(offset)
+        {
+            return true;
+        }
+
+        // accept every primary type head
+        if matches!(
+            token,
+            TokenType::Identifier
+                | TokenType::OpenParenthesis
+                | TokenType::LessThan
+                | TokenType::OpenBracket
+                | TokenType::OpenBrace
+                | TokenType::ElementwiseOr
+                | TokenType::TemplateString
+                | TokenType::TemplateStringStart
+                | TokenType::Literal
+                | TokenType::Range
+                | TokenType::RangeInclusive
+        ) {
+            return true;
+        }
+
+        // signed scalar types require one literal after the sign
+        matches!(token, TokenType::Add | TokenType::Subtract)
+            && self.peek_token_type_at(offset + 1) == TokenType::Literal
+    }
+
     /// Parse one type operand through all prefix and postfix operations.
     #[inline(never)]
     pub(in crate::parse::r#type) fn parse_type_operand(
@@ -85,7 +133,7 @@ impl Parser {
         Ok(ty)
     }
 
-    /// Parse one ordinary or reference type prefix when present.
+    /// Parse one type prefix when present.
     fn parse_type_prefix(&mut self) -> ParserResult<Option<TypePrefix>> {
         let token_type = self.peek_token_type();
         let keyword = (token_type == TokenType::Identifier)
@@ -100,29 +148,9 @@ impl Parser {
             return Ok(Some(TypePrefix::Unary { operator, range }));
         }
 
-        // parse one owned or borrowed reference prefix
-        if matches!(
-            token_type,
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd
-        ) {
-            let token = self.eat_reference_prefix_operator()?.token;
-            let mutability = Some(self.parse_reference_mutability());
-            let variance = self.parse_variance_bound_if_present();
-            let prefix = if token.is(TokenType::ElementwiseAnd) {
-                TypePrefix::Borrowed {
-                    mutability,
-                    variance,
-                    range: token.range(),
-                }
-            } else {
-                TypePrefix::Owned {
-                    mutability,
-                    variance,
-                    range: token.range(),
-                }
-            };
-
-            return Ok(Some(prefix));
+        // stop when no symbolic memory prefix follows
+        if !self.peek_memory_type_prefix_at(0) {
+            return Ok(None);
         }
 
         // parse one pointer prefix
@@ -134,7 +162,25 @@ impl Parser {
             return Ok(Some(TypePrefix::Pointer { mutability, range }));
         }
 
-        Ok(None)
+        // parse one owned or borrowed reference prefix
+        let token = self.eat_reference_prefix_operator()?.token;
+        let mutability = Some(self.parse_reference_mutability());
+        let variance = self.parse_variance_bound_if_present();
+        let prefix = if token.is(TokenType::ElementwiseAnd) {
+            TypePrefix::Borrowed {
+                mutability,
+                variance,
+                range: token.range(),
+            }
+        } else {
+            TypePrefix::Owned {
+                mutability,
+                variance,
+                range: token.range(),
+            }
+        };
+
+        Ok(Some(prefix))
     }
 
     /// Fold one consumed type prefix around its operand.
