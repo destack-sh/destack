@@ -617,8 +617,7 @@ export let A = B;
                 notes
                     .iter()
                     .any(|note| { *note == "cycle members: note_a.ds, note_b.ds" }),
-                "expected sorted cycle member note, notes={:?}",
-                notes
+                "expected sorted cycle member note, notes={notes:?}"
             );
         }
     }

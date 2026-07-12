@@ -123,27 +123,39 @@ fn expression_is_for_loop_afterthought(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // start from the update expression
-    let current_id = expression_id;
+    let mut current_id = expression_id.id;
 
-    // walk through parenthesized and sequence wrappers up to one for increment
+    // walk through tuple argument wrappers up to one for increment
     loop {
-        let Some(parent_id) = ctx.dir.get_parent_id(current_id.id) else {
+        let Some(parent_id) = ctx.dir.get_parent_id(current_id) else {
             return false;
         };
-        if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
+        let parent_type = ctx.dir.get_node_type(parent_id);
+
+        // cross one tuple element wrapper
+        if parent_type == dir::NodeType::Argument {
+            current_id = parent_id;
+            continue;
+        }
+
+        // require an expression parent
+        if parent_type != dir::NodeType::Expression {
             return false;
         }
 
-        // resolve parent expression id
-        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
-        let parent_expression = ctx.dir.get(parent_expression_id);
-        match parent_expression {
+        let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+        match ctx.dir.get(parent_id) {
+            // cross a comma-list expression
+            dir::Expression::TupleExpression { .. } => {
+                current_id = parent_id.id;
+            }
+
+            // accept the complete afterthought expression
             dir::Expression::For {
                 increment: Some(increment_id),
                 ..
-            } => {
-                return *increment_id == current_id;
-            }
+            } => return increment_id.id == current_id,
+
             _ => return false,
         }
     }

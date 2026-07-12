@@ -159,12 +159,12 @@ fn expression_contains_binding_declaration(
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expr = ctx.dir.get(expr_id);
-    match expr {
+    matches!(
+        expr,
         dir::Expression::Let { .. }
-        | dir::Expression::Using { .. }
-        | dir::Expression::Declaration(_) => true,
-        _ => false,
-    }
+            | dir::Expression::Using { .. }
+            | dir::Expression::Declaration(_)
+    )
 }
 
 /// Return the source text inside one block expression.

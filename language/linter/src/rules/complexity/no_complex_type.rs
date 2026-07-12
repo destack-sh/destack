@@ -369,7 +369,7 @@ fn type_expression_complexity_inner(
                 ));
             }
         }
-        TypeExpression::Tuple { elements } => {
+        TypeExpression::Tuple { elements, .. } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
                 match element {

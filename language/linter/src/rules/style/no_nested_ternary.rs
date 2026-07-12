@@ -77,13 +77,13 @@ impl LintRule for NoNestedTernary {
 /// Check if an expression is a ternary (possibly wrapped in parentheses).
 fn is_ternary(ctx: &LintModuleContext<'_>, expr_id: dir::LocalNodeId<dir::Expression>) -> bool {
     let expr = ctx.dir.get(expr_id);
-    match expr {
+    matches!(
+        expr,
         dir::Expression::If {
             form: dir::IfForm::Ternary,
             ..
-        } => true,
-        _ => false,
-    }
+        }
+    )
 }
 
 #[cfg(test)]

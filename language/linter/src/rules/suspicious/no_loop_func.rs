@@ -361,25 +361,15 @@ fn expression_is_immediately_invoked(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let current_expression_id = expression_id;
-
-    loop {
-        let Some(parent_node_id) = tree.get_parent(current_expression_id.id) else {
-            return false;
-        };
-        if parent_node_id.ty != dir::NodeType::Expression {
-            return false;
-        }
-
-        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_node_id.id);
-        let parent_expression = tree.get(parent_expression_id);
-        match parent_expression {
-            dir::Expression::Call { left, .. } => {
-                return *left == current_expression_id;
-            }
-            _ => return false,
-        }
+    let Some(parent_node_id) = tree.get_parent(expression_id.id) else {
+        return false;
+    };
+    if parent_node_id.ty != dir::NodeType::Expression {
+        return false;
     }
+
+    let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent_node_id.id);
+    matches!(tree.get(parent_id), dir::Expression::Call { left, .. } if *left == expression_id)
 }
 
 #[cfg(test)]

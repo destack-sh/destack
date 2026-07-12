@@ -3,7 +3,7 @@ use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
 
 use crate::rules::common::{
-    binary_expression_chain_members, binary_expression_is_nested_same_operator,
+    binary_expression_chain_members, binary_expression_has_same_operator_parent,
     expression_is_in_type_position, expression_type_map, normalized_flow_type_id,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
@@ -52,9 +52,17 @@ impl LintRule for NoDuplicateTypeConstituents {
             ) {
                 continue;
             }
-            if binary_expression_is_nested_same_operator(ctx.dir.tree(), expression_id, *operator) {
+
+            // inspect each flattened chain once
+            let has_same_operator_parent = binary_expression_has_same_operator_parent(
+                ctx.dir.tree(),
+                expression_id,
+                *operator,
+            );
+            if has_same_operator_parent {
                 continue;
             }
+
             if !expression_is_in_type_position(ctx.dir.tree(), expression_id) {
                 continue;
             }
