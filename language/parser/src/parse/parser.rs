@@ -178,7 +178,7 @@ impl Parser {
         strings: Arc<StringPool>,
     ) -> Self {
         let module_id = ModuleId::new(PackageId::new(0), file.id.0);
-        let cursor = TokenCursor::new(&file, trivia_mode);
+        let cursor = TokenCursor::new(file.clone(), trivia_mode);
         let capacity = TreeCapacity {
             nodes: cursor.token_count(),
             comments: cursor.comment_count(),
@@ -197,7 +197,7 @@ impl Parser {
         strings: Arc<StringPool>,
         tree: Tree,
     ) -> Self {
-        let cursor = TokenCursor::new(&file, trivia_mode);
+        let cursor = TokenCursor::new(file.clone(), trivia_mode);
 
         Self::new(file, language, strings, tree, trivia_mode, cursor)
     }

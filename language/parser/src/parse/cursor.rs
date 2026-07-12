@@ -2,6 +2,7 @@ use crate::{Lexer, ParserTriviaMode, TokenProbe, Tokenizer};
 use destack_dir::{Comment, Token, TokenLiteral, TokenType};
 use destack_source::{ByteRange, File};
 use std::mem;
+use std::sync::Arc;
 
 /// The tokenization mode used for the next parser-visible token.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -61,8 +62,9 @@ pub(crate) struct TokenCursor {
 
 impl TokenCursor {
     /// Tokenize one file and create a cursor at its first visible token.
-    pub(crate) fn new(file: &File, trivia_mode: ParserTriviaMode) -> Self {
-        let mut lexer = Lexer::new(std::sync::Arc::new(file.clone()));
+    pub(crate) fn new(file: Arc<File>, trivia_mode: ParserTriviaMode) -> Self {
+        let source_len = file.len;
+        let mut lexer = Lexer::new(file);
         lexer.set_trivia_mode(trivia_mode);
         lexer.lex_to_end();
         let comments = lexer.take_comments();
@@ -72,7 +74,7 @@ impl TokenCursor {
         let consumed = Vec::with_capacity(tokens.len());
 
         Self {
-            source_len: file.len,
+            source_len,
             index: 1,
             current,
             is_current_ordinary: true,
