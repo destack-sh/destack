@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDependency};
 use destack_dir as dir;
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_repository::{Module, Repository, Revision};
 use destack_source::{ContentId, File, FileId, LanguageType, ProfileId, Span};
 
@@ -65,10 +65,10 @@ fn parse_module_file(
 
     // parse the file with the shared tree
     let tree_in = std::mem::replace(tree, dir::Tree::new(tree.module_id));
-    let mut parser = Parser::lex_into_tree_with_trivia(
+    let mut parser = Parser::lex_into_tree_with_comment_retention(
         source_file.clone(),
         language_type,
-        ParserTriviaMode::Documentation,
+        CommentRetention::Documentation,
         repository.string_pool().clone(),
         tree_in,
     );
@@ -82,8 +82,9 @@ fn parse_module_file(
     // publish parsed strings to the test repository
     parser.publish_strings();
 
-    // append token side data
-    let (tokens, side_tokens) = parser.take_tokens();
+    // preserve semantic tokens
+    let tokens = parser.take_tokens();
+    let comments = parser.take_comments();
 
     // restore the shared tree
     *tree = parser.tree;
@@ -97,7 +98,7 @@ fn parse_module_file(
         aliases,
         roots,
         tokens,
-        side_tokens,
+        comments,
         anchor_expression,
     }
 }
