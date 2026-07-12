@@ -3,8 +3,47 @@ use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
     BinaryOperator, Declaration, Expression, InferForm, NodeType, ScalarLiteral, TokenType,
-    TupleElement, TypeDeclaration, TypeExpression, TypeLiteral,
+    TupleElement, TupleForm, TypeDeclaration, TypeExpression, TypeLiteral,
 };
+
+#[test]
+fn test_parse_array_tuple_type() {
+    let test = TestParser::new("[string, int32]");
+    let mut parser = test.prepare();
+    let ty = parser.parse_type(Default::default()).unwrap();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
+        assert_eq!(*form, TupleForm::Array);
+        assert_eq!(elements.len(), 2);
+    });
+}
+
+#[test]
+fn test_parse_singleton_array_tuple_type() {
+    let test = TestParser::new("[string,]");
+    let mut parser = test.prepare();
+    let ty = parser.parse_type(Default::default()).unwrap();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
+        assert_eq!(*form, TupleForm::Array);
+        assert_eq!(elements.len(), 1);
+    });
+}
+
+#[test]
+fn test_parse_empty_array_tuple_type() {
+    let test = TestParser::new("[]");
+    let mut parser = test.prepare();
+    let ty = parser.parse_type(Default::default()).unwrap();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
+        assert_eq!(*form, TupleForm::Array);
+        assert!(elements.is_empty());
+    });
+}
 
 #[test]
 fn test_parse_slice_type() {
@@ -166,10 +205,10 @@ fn test_parse_single_element_tuple_type() {
         })
         .unwrap();
 
-    // type T = [EventTarget,]
+    // type T = (EventTarget,)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 1);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
                     assert!(label.is_none());
@@ -196,10 +235,10 @@ fn test_parse_tuple_type_with_spread() {
         })
         .unwrap();
 
-    // type T = [...Parts, string]
+    // type T = (...Parts, string)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Spread { label, value } => {
                     assert!(label.is_none());
@@ -232,7 +271,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
 
     TestParser::assert_no_errors(&parser);
 
-    // type T = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]
+    // type T = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES")
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
             assert_name!(parser, *name, "T");
@@ -242,7 +281,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
             assert!(mutability.is_none());
             assert!(generic_parameters.is_empty());
             assert!(where_clauses.is_empty());
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Spread { label, value } => {
                     assert_string!(parser, label.expect("expected spread label"), "keys");
@@ -277,10 +316,10 @@ fn test_parse_optional_tuple_element() {
         })
         .unwrap();
 
-    // type T = [EventTarget?]
+    // type T = (EventTarget?)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 1);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
                     assert!(label.is_none());
@@ -307,10 +346,10 @@ fn test_parse_optional_tuple_element_trailing_comma() {
         })
         .unwrap();
 
-    // type T = [EventTarget?,]
+    // type T = (EventTarget?,)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 1);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { value, is_optional, .. } => {
                     assert!(*is_optional);
@@ -335,10 +374,10 @@ fn test_parse_optional_labeled_tuple_element() {
         })
         .unwrap();
 
-    // type T = [start?: number]
+    // type T = (start?: number)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 1);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
                     assert_string!(parser, *label, "start");
@@ -364,10 +403,10 @@ fn test_parse_optional_tuple_element_with_readonly_type() {
         })
         .unwrap();
 
-    // type T = [readonly EventTarget?]
+    // type T = (readonly EventTarget?)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 1);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { value, is_optional, is_readonly, .. } => {
                     assert!(*is_optional);
@@ -395,10 +434,11 @@ fn test_parse_tuple_type() {
         })
         .unwrap();
 
-    // type T = [string, number]
+    // type T = (string, number)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { form, elements } => {
+                assert_eq!(*form, TupleForm::Tuple);
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
@@ -426,10 +466,10 @@ fn test_parse_tuple_type_with_readonly_type_element() {
         })
         .unwrap();
 
-    // type T = [string, readonly EventTarget]
+    // type T = (string, readonly EventTarget)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, is_readonly, .. } => {
                     assert!(!*is_readonly);
@@ -456,10 +496,10 @@ fn test_parse_labeled_tuple_type() {
         })
         .unwrap();
 
-    // type T = [start: number, end: number]
+    // type T = (start: number, end: number)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, .. } => {
                     assert_string!(parser, *label, "start");
@@ -489,10 +529,10 @@ fn test_parse_labeled_tuple_type_complex() {
         })
         .unwrap();
 
-    // type T = [importCode: string, nameMap: Record<string, string>]
+    // type T = (importCode: string, nameMap: Record<string, string>)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, .. } => {
                     assert_string!(parser, *label, "importCode");
@@ -554,10 +594,10 @@ fn test_parse_tuple_type_missing_first_element() {
         &[(Some(NodeType::TypeExpression), None, None, ",")],
     );
 
-    // type T = [, string]
+    // type T = (, string)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::Missing);

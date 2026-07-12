@@ -451,13 +451,12 @@ impl Parser {
         terminator: TokenType,
         context: PatternContext,
     ) -> ParserResult<Vec<LocalNodeId<PatternField>>> {
-        let mut fields: Vec<LocalNodeId<PatternField>> = Vec::new();
+        let mut fields = Vec::new();
         let is_object_pattern = terminator == TokenType::CloseBrace;
-        let mut has_rest_field = false;
 
         while self.has_more_tokens() {
             // stop at the pattern terminator
-            if self.peek_token_type() == terminator {
+            if self.peek_is(terminator) {
                 break;
             }
 
@@ -476,31 +475,12 @@ impl Parser {
             }
             fields.push(pattern_field_id);
 
-            // permit one rest field, with bound rest fields terminating the pattern
-            if let PatternField::Rest { pattern } = self.tree.get(pattern_field_id) {
-                if has_rest_field {
-                    return Err(ParserError::unexpected(self.peek_token_span()));
-                }
-                has_rest_field = true;
-
-                let has_separator_after_rest = self.peek_token_type() == separator;
-                let has_non_terminal_newline_after_rest =
-                    self.peek_is_on_new_line() && !self.peek_is(terminator);
-                if pattern.is_some()
-                    && (has_separator_after_rest || has_non_terminal_newline_after_rest)
-                {
-                    return Err(ParserError::unexpected(self.peek_token_span()));
-                }
-            }
-
-            // consume separators and newline separators
-            if self.peek_token_type() == separator {
+            // consume an explicit separator
+            if self.peek_is(separator) {
                 self.bump();
-            } else if self.peek_is_on_new_line() {
-                if self.peek_is(terminator) {
-                    break;
-                }
-            } else {
+            }
+            // continue only across a nonterminal newline separator
+            else if !self.peek_is_on_new_line() || self.peek_is(terminator) {
                 break;
             }
         }
@@ -518,7 +498,7 @@ impl Parser {
         context: PatternContext,
     ) -> ParserResult<(PatternField, Option<ByteRange>)> {
         // array and tuple elisions are empty fields before a separator
-        if !is_object_pattern && self.peek_token_type() == separator {
+        if !is_object_pattern && self.peek_is(separator) {
             return Ok((PatternField::Elision, None));
         }
 

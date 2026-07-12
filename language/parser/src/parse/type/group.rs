@@ -1,6 +1,8 @@
 use crate::parse::context::{ExpressionContext, TypeContext, TypeMode, TypeStops};
 use crate::{ParseStart, Parser, ParserResult};
-use destack_dir::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_dir::{
+    Expression, Keyword, LocalNodeId, NodeType, TokenType, TupleElement, TupleForm, TypeExpression,
+};
 
 impl Parser {
     /// Parse one parenthesized type, tuple, or function head.
@@ -13,20 +15,27 @@ impl Parser {
 
         // empty tuple
         if self.peek_is(TokenType::CloseParenthesis) {
-            return Ok(self.parse_empty_tuple_type(start));
+            return self.finish_tuple_type(start, Vec::new(), TupleForm::Tuple);
         }
 
         // tuple head
         if self.peek_type_tuple() {
-            return self.parse_parenthesized_tuple_type(start, context);
+            let elements = self.parse_type_tuple_elements(context, TokenType::CloseParenthesis)?;
+
+            return self.finish_tuple_type(start, elements, TupleForm::Tuple);
         }
 
         // first type
         let ty = self.parse_type_or_recover_missing(context.nested(), NodeType::TypeExpression)?;
 
         // tuple tail
-        if self.peek_is(TokenType::Comma) || self.peek_tuple_element_optional() {
-            return self.parse_parenthesized_tuple_tail(start, ty, context);
+        if self.peek_is(TokenType::Comma)
+            || self.peek_optional_tuple_element(TokenType::CloseParenthesis)
+        {
+            let elements =
+                self.parse_type_tuple_tail(start, ty, context, TokenType::CloseParenthesis)?;
+
+            return self.finish_tuple_type(start, elements, TupleForm::Tuple);
         }
 
         // grouped type
@@ -40,47 +49,25 @@ impl Parser {
         Ok(ty)
     }
 
-    /// Parse one empty tuple type after its opening parenthesis.
-    fn parse_empty_tuple_type(&mut self, start: &ParseStart) -> LocalNodeId<TypeExpression> {
-        self.bump();
+    /// Close and insert one parsed tuple type.
+    fn finish_tuple_type(
+        &mut self,
+        start: &ParseStart,
+        elements: Vec<LocalNodeId<TupleElement>>,
+        form: TupleForm,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        let close = match form {
+            TupleForm::Tuple => TokenType::CloseParenthesis,
+            TupleForm::Array => TokenType::CloseBracket,
+        };
 
-        self.insert_node(
-            TypeExpression::Tuple {
-                elements: Vec::new(),
-            },
+        // consume the matching delimiter
+        self.eat_close_token_or_recover_missing(close, NodeType::TypeExpression)?;
+
+        Ok(self.insert_node(
+            TypeExpression::Tuple { form, elements },
             self.range_since(start),
-        )
-    }
-
-    /// Parse one parenthesized tuple with an explicit tuple head.
-    fn parse_parenthesized_tuple_type(
-        &mut self,
-        start: &ParseStart,
-        context: TypeContext,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.parse_type_tuple_elements_body(context)?;
-        self.eat_close_token_or_recover_missing(
-            TokenType::CloseParenthesis,
-            NodeType::TypeExpression,
-        )?;
-
-        Ok(self.insert_node(TypeExpression::Tuple { elements }, self.range_since(start)))
-    }
-
-    /// Parse one parenthesized tuple after its first type.
-    fn parse_parenthesized_tuple_tail(
-        &mut self,
-        start: &ParseStart,
-        first: LocalNodeId<TypeExpression>,
-        context: TypeContext,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.parse_type_tuple_tail(start, first, context)?;
-        self.eat_close_token_or_recover_missing(
-            TokenType::CloseParenthesis,
-            NodeType::TypeExpression,
-        )?;
-
-        Ok(self.insert_node(TypeExpression::Tuple { elements }, self.range_since(start)))
+        ))
     }
 
     /// Return whether the current token starts a constructor type expression.
@@ -126,13 +113,25 @@ impl Parser {
         context.mode != TypeMode::ArrowReturn || self.peek_parenthesized_parameter_list()
     }
 
-    /// Parse one slice or fixed-array type.
+    /// Parse one array tuple, slice, or fixed-array type.
     pub(super) fn parse_bracket_type(
         &mut self,
         start: &ParseStart,
         context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
+
+        // empty array tuple
+        if self.peek_is(TokenType::CloseBracket) {
+            return self.finish_tuple_type(start, Vec::new(), TupleForm::Array);
+        }
+
+        // labeled or spread array tuple
+        if self.peek_type_tuple() {
+            let elements = self.parse_type_tuple_elements(context, TokenType::CloseBracket)?;
+
+            return self.finish_tuple_type(start, elements, TupleForm::Array);
+        }
 
         // element type
         let element =
@@ -141,6 +140,16 @@ impl Parser {
         // fixed array
         if self.peek_is(TokenType::Semicolon) {
             return self.parse_fixed_array_type(start, element, context);
+        }
+
+        // comma distinguishes an exact array tuple from a slice
+        if self.peek_is(TokenType::Comma)
+            || self.peek_optional_tuple_element(TokenType::CloseBracket)
+        {
+            let elements =
+                self.parse_type_tuple_tail(start, element, context, TokenType::CloseBracket)?;
+
+            return self.finish_tuple_type(start, elements, TupleForm::Array);
         }
 
         // slice close
@@ -156,7 +165,9 @@ impl Parser {
         element: LocalNodeId<TypeExpression>,
         context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        self.bump();
+        self.eat_token(TokenType::Semicolon)?;
+
+        // parse the fixed length or inference hole
         let length = if self.peek_identifier_is("_") {
             let length_start = self.mark_parse_start();
             let ty = self.parse_type_infer_hole(&length_start);
@@ -174,6 +185,8 @@ impl Parser {
                 NodeType::Expression,
             )?
         };
+
+        // close the fixed array
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
         Ok(self.insert_node(
