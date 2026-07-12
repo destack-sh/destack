@@ -9,8 +9,8 @@ use crate::{Function, LocalNodeId, Type};
 /// Drop table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DropTable {
-    /// Complete generated drop functions keyed by type id.
-    pub functions: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
+    /// Generated destructors keyed by type id.
+    pub destructors: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
     /// User-authored drop hooks keyed by type id.
     pub hooks: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
 }
@@ -23,26 +23,26 @@ impl DropTable {
 
     /// Copy drop table entries from one type id to another.
     pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
-        if let Some(function) = self.function(from) {
-            self.set_function(to, function);
+        if let Some(destructor) = self.destructor(from) {
+            self.set_destructor(to, destructor);
         }
         if let Some(hook) = self.hook(from) {
             self.set_hook(to, hook);
         }
     }
 
-    /// Return the complete drop function for a type.
-    pub fn function(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Function>> {
-        self.functions.get(&ty).copied()
+    /// Return the generated destructor for a type.
+    pub fn destructor(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Function>> {
+        self.destructors.get(&ty).copied()
     }
 
-    /// Record the complete drop function for a type.
-    pub fn set_function(
+    /// Record the generated destructor for a type.
+    pub fn set_destructor(
         &mut self,
         ty: LocalNodeId<Type>,
-        function: LocalNodeId<Function>,
+        destructor: LocalNodeId<Function>,
     ) -> Option<LocalNodeId<Function>> {
-        self.functions.insert(ty, function)
+        self.destructors.insert(ty, destructor)
     }
 
     /// Return the user-authored drop hook for a type.

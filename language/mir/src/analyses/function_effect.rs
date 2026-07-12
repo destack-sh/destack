@@ -28,7 +28,7 @@ impl FunctionEffectAnalysis {
     fn build(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
         let callgraph = analyses.get::<CallGraph>(tree);
         let function_ids = Self::function_body_ids(tree);
-        let mut effects = HashMap::new();
+        let mut effects = analyses.effects().functions.clone();
         let mut worklist: VecDeque<_> = function_ids.iter().copied().collect();
 
         // propagate direct-call effects to a fixpoint
@@ -572,6 +572,37 @@ entry:
         let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
         let function = program.function_id_by_name("root");
         let effect = effects.function(function).expect("missing function effect");
+
+        assert!(effect.behavior.allocates);
+    }
+
+    /// Direct calls propagate declared effects from bodyless functions.
+    #[test]
+    fn test_function_effects_propagate_declared_calls() {
+        let mut program = TestProgram::new(
+            r#"
+external function allocate(): void
+
+function root(): void {
+entry:
+    call allocate()
+    return
+}
+"#,
+        );
+        let allocate = program.function_id_by_name("allocate");
+        program.effects.functions.insert(
+            allocate,
+            mir::FunctionEffect {
+                memory: mir::MemoryEffect::unknown(),
+                behavior: mir::FunctionBehavior::none().with_allocates(),
+            },
+        );
+
+        let analyses = program.tree_analysis_cache();
+        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let root = program.function_id_by_name("root");
+        let effect = effects.function(root).expect("missing function effect");
 
         assert!(effect.behavior.allocates);
     }
