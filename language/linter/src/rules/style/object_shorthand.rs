@@ -177,7 +177,7 @@ fn report_longform_property_if_needed(
         )
         .label("use shorthand `{ x }` instead of `{ x: x }`");
 
-        if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), property_span) {
+        if ctx.compute_fixes && !span_has_comment(ctx.comments(), property_span) {
             let edits = ctx
                 .edit_builder()
                 .replace(property_span, property_name.clone())
@@ -241,7 +241,7 @@ fn report_shorthand_property_if_needed(
 
     if matches!(ctx.dir.get(property_id), dir::Property::Field { .. })
         && ctx.compute_fixes
-        && !span_has_comment(ctx.dir.tree(), property_span)
+        && !span_has_comment(ctx.comments(), property_span)
     {
         let replacement = format!("{property_name}: {property_name}");
         let edits = ctx

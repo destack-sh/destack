@@ -99,7 +99,7 @@ fn redundant_true_guard_fix(
     if remove_span.is_empty() {
         return None;
     }
-    if span_has_comment(ctx.dir.tree(), remove_span) {
+    if span_has_comment(ctx.comments(), remove_span) {
         return None;
     }
 

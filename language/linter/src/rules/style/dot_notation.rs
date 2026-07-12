@@ -90,7 +90,7 @@ impl LintRule for DotNotation {
             )
             .label("prefer dot notation");
 
-            if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), bracket_span) {
+            if ctx.compute_fixes && !span_has_comment(ctx.comments(), bracket_span) {
                 let left_expression = ctx.dir.get(*left);
                 let dot_prefix = if is_numeric_literal_expression(left_expression) {
                     " ."

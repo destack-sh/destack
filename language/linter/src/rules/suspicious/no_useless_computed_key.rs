@@ -70,7 +70,7 @@ impl LintRule for NoUselessComputedKey {
 
             if ctx.compute_fixes
                 && let Some(key_span) = computed_key_bracket_span(ctx, *expr_id)
-                && !span_has_comment(ctx.dir.tree(), key_span)
+                && !span_has_comment(ctx.comments(), key_span)
             {
                 let edits = ctx
                     .edit_builder()

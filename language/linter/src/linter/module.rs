@@ -74,6 +74,8 @@ pub struct LintModuleContext<'a> {
 
     /// The active DIR view.
     pub dir: dir::View<'a>,
+    /// The retained source comments.
+    comments: &'a [dir::Comment],
     /// The DIR string pool.
     pub strings: &'a StringPool,
     /// The symbol table.
@@ -129,12 +131,18 @@ impl<'a> LintModuleContext<'a> {
         namespace_scope: dir::LocalScopeId,
         compute_fixes: bool,
     ) -> Self {
+        let comments = parsed
+            .file(file.id)
+            .map(|file| file.comments.as_slice())
+            .unwrap_or_else(|| panic!("missing parsed file for {:?}", file.id));
+
         Self {
             session,
             module,
             profile,
             file,
             dir: dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch)),
+            comments,
             strings,
             symbols,
             modules,
@@ -152,6 +160,11 @@ impl<'a> LintModuleContext<'a> {
     /// Return the file id.
     pub fn file_id(&self) -> FileId {
         self.module.file_id
+    }
+
+    /// Return retained source comments.
+    pub fn comments(&self) -> &[dir::Comment] {
+        self.comments
     }
 
     /// Return the module id.

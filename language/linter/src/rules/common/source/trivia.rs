@@ -4,9 +4,9 @@ use destack_source::Span;
 use crate::LintModuleContext;
 use crate::rules::common::is_doc_comment_source;
 
-/// Return true when one span contains at least one raw comment.
-pub fn span_has_comment(tree: &dir::Tree, span: Span) -> bool {
-    tree.comments().iter().any(|comment| {
+/// Return true when one span contains at least one source comment.
+pub fn span_has_comment(comments: &[dir::Comment], span: Span) -> bool {
+    comments.iter().any(|comment| {
         let comment_span = comment.span;
         comment_span.file == span.file
             && !comment_span.is_empty()
@@ -66,12 +66,10 @@ fn doc_comments_for_node(ctx: &LintModuleContext<'_>, node_id: u32) -> Vec<dir::
         return Vec::new();
     };
 
-    ctx.dir
-        .tree()
-        .comments()
+    ctx.comments()
         .iter()
         .copied()
-        .filter(|comment| comment.is_leading() && comment.attached_to == node_span.start)
+        .filter(|comment| comment.following_token_start() == Some(node_span.start))
         .filter(|comment| is_doc_comment_source(ctx.get_span_text(comment.span)))
         .collect()
 }

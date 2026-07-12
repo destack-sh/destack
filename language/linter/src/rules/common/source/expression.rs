@@ -879,6 +879,7 @@ impl dir::NodeVisitor for IdentifierNameSearchVisitor {
 /// Return true when one block has no expressions and no comment trivia.
 pub fn block_is_empty_without_comment(
     tree: &dir::Tree,
+    comments: &[dir::Comment],
     block_id: dir::LocalNodeId<dir::Block>,
 ) -> bool {
     let block = tree.get(block_id);
@@ -887,7 +888,7 @@ pub fn block_is_empty_without_comment(
     }
 
     let block_span = tree.get_span(block_id);
-    !span_has_comment(tree, block_span)
+    !span_has_comment(comments, block_span)
 }
 
 /// Return the block expression id for one block node.

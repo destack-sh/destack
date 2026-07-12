@@ -36,8 +36,10 @@ impl LintRule for NoWarningComments {
         let warning_location = ctx.options().restriction.warning_comment_location;
         let warning_decoration = ctx.options().restriction.warning_comment_decoration.clone();
 
-        // iterate over all raw comments
-        for comment in ctx.dir.comments().iter().copied() {
+        // iterate over all source comments
+        let comment_count = ctx.comments().len();
+        for comment_index in 0..comment_count {
+            let comment = ctx.comments()[comment_index];
             let comment_text = dir::normalize_comment_payload(ctx.get_span_text(comment.span));
             let comment_text = comment_text.into_owned();
             if is_directive_comment(&comment_text)

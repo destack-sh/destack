@@ -41,7 +41,9 @@ impl LintRule for CommentLayout {
         let meta = self.meta();
 
         // check doc comments
-        for comment in ctx.dir.comments().iter().copied() {
+        let comment_count = ctx.comments().len();
+        for comment_index in 0..comment_count {
+            let comment = ctx.comments()[comment_index];
             if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }
@@ -107,7 +109,9 @@ impl LintRule for CommentLayout {
         }
 
         // check inline comments
-        for comment in ctx.dir.comments().iter().copied() {
+        let comment_count = ctx.comments().len();
+        for comment_index in 0..comment_count {
+            let comment = ctx.comments()[comment_index];
             if is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }

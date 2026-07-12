@@ -106,7 +106,7 @@ impl LintRule for NoCollapsibleIf {
             .label("combine conditions using `&&`");
 
             // skip fixes when nested if range includes comment trivia
-            if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), outer_span) {
+            if ctx.compute_fixes && !span_has_comment(ctx.comments(), outer_span) {
                 let outer_cond_text = and_condition_operand_text(ctx, outer_condition_id);
                 let inner_cond_text = and_condition_operand_text(ctx, inner_condition_id);
                 let inner_then_span = ctx.dir.get_span(*inner_then_id);

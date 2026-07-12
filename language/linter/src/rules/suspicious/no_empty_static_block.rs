@@ -44,7 +44,7 @@ impl LintRule for NoEmptyStaticBlock {
             let dir::Expression::Block(block_id) = body_expr else {
                 continue;
             };
-            if !block_is_empty_without_comment(ctx.dir.tree(), *block_id) {
+            if !block_is_empty_without_comment(ctx.dir.tree(), ctx.comments(), *block_id) {
                 continue;
             }
 

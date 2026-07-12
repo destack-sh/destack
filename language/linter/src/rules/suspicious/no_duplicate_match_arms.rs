@@ -102,7 +102,7 @@ fn duplicate_match_arm_fix(
     case_id: dir::LocalNodeId<dir::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.dir.get_span(case_id);
-    if span_has_comment(ctx.dir.tree(), case_span) {
+    if span_has_comment(ctx.comments(), case_span) {
         return None;
     }
 
