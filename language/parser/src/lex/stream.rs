@@ -85,12 +85,30 @@ impl Lexer {
 
     /// Lex every remaining token and return EOF.
     pub fn lex_to_end(&mut self) -> Token {
-        loop {
-            if let Some(eof_token) = self.eof_token {
-                return eof_token;
-            }
+        // return the previously reached end of source
+        if let Some(eof_token) = self.eof_token {
+            return eof_token;
+        }
 
-            self.lex_next();
+        loop {
+            let token = self.tokenizer.read_source_token();
+
+            // retain parser-visible tokens
+            if token.is_semantic() {
+                self.push_semantic_token(token);
+
+                // finish at the end of source
+                if token.is(TokenType::End) {
+                    self.eof_token = Some(token);
+
+                    return token;
+                }
+            }
+            // process side-token trivia and retention
+            else {
+                let has_line_terminator = self.side_token_has_line_terminator();
+                self.push_side_token(token, has_line_terminator);
+            }
         }
     }
 
@@ -123,22 +141,6 @@ impl Lexer {
         self.pending_line_terminator_before_next = false;
 
         (tokens, side_tokens)
-    }
-
-    /// Lex one source token and update the retained token stream.
-    fn lex_next(&mut self) {
-        let token = self.tokenizer.read_source_token();
-
-        if token.is_semantic() {
-            self.push_semantic_token(token);
-        } else {
-            let has_line_terminator = self.side_token_has_line_terminator();
-            self.push_side_token(token, has_line_terminator);
-        }
-
-        if token.is(TokenType::End) {
-            self.eof_token = Some(token);
-        }
     }
 
     /// Retain one semantic token with its leading line state.
