@@ -866,6 +866,9 @@ impl WalkState<'_, '_> {
         let written = applied
             .iter()
             .filter(|argument| argument.name.is_none())
+            .collect::<SmallVec<[_; 4]>>();
+        let written_types = written
+            .iter()
             .map(|argument| argument.ty)
             .collect::<SmallVec<[_; 4]>>();
         let origin = Origin::Node(
@@ -875,7 +878,7 @@ impl WalkState<'_, '_> {
         let Some(substitution) = self.check.substitute_parameter_arguments(
             origin,
             &parameters,
-            &written,
+            &written_types,
             TypeSubstitution::default(),
         )?
         else {
@@ -892,16 +895,23 @@ impl WalkState<'_, '_> {
         };
         let arguments = substitution.arguments;
 
-        // constrain type arguments by declared parameter bounds
-        self.constrain_applied_symbol_arguments(source, symbol, &parameters, &arguments)?;
-
-        let arguments = self.intern_type_ids(&arguments)?;
+        // build the application before attaching its argument judgments
+        let argument_list = self.intern_type_ids(&arguments)?;
         let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
             symbol,
-            arguments,
+            arguments: argument_list,
         }))?;
+        let ty = self.apply_named_refinements(ty, applied)?;
+        self.constrain_applied_symbol_arguments(
+            source,
+            ty,
+            symbol,
+            &parameters,
+            &arguments,
+            &written,
+        )?;
 
-        self.apply_named_refinements(ty, applied)
+        Ok(ty)
     }
 
     /// Wrap one application with its named refinements in canonical key order.
@@ -932,9 +942,11 @@ impl WalkState<'_, '_> {
     fn constrain_applied_symbol_arguments(
         &mut self,
         source: dir::LocalNodeIdAny,
+        application: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,
         parameters: &[dir::GlobalGenericParameterId],
         arguments: &[dir::GlobalTypeId],
+        written: &[&GenericArgument],
     ) -> CompilerResult<()> {
         let substitution = TypeSubstitution {
             parameters: parameters.iter().copied().collect(),
@@ -947,7 +959,12 @@ impl WalkState<'_, '_> {
         );
 
         // enqueue parameter bounds as ordinary type relations
-        for (parameter, argument) in parameters.iter().copied().zip(arguments.iter().copied()) {
+        for (index, (parameter, argument)) in parameters
+            .iter()
+            .copied()
+            .zip(arguments.iter().copied())
+            .enumerate()
+        {
             let Some(constraint) = self
                 .check
                 .generic_parameter(parameter)
@@ -962,9 +979,13 @@ impl WalkState<'_, '_> {
                 continue;
             }
 
+            let argument_source = written
+                .get(index)
+                .map(|argument| argument.source)
+                .unwrap_or_else(|| source.into_global(self.module));
             self.relate_generic_bound(
-                origin,
-                source.into_global(self.module),
+                argument_source,
+                application,
                 parameter,
                 argument,
                 constraint,

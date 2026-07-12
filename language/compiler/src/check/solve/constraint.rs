@@ -1,6 +1,7 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 
-use crate::check::{CauseId, OriginId, Relation};
+use crate::check::{CauseId, CheckState, OriginId, Relation};
 use crate::{CompilerError, CompilerResult};
 
 /// Component-global id of one collected constraint.
@@ -39,8 +40,8 @@ pub(in crate::check) struct TypeConstraint {
     pub(in crate::check) target: dir::GlobalTypeId,
     /// Why this constraint exists.
     pub(in crate::check) cause: CauseId,
-    /// The source subject blamed when this relation fails.
-    pub(in crate::check) subject: Option<ConstraintSubject>,
+    /// The generic application invalidated when this relation fails.
+    pub(in crate::check) invalidated_application: Option<dir::LocalTypeId>,
 }
 
 /// Relation between one source value occurrence and one target type.
@@ -60,22 +61,6 @@ pub(in crate::check) struct ValueConstraint {
     pub(in crate::check) use_: Option<ValueUse>,
     /// Whether this relation only verifies and never bounds open variables.
     pub(in crate::check) is_check_only: bool,
-}
-
-/// Source subject blamed by one type constraint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ConstraintSubject {
-    /// Generic application argument checked against its declared bound.
-    ///
-    /// Examples:
-    /// ```ds
-    /// Box<string>          // string satisfies Box<T: DynamicSafe>
-    /// Borrowed<T, L, A>    // L satisfies Lifetime, A satisfies Access
-    /// ```
-    GenericArgument {
-        /// The source node for the applied argument.
-        source: dir::GlobalNodeIdAny,
-    },
 }
 
 /// Runtime value use checked by one value constraint.
@@ -140,7 +125,23 @@ impl Constraint {
             source,
             target,
             cause,
-            subject: None,
+            invalidated_application: None,
+        })
+    }
+
+    /// Create a generic argument bound constraint.
+    pub(in crate::check) fn generic_bound(
+        argument: dir::GlobalTypeId,
+        bound: dir::GlobalTypeId,
+        application: dir::LocalTypeId,
+        cause: CauseId,
+    ) -> Self {
+        Self::Type(TypeConstraint {
+            relation: Relation::Satisfies,
+            source: argument,
+            target: bound,
+            cause,
+            invalidated_application: Some(application),
         })
     }
 
@@ -314,6 +315,33 @@ impl ConstraintTable {
     }
 }
 
+impl CheckState<'_> {
+    /// Collect generic applications whose declared argument bounds failed.
+    pub(in crate::check) fn failed_generic_applications(
+        &self,
+    ) -> CompilerResult<FxIndexSet<dir::GlobalTypeId>> {
+        let mut applications = FxIndexSet::default();
+        for (id, constraint) in self.solver.constraints.iter() {
+            if self.solver.constraints.state(id)? != ConstraintState::Fails {
+                continue;
+            }
+            let Constraint::Type(TypeConstraint {
+                cause,
+                invalidated_application: Some(application),
+                ..
+            }) = constraint
+            else {
+                continue;
+            };
+            let module = self.cause_origin(*cause).module();
+            let application = dir::GlobalTypeId::new(module, *application);
+            applications.insert(application);
+        }
+
+        Ok(applications)
+    }
+}
+
 /// Reason one closed check did not hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum CheckFailure {
@@ -376,6 +404,6 @@ pub(in crate::check) enum CheckAttempt {
 
 // lock the queued constraint shapes
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Constraint>() == 80);
+const _: () = assert!(std::mem::size_of::<Constraint>() == 72);
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<ValueConstraint>() == 64);

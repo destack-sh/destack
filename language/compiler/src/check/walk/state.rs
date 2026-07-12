@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Cause, CauseKind, CheckState, Constraint, ConstraintSubject, FlowPointId, FlowSite, FlowState,
-    Origin, Relation, TypeConstraint, ValueUse, VariableRole, Widening,
+    Cause, CauseKind, CheckState, Constraint, FlowPointId, FlowSite, FlowState, Origin, Relation,
+    ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -367,22 +367,22 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Collect one generic argument bound constraint.
     pub(in crate::check) fn relate_generic_bound(
         &mut self,
-        origin: Origin,
         source: dir::GlobalNodeIdAny,
+        application: dir::GlobalTypeId,
         parameter: dir::GlobalGenericParameterId,
         argument: dir::GlobalTypeId,
         bound: dir::GlobalTypeId,
     ) {
+        let origin = Origin::Node(source, self.flow().template_scope());
         let cause = self
             .check
             .intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
-        self.check.push_constraint(Constraint::Type(TypeConstraint {
-            relation: Relation::Satisfies,
-            source: argument,
-            target: bound,
+        self.check.push_constraint(Constraint::generic_bound(
+            argument,
+            bound,
+            application.local_id,
             cause,
-            subject: Some(ConstraintSubject::GenericArgument { source }),
-        }));
+        ));
     }
 
     /// Return one symbol's type slot.

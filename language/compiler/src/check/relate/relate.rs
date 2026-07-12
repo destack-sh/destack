@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Answer, BoundMode, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
-    CheckState, ConstraintSubject, Dependency, ObligationCheck, Origin, ProbeReason, Relation,
-    ValueUse, answer,
+    CheckState, Dependency, ObligationCheck, Origin, ProbeReason, Relation, ValueUse, answer,
 };
 
 impl CheckState<'_> {
@@ -212,48 +211,13 @@ impl CheckState<'_> {
         &mut self,
         cause: CauseId,
         relation: Relation,
-        subject: Option<ConstraintSubject>,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<CheckOutcome>> {
-        let Some(subject) = subject else {
-            let holds = answer!(self.constrain_type(cause, relation, source, target)?);
-            let check = self.complete_constraint_check(cause, relation, source, target, holds)?;
+        let holds = answer!(self.constrain_type(cause, relation, source, target)?);
+        let check = self.complete_constraint_check(cause, relation, source, target, holds)?;
 
-            return Ok(Answer::Ready(check));
-        };
-
-        let holds = match subject {
-            ConstraintSubject::GenericArgument { source: argument } => {
-                let parent = self.solver.cause(cause);
-                let origin = self.origin_at(parent.origin, argument)?;
-                let anchored = self.intern_cause(Cause {
-                    origin,
-                    kind: parent.kind,
-                    parent: parent.parent,
-                });
-
-                answer!(self.constrain_type(anchored, Relation::Satisfies, source, target)?)
-            }
-        };
-        if !holds {
-            let anchored = match subject {
-                ConstraintSubject::GenericArgument { source: argument } => {
-                    let parent = self.solver.cause(cause);
-                    self.intern_cause(Cause {
-                        origin: Origin::Node(argument, None),
-                        kind: parent.kind,
-                        parent: parent.parent,
-                    })
-                }
-            };
-            let check =
-                self.complete_constraint_check(anchored, relation, source, target, false)?;
-
-            return Ok(Answer::Ready(check));
-        }
-
-        Ok(Answer::Ready(CheckOutcome::Holds))
+        Ok(Answer::Ready(check))
     }
 
     /// Return the completed check for one closed constraint.
