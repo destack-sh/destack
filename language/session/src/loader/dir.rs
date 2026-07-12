@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependencySet, ArtifactPayload, DirParsed, DirParsedFile};
 use destack_dir::{Expression, ScalarLiteral, Tree};
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_repository::{Module, ModuleFile, ProviderContext};
 use destack_source::{File, LanguageType, ModuleId, Span};
 
@@ -69,7 +69,7 @@ impl SessionState {
             aliases: Vec::new(),
             roots: Vec::new(),
             tokens: Vec::new(),
-            side_tokens: Vec::new(),
+            comments: Vec::new(),
             anchor_expression: root_expression,
         };
 
@@ -123,10 +123,10 @@ impl SessionState {
 
         // parse and forward parser diagnostics
         let tree_in = std::mem::replace(tree, Tree::new(tree.module_id));
-        let mut parser = Parser::lex_into_tree_with_trivia(
+        let mut parser = Parser::lex_into_tree_with_comment_retention(
             file.clone(),
             language_type,
-            ParserTriviaMode::Documentation,
+            CommentRetention::All,
             repository.string_pool().clone(),
             tree_in,
         );
@@ -136,8 +136,9 @@ impl SessionState {
         // publish parsed strings to the repository
         parser.publish_strings();
 
-        // preserve parser side data in the artifact payload
-        let (tokens, side_tokens) = parser.take_tokens();
+        // preserve semantic tokens in the artifact payload
+        let tokens = parser.take_tokens();
+        let comments = parser.take_comments();
 
         // restore the shared tree
         *tree = parser.tree;
@@ -152,7 +153,7 @@ impl SessionState {
             aliases: module_file.aliases.clone(),
             roots,
             tokens,
-            side_tokens,
+            comments,
             anchor_expression,
         })
     }
