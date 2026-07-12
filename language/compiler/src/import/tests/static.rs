@@ -330,13 +330,9 @@ fn test_import_records_static_if_active_role_edge() {
             "destack.json",
             r#"
 {
-    "targets": {
-        "default": {
-            "emit": "js",
-            "roles": ["server"]
-        }
-    },
-    "defaultTarget": "default"
+    "compiler": {
+        "roles": ["server"]
+    }
 }
 "#,
         )

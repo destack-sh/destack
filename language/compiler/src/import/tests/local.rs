@@ -195,9 +195,9 @@ export let value = 1;
 "#,
         )
         .module(
-            "dep.ts",
+            "dep.d.ds",
             r#"
-export let value = 2;
+export declare let value: int32;
 "#,
         )
         .build();
@@ -205,7 +205,7 @@ export let value = 2;
     compiler.assert_dir_imported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EI205 message="ambiguous module specifier './dep': dep.ds, dep.ts"
+/// @diagnostic.error code=EI205 message="ambiguous module specifier './dep': dep.ds, dep.d.ds"
 /// @diagnostic.label line=2 column=1 span="import { value } from \"./dep\"" line_source="import { value } from \"./dep\";"
 "#,
     );
