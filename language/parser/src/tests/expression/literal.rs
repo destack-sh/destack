@@ -13,7 +13,7 @@ fn test_parse_tuple_literal() {
     let test = TestParser::new("(1, 2)");
     let mut parser = test.prepare();
     let type_expression_id = parser.parse_type(Default::default()).unwrap();
-    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements, .. } => {
             assert_eq!(elements.len(), 2);
 
             // 1
@@ -409,7 +409,7 @@ fn test_parse_singleton_tuple_literal() {
     let mut parser = test.prepare();
     let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements, .. } => {
         assert_eq!(elements.len(), 1);
     });
 }
@@ -421,7 +421,7 @@ fn test_parse_spread_tuple_literal() {
     let mut parser = test.prepare();
     let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements, .. } => {
         assert_eq!(elements.len(), 1);
         assert_node!(parser.tree, elements[0], TupleElement::Spread { value, .. } => {
             assert_node!(parser.tree, *value, TypeExpression::Array { .. });
@@ -435,7 +435,7 @@ fn test_parse_empty_parenthesis_tuple() {
     let test = TestParser::new("()");
     let mut parser = test.prepare();
     let type_expression_id = parser.parse_type(Default::default()).unwrap();
-    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements, .. } => {
         assert_eq!(elements.len(), 0);
     });
 }

@@ -51,7 +51,7 @@ fn test_parse_type_conditional_tuple_then_branch() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { then_type, else_type, .. } => {
-                assert_node!(parser.tree, *then_type, TypeExpression::Tuple { elements } => {
+                assert_node!(parser.tree, *then_type, TypeExpression::Tuple { elements, .. } => {
                     assert_eq!(elements.len(), 2);
                 });
                 assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
@@ -671,7 +671,7 @@ fn test_parse_tuple_type() {
     // type T = (string, number)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
                     assert!(label.is_none());

@@ -762,6 +762,7 @@ fn test_parse_parameter_readonly_name() {
     });
 }
 
+#[test]
 fn test_parse_comptime_modifier_target_requires_same_line() {
     let test = TestParser::new(
         r#"comptime
@@ -1584,7 +1585,7 @@ fn test_parse_type_tuple_spread_label_element() {
     let mut parser = test.prepare();
     parser.eat_token(TokenType::OpenParenthesis).unwrap();
     let elements = parser
-        .parse_type_tuple_elements_body(Default::default())
+        .parse_type_tuple_elements(Default::default(), TokenType::CloseParenthesis)
         .unwrap();
 
     assert_eq!(elements.len(), 1);
@@ -1600,7 +1601,7 @@ fn test_parse_type_tuple_label_element_span() {
     let mut parser = test.prepare();
     parser.eat_token(TokenType::OpenParenthesis).unwrap();
     let elements = parser
-        .parse_type_tuple_elements_body(Default::default())
+        .parse_type_tuple_elements(Default::default(), TokenType::CloseParenthesis)
         .unwrap();
 
     assert_eq!(elements.len(), 1);
@@ -1618,7 +1619,7 @@ fn test_parse_type_tuple_label_element_multiline_union_type() {
     let mut parser = test.prepare();
     parser.eat_token(TokenType::OpenParenthesis).unwrap();
     let elements = parser
-        .parse_type_tuple_elements_body(Default::default())
+        .parse_type_tuple_elements(Default::default(), TokenType::CloseParenthesis)
         .unwrap();
 
     assert_eq!(elements.len(), 1);

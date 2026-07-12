@@ -20,22 +20,22 @@ impl Parser {
 
     /// Return whether the current token starts a labeled type tuple head.
     pub(crate) fn peek_labeled_tuple(&self) -> bool {
+        let after_name = self.peek_token_type_at(1);
+
         self.peek_is(TokenType::Identifier)
-            && (self.peek_token_type_at(1) == TokenType::Colon
-                || self.peek_token_type_at(1) == TokenType::Maybe
-                    && self.peek_token_type_at(2) == TokenType::Colon)
+            && (after_name == TokenType::Colon
+                || after_name == TokenType::Maybe && self.peek_token_type_at(2) == TokenType::Colon)
     }
 
-    /// Return whether one trailing `?` belongs to the surrounding type tuple element.
-    pub(crate) fn peek_tuple_element_optional(&self) -> bool {
+    /// Return whether one trailing `?` belongs to a tuple before one closing token.
+    pub(crate) fn peek_optional_tuple_element(&self, close: TokenType) -> bool {
         if !self.peek_is(TokenType::Maybe) {
             return false;
         }
 
-        let peek_next_token_type = self.peek_next_token_type();
+        let next = self.peek_next_token_type();
 
-        peek_next_token_type == TokenType::Comma
-            || peek_next_token_type == TokenType::CloseParenthesis
+        next == TokenType::Comma || next == close
     }
 
     /// Parse one labeled type tuple head.
@@ -49,6 +49,7 @@ impl Parser {
     fn parse_tuple_label(&mut self) -> ParserResult<TupleLabel> {
         let (name, _) = self.eat_identifier_with_range()?;
 
+        // parse the optional marker
         let is_optional = if self.peek_is(TokenType::Maybe) {
             self.bump();
             true
@@ -56,6 +57,7 @@ impl Parser {
             false
         };
 
+        // close the label
         self.eat_token(TokenType::Colon)?;
 
         Ok(TupleLabel { name, is_optional })
@@ -72,6 +74,7 @@ impl Parser {
     fn parse_type_tuple_element(
         &mut self,
         context: TypeContext,
+        close: TokenType,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
         let start = self.mark_parse_start();
 
@@ -87,7 +90,12 @@ impl Parser {
             return self.parse_tuple_rest_element(&start, label, context);
         }
 
-        let label = self.parse_tuple_label_if_present()?;
+        // parse an optional label
+        let label = if self.peek_labeled_tuple() {
+            Some(self.parse_tuple_label()?)
+        } else {
+            None
+        };
 
         // named rest payload
         if label.is_some() && self.peek_is(TokenType::Spread) {
@@ -96,23 +104,7 @@ impl Parser {
             return self.parse_tuple_rest_element(&start, label, context);
         }
 
-        self.parse_tuple_element(&start, label, context)
-    }
-
-    /// Parse a tuple element label when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// name: string
-    /// name?: string
-    /// ...rest: string[]
-    /// ```
-    fn parse_tuple_label_if_present(&mut self) -> ParserResult<Option<TupleLabel>> {
-        if !self.peek_labeled_tuple() {
-            return Ok(None);
-        }
-
-        self.parse_tuple_label().map(Some)
+        self.parse_tuple_element(&start, label, context, close)
     }
 
     /// Parse one tuple rest element after its spread token.
@@ -122,10 +114,12 @@ impl Parser {
         label: Option<TupleLabel>,
         context: TypeContext,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
+        // reject optional rest labels
         if label.is_some_and(|label| label.is_optional) {
             return Err(ParserError::unexpected(self.range_since(start)));
         }
 
+        // parse the rest payload
         let value = self.parse_type(context.nested())?;
 
         Ok(self.insert_node(
@@ -150,12 +144,13 @@ impl Parser {
         start: &ParseStart,
         label: Option<TupleLabel>,
         context: TypeContext,
+        close: TokenType,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
         let value = self.parse_type(context.nested())?;
 
         let is_optional = if let Some(label) = label {
             label.is_optional
-        } else if self.peek_tuple_element_optional() {
+        } else if self.peek_optional_tuple_element(close) {
             self.bump();
             true
         } else {
@@ -186,9 +181,10 @@ impl Parser {
         start: &ParseStart,
         value: LocalNodeId<TypeExpression>,
         context: TypeContext,
+        close: TokenType,
     ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
         // optional marker on an unlabeled tuple element
-        let is_optional = if self.peek_tuple_element_optional() {
+        let is_optional = if self.peek_optional_tuple_element(close) {
             self.bump();
             true
         } else {
@@ -210,7 +206,7 @@ impl Parser {
         let mut elements = vec![first_element];
         if self.peek_is(TokenType::Comma) {
             self.eat_token(TokenType::Comma)?;
-            elements.extend(self.parse_type_tuple_elements_body(context)?);
+            elements.extend(self.parse_type_tuple_elements(context, close)?);
         }
 
         Ok(elements)
@@ -224,53 +220,48 @@ impl Parser {
     /// name: string, age?: number
     /// ...rest: string[]
     /// ```
-    pub(crate) fn parse_type_tuple_elements_body(
+    pub(crate) fn parse_type_tuple_elements(
         &mut self,
         context: TypeContext,
+        close: TokenType,
     ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
-        let mut element_ids = Vec::new();
+        let mut elements = Vec::new();
 
         while self.has_more_tokens() {
             // closing token
-            if self.peek_is(TokenType::CloseParenthesis) {
+            if self.peek_is(close) {
                 break;
             }
 
             // one tuple element
             let element_start = self.mark_parse_start();
-            let is_recovered_element;
-            let element_id = match self.parse_type_tuple_element(context) {
+            let (element, is_recovered) = match self.parse_type_tuple_element(context, close) {
                 Ok(element_id) => {
-                    is_recovered_element = matches!(self.tree.get(element_id), TupleElement::Error);
-                    element_id
+                    let is_recovered = matches!(self.tree.get(element_id), TupleElement::Error);
+
+                    (element_id, is_recovered)
                 }
                 Err(error) => {
-                    self.recover_list_item(
-                        self.range_since(&element_start),
-                        TokenType::CloseParenthesis,
-                        error,
-                    );
+                    self.recover_list_item(self.range_since(&element_start), close, error);
                     let element_id =
                         self.insert_node(TupleElement::Error, self.range_since(&element_start));
-                    is_recovered_element = true;
-                    element_id
+
+                    (element_id, true)
                 }
             };
 
-            element_ids.push(element_id);
+            elements.push(element);
 
             // separator
             if self.peek_is(TokenType::Comma) {
                 self.eat_token(TokenType::Comma)?;
             }
             // recovery boundary
-            else if !is_recovered_element
-                || !self.peek_recovered_list_continuation(TokenType::CloseParenthesis)
-            {
+            else if !is_recovered || !self.peek_recovered_list_continuation(close) {
                 break;
             }
         }
 
-        Ok(element_ids)
+        Ok(elements)
     }
 }
