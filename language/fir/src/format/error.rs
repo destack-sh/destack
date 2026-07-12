@@ -22,30 +22,39 @@ impl std::fmt::Display for RequestedOutputBytes {
     }
 }
 
-/// Series of errors encountered during formatting.
+/// One failure encountered while constructing or printing FIR.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum FormatError {
-    /// Node can't be formatted because it either misses a required child node or
-    /// a child is present that should not be (e.g. a trailing comma after a rest node).
-    SyntaxError { message: &'static str },
+    /// The source tree cannot be formatted because its structure is invalid.
+    SyntaxError {
+        /// The static source-tree validation message.
+        message: &'static str,
+    },
     /// Range formatting failed because the provided range was larger
     /// than the formatted syntax tree.
-    RangeError { input: Span, tree: Span },
+    RangeError {
+        /// The requested source range.
+        input: Span,
+        /// The complete source-tree range.
+        tree: Span,
+    },
     /// Source text was unavailable for a source slice.
-    SourceTextUnavailable { span: Span },
+    SourceTextUnavailable {
+        /// The unavailable source range.
+        span: Span,
+    },
     /// Formatted output exceeded the configured byte limit.
     OutputTooLarge {
+        /// The configured output byte limit.
         max_output_bytes: u32,
+        /// The requested output size.
         requested_bytes: RequestedOutputBytes,
     },
     /// Printing the document failed because it has an invalid structure.
     InvalidDocument(InvalidDocumentError),
-    /// Formatting failed because some content encountered a situation where a layout
-    /// choice by an enclosing [`crate::Format`] resulted in a poor layout for a child [`crate::Format`].
+    /// An enclosing format implementation selected a poor layout for nested content.
     ///
-    /// It's up to an enclosing [`crate::Format`] to handle the error and pick another layout.
-    /// This error should not be raised if there's no outer [`crate::Format`] handling the poor layout error,
-    /// avoiding that formatting of the whole document fails.
+    /// An enclosing [`crate::format::Format`] may handle this error by selecting another layout.
     PoorLayout,
 }
 
@@ -69,11 +78,11 @@ impl std::fmt::Display for FormatError {
                 fmt,
                 "formatted output exceeded byte limit {max_output_bytes} with {requested_bytes}"
             ),
-            FormatError::InvalidDocument(error) => std::write!(fmt, "invalid document: {error}."),
+            FormatError::InvalidDocument(error) => std::write!(fmt, "invalid document: {error}"),
             FormatError::PoorLayout => {
                 std::write!(
                     fmt,
-                    "poor layout: the formatter wasn't able to pick a good layout."
+                    "poor layout: the formatter wasn't able to pick a good layout"
                 )
             }
         }
@@ -82,11 +91,13 @@ impl std::fmt::Display for FormatError {
 
 impl Error for FormatError {}
 
+/// The result of one FIR construction operation.
 pub type FormatResult<F> = Result<F, FormatError>;
 
+/// One structural error in an encoded FIR document.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum InvalidDocumentError {
-    /// Mismatching start/end kinds
+    /// One end tag does not match the active start tag.
     ///
     /// ```plain
     /// StartIndent
@@ -94,7 +105,9 @@ pub enum InvalidDocumentError {
     /// EndGroup
     /// ```
     StartEndTagMismatch {
+        /// The active structural scope.
         start_kind: FormatTagKind,
+        /// The encountered end tag.
         end_kind: FormatTagKind,
     },
 
@@ -105,19 +118,27 @@ pub enum InvalidDocumentError {
     /// EndGroup
     /// ```
     StartTagMissing {
+        /// The unmatched end tag kind.
         kind: FormatTagKind,
     },
 
-    /// Expected a specific start tag but instead is:
-    /// - at the end of the document
-    /// - at another start tag
-    /// - at an end tag
+    /// A start tag without its corresponding end tag.
+    EndTagMissing {
+        /// The unclosed structural kind.
+        kind: FormatTagKind,
+    },
+
+    /// An expected start tag is absent.
     ExpectedStart {
+        /// The expected structural kind.
         expected_start: FormatTagKind,
+        /// The instruction found instead.
         actual: ActualStart,
     },
 
+    /// An instruction references a group that has not been printed.
     UnknownGroupId {
+        /// The unknown document-local group identifier.
         group_id: GroupId,
     },
 }
@@ -131,11 +152,14 @@ impl std::fmt::Display for InvalidDocumentError {
             } => {
                 std::write!(
                     f,
-                    "Expected end tag of kind {start_kind:?} but found {end_kind:?}."
+                    "expected end tag of kind {start_kind:?} but found {end_kind:?}"
                 )
             }
             InvalidDocumentError::StartTagMissing { kind } => {
-                std::write!(f, "End tag of kind {kind:?} without matching start tag.")
+                std::write!(f, "end tag of kind {kind:?} without matching start tag")
+            }
+            InvalidDocumentError::EndTagMissing { kind } => {
+                std::write!(f, "start tag of kind {kind:?} without matching end tag")
             }
             InvalidDocumentError::ExpectedStart {
                 expected_start,
@@ -144,32 +168,32 @@ impl std::fmt::Display for InvalidDocumentError {
                 ActualStart::EndOfDocument => {
                     std::write!(
                         f,
-                        "Expected start tag of kind {expected_start:?} but at the end of document."
+                        "expected start tag of kind {expected_start:?} at the end of the document"
                     )
                 }
                 ActualStart::Start(start) => {
                     std::write!(
                         f,
-                        "Expected start tag of kind {expected_start:?} but found start tag of kind {start:?}."
+                        "expected start tag of kind {expected_start:?} but found start tag of kind {start:?}"
                     )
                 }
                 ActualStart::End(end) => {
                     std::write!(
                         f,
-                        "Expected start tag of kind {expected_start:?} but found end tag of kind {end:?}."
+                        "expected start tag of kind {expected_start:?} but found end tag of kind {end:?}"
                     )
                 }
                 ActualStart::Content => {
                     std::write!(
                         f,
-                        "Expected start tag of kind {expected_start:?} but found non-tag node."
+                        "expected start tag of kind {expected_start:?} but found content"
                     )
                 }
             },
             InvalidDocumentError::UnknownGroupId { group_id } => {
                 std::write!(
                     f,
-                    "Encountered unknown group id {group_id:?}. Ensure that the group with the id {group_id:?} exists and that the group is a parent of or comes before the node referring to it."
+                    "unknown group id {group_id:?}: the group must precede every instruction that references it"
                 )
             }
         }
@@ -178,32 +202,41 @@ impl std::fmt::Display for InvalidDocumentError {
 
 impl Error for InvalidDocumentError {}
 
+/// The instruction encountered where a structural start tag was expected.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ActualStart {
-    /// The actual node is not a tag.
+    /// The actual instruction is content.
     Content,
 
-    /// The actual node was a start tag of another kind.
+    /// The actual instruction starts another structural kind.
     Start(FormatTagKind),
 
-    /// The actual node is an end tag instead of a start tag.
+    /// The actual instruction ends a structural kind.
     End(FormatTagKind),
 
     /// Reached the end of the document.
     EndOfDocument,
 }
 
+/// One failure encountered while printing FIR.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum PrintError {
     /// Source text was unavailable for a source slice.
-    SourceTextUnavailable { span: Span },
+    SourceTextUnavailable {
+        /// The unavailable source range.
+        span: Span,
+    },
     /// Formatted output exceeded the configured byte limit.
     OutputTooLarge {
+        /// The configured output byte limit.
         max_output_bytes: u32,
+        /// The requested output size.
         requested_bytes: RequestedOutputBytes,
     },
     /// Printing failed because the document has an invalid structure.
     InvalidDocument(InvalidDocumentError),
+    /// Repeated measurement of the same layout produced inconsistent results.
+    UnstableLayout,
 }
 
 impl From<PrintError> for FormatError {
@@ -226,6 +259,7 @@ impl From<&PrintError> for FormatError {
                 requested_bytes: *requested_bytes,
             },
             PrintError::InvalidDocument(reason) => FormatError::InvalidDocument(*reason),
+            PrintError::UnstableLayout => FormatError::PoorLayout,
         }
     }
 }
@@ -234,7 +268,7 @@ impl std::fmt::Display for PrintError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PrintError::SourceTextUnavailable { span } => {
-                std::write!(f, "Source text is unavailable for span {span:?}.")
+                std::write!(f, "source text is unavailable for span {span:?}")
             }
             PrintError::OutputTooLarge {
                 max_output_bytes,
@@ -242,11 +276,17 @@ impl std::fmt::Display for PrintError {
             } => {
                 std::write!(
                     f,
-                    "Formatted output exceeded byte limit {max_output_bytes} with {requested_bytes}."
+                    "formatted output exceeded byte limit {max_output_bytes} with {requested_bytes}"
                 )
             }
             PrintError::InvalidDocument(inner) => {
-                std::write!(f, "Invalid document: {inner}")
+                std::write!(f, "invalid document: {inner}")
+            }
+            PrintError::UnstableLayout => {
+                std::write!(
+                    f,
+                    "repeated layout measurement produced inconsistent results"
+                )
             }
         }
     }
@@ -254,4 +294,5 @@ impl std::fmt::Display for PrintError {
 
 impl Error for PrintError {}
 
+/// The result of one FIR print operation.
 pub type PrintResult<F> = Result<F, PrintError>;

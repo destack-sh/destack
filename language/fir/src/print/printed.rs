@@ -1,6 +1,6 @@
 use destack_source::{FileId, Span};
 
-use crate::format::{FileMarker, TextLen};
+use crate::format::FileMarker;
 
 /// The result of printing with the printer.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -90,7 +90,7 @@ impl Printed {
     ///
     /// The implementation uses the source map generated during formatting to find the closest range
     /// in the formatted document that covers `source_span` or more.
-    /// The returned slice matches the `source_span` exactly (except indent, see below) if the formatter emits FormatNode::FilePosition for the range's offsets.
+    /// The returned slice matches the `source_span` exactly (except indent, see below) if the formatter emits FormatElement::FilePosition for the range's offsets.
     ///
     /// ## Indentation
     /// The indentation before `source_span.start` is replaced with the indentation returned by the formatter to fix up incorrectly intended code.
@@ -166,7 +166,7 @@ fn extend_range_to_include_indent(range: Span, source: &str) -> Span {
         .chars()
         .rev()
         .take_while(|c| matches!(c, ' ' | '\t'))
-        .map(TextLen::text_len)
+        .map(|character| character.len_utf8() as u32)
         .sum();
 
     Span::new(range.file, range.start - whitespace_len, range.end)

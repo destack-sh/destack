@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use super::{Buffer, Format, FormatResult, Formatter};
+use super::{Format, FormatResult, Formatter};
 
 /// A convenience wrapper for representing a formattable argument.
 pub struct Argument<'fmt, 'a, Context> {
@@ -85,7 +85,7 @@ impl<'fmt, 'a, Context> From<&'fmt Argument<'fmt, 'a, Context>> for Arguments<'f
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{FormatState, FormatTag, VecBuffer, group};
+    use crate::format::{FormatState, Formatted, group};
     use crate::prelude::*;
     use crate::{format_args, write};
 
@@ -93,11 +93,11 @@ mod tests {
     #[test]
     fn test_nesting() {
         let allocator = Allocator::default();
-        let mut context = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
-        let mut buffer = VecBuffer::new(&mut context);
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut formatter = Formatter::new(&mut state);
 
         write!(
-            &mut buffer,
+            &mut formatter,
             [
                 token("function"),
                 space(),
@@ -108,19 +108,11 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
-            buffer.into_vec().as_slice(),
-            &[
-                FormatNode::Token { text: "function" },
-                FormatNode::Space,
-                FormatNode::Token { text: "a" },
-                FormatNode::Space,
-                // Group
-                FormatNode::Tag(FormatTag::StartGroup(group::Group::new())),
-                FormatNode::Token { text: "(" },
-                FormatNode::Token { text: ")" },
-                FormatNode::Tag(FormatTag::EndGroup)
-            ]
-        );
+        let instructions = formatter.into_tape().into_slice();
+        let (context, groups, fits_expanded) = state.finish();
+        let document = Document::new(instructions, groups, fits_expanded);
+        let formatted = Formatted::new(document, context);
+
+        assert_eq!(formatted.print().unwrap().as_str(), "function a ()");
     }
 }

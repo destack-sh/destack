@@ -1,285 +1,198 @@
-use std::ops::Deref;
+use rustc_hash::FxHashSet;
 
-use rustc_hash::FxHashMap;
+use crate::format::{
+    ExpansionRow, FitsExpandedIndex, FitsExpandedState, GroupIndex, GroupState, InstructionSlice,
+    Opcode,
+};
 
-use crate::format::{ArenaVec, FitsExpanded, FormatNode, FormatTag, LineMode, NodeSlice, group};
-
-/// A formatted document.
-#[derive(Debug, Clone, PartialEq, Default)]
+/// A completed language-independent formatting document.
+#[derive(Debug)]
 pub struct Document<'a> {
-    nodes: &'a [FormatNode<'a>],
+    /// The root formatting instructions.
+    instructions: InstructionSlice<'a>,
+    /// The layout state for logical groups.
+    groups: Vec<GroupState>,
+    /// The layout state for fits-expanded scopes.
+    fits_expanded: Vec<FitsExpandedState>,
 }
 
-/// One active document scope that can receive or bound expansion.
-#[derive(Debug)]
-enum ExpansionScope<'a> {
-    /// One enclosing group.
-    Group(&'a group::Group),
-    /// One enclosing conditional group.
-    ConditionalGroup(&'a group::ConditionalGroup),
-    /// One enclosing fits-expanded tag.
-    FitsExpanded {
-        /// The fits-expanded tag.
-        tag: &'a FitsExpanded,
-        /// Whether the enclosing frame expanded before this tag.
-        expands_before: bool,
-    },
-    /// One best-fitting boundary.
-    BestFitting,
-    /// One best-fit parenthesize scope.
-    BestFitParenthesize {
-        /// Whether the enclosing frame expanded before this boundary.
-        expanded: bool,
-    },
-}
-
-impl ExpansionScope<'_> {
-    /// Mark this scope as expanded when it owns line breaking.
-    fn expand(&self) {
-        match self {
-            ExpansionScope::Group(group) => group.propagate_expand(),
-            ExpansionScope::ConditionalGroup(group) => group.propagate_expand(),
-            ExpansionScope::FitsExpanded { tag, .. } => tag.propagate_expand(),
-            ExpansionScope::BestFitting | ExpansionScope::BestFitParenthesize { .. } => {}
+impl<'a> Document<'a> {
+    /// Create one completed document and apply its precomputed expansion effects.
+    pub(crate) fn new(
+        instructions: InstructionSlice<'a>,
+        mut groups: Vec<GroupState>,
+        mut fits_expanded: Vec<FitsExpandedState>,
+    ) -> Self {
+        // apply expansion effects accumulated while building the root tape
+        let expansion = instructions.expansion();
+        for row in expansion.rows() {
+            match row {
+                ExpansionRow::Group(index) => groups[index.as_usize()].expand(),
+                ExpansionRow::FitsExpanded(index) => {
+                    fits_expanded[index.as_usize()].is_expanded = true;
+                }
+            }
         }
-    }
-}
 
-/// The owner that receives a completed traversal frame.
-#[derive(Debug)]
-enum DocumentFrameOwner<'a> {
-    /// The root document frame.
-    Root,
-    /// One reusable node-slice frame.
-    Slice(&'a NodeSlice<'a>),
-    /// One best-fitting variant frame.
-    BestFittingVariant,
-    /// One best-fitting boundary frame.
-    BestFitting,
-}
-
-/// One node-slice traversal frame.
-#[derive(Debug)]
-struct DocumentFrame<'a> {
-    /// The node slice being traversed.
-    nodes: &'a [FormatNode<'a>],
-    /// The next node index inside the slice.
-    index: usize,
-    /// Whether this frame has expanded.
-    expands: bool,
-    /// The owner that receives this frame's expansion state.
-    owner: DocumentFrameOwner<'a>,
-}
-
-impl<'a> DocumentFrame<'a> {
-    /// Create one traversal frame for a node slice.
-    fn new(nodes: &'a [FormatNode<'a>], owner: DocumentFrameOwner<'a>) -> Self {
         Self {
-            nodes,
-            index: 0,
-            expands: false,
-            owner,
+            instructions,
+            groups,
+            fits_expanded,
         }
     }
 
-    /// Create one frame that exits a best-fitting boundary after its variants.
-    fn best_fitting_boundary() -> Self {
-        Self::new(&[], DocumentFrameOwner::BestFitting)
+    /// Return the root formatting instructions.
+    pub(crate) fn instructions(&self) -> InstructionSlice<'a> {
+        self.instructions
     }
 
-    /// Apply expansion to this frame and its nearest expandable parent.
-    fn expand(&mut self, enclosing: &[ExpansionScope<'_>]) {
-        self.expands = true;
+    /// Measure the encoded shape of this document.
+    pub fn measure(&self) -> DocumentStats {
+        let top_level_instructions = self.instructions.len() as u64;
+        let mut stats = DocumentStats {
+            top_level_instructions,
+            stored_instructions: top_level_instructions,
+            stored_slices: 1,
+            metadata_bytes: self.instructions.metadata_bytes() as u64,
+            ..DocumentStats::default()
+        };
+        let mut stored_slices: FxHashSet<*const ()> = FxHashSet::default();
+        stored_slices.insert(self.instructions.as_ptr().cast());
+        let mut pending = vec![(self.instructions, InstructionOwner::Root, true)];
 
-        if let Some(enclosing) = enclosing.last() {
-            enclosing.expand();
-        }
-    }
-}
-
-impl Document<'_> {
-    /// Propagate expanded layout state from line-breaking nodes to their enclosing groups.
-    ///
-    /// Groups expand if they contain any of:
-    /// - a group with [`expand`](tag::Group::expand) set to [`GroupMode::Propagated`] or [`GroupMode::Expand`].
-    /// - a non-soft [line break](FormatNode::Line) with mode [`LineMode::Hard`] or [`LineMode::Empty`].
-    /// - a [`FormatNode::ExpandParent`]
-    ///
-    /// [`BestFitting`] nodes act as expand boundaries, meaning that the fact that a
-    /// [`BestFitting`]'s content expands is not propagated past the [`BestFitting`] node.
-    ///
-    /// [`BestFitting`]: FormatNode::BestFitting
-    pub(crate) fn propagate_expand(&mut self) {
-        // create traversal state
-        let mut enclosing = Vec::new();
-        let mut slice_expands: FxHashMap<*const FormatNode<'_>, bool> = FxHashMap::default();
-        let mut frames = vec![DocumentFrame::new(self, DocumentFrameOwner::Root)];
-
-        while let Some(frame) = frames.last_mut() {
-            // complete the current slice
-            if frame.index >= frame.nodes.len() {
-                let frame_index = frames.len() - 1;
-                let DocumentFrame { expands, owner, .. } = frames.remove(frame_index);
+        while let Some((instructions, owner, is_stored)) = pending.pop() {
+            for instruction in instructions.iter() {
+                stats.recursive_instructions += 1;
 
                 match owner {
-                    DocumentFrameOwner::Root => break,
-                    DocumentFrameOwner::Slice(slice) => {
-                        slice_expands.insert(slice.as_ptr(), expands);
+                    InstructionOwner::Root => {}
+                    InstructionOwner::Slice => stats.slice_instructions += 1,
+                    InstructionOwner::BestFitting => stats.best_fitting_instructions += 1,
+                }
 
-                        if expands && let Some(parent) = frames.last_mut() {
-                            parent.expand(&enclosing);
+                match instruction.opcode() {
+                    Opcode::Space => stats.spaces += 1,
+                    Opcode::SoftLine
+                    | Opcode::SoftOrSpaceLine
+                    | Opcode::HardLine
+                    | Opcode::EmptyLine => stats.lines += 1,
+                    Opcode::ExpandParent => stats.expand_parents += 1,
+                    Opcode::Token => stats.tokens += 1,
+                    Opcode::Text => stats.texts += 1,
+                    Opcode::SourcePosition => stats.source_positions += 1,
+                    Opcode::FileSlice => stats.file_slices += 1,
+                    Opcode::LineSuffixBoundary => stats.line_suffix_boundaries += 1,
+                    Opcode::Slice => {
+                        stats.slices += 1;
+                        let slice = instruction.slice();
+                        let is_stored = stored_slices.insert(slice.as_ptr().cast());
+                        if is_stored {
+                            stats.stored_instructions += slice.len() as u64;
+                            stats.stored_slices += 1;
+                            stats.metadata_bytes += slice.metadata_bytes() as u64;
+                        }
+                        pending.push((slice, InstructionOwner::Slice, is_stored));
+                    }
+                    Opcode::BestFittingFirstLine | Opcode::BestFittingAllLines => {
+                        stats.best_fitting += 1;
+                        let (variants, _) = instruction.best_fitting();
+                        stats.best_fitting_variants += variants.as_slice().len() as u64;
+                        if is_stored {
+                            stats.metadata_bytes +=
+                                std::mem::size_of_val(variants.as_slice()) as u64;
+                        }
+
+                        for variant in variants.iter() {
+                            let is_stored = stored_slices.insert(variant.as_ptr().cast());
+                            if is_stored {
+                                stats.stored_instructions += variant.len() as u64;
+                                stats.stored_slices += 1;
+                                stats.metadata_bytes += variant.metadata_bytes() as u64;
+                            }
+                            pending.push((variant, InstructionOwner::BestFitting, is_stored));
                         }
                     }
-                    DocumentFrameOwner::BestFittingVariant => {}
-                    DocumentFrameOwner::BestFitting => {
-                        enclosing.pop();
-                    }
+                    _ => stats.tags += 1,
                 }
-
-                continue;
-            }
-
-            // read the next node
-            let node = &frame.nodes[frame.index];
-            frame.index += 1;
-
-            // advance traversal state
-            let node_expands = match node {
-                FormatNode::Tag(FormatTag::StartGroup(group)) => {
-                    enclosing.push(ExpansionScope::Group(group));
-                    false
-                }
-                FormatNode::Tag(FormatTag::EndGroup) => match enclosing.pop() {
-                    Some(ExpansionScope::Group(group)) => !group.mode().is_flat(),
-                    _ => false,
-                },
-                FormatNode::Tag(FormatTag::StartBestFitParenthesize { .. }) => {
-                    enclosing.push(ExpansionScope::BestFitParenthesize {
-                        expanded: frame.expands,
-                    });
-                    frame.expands = false;
-                    continue;
-                }
-
-                FormatNode::Tag(FormatTag::EndBestFitParenthesize) => {
-                    if let Some(ExpansionScope::BestFitParenthesize { expanded }) = enclosing.pop()
-                    {
-                        frame.expands = expanded;
-                    }
-                    false
-                }
-                FormatNode::Tag(FormatTag::StartConditionalGroup(group)) => {
-                    enclosing.push(ExpansionScope::ConditionalGroup(group));
-                    false
-                }
-                FormatNode::Tag(FormatTag::EndConditionalGroup) => match enclosing.pop() {
-                    Some(ExpansionScope::ConditionalGroup(group)) => !group.mode().is_flat(),
-                    _ => false,
-                },
-                FormatNode::Slice(slice) => {
-                    if let Some(expands) = slice_expands.get(&slice.as_ptr()) {
-                        *expands
-                    } else {
-                        frames.push(DocumentFrame::new(slice, DocumentFrameOwner::Slice(slice)));
-                        continue;
-                    }
-                }
-                FormatNode::BestFitting { variants, mode: _ } => {
-                    enclosing.push(ExpansionScope::BestFitting);
-
-                    frames.push(DocumentFrame::best_fitting_boundary());
-                    for variant in variants.as_slice().iter().rev() {
-                        frames.push(DocumentFrame::new(
-                            variant,
-                            DocumentFrameOwner::BestFittingVariant,
-                        ));
-                    }
-                    continue;
-                }
-                FormatNode::Tag(FormatTag::StartFitsExpanded(fits_expanded)) => {
-                    enclosing.push(ExpansionScope::FitsExpanded {
-                        tag: fits_expanded,
-                        expands_before: frame.expands,
-                    });
-                    false
-                }
-                FormatNode::Tag(FormatTag::EndFitsExpanded) => {
-                    if let Some(ExpansionScope::FitsExpanded { expands_before, .. }) =
-                        enclosing.pop()
-                    {
-                        frame.expands = expands_before;
-                    }
-
-                    false
-                }
-                FormatNode::Text {
-                    text: _,
-                    width: text_width,
-                } => text_width.is_multiline(),
-                FormatNode::FileSlice {
-                    width: text_width, ..
-                } => text_width.is_multiline(),
-                FormatNode::ExpandParent | FormatNode::Line(LineMode::Hard | LineMode::Empty) => {
-                    true
-                }
-                _ => false,
-            };
-
-            // apply expansion to the current owner
-            if node_expands && let Some(frame) = frames.last_mut() {
-                frame.expand(&enclosing);
             }
         }
+
+        stats
+    }
+
+    /// Return one group row.
+    pub(crate) fn group(&self, index: GroupIndex) -> &GroupState {
+        &self.groups[index.as_usize()]
+    }
+
+    /// Return one fits-expanded row.
+    pub(crate) fn fits_expanded(&self, index: FitsExpandedIndex) -> &FitsExpandedState {
+        &self.fits_expanded[index.as_usize()]
     }
 }
 
-impl<'a> From<ArenaVec<'a, FormatNode<'a>>> for Document<'a> {
-    fn from(nodes: ArenaVec<'a, FormatNode<'a>>) -> Self {
-        Self {
-            nodes: nodes.into_slice(),
-        }
+/// Structural counts for one encoded formatting document.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+pub struct DocumentStats {
+    /// The root instruction count.
+    pub top_level_instructions: u64,
+    /// The recursive instruction count including nested slices and variants.
+    pub recursive_instructions: u64,
+    /// The uniquely stored instruction count.
+    pub stored_instructions: u64,
+    /// The uniquely stored instruction slice count.
+    pub stored_slices: u64,
+    /// The instruction descriptor, variant table, and expansion row byte count.
+    pub metadata_bytes: u64,
+    /// The space instruction count.
+    pub spaces: u64,
+    /// The line instruction count.
+    pub lines: u64,
+    /// The expand-parent instruction count.
+    pub expand_parents: u64,
+    /// The static token instruction count.
+    pub tokens: u64,
+    /// The borrowed text instruction count.
+    pub texts: u64,
+    /// The source position instruction count.
+    pub source_positions: u64,
+    /// The file slice instruction count.
+    pub file_slices: u64,
+    /// The line suffix boundary instruction count.
+    pub line_suffix_boundaries: u64,
+    /// The nested slice instruction count.
+    pub slices: u64,
+    /// The instructions reached through nested slices.
+    pub slice_instructions: u64,
+    /// The best-fitting instruction count.
+    pub best_fitting: u64,
+    /// The best-fitting variant count.
+    pub best_fitting_variants: u64,
+    /// The instructions reached through best-fitting variants.
+    pub best_fitting_instructions: u64,
+    /// The structural tag instruction count.
+    pub tags: u64,
+}
+
+impl DocumentStats {
+    /// Return the encoded instruction byte count.
+    pub const fn instruction_bytes(self) -> u64 {
+        self.stored_instructions * std::mem::size_of::<crate::format::Instruction<'_>>() as u64
+    }
+
+    /// Return the stored FIR payload byte count.
+    pub const fn bytes(self) -> u64 {
+        self.instruction_bytes() + self.metadata_bytes
     }
 }
 
-impl<'a> Deref for Document<'a> {
-    type Target = [FormatNode<'a>];
-
-    fn deref(&self) -> &Self::Target {
-        self.nodes
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::format::{Allocator, ArenaVec, FormatTag, Group, GroupMode};
-
-    use super::*;
-
-    /// Propagate expansion through deeply nested node slices.
-    #[test]
-    fn test_propagate_expand_through_nested_node_slices() {
-        let allocator = Allocator::default();
-        let mut node = FormatNode::Line(LineMode::Hard);
-        for _ in 0..100_000 {
-            let nodes = ArenaVec::from_array_in([node], &allocator);
-            node = FormatNode::Slice(NodeSlice::new(nodes));
-        }
-
-        let nodes = ArenaVec::from_array_in(
-            [
-                FormatNode::Tag(FormatTag::StartGroup(Group::new())),
-                node,
-                FormatNode::Tag(FormatTag::EndGroup),
-            ],
-            &allocator,
-        );
-        let mut document = Document::from(nodes);
-        document.propagate_expand();
-
-        let FormatNode::Tag(FormatTag::StartGroup(group)) = &document[0] else {
-            panic!("expected start group");
-        };
-
-        assert_eq!(group.mode(), GroupMode::Propagated);
-    }
+/// The parent storage that led to one measured instruction tape.
+#[derive(Debug, Clone, Copy)]
+enum InstructionOwner {
+    /// The root document tape.
+    Root,
+    /// One nested reusable slice.
+    Slice,
+    /// One best-fitting variant.
+    BestFitting,
 }

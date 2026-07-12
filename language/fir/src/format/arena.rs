@@ -39,6 +39,19 @@ impl Debug for Allocator {
 }
 
 impl Allocator {
+    /// Allocate one copyable value.
+    pub(crate) fn alloc<T: Copy>(&self, value: T) -> &T {
+        // allocate stable value storage
+        let pointer: NonNull<T> = self.allocate_array(1);
+
+        // initialize the allocated value
+        // safety: pointer addresses one aligned writable T slot
+        unsafe {
+            pointer.as_ptr().write(value);
+            &*pointer.as_ptr()
+        }
+    }
+
     /// Copy one string into this allocator.
     pub fn alloc_str<'a>(&'a self, text: &str) -> &'a str {
         // allocate stable string storage
@@ -273,7 +286,7 @@ impl Drop for Chunk {
 /// A growable vector allocated for one formatting pass.
 ///
 /// Element types are statically required to need no individual destruction.
-pub struct ArenaVec<'a, T> {
+pub(crate) struct ArenaVec<'a, T> {
     /// The first element allocation.
     pointer: NonNull<T>,
     /// The initialized element count.
@@ -331,20 +344,6 @@ impl<'a, T> ArenaVec<'a, T> {
         }
     }
 
-    /// Create a vector from one array.
-    #[cfg(test)]
-    pub(crate) fn from_array_in<const N: usize>(values: [T; N], allocator: &'a Allocator) -> Self {
-        // allocate the exact array capacity
-        let mut result = Self::with_capacity_in(N, allocator);
-
-        // move each array element into the arena
-        for value in values {
-            result.push(value);
-        }
-
-        result
-    }
-
     /// Append one element.
     pub(crate) fn push(&mut self, value: T) {
         // grow a full element allocation
@@ -358,62 +357,28 @@ impl<'a, T> ArenaVec<'a, T> {
         self.length += 1;
     }
 
-    /// Remove and return the final element when present.
+    /// Remove and return the final value.
     pub(crate) fn pop(&mut self) -> Option<T> {
-        // reject empty vectors
         if self.length == 0 {
             return None;
         }
 
-        // remove the initialized tail element
+        // move the initialized final value out of the vector
         self.length -= 1;
 
-        // safety: the decremented length identifies the previous final element
+        // safety: the decremented length selects the previous final value
         unsafe { Some(self.pointer.as_ptr().add(self.length).read()) }
     }
 
-    /// Return every initialized element.
-    #[cfg(test)]
-    pub(crate) fn as_slice(&self) -> &[T] {
-        self
-    }
-
-    /// Append one cloned slice.
-    pub(crate) fn extend_from_slice(&mut self, values: &[T])
-    where
-        T: Clone,
-    {
-        // reserve once for the complete source slice
-        self.reserve(values.len());
-
-        // clone each source element into arena storage
-        for value in values {
-            self.push(value.clone());
-        }
-    }
-
     /// Convert this vector into its stable arena slice.
-    pub(crate) fn into_slice(self) -> &'a mut [T] {
+    pub(crate) fn into_slice(self) -> &'a [T] {
         // safety: pointer and length describe the initialized arena allocation
-        unsafe { std::slice::from_raw_parts_mut(self.pointer.as_ptr(), self.length) }
+        unsafe { std::slice::from_raw_parts(self.pointer.as_ptr(), self.length) }
     }
 
-    /// Reserve capacity for at least `additional` more elements.
-    fn reserve(&mut self, additional: usize) {
-        // retain sufficient existing capacity
-        let required = self.length + additional;
-        if required <= self.capacity {
-            return;
-        }
-
-        // grow geometrically or to the exact larger requirement
-        let geometric = if self.capacity == 0 {
-            Self::INITIAL_CAPACITY
-        } else {
-            self.capacity * 2
-        };
-        let capacity = required.max(geometric);
-        self.reallocate(capacity);
+    /// Return the allocator that owns this vector.
+    pub(crate) const fn allocator(&self) -> &'a Allocator {
+        self.allocator
     }
 
     /// Double this vector's capacity.

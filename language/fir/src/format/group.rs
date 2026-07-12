@@ -1,150 +1,209 @@
-use std::cell::Cell;
 use std::fmt::{Debug, Formatter};
 use std::num::NonZeroU32;
 
-use super::tag::Condition;
+use super::Condition;
 
+/// The layout selected for one formatting group.
+#[repr(u8)]
 #[derive(Debug, Copy, Default, Clone, Eq, PartialEq)]
 pub enum GroupMode {
-    /// Print group in flat mode.
+    /// Print the group on one line when it fits.
     #[default]
-    Flat,
-    /// The group should be printed in expanded mode.
-    Expand,
-    /// Expand mode has been propagated from an enclosing group to this group.
-    Propagated,
+    Flat = 0,
+    /// Always print the group in expanded mode.
+    Expand = 1,
+    /// Print the group in expanded mode because nested content requires it.
+    Propagated = 2,
 }
 
 impl GroupMode {
-    pub const fn is_flat(&self) -> bool {
-        matches!(self, GroupMode::Flat)
+    /// Return whether this group may print on one line.
+    pub const fn is_flat(self) -> bool {
+        matches!(self, Self::Flat)
     }
 }
 
-/// Logical group of nodes.
-/// The nodes are implicit in the node stream surrounded by group delimiters.
-#[derive(Debug, Clone, Eq, PartialEq, Default)]
+/// One logical group written into the instruction tape.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
 pub struct Group {
+    /// The optional externally referenced group identifier.
     id: Option<GroupId>,
-    mode: Cell<GroupMode>,
+    /// The initial group layout.
+    mode: GroupMode,
 }
 
 impl Group {
-    pub fn new() -> Self {
+    /// Create one flat anonymous group.
+    pub const fn new() -> Self {
         Self {
             id: None,
-            mode: Cell::new(GroupMode::Flat),
+            mode: GroupMode::Flat,
         }
     }
 
+    /// Set the externally referenced group identifier.
     #[must_use]
-    pub fn with_id(mut self, id: Option<GroupId>) -> Self {
+    pub const fn with_id(mut self, id: Option<GroupId>) -> Self {
         self.id = id;
+
         self
     }
 
+    /// Set the initial group layout.
     #[must_use]
-    pub fn with_mode(mut self, mode: GroupMode) -> Self {
-        self.mode = Cell::new(mode);
+    pub const fn with_mode(mut self, mode: GroupMode) -> Self {
+        self.mode = mode;
+
         self
     }
 
-    pub fn mode(&self) -> GroupMode {
-        self.mode.get()
-    }
-
-    /// Propagate expand mode to this group if it's currently flat.
-    pub fn propagate_expand(&self) {
-        if self.mode.get() == GroupMode::Flat {
-            self.mode.set(GroupMode::Propagated);
-        }
-    }
-
-    pub fn id(&self) -> Option<GroupId> {
+    /// Return the externally referenced group identifier.
+    pub const fn id(self) -> Option<GroupId> {
         self.id
+    }
+
+    /// Return the initial group layout.
+    pub const fn mode(self) -> GroupMode {
+        self.mode
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+/// One conditionally active logical group.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ConditionalGroup {
-    mode: Cell<GroupMode>,
+    /// The condition controlling this group.
     condition: Condition,
 }
 
 impl ConditionalGroup {
-    pub fn new(condition: Condition) -> Self {
-        Self {
-            mode: Cell::new(GroupMode::Flat),
-            condition,
-        }
+    /// Create one conditional group.
+    pub const fn new(condition: Condition) -> Self {
+        Self { condition }
     }
 
-    pub fn condition(&self) -> Condition {
+    /// Return the condition controlling this group.
+    pub const fn condition(self) -> Condition {
         self.condition
     }
+}
 
-    /// Propagate expand mode to this conditional group.
-    pub fn propagate_expand(&self) {
-        self.mode.set(GroupMode::Propagated);
+/// The dense index of one group in a formatted document.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct GroupIndex(u32);
+
+impl GroupIndex {
+    /// Create one group index.
+    pub(crate) const fn new(index: u32) -> Self {
+        Self(index)
     }
 
-    pub fn mode(&self) -> GroupMode {
-        self.mode.get()
+    /// Return this index as a vector offset.
+    pub(crate) const fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+
+    /// Return the encoded index.
+    pub(crate) const fn value(self) -> u32 {
+        self.0
     }
 }
 
-/// Unique identification for a group with a name for debugging.
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct DebugGroupId {
-    value: NonZeroU32,
-    name: &'static str,
+/// The mutable layout row for one regular or conditional group.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum GroupState {
+    /// One regular group.
+    Regular {
+        /// The optional externally referenced group identifier.
+        id: Option<GroupId>,
+        /// The selected group layout.
+        mode: GroupMode,
+    },
+    /// One conditionally active group.
+    Conditional {
+        /// The condition controlling this group.
+        condition: Condition,
+        /// The selected group layout.
+        mode: GroupMode,
+    },
 }
 
-impl DebugGroupId {
-    #[allow(unused)]
-    pub(crate) fn new(value: NonZeroU32, debug_name: &'static str) -> Self {
-        Self {
-            value,
-            name: debug_name,
+impl GroupState {
+    /// Create one regular group row.
+    pub(crate) const fn regular(group: Group) -> Self {
+        Self::Regular {
+            id: group.id(),
+            mode: group.mode(),
+        }
+    }
+
+    /// Create one conditional group row.
+    pub(crate) const fn conditional(group: ConditionalGroup) -> Self {
+        Self::Conditional {
+            condition: group.condition(),
+            mode: GroupMode::Flat,
+        }
+    }
+
+    /// Return the selected group layout.
+    pub(crate) const fn mode(self) -> GroupMode {
+        match self {
+            Self::Regular { mode, .. } | Self::Conditional { mode, .. } => mode,
+        }
+    }
+
+    /// Return the optional identifier of one regular group.
+    pub(crate) const fn id(self) -> Option<GroupId> {
+        match self {
+            Self::Regular { id, .. } => id,
+            Self::Conditional { .. } => None,
+        }
+    }
+
+    /// Return the condition of this conditional group row.
+    pub(crate) fn condition(self) -> Condition {
+        let condition = match self {
+            Self::Conditional { condition, .. } => Some(condition),
+            Self::Regular { .. } => None,
+        };
+        debug_assert!(condition.is_some());
+
+        // safety: conditional group opcodes only reference conditional rows
+        unsafe { condition.unwrap_unchecked() }
+    }
+
+    /// Propagate expanded layout into this group.
+    pub(crate) fn expand(&mut self) {
+        let mode = match self {
+            Self::Regular { mode, .. } | Self::Conditional { mode, .. } => mode,
+        };
+
+        if mode.is_flat() {
+            *mode = GroupMode::Propagated;
         }
     }
 }
 
-impl Debug for DebugGroupId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}-{}", self.name, self.value)
-    }
-}
-
-/// Unique identification for a group.
+/// A document-local identifier for a group referenced by later instructions.
 #[repr(transparent)]
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct ReleaseGroupId {
-    value: NonZeroU32,
-}
+pub struct GroupId(NonZeroU32);
 
-impl ReleaseGroupId {
-    /// Create a new unique group id with the given debug name.
-    /// The debug name is only stored in debug builds.
-    #[allow(unused)]
-    pub(crate) fn new(value: NonZeroU32, _: &'static str) -> Self {
-        Self { value }
+impl GroupId {
+    /// Create one group identifier.
+    pub(crate) const fn new(value: NonZeroU32) -> Self {
+        Self(value)
     }
 }
 
 impl From<GroupId> for u32 {
     fn from(id: GroupId) -> Self {
-        id.value.get()
+        id.0.get()
     }
 }
 
-impl Debug for ReleaseGroupId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.value)
+impl Debug for GroupId {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "#{}", self.0)
     }
 }
-
-#[cfg(not(debug_assertions))]
-pub type GroupId = ReleaseGroupId;
-#[cfg(debug_assertions)]
-pub type GroupId = DebugGroupId;

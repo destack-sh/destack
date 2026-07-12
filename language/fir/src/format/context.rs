@@ -2,13 +2,23 @@ use std::num::NonZeroU32;
 
 use destack_source::{File, FileType};
 
-use crate::format::{Allocator, FormatOptions, GroupId, SimpleFormatOptions};
+use crate::format::{
+    Allocator, ConditionalGroup, FitsExpanded, FitsExpandedIndex, FitsExpandedState, FormatOptions,
+    Group, GroupId, GroupIndex, GroupState, SimpleFormatOptions,
+};
 
 /// Shared state for one formatting pass.
 pub struct FormatState<'a, Context> {
+    /// The language-specific formatting context.
     context: Context,
+    /// The arena that owns FIR storage.
     allocator: &'a Allocator,
+    /// The next nonzero externally referenced group identifier.
     next_group_id: u32,
+    /// The logical group rows written so far.
+    groups: Vec<GroupState>,
+    /// The fits-expanded rows written so far.
+    fits_expanded: Vec<FitsExpandedState>,
 }
 
 impl<Context> std::fmt::Debug for FormatState<'_, Context>
@@ -30,6 +40,8 @@ impl<'a, Context> FormatState<'a, Context> {
             context,
             allocator,
             next_group_id: 1,
+            groups: Vec::new(),
+            fits_expanded: Vec::new(),
         }
     }
 
@@ -38,9 +50,9 @@ impl<'a, Context> FormatState<'a, Context> {
         self.allocator
     }
 
-    /// Return the context and discard the remaining state.
-    pub fn into_context(self) -> Context {
-        self.context
+    /// Complete this formatting pass.
+    pub(crate) fn finish(self) -> (Context, Vec<GroupState>, Vec<FitsExpandedState>) {
+        (self.context, self.groups, self.fits_expanded)
     }
 
     /// Return the formatting context.
@@ -54,19 +66,45 @@ impl<'a, Context> FormatState<'a, Context> {
     }
 
     /// Create a group ID unique within this document.
-    ///
-    /// The passed debug name is used in the [`std::fmt::Debug`] of the document if this is a debug build.
-    /// The name is unused for production builds and has no meaning on the equality of two group ids.
-    pub fn group_id(&mut self, debug_name: &'static str) -> GroupId {
+    pub fn group_id(&mut self) -> GroupId {
+        // allocate the next dense nonzero identifier
         let id = self.next_group_id;
         self.next_group_id += 1;
-        let id = NonZeroU32::new(id).expect("ID overflowed");
-        GroupId::new(id, debug_name)
+
+        // safety: one document cannot hold enough group instructions to exhaust u32
+        let id = unsafe { NonZeroU32::new_unchecked(id) };
+
+        GroupId::new(id)
+    }
+
+    /// Append one regular group row.
+    pub(crate) fn push_group(&mut self, group: Group) -> GroupIndex {
+        let index = self.groups.len() as u32;
+        self.groups.push(GroupState::regular(group));
+
+        GroupIndex::new(index)
+    }
+
+    /// Append one conditional group row.
+    pub(crate) fn push_conditional_group(&mut self, group: ConditionalGroup) -> GroupIndex {
+        let index = self.groups.len() as u32;
+        self.groups.push(GroupState::conditional(group));
+
+        GroupIndex::new(index)
+    }
+
+    /// Append one fits-expanded row.
+    pub(crate) fn push_fits_expanded(&mut self, fits: FitsExpanded) -> FitsExpandedIndex {
+        let index = self.fits_expanded.len() as u32;
+        self.fits_expanded.push(FitsExpandedState::new(fits));
+
+        FitsExpandedIndex::new(index)
     }
 }
 
 /// Language-specific state required while formatting.
 pub trait FormatContext {
+    /// The language-specific formatting options.
     type Options: FormatOptions;
 
     /// Return the formatting options.
@@ -76,9 +114,12 @@ pub trait FormatContext {
     fn file(&self) -> &File;
 }
 
+/// Minimal formatting context for FIR tests and standalone consumers.
 #[derive(Debug, PartialEq, Clone)]
 pub struct SimpleFormatContext {
+    /// The formatting options.
     options: SimpleFormatOptions,
+    /// The source file.
     file: File,
 }
 

@@ -1,14 +1,14 @@
 /// Constructs the parameters for other formatting macros.
 ///
-/// This macro takes a list of objects implementing [`crate::Format`]. It will canonicalize the
+/// This macro takes a list of objects implementing [`crate::format::Format`]. It will canonicalize the
 /// arguments into a single type.
 ///
-/// This macro produces a value of type [`crate::Arguments`]. This value can be passed to
+/// This macro produces a value of type [`crate::format::Arguments`]. This value can be passed to
 /// the macros within [crate]. All other formatting macros ([`format!`](crate::format!),
 /// [`write!`](crate::write!)) are proxied through this one. This macro avoids heap allocations.
 ///
-/// [`Format`]: crate::Format
-/// [`Arguments`]: crate::Arguments
+/// [`Format`]: crate::format::Format
+/// [`Arguments`]: crate::format::Arguments
 #[macro_export]
 macro_rules! format_args {
     ($($value:expr),+ $(,)?) => {
@@ -20,11 +20,9 @@ macro_rules! format_args {
     }
 }
 
-/// Writes formatted data into a buffer.
+/// Writes formatted data into a formatter.
 ///
-/// This macro accepts a 'buffer' and a list of format arguments. Each argument will be formatted
-/// and the result will be passed to the buffer. The writer may be any value with a `write_format` method;
-/// generally this comes from an implementation of the [`crate::Buffer`] trait.
+/// This macro accepts a formatter and a list of format arguments.
 #[macro_export]
 macro_rules! write {
     ($dst:expr, [$($arg:expr),+ $(,)?]) => {{
@@ -32,10 +30,10 @@ macro_rules! write {
     }}
 }
 
-/// Creates the Format IR for a value.
+/// Construct FIR for one or more values.
 ///
-/// The first argument `format!` receives is the [`crate::FormatContext`] that specify how nodes must be formatted.
-/// Additional parameters passed get formatted by using their [`crate::Format`] implementation.
+/// The first argument is the FIR allocator and the second is the [`crate::format::FormatContext`].
+/// Remaining arguments are written through their [`crate::format::Format`] implementations.
 #[macro_export]
 macro_rules! format {
     ($allocator:expr, $context:expr, [$($arg:expr),+ $(,)?]) => {{
@@ -50,26 +48,25 @@ macro_rules! format {
 /// - Last: The variant that takes up the least space horizontally by splitting the content over multiple lines.
 ///
 /// ## Complexity
-/// Be mindful of using this IR node as it has a considerable performance penalty:
-/// - There are multiple representation for the same content. This results in increased memory usage
+/// Be mindful of using this operation as it has a considerable performance cost:
+/// - There are multiple representations for the same content. This results in increased memory usage
 ///   and traversal time in the printer.
-/// - The worst case complexity is that the printer tires each variant. This can result in quadratic
+/// - The worst case is that the printer tries each variant. This can result in quadratic
 ///   complexity if used in nested structures.
 ///
 /// ## Behavior
-/// This IR is similar to the `conditionalGroup` node used by other formatter IRs. The printer measures each variant, except the [`MostExpanded`], in [`Flat`] mode
-/// to find the first variant that fits and prints this variant in [`Flat`] mode. If no variant fits, then
-/// the printer falls back to printing the [`MostExpanded`] variant in [`Expanded`] mode.
+/// This operation resembles the `conditionalGroup` operation used by other formatter IRs.
+/// The printer measures each variant, except the final one, in [`Flat`] mode to find the first fit.
+/// If no variant fits, the printer uses the final variant in [`Expanded`] mode.
 ///
 /// The declaration of *fits* differs to groups in that the printer only tests if it is possible to print
 /// the content up to the first non-soft line break without exceeding the configured print width.
 /// This declaration differs from groups as that non-soft line breaks make group expand.
 ///
-/// [`crate::BestFitting`] acts as a "break" boundary, meaning that it is considered to fit
+/// [`crate::format::BestFitting`] acts as a "break" boundary, meaning that it is considered to fit
 ///
-/// [`Flat`]: crate::format_node::PrintMode::Flat
-/// [`Expanded`]: crate::format_node::PrintMode::Expanded
-/// [`MostExpanded`]: crate::format_node::BestFittingVariants::most_expanded
+/// [`Flat`]: crate::format::PrintMode::Flat
+/// [`Expanded`]: crate::format::PrintMode::Expanded
 #[macro_export]
 macro_rules! best_fitting {
     ($least_expanded:expr, $($tail:expr),+ $(,)?) => {
@@ -82,7 +79,7 @@ mod tests {
     use destack_source::FileType;
 
     use crate::format::{
-        BestFittingMode, FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer,
+        BestFittingMode, FormatState, Formatted, IndentStyle, SimpleFormatOptions,
     };
     use crate::prelude::*;
 
@@ -94,44 +91,42 @@ mod tests {
         }
     }
 
-    /// Write a single format node to buffer.
+    /// Write one format value.
     #[test]
     fn test_single_node() {
         let allocator = Allocator::default();
         let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
-        let mut buffer = VecBuffer::new(&mut state);
+        let mut formatter = Formatter::new(&mut state);
 
-        write![&mut buffer, [TestFormat]].unwrap();
+        write![&mut formatter, [TestFormat]].unwrap();
 
-        assert_eq!(
-            buffer.into_vec().as_slice(),
-            &[FormatNode::Token { text: "test" }]
-        );
+        let instructions = formatter.into_tape().into_slice();
+        let (context, groups, fits_expanded) = state.finish();
+        let document = Document::new(instructions, groups, fits_expanded);
+        let formatted = Formatted::new(document, context);
+
+        assert_eq!(formatted.print().unwrap().as_str(), "test");
     }
 
-    /// Write multiple format nodes to buffer.
+    /// Write multiple formatting operations.
     #[test]
     fn test_multiple_nodes() {
         let allocator = Allocator::default();
         let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
-        let mut buffer = VecBuffer::new(&mut state);
+        let mut formatter = Formatter::new(&mut state);
 
         write![
-            &mut buffer,
+            &mut formatter,
             [token("a"), space(), token("simple"), space(), TestFormat]
         ]
         .unwrap();
 
-        assert_eq!(
-            buffer.into_vec().as_slice(),
-            &[
-                FormatNode::Token { text: "a" },
-                FormatNode::Space,
-                FormatNode::Token { text: "simple" },
-                FormatNode::Space,
-                FormatNode::Token { text: "test" }
-            ]
-        );
+        let instructions = formatter.into_tape().into_slice();
+        let (context, groups, fits_expanded) = state.finish();
+        let document = Document::new(instructions, groups, fits_expanded);
+        let formatted = Formatted::new(document, context);
+
+        assert_eq!(formatted.print().unwrap().as_str(), "a simple test");
     }
 
     /// Format arguments can be used in Format contexts.
@@ -148,24 +143,22 @@ mod tests {
         assert_eq!("Hello World", formatted.print().unwrap().as_str());
     }
 
-    /// Write macro accepts buffer and format arguments.
+    /// Write format arguments into one formatter.
     #[test]
     fn test_write_macro_basic() {
         let allocator = Allocator::default();
         let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
-        let mut buffer = VecBuffer::new(&mut state);
+        let mut formatter = Formatter::new(&mut state);
 
-        write!(&mut buffer, [token("Hello"), space()]).unwrap();
-        write!(&mut buffer, [token("World")]).unwrap();
+        write!(&mut formatter, [token("Hello"), space()]).unwrap();
+        write!(&mut formatter, [token("World")]).unwrap();
 
-        assert_eq!(
-            buffer.into_vec().as_slice(),
-            &[
-                FormatNode::Token { text: "Hello" },
-                FormatNode::Space,
-                FormatNode::Token { text: "World" },
-            ]
-        );
+        let instructions = formatter.into_tape().into_slice();
+        let (context, groups, fits_expanded) = state.finish();
+        let document = Document::new(instructions, groups, fits_expanded);
+        let formatted = Formatted::new(document, context);
+
+        assert_eq!(formatted.print().unwrap().as_str(), "Hello World");
     }
 
     /// Format macro creates formatted document from arguments.
@@ -250,35 +243,17 @@ mod tests {
         .unwrap();
 
         // with wide line width, should use first variant
-        let wide_result = Formatted::new(
-            document.clone().into_document(),
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 50,
-                    ..SimpleFormatOptions::default()
-                },
-                File::empty_text(FileType::Destack),
-            ),
-        )
-        .print()
-        .unwrap();
+        let wide_options = crate::print::PrintOptions::default()
+            .with_indent_style(IndentStyle::Tab)
+            .with_line_width(50);
+        let wide_result = document.print_with_options(wide_options).unwrap();
         assert_eq!("aVeryLongIdentifier(1, 2, 3)", wide_result.as_str());
 
         // with narrow line width, should use second variant
-        let narrow_result = Formatted::new(
-            document.into_document(),
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 20,
-                    ..SimpleFormatOptions::default()
-                },
-                File::empty_text(FileType::Destack),
-            ),
-        )
-        .print()
-        .unwrap();
+        let narrow_options = crate::print::PrintOptions::default()
+            .with_indent_style(IndentStyle::Tab)
+            .with_line_width(20);
+        let narrow_result = document.print_with_options(narrow_options).unwrap();
         assert_eq!(
             "aVeryLongIdentifier(\n\t1,\n\t2,\n\t3\n)",
             narrow_result.as_str()
@@ -340,64 +315,32 @@ mod tests {
         )
         .unwrap();
 
-        let document = formatted.into_document();
-
         // takes the first variant if everything fits on a single line
+        let options = crate::print::PrintOptions::default()
+            .with_indent_style(IndentStyle::Tab)
+            .with_line_width(80);
         assert_eq!(
             "aVeryLongIdentifier([1, 2, 3])",
-            Formatted::new(
-                document.clone(),
-                SimpleFormatContext::new(
-                    SimpleFormatOptions {
-                        indent_style: IndentStyle::Tab,
-                        line_width: 80,
-                        ..SimpleFormatOptions::default()
-                    },
-                    File::empty_text(FileType::Destack)
-                )
-            )
-            .print()
-            .unwrap()
-            .as_str()
+            formatted.print_with_options(options).unwrap().as_str()
         );
 
         // takes the second if the first variant doesn't fit on a single line
         // the second variant has some additional line breaks to make sure inner groups don't break
+        let options = crate::print::PrintOptions::default()
+            .with_indent_style(IndentStyle::Tab)
+            .with_line_width(21);
         assert_eq!(
             "aVeryLongIdentifier([\n\t1, 2, 3\n])",
-            Formatted::new(
-                document.clone(),
-                SimpleFormatContext::new(
-                    SimpleFormatOptions {
-                        indent_style: IndentStyle::Tab,
-                        line_width: 21,
-                        ..SimpleFormatOptions::default()
-                    },
-                    File::empty_text(FileType::Destack)
-                )
-            )
-            .print()
-            .unwrap()
-            .as_str()
+            formatted.print_with_options(options).unwrap().as_str()
         );
 
         // prints the last option as last resort
+        let options = crate::print::PrintOptions::default()
+            .with_indent_style(IndentStyle::Tab)
+            .with_line_width(20);
         assert_eq!(
             "aVeryLongIdentifier(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n)",
-            Formatted::new(
-                document.clone(),
-                SimpleFormatContext::new(
-                    SimpleFormatOptions {
-                        indent_style: IndentStyle::Tab,
-                        line_width: 20,
-                        ..SimpleFormatOptions::default()
-                    },
-                    File::empty_text(FileType::Destack)
-                )
-            )
-            .print()
-            .unwrap()
-            .as_str()
+            formatted.print_with_options(options).unwrap().as_str()
         );
     }
 
