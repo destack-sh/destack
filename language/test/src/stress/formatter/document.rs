@@ -5,7 +5,7 @@ use destack_fir::format::FormatNode;
 pub(super) struct FormatterDocumentStats {
     /// Top level document node count.
     top_level_nodes: u64,
-    /// Recursive document node count including interned and best fitting payloads.
+    /// Recursive document node count including slices and best fitting variants.
     recursive_nodes: u64,
     /// Space nodes.
     spaces: u64,
@@ -23,12 +23,10 @@ pub(super) struct FormatterDocumentStats {
     file_slices: u64,
     /// Line suffix boundary nodes.
     line_suffix_boundaries: u64,
-    /// Interned references in the node stream.
-    interned_refs: u64,
-    /// Interned payloads traversed while counting.
-    interned_payloads: u64,
-    /// Nodes inside interned payloads.
-    interned_payload_nodes: u64,
+    /// Slice nodes in the node stream.
+    slices: u64,
+    /// Nodes inside slices.
+    slice_nodes: u64,
     /// Best fitting nodes.
     best_fitting: u64,
     /// Best fitting variants traversed while counting.
@@ -54,7 +52,7 @@ impl FormatterDocumentStats {
     /// Format document stats for terminal output.
     pub(super) fn format(self) -> String {
         format!(
-            "top {}, recursive {}, token {}, text {}, space {}, line {}, tag {}, interned refs {}, interned payloads {} / {} nodes, best fitting {} / {} variants / {} nodes",
+            "top {}, recursive {}, token {}, text {}, space {}, line {}, tag {}, slices {} / {} nodes, best fitting {} / {} variants / {} nodes",
             self.top_level_nodes,
             self.recursive_nodes,
             self.tokens,
@@ -62,9 +60,8 @@ impl FormatterDocumentStats {
             self.spaces,
             self.lines,
             self.tags,
-            self.interned_refs,
-            self.interned_payloads,
-            self.interned_payload_nodes,
+            self.slices,
+            self.slice_nodes,
             self.best_fitting,
             self.best_fitting_variants,
             self.best_fitting_variant_nodes
@@ -88,11 +85,10 @@ impl FormatterDocumentStats {
                     FormatNode::SourcePosition { .. } => self.source_positions += 1,
                     FormatNode::FileSlice { .. } => self.file_slices += 1,
                     FormatNode::LineSuffixBoundary => self.line_suffix_boundaries += 1,
-                    FormatNode::Interned(interned) => {
-                        self.interned_refs += 1;
-                        self.interned_payloads += 1;
-                        self.interned_payload_nodes += interned.len() as u64;
-                        pending.push(interned);
+                    FormatNode::Slice(slice) => {
+                        self.slices += 1;
+                        self.slice_nodes += slice.len() as u64;
+                        pending.push(slice);
                     }
                     FormatNode::BestFitting { variants, .. } => {
                         self.best_fitting += 1;

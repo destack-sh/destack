@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_core::StringPool;
-use destack_parser::{Parser, ParserTriviaMode, source_colorizer};
+use destack_parser::{CommentRetention, Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, File, FileId, FileType, LanguageType, PrintOptions,
     Uri,
@@ -57,10 +57,10 @@ pub(super) fn parse_file(
 
     // parse and collect diagnostics
     let language = LanguageType::try_from(file_type).expect("file type has no parser language");
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         file.clone(),
         language,
-        ParserTriviaMode::Documentation,
+        CommentRetention::Documentation,
         Arc::new(StringPool::new()),
     );
     let _ = parser.parse();

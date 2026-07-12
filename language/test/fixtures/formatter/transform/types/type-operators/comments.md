@@ -30,9 +30,10 @@ export type Value = /** union-doc
 ```
 
 ```ds expected
-export type Value = /** union-doc
- */
-{ ok: true } | { ok: false; value: bigint | null };
+export type Value =
+    /** union-doc
+     */
+    { ok: true } | { ok: false; value: bigint | null };
 ```
 
 ### union last arm trailing line comment

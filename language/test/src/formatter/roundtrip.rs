@@ -6,7 +6,7 @@ use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_fir::format::Allocator;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_repository::FormatterOptions;
 use destack_source::{DiffOptions, File, FileId, FileType, LanguageType, Uri, print_diff};
 
@@ -61,10 +61,10 @@ pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
 
     // parse
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         file.clone(),
         language_type,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -75,11 +75,10 @@ pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
     }
 
     // format
-    let (tokens, side_tokens) = parser.take_token_spans();
+    let tokens = parser.take_token_spans();
     let formatted = format_expressions(
         &parser,
         &tokens,
-        &side_tokens,
         &expressions,
         &file,
         language_type,
@@ -107,7 +106,6 @@ pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
 fn format_expressions(
     parser: &Parser,
     tokens: &[TokenSpan],
-    side_tokens: &[TokenSpan],
     expressions: &[destack_dir::LocalNodeId<destack_dir::Expression>],
     file: &File,
     language_type: LanguageType,
@@ -125,7 +123,7 @@ fn format_expressions(
         file,
         &parser.tree,
         tokens,
-        side_tokens,
+        parser.comments(),
         &side_span,
         strings,
         &parents,
