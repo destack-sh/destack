@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
     Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, ThisForm, TupleElement, TypeLiteral, VarianceBound, WhereClause,
+    SymbolKind, SymbolSpace, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound,
+    WhereClause,
 };
 
 /// One type-surface member.
@@ -319,8 +320,12 @@ pub enum TypeExpression {
     /// ```
     /// (A, B)
     /// (name: string, age: number)
+    /// [A, B]
     /// ```
     Tuple {
+        /// The runtime representation selected by the delimiters.
+        form: TupleForm,
+        /// The tuple elements in source order.
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
