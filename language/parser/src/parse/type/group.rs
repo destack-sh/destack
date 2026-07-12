@@ -1,7 +1,8 @@
 use crate::parse::context::{ExpressionContext, TypeContext, TypeMode, TypeStops};
 use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{
-    Expression, Keyword, LocalNodeId, NodeType, TokenType, TupleElement, TupleForm, TypeExpression,
+    Expression, InferForm, Keyword, LocalNodeId, NodeType, TokenType, TupleElement, TupleForm,
+    TypeExpression,
 };
 
 impl Parser {
@@ -170,10 +171,13 @@ impl Parser {
         // parse the fixed length or inference hole
         let length = if self.peek_identifier_is("_") {
             let length_start = self.mark_parse_start();
-            let ty = self.parse_type_infer_hole(&length_start);
+            self.bump();
 
             self.insert_node(
-                Expression::Type { value: ty },
+                Expression::Infer {
+                    form: InferForm::Hole,
+                    name: None,
+                },
                 self.range_since(&length_start),
             )
         } else {
