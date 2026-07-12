@@ -4,7 +4,7 @@ use super::text::{
 };
 use crate::annotation::{block_infix_annotations, format_leading_comments, write_comment_slice};
 use crate::chain::{argument_value_id_if_present, transparent_inner_expression};
-use crate::context::PreparedFormat;
+use crate::context::CapturedFormat;
 use crate::declaration::expression_is_in_statement_context;
 use crate::expression::ternary_branch_trailing_comments;
 use crate::tree::{
@@ -17,7 +17,7 @@ use destack_dir::{
     Argument, Comment, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
     NodeType, ScalarLiteral, Tree, TreeAttribute, TreeChild,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
     block_indent, empty_line, format_with, group, hard_line_break, if_group_breaks,
     soft_block_indent, token,
@@ -781,7 +781,7 @@ fn format_tree_literal_with_layout<'ast>(
     write!(
         f,
         [group(&format_with(|f| {
-            let opening_tag = PreparedFormat::new(
+            let opening_tag = CapturedFormat::new(
                 f,
                 FormatTreeOpeningElement::new(
                     _expression_id,

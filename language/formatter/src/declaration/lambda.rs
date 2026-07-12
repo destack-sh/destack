@@ -19,7 +19,7 @@ use destack_dir::{
     Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm, FunctionSignature,
     IfForm, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral, TreeAttribute, TreeChild,
 };
-use destack_fir::format::{FormatResult, RemoveSoftLinesBuffer};
+use destack_fir::format::{FormatResult, without_soft_lines};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -642,7 +642,7 @@ fn write_lambda_chain_layout<'ast>(
             .options
             .assignment_layout
             .is_some_and(|layout| layout != AssignmentLikeLayout::BreakAfterOperator);
-    let group_id = f.group_id("lambda-chain");
+    let group_id = f.group_id();
 
     let format_signatures = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let join_signatures = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -892,8 +892,7 @@ fn write_lambda_head<'ast>(
         write_function_header_prefix(f, signature, true, false)?;
 
         if options.call_argument_layout.is_some() && !is_first_in_chain {
-            let mut buffer = RemoveSoftLinesBuffer::new(f);
-            write!(buffer, [signature_content])?;
+            write!(f, [without_soft_lines(&signature_content)])?;
         } else {
             write!(f, [signature_content])?;
         }
@@ -923,8 +922,13 @@ fn write_lambda_head<'ast>(
             return write!(f, [head, comments_before_arrow]);
         }
 
-        let mut buffer = RemoveSoftLinesBuffer::new(f);
-        return write!(buffer, [head, comments_before_arrow]);
+        return write!(
+            f,
+            [without_soft_lines(&format_args!(
+                head,
+                comments_before_arrow
+            ))]
+        );
     }
 
     write!(

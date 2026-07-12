@@ -1,5 +1,5 @@
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_fir::format::{Buffer, Format, FormatNode, FormatResult, FormatTag};
+use destack_fir::format::{Format, FormatElement, FormatResult, FormatTag};
 use destack_fir::prelude::{align, dedent_to_root, format_with};
 use destack_fir::write;
 
@@ -67,13 +67,13 @@ pub(crate) fn write_template_interpolation_with_indentation<'ast>(
     // replay indentation levels as formatter indentation
     let format_indented = format_with(|f| {
         for _ in 0..level {
-            f.write_node(FormatNode::Tag(FormatTag::StartIndent));
+            f.write_element(FormatElement::Tag(FormatTag::StartIndent));
         }
 
         write!(f, [content])?;
 
         for _ in 0..level {
-            f.write_node(FormatNode::Tag(FormatTag::EndIndent));
+            f.write_element(FormatElement::Tag(FormatTag::EndIndent));
         }
 
         Ok(())

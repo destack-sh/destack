@@ -26,7 +26,7 @@ use destack_dir::{
     Comment, Declaration, DecoratorPosition, Expression, FunctionForm, IfForm, LocalNodeId, Member,
     NodeType, PostfixPosition,
 };
-use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, hard_line_break, indent, line_suffix_boundary,
     token,

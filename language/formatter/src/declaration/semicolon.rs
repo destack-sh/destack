@@ -3,7 +3,7 @@ use destack_dir::{
     Comment, Declaration, DependencyBinding, DependencyItem, Expression, FunctionForm, IfForm,
     LocalNodeId, WhileForm,
 };
-use destack_fir::format::{Buffer, FormatResult, hard_line_break};
+use destack_fir::format::{FormatResult, hard_line_break};
 use destack_fir::prelude::{block_indent, empty_line, format_with, line_suffix, space, token};
 use destack_fir::write;
 

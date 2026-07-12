@@ -13,7 +13,7 @@ use destack_dir::{
     Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral,
     TypeExpression,
 };
-use destack_fir::format::{Buffer, FormatError, FormatNodes, FormatResult, RemoveSoftLinesBuffer};
+use destack_fir::format::{FormatError, FormatLayout, FormatResult};
 use destack_fir::prelude::{
     dedent_to_root, format_with, group, indent, line_suffix_boundary, soft_block_indent,
     soft_line_break, token,
@@ -374,10 +374,10 @@ pub(crate) fn format_type_template_literal<'ast>(
 
         let format_span =
             format_with(|f| format_type_template_interpolation_body(f, *span_expression_id));
-        let span_node = f.capture(&format_span)?;
+        let span_element = f.capture(&format_span)?;
         let span_layout =
             if type_template_interpolation_has_newline_in_range(f.context(), *span_expression_id)
-                || span_node.as_ref().is_some_and(FormatNodes::will_break)
+                || span_element.as_ref().is_some_and(FormatLayout::will_break)
             {
                 TemplateInterpolationLayout::Fit
             } else {
@@ -387,14 +387,16 @@ pub(crate) fn format_type_template_literal<'ast>(
         let format_inner = format_with(move |f| {
             match span_layout {
                 TemplateInterpolationLayout::SingleLine => {
-                    if let Some(span_node) = &span_node {
-                        let mut buffer = RemoveSoftLinesBuffer::new(f);
-                        buffer.write_node(span_node.clone());
+                    if let Some(span_element) = &span_element {
+                        if let Some(span_element) = (*span_element).remove_soft_lines(f.allocator())
+                        {
+                            f.write_element(span_element);
+                        }
                     }
                 }
                 TemplateInterpolationLayout::Fit => {
-                    if let Some(span_node) = &span_node {
-                        f.write_node(span_node.clone());
+                    if let Some(span_element) = &span_element {
+                        f.write_element(*span_element);
                     }
                 }
             }

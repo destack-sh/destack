@@ -5,7 +5,7 @@ use super::whitespace::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{LocalNodeId, TreeChild};
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
     copied_text, empty_line, format_with, hard_line_break, if_group_breaks, if_group_fits_on_line,
     soft_line_break, soft_line_break_or_space, space, text, token,

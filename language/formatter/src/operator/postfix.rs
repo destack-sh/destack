@@ -3,7 +3,7 @@ use crate::expression::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{Expression, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, Tree};
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, group, soft_block_indent, token};
 use destack_fir::{format_args, write};
 

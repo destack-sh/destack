@@ -1,8 +1,8 @@
 use super::options::DestackFormatOptions;
 use super::source::SourceText;
-use super::{FormatNodeCache, FormatSourceIndex};
+use super::{FormatElementCache, FormatSourceIndex};
 
-use destack_core::{StringPool, ensure_sufficient_stack};
+use destack_core::StringPool;
 pub use destack_dir::Decorator;
 use destack_dir::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration, Declarator,
@@ -12,14 +12,14 @@ use destack_dir::{
     TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 use destack_fir::format::{
-    Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
+    Format, FormatContext, FormatElement as FirElement, FormatLayout, FormatResult, Formatter,
 };
 use destack_source::{File, MultiSpan, Span};
 
 use super::comment::Comments;
 
 /// The formatter implementation specialized for the Destack context.
-pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, 'ast, DestackFormatContext<'ast>>;
+pub type DestackFormatter<'ast, 'state> = Formatter<'state, 'ast, DestackFormatContext<'ast>>;
 
 /// Run one formatter callback with a temporary following sibling boundary.
 pub(crate) fn with_following_span_start<'ast>(
@@ -71,8 +71,8 @@ pub struct DestackFormatContext<'a> {
     pub strings: &'a StringPool,
     /// The immutable source index for source-order lookups.
     pub source_index: FormatSourceIndex,
-    /// The FIR node cache for this formatter pass.
-    pub node_cache: FormatNodeCache<'a>,
+    /// The FIR element cache for this formatter pass.
+    element_cache: FormatElementCache<'a>,
     /// The start position of the following sibling for the node currently being formatted.
     pub current_following_span_start: u32,
     /// Whether tree callback bodies should expand like tree return elements.
@@ -105,7 +105,7 @@ impl<'a> DestackFormatContext<'a> {
             parents,
             strings,
             source_index,
-            node_cache: FormatNodeCache::default(),
+            element_cache: FormatElementCache::default(),
             current_following_span_start: 0,
             should_expand_tree_callback_bodies: false,
             comments: Comments::new(SourceText::new(file.text()), comments),
@@ -122,14 +122,14 @@ impl<'a> DestackFormatContext<'a> {
         &mut self.comments
     }
 
-    /// Return one cached FIR node for a source span.
-    pub fn cached_node(&self, span: &Span) -> Option<FirNode<'a>> {
-        self.node_cache.get(span.range())
+    /// Return one cached FIR element for a source span.
+    pub(crate) fn cached_element(&self, span: &Span) -> Option<FirElement<'a>> {
+        self.element_cache.get(span.range())
     }
 
-    /// Cache one FIR node for a source span.
-    pub fn cache_node(&mut self, span: &Span, node: FirNode<'a>) {
-        self.node_cache.insert(span.range(), node);
+    /// Cache one FIR element for a source span.
+    pub(crate) fn cache_element(&mut self, span: &Span, element: FirElement<'a>) {
+        self.element_cache.insert(span.range(), element);
     }
 
     /// Return the current following sibling start used for trailing comment ownership.
@@ -228,12 +228,10 @@ where
 {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
-        ensure_sufficient_stack(|| {
-            let context = f.context();
-            let node = context.tree.get(*self);
+        let context = f.context();
+        let node = context.tree.get(*self);
 
-            node.format_node(*self, f)
-        })
+        node.format_node(*self, f)
     }
 }
 

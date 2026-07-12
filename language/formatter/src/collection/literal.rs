@@ -11,9 +11,7 @@ use destack_dir::{
     Argument, Expression, FloatType, IntegerType, LocalNodeId, Path, ScalarLiteral,
     TemplateLiteral, TokenLiteral, TypeLiteral,
 };
-use destack_fir::format::{
-    Buffer, Format, FormatNodes, FormatResult, RemoveSoftLinesBuffer, token,
-};
+use destack_fir::format::{Format, FormatLayout, FormatResult, token};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
@@ -215,15 +213,18 @@ fn format_interpolated_template_literal<'ast>(
         let next_segment = strings[index + 1];
 
         let format_argument = format_with(|f| write!(f, [*argument]));
-        let argument_node = f.capture(&format_argument)?;
-        let layout = template_argument_layout(f.context(), *argument, &argument_node);
+        let argument_element = f.capture(&format_argument)?;
+        let layout = template_argument_layout(f.context(), *argument, argument_element.as_ref());
         let format_inner = format_with(|f| {
             match layout {
                 // single-line layout
                 TemplateElementLayout::SingleLine => {
-                    if let Some(argument_node) = &argument_node {
-                        let mut buffer = RemoveSoftLinesBuffer::new(f);
-                        buffer.write_node(argument_node.clone());
+                    if let Some(argument_element) = &argument_element {
+                        if let Some(argument_element) =
+                            (*argument_element).remove_soft_lines(f.allocator())
+                        {
+                            f.write_element(argument_element);
+                        }
                     }
                 }
                 // fit layout
@@ -231,18 +232,18 @@ fn format_interpolated_template_literal<'ast>(
                     let should_indent =
                         template_argument_should_indent_fit_layout(f.context(), *argument);
 
-                    match &argument_node {
-                        Some(argument_node) if should_indent => {
+                    match &argument_element {
+                        Some(argument_element) if should_indent => {
                             write!(
                                 f,
                                 [soft_block_indent(&format_with(|f| {
-                                    f.write_node(argument_node.clone());
+                                    f.write_element(*argument_element);
                                     Ok(())
                                 }))]
                             )?;
                         }
-                        Some(argument_node) => {
-                            f.write_node(argument_node.clone());
+                        Some(argument_element) => {
+                            f.write_element(*argument_element);
                         }
                         None => {}
                     }
@@ -288,7 +289,7 @@ enum TemplateElementLayout {
 fn template_argument_layout(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-    argument_node: &Option<destack_fir::format::FormatNode<'_>>,
+    argument_element: Option<&destack_fir::format::FormatElement<'_>>,
 ) -> TemplateElementLayout {
     // preserve multiline interpolation expressions from source
     if template_argument_has_newline_in_range(context, argument_id) {
@@ -296,7 +297,7 @@ fn template_argument_layout(
     }
 
     // keep expressions that break in fit mode expandable
-    if argument_node.as_ref().is_some_and(FormatNodes::will_break) {
+    if argument_element.is_some_and(FormatLayout::will_break) {
         return TemplateElementLayout::Fit;
     }
 

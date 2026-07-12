@@ -1,7 +1,7 @@
 use crate::annotation::FormatTrailingComments;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{Comment, RangeEnd, TokenType};
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
 use destack_source::{FileId, Span};

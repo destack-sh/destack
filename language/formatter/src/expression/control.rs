@@ -25,7 +25,7 @@ use destack_dir::{
     LocalNodeId, MatchCase, MatchForm, MatchSelector, NodeType, Pattern, TypeExpression, WhileForm,
     YieldCardinality,
 };
-use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
+use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, hard_line_break,
     line_suffix_boundary, soft_block_indent, soft_line_indent_or_space, space, token,

@@ -20,7 +20,7 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Argument, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType, TypeExpression,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
@@ -322,7 +322,7 @@ pub(crate) fn format_call_arguments<'ast>(
     call_node_id: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    let group_id = f.group_id("call_args");
+    let group_id = f.group_id();
     let call_span = f.context().span(call_node_id);
     let left = match f.context().tree.get(call_node_id) {
         Expression::Call { left, .. } => *left,

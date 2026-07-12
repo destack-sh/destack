@@ -12,7 +12,7 @@ use crate::operator::{format_operator_expression, write_operator_expression_trai
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{Expression, LocalNodeId};
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, token};
 use destack_fir::write;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};

@@ -1,58 +1,58 @@
 use rustc_hash::FxHashMap;
 
 use super::context::{DestackFormatContext, DestackFormatter};
-use destack_fir::format::{Buffer, Format, FormatNode as FirNode, FormatNodes, FormatResult};
+use destack_fir::format::{Format, FormatElement as FirElement, FormatLayout, FormatResult};
 use destack_source::ByteRange;
 
-/// FIR nodes cached for one formatter pass.
+/// FIR elements cached for one formatter pass.
 #[derive(Debug, Default)]
-pub struct FormatNodeCache<'a> {
-    /// Cached FIR nodes keyed by file-local range.
-    nodes: FxHashMap<ByteRange, FirNode<'a>>,
+pub(crate) struct FormatElementCache<'a> {
+    /// Cached FIR elements keyed by file-local range.
+    elements: FxHashMap<ByteRange, FirElement<'a>>,
 }
 
-impl<'a> FormatNodeCache<'a> {
-    /// Return one cached FIR node for a file-local range.
-    pub fn get(&self, range: ByteRange) -> Option<FirNode<'a>> {
-        self.nodes.get(&range).cloned()
+impl<'a> FormatElementCache<'a> {
+    /// Return one cached FIR element for a file-local range.
+    pub(crate) fn get(&self, range: ByteRange) -> Option<FirElement<'a>> {
+        self.elements.get(&range).copied()
     }
 
-    /// Cache one FIR node for a file-local range.
-    pub fn insert(&mut self, range: ByteRange, node: FirNode<'a>) {
-        self.nodes.insert(range, node);
+    /// Cache one FIR element for a file-local range.
+    pub(crate) fn insert(&mut self, range: ByteRange, element: FirElement<'a>) {
+        self.elements.insert(range, element);
     }
 }
 
-/// Preformatted content that can be inspected and emitted without formatting twice.
-pub(crate) struct PreparedFormat<'a> {
-    /// The formatted node.
-    node: Option<FirNode<'a>>,
+/// Captured FIR content that can be inspected and emitted without formatting twice.
+pub(crate) struct CapturedFormat<'a> {
+    /// The captured formatting element.
+    element: Option<FirElement<'a>>,
 }
 
-impl<'ast> PreparedFormat<'ast> {
-    /// Capture one formatted payload.
+impl<'ast> CapturedFormat<'ast> {
+    /// Capture content as one reusable FIR element.
     pub(crate) fn new<T>(f: &mut DestackFormatter<'ast, '_>, content: T) -> FormatResult<Self>
     where
         T: Format<'ast, DestackFormatContext<'ast>>,
     {
-        let node = f.capture(&content)?;
+        let element = f.capture(&content)?;
 
-        Ok(Self { node })
+        Ok(Self { element })
     }
 
-    /// Return whether the prepared content forces a line break.
+    /// Return whether the captured content forces a line break.
     pub(crate) fn will_break(&self) -> bool {
-        self.node.as_ref().is_some_and(FirNode::will_break)
+        self.element.as_ref().is_some_and(FirElement::will_break)
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for PreparedFormat<'ast> {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for CapturedFormat<'ast> {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        let Some(node) = self.node.clone() else {
+        let Some(element) = self.element else {
             return Ok(());
         };
 
-        f.write_node(node);
+        f.write_element(element);
         Ok(())
     }
 }

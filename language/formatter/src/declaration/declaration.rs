@@ -31,8 +31,7 @@ use destack_dir::{
     TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
-    ArenaVec, FormatError, FormatNode as FirNode, FormatNodes, FormatResult,
-    Formatter as FirFormatter, GroupId, VecBuffer,
+    FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, GroupId, InstructionTape,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -222,47 +221,47 @@ fn write_declaration_where_clauses<'ast>(
     Ok(())
 }
 
-/// Buffer one type declaration head so layout can inspect the formatted left side first.
-fn buffer_type_declaration_left<'ast>(
+/// Capture one type declaration head for layout selection.
+fn capture_type_declaration_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &TypeDeclaration,
-) -> FormatResult<(ArenaVec<'ast, FirNode<'ast>>, bool, bool)> {
-    let mut buffer = VecBuffer::new(f.state_mut());
-    let formatter = &mut FirFormatter::new(&mut buffer);
+) -> FormatResult<(InstructionTape<'ast>, bool, bool)> {
+    let mut formatter = FirFormatter::new(f.state_mut());
 
     // prefixes
-    format_declaration_export_modifier(formatter, node_id, declaration.export)?;
-    write_ambient_prefix(formatter, declaration.is_ambient)?;
-    write_place_prefix(formatter, declaration.place)?;
+    format_declaration_export_modifier(&mut formatter, node_id, declaration.export)?;
+    write_ambient_prefix(&mut formatter, declaration.is_ambient)?;
+    write_place_prefix(&mut formatter, declaration.place)?;
 
     // modifiers
     if declaration.is_nominal {
-        write!(formatter, [Keyword::Newtype, space()])?;
+        write!(&mut formatter, [Keyword::Newtype, space()])?;
     } else if declaration.mutability == Some(Mutability::Immutable) {
-        write!(formatter, [Keyword::Readonly, space()])?;
+        write!(&mut formatter, [Keyword::Readonly, space()])?;
     }
 
     // head
     if !declaration.is_nominal {
-        write!(formatter, [Keyword::Type, space()])?;
+        write!(&mut formatter, [Keyword::Type, space()])?;
     }
 
-    write!(formatter, [declaration.name])?;
+    write!(&mut formatter, [declaration.name])?;
 
     // generic parameters
-    write_declaration_generic_parameters(formatter, &declaration.generic_parameters)?;
+    write_declaration_generic_parameters(&mut formatter, &declaration.generic_parameters)?;
 
     // where clauses
-    write_declaration_where_clauses(formatter, &declaration.where_clauses)?;
+    write_declaration_where_clauses(&mut formatter, &declaration.where_clauses)?;
 
-    let nodes = buffer.into_vec();
-    let is_left_short = nodes.single_line_width().is_some_and(|width| {
+    // layout shape
+    let instructions = formatter.into_tape();
+    let is_left_short = instructions.single_line_width().is_some_and(|width| {
         width < (u32::from(f.context().options.indent_width) + MIN_OVERLAP_FOR_BREAK)
     });
-    let left_may_break = nodes.may_directly_break();
+    let left_may_break = instructions.may_directly_break();
 
-    Ok((nodes, is_left_short, left_may_break))
+    Ok((instructions, is_left_short, left_may_break))
 }
 
 /// Return whether one type expression counts as generic in one conditional head.
@@ -887,14 +886,14 @@ fn format_type_declaration<'ast>(
     node_id: LocalNodeId<Declaration>,
     declaration: &TypeDeclaration,
 ) -> FormatResult<()> {
-    let (left_nodes, is_left_short, left_may_break) =
-        buffer_type_declaration_left(f, node_id, declaration)?;
+    let (left_instructions, is_left_short, left_may_break) =
+        capture_type_declaration_left(f, node_id, declaration)?;
     let layout = type_declaration_layout(f.context(), declaration, is_left_short, left_may_break);
 
-    let left = left_nodes.collapse();
+    let left = left_instructions.collapse();
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         if let Some(left) = &left {
-            f.write_node(left.clone());
+            f.write_element(*left);
         }
 
         Ok(())
@@ -971,7 +970,7 @@ fn format_extension_declaration<'ast>(
             ]))]
         )
     });
-    let extension_target_group_id = f.group_id("extension_target");
+    let extension_target_group_id = f.group_id();
     write!(
         f,
         [group(&extension_target).with_id(Some(extension_target_group_id))]

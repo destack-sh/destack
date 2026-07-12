@@ -18,7 +18,7 @@ use crate::{DestackFormatter, FormatNode};
 use destack_dir::{
     Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression, Visibility,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
 use destack_repository::QuoteProperty;

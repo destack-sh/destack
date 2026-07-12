@@ -7,7 +7,7 @@ use destack_dir::{
     Argument, Expression, GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Property,
     TypeExpression,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
     block_indent, empty_line, format_with, group, hard_line_break, if_group_fits_on_line,
     soft_block_indent, soft_line_break_or_space, space, token,
@@ -141,7 +141,7 @@ pub(crate) fn format_fill_array<'ast>(
         return Ok(());
     }
 
-    let group_id = f.group_id("array");
+    let group_id = f.group_id();
     let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let trailing_separator = if f.context().options.trailing_comma == TrailingComma::None {
             TrailingSeparator::Omit
@@ -424,7 +424,7 @@ fn write_grouped_struct_literal<'ast>(
     trailing_separator: TrailingSeparator,
     should_expand: bool,
 ) -> FormatResult<()> {
-    let group_id = f.group_id("object_like");
+    let group_id = f.group_id();
 
     write!(
         f,

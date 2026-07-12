@@ -4,7 +4,7 @@ use crate::collection::{TrailingSeparator, separated_entries};
 use crate::file::any_ignore_range_for_nodes;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
-use destack_fir::format::{Buffer, FormatNodes, FormatResult, GroupId};
+use destack_fir::format::{FormatLayout, FormatResult, GroupId};
 use destack_fir::prelude::{
     block_indent, empty_line, format_with, group, if_group_breaks, soft_block_indent,
     soft_line_break_or_space, space, token,
@@ -392,16 +392,16 @@ pub(crate) fn format_default_call_argument_list<'ast>(
             ]
         )
     });
-    let node = f.capture(&content)?;
+    let element = f.capture(&content)?;
 
-    if let Some(element) = node {
+    if let Some(element) = element {
         let should_expand = force_expand || element.will_break();
 
         write!(
             f,
             [
                 group(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                    f.write_node(element.clone());
+                    f.write_element(element);
                     Ok(())
                 }))
                 .should_expand(should_expand)

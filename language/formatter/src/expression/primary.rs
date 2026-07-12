@@ -15,7 +15,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, Expression, Keyword, LocalNodeId, TokenSpan, TokenType, Tree, TypeExpression,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, soft_block_indent, soft_line_break_or_space,
     space, text, token,

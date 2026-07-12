@@ -14,9 +14,7 @@ use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument,
     LocalNodeId, Parameter, ScalarLiteral, TypeExpression, UnaryOperator,
 };
-use destack_fir::format::{
-    Buffer, FormatNode as FirNode, FormatNodes, FormatResult, GroupId, RemoveSoftLinesBuffer,
-};
+use destack_fir::format::{FormatElement as FirElement, FormatLayout, FormatResult, GroupId};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, soft_block_indent, soft_line_break_or_space,
     space, token,
@@ -781,7 +779,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
 
             write_call_argument_in_list(f, argument_id, following_span_start, separator)
         });
-        let node = f.capture(&content)?;
+        let element = f.capture(&content)?;
 
         if is_grouped_argument {
             let is_only_argument = index == 0 && last_index == 0;
@@ -794,12 +792,12 @@ pub(crate) fn write_grouped_arguments<'ast>(
             .is_some();
 
             has_cached |= is_cached_argument;
-            grouped_breaks |= node.as_ref().is_some_and(FirNode::will_break);
+            grouped_breaks |= element.as_ref().is_some_and(FirElement::will_break);
         } else {
-            non_grouped_breaks |= node.as_ref().is_some_and(FirNode::will_break);
+            non_grouped_breaks |= element.as_ref().is_some_and(FirElement::will_break);
         }
 
-        elements.push((node, lines_before));
+        elements.push((element, lines_before));
     }
 
     if non_grouped_breaks {
@@ -838,16 +836,12 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 unreachable!("grouped function argument should own its parameter container")
             });
 
-        let Some(cached_signature) = f.context().cached_node(&cache_key) else {
+        let Some(cached_signature) = f.context().cached_element(&cache_key) else {
             unreachable!("grouped lambda signature should already be cached");
         };
-        let node = f.capture(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            let mut buffer = RemoveSoftLinesBuffer::new(f);
-            buffer.write_node(cached_signature.clone());
-            Ok(())
-        }))?;
+        let element = cached_signature.remove_soft_lines(f.allocator());
 
-        if node.as_ref().is_some_and(FirNode::will_break) {
+        if element.as_ref().is_some_and(FirElement::will_break) {
             return format_all_elements_broken_out(
                 f,
                 &elements,
@@ -856,8 +850,8 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 true,
             );
         }
-        if let Some(node) = node {
-            f.context_mut().cache_node(&cache_key, node);
+        if let Some(element) = element {
+            f.context_mut().cache_element(&cache_key, element);
         }
 
         let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
@@ -870,8 +864,8 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 arguments.len() == 1,
             )
         });
-        let node = f.capture(&content)?;
-        elements[grouped_index].0 = node;
+        let element = f.capture(&content)?;
+        elements[grouped_index].0 = element;
     }
 
     let most_flat_elements = elements.clone();
@@ -882,12 +876,12 @@ pub(crate) fn write_grouped_arguments<'ast>(
         let mut joiner = f.join_with(&separator);
 
         for (element, _) in &most_flat_elements {
-            let Some(element) = element.clone() else {
+            let Some(element) = *element else {
                 continue;
             };
 
             joiner.entry(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                f.write_node(element.clone());
+                f.write_element(element);
                 Ok(())
             }));
         }
@@ -905,12 +899,12 @@ pub(crate) fn write_grouped_arguments<'ast>(
         let mut joiner = f.join_with(separator);
 
         for (index, (element, _)) in grouped_elements.iter().enumerate() {
-            let Some(element) = element.clone() else {
+            let Some(element) = *element else {
                 continue;
             };
 
             let entry = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                f.write_node(element.clone());
+                f.write_element(element);
                 Ok(())
             });
 
@@ -988,7 +982,7 @@ pub(crate) fn is_function_composition_args(
 /// Format precomputed call argument elements in explicit broken-out layout.
 fn format_all_elements_broken_out<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    elements: &[(Option<FirNode<'ast>>, usize)],
+    elements: &[(Option<FirElement<'ast>>, usize)],
     group_id: GroupId,
     disallow_trailing_separator: bool,
     expand: bool,
@@ -1009,11 +1003,11 @@ fn format_all_elements_broken_out<'ast>(
                         }
                     }
 
-                    let Some(element) = element.clone() else {
+                    let Some(element) = *element else {
                         continue;
                     };
 
-                    f.write_node(element);
+                    f.write_element(element);
                 }
 
                 if write_trailing_separator {

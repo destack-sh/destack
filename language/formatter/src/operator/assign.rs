@@ -19,8 +19,7 @@ use destack_dir::{
     TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
-    ArenaVec, Buffer, Format, FormatError, FormatNode as FirFormatNode, FormatNodes, FormatResult,
-    Formatter as FirFormatter, VecBuffer,
+    Format, FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, InstructionTape,
 };
 use destack_fir::prelude::{
     empty_line, format_with, group, hard_line_break, indent, indent_if_group_breaks,
@@ -520,37 +519,36 @@ fn assign_pattern_field_contains_expression(
     }
 }
 
-/// Buffer one assignment-expression left-hand side for layout selection.
-fn buffer_assignment_expression_layout_left<'ast>(
+/// Capture one assignment expression left side for layout selection.
+fn capture_assignment_expression_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: LocalNodeId<AssignPattern>,
     operator_span: Span,
-) -> FormatResult<(ArenaVec<'ast, FirFormatNode<'ast>>, bool, bool)> {
+) -> FormatResult<(InstructionTape<'ast>, bool, bool)> {
     let left_comments =
         assignment_left_trailing_comments(f.context(), f.context().span(left).end, operator_span);
 
-    let mut buffer = VecBuffer::new(f.state_mut());
-    let formatter = &mut FirFormatter::new(&mut buffer);
+    let mut formatter = FirFormatter::new(f.state_mut());
 
     // left side
-    write!(formatter, [left])?;
-    write_assignment_left_trailing_comments(formatter, &left_comments)?;
+    write!(&mut formatter, [left])?;
+    write_assignment_left_trailing_comments(&mut formatter, &left_comments)?;
 
-    let nodes = buffer.into_vec();
-
-    let may_break = nodes.may_directly_break();
+    // layout shape
+    let instructions = formatter.into_tape();
+    let may_break = instructions.may_directly_break();
 
     // assignment-expression layout is driven by the rhs
-    Ok((nodes, false, may_break))
+    Ok((instructions, false, may_break))
 }
 
-/// Buffer one declarator left-hand side for layout selection.
-fn buffer_declarator_layout_left<'ast>(
+/// Capture one declarator left side for layout selection.
+fn capture_declarator_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     declarator_id: LocalNodeId<Declarator>,
     pattern_id: LocalNodeId<Pattern>,
     type_id: Option<LocalNodeId<TypeExpression>>,
-) -> FormatResult<(ArenaVec<'ast, FirFormatNode<'ast>>, bool, bool)> {
+) -> FormatResult<(InstructionTape<'ast>, bool, bool)> {
     let left_comments = if let Some(operator_span) = f.context().tree.get_main_span(declarator_id) {
         let left_end = type_id
             .map(|type_id| f.context().span(type_id).end)
@@ -565,26 +563,25 @@ fn buffer_declarator_layout_left<'ast>(
         Vec::new()
     };
 
-    let mut buffer = VecBuffer::new(f.state_mut());
-    let formatter = &mut FirFormatter::new(&mut buffer);
+    let mut formatter = FirFormatter::new(f.state_mut());
 
     // pattern
-    write!(formatter, [pattern_id])?;
+    write!(&mut formatter, [pattern_id])?;
 
     // type annotation
     if let Some(type_id) = type_id {
-        write!(formatter, [token(":"), space()])?;
-        write_type_expression_with_inline_prefix_annotations(formatter, type_id)?;
+        write!(&mut formatter, [token(":"), space()])?;
+        write_type_expression_with_inline_prefix_annotations(&mut formatter, type_id)?;
     }
 
-    write_assignment_left_trailing_comments(formatter, &left_comments)?;
+    write_assignment_left_trailing_comments(&mut formatter, &left_comments)?;
 
-    let nodes = buffer.into_vec();
-
-    let may_break = nodes.may_directly_break();
+    // layout shape
+    let instructions = formatter.into_tape();
+    let may_break = instructions.may_directly_break();
 
     // declarator layout is driven by the rhs
-    Ok((nodes, false, may_break))
+    Ok((instructions, false, may_break))
 }
 
 /// Return comments that syntactically trail the left side before the assignment operator.
@@ -1101,15 +1098,15 @@ impl AssignmentLike {
         }
     }
 
-    /// Buffer the left-hand side for layout selection.
-    fn buffer_left<'ast>(
+    /// Capture the left side for layout selection.
+    fn capture_left<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
-    ) -> FormatResult<(ArenaVec<'ast, FirFormatNode<'ast>>, bool, bool)> {
+    ) -> FormatResult<(InstructionTape<'ast>, bool, bool)> {
         match self {
             AssignmentLike::Declarator(declarator_id) => {
                 let declarator = f.context().tree.get(declarator_id);
-                buffer_declarator_layout_left(f, declarator_id, declarator.pattern, declarator.ty)
+                capture_declarator_left(f, declarator_id, declarator.pattern, declarator.ty)
             }
             AssignmentLike::Expression { node_id, left, .. } => {
                 let operator_span =
@@ -1120,7 +1117,7 @@ impl AssignmentLike {
                             message: "assignment expression requires an operator span",
                         })?;
 
-                buffer_assignment_expression_layout_left(f, left, operator_span)
+                capture_assignment_expression_left(f, left, operator_span)
             }
         }
     }
@@ -1515,23 +1512,23 @@ impl AssignmentLike {
     fn format<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         // left side only
         let Some(_) = self.right(f.context()) else {
-            let (left_nodes, _, _) = self.buffer_left(f)?;
-            let left_nodes = left_nodes.collapse();
+            let (left_instructions, _, _) = self.capture_left(f)?;
+            let left = left_instructions.collapse();
 
-            if let Some(left_nodes) = left_nodes {
-                f.write_node(left_nodes);
+            if let Some(left) = left {
+                f.write_element(left);
             }
 
             return Ok(());
         };
 
         // buffered left side
-        let (left_nodes, is_left_short, left_may_break) = self.buffer_left(f)?;
+        let (left_instructions, is_left_short, left_may_break) = self.capture_left(f)?;
         let layout = self.layout(f, is_left_short, left_may_break)?;
-        let left_nodes = left_nodes.collapse();
+        let left = left_instructions.collapse();
         let formatted_left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-            if let Some(left_nodes) = &left_nodes {
-                f.write_node(left_nodes.clone());
+            if let Some(left) = &left {
+                f.write_element(*left);
             }
 
             Ok(())
@@ -1566,7 +1563,7 @@ pub(crate) fn write_assignment_like_right<'ast>(
 ) -> FormatResult<()> {
     match layout {
         AssignmentLikeLayout::Fluid => {
-            let group_id = f.group_id("assignment_like");
+            let group_id = f.group_id();
 
             write!(
                 f,

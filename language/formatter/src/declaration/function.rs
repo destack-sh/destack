@@ -56,18 +56,18 @@ where
         }
 
         // cached
-        if let Some(cached) = f.context().cached_node(&self.key) {
-            f.write_node(cached);
+        if let Some(cached) = f.context().cached_element(&self.key) {
+            f.write_element(cached);
             return Ok(());
         }
 
         // fresh
-        let Some(node) = f.capture(&self.content)? else {
+        let Some(element) = f.capture(&self.content)? else {
             return Ok(());
         };
 
-        f.context_mut().cache_node(&self.key, node.clone());
-        f.write_node(node);
+        f.context_mut().cache_element(&self.key, element);
+        f.write_element(element);
 
         Ok(())
     }

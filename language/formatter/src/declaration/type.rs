@@ -628,16 +628,16 @@ pub(crate) fn format_class_declaration<'ast>(
                         let Some(content) = f.capture(&content)? else {
                             return Ok(());
                         };
-                        let flat_content = format_with({
-                            let content = content.clone();
-                            move |f: &mut DestackFormatter<'ast, '_>| {
-                                f.write_node(content.clone());
+                        let flat_content =
+                            format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                                f.write_element(content);
+
                                 Ok(())
-                            }
-                        });
+                            });
                         let expanded_content =
                             format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                                f.write_node(content.clone());
+                                f.write_element(content);
+
                                 Ok(())
                             });
 
@@ -732,7 +732,7 @@ pub(crate) fn format_class_declaration<'ast>(
             let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write!(f, [head, indent(&heritage)])
             });
-            let heritage_group_id = f.group_id("heritage");
+            let heritage_group_id = f.group_id();
 
             write!(
                 f,
@@ -967,7 +967,7 @@ pub(crate) fn format_interface_declaration<'ast>(
             let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write!(f, [head, indent(&heritage)])
             });
-            let heritage_group_id = f.group_id("heritage");
+            let heritage_group_id = f.group_id();
 
             write!(
                 f,

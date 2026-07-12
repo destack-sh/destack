@@ -6,7 +6,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Expression, GenericArgument, LocalNodeId, TreeAttribute, TreeAttributeValue, TreeChild,
 };
-use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{
     expand_parent, format_with, group, hard_line_break, soft_line_break, soft_line_break_or_space,
     soft_line_indent_or_space, space, token,

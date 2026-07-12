@@ -8,7 +8,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Expression, GenericArgument, LocalNodeId, NodeType, TypeExpression, TypeLiteral,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
     format_with, group, soft_block_indent, soft_line_break_or_space, space, token,
 };
