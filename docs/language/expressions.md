@@ -274,7 +274,7 @@ match (user) {
 }
 ```
 
-Computed object pattern keys must close to static terms when matching finite object-shaped values.
+Computed object pattern keys must close to static terms when matching closed object-shaped values.
 Dynamic computed keys are still valid against indexed sources, because those are resolved through the ordinary `Index` / `IndexSet` surface rather than through declared fields.
 
 ## Guards
@@ -547,9 +547,8 @@ padded satisfies Vector2;
 
 ### Interfaces
 
-As discussed in Types, structural interfaces keep normal TypeScript shape checking and mostly work exactly as expected: bare structural interface annotations are constraints, so `point: PointLike` behaves like an implicit `T: PointLike` parameter and is specialized for the concrete argument type.
+As discussed in Types, structural interfaces keep normal TypeScript shape checking and mostly work exactly as expected: bare structural interface annotations are constraints in checking positions and erase to the dynamic `Dynamic<T>` in storage positions.
 Because structural interfaces are satisfied by shape, writing `implements` on one is only an explicit declaration-site check.
-Erased interface values are spelled explicitly with `Dynamic<T>`.
 
 ```ds
 interface PointLike {
@@ -588,15 +587,14 @@ However, if `PointLike.x` were mutable, this conversion of `Point` to `PointLike
 
 ### Index Signatures
 
-Index signatures like `{ [index: string]: string }` (as in `Record<K, V>`) still work like structural constraints for object-shaped values, and can be satisfied with both fixed object shapes and types implementing `Index` for readonly / `IndexSet` for writable shapes.
-While Destack supports structural index signatures, the actual compiled shape must still be known, and so `Record`-like types _by themselves_ are not concrete (they're just constraints).
+Index signatures like `{ [index: string]: string }` (as in `Record<K, V>`) still work like structural constraints, and can be satisfied by closed object shapes _or_ by types implementing `Index` for readonly access and `IndexSet` for writes.
 
 ```ds
 interface Bag<T> {
     readonly [key: string]: T;
 }
 
-// finite object view
+// closed object view
 const counts: Bag<int32> = { apples: 3, oranges: 2 };
 
 function read<T>(bag: Bag<T>, key: string): T | undefined {
@@ -605,7 +603,7 @@ function read<T>(bag: Bag<T>, key: string): T | undefined {
 
 read(counts, "apples") satisfies int32 | undefined;
 
-// custom indexed containers use operator interfaces instead
+// growing keyed storage uses a represented collection
 const dynamicCounts = new Map<string, int32>();
 dynamicCounts.set("apples", 3);
 dynamicCounts.has("apples") satisfies boolean;

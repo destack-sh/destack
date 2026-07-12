@@ -184,7 +184,7 @@ if (value != undefined) {
 
 ## Lifetimes
 
-Lifetimes tie a borrow to its source, and in Destack they are just generics: `<comptime L: Lifetime>` parameters on `Borrowed<T, L>`, available to all the regular TypeScript-style type algebra and inference (including flow typing and narrowing).
+Lifetimes tie a borrow to its source, and in Destack they are "just" comptime parameters: `<comptime L: Lifetime>` parameters on `Borrowed<T, L>`, available to all the regular TypeScript-style type algebra and inference (including flow typing and narrowing).
 Like `Access`, `Space`, and `Place`, `Lifetime` is a kind of static _value_ rather than a type, which is why parameters over these forms always carry the `comptime` modifier.
 In practice they are spelled out in exactly one place - `declare` signatures - and inferred everywhere else, including from function bodies.
 
@@ -198,7 +198,8 @@ function first<T>(items: &[T]): &T {
 }
 ```
 
-Elided borrowed forms get hidden generic lifetime parameters in _all_ declarations, not just in function signatures.
+Elided borrowed forms complete the owning declaration with hidden generic lifetime parameters in _all_ declarations, not just in function signatures.
+Unlike structural constraints, this does not select a hidden concrete representation.
 
 ```ds
 // elided form
@@ -215,7 +216,7 @@ struct WorldView<comptime L1: Lifetime, comptime L2: Lifetime> {
 ```
 
 Because lifetimes are part of type inference, and type inference also analyzes method bodies, lifetime inference also derives from function bodies.
-Each elided borrow in the signature induces its own hidden lifetime parameter first, and the body then solves the return lifetime:
+Each elided borrow in the signature gets its own hidden lifetime parameter first, and the body then solves the return lifetime:
 
 ```ds
 // elided form

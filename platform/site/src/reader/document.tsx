@@ -73,9 +73,11 @@ function DocumentNavigation(props: DocumentNavigationProps) {
 
 /// Return the visual nesting of one manual chapter.
 function documentDepth(document: Document) {
-    const parts = document.path.split("/");
+    const segments = document.path.split("/");
+    const isDirectoryIndex = segments.at(-1) === "index.md";
+    const depth = segments.length - (isDirectoryIndex ? 2 : 1);
 
-    return parts.length > 1 && parts.at(-1) !== "index.md" ? "1" : "0";
+    return String(Math.max(0, depth));
 }
 
 type DocumentLocationProps = {

@@ -9,7 +9,7 @@ export const prerenderRoutes = [
     "/docs/language/types/",
     "/docs/language/expressions/",
     "/docs/language/memory/",
-    "/docs/runtime/",
-    "/docs/runtime/modules/",
-    "/docs/runtime/policy/"
+    "/docs/language/runtime/",
+    "/docs/language/runtime/modules/",
+    "/docs/language/runtime/policy/"
 ] as const;
