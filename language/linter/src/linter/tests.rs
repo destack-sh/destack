@@ -13,7 +13,7 @@ use destack_compiler::Compiler;
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, ScalarLiteral, Tree};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_repository::{
     DependencySetResolution, DestackLayoutOverride, Edit, Environment, LintCategory, LintSeverity,
     LinterOptions, Module, Profile, ProviderContext, ProviderError, ProviderResult, Ref,
@@ -212,7 +212,7 @@ fn anchor_dir_parsed(module_id: ModuleId, file: &File) -> DirParsed {
         aliases: Vec::new(),
         roots: Vec::new(),
         tokens: Vec::new(),
-        side_tokens: Vec::new(),
+        comments: Vec::new(),
         anchor_expression,
     };
 
@@ -227,16 +227,17 @@ fn parse_code_dir(
 ) -> DirParsed {
     let language_type = LanguageType::try_from(file.ty)
         .unwrap_or_else(|file_type| panic!("non-code file reached parser: {file_type:?}"));
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         file.clone(),
         language_type,
-        ParserTriviaMode::Documentation,
+        CommentRetention::All,
         Arc::clone(compiler.repository.string_pool()),
     );
     let expressions = parser.parse();
     context.emit_diagnostics(parser.diagnostics());
 
-    let (tokens, side_tokens) = parser.take_tokens();
+    let tokens = parser.take_tokens();
+    let comments = parser.take_comments();
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
 
     let parsed_file = DirParsedFile {
@@ -244,7 +245,7 @@ fn parse_code_dir(
         aliases: Vec::new(),
         roots: expressions,
         tokens,
-        side_tokens,
+        comments,
         anchor_expression,
     };
 
@@ -1561,7 +1562,7 @@ impl<'a> LintResult<'a> {
         // format context
         let side_span = parser.tree.decorator_span();
         let parents = NodeParentIndex::from_tree(&parser.tree);
-        let (tokens, side_tokens) = parser.take_token_spans();
+        let tokens = parser.take_token_spans();
         let strings = parser.publish_strings();
         let format_options = DestackFormatOptions::default();
         let context = DestackFormatContext::new(
@@ -1569,7 +1570,7 @@ impl<'a> LintResult<'a> {
             file.as_ref(),
             &parser.tree,
             &tokens,
-            &side_tokens,
+            parser.comments(),
             &side_span,
             strings,
             &parents,

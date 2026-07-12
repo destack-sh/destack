@@ -44,7 +44,7 @@ impl LintRule for NoEmpty {
             }
 
             // keep only blocks without code and without comments
-            if !block_is_empty_without_comment(ctx.dir.tree(), node_id) {
+            if !block_is_empty_without_comment(ctx.dir.tree(), ctx.comments(), node_id) {
                 continue;
             }
 
@@ -99,7 +99,7 @@ impl LintRule for NoEmpty {
             if *form != dir::MatchForm::Switch || !cases.is_empty() {
                 continue;
             }
-            if span_has_comment(ctx.dir.tree(), ctx.dir.get_span(expression_id)) {
+            if span_has_comment(ctx.comments(), ctx.dir.get_span(expression_id)) {
                 continue;
             }
 

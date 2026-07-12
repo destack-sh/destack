@@ -423,7 +423,7 @@ where
         last_item_span.end,
     );
 
-    if span_has_comment(ctx.dir.tree(), full_span) {
+    if span_has_comment(ctx.comments(), full_span) {
         return None;
     }
 

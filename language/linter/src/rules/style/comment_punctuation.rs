@@ -40,7 +40,9 @@ impl LintRule for CommentPunctuation {
         let meta = self.meta();
 
         // inline comments should not end with periods
-        for comment in ctx.dir.comments().iter().copied() {
+        let comment_count = ctx.comments().len();
+        for comment_index in 0..comment_count {
+            let comment = ctx.comments()[comment_index];
             if is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }
@@ -91,7 +93,9 @@ impl LintRule for CommentPunctuation {
         }
 
         // doc comments should end each prose line with punctuation
-        for comment in ctx.dir.comments().iter().copied() {
+        let comment_count = ctx.comments().len();
+        for comment_index in 0..comment_count {
+            let comment = ctx.comments()[comment_index];
             if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }

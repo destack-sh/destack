@@ -97,7 +97,7 @@ impl LintRule for NoLonelyIf {
                 .label("use `else if` instead");
 
                 // avoid rewrites when else block contains trivia
-                if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), else_span) {
+                if ctx.compute_fixes && !span_has_comment(ctx.comments(), else_span) {
                     let edits = ctx
                         .edit_builder()
                         .replace(else_span, lonely_text)

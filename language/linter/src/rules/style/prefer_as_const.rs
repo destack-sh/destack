@@ -168,7 +168,7 @@ fn declarator_literal_annotation_fix(
 
     // avoid rewriting commented declarators
     let declarator_span = ctx.dir.get_span(declarator_id);
-    if span_has_comment(ctx.dir.tree(), declarator_span) {
+    if span_has_comment(ctx.comments(), declarator_span) {
         return None;
     }
 
@@ -213,7 +213,7 @@ fn member_field_literal_annotation_fix(
 
     // avoid rewriting commented fields
     let member_span = ctx.dir.get_span(member_id);
-    if span_has_comment(ctx.dir.tree(), member_span) {
+    if span_has_comment(ctx.comments(), member_span) {
         return None;
     }
 

@@ -75,7 +75,7 @@ impl LintRule for PreferTemplate {
             .label("use template literal: `` `...${x}...` ``");
 
             // keep fix generation conservative for comments and unsupported numeric escapes
-            if !span_has_comment(ctx.dir.tree(), expression_span)
+            if !span_has_comment(ctx.comments(), expression_span)
                 && !concat_has_unsupported_numeric_escape(ctx, node_id)
             {
                 let template_body = concat_to_template_body(ctx, node_id);

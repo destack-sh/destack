@@ -157,7 +157,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
 
         // replace the full call expression
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment(self.ctx.dir.tree(), expression_span) {
+        if span_has_comment(self.ctx.comments(), expression_span) {
             return None;
         }
 

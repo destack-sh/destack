@@ -86,7 +86,7 @@ fn report_trailing_bare_return(
 
     // avoid deleting commented returns
     if ctx.compute_fixes
-        && !span_has_comment(ctx.dir.tree(), return_span)
+        && !span_has_comment(ctx.comments(), return_span)
         && !return_has_trailing_comment(ctx, return_span)
     {
         let edits = ctx.edit_builder().delete(return_span).into_patches();

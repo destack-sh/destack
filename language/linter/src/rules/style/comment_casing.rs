@@ -41,8 +41,6 @@ impl LintRule for CommentCasing {
 
         // non doc comments should start with lowercase
         let inline_comments: Vec<_> = ctx
-            .dir
-            .tree()
             .comments()
             .iter()
             .copied()
@@ -118,7 +116,9 @@ impl LintRule for CommentCasing {
         }
 
         // doc comments should start with uppercase
-        for comment in ctx.dir.comments().iter().copied() {
+        let comment_count = ctx.comments().len();
+        for comment_index in 0..comment_count {
+            let comment = ctx.comments()[comment_index];
             if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }

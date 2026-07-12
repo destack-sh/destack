@@ -175,7 +175,7 @@ fn empty_body_block_id(
     };
 
     // keep only empty uncommented blocks
-    if block_is_empty_without_comment(ctx.dir.tree(), *block_id) {
+    if block_is_empty_without_comment(ctx.dir.tree(), ctx.comments(), *block_id) {
         return Some(*block_id);
     }
 

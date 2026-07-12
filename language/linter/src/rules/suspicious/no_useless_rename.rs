@@ -248,7 +248,7 @@ fn useless_destructuring_rename_fix(
     default_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
 ) -> Option<LintFix> {
     // avoid touching commented nodes
-    if span_has_comment(ctx.dir.tree(), field_span) {
+    if span_has_comment(ctx.comments(), field_span) {
         return None;
     }
 
@@ -275,7 +275,7 @@ fn useless_dependency_item_rename_fix(
     item_span: Span,
 ) -> Option<LintFix> {
     // avoid touching commented items
-    if span_has_comment(ctx.dir.tree(), item_span) {
+    if span_has_comment(ctx.comments(), item_span) {
         return None;
     }
 

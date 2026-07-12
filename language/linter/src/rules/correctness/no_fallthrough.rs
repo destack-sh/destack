@@ -192,7 +192,7 @@ fn fallthrough_comment_between_cases(
     }
 
     // search all comments in the case gap for intent markers
-    ctx.dir.comments().iter().find_map(|comment| {
+    ctx.comments().iter().find_map(|comment| {
         let comment_span = comment.span;
         if comment_span.file != ctx.module.file_id {
             return None;

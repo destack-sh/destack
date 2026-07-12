@@ -48,7 +48,7 @@ impl LintRule for MaxSwitchCases {
             let case_count = cases
                 .iter()
                 .copied()
-                .filter(|case_id| switch_case_counts(ctx.dir.tree(), *case_id))
+                .filter(|case_id| switch_case_counts(ctx.dir.tree(), ctx.comments(), *case_id))
                 .count();
             if case_count > max_switch_cases {
                 let severity = ctx.get_effective_severity(meta, node_id);
@@ -72,7 +72,11 @@ impl LintRule for MaxSwitchCases {
 }
 
 /// Return true when one switch case counts toward the max-switch-cases limit.
-fn switch_case_counts(tree: &dir::Tree, case_id: dir::LocalNodeId<dir::MatchCase>) -> bool {
+fn switch_case_counts(
+    tree: &dir::Tree,
+    comments: &[dir::Comment],
+    case_id: dir::LocalNodeId<dir::MatchCase>,
+) -> bool {
     // resolve selector and skip default cases
     let case = tree.get(case_id);
     if case.selector().is_default() {
@@ -81,19 +85,24 @@ fn switch_case_counts(tree: &dir::Tree, case_id: dir::LocalNodeId<dir::MatchCase
 
     // require non-empty case body content
     match case {
-        dir::MatchCase::Expression { body, .. } => expression_has_case_content(tree, *body),
-        dir::MatchCase::Block { body, .. } => !block_is_empty_without_comment(tree, *body),
+        dir::MatchCase::Expression { body, .. } => {
+            expression_has_case_content(tree, comments, *body)
+        }
+        dir::MatchCase::Block { body, .. } => {
+            !block_is_empty_without_comment(tree, comments, *body)
+        }
     }
 }
 
 /// Return true when one case expression body has executable content.
 fn expression_has_case_content(
     tree: &dir::Tree,
+    comments: &[dir::Comment],
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);
     if let dir::Expression::Block(block_id) = expression {
-        return !block_is_empty_without_comment(tree, *block_id);
+        return !block_is_empty_without_comment(tree, comments, *block_id);
     }
 
     true
