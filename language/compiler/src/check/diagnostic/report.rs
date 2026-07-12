@@ -528,7 +528,7 @@ impl CheckState<'_> {
         if let Some(variable) = variable {
             for (side, bound) in self.variable_bound_list(variable)? {
                 let bound_origin = self.cause_origin(bound.cause);
-                let (_, bound_anchor) = self.origin_diagnostic_anchor(bound_origin)?;
+                let (_, bound_anchor) = self.origin_node_anchor(bound_origin)?;
                 if bound_anchor == anchor {
                     continue;
                 }

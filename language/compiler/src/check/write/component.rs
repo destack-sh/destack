@@ -12,8 +12,9 @@ impl CheckState<'_> {
         mut self,
     ) -> CompilerResult<(Vec<DirCheckedComponentEntry>, DiagnosticCollection)> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        let failed_applications = self.failed_generic_applications()?;
         for module in modules.iter().copied() {
-            self.write_module(module)?;
+            self.write_module(module, &failed_applications)?;
         }
 
         let diagnostics = self.collect_diagnostics()?;

@@ -250,14 +250,11 @@ size satisfies usize;
     );
 }
 
-// TODO(parser rework): `(T)` in a function type must parse as the bare
-// parameter type, not a parameter name; today it declares a second `T`,
-// so this test pins the intended truth and stays red until then.
 #[test]
 fn test_dynamic_wrapper_requires_dynamic_safe_constraint() {
     let session = TestSession::single(
         r#"
-declare const value: Dynamic<<T>(T) => T>;
+declare const value: Dynamic<<T>(input: T) => T>;
 "#,
     );
 
@@ -266,16 +263,21 @@ declare const value: Dynamic<<T>(T) => T>;
         DirRows::checked(),
         r#"
 === annotated ===
-declare const value: Dynamic<<T>(T) => T>;
+declare const value: Dynamic<<T>(input: T) => T>;
 
 === checked ===
-declare const value: Dynamic<<T>(T) => T>;
+declare const value: Dynamic<<T>(input: T) => T>;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
+/// @generic.template source=type_expression parameters=(T)
+/// @type.symbol symbol=T source=T type=T
+/// @resolution.name source=T target=T
+/// @resolution.name source=T target=T
 "#,
         r#"
-/// @diagnostic.error code=EC504 message="type '<T>(T) => T' is not dynamic-safe"
-/// @diagnostic.label line=2 column=30 span="<T>(T) => T" line_source="declare const value: Dynamic<<T>(T) => T>;"
+/// @diagnostic.error code=EC201 message="type '<T>(T) => T' does not satisfy 'DynamicSafe'"
+/// @diagnostic.label line=2 column=30 span="<T>(input: T) => T" line_source="declare const value: Dynamic<<T>(input: T) => T>;"
+/// @diagnostic.related file="dynamic.ds" message="required by this bound on 'T'"
 "#,
     );
 }

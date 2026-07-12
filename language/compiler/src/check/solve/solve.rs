@@ -234,7 +234,6 @@ impl CheckState<'_> {
             Constraint::Type(constraint) => self.check_type_constraint(
                 constraint.cause,
                 constraint.relation,
-                constraint.subject,
                 constraint.source,
                 constraint.target,
             )?,

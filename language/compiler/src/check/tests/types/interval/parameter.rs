@@ -96,15 +96,13 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
 }
 
 type TooLarge = InlineBuffer<uint8, 4097>;
-/// @type.symbol symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" type=InlineBuffer<uint8, 4097>
-/// @definition.type symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" value=InlineBuffer<uint8, 4097>
+/// @type.symbol symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" type=<error>
+/// @definition.type symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" value=<error>
 /// @resolution.name source=InlineBuffer target=InlineBuffer
-
-/// @generic.instance id="InlineBuffer<uint8, 4097>" template=InlineBuffer arguments=(uint8, 4097)
 "#,
         r#"
 /// @diagnostic.error code=EC201 message="type '4097' does not satisfy '0..=4096'"
-/// @diagnostic.label line=6 column=17 span="InlineBuffer" line_source="type TooLarge = InlineBuffer<uint8, 4097>;"
+/// @diagnostic.label line=6 column=37 span="4097" line_source="type TooLarge = InlineBuffer<uint8, 4097>;"
 /// @diagnostic.related line=2 column=33 span="N" line_source="struct InlineBuffer<T, comptime N: 0..=4096> {" message="required by this bound on 'N'"
 "#,
     );

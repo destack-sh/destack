@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::CompilerResult;
 use crate::check::CheckState;
+use crate::{CompilerError, CompilerResult};
 
 /// Nesting depth after which formatted types elide their details.
 const FORMAT_DEPTH: usize = 4;
@@ -188,8 +188,9 @@ impl CheckState<'_> {
                     Some(return_type) => self.format_depth_at(module, return_type, next)?,
                     None => "void".to_string(),
                 };
+                let generic = self.format_generic_parameters_at(module, function.template, next)?;
 
-                format!("({}) => {result}", parameters.join(", "))
+                format!("{generic}({}) => {result}", parameters.join(", "))
             }
             dir::Type::Function(function) => {
                 self.format_depth_at(module, function.signature, next)?
@@ -259,6 +260,68 @@ impl CheckState<'_> {
         }
 
         Ok(formatted.join(", "))
+    }
+
+    /// Format one callable's generic parameters relative to an optional source module.
+    fn format_generic_parameters_at(
+        &self,
+        module: Option<ModuleId>,
+        template: Option<dir::GlobalGenericTemplateId>,
+        depth: usize,
+    ) -> CompilerResult<String> {
+        let Some(template_id) = template else {
+            return Ok(String::new());
+        };
+        let template =
+            self.generic_template(template_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("callable template {template_id:?} is missing"),
+                })?;
+
+        // render declared parameters in template order
+        let mut parameters = Vec::new();
+        for parameter in &template.parameters {
+            let parameter = parameter.into_global(template_id.module_id);
+            let binding =
+                self.generic_parameter(parameter)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("callable parameter {parameter:?} is missing"),
+                    })?;
+
+            // render modifiers from inside out
+            let mut label = match binding.key {
+                dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
+                dir::GenericParameterKey::Generated(name) => self.text(name),
+            };
+            if binding.is_variadic {
+                label = format!("...{label}");
+            }
+            if binding.is_const {
+                label = format!("const {label}");
+            }
+            if binding.is_comptime {
+                label = format!("comptime {label}");
+            }
+            if let Some(variance) = binding.variance {
+                label = format!("{} {label}", variance.as_str());
+            }
+
+            // render the declared bound and default
+            if let Some(constraint) = binding.constraint {
+                let constraint = self.format_depth_at(module, constraint, depth)?;
+                label = format!("{label}: {constraint}");
+            }
+            if let Some(default) = binding.default {
+                let default = self.format_depth_at(module, default, depth)?;
+                label = format!("{label} = {default}");
+            }
+            parameters.push(label);
+        }
+        if parameters.is_empty() {
+            return Ok(String::new());
+        }
+
+        Ok(format!("<{}>", parameters.join(", ")))
     }
 
     /// Format one function pointer type relative to an optional source module.
