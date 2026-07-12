@@ -23,7 +23,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, RangeEnd, UnaryOperator,
 };
-use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, soft_block_indent, space, token};
 use destack_fir::write;
 

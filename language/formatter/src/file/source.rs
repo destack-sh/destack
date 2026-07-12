@@ -1,5 +1,5 @@
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_fir::format::{Buffer, FormatResult, copied_text};
+use destack_fir::format::{FormatResult, copied_text};
 use destack_fir::prelude::{empty_line, hard_line_break};
 use destack_fir::write;
 use destack_source::Span;

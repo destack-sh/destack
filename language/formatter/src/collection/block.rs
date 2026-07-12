@@ -2,7 +2,7 @@ use crate::DestackFormatter;
 use crate::annotation::FormatLeadingComments;
 use crate::file::{ignore_ranges_for_nodes, write_source_span};
 use destack_dir::{LocalNodeId, Node, Tree, TreeStore};
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{empty_line, hard_line_break};
 use destack_fir::write;
 

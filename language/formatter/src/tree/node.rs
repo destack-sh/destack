@@ -19,7 +19,7 @@ use destack_dir::{
     Argument, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, TreeAttribute,
     TreeAttributeValue, TreeChild,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, line_suffix_boundary, soft_block_indent,
     text, token,

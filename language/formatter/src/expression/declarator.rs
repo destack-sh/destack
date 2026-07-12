@@ -2,7 +2,7 @@ use crate::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::operator::format_declarator_assignment;
 use crate::{DestackFormatter, FormatNode};
 use destack_dir::{Declarator, LocalNodeId, Tree};
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::write;
 
 /// Format one declarator through the shared assignment-like owner.

@@ -21,7 +21,7 @@ use crate::declaration::{
 };
 use crate::tree::tree_control_child_should_expand;
 use destack_dir::{Catch, Comment, Expression, IfForm, LocalNodeId, TokenType};
-use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
 

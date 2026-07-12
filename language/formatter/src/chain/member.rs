@@ -9,7 +9,7 @@ use destack_dir::{
     Argument, Declarator, Expression, GenericArgument, IfForm, LocalNodeId, NodeType,
     PostfixPosition, ScalarLiteral, Tree,
 };
-use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;
 

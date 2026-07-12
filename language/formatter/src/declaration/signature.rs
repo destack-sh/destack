@@ -3,7 +3,7 @@ use crate::annotation::{
     prefix_annotations,
 };
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
-use crate::context::PreparedFormat;
+use crate::context::CapturedFormat;
 use crate::expression::{TypeExpressionLayout, write_type_expression_node};
 use crate::file::write_source_span;
 use crate::operator::{
@@ -86,7 +86,7 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
             .tree
             .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("generic parameter constraint should have a type span");
-        let group_id = f.group_id("constraint");
+        let group_id = f.group_id();
         let leading_comments = f
             .context()
             .comments()
@@ -115,7 +115,7 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
 
     // default
     if let Some(default) = default {
-        let group_id = f.group_id("default");
+        let group_id = f.group_id();
 
         write!(
             f,
@@ -396,7 +396,7 @@ pub(crate) fn should_group_parameters_with_return_type<'ast>(
     generic_parameters: &[LocalNodeId<GenericParameter>],
     parameter_count: usize,
     return_type: Option<LocalNodeId<TypeExpression>>,
-    formatted_return_type: &PreparedFormat<'ast>,
+    formatted_return_type: &CapturedFormat<'ast>,
 ) -> FormatResult<bool> {
     match generic_parameters {
         [] => {}
@@ -437,9 +437,9 @@ where
     P: Format<'ast, DestackFormatContext<'ast>>,
     R: Format<'ast, DestackFormatContext<'ast>>,
 {
-    let format_parameter_head = PreparedFormat::new(f, format_parameter_head)?;
-    let format_parameters = PreparedFormat::new(f, format_parameters)?;
-    let format_return_type = PreparedFormat::new(f, format_return_type)?;
+    let format_parameter_head = CapturedFormat::new(f, format_parameter_head)?;
+    let format_parameters = CapturedFormat::new(f, format_parameters)?;
+    let format_return_type = CapturedFormat::new(f, format_return_type)?;
 
     let should_group_parameters = should_expand_parameters
         || should_group_parameters_with_return_type(
@@ -509,7 +509,7 @@ fn write_named_parameter<'ast>(
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let left = PreparedFormat::new(
+    let left = CapturedFormat::new(
         f,
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
             // name
@@ -547,7 +547,7 @@ fn write_pattern_parameter<'ast>(
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let left = PreparedFormat::new(
+    let left = CapturedFormat::new(
         f,
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
             // pattern

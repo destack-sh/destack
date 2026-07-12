@@ -8,7 +8,7 @@ mod source;
 mod token;
 mod tree;
 
-pub use self::cache::*;
+pub(crate) use self::cache::*;
 pub use self::comment::*;
 pub use self::context::*;
 pub use self::index::*;

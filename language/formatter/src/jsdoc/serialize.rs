@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use destack_dir::Comment;
-use destack_fir::format::{Buffer, Format, FormatResult, Formatter};
+use destack_fir::format::{Format, FormatResult, Formatter};
 use destack_fir::prelude::{copied_text, hard_line_break, space, token};
 use destack_fir::write;
 use destack_repository::{JsdocCommentLineStrategy, JsdocOptions, QuoteStyle};

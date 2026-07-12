@@ -2,7 +2,7 @@ use crate::context::FormatNodeWithoutTrailingComments;
 use crate::jsdoc::format_jsdoc_comment;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{Comment, CommentContent, LocalNodeId, Node, Tree, TreeStore};
-use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
+use destack_fir::format::{Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
     block_indent, copied_text, empty_line, expand_parent, format_with, group, line_suffix,
     soft_block_indent, soft_line_break_or_space, space, text,

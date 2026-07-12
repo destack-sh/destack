@@ -31,7 +31,7 @@ use destack_dir::{
     RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression,
     TypeLiteral, TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
-use destack_fir::format::{Buffer, FormatNode as FirNode, FormatNodes, FormatResult};
+use destack_fir::format::{FormatElement as FirElement, FormatLayout, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -955,7 +955,7 @@ fn prepare_inline_type_object<'ast>(
     node_id: LocalNodeId<TypeExpression>,
     members: &[LocalNodeId<TypeMember>],
     layout: TypeExpressionLayout,
-) -> FormatResult<Option<FirNode<'ast>>> {
+) -> FormatResult<Option<FirElement<'ast>>> {
     if layout.object_body != ObjectTypeBodyLayout::Local {
         return Ok(None);
     }
@@ -968,20 +968,20 @@ fn prepare_inline_type_object<'ast>(
         format_with(|f: &mut DestackFormatter<'ast, '_>| write_inline_type_object(f, members[0]));
 
     let snapshot = f.context().comments().snapshot();
-    let node = f.capture(&content);
+    let element = f.capture(&content);
     f.context_mut().comments_mut().restore(snapshot);
-    let node = node?;
+    let element = element?;
 
-    let Some(node) = node else {
+    let Some(element) = element else {
         return Ok(None);
     };
 
-    let Some(width) = node.single_line_width() else {
+    let Some(width) = element.single_line_width() else {
         return Ok(None);
     };
 
     if width <= f.context().options.line_width as u32 {
-        Ok(Some(node))
+        Ok(Some(element))
     } else {
         Ok(None)
     }
@@ -1347,7 +1347,7 @@ pub(crate) fn write_union_type<'ast>(
     let needs_parentheses = parent_needs_parentheses && !is_in_explicit_parentheses;
     let chain_head = union_chain_head(f.context(), format_node_id, format_elements.len());
     let only_type = chain_head.element_count == 1;
-    let content_group_id = f.group_id("union_type");
+    let content_group_id = f.group_id();
 
     // grouped content
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -2842,7 +2842,7 @@ fn write_type_expression_body_inner<'ast>(
 
             // direct inline body
             if let Some(node) = prepare_inline_type_object(f, node_id, members, layout)? {
-                f.write_node(node);
+                f.write_element(node);
                 return Ok(());
             }
 

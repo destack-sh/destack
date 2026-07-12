@@ -25,7 +25,7 @@ use destack_dir::{
     MethodAbstraction, Mutability, Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree,
     TreeStore, TypeExpression, Visibility, is_identifier_compat,
 };
-use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
+use destack_fir::format::{FormatLayout, FormatResult, Formatter as FirFormatter, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_repository::{QuoteProperty, QuoteStyle};
@@ -407,9 +407,9 @@ fn format_object_property_value<'ast>(
     }
 
     // left side
-    let mut buffer = VecBuffer::new(f.state_mut());
+    let mut formatter = FirFormatter::new(f.state_mut());
     write_field_like_left(
-        &mut FirFormatter::new(&mut buffer),
+        &mut formatter,
         node_id,
         key,
         None,
@@ -425,17 +425,17 @@ fn format_object_property_value<'ast>(
         false,
         force_quote_keys,
     )?;
-    let left_nodes = buffer.into_vec();
-    let left_may_break = left_nodes.will_break();
-    let is_left_short = left_nodes
+    let left_instructions = formatter.into_tape();
+    let left_may_break = left_instructions.will_break();
+    let is_left_short = left_instructions
         .single_line_width()
         .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
     let layout = field_like_layout(f, value, is_left_short, left_may_break)?;
 
-    let left = left_nodes.collapse();
+    let left = left_instructions.collapse();
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         if let Some(left) = &left {
-            f.write_node(left.clone());
+            f.write_element(*left);
         }
 
         Ok(())
@@ -453,7 +453,7 @@ fn format_object_property_value<'ast>(
 
         match layout {
             FieldLikeLayout::Fluid => {
-                let group_id = f.group_id("object_property_rhs");
+                let group_id = f.group_id();
                 write!(
                     f,
                     [
@@ -604,9 +604,9 @@ where
     };
 
     // left side
-    let mut buffer = VecBuffer::new(f.state_mut());
+    let mut formatter = FirFormatter::new(f.state_mut());
     write_field_like_left(
-        &mut FirFormatter::new(&mut buffer),
+        &mut formatter,
         node_id,
         key,
         value,
@@ -622,17 +622,17 @@ where
         is_definite,
         force_quote_keys,
     )?;
-    let left_nodes = buffer.into_vec();
-    let left_may_break = left_nodes.will_break();
-    let is_left_short = left_nodes
+    let left_instructions = formatter.into_tape();
+    let left_may_break = left_instructions.will_break();
+    let is_left_short = left_instructions
         .single_line_width()
         .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
     let layout = field_like_layout(f, default, is_left_short, left_may_break)?;
 
-    let left = left_nodes.collapse();
+    let left = left_instructions.collapse();
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         if let Some(left) = &left {
-            f.write_node(left.clone());
+            f.write_element(*left);
         }
 
         Ok(())
@@ -650,7 +650,7 @@ where
 
         match layout {
             FieldLikeLayout::Fluid => {
-                let group_id = f.group_id("field_like_rhs");
+                let group_id = f.group_id();
                 write!(
                     f,
                     [

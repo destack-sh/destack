@@ -4,7 +4,7 @@ use destack_dir::{
     Argument, BinaryOperator, Expression, IfForm, LocalNodeId, MatchForm, Member, NodeType,
     OperatorPrecedence, Property,
 };
-use destack_fir::format::{Buffer, Format, FormatResult, Formatter as FirFormatter};
+use destack_fir::format::{Format, FormatResult, Formatter as FirFormatter};
 use destack_fir::prelude::{
     format_with, group, indent, soft_block_indent, soft_line_break_or_space,
     soft_line_indent_or_space, space,
@@ -748,7 +748,7 @@ pub(crate) fn format_binary_expression<'ast>(
         sides.len()
     };
     let tail = &sides[1..tail_end];
-    let group_id = f.group_id("logicalChain");
+    let group_id = f.group_id();
 
     let format_non_tree_parts = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write!(
