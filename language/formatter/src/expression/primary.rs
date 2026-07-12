@@ -12,11 +12,13 @@ use crate::context::FormatNodeWithoutTrailingComments;
 use crate::operator::format_generic_argument_list;
 use crate::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Argument, Expression, Keyword, LocalNodeId, TokenSpan, TokenType, Tree};
+use destack_dir::{
+    Argument, Expression, Keyword, LocalNodeId, TokenSpan, TokenType, Tree, TypeExpression,
+};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, soft_block_indent, soft_line_break_or_space,
-    text, token,
+    space, text, token,
 };
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -49,6 +51,32 @@ fn argument_range_is_inline(
     }
 
     !context.has_newline(Span::new(first_span.file, first_span.start, last_span.end))
+}
+
+/// Return whether one type value needs the `type` keyword to stay in type space.
+fn type_value_needs_keyword(tree: &Tree, value: LocalNodeId<TypeExpression>) -> bool {
+    match tree.get(value) {
+        // these prefix keywords enter type space without an explicit marker
+        TypeExpression::Readonly { .. }
+        | TypeExpression::Local { .. }
+        | TypeExpression::Shared { .. }
+        | TypeExpression::KeyOf { .. } => false,
+        // relation operators promote their bare head into type space
+        TypeExpression::Conditional { .. }
+        | TypeExpression::Extends { .. }
+        | TypeExpression::Implements { .. } => false,
+
+        // infix types keep the space their head element claims
+        TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+            match elements.first() {
+                Some(first) => type_value_needs_keyword(tree, *first),
+                None => true,
+            }
+        }
+
+        // preserve type space conservatively for every other head
+        _ => true,
+    }
 }
 
 /// Return whether one primary expression serializes empty infix annotations as postfix only.
@@ -419,7 +447,12 @@ pub(crate) fn format_primary_expression<'ast>(
 
         // type expression
         Expression::Type { value } => {
-            write!(f, [value])?;
+            // restore type space for ambiguous heads
+            if type_value_needs_keyword(tree, *value) {
+                write!(f, [Keyword::Type, space(), value])?;
+            } else {
+                write!(f, [value])?;
+            }
         }
 
         // inference hole

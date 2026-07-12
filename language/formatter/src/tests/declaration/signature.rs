@@ -50,6 +50,7 @@ fn test_format_parameter_with_default() {
     );
 }
 
+#[test]
 fn test_format_receiver_shorthand() {
     assert_format_program_roundtrip_with_file_type(
         r#"type PlainVisitor = (this, value: Node) => void

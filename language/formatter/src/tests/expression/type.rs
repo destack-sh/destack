@@ -166,6 +166,48 @@ value satisfies Dynamic<{}>;
     );
 }
 
+/// First-class type values should retain only the markers required for round-trip parsing.
+#[test]
+fn test_format_type_value_markers() {
+    assert_format_program!(
+        r#"const reference=type User
+const object=type {}
+const tuple=type (string,int32)
+const literal=type string
+const scalar=type 1
+const hole=type _
+const prefix=type readonly User
+const key=type keyof User
+const query=type typeof user
+const borrowed=type &User
+const owned=type ^User
+const pointer=type *User
+const negative=type !User
+const relation=type User extends Entity
+const referenceUnion=type User|string
+const literalUnion=type string|User
+"#,
+        r#"const reference = type User;
+const object = type {};
+const tuple = type (string, int32);
+const literal = type string;
+const scalar = type 1;
+const hole = type _;
+const prefix = readonly User;
+const key = keyof User;
+const query = type typeof user;
+const borrowed = type &User;
+const owned = type ^User;
+const pointer = type *User;
+const negative = type !User;
+const relation = User extends Entity;
+const referenceUnion = type User | string;
+const literalUnion = type string | User;
+"#,
+        FileType::Destack
+    );
+}
+
 /// Construct signatures should keep a space before parameters.
 #[test]
 fn test_format_type_construct_signature_spacing() {
@@ -187,6 +229,26 @@ fn test_format_type_const_generic_parameter() {
         r#"type Fn = <const T>(value: T) => T
 "#,
         r#"type Fn = <const T>(value: T) => T;
+"#,
+        FileType::Destack
+    );
+}
+
+/// Array tuples should remain distinct from slices and fixed arrays.
+#[test]
+fn test_format_array_tuple_types() {
+    assert_format_program!(
+        r#"type Pair = [string,int32]
+type Singleton = [string,]
+type Empty = []
+type Slice = [string]
+type Fixed = [string;5]
+"#,
+        r#"type Pair = [string, int32];
+type Singleton = [string,];
+type Empty = [];
+type Slice = [string];
+type Fixed = [string; 5];
 "#,
         FileType::Destack
     );
