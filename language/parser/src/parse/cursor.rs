@@ -175,18 +175,20 @@ impl TokenCursor {
     /// Record the current token as consumed.
     #[inline(always)]
     fn consume_current(&mut self) {
-        self.record_tree_text_range();
-
         let current = self.current;
+
+        // record only parser-visible replacements of ordinary tokenization
+        if !self.is_current_ordinary && !current.is(TokenType::End) {
+            self.record_tree_text_range();
+            self.record_edit(current);
+        }
+
+        // advance the parser-visible source boundary
         self.previous = current;
         self.previous_end = current.end();
         if !current.is(TokenType::End) {
             #[cfg(test)]
             self.consumed.push(current);
-
-            if !self.is_current_ordinary {
-                self.record_edit(current);
-            }
         }
     }
 
@@ -227,37 +229,32 @@ impl TokenCursor {
     /// Replace the current division token with one regex literal token.
     pub(crate) fn reclassify_regex(&mut self, source: &str) -> Token {
         let current = self.current;
+        let bytes = source.as_bytes();
         let mut index = current.start() as usize + 1;
         let mut is_escaped = false;
         let mut is_character_class = false;
 
         // find the unescaped closing slash
-        while index < source.len() {
-            let Some(character) = source[index..].chars().next() else {
-                break;
-            };
-            index += character.len_utf8();
+        while index < bytes.len() {
+            let byte = bytes[index];
+            index += 1;
 
             if is_escaped {
                 is_escaped = false;
-            } else if character == '\\' {
+            } else if byte == b'\\' {
                 is_escaped = true;
-            } else if is_character_class && character == ']' {
+            } else if is_character_class && byte == b']' {
                 is_character_class = false;
-            } else if !is_character_class && character == '[' {
+            } else if !is_character_class && byte == b'[' {
                 is_character_class = true;
-            } else if !is_character_class && character == '/' {
+            } else if !is_character_class && byte == b'/' {
                 break;
             }
         }
 
         // consume ASCII flags
         let flags_start = index;
-        while source
-            .as_bytes()
-            .get(index)
-            .is_some_and(u8::is_ascii_alphabetic)
-        {
+        while bytes.get(index).is_some_and(u8::is_ascii_alphabetic) {
             index += 1;
         }
 
