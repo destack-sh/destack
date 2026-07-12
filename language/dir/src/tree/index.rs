@@ -91,8 +91,6 @@ pub struct TreeCapacity {
     pub expressions: usize,
     /// The expected type expression count.
     pub type_expressions: usize,
-    /// The expected comment count.
-    pub comments: usize,
 }
 
 impl TreeCapacity {
@@ -100,7 +98,6 @@ impl TreeCapacity {
     pub fn nodes(nodes: usize) -> Self {
         Self {
             nodes,
-            comments: nodes / 16,
             ..Self::default()
         }
     }
@@ -111,8 +108,6 @@ impl TreeCapacity {
 pub struct TreeMark {
     /// The global node id cursor.
     pub(crate) next_global_id: u32,
-    /// The comment list length.
-    pub(crate) comments_len: usize,
     /// The decorator attachment log length.
     pub(crate) decorator_attachments_len: usize,
 }
