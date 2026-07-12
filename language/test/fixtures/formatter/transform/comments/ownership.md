@@ -132,9 +132,10 @@ export type Value = /** keep-doc
 ```
 
 ```ds expected
-export type Value = /** keep-doc
- */
-{ ok: true } | { ok: false; value: bigint | null };
+export type Value =
+    /** keep-doc
+     */
+    { ok: true } | { ok: false; value: bigint | null };
 ```
 
 ## Variable Declarations

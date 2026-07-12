@@ -11,7 +11,7 @@ pub(super) struct FormatterTiming {
     pub(super) diagnostics: Duration,
     /// Local string publication.
     pub(super) strings: Duration,
-    /// Token span, side token span, and side span materialization.
+    /// Semantic token and decorator span materialization.
     pub(super) token_spans: Duration,
     /// Parent index construction.
     pub(super) parents: Duration,

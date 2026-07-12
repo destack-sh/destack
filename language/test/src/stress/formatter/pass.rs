@@ -6,7 +6,7 @@ use destack_dir::{Expression, LocalNodeId};
 use destack_fir::format as fir_format;
 use destack_fir::format::Allocator;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserTriviaMode};
+use destack_parser::{CommentRetention, Parser};
 use destack_repository::FormatterOptions;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, FileId, LanguageType, Uri};
 
@@ -41,10 +41,10 @@ pub(super) fn format_pass(
     // parse source
     let parse_start = Instant::now();
     let file = Arc::new(stress_file(fixture, source)?);
-    let mut parser = Parser::lex_file_with_trivia(
+    let mut parser = Parser::lex_file_with_comment_retention(
         file.clone(),
         language_type,
-        ParserTriviaMode::Full,
+        CommentRetention::All,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -58,9 +58,9 @@ pub(super) fn format_pass(
         return Err(format_parse_error(&diagnostics));
     }
 
-    // materialize token spans and side spans
+    // materialize token spans and decorator spans
     let token_spans_start = Instant::now();
-    let (tokens, side_tokens) = parser.take_token_spans();
+    let tokens = parser.take_token_spans();
     let side_span = parser.tree.decorator_span();
     let token_spans_elapsed = token_spans_start.elapsed();
 
@@ -86,7 +86,7 @@ pub(super) fn format_pass(
         file.as_ref(),
         &parser.tree,
         &tokens,
-        &side_tokens,
+        parser.comments(),
         &side_span,
         strings,
         parser.tree.parents(),
