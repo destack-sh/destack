@@ -11,6 +11,7 @@
     --theme-muted-line: #dddddd;
     --theme-accent: #9f3517;
     --theme-ring: #75675e;
+    --theme-nebula: #3f7775;
     --theme-lake: #126269;
     --theme-lake-light: #20b2aa;
     --syntax-keyword: #a13a2a;
@@ -40,6 +41,7 @@
     --theme-accent: #e06b47;
     --theme-frame: #777777;
     --theme-ring: #b5a59a;
+    --theme-nebula: #65aaa5;
     --theme-lake: #20b2aa;
     --theme-lake-light: #5eead4;
     --theme-rust: #aaaaaa;
@@ -357,11 +359,34 @@ button {
 }
 
 .home-hero {
+    position: relative;
     display: grid;
     min-height: 0;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
     overflow: hidden;
+}
+
+.ascii-nebula {
+    position: absolute;
+    z-index: 0;
+    top: 0.25rem;
+    right: -8ch;
+    width: 72ch;
+    margin: 0;
+    color: var(--theme-nebula);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.2;
+    opacity: 0.2;
+    pointer-events: none;
+    transition: opacity 120ms linear, text-shadow 120ms linear;
+    white-space: pre;
+}
+
+.home-hero:has(.ascii-planet__art:hover, .ascii-lake:hover) .ascii-nebula {
+    opacity: 0.45;
+    text-shadow: 0 0 0.65rem color-mix(in srgb, var(--theme-nebula) 40%, transparent);
 }
 
 .home-hero__heading {
@@ -492,6 +517,12 @@ button {
     -webkit-text-fill-color: transparent;
 }
 
+.ascii-planet__stars {
+    color: var(--theme-soft);
+    font-weight: 500;
+    opacity: 0.6;
+}
+
 .ascii-planet__ring {
     color: var(--theme-ring);
     text-shadow: 0 1px 0 var(--theme-page);
@@ -560,6 +591,10 @@ button {
     .ascii-planet__art {
         animation: none;
     }
+
+    .ascii-nebula {
+        transition: none;
+    }
 }
 
 @media (max-width: 900px) {
@@ -570,6 +605,10 @@ button {
     .home-hero__body {
         grid-template-columns: minmax(0, 1fr);
         gap: 2rem;
+    }
+
+    .ascii-nebula {
+        display: none;
     }
 
     .ascii-planet__art {
