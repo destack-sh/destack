@@ -67,7 +67,7 @@ export struct IoError {
 export extension of IoError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
-        MaybeOwned.borrowed(&readonly this.message ?? "I/O error")
+        MaybeOwned.borrowed(this.message ?? "I/O error")
     }
 
     /// Return the underlying cause.
