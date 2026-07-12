@@ -1,54 +1,53 @@
 mod arena;
 pub mod argument;
-pub mod buffer;
 pub mod builder;
 pub mod context;
 pub mod document;
 pub mod error;
 pub mod formatter;
 pub mod group;
-pub mod label;
+pub mod instruction;
 pub mod macros;
-pub mod node;
 pub mod options;
+pub mod rewrite;
 pub mod sizing;
 pub mod source;
 pub mod spacing;
 pub mod tag;
 
-pub use arena::{Allocator, ArenaVec};
+pub use arena::Allocator;
+pub(crate) use arena::ArenaVec;
 pub use argument::{Argument, Arguments};
-pub use buffer::{
-    Buffer, BufferExtensions, Inspect, Recorded, Recording, RemoveSoftLinesBuffer, VecBuffer,
-};
 pub use builder::{
     Align, BestFitParenthesize, BestFitting, BlockIndent, CopiedText, Dedent, ExpandParent,
-    FileSliceBuilder, FillBuilder, FormatOnce, FormatWith, IfGroupBreaks, Indent,
-    IndentIfGroupBreaks, JoinBuilder, Line, LineSuffix, LineSuffixBoundary, SourcePosition, Space,
-    Text, Token, align, best_fit_parenthesize, block_indent, conditional_group, copied_text,
-    dedent, dedent_to_root, empty_line, expand_parent, fits_expanded, format_once, format_with,
-    group, hard_line_break, if_group_breaks, if_group_fits_on_line, indent, indent_if_group_breaks,
-    line_suffix, line_suffix_boundary, soft_block_indent, soft_line_break,
-    soft_line_break_or_space, soft_line_indent_or_space, soft_space_or_block_indent,
-    source_position, source_text_slice, space, text, token,
+    FileSliceBuilder, FillBuilder, FormatWith, IfGroupBreaks, Indent, IndentIfGroupBreaks,
+    JoinBuilder, Line, LineSuffix, LineSuffixBoundary, SourcePosition, Space, Text, Token, align,
+    best_fit_parenthesize, block_indent, conditional_group, copied_text, dedent, dedent_to_root,
+    empty_line, expand_parent, fits_expanded, format_with, group, hard_line_break, if_group_breaks,
+    if_group_fits_on_line, indent, indent_if_group_breaks, line_suffix, line_suffix_boundary,
+    soft_block_indent, soft_line_break, soft_line_break_or_space, soft_line_indent_or_space,
+    soft_space_or_block_indent, source_position, source_text_slice, space, text, token,
 };
 pub use context::{FormatContext, FormatState, SimpleFormatContext};
-pub use document::Document;
+pub use document::{Document, DocumentStats};
 pub use error::{
     ActualStart, FormatError, FormatResult, InvalidDocumentError, PrintError, PrintResult,
     RequestedOutputBytes,
 };
 pub use formatter::{Format, Formatted, Formatter, format, write};
-pub use group::{ConditionalGroup, DebugGroupId, Group, GroupId, GroupMode, ReleaseGroupId};
-pub use label::{LabelDeclaration, LabelId};
-pub use node::{FormatNode, LineMode, NodeSlice};
-pub use options::{FormatOptions, SimpleFormatOptions};
-pub use sizing::{
-    BestFittingMode, BestFittingVariants, BestFittingVariantsIter, FormatNodes, TextLen, TextWidth,
-    Width,
+pub use group::{ConditionalGroup, Group, GroupId, GroupMode};
+pub(crate) use group::{GroupIndex, GroupState};
+pub(crate) use instruction::{
+    DecodedInstruction, ExpansionRow, Instruction, InstructionIter, InstructionTag, Opcode,
+    encode_group_id, encode_text_layout, encode_width,
 };
+pub use instruction::{FormatElement, InstructionSlice, InstructionTape, LineMode};
+pub use options::{FormatOptions, SimpleFormatOptions};
+pub use rewrite::{WithoutSoftLines, without_soft_lines};
+pub use sizing::{BestFittingMode, BestFittingVariants, FormatLayout, TextWidth, Width};
 pub use source::{FileMarker, LINE_TERMINATORS, normalize_newlines};
 pub use spacing::{IndentStyle, Indentation, LineEnding};
 pub use tag::{
     Condition, DedentMode, FitsExpanded, FormatTag, FormatTagKind, PrintMode, VerbatimKind,
 };
+pub(crate) use tag::{FitsExpandedIndex, FitsExpandedState};

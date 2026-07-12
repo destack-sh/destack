@@ -1,14 +1,16 @@
-/// A school book stack.
-/// Allows adding, removing, and inspecting nodes at the back.
+/// Stack operations shared by owned and restorable stack storage.
 pub(crate) trait Stack<T> {
-    /// Removes the last node if any and gets it.
+    /// Remove and return the final value.
     fn pop(&mut self) -> Option<T>;
 
-    /// Pushes a new node at the back.
+    /// Append one value.
     fn push(&mut self, value: T);
 
-    /// Gets the last node if any.
+    /// Return the final value.
     fn top(&self) -> Option<&T>;
+
+    /// Return the final value mutably.
+    fn top_mut(&mut self) -> Option<&mut T>;
 }
 
 impl<T> Stack<T> for Vec<T> {
@@ -26,16 +28,19 @@ impl<T> Stack<T> for Vec<T> {
     fn top(&self) -> Option<&T> {
         self.last()
     }
+
+    #[inline]
+    fn top_mut(&mut self) -> Option<&mut T> {
+        self.last_mut()
+    }
 }
 
-/// A Stack that is stacked on top of another stack.
-/// Guarantees that the underlying stack remains unchanged.
+/// A mutable stack layered over one immutable borrowed stack.
 #[derive(Debug, Clone)]
 pub(crate) struct StackedStack<'a, T> {
-    /// The content of the original stack.
+    /// The unconsumed original values.
     original: std::slice::Iter<'a, T>,
-
-    /// Items that have been pushed since the creation of this stack and aren't part of the `original` stack.
+    /// The materialized or newly pushed values.
     stack: Vec<T>,
 }
 
@@ -45,7 +50,7 @@ impl<'a, T> StackedStack<'a, T> {
         Self::with_vec(original, Vec::new())
     }
 
-    /// Creates a new stack that uses `stack` for storing its nodes.
+    /// Create a stack that borrows existing values and owns appended values.
     pub(crate) fn with_vec(original: &'a [T], stack: Vec<T>) -> Self {
         Self {
             original: original.iter(),
@@ -53,20 +58,20 @@ impl<'a, T> StackedStack<'a, T> {
         }
     }
 
-    /// Gets the underlying `stack` vector.
-    pub(crate) fn into_vec(self) -> Vec<T> {
-        self.stack
+    /// Take the reusable mutable storage.
+    pub(crate) fn take_vec(&mut self) -> Vec<T> {
+        std::mem::take(&mut self.stack)
     }
 }
 
 impl<T> Stack<T> for StackedStack<'_, T>
 where
-    T: Copy,
+    T: Clone,
 {
     fn pop(&mut self) -> Option<T> {
         self.stack
             .pop()
-            .or_else(|| self.original.next_back().copied())
+            .or_else(|| self.original.next_back().cloned())
     }
 
     fn push(&mut self, value: T) {
@@ -77,6 +82,17 @@ where
         self.stack
             .last()
             .or_else(|| self.original.as_slice().last())
+    }
+
+    fn top_mut(&mut self) -> Option<&mut T> {
+        // materialize the next borrowed frame before mutating it
+        if self.stack.is_empty()
+            && let Some(value) = self.original.next_back().cloned()
+        {
+            self.stack.push(value);
+        }
+
+        self.stack.last_mut()
     }
 }
 
@@ -103,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_restore_partially_consumed_stack() {
-        // partially consume stack then add more nodes
+        // partially consume the stack, then add more values
         let original = vec![1, 2, 3];
         let mut restorable = StackedStack::new(&original);
 
@@ -121,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_restore_stack() {
-        // add multiple nodes then pop some of them
+        // add multiple values, then pop some of them
         let original = vec![1, 2, 3];
         let mut restorable = StackedStack::new(&original);
 

@@ -1,41 +1,46 @@
-use crate::format::FormatNode;
-use crate::print::call::PrintNodeArgs;
+use crate::format::{Instruction, PrintResult};
+use crate::print::call::PrintArgs;
 
-/// Stores the queued line suffixes.
+/// The line suffix instructions awaiting a line break.
 #[derive(Debug, Default)]
 pub(super) struct LineSuffixes<'a> {
+    /// The pending suffix entries.
     suffixes: Vec<LineSuffixEntry<'a>>,
 }
 
 impl<'a> LineSuffixes<'a> {
-    /// Extend the line suffixes with `nodes`, storing their call stack arguments with them.
-    pub(super) fn extend<I>(&mut self, args: PrintNodeArgs, nodes: I)
+    /// Append suffix instructions and their print arguments.
+    pub(super) fn extend<I>(&mut self, args: PrintArgs, instructions: I) -> PrintResult<()>
     where
-        I: IntoIterator<Item = &'a FormatNode<'a>>,
+        I: IntoIterator<Item = PrintResult<Instruction<'a>>>,
     {
-        self.suffixes
-            .extend(nodes.into_iter().map(LineSuffixEntry::Suffix));
+        for instruction in instructions {
+            self.suffixes.push(LineSuffixEntry::Suffix(instruction?));
+        }
+
         self.suffixes.push(LineSuffixEntry::Args(args));
+
+        Ok(())
     }
 
-    /// Take all the pending line suffixes.
-    pub(super) fn take_pending<'l>(
-        &'l mut self,
-    ) -> impl DoubleEndedIterator<Item = LineSuffixEntry<'a>> + 'l + ExactSizeIterator {
+    /// Drain all pending suffix entries.
+    pub(super) fn take_pending(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = LineSuffixEntry<'a>> + '_ + ExactSizeIterator {
         self.suffixes.drain(..)
     }
 
-    /// Check if there are any line suffixes.
+    /// Return whether any suffix is pending.
     pub(super) fn has_pending(&self) -> bool {
         !self.suffixes.is_empty()
     }
 }
 
+/// One pending line suffix entry.
 #[derive(Debug, Copy, Clone)]
 pub(super) enum LineSuffixEntry<'a> {
-    /// Line suffix to print.
-    Suffix(&'a FormatNode<'a>),
-
-    /// Potentially changed call arguments that should be used to format any following items.
-    Args(PrintNodeArgs),
+    /// One suffix instruction.
+    Suffix(Instruction<'a>),
+    /// The print arguments for following suffix instructions.
+    Args(PrintArgs),
 }

@@ -1,60 +1,69 @@
+use std::fmt::Debug;
+
 use crate::format::{
     FormatTagKind, IndentStyle, Indentation, InvalidDocumentError, PrintError, PrintMode,
     PrintResult,
 };
 use crate::print::mode::MeasureMode;
 use crate::print::stack::{Stack, StackedStack};
-use std::fmt::Debug;
 
+/// The structural scope represented by one print stack frame.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum StackFrameKind {
+    /// The document root.
     Root,
+    /// One structural formatting tag.
     Tag(FormatTagKind),
 }
 
+/// One structural scope and its active print arguments.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct StackFrame {
+    /// The structural scope.
     kind: StackFrameKind,
-    args: PrintNodeArgs,
+    /// The active print arguments.
+    args: PrintArgs,
 }
 
-/// Store arguments passed to `print_node` call, holding the state specific to printing an node.
-///
-/// E.g. the `indent` depends on the token the Printer's currently processing.
-/// That's why it must be stored outside of the [`PrinterState`] that stores the state common to all nodes.
-/// The state is passed by value, which is why it's important that it isn't storing any heavy data structures.
-/// Such structures should be stored on the [`PrinterState`] instead.
+/// The print and measurement modes active in one structural scope.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) struct PrintNodeArgs {
+pub(crate) struct PrintArgs {
+    /// The active print mode.
     mode: PrintMode,
+    /// The active measurement mode.
     measure_mode: MeasureMode,
 }
 
-impl PrintNodeArgs {
+impl PrintArgs {
+    /// Create the root print arguments.
     pub(crate) fn new() -> Self {
         Self::default()
     }
 
+    /// Return the active print mode.
     pub(crate) fn mode(self) -> PrintMode {
         self.mode
     }
 
+    /// Return the active measurement mode.
     pub(crate) fn measure_mode(self) -> MeasureMode {
         self.measure_mode
     }
 
+    /// Return these arguments with a new print mode.
     pub(crate) fn with_print_mode(mut self, mode: PrintMode) -> Self {
         self.mode = mode;
         self
     }
 
+    /// Return these arguments with a new measurement mode.
     pub(crate) fn with_measure_mode(mut self, mode: MeasureMode) -> Self {
         self.measure_mode = mode;
         self
     }
 }
 
-impl Default for PrintNodeArgs {
+impl Default for PrintArgs {
     fn default() -> Self {
         Self {
             mode: PrintMode::Expanded,
@@ -63,21 +72,19 @@ impl Default for PrintNodeArgs {
     }
 }
 
-/// Call stack that stores the [`PrintNodeCallArgs`].
-///
-/// New [`PrintNodeCallArgs`] are pushed onto the stack for every [`start`](Tag::is_start) [`Tag`](FormatNode::Tag)
-/// and popped when reaching the corresponding [`end`](Tag::is_end) [`Tag`](FormatNode::Tag).
+/// A structural scope stack carrying the active [`PrintArgs`].
 pub(crate) trait CallStack {
+    /// The concrete stack storage.
     type Stack: Stack<StackFrame> + Debug;
 
+    /// Return the structural stack.
     fn stack(&self) -> &Self::Stack;
 
+    /// Return the mutable structural stack.
     fn stack_mut(&mut self) -> &mut Self::Stack;
 
-    /// Pop the call arguments at the top and assert that they correspond to a start tag of `kind`.
-    ///
-    /// Returns `Ok` with the arguments if the kind of the top stack frame matches `kind`, otherwise returns `Err`.
-    fn pop(&mut self, kind: FormatTagKind) -> PrintResult<PrintNodeArgs> {
+    /// Pop one matching structural scope.
+    fn pop(&mut self, kind: FormatTagKind) -> PrintResult<PrintArgs> {
         let last = self.stack_mut().pop();
 
         match last {
@@ -86,7 +93,7 @@ pub(crate) trait CallStack {
                 args,
             }) if actual_kind == kind => Ok(args),
 
-            // start / end kind don't match
+            // report mismatched structural tags
             Some(StackFrame {
                 kind: StackFrameKind::Tag(expected_kind),
                 ..
@@ -95,22 +102,20 @@ pub(crate) trait CallStack {
                 Some(expected_kind),
             ))),
 
-            // tried to pop the outer most stack frame, which is not valid
+            // preserve the root frame while reporting an unmatched end tag
             Some(
                 frame @ StackFrame {
                     kind: StackFrameKind::Root,
                     ..
                 },
             ) => {
-                // put it back in to guarantee that the stack is never empty
                 self.stack_mut().push(frame);
                 Err(PrintError::InvalidDocument(Self::invalid_document_error(
                     kind, None,
                 )))
             }
 
-            // this should be unreachable but having it for completeness
-            // happens if the stack is empty
+            // report an invalid empty stack
             None => Err(PrintError::InvalidDocument(Self::invalid_document_error(
                 kind, None,
             ))),
@@ -131,29 +136,29 @@ pub(crate) trait CallStack {
         }
     }
 
-    /// Get the [`PrintNodeArgs`] for the current stack frame.
-    fn top(&self) -> PrintNodeArgs {
-        self.stack()
-            .top()
-            .expect("expected `stack` to never be empty")
-            .args
+    /// Return the arguments for the current scope.
+    fn top(&self) -> PrintArgs {
+        let frame = self.stack().top();
+        debug_assert!(frame.is_some());
+
+        // safety: every call stack retains its permanent root frame
+        unsafe { frame.unwrap_unchecked().args }
     }
 
-    /// Get the [`TagKind`] of the current stack frame or [None] if this is the root stack frame.
+    /// Return the current tag kind, or `None` at the document root.
     fn top_kind(&self) -> Option<FormatTagKind> {
-        match self
-            .stack()
-            .top()
-            .expect("expected `stack` to never be empty")
-            .kind
-        {
+        let frame = self.stack().top();
+        debug_assert!(frame.is_some());
+
+        // safety: every call stack retains its permanent root frame
+        match unsafe { frame.unwrap_unchecked().kind } {
             StackFrameKind::Root => None,
             StackFrameKind::Tag(kind) => Some(kind),
         }
     }
 
-    /// Create a new stack frame for a [`FormatNode::Tag`] of `kind` with `args` as the call arguments.
-    fn push(&mut self, kind: FormatTagKind, args: PrintNodeArgs) {
+    /// Push one structural scope.
+    fn push(&mut self, kind: FormatTagKind, args: PrintArgs) {
         self.stack_mut().push(StackFrame {
             kind: StackFrameKind::Tag(kind),
             args,
@@ -233,12 +238,13 @@ pub(crate) trait SuffixStack {
     }
 }
 
-/// Call stack used for printing the [`FormatNode`]s.
+/// The structural scope stack used while printing.
 #[derive(Debug, Clone)]
 pub(crate) struct PrintCallStack(Vec<StackFrame>);
 
 impl PrintCallStack {
-    pub(crate) fn new(args: PrintNodeArgs) -> Self {
+    /// Create one print stack with its permanent root frame.
+    pub(crate) fn new(args: PrintArgs) -> Self {
         Self(vec![StackFrame {
             kind: StackFrameKind::Root,
             args,
@@ -258,11 +264,14 @@ impl CallStack for PrintCallStack {
     }
 }
 
-/// Indentation stack used for printing format nodes.
+/// The indentation state used while printing.
 #[derive(Debug, Clone)]
 pub(crate) struct PrintIndentStack {
+    /// The active indentation frames.
     indentations: Vec<Indentation>,
+    /// The temporarily removed dedentation frames.
     history_indentations: Vec<Indentation>,
+    /// The indentation frames retained for pending line suffixes.
     suffix_indentations: Vec<Indentation>,
 }
 
@@ -276,7 +285,7 @@ impl PrintIndentStack {
         }
     }
 
-    /// Restore suffix indentation frames before flushing suffix nodes.
+    /// Restore suffix indentation frames before flushing suffix instructions.
     pub(crate) fn flush_suffixes(&mut self) {
         self.indentations
             .extend(self.suffix_indentations.drain(..).rev());
@@ -308,23 +317,24 @@ impl SuffixStack for PrintIndentStack {
     }
 }
 
-/// Call stack used for measuring if some content fits on the line.
-///
-/// The stack is a view on top of the [`PrintCallStack`] because the stack frames are still necessary for printing.
+/// A temporary structural stack used while measuring whether content fits.
 #[must_use]
 pub(crate) struct FitsCallStack<'print> {
+    /// The borrowed print stack and owned measurement frames.
     stack: StackedStack<'print, StackFrame>,
 }
 
 impl<'print> FitsCallStack<'print> {
+    /// Create a measurement stack over the current print stack.
     pub(crate) fn new(print: &'print PrintCallStack, saved: Vec<StackFrame>) -> Self {
         let stack = StackedStack::with_vec(&print.0, saved);
 
         Self { stack }
     }
 
-    pub(crate) fn finish(self) -> Vec<StackFrame> {
-        self.stack.into_vec()
+    /// Take the reusable owned stack storage.
+    pub(crate) fn take_storage(&mut self) -> Vec<StackFrame> {
+        self.stack.take_vec()
     }
 }
 
@@ -340,9 +350,11 @@ impl<'a> CallStack for FitsCallStack<'a> {
     }
 }
 
-/// Indentation stack used for measuring if nodes fit on the line.
+/// Indentation stack used while measuring whether instructions fit.
 pub(crate) struct FitsIndentStack<'print> {
+    /// The borrowed print indentation and owned measurement frames.
     indentations: StackedStack<'print, Indentation>,
+    /// The borrowed dedentation history and owned measurement frames.
     history_indentations: StackedStack<'print, Indentation>,
 }
 
@@ -363,11 +375,11 @@ impl<'print> FitsIndentStack<'print> {
         }
     }
 
-    /// Return owned temporary fit stacks.
-    pub(crate) fn finish(self) -> (Vec<Indentation>, Vec<Indentation>) {
+    /// Take owned temporary fit stacks.
+    pub(crate) fn take_storage(&mut self) -> (Vec<Indentation>, Vec<Indentation>) {
         (
-            self.indentations.into_vec(),
-            self.history_indentations.into_vec(),
+            self.indentations.take_vec(),
+            self.history_indentations.take_vec(),
         )
     }
 }

@@ -1,101 +1,169 @@
-use crate::format::{FormatNode, FormatTag, FormatTagKind, PrintResult};
-use crate::print::stack::{Stack, StackedStack};
-use crate::print::{invalid_end_tag, invalid_start_tag};
 use std::fmt::Debug;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
 
-/// Queue of [`FormatNode`]s.
-pub(crate) trait Queue<'a> {
-    type Stack: Stack<&'a [FormatNode<'a>]>;
+use crate::format::{
+    FormatTagKind, Instruction, InstructionIter, InstructionSlice, InstructionTag, Opcode,
+    PrintResult,
+};
+use crate::print::stack::{Stack, StackedStack};
+use crate::print::{invalid_start_tag, missing_end_tag};
 
+/// One queued instruction source.
+#[derive(Debug, Clone)]
+pub(crate) enum QueueFrame<'a> {
+    /// One encoded instruction tape.
+    Tape(InstructionIter<'a>),
+    /// One synthetic instruction.
+    Single(Option<Instruction<'a>>),
+    /// One short synthetic instruction sequence.
+    Sequence {
+        /// The inline instruction storage.
+        instructions: [Instruction<'a>; 3],
+        /// The next instruction index.
+        index: u8,
+        /// The populated instruction count.
+        length: u8,
+    },
+}
+
+impl<'a> QueueFrame<'a> {
+    /// Create one frame over encoded instructions.
+    fn tape(instructions: InstructionSlice<'a>) -> Self {
+        Self::Tape(instructions.iter())
+    }
+
+    /// Read the next instruction.
+    fn next(&mut self) -> Option<Instruction<'a>> {
+        match self {
+            Self::Tape(instructions) => instructions.next(),
+            Self::Single(instruction) => instruction.take(),
+            Self::Sequence {
+                instructions,
+                index,
+                length,
+            } => {
+                if *index >= *length {
+                    return None;
+                }
+
+                let instruction = instructions[usize::from(*index)];
+                *index += 1;
+
+                Some(instruction)
+            }
+        }
+    }
+
+    /// Return whether this frame has no remaining instructions.
+    fn is_empty(&self) -> bool {
+        match self {
+            Self::Tape(instructions) => instructions.is_empty(),
+            Self::Single(instruction) => instruction.is_none(),
+            Self::Sequence { index, length, .. } => index >= length,
+        }
+    }
+}
+
+/// A stack of instruction frames awaiting printing or measurement.
+pub(crate) trait Queue<'a> {
+    /// The underlying frame stack.
+    type Stack: Stack<QueueFrame<'a>>;
+
+    /// Return the underlying frame stack.
     fn stack(&self) -> &Self::Stack;
 
+    /// Return the underlying frame stack mutably.
     fn stack_mut(&mut self) -> &mut Self::Stack;
 
-    fn next_index(&self) -> usize;
+    /// Pop the next instruction.
+    fn pop(&mut self) -> Option<Instruction<'a>> {
+        loop {
+            // advance the current frame without moving it through the frame vector
+            let frame = self.stack_mut().top_mut()?;
+            let instruction = frame.next();
+            let is_empty = frame.is_empty();
 
-    fn set_next_index(&mut self, index: usize);
-
-    /// Pops the node at the end of the queue.
-    fn pop(&mut self) -> Option<&'a FormatNode<'a>> {
-        match self.stack().top() {
-            Some(top_slice) => {
-                let next_index = self.next_index();
-                let node = &top_slice[next_index];
-
-                if next_index + 1 == top_slice.len() {
-                    self.stack_mut().pop().unwrap();
-                    self.set_next_index(0);
-                } else {
-                    self.set_next_index(next_index + 1);
-                }
-
-                Some(node)
+            // discard exhausted frames before returning their final instruction
+            if is_empty {
+                self.stack_mut().pop();
             }
-            None => None,
-        }
-    }
 
-    /// Return the next node without entering [`FormatNode::Slice`].
-    fn top_shallow(&self) -> Option<&'a FormatNode<'a>> {
-        self.stack()
-            .top()
-            .map(|top_slice| &top_slice[self.next_index()])
-    }
-
-    /// Return the next node after entering leading [`FormatNode::Slice`] nodes.
-    fn top(&self) -> Option<&'a FormatNode<'a>> {
-        let mut top = self.top_shallow();
-
-        while let Some(FormatNode::Slice(slice)) = top {
-            top = slice.first();
-        }
-
-        top
-    }
-
-    /// Queues a single node to process before the other nodes in this queue.
-    fn push(&mut self, node: &'a FormatNode<'a>) {
-        self.extend_back(std::slice::from_ref(node));
-    }
-
-    /// Queues a slice of nodes to process before the other nodes in this queue.
-    fn extend_back(&mut self, nodes: &'a [FormatNode<'a>]) {
-        match nodes {
-            [] => {}
-            slice => {
-                let next_index = self.next_index();
-                let stack = self.stack_mut();
-
-                if let Some(top) = stack.pop() {
-                    stack.push(&top[next_index..]);
-                }
-
-                stack.push(slice);
-                self.set_next_index(0);
+            if instruction.is_some() {
+                return instruction;
             }
         }
     }
 
-    /// Removes top slice.
-    fn pop_slice(&mut self) -> Option<&'a [FormatNode<'a>]> {
-        self.set_next_index(0);
+    /// Return the next instruction without entering nested slices.
+    fn peek_shallow(&self) -> Option<Instruction<'a>> {
+        let mut frame = self.stack().top()?.clone();
+
+        frame.next()
+    }
+
+    /// Return the next instruction after entering leading nested slices.
+    fn peek(&self) -> Option<Instruction<'a>> {
+        let mut instruction = self.peek_shallow();
+
+        while instruction.is_some_and(|instruction| instruction.opcode() == Opcode::Slice) {
+            let slice = instruction?.slice();
+            instruction = slice.iter().next();
+        }
+
+        instruction
+    }
+
+    /// Queue encoded instructions before the existing work.
+    fn push_slice(&mut self, instructions: InstructionSlice<'a>) {
+        if !instructions.is_empty() {
+            self.stack_mut().push(QueueFrame::tape(instructions));
+        }
+    }
+
+    /// Queue one instruction before the existing work.
+    fn push_instruction(&mut self, instruction: Instruction<'a>) {
+        self.stack_mut().push(QueueFrame::Single(Some(instruction)));
+    }
+
+    /// Queue two synthetic instructions.
+    fn push_pair(&mut self, instructions: [Instruction<'a>; 2]) {
+        let mut storage = [Instruction::line(crate::format::LineMode::Soft); 3];
+        storage[..2].copy_from_slice(&instructions);
+        self.stack_mut().push(QueueFrame::Sequence {
+            instructions: storage,
+            index: 0,
+            length: 2,
+        });
+    }
+
+    /// Queue three synthetic instructions.
+    fn push_triple(&mut self, instructions: [Instruction<'a>; 3]) {
+        self.stack_mut().push(QueueFrame::Sequence {
+            instructions,
+            index: 0,
+            length: 3,
+        });
+    }
+
+    /// Remove the most recently queued frame.
+    fn pop_frame(&mut self) -> Option<QueueFrame<'a>> {
         self.stack_mut().pop()
     }
 
-    /// Skips all content until it finds the corresponding end tag with the given kind.
-    fn skip_content(&mut self, kind: FormatTagKind)
+    /// Skip content through the matching structural end instruction.
+    fn skip_content(&mut self, kind: FormatTagKind) -> PrintResult<()>
     where
         Self: Sized,
     {
-        let iter = self.iter_content(kind);
+        for instruction in self.iter_content(kind) {
+            instruction?;
+        }
 
-        // consume whole iterator until end
-        for _ in iter {}
+        Ok(())
     }
 
-    /// Iterates over all nodes until it finds the matching end tag of the specified kind.
+    /// Iterate through content before the matching structural end instruction.
     fn iter_content<'q>(&'q mut self, kind: FormatTagKind) -> QueueContentIterator<'a, 'q, Self>
     where
         Self: Sized,
@@ -104,78 +172,62 @@ pub(crate) trait Queue<'a> {
     }
 }
 
-/// Queue with the nodes to print.
+/// The instructions awaiting final printing.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct PrintQueue<'a> {
-    slices: Vec<&'a [FormatNode<'a>]>,
-    next_index: usize,
+    /// The instruction frames in traversal order.
+    frames: Vec<QueueFrame<'a>>,
 }
 
 impl<'a> PrintQueue<'a> {
-    pub(crate) fn new(slice: &'a [FormatNode<'a>]) -> Self {
-        let slices = match slice {
-            [] => Vec::new(),
-            slice => vec![slice],
-        };
+    /// Create one queue from root instructions.
+    pub(crate) fn new(instructions: InstructionSlice<'a>) -> Self {
+        let mut frames = Vec::new();
 
-        Self {
-            slices,
-            next_index: 0,
+        if !instructions.is_empty() {
+            frames.push(QueueFrame::tape(instructions));
         }
+
+        Self { frames }
     }
 }
 
 impl<'a> Queue<'a> for PrintQueue<'a> {
-    type Stack = Vec<&'a [FormatNode<'a>]>;
+    type Stack = Vec<QueueFrame<'a>>;
 
     fn stack(&self) -> &Self::Stack {
-        &self.slices
+        &self.frames
     }
 
     fn stack_mut(&mut self) -> &mut Self::Stack {
-        &mut self.slices
-    }
-
-    fn next_index(&self) -> usize {
-        self.next_index
-    }
-
-    fn set_next_index(&mut self, index: usize) {
-        self.next_index = index;
+        &mut self.frames
     }
 }
 
-/// Queue for measuring if an node fits on the line.
-///
-/// The queue is a view on top of the [`PrintQueue`] because no nodes should be removed
-/// from the [`PrintQueue`] while measuring.
+/// A restorable view over one print queue used during fit measurement.
 #[must_use]
 #[derive(Debug)]
 pub(crate) struct FitsQueue<'a, 'print> {
-    stack: StackedStack<'print, &'a [FormatNode<'a>]>,
-    next_index: usize,
+    /// The borrowed print frames plus frames pushed during measurement.
+    stack: StackedStack<'print, QueueFrame<'a>>,
 }
 
 impl<'a, 'print> FitsQueue<'a, 'print> {
-    pub(super) fn new(
-        print_queue: &'print PrintQueue<'a>,
-        saved: Vec<&'a [FormatNode<'a>]>,
-    ) -> Self {
-        let stack = StackedStack::with_vec(&print_queue.slices, saved);
-
+    /// Create one fit queue and reuse previous temporary storage.
+    pub(super) fn new(print_queue: &'print PrintQueue<'a>, saved: Vec<QueueFrame<'a>>) -> Self {
         Self {
-            stack,
-            next_index: print_queue.next_index,
+            stack: StackedStack::with_vec(&print_queue.frames, saved),
         }
     }
 
-    pub(super) fn finish(self) -> Vec<&'a [FormatNode<'a>]> {
-        self.stack.into_vec()
+    /// Take reusable temporary storage.
+    pub(super) fn take_storage(&mut self) -> Vec<QueueFrame<'a>> {
+        self.stack.take_vec()
     }
 }
 
 impl<'a, 'print> Queue<'a> for FitsQueue<'a, 'print> {
-    type Stack = StackedStack<'print, &'a [FormatNode<'a>]>;
+    type Stack = StackedStack<'print, QueueFrame<'a>>;
 
     fn stack(&self) -> &Self::Stack {
         &self.stack
@@ -184,20 +236,17 @@ impl<'a, 'print> Queue<'a> for FitsQueue<'a, 'print> {
     fn stack_mut(&mut self) -> &mut Self::Stack {
         &mut self.stack
     }
-
-    fn next_index(&self) -> usize {
-        self.next_index
-    }
-
-    fn set_next_index(&mut self, index: usize) {
-        self.next_index = index;
-    }
 }
 
+/// An iterator over one structural scope in a queue.
 pub(crate) struct QueueContentIterator<'a, 'q, Q: Queue<'a>> {
+    /// The queue being consumed.
     queue: &'q mut Q,
+    /// The structural scope kind.
     kind: FormatTagKind,
+    /// The nested scope depth.
     depth: usize,
+    /// The instruction lifetime.
     lifetime: PhantomData<&'a ()>,
 }
 
@@ -205,6 +254,7 @@ impl<'a, 'q, Q> QueueContentIterator<'a, 'q, Q>
 where
     Q: Queue<'a>,
 {
+    /// Create one structural content iterator.
     fn new(queue: &'q mut Q, kind: FormatTagKind) -> Self {
         Self {
             queue,
@@ -219,151 +269,110 @@ impl<'a, Q> Iterator for QueueContentIterator<'a, '_, Q>
 where
     Q: Queue<'a>,
 {
-    type Item = &'a FormatNode<'a>;
+    type Item = PrintResult<Instruction<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.depth == 0 {
-            None
-        } else {
-            let mut top = self.queue.pop();
+            return None;
+        }
 
-            // enter nested node slices
-            while let Some(FormatNode::Slice(slice)) = top {
-                self.queue.extend_back(slice);
-                top = self.queue.pop();
-            }
+        // enter leading nested instruction slices
+        let mut instruction = self.queue.pop();
+        while instruction.is_some_and(|instruction| instruction.opcode() == Opcode::Slice) {
+            let slice = instruction?.slice();
+            self.queue.push_slice(slice);
+            instruction = self.queue.pop();
+        }
 
-            match top.expect("missing end signal") {
-                node @ FormatNode::Tag(tag) if tag.kind() == self.kind => {
-                    if tag.is_start() {
-                        self.depth += 1;
-                    } else {
-                        self.depth -= 1;
+        // update matching structural depth
+        let Some(instruction) = instruction else {
+            self.depth = 0;
 
-                        if self.depth == 0 {
-                            return None;
-                        }
-                    }
+            return Some(missing_end_tag(self.kind));
+        };
+        if let Some(tag) = instruction.tag()
+            && tag.kind() == self.kind
+        {
+            if tag.is_start() {
+                self.depth += 1;
+            } else {
+                self.depth -= 1;
 
-                    Some(node)
+                if self.depth == 0 {
+                    return None;
                 }
-                node => Some(node),
             }
         }
+
+        Some(Ok(instruction))
     }
 }
 
 impl<'a, Q> FusedIterator for QueueContentIterator<'a, '_, Q> where Q: Queue<'a> {}
 
-/// A predicate determining when to end measuring if some content fits on the line.
-///
-/// Called for every [`node`](FormatNode) in the [`FitsQueue`] when measuring if a content
-/// fits on the line.
-/// The measuring of the content ends after the first node [`node`](FormatNode) for which this
-/// predicate returns `true` (similar to a take while iterator except that it takes while the predicate returns `false`).
+/// A predicate that terminates fit measurement at a selected instruction.
 pub(super) trait FitsEndPredicate {
-    fn is_end(&mut self, node: &FormatNode<'_>) -> PrintResult<bool>;
+    /// Return whether measurement should stop before this instruction.
+    fn is_end(&mut self, instruction: Instruction<'_>) -> PrintResult<bool>;
 }
 
-/// Filter that includes all nodes until it reaches the end of the document.
+/// A predicate that measures through the end of the queue.
 pub(super) struct AllPredicate;
 
 impl FitsEndPredicate for AllPredicate {
-    fn is_end(&mut self, _node: &FormatNode<'_>) -> PrintResult<bool> {
+    fn is_end(&mut self, _instruction: Instruction<'_>) -> PrintResult<bool> {
         Ok(false)
     }
 }
 
-/// Filter that takes all nodes between two matching [`Tag::StartEntry`] and [`Tag::EndEntry`] tags.
-#[derive(Debug)]
+/// A predicate that measures exactly one fill entry.
+#[derive(Debug, Default)]
 pub(super) enum SingleEntryPredicate {
-    Entry { depth: usize },
+    /// Measure one potentially nested entry.
+    #[default]
+    Entry,
+    /// Measure one nested entry scope.
+    Nested { depth: usize },
+    /// Stop measurement.
     Done,
 }
 
 impl SingleEntryPredicate {
+    /// Return whether this predicate completed its entry.
     pub(super) const fn is_done(&self) -> bool {
-        matches!(self, SingleEntryPredicate::Done)
-    }
-}
-
-impl Default for SingleEntryPredicate {
-    fn default() -> Self {
-        SingleEntryPredicate::Entry { depth: 0 }
+        matches!(self, Self::Done)
     }
 }
 
 impl FitsEndPredicate for SingleEntryPredicate {
-    fn is_end(&mut self, node: &FormatNode<'_>) -> PrintResult<bool> {
-        let result = match self {
-            SingleEntryPredicate::Done => true,
-            SingleEntryPredicate::Entry { depth } => match node {
-                FormatNode::Tag(FormatTag::StartEntry) => {
-                    *depth += 1;
-
-                    false
+    fn is_end(&mut self, instruction: Instruction<'_>) -> PrintResult<bool> {
+        match self {
+            Self::Done => Ok(true),
+            Self::Entry => match instruction.tag() {
+                Some(InstructionTag::StartEntry) => {
+                    *self = Self::Nested { depth: 1 };
+                    Ok(false)
                 }
-                FormatNode::Tag(FormatTag::EndEntry) => {
-                    if *depth == 0 {
-                        return invalid_end_tag(FormatTagKind::Entry, None);
-                    }
-
-                    *depth -= 1;
-
-                    let is_end = *depth == 0;
-
-                    if is_end {
-                        *self = SingleEntryPredicate::Done;
-                    }
-
-                    is_end
-                }
-                FormatNode::Slice(_) => false,
-                node if *depth == 0 => {
-                    return invalid_start_tag(FormatTagKind::Entry, Some(node));
-                }
-                _ => false,
+                None if instruction.opcode() == Opcode::Slice => Ok(false),
+                _ => invalid_start_tag(FormatTagKind::Entry, Some(instruction)),
             },
-        };
+            Self::Nested { depth } => match instruction.tag() {
+                Some(InstructionTag::StartEntry) => {
+                    *depth += 1;
+                    Ok(false)
+                }
+                Some(InstructionTag::EndEntry) => {
+                    *depth -= 1;
+                    let is_done = *depth == 0;
 
-        Ok(result)
-    }
-}
+                    if is_done {
+                        *self = Self::Done;
+                    }
 
-#[cfg(test)]
-mod tests {
-    use crate::format::{FormatNode, FormatTag, LineMode};
-    use crate::print::queue::{PrintQueue, Queue};
-
-    #[test]
-    fn test_extend_back_pop_last() {
-        // extend_back should add nodes to be processed before existing ones
-        let mut queue =
-            PrintQueue::new(&[FormatNode::Tag(FormatTag::StartEntry), FormatNode::Space]);
-
-        assert_eq!(queue.pop(), Some(&FormatNode::Tag(FormatTag::StartEntry)));
-
-        queue.extend_back(&[FormatNode::Line(LineMode::SoftOrSpace)]);
-
-        assert_eq!(queue.pop(), Some(&FormatNode::Line(LineMode::SoftOrSpace)));
-        assert_eq!(queue.pop(), Some(&FormatNode::Space));
-
-        assert_eq!(queue.pop(), None);
-    }
-
-    #[test]
-    fn test_extend_back_empty_queue() {
-        // extend_back should work correctly when queue becomes empty
-        let mut queue =
-            PrintQueue::new(&[FormatNode::Tag(FormatTag::StartEntry), FormatNode::Space]);
-
-        assert_eq!(queue.pop(), Some(&FormatNode::Tag(FormatTag::StartEntry)));
-        assert_eq!(queue.pop(), Some(&FormatNode::Space));
-
-        queue.extend_back(&[FormatNode::Line(LineMode::SoftOrSpace)]);
-
-        assert_eq!(queue.pop(), Some(&FormatNode::Line(LineMode::SoftOrSpace)));
-
-        assert_eq!(queue.pop(), None);
+                    Ok(is_done)
+                }
+                _ => Ok(false),
+            },
+        }
     }
 }
