@@ -380,17 +380,14 @@ pub(crate) fn assignment_operator_has_line_comment_between(
     let Some(between_span) = left_span.gap_to(right_span) else {
         return false;
     };
-    let comment_tokens = context.comment_tokens_intersecting_span(between_span);
-    comment_tokens.iter().copied().any(|comment_token| {
-        if !matches!(
-            comment_token.token.ty(),
-            TokenType::LineComment | TokenType::DocLineComment
-        ) {
+    let source_comments = context.source_comments_intersecting_span(between_span);
+    source_comments.iter().copied().any(|comment| {
+        if !comment.is_line() {
             return false;
         }
 
         context
-            .previous_token_before_span(comment_token.span)
+            .previous_token_before_span(comment.span)
             .is_some_and(|token| is_assignment_operator_token(token.token.ty()))
     })
 }
@@ -1197,7 +1194,7 @@ impl AssignmentLike {
                 };
                 let rhs_has_between_comment = between_span.is_some_and(|span| {
                     !context
-                        .comment_tokens_in_range(span.start, span.end)
+                        .source_comments_in_range(span.start, span.end)
                         .is_empty()
                 }) && !rhs_has_inline_operator_prefix_comment;
                 let rhs_has_own_line_prefix_annotation =
@@ -1415,7 +1412,7 @@ impl AssignmentLike {
                 let pattern_has_newline = context.has_newline(pattern_span);
                 let pattern_has_comments_or_annotations = context.has_annotation(pattern)
                     || !context
-                        .comment_tokens_in_range(pattern_span.start, pattern_span.end)
+                        .source_comments_in_range(pattern_span.start, pattern_span.end)
                         .is_empty();
                 if pattern_has_newline
                     || pattern_has_comments_or_annotations
@@ -1478,7 +1475,7 @@ impl AssignmentLike {
                 };
                 let rhs_has_between_comment = between_span.is_some_and(|span| {
                     !context
-                        .comment_tokens_in_range(span.start, span.end)
+                        .source_comments_in_range(span.start, span.end)
                         .is_empty()
                 }) && !rhs_has_inline_operator_prefix_comment;
 

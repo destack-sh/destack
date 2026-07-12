@@ -472,9 +472,9 @@ where
             }
 
             let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
-                let comment_tokens = f.context().comment_tokens();
+                let source_comments = f.context().source_comments();
                 let ignore_ranges_by_id =
-                    ignore_ranges_for_nodes(f.context(), elements, comment_tokens);
+                    ignore_ranges_for_nodes(f.context(), elements, source_comments);
                 if ignore_ranges_by_id.is_empty() {
                     None
                 } else {
@@ -658,14 +658,14 @@ fn ignored_range_ends_with_separator(
 
 /// Return whether one ignored range already owns a trailing comment.
 fn ignored_range_ends_with_comment(context: &DestackFormatContext<'_>, range_span: Span) -> bool {
-    let comment_tokens = context.comment_tokens_in_range(range_span.start, range_span.end);
-    let Some(comment_token) = comment_tokens.last().copied() else {
+    let source_comments = context.source_comments_in_range(range_span.start, range_span.end);
+    let Some(comment) = source_comments.last().copied() else {
         return false;
     };
 
     context
         .source_text()
-        .all_bytes_match(comment_token.span.end, range_span.end, |byte| {
+        .all_bytes_match(comment.span.end, range_span.end, |byte| {
             byte.is_ascii_whitespace()
         })
 }

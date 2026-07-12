@@ -122,10 +122,9 @@ fn source_has_comment_in_range(
         return false;
     }
 
-    context
-        .comment_tokens()
-        .iter()
-        .any(|token| token.span.file == file && token.span.start < end && token.span.end > start)
+    let span = Span::new(file, start, end);
+
+    !context.source_comments_intersecting_span(span).is_empty()
 }
 
 /// Return comments between the start bound and range operator.

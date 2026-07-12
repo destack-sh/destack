@@ -6,7 +6,7 @@ use crate::chain::{
 };
 use destack_dir::{
     Block, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm, IfForm,
-    LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral, TokenType, Tree, TreeChild, TreeStore,
+    LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral, Tree, TreeChild, TreeStore,
 };
 
 /// Return whether one node span contains a line comment.
@@ -21,10 +21,10 @@ where
     let span = context.span(node_id);
 
     context
-        .comment_tokens_in_range(span.start, span.end)
+        .source_comments_in_range(span.start, span.end)
         .iter()
         .copied()
-        .any(|comment| context.comment_is_line(comment))
+        .any(|comment| comment.is_line())
 }
 
 /// Return whether one tree child has a line comment outside the value span.
@@ -37,14 +37,14 @@ pub(crate) fn tree_child_has_outer_line_comment(
     let value_span = context.span(value_id);
 
     context
-        .comment_tokens_in_range(child_span.start, value_span.start)
+        .source_comments_in_range(child_span.start, value_span.start)
         .iter()
         .chain(
             context
-                .comment_tokens_in_range(value_span.end, child_span.end)
+                .source_comments_in_range(value_span.end, child_span.end)
                 .iter(),
         )
-        .any(|comment| context.comment_is_line(*comment))
+        .any(|comment| comment.is_line())
 }
 
 /// Return whether one tree callback body forces multiline element layout.
@@ -130,7 +130,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
     if child_span.file == value_span.file
         && child_span.start < value_span.start
         && !context
-            .comment_tokens_in_range(child_span.start, value_span.start)
+            .source_comments_in_range(child_span.start, value_span.start)
             .is_empty()
     {
         return false;
@@ -181,7 +181,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
                 Declaration::Function(FunctionDeclaration { signature, .. })
                     if signature.form == FunctionForm::Lambda
             ) && context
-                .comment_tokens_in_range(value_span.end, child_span.end)
+                .source_comments_in_range(value_span.end, child_span.end)
                 .is_empty()
         }
         _ => false,
@@ -225,14 +225,9 @@ fn expression_has_prefix_star_comment(
     }
 
     context
-        .comment_tokens_in_range(previous_token.span.end, expression_span.start)
+        .source_comments_in_range(previous_token.span.end, expression_span.start)
         .iter()
-        .any(|token| {
-            matches!(
-                token.token.ty(),
-                TokenType::BlockComment | TokenType::DocBlockComment
-            )
-        })
+        .any(|comment| comment.is_block())
 }
 
 /// Check whether a tree child forces the element to break.
@@ -334,9 +329,9 @@ pub(crate) fn tree_control_child_should_expand(
 
     let span = context.span(expression_id);
     if context
-        .comment_tokens_in_range(span.start, span.end)
+        .source_comments_in_range(span.start, span.end)
         .iter()
-        .any(|comment| context.comment_is_line(*comment))
+        .any(|comment| comment.is_line())
     {
         return true;
     }

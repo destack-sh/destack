@@ -165,7 +165,7 @@ fn write_match_selector_guard<'ast>(
     let guard_clause_span = f
         .context()
         .tree
-        .get_side_span(case_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+        .get_side_span(case_id, NodeSpanType::Region(NodeSpanRegion::Guard))
         .ok_or(FormatError::SyntaxError {
             message: "match guard requires a clause span",
         })?;
@@ -788,11 +788,10 @@ fn write_if_else_separator<'ast>(
     let else_clause_span = f
         .context()
         .tree
-        .get_side_span(
-            if_expression_id,
-            NodeSpanType::Region(NodeSpanRegion::Clause),
-        )
-        .expect("if expressions with else branches must record the else clause span");
+        .get_side_span(if_expression_id, NodeSpanType::Region(NodeSpanRegion::Else))
+        .ok_or(FormatError::SyntaxError {
+            message: "if expression with else branch requires an else span",
+        })?;
     let else_start = else_clause_span.start;
     let comments = f.context().comments().comments_before(else_start).to_vec();
     let has_line_comment = comments.iter().any(|comment| comment.is_line());

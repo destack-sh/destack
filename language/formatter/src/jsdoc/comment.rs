@@ -56,23 +56,25 @@ fn comment_documents_declaration(context: &DestackFormatContext<'_>, comment: Co
     }
 
     // leading comments attach to the next source position
-    let attached_to = comment.attached_to;
-    let candidates =
-        context
-            .tree
-            .source_index
-            .get_enclosing_spans(context.file.id, attached_to, attached_to);
+    let Some(anchor_offset) = comment.following_token_start() else {
+        return false;
+    };
+    let candidates = context.tree.source_index.get_enclosing_spans(
+        context.file.id,
+        anchor_offset,
+        anchor_offset,
+    );
 
     // declarations can be direct nodes or expression wrappers
     if candidates
         .iter()
-        .filter(|candidate| candidate.span.start == attached_to)
+        .filter(|candidate| candidate.span.start == anchor_offset)
         .any(|candidate| node_documents_declaration(context, candidate.source_id))
     {
         return true;
     }
 
-    decorator_documents_declaration(context, attached_to)
+    decorator_documents_declaration(context, anchor_offset)
 }
 
 /// Check whether one node can be documented by a JSDoc comment.
@@ -98,7 +100,7 @@ fn node_documents_declaration(context: &DestackFormatContext<'_>, node_id: u32) 
 }
 
 /// Check whether one attached decorator belongs to a documentable node.
-fn decorator_documents_declaration(context: &DestackFormatContext<'_>, attached_to: u32) -> bool {
+fn decorator_documents_declaration(context: &DestackFormatContext<'_>, anchor_offset: u32) -> bool {
     // decorated declarations own their decorator nodes
     for (node_id, decorator_ids) in context.tree.get_all_decorators() {
         if !node_documents_declaration(context, *node_id) {
@@ -108,7 +110,7 @@ fn decorator_documents_declaration(context: &DestackFormatContext<'_>, attached_
         // leading documentation can attach to the decorator token
         for decorator_id in decorator_ids.iter().copied() {
             let decorator_span = context.annotation_span(decorator_id);
-            if decorator_span.start == attached_to {
+            if decorator_span.start == anchor_offset {
                 return true;
             }
         }

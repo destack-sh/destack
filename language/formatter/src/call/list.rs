@@ -289,8 +289,8 @@ pub(crate) fn call_arguments_have_ignored_ranges(
         return false;
     }
 
-    let comment_tokens = context.comment_tokens();
-    any_ignore_range_for_nodes(context, arguments, comment_tokens)
+    let source_comments = context.source_comments();
+    any_ignore_range_for_nodes(context, arguments, source_comments)
 }
 
 /// Write call arguments with ignored ranges preserved as raw text.

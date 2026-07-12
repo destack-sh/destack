@@ -655,7 +655,7 @@ pub(crate) fn should_preserve_source_parentheses(
         return true;
     }
 
-    // otherwise preserve only parentheses that change postfix parsing
+    // preserve parentheses that change postfix parsing
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
@@ -673,11 +673,19 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    // preserve source parentheses that own interior comments or postfix meaning
+    // preserve source parentheses that own comments or affect postfix parsing
     if should_preserve_source_parentheses(context, node_id) {
         return true;
     }
 
+    expression_requires_parentheses_in_parent(context, node_id)
+}
+
+/// Return whether one expression structurally needs parentheses in its parent.
+pub(crate) fn expression_requires_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
     // statement-sensitive identifiers on the left of `as` and `satisfies` must stay parenthesized
     if !matches!(
         context.tree.get(node_id),

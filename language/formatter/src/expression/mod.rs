@@ -22,7 +22,8 @@ pub(crate) use self::member::{
     write_index_access,
 };
 pub(crate) use self::parentheses::{
-    expression_needs_parentheses_in_parent, should_preserve_source_parentheses,
+    expression_needs_parentheses_in_parent, expression_requires_parentheses_in_parent,
+    should_preserve_source_parentheses,
 };
 pub(crate) use self::primary::{
     format_primary_expression, write_primary_expression_trailing_annotations,

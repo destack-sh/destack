@@ -2,7 +2,7 @@ use crate::context::with_following_span_start;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, BinaryOperator, Expression, IfForm, LocalNodeId, MatchForm, Member, NodeType,
-    OperatorPrecedence, Property, TokenType,
+    OperatorPrecedence, Property,
 };
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter as FirFormatter};
 use destack_fir::prelude::{
@@ -49,10 +49,10 @@ fn binary_expression_has_line_suffix_comment(
     };
 
     context
-        .comment_tokens_in_range(gap_span.start, gap_span.end)
+        .source_comments_in_range(gap_span.start, gap_span.end)
         .iter()
         .copied()
-        .any(|comment| context.comment_is_line(comment))
+        .any(|comment| comment.is_line())
 }
 
 /// Return whether one expression ends with an inline block postfix comment.
@@ -68,14 +68,9 @@ fn binary_expression_has_inline_block_postfix_comment(
     }
 
     context
-        .comment_tokens_in_range(gap_span.start, gap_span.end)
+        .source_comments_in_range(gap_span.start, gap_span.end)
         .iter()
-        .any(|token| {
-            matches!(
-                token.token.ty(),
-                TokenType::BlockComment | TokenType::DocBlockComment
-            )
-        })
+        .any(|comment| comment.is_block())
 }
 
 /// Return whether one operator belongs to the equality family.

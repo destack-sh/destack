@@ -116,12 +116,12 @@ fn type_needs_index_object_parentheses(
 
 /// One summary of union-leading comments.
 #[derive(Debug, Clone, Copy, Default)]
-struct LeadingCommentsInfo {
+struct LeadingCommentShape {
     has_comments: bool,
     has_own_line_comment: bool,
     has_end_of_line_comment: bool,
     has_trailing_own_line_block_comment: bool,
-    has_trailing_own_line_jsdoc_comment: bool,
+    has_jsdoc_line_break: bool,
 }
 
 /// The object type body layout for type expression formatting.
@@ -180,32 +180,27 @@ impl DerivedParentheses {
     }
 }
 
-impl LeadingCommentsInfo {
-    /// Build one leading-comment summary from comments.
-    fn from_comment_nodes(comments: &[Comment]) -> Self {
-        let mut info = Self {
+impl LeadingCommentShape {
+    /// Classify one sequence of leading comments.
+    fn from_comments(comments: &[Comment]) -> Self {
+        let mut shape = Self {
             has_comments: !comments.is_empty(),
             ..Self::default()
         };
 
+        // classify every comment boundary
         for comment in comments.iter().copied() {
-            info.has_own_line_comment |= comment.preceded_by_newline();
-            info.has_end_of_line_comment |= comment.followed_by_newline();
-            info.has_trailing_own_line_block_comment |= comment.is_block()
+            shape.has_own_line_comment |= comment.preceded_by_newline();
+            shape.has_end_of_line_comment |= comment.followed_by_newline();
+            shape.has_trailing_own_line_block_comment |= comment.is_block()
                 && comment.is_trailing()
                 && comment.followed_by_newline()
                 && !comment.is_jsdoc();
-            info.has_trailing_own_line_jsdoc_comment |=
-                comment.is_jsdoc() && comment.is_trailing() && comment.followed_by_newline();
+            shape.has_jsdoc_line_break |= comment.is_jsdoc() && comment.followed_by_newline();
         }
 
-        info
+        shape
     }
-}
-
-/// Return leading-comment info normalized for one union head.
-fn union_leading_comment_info(comments: &[Comment]) -> LeadingCommentsInfo {
-    LeadingCommentsInfo::from_comment_nodes(comments)
 }
 
 /// Return the content start for one type expression.
@@ -1072,7 +1067,7 @@ fn union_should_hug(
 fn union_should_indent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
-    leading_comment_info: LeadingCommentsInfo,
+    leading_comment_shape: LeadingCommentShape,
 ) -> bool {
     let Some((parent_id, parent_type)) = union_indent_parent(context, node_id) else {
         return false;
@@ -1085,7 +1080,7 @@ fn union_should_indent(
             match context.tree.get(declaration_id) {
                 // type aliases have one comment-sensitive layout
                 Declaration::Type(_) => {
-                    type_alias_union_should_indent(context, declaration_id, leading_comment_info)
+                    type_alias_union_should_indent(context, declaration_id, leading_comment_shape)
                 }
 
                 // other declarations follow the default union layout
@@ -1115,10 +1110,10 @@ fn union_should_indent(
 fn type_alias_union_should_indent(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
-    leading_comment_info: LeadingCommentsInfo,
+    leading_comment_shape: LeadingCommentShape,
 ) -> bool {
-    // jsdoc after `=` already inherits the assignment layout
-    if leading_comment_info.has_trailing_own_line_jsdoc_comment {
+    // jsdoc before the union arms already inherits the assignment layout
+    if leading_comment_shape.has_jsdoc_line_break {
         return false;
     }
 
@@ -1332,7 +1327,7 @@ pub(crate) fn write_union_type<'ast>(
     };
 
     // inline unions
-    let leading_comment_info = union_leading_comment_info(&union_leading_comments);
+    let leading_comment_shape = LeadingCommentShape::from_comments(&union_leading_comments);
     let should_hug = union_should_hug(f, format_node_id, format_elements)
         && !has_leading_separator_prefix_comment
         && !format_elements
@@ -1348,7 +1343,7 @@ pub(crate) fn write_union_type<'ast>(
     }
 
     // multiline indent
-    let should_indent = union_should_indent(f.context(), node_id, leading_comment_info);
+    let should_indent = union_should_indent(f.context(), node_id, leading_comment_shape);
     let needs_parentheses = parent_needs_parentheses && !is_in_explicit_parentheses;
     let chain_head = union_chain_head(f.context(), format_node_id, format_elements.len());
     let only_type = chain_head.element_count == 1;
@@ -1357,7 +1352,7 @@ pub(crate) fn write_union_type<'ast>(
     // grouped content
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let leading_separator = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if should_indent && !leading_comment_info.has_comments {
+            if should_indent && !leading_comment_shape.has_comments {
                 write!(f, [soft_line_break_or_space()])?;
             }
 
@@ -1472,7 +1467,7 @@ pub(crate) fn write_union_type<'ast>(
     });
 
     let format_inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let has_own_line_comment = leading_comment_info.has_own_line_comment
+        let has_own_line_comment = leading_comment_shape.has_own_line_comment
             || matches!(
                 chain_head.parent,
                 Some((parent_id, NodeType::Declaration))
@@ -1482,10 +1477,10 @@ pub(crate) fn write_union_type<'ast>(
                             .get(LocalNodeId::<Declaration>::new(parent_id)),
                         Declaration::Type(_)
                     )
-            ) && leading_comment_info.has_trailing_own_line_block_comment;
+            ) && leading_comment_shape.has_trailing_own_line_block_comment;
 
         if (has_own_line_comment && !only_type)
-            || (leading_comment_info.has_end_of_line_comment && only_type)
+            || (leading_comment_shape.has_end_of_line_comment && only_type)
         {
             write!(f, [soft_line_break()])?;
         }
@@ -1497,7 +1492,7 @@ pub(crate) fn write_union_type<'ast>(
             )?;
         }
 
-        if !leading_comment_info.has_end_of_line_comment && has_own_line_comment && only_type {
+        if !leading_comment_shape.has_end_of_line_comment && has_own_line_comment && only_type {
             write!(f, [soft_line_break()])?;
         }
 
@@ -1791,9 +1786,9 @@ fn type_parent_requires_parentheses(
     }
 }
 
-/// One function-like type summary.
+/// One callable type expression.
 #[derive(Clone, Copy)]
-struct FunctionLikeTypeInfo {
+struct CallableType {
     /// Whether the type is constructor-like.
     is_constructor: bool,
 
@@ -1802,7 +1797,7 @@ struct FunctionLikeTypeInfo {
 }
 
 /// Return whether one conditional `extends` branch needs function-like type parentheses.
-fn conditional_extends_branch_needs_function_like_parentheses(
+fn conditional_extends_branch_needs_callable_parentheses(
     context: &DestackFormatContext<'_>,
     return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> bool {
@@ -1816,17 +1811,17 @@ fn conditional_extends_branch_needs_function_like_parentheses(
     }
 }
 
-/// Return summary info for one function-like type expression.
-fn type_expression_function_like_info(
+/// Return one callable type expression.
+fn type_expression_callable(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
-) -> Option<FunctionLikeTypeInfo> {
+) -> Option<CallableType> {
     match context.tree.get(node_id) {
-        TypeExpression::Function(function) => Some(FunctionLikeTypeInfo {
+        TypeExpression::Function(function) => Some(CallableType {
             is_constructor: false,
             return_type: function.return_type,
         }),
-        TypeExpression::Constructor(function) => Some(FunctionLikeTypeInfo {
+        TypeExpression::Constructor(function) => Some(CallableType {
             is_constructor: true,
             return_type: function.return_type,
         }),
@@ -1834,10 +1829,10 @@ fn type_expression_function_like_info(
     }
 }
 
-/// Return whether one function-like type needs parentheses in one type-expression parent.
-fn function_like_type_needs_parentheses_in_type_parent(
+/// Return whether one callable type needs parentheses in one type-expression parent.
+fn callable_type_needs_parentheses_in_type_parent(
     context: &DestackFormatContext<'_>,
-    function_like: FunctionLikeTypeInfo,
+    callable: CallableType,
     parent_id: LocalNodeId<TypeExpression>,
     child_id: LocalNodeId<TypeExpression>,
 ) -> bool {
@@ -1850,9 +1845,9 @@ fn function_like_type_needs_parentheses_in_type_parent(
             }
 
             *extends_type == child_id
-                && conditional_extends_branch_needs_function_like_parentheses(
+                && conditional_extends_branch_needs_callable_parentheses(
                     context,
-                    function_like.return_type,
+                    callable.return_type,
                 )
         }
         TypeExpression::Extends { left, right } | TypeExpression::Implements { left, right } => {
@@ -1867,10 +1862,10 @@ fn function_like_type_needs_parentheses_in_type_parent(
     }
 }
 
-/// Return whether one function-like type needs parentheses in one declaration parent.
-fn function_like_type_needs_parentheses_in_declaration_parent(
+/// Return whether one callable type needs parentheses in one declaration parent.
+fn callable_type_needs_parentheses_in_declaration_parent(
     context: &DestackFormatContext<'_>,
-    function_like: FunctionLikeTypeInfo,
+    callable: CallableType,
     parent_id: LocalNodeId<Declaration>,
     child_id: LocalNodeId<TypeExpression>,
 ) -> bool {
@@ -1882,7 +1877,7 @@ fn function_like_type_needs_parentheses_in_declaration_parent(
         return false;
     }
 
-    !function_like.is_constructor && parent_function.signature.form == FunctionForm::Lambda
+    !callable.is_constructor && parent_function.signature.form == FunctionForm::Lambda
 }
 
 /// Return whether one type expression needs derived parentheses in its effective parent.
@@ -1895,14 +1890,14 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
         return false;
     };
 
-    if let Some(function_like) = type_expression_function_like_info(context, node_id) {
+    if let Some(callable) = type_expression_callable(context, node_id) {
         return match parent_type {
             NodeType::TypeExpression => {
                 let parent_id = LocalNodeId::<TypeExpression>::new(parent_id);
 
-                function_like_type_needs_parentheses_in_type_parent(
+                callable_type_needs_parentheses_in_type_parent(
                     context,
-                    function_like,
+                    callable,
                     parent_id,
                     parent_child_id,
                 )
@@ -1910,9 +1905,9 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             NodeType::Declaration => {
                 let parent_id = LocalNodeId::<Declaration>::new(parent_id);
 
-                function_like_type_needs_parentheses_in_declaration_parent(
+                callable_type_needs_parentheses_in_declaration_parent(
                     context,
-                    function_like,
+                    callable,
                     parent_id,
                     parent_child_id,
                 )
@@ -2701,8 +2696,8 @@ pub(crate) fn format_type_member_block_list<'ast>(
     members: &[LocalNodeId<TypeMember>],
 ) -> FormatResult<()> {
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
-        let comment_tokens = f.context().comment_tokens();
-        ignore_ranges_for_nodes(f.context(), members, comment_tokens)
+        let source_comments = f.context().source_comments();
+        ignore_ranges_for_nodes(f.context(), members, source_comments)
     } else {
         std::collections::HashMap::new()
     };
