@@ -28,8 +28,8 @@ use destack_dir::{
     Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
     FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Key, Keyword,
     LocalNodeId, MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property,
-    RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral,
-    TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
+    RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression,
+    TypeLiteral, TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatNode as FirNode, FormatNodes, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -2807,14 +2807,18 @@ fn write_type_expression_body_inner<'ast>(
         TypeExpression::Intrinsic => {
             write!(f, [token("intrinsic")])?;
         }
-        TypeExpression::Tuple { elements } => {
+        TypeExpression::Tuple { form, elements } => {
             let trailing_separator = if elements.len() == 1 {
                 TrailingSeparator::Mandatory
             } else {
                 optional_tuple_trailing_separator(f)
             };
+            let (open, close) = match form {
+                TupleForm::Tuple => ("(", ")"),
+                TupleForm::Array => ("[", "]"),
+            };
 
-            write_tuple_type(f, elements, "(", ")", trailing_separator)?;
+            write_tuple_type(f, elements, open, close, trailing_separator)?;
         }
         TypeExpression::Array { element } => {
             write_postfix_type_operand(f, *element)?;

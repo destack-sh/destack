@@ -193,7 +193,7 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
 /// Return whether a type expression can break across multiple lines.
 fn is_type_expression_breakable(tree: &Tree, expression_id: LocalNodeId<TypeExpression>) -> bool {
     match tree.get(expression_id) {
-        TypeExpression::Tuple { elements } => !elements.is_empty(),
+        TypeExpression::Tuple { elements, .. } => !elements.is_empty(),
         TypeExpression::Slice { .. } => true,
         TypeExpression::Object { members } => !members.is_empty(),
         TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {

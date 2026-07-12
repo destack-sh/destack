@@ -97,6 +97,20 @@ const moved = ^exclusive super value;
     );
 }
 
+/// Prefix memory operators should preserve binary operands as one value.
+#[test]
+fn test_format_value_reference_binary_operands() {
+    assert_format_program!(
+        r#"const borrowed = &(left+right)
+const moved = ^(left??right)
+"#,
+        r#"const borrowed = &(left + right);
+const moved = ^(left ?? right);
+"#,
+        FileType::Destack
+    );
+}
+
 #[test]
 fn test_format_type_reference_chain_compact() {
     assert_format_program!(

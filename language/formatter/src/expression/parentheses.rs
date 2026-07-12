@@ -87,8 +87,8 @@ fn expression_is_statement_like_value(expression: &Expression) -> bool {
     )
 }
 
-/// Return whether one parent requires type-cast-like parentheses for a child.
-fn type_cast_like_needs_parentheses(
+/// Return whether one parent requires a primary expression in the child's position.
+fn parent_requires_primary_expression(
     parent_expression: &Expression,
     parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -96,8 +96,10 @@ fn type_cast_like_needs_parentheses(
         // template tag
         Expression::TaggedTemplateExpression { tag, .. } => *tag == parent_child_id,
 
-        // unary-like rhs
+        // prefix operand
         Expression::Unary { right, .. }
+        | Expression::MoveOf { right, .. }
+        | Expression::BorrowOf { right, .. }
         | Expression::Await { expression: right }
         | Expression::AwaitMaybe { expression: right }
         | Expression::AwaitMust { expression: right }
@@ -330,7 +332,7 @@ fn expression_lambda_needs_parentheses_in_parent(
         return true;
     }
 
-    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+    parent_requires_primary_expression(parent_expression, parent_child_id)
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
 }
 
@@ -386,7 +388,7 @@ fn expression_as_or_satisfies_needs_parentheses_in_parent(
         | Expression::InstanceOf { .. } => true,
 
         // default
-        _ => type_cast_like_needs_parentheses(parent_expression, parent_child_id),
+        _ => parent_requires_primary_expression(parent_expression, parent_child_id),
     }
 }
 
@@ -426,7 +428,7 @@ fn expression_await_like_needs_parentheses_in_parent(
         return true;
     }
 
-    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+    parent_requires_primary_expression(parent_expression, parent_child_id)
 }
 
 /// Return whether one binary-like expression needs parentheses in its parent.
@@ -451,7 +453,7 @@ fn expression_binary_like_needs_parentheses_in_parent(
     }
 
     let Expression::Binary { operator, .. } = context.tree.get(node_id) else {
-        return type_cast_like_needs_parentheses(parent_expression, parent_child_id);
+        return parent_requires_primary_expression(parent_expression, parent_child_id);
     };
 
     // coalesce needs grouping inside conditionals
@@ -504,7 +506,7 @@ fn expression_binary_like_needs_parentheses_in_parent(
             && !should_flatten_binary(*parent_operator, *operator);
     }
 
-    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+    parent_requires_primary_expression(parent_expression, parent_child_id)
 }
 
 /// Return whether one binary operator groups like bitwise or shift.
@@ -541,7 +543,7 @@ fn expression_range_needs_parentheses_in_parent(
     parent_expression: &Expression,
     parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
-    if type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+    if parent_requires_primary_expression(parent_expression, parent_child_id)
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
     {
         return true;
@@ -576,7 +578,7 @@ fn statement_like_value_needs_parentheses_in_parent(
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
 
-    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+    parent_requires_primary_expression(parent_expression, parent_child_id)
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
         || matches!(
             parent_expression,
@@ -790,7 +792,7 @@ pub(crate) fn expression_requires_parentheses_in_parent(
             );
         }
 
-        return type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+        return parent_requires_primary_expression(parent_expression, parent_child_id)
             || expression_is_call_like_callee(context, parent_expression_id, parent_child_id);
     }
 
@@ -813,7 +815,7 @@ pub(crate) fn expression_requires_parentheses_in_parent(
         return matches!(
             parent_expression,
             Expression::As { .. } | Expression::Satisfies { .. }
-        ) || type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+        ) || parent_requires_primary_expression(parent_expression, parent_child_id)
             || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
             || matches!(
                 parent_expression,
