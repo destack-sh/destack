@@ -59,8 +59,8 @@ impl Parser {
         };
 
         // cover the complete operation
-        let left_range = self.tree.get_range(left);
-        let right_range = self.tree.get_range(right);
+        let left_range = self.tree.get_source_extent(left).range();
+        let right_range = self.tree.get_source_extent(right).range();
         let source_range = ByteRange {
             start: left_range.start,
             end: right_range.end,
@@ -99,8 +99,8 @@ impl Parser {
         };
 
         // cover the complete operation
-        let left_range = self.tree.get_range(left);
-        let target_range = self.tree.get_range(target_type);
+        let left_range = self.tree.get_source_extent(left).range();
+        let target_range = self.tree.get_source_extent(target_type).range();
         let source_range = ByteRange {
             start: left_range.start,
             end: target_range.end,

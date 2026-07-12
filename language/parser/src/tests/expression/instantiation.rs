@@ -394,6 +394,53 @@ fn test_parse_call_with_nested_value_generic_arguments() {
     });
 }
 
+/// A compound close can finish an instantiation and leave one comparison operator.
+#[test]
+fn test_parse_instantiation_before_compound_greater_than() {
+    let test = TestParser::new("f<T>> value");
+    let mut parser = test.prepare();
+    let expression = parser.parse_expression(Default::default()).unwrap();
+
+    TestParser::assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::GreaterThan);
+        assert_expression_path!(parser, parser.tree.get(*right), "value");
+
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_eq!(generic_arguments.len(), 1);
+        });
+    });
+}
+
+/// A triple close can finish nested generics and leave one comparison operator.
+#[test]
+fn test_parse_nested_instantiation_before_compound_greater_than() {
+    let test = TestParser::new("f<Map<T>>> value");
+    let mut parser = test.prepare();
+    let expression = parser.parse_expression(Default::default()).unwrap();
+
+    TestParser::assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::GreaterThan);
+        assert_expression_path!(parser, parser.tree.get(*right), "value");
+
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_eq!(generic_arguments.len(), 1);
+
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                    assert_path!(parser, *path, "Map");
+                    assert_eq!(generic_arguments.len(), 1);
+                });
+            });
+        });
+    });
+}
+
 /// Relational call arguments should stay relational before shift right assign.
 #[test]
 fn test_parse_call_arguments_relational_then_shift_right_assign() {

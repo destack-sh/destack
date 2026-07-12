@@ -64,10 +64,10 @@ fn test_report_labeled_lexical_declaration() {
         .find(|diagnostic| diagnostic.code.starts_with("EP"))
         .expect("expected parse diagnostic");
 
-    // let a
+    // the label separator rejects the following declaration
     assert_eq!(
-        parser.get_span_str(diagnostic.primary_label().target.span().unwrap()),
-        "let a"
+        parser.span_str(diagnostic.primary_label().target.span().unwrap()),
+        ":"
     );
 }
 

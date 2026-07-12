@@ -432,8 +432,8 @@ impl Parser {
         question_range: ByteRange,
         colon_range: ByteRange,
     ) -> LocalNodeId<Expression> {
-        let condition_range = self.tree.get_range(condition);
-        let else_range = self.tree.get_range(else_expression);
+        let condition_range = self.tree.get_source_extent(condition).range();
+        let else_range = self.tree.get_source_extent(else_expression).range();
         let range = ByteRange {
             start: condition_range.start,
             end: else_range.end,
