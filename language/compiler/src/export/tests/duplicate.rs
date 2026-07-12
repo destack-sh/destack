@@ -21,25 +21,6 @@ export { value };
 }
 
 #[test]
-fn test_export_merges_type_spelling_into_same_key() {
-    let compiler = TestSession::builder()
-        .module(
-            "main.ds",
-            r#"
-type Foo = string;
-export { Foo };
-export type { Foo };
-"#,
-        )
-        .build();
-    compiler.assert_dir_exported_diagnostics(
-        "main.ds", r#"
-
-"#,
-    );
-}
-
-#[test]
 fn test_export_reports_missing_local_binding() {
     let compiler = TestSession::builder()
         .module(

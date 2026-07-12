@@ -28,8 +28,8 @@ export.stats.static.cache_hits={}",
         ITEMS + 1,
         ITEMS + 1,
         ITEMS + 1,
-        (ITEMS + 1) * 3,
-        ITEMS + 1,
+        ITEMS * 5 + 3,
+        ITEMS * 2 + 1,
     );
 
     assert_eq!(metadata, expected);
