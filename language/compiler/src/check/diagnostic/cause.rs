@@ -411,6 +411,16 @@ impl CheckState<'_> {
         chain
     }
 
+    /// Return the root of one judgment's cause chain.
+    pub(in crate::check) fn root_cause(&self, cause: CauseId) -> Cause {
+        let mut root = self.solver.cause(cause);
+        while let Some(parent) = root.parent {
+            root = self.solver.cause(parent);
+        }
+
+        root
+    }
+
     /// Describe one slot the judgment descended into.
     fn describe_slot(&self, kind: CauseKind) -> Option<String> {
         let description = match kind {

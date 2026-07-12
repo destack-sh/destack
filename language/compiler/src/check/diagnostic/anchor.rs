@@ -54,6 +54,38 @@ impl CheckState<'_> {
         Ok((module, anchor))
     }
 
+    /// Return one check origin's whole authored node anchor.
+    pub(in crate::check) fn origin_node_anchor(
+        &self,
+        origin: Origin,
+    ) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
+        let module = origin.module();
+        let source = match origin {
+            Origin::Node(node, _) => node.local_id,
+            Origin::Symbol(symbol) => self
+                .module(symbol.module_id)
+                .symbol_declaration_node(symbol.local_id)?,
+        };
+        let span = match self.modules.get(&module) {
+            Some(state) => {
+                let view = state.view();
+                let authored = view.get_source_any(source);
+
+                state
+                    .parsed
+                    .tree
+                    .get_span_by_id(authored)
+                    .or_else(|| view.get_span_by_id(source.id))
+            }
+            None => self.external_module(module).diagnostic_span(source),
+        };
+        let span = span.ok_or_else(|| CompilerError::Internal {
+            message: format!("check node {} has no source span", source.id),
+        })?;
+
+        Ok((module, DiagnosticAnchor::from(span)))
+    }
+
     /// Return one symbol's declaration node.
     pub(in crate::check) fn symbol_source(
         &self,
