@@ -163,9 +163,18 @@ impl PageFrameSection {
 #[derive(Debug, Clone, Copy)]
 struct PageFrameRange {
     /// The first page frame.
-    frame: PageFrame,
+    first_frame: PageFrame,
     /// The byte length.
     byte_len: u64,
+}
+
+/// The mapping replaced by one frame range operation.
+#[derive(Debug, Clone, Copy)]
+enum PreviousMapping {
+    /// Reserved placeholder pages.
+    Reserved,
+    /// Writable views of the same backing frames.
+    Writable,
 }
 
 /// Create one page frame allocator.
@@ -275,8 +284,8 @@ pub(crate) fn copy_frame_range(
     Ok(frame)
 }
 
-/// Return the platform frame byte width for fixed address mappings.
-pub(crate) fn system_frame_size_bytes() -> MemoryResult<usize> {
+/// Return the system memory page width.
+pub(crate) fn system_page_size_bytes() -> MemoryResult<usize> {
     let mut system = MaybeUninit::<SYSTEM_INFO>::uninit();
 
     // SAFETY: GetSystemInfo initializes the provided SYSTEM_INFO storage
@@ -286,14 +295,14 @@ pub(crate) fn system_frame_size_bytes() -> MemoryResult<usize> {
 
     // SAFETY: GetSystemInfo initialized the structure above
     let system = unsafe { system.assume_init() };
-    let frame_size_bytes = system.dwPageSize as usize;
-    if frame_size_bytes == 0 {
+    let page_size_bytes = system.dwPageSize as usize;
+    if page_size_bytes == 0 {
         return Err(MemoryError::Internal {
-            context: "system frame size",
+            context: "system page size",
         });
     }
 
-    Ok(frame_size_bytes)
+    Ok(page_size_bytes)
 }
 
 /// Reserve one inaccessible virtual address range.
@@ -348,6 +357,28 @@ pub(crate) fn map_frame_range_cow(
         allocator,
         frame,
         PAGE_READONLY,
+        PreviousMapping::Reserved,
+    )
+}
+
+/// Remap one writable page frame range as copy on write memory.
+pub(crate) fn remap_frame_range_cow(
+    base: *mut u8,
+    first_page: usize,
+    page_size_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+) -> MemoryResult<()> {
+    map_frame_range(
+        base,
+        first_page,
+        page_size_bytes,
+        byte_len,
+        allocator,
+        frame,
+        PAGE_READONLY,
+        PreviousMapping::Writable,
     )
 }
 
@@ -368,6 +399,7 @@ pub(crate) fn map_frame_range_writable(
         allocator,
         frame,
         PAGE_READWRITE,
+        PreviousMapping::Reserved,
     )
 }
 
@@ -396,6 +428,24 @@ pub(crate) fn make_shared_pages_writable(
             )
         };
         if result == 0 {
+            // restore earlier pages to their shared read only state
+            for restored_offset in 0..page_offset {
+                let restored_page = first_page + restored_offset;
+                // SAFETY: restored_page is inside the same mapped range
+                let restored_address = unsafe { base.add(restored_page * page_size_bytes) };
+                let mut ignored_protection = 0;
+
+                // SAFETY: restored_address names one page changed by this operation
+                let _ = unsafe {
+                    VirtualProtect(
+                        restored_address.cast(),
+                        page_size_bytes,
+                        PAGE_READONLY,
+                        &mut ignored_protection,
+                    )
+                };
+            }
+
             return Err(last_system_error(
                 MemoryOperation::ProtectPages,
                 Some(byte_len),
@@ -458,8 +508,9 @@ fn map_frame_range(
     page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
-    frame: PageFrame,
+    first_frame: PageFrame,
     protection: u32,
+    previous: PreviousMapping,
 ) -> MemoryResult<()> {
     let page_count = byte_len / page_size_bytes;
 
@@ -467,18 +518,48 @@ fn map_frame_range(
     for page_offset in 0..page_count {
         let page_index = first_page + page_offset;
         let frame = PageFrame {
-            section_index: frame.section_index,
-            offset: frame.offset + (page_offset * page_size_bytes) as u64,
+            section_index: first_frame.section_index,
+            offset: first_frame.offset + (page_offset * page_size_bytes) as u64,
         };
 
-        map_page(
+        let mapped = map_page(
             base,
             page_index,
             page_size_bytes,
             allocator,
             frame,
             protection,
-        )?;
+        );
+        if let Err(error) = mapped {
+            // restore every page touched by this operation
+            for restored_offset in 0..=page_offset {
+                let restored_page = first_page + restored_offset;
+                // SAFETY: restored_page is inside the same reserved range
+                let restored_address = unsafe { base.add(restored_page * page_size_bytes) };
+
+                match previous {
+                    PreviousMapping::Reserved => {
+                        unmap_page_view(restored_address);
+                    }
+                    PreviousMapping::Writable => {
+                        let restored_frame = PageFrame {
+                            section_index: first_frame.section_index,
+                            offset: first_frame.offset + (restored_offset * page_size_bytes) as u64,
+                        };
+                        let _ = map_page(
+                            base,
+                            restored_page,
+                            page_size_bytes,
+                            allocator,
+                            restored_frame,
+                            PAGE_READWRITE,
+                        );
+                    }
+                }
+            }
+
+            return Err(error);
+        }
     }
 
     Ok(())

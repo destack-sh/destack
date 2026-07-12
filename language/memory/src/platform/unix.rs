@@ -216,12 +216,12 @@ pub(crate) fn copy_frame_range(
     Ok(frame)
 }
 
-/// Return the platform frame byte width for fixed address mappings.
-pub(crate) fn system_frame_size_bytes() -> MemoryResult<usize> {
-    let page_size_bytes = system_page_size_bytes();
+/// Return the system memory page width.
+pub(crate) fn system_page_size_bytes() -> MemoryResult<usize> {
+    let page_size_bytes = query_page_size_bytes();
     if page_size_bytes <= 0 {
         return Err(MemoryError::Internal {
-            context: "system frame size",
+            context: "system page size",
         });
     }
 
@@ -288,6 +288,25 @@ pub(crate) fn map_frame_range_cow(
         frame,
         libc::PROT_READ,
         libc::MAP_PRIVATE,
+    )
+}
+
+/// Remap one writable page frame range as copy on write memory.
+pub(crate) fn remap_frame_range_cow(
+    base: *mut u8,
+    first_page: usize,
+    page_size_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+) -> MemoryResult<()> {
+    map_frame_range_cow(
+        base,
+        first_page,
+        page_size_bytes,
+        byte_len,
+        allocator,
+        frame,
     )
 }
 
@@ -465,7 +484,7 @@ fn page_address(base: *mut u8, page_index: usize, page_size_bytes: usize) -> *mu
 }
 
 /// Return the platform page byte width.
-fn system_page_size_bytes() -> libc::c_long {
+fn query_page_size_bytes() -> libc::c_long {
     // SAFETY: sysconf reads process configuration and does not retain pointers
     unsafe { libc::sysconf(libc::_SC_PAGESIZE) }
 }

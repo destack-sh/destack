@@ -212,8 +212,8 @@ fn allocate_frame_storage(
     (frame, is_reused)
 }
 
-/// Return the platform frame byte width for linear memory mappings.
-pub(crate) const fn system_frame_size_bytes() -> MemoryResult<usize> {
+/// Return the WebAssembly memory page width.
+pub(crate) const fn system_page_size_bytes() -> MemoryResult<usize> {
     Ok(WASM_PAGE_SIZE_BYTES)
 }
 
@@ -245,6 +245,25 @@ pub(crate) fn map_frame_range_cow(
     frame: PageFrame,
 ) -> MemoryResult<()> {
     map_frame_range(
+        base,
+        first_page,
+        page_size_bytes,
+        byte_len,
+        allocator,
+        frame,
+    )
+}
+
+/// Copy one writable page frame range into linear memory.
+pub(crate) fn remap_frame_range_cow(
+    base: *mut u8,
+    first_page: usize,
+    page_size_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+) -> MemoryResult<()> {
+    map_frame_range_cow(
         base,
         first_page,
         page_size_bytes,
@@ -305,14 +324,24 @@ fn map_frame_range(
     frame: PageFrame,
 ) -> MemoryResult<()> {
     let page_count = byte_len / page_size_bytes;
+    let state = allocator.state.lock();
+    let end_frame = frame.index + page_count;
+    let Some(frames) = state.frames.get(frame.index..end_frame) else {
+        return Err(MemoryError::Internal {
+            context: "linear memory frame range",
+        });
+    };
 
-    for page_offset in 0..page_count {
+    // copy only after validating the complete frame range
+    for (page_offset, frame) in frames.iter().enumerate() {
         let page_index = first_page + page_offset;
-        let frame = PageFrame {
-            index: frame.index + page_offset,
-        };
+        // SAFETY: page_index is inside the owned linear memory reservation
+        let target = unsafe { base.add(page_index * page_size_bytes) };
 
-        map_page(base, page_index, page_size_bytes, allocator, frame)?;
+        // SAFETY: source and target both cover one full page
+        unsafe {
+            copy_nonoverlapping(frame.as_ptr(), target, page_size_bytes);
+        }
     }
 
     Ok(())

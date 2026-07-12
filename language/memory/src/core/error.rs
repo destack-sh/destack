@@ -30,6 +30,34 @@ pub enum MemoryError {
         /// The reserved capacity in bytes.
         capacity: usize,
     },
+    /// One logical memory range could not fit in the reserved map.
+    RangeExhausted {
+        /// The requested byte length.
+        byte_len: usize,
+        /// The requested byte alignment.
+        alignment: usize,
+        /// The reserved map capacity.
+        capacity: usize,
+    },
+    /// One claimed logical range overlaps live storage.
+    RangeOccupied {
+        /// The claimed byte offset.
+        offset: usize,
+        /// The claimed byte length.
+        byte_len: usize,
+    },
+    /// One released logical range was not allocated by this map.
+    InvalidRelease {
+        /// The released byte offset.
+        offset: usize,
+        /// The released byte length.
+        byte_len: usize,
+    },
+    /// One durable memory offset does not fit the current machine.
+    OffsetOverflow {
+        /// The durable byte offset.
+        offset: u64,
+    },
     /// One internal memory error occurred.
     Internal {
         /// The internal error context.
@@ -123,6 +151,31 @@ impl Display for MemoryError {
                     formatter,
                     "invalid memory byte range: start {start}, length {len}, capacity {capacity}"
                 )
+            }
+            Self::RangeExhausted {
+                byte_len,
+                alignment,
+                capacity,
+            } => {
+                write!(
+                    formatter,
+                    "memory range exhausted: {byte_len} bytes aligned to {alignment}, capacity {capacity}"
+                )
+            }
+            Self::RangeOccupied { offset, byte_len } => {
+                write!(
+                    formatter,
+                    "memory range occupied: offset {offset}, length {byte_len}"
+                )
+            }
+            Self::InvalidRelease { offset, byte_len } => {
+                write!(
+                    formatter,
+                    "invalid memory range release: offset {offset}, length {byte_len}"
+                )
+            }
+            Self::OffsetOverflow { offset } => {
+                write!(formatter, "memory offset exceeds machine width: {offset}")
             }
             Self::Internal { context } => {
                 write!(formatter, "internal memory error: {context}")

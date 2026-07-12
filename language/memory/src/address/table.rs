@@ -19,7 +19,7 @@ pub(super) struct PageTable {
     /// The reserved byte length.
     #[cfg(not(target_arch = "wasm32"))]
     byte_len: usize,
-    /// The native page frame width.
+    /// The fixed mapping frame width.
     #[cfg(not(target_arch = "wasm32"))]
     frame_size_bytes: usize,
     /// The number of pages covered by the table.
@@ -307,10 +307,10 @@ struct PageEntry {
     frame: UnsafeCell<MaybeUninit<PageFrame>>,
 }
 
-// SAFETY: frame writes are serialized by the owning page map
+// SAFETY: frame writes are serialized by the owning memory map
 unsafe impl Send for PageEntry {}
 
-// SAFETY: frame writes are serialized by the owning page map
+// SAFETY: frame writes are serialized by the owning memory map
 unsafe impl Sync for PageEntry {}
 
 impl PageEntry {
@@ -371,7 +371,7 @@ impl PageEntry {
 
     /// Store one mapped frame and state.
     fn set_frame(&self, frame: PageFrame, tag: PageTag) {
-        // SAFETY: callers serialize frame writes with the page map lock
+        // SAFETY: callers serialize frame writes with the memory map lock
         unsafe {
             *self.frame.get() = MaybeUninit::new(frame);
         }
@@ -432,7 +432,7 @@ impl PageTag {
 ///
 /// # Safety
 ///
-/// The context must be a live page table registered by its owning page map.
+/// The context must be a live page table registered by its owning memory map.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) unsafe fn watch_page_write(context: *const (), address: usize) -> bool {
     // SAFETY: the platform watch table registers only live page table pointers
