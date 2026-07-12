@@ -2268,14 +2268,14 @@ fn type_expression_is_constant(
 ) -> bool {
     let type_expression = ctx.dir.get(type_expression_id);
 
-    match type_expression {
+    matches!(
+        type_expression,
         dir::TypeExpression::ScalarLiteral { value: _ }
-        | dir::TypeExpression::Literal { .. }
-        | dir::TypeExpression::Intrinsic
-        | dir::TypeExpression::Const
-        | dir::TypeExpression::This => true,
-        _ => false,
-    }
+            | dir::TypeExpression::Literal { .. }
+            | dir::TypeExpression::Intrinsic
+            | dir::TypeExpression::Const
+            | dir::TypeExpression::This
+    )
 }
 
 /// Return the boolean value of one constant type expression when known.

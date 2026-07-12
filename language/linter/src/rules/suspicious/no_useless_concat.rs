@@ -133,10 +133,10 @@ fn is_string_literal(
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expr = ctx.dir.get(expr_id);
-    match expr {
-        dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_)) => true,
-        _ => false,
-    }
+    matches!(
+        expr,
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+    )
 }
 
 /// Return true when two expressions are on the same source line.

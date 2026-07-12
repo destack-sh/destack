@@ -336,32 +336,27 @@ pub fn expression_unwrap_statement(
     expression_unwrap_transparent(tree, expression_id)
 }
 
-/// Return true when one binary expression is nested under the same operator.
-pub fn binary_expression_is_nested_same_operator(
+/// Return whether one binary expression has a parent with the same operator.
+pub fn binary_expression_has_same_operator_parent(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: dir::BinaryOperator,
 ) -> bool {
-    let current_node_id = expression_id.id;
-
-    loop {
-        let Some(parent_node_id) = tree.get_parent(current_node_id) else {
-            return false;
-        };
-        if parent_node_id.ty != dir::NodeType::Expression {
-            return false;
-        }
-
-        let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
-        let parent_expression = tree.get(parent_expression_id);
-        match parent_expression {
-            dir::Expression::Binary {
-                operator: parent_operator,
-                ..
-            } => return *parent_operator == operator,
-            _ => return false,
-        }
+    let Some(parent_node_id) = tree.get_parent(expression_id.id) else {
+        return false;
+    };
+    if parent_node_id.ty != dir::NodeType::Expression {
+        return false;
     }
+
+    let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
+    matches!(
+        tree.get(parent_expression_id),
+        dir::Expression::Binary {
+            operator: parent_operator,
+            ..
+        } if *parent_operator == operator
+    )
 }
 
 /// Collect all members of one flattened binary operator chain.
@@ -792,25 +787,10 @@ pub fn expression_is_potentially_tainted(
     matches!(
         expression,
         dir::Expression::Member { .. }
-            | dir::Expression::Call {
-                position: _,
-                left: _,
-                generic_arguments: _,
-                arguments: _,
-                ..
-            }
-            | dir::Expression::Index {
-                position: _,
-                left: _,
-                index: _,
-                ..
-            }
-            | dir::Expression::Binary {
-                left: _,
-                operator: _,
-                right: _,
-            }
-            | dir::Expression::TemplateExpression { value: _ }
+            | dir::Expression::Call { .. }
+            | dir::Expression::Index { .. }
+            | dir::Expression::Binary { .. }
+            | dir::Expression::TemplateExpression { .. }
     )
 }
 
