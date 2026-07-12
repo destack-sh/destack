@@ -5,6 +5,20 @@ use destack_dir::{
     FunctionDeclaration, PostfixPosition, ScalarLiteral, TemplateLiteral, UnaryOperator,
 };
 
+/// Parse a regex body containing direct non-ASCII source text.
+#[test]
+fn test_parse_regex_non_ascii_body() {
+    let test = TestParser::new("/café/u");
+    let mut parser = test.prepare();
+    let expression = parser.parse_expression(Default::default()).unwrap();
+
+    assert_node!(parser.tree, expression, Expression::ScalarLiteral(ScalarLiteral::RegexString { content, flags }) => {
+        assert_string!(parser, *content, "café");
+        assert_string!(parser, flags.unwrap(), "u");
+    });
+    TestParser::assert_no_errors(&parser);
+}
+
 /// Parse regex literals inside template interpolation expressions.
 #[test]
 fn test_parse_tagged_template_with_regex_interpolation() {

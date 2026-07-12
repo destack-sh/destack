@@ -31,6 +31,27 @@ fn test_lex_tree_after_type_alias_before_tree() {
     );
 }
 
+/// Keep an unterminated escaped tree attribute within the source extent.
+#[test]
+fn test_lex_unterminated_tree_attribute_ends_at_eof() {
+    assert_tree_tokenize_eq_roundtrip!(
+        r#"<widget value="unfinished\"#,
+        token(TokenType::LessThan, 1, None),
+        token(TokenType::Identifier, 6, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 5, None),
+        token(TokenType::Assign, 1, None),
+        token(
+            TokenType::Literal,
+            12,
+            Some(TokenLiteral::String {
+                is_terminated: false,
+                has_invalid_escape: false,
+            })
+        ),
+    );
+}
+
 /// HTML entities outside tree text should remain ordinary tokens.
 #[test]
 fn test_lex_html_entities_outside_tree_not_decoded() {

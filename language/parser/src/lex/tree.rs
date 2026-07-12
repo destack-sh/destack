@@ -171,7 +171,11 @@ impl Tokenizer {
             }
 
             if byte == b'\\' {
-                offset += 2;
+                offset += 1;
+                if offset < bytes.len() {
+                    offset += 1;
+                }
+
                 continue;
             }
 
@@ -190,10 +194,27 @@ impl Tokenizer {
         byte.is_ascii_alphabetic() || matches!(byte, b'_' | b'$')
     }
 
+    /// Return whether a source byte continues an ASCII tree tag identifier.
+    #[inline]
+    fn is_tree_tag_identifier_continue_byte(byte: u8) -> bool {
+        byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$')
+    }
+
     /// Return the end offset of a tree tag identifier.
     fn tree_tag_identifier_end(source: &str, start: usize) -> usize {
+        let bytes = source.as_bytes();
         let mut end = start;
-        for character in source[start..].chars() {
+
+        // consume the common ASCII identifier run
+        while end < bytes.len() && Self::is_tree_tag_identifier_continue_byte(bytes[end]) {
+            end += 1;
+        }
+
+        // continue through Unicode identifier characters when present
+        if end >= bytes.len() || bytes[end].is_ascii() {
+            return end;
+        }
+        for character in source[end..].chars() {
             if !is_identifier_continue(character) {
                 break;
             }
