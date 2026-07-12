@@ -245,7 +245,7 @@ const label = match (value) {
 "#,
         r#"
 /// @diagnostic.error code=EC403 message="match is not exhaustive: '2' is not covered"
-/// @diagnostic.label line=6 column=21 span="(value) {\n    0..=1 => \"low\"\n    3 => \"high\"\n}" line_source="const label = match (value) {"
+/// @diagnostic.label line=6 column=15 span="match (value) {\n    0..=1 => \"low\"\n    3 => \"high\"\n}" line_source="const label = match (value) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
     );
