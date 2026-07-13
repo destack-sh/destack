@@ -169,6 +169,8 @@ pub struct SharedMarkWorker {
     index: usize,
     /// Work owned by this mark worker.
     local: Worker<MarkWork>,
+    /// Reusable batch storage for incremental mark work.
+    batch: Mutex<Vec<MarkWork>>,
 }
 
 /// Shared trace queues for global work and worker-local work.
@@ -178,6 +180,8 @@ pub(crate) struct MarkQueue {
     global: Injector<MarkWork>,
     /// Stealing handles for registered mark workers.
     stealers: Mutex<Vec<Stealer<MarkWork>>>,
+    /// Reusable batch storage for coordinator mark work.
+    batch: Mutex<Vec<MarkWork>>,
 }
 
 impl MarkQueue {
@@ -194,6 +198,18 @@ impl MarkQueue {
         SharedMarkWorker {
             index: worker_index,
             local,
+            batch: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Lock the reusable batch for one mark worker or the coordinator.
+    pub(crate) fn batch<'a>(
+        &'a self,
+        worker: Option<&'a SharedMarkWorker>,
+    ) -> MutexGuard<'a, Vec<MarkWork>> {
+        match worker {
+            Some(worker) => worker.batch.lock(),
+            None => self.batch.lock(),
         }
     }
 
@@ -247,8 +263,8 @@ impl MarkQueue {
         }
 
         // worker queues
-        let stealers = self.stealers_snapshot();
-        for stealer in stealers {
+        let stealers = self.stealers.lock();
+        for stealer in stealers.iter() {
             if !stealer.is_empty() {
                 return false;
             }
@@ -263,9 +279,9 @@ impl MarkQueue {
         self.drain_global();
 
         // worker queues
-        let stealers = self.stealers_snapshot();
-        for stealer in stealers {
-            self.drain_stealer(&stealer);
+        let stealers = self.stealers.lock();
+        for stealer in stealers.iter() {
+            self.drain_stealer(stealer);
         }
     }
 
@@ -352,14 +368,14 @@ impl MarkQueue {
         batch_len: usize,
         batch: &mut Vec<MarkWork>,
     ) {
-        // snapshot avoids holding the registry lock while stealing
-        let stealers = self.stealers_snapshot();
-        for (worker_index, stealer) in stealers.into_iter().enumerate() {
+        // scan the stable worker registry without allocating a snapshot
+        let stealers = self.stealers.lock();
+        for (worker_index, stealer) in stealers.iter().enumerate() {
             if local_worker.is_some_and(|local_worker| local_worker.index == worker_index) {
                 continue;
             }
 
-            self.steal_from_worker(local_worker, &stealer, batch_len, batch);
+            self.steal_from_worker(local_worker, stealer, batch_len, batch);
 
             if batch.len() == batch_len {
                 break;
@@ -398,11 +414,6 @@ impl MarkQueue {
                 Steal::Retry => continue,
             }
         }
-    }
-
-    /// Return the currently registered worker stealers.
-    fn stealers_snapshot(&self) -> Vec<Stealer<MarkWork>> {
-        self.stealers.lock().clone()
     }
 }
 
