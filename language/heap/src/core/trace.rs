@@ -1,13 +1,26 @@
 use std::fmt;
+use std::marker::PhantomData;
 
 use destack_core::{
     EntryRange, EntryStore, SectionEntry, SectionImage, SectionPacker, SectionSlice,
 };
-use destack_mir::{TraceId, TraceMap, TraceVariant};
+use destack_mir as mir;
+use destack_mir::{
+    Discriminant, DiscriminantField, TraceId, TraceMap, VariantEncoding, VariantTrace,
+};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapResult, ReferenceRange};
+use crate::{HeapResult, ReferenceClass, ReferenceRange};
+
+const TRACE_EMPTY: u32 = 0;
+const TRACE_FIXED: u32 = 1;
+const TRACE_NESTED: u32 = 2;
+const TRACE_COMPOSITE: u32 = 3;
+const TRACE_REPEATED: u32 = 4;
+const TRACE_VARIANT: u32 = 5;
+const VARIANT_DIRECT: u32 = 0;
+const VARIANT_NICHE: u32 = 1;
 
 /// Compact heap trace table stored in program sections.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -16,17 +29,27 @@ pub struct TraceTable {
     roots: SectionSlice<u32>,
     /// Flat trace entries.
     entries: SectionSlice<TraceEntry>,
+    /// Fixed trace payloads.
+    fixed: SectionSlice<FixedTrace>,
+    /// Nested trace payloads.
+    nested: SectionSlice<NestedTrace>,
+    /// Composite trace payloads.
+    composite: SectionSlice<CompositeTrace>,
+    /// Repeated trace payloads.
+    repeated: SectionSlice<RepeatedTrace>,
+    /// Variant trace payloads.
+    variants: SectionSlice<VariantTraceEntry>,
     /// Flattened trace byte offsets.
     offsets: SectionSlice<u32>,
     /// Flattened child entry ids.
     children: SectionSlice<u32>,
-    /// Flattened tagged variant entries.
-    variants: SectionSlice<TraceVariantEntry>,
+    /// Flattened variant cases.
+    cases: SectionSlice<VariantTraceCase>,
 }
 
 impl TraceTable {
     /// Pack one heap trace table from compiler trace maps.
-    pub fn pack(sections: &mut SectionPacker, source: &destack_mir::TraceTable) -> Self {
+    pub fn pack(sections: &mut SectionPacker, source: &mir::TraceTable) -> Self {
         let mut builder = TraceTableBuilder::new();
 
         // preserve TraceId order for all top-level roots
@@ -43,9 +66,14 @@ impl TraceTable {
         TraceView {
             roots: sections.entries(self.roots),
             entries: sections.entries(self.entries),
+            fixed: sections.entries(self.fixed),
+            nested: sections.entries(self.nested),
+            composite: sections.entries(self.composite),
+            repeated: sections.entries(self.repeated),
+            variants: sections.entries(self.variants),
             offsets: sections.entries(self.offsets),
             children: sections.entries(self.children),
-            variants: sections.entries(self.variants),
+            cases: sections.entries(self.cases),
         }
     }
 }
@@ -57,15 +85,51 @@ pub struct TraceView<'a> {
     roots: &'a [u32],
     /// Flat trace entries.
     entries: &'a [TraceEntry],
+    /// Fixed trace payloads.
+    fixed: &'a [FixedTrace],
+    /// Nested trace payloads.
+    nested: &'a [NestedTrace],
+    /// Composite trace payloads.
+    composite: &'a [CompositeTrace],
+    /// Repeated trace payloads.
+    repeated: &'a [RepeatedTrace],
+    /// Variant trace payloads.
+    variants: &'a [VariantTraceEntry],
     /// Flattened trace byte offsets.
     offsets: &'a [u32],
     /// Flattened child entry ids.
     children: &'a [u32],
-    /// Flattened tagged variant entries.
-    variants: &'a [TraceVariantEntry],
+    /// Flattened variant cases.
+    cases: &'a [VariantTraceCase],
 }
 
 impl TraceView<'_> {
+    /// Return whether one trace may contain one reference class.
+    pub(crate) fn has_reference<R: ReferenceClass>(self, id: TraceId) -> HeapResult<bool> {
+        let mut visitor = ReferencePresence::<R> {
+            is_present: false,
+            reference: PhantomData,
+        };
+        self.walk(id, 0, ReferenceRange::All, &mut visitor)?;
+
+        Ok(visitor.is_present)
+    }
+
+    /// Return whether one trace reference class overlaps a byte range.
+    pub(crate) fn overlaps_reference<R: ReferenceClass>(
+        self,
+        id: TraceId,
+        range: ReferenceRange,
+    ) -> HeapResult<bool> {
+        let mut visitor = ReferencePresence::<R> {
+            is_present: false,
+            reference: PhantomData,
+        };
+        self.walk(id, 0, range, &mut visitor)?;
+
+        Ok(visitor.is_present)
+    }
+
     /// Decode one trace map by id.
     pub fn trace_map(self, id: TraceId) -> Result<TraceMap, TraceTableError> {
         let root = self.root(id)?;
@@ -79,20 +143,29 @@ impl TraceView<'_> {
             return Err(TraceTableError::MissingEntry { entry: entry_id });
         };
 
-        // decode the compact trace entry by kind
-        match entry.kind {
-            TraceEntryKind::EMPTY => Ok(TraceMap::Empty),
-            TraceEntryKind::FIXED => Ok(TraceMap::Fixed {
-                local_offsets: entry.local_offsets.slice(self.offsets).into(),
-                shared_offsets: entry.shared_offsets.slice(self.offsets).into(),
-                frame_offsets: entry.frame_offsets.slice(self.offsets).into(),
-            }),
-            TraceEntryKind::NESTED => Ok(TraceMap::Nested {
-                byte_offset: entry.byte_offset,
-                map: Box::new(self.decode_map(entry.first_child)?),
-            }),
-            TraceEntryKind::COMPOSITE => {
-                let maps = entry
+        // decode the compact trace entry by tag
+        match entry.tag {
+            TRACE_EMPTY => Ok(TraceMap::Empty),
+            TRACE_FIXED => {
+                let fixed = self.fixed(entry)?;
+
+                Ok(TraceMap::Fixed {
+                    local_offsets: fixed.local_offsets.slice(self.offsets).into(),
+                    shared_offsets: fixed.shared_offsets.slice(self.offsets).into(),
+                    frame_offsets: fixed.frame_offsets.slice(self.offsets).into(),
+                })
+            }
+            TRACE_NESTED => {
+                let nested = self.nested(entry)?;
+
+                Ok(TraceMap::Nested {
+                    byte_offset: nested.byte_offset,
+                    map: Box::new(self.decode_map(nested.child)?),
+                })
+            }
+            TRACE_COMPOSITE => {
+                let composite = self.composite(entry)?;
+                let maps = composite
                     .children
                     .slice(self.children)
                     .iter()
@@ -101,31 +174,36 @@ impl TraceView<'_> {
 
                 Ok(TraceMap::Composite { maps })
             }
-            TraceEntryKind::REPEATED => Ok(TraceMap::Repeated {
-                count: entry.count,
-                stride: entry.stride,
-                element: Box::new(self.decode_map(entry.first_child)?),
-            }),
-            TraceEntryKind::TAGGED => {
-                let variants = entry
-                    .variants
-                    .slice(self.variants)
+            TRACE_REPEATED => {
+                let repeated = self.repeated(entry)?;
+
+                Ok(TraceMap::Repeated {
+                    count: repeated.count,
+                    stride: repeated.stride,
+                    element: Box::new(self.decode_map(repeated.element)?),
+                })
+            }
+            TRACE_VARIANT => {
+                let variant = self.variant(entry)?;
+                let cases = variant
+                    .cases
+                    .slice(self.cases)
                     .iter()
-                    .map(|variant| {
-                        Ok(TraceVariant {
-                            tag: variant.tag,
-                            payload_offset: variant.payload_offset,
-                            map: self.decode_map(variant.child)?,
+                    .map(|case| {
+                        Ok(VariantTrace {
+                            discriminant: case.discriminant,
+                            payload_offset: case.payload_offset,
+                            map: self.decode_map(case.child)?,
                         })
                     })
                     .collect::<Result<Box<[_]>, TraceTableError>>()?;
 
-                Ok(TraceMap::Tagged {
-                    tag_bytes: entry.tag_bytes as u8,
-                    variants,
+                Ok(TraceMap::Variant {
+                    encoding: variant.encoding()?,
+                    cases,
                 })
             }
-            kind => Err(TraceTableError::UnknownKind { kind: kind.raw() }),
+            tag => Err(TraceTableError::InvalidEntryTag { tag }),
         }
     }
 
@@ -160,59 +238,78 @@ impl TraceView<'_> {
     ) -> HeapResult<()> {
         let entry = self.entry(entry_id)?;
 
-        // dispatch by compact trace entry kind
-        match entry.kind {
-            TraceEntryKind::EMPTY => {}
-            TraceEntryKind::FIXED => {
+        // dispatch by compact trace entry tag
+        match entry.tag {
+            TRACE_EMPTY => {}
+            TRACE_FIXED => {
+                let fixed = self.fixed(entry)?;
+
                 walker.fixed(
-                    entry.local_offsets.slice(self.offsets),
-                    entry.shared_offsets.slice(self.offsets),
-                    entry.frame_offsets.slice(self.offsets),
+                    fixed.local_offsets.slice(self.offsets),
+                    fixed.shared_offsets.slice(self.offsets),
+                    fixed.frame_offsets.slice(self.offsets),
                     base_offset,
                     range,
                 )?;
             }
-            TraceEntryKind::NESTED => {
-                let base_offset = base_offset + entry.byte_offset as usize;
+            TRACE_NESTED => {
+                let nested = self.nested(entry)?;
+                let base_offset = base_offset + nested.byte_offset as usize;
 
-                self.walk_entry(entry.first_child, base_offset, range, walker)?;
+                self.walk_entry(nested.child, base_offset, range, walker)?;
             }
-            TraceEntryKind::COMPOSITE => {
-                for child in entry.children.slice(self.children) {
+            TRACE_COMPOSITE => {
+                let composite = self.composite(entry)?;
+
+                for child in composite.children.slice(self.children) {
                     self.walk_entry(*child, base_offset, range, walker)?;
                 }
             }
-            TraceEntryKind::REPEATED => {
-                let window = range.element_window(base_offset, entry.stride as usize, entry.count);
+            TRACE_REPEATED => {
+                let repeated = self.repeated(entry)?;
+                let window =
+                    range.element_window(base_offset, repeated.stride as usize, repeated.count);
                 for index in window {
-                    let element_offset = base_offset + index as usize * entry.stride as usize;
+                    let element_offset = base_offset + index as usize * repeated.stride as usize;
 
-                    self.walk_entry(entry.first_child, element_offset, range, walker)?;
+                    self.walk_entry(repeated.element, element_offset, range, walker)?;
                 }
             }
-            TraceEntryKind::TAGGED => {
-                let Some(tag) = walker.tag(base_offset, entry.tag_bytes as u8)? else {
-                    for variant in entry.variants.slice(self.variants) {
-                        let variant_offset = base_offset + variant.payload_offset as usize;
+            TRACE_VARIANT => {
+                let variant = self.variant(entry)?;
+                let encoding = variant.encoding()?;
+                let field = encoding.field();
+                let offset = base_offset + field.offset as usize;
+                let Some(scalar) = walker.scalar(offset, field.byte_len)? else {
+                    for case in variant.cases.slice(self.cases) {
+                        let variant_offset = base_offset + case.payload_offset as usize;
 
-                        self.walk_entry(variant.child, variant_offset, range, walker)?;
+                        self.walk_entry(case.child, variant_offset, range, walker)?;
                     }
 
                     return Ok(());
                 };
-                let Some(variant) = entry
-                    .variants
-                    .slice(self.variants)
-                    .iter()
-                    .find(|variant| variant.tag == tag)
-                else {
+                let cases = variant.cases.slice(self.cases);
+                let case = match encoding {
+                    VariantEncoding::Direct { field } => {
+                        let discriminant = field.extract(scalar);
+
+                        cases
+                            .iter()
+                            .find(|case| case.discriminant.bits() == discriminant)
+                    }
+                    encoding @ VariantEncoding::Niche { .. } => encoding
+                        .decode_niche(scalar)
+                        .and_then(|index| cases.get(index as usize)),
+                };
+                let Some(case) = case else {
                     return Ok(());
                 };
-                let variant_offset = base_offset + variant.payload_offset as usize;
+                let variant_offset = base_offset + case.payload_offset as usize;
 
-                self.walk_entry(variant.child, variant_offset, range, walker)?;
+                self.walk_entry(case.child, variant_offset, range, walker)?;
             }
-            kind => return Err(TraceTableError::UnknownKind { kind: kind.raw() }.into()),
+            tag => return Err(TraceTableError::InvalidEntryTag { tag }.into()),
         }
 
         Ok(())
@@ -224,6 +321,90 @@ impl TraceView<'_> {
             .get(entry_id as usize)
             .copied()
             .ok_or(TraceTableError::MissingEntry { entry: entry_id })
+    }
+
+    /// Return one fixed trace payload.
+    fn fixed(self, entry: TraceEntry) -> Result<FixedTrace, TraceTableError> {
+        self.fixed
+            .get(entry.index as usize)
+            .copied()
+            .ok_or(TraceTableError::MissingPayload {
+                tag: entry.tag,
+                index: entry.index,
+            })
+    }
+
+    /// Return one nested trace payload.
+    fn nested(self, entry: TraceEntry) -> Result<NestedTrace, TraceTableError> {
+        self.nested
+            .get(entry.index as usize)
+            .copied()
+            .ok_or(TraceTableError::MissingPayload {
+                tag: entry.tag,
+                index: entry.index,
+            })
+    }
+
+    /// Return one composite trace payload.
+    fn composite(self, entry: TraceEntry) -> Result<CompositeTrace, TraceTableError> {
+        self.composite
+            .get(entry.index as usize)
+            .copied()
+            .ok_or(TraceTableError::MissingPayload {
+                tag: entry.tag,
+                index: entry.index,
+            })
+    }
+
+    /// Return one repeated trace payload.
+    fn repeated(self, entry: TraceEntry) -> Result<RepeatedTrace, TraceTableError> {
+        self.repeated
+            .get(entry.index as usize)
+            .copied()
+            .ok_or(TraceTableError::MissingPayload {
+                tag: entry.tag,
+                index: entry.index,
+            })
+    }
+
+    /// Return one variant trace payload.
+    fn variant(self, entry: TraceEntry) -> Result<VariantTraceEntry, TraceTableError> {
+        self.variants
+            .get(entry.index as usize)
+            .copied()
+            .ok_or(TraceTableError::MissingPayload {
+                tag: entry.tag,
+                index: entry.index,
+            })
+    }
+}
+
+/// Presence probe for one trace reference class.
+struct ReferencePresence<R> {
+    /// Whether the trace contains this reference class.
+    is_present: bool,
+    /// The reference class selected by this probe.
+    reference: PhantomData<R>,
+}
+
+impl<R: ReferenceClass> TraceVisitor for ReferencePresence<R> {
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        frame_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        self.is_present |= R::offsets(local_offsets, shared_offsets, frame_offsets)
+            .iter()
+            .any(|offset| range.overlaps(base_offset + *offset as usize, R::BYTE_LEN));
+
+        Ok(())
+    }
+
+    fn scalar(&mut self, _offset: usize, _byte_len: u8) -> HeapResult<Option<u128>> {
+        Ok(None)
     }
 }
 
@@ -239,8 +420,8 @@ pub(crate) trait TraceVisitor {
         range: ReferenceRange,
     ) -> HeapResult<()>;
 
-    /// Return the active variant tag at the given offset.
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>>;
+    /// Return the active variant discriminant scalar at the given offset.
+    fn scalar(&mut self, offset: usize, byte_len: u8) -> HeapResult<Option<u128>>;
 }
 
 /// Invalid compact heap trace table.
@@ -256,10 +437,22 @@ pub enum TraceTableError {
         /// Missing entry id.
         entry: u32,
     },
-    /// A trace entry carries an unknown trace kind.
-    UnknownKind {
-        /// Invalid trace kind.
-        kind: u32,
+    /// A trace entry tag is not defined.
+    InvalidEntryTag {
+        /// Invalid trace entry tag.
+        tag: u32,
+    },
+    /// A trace entry payload index is missing.
+    MissingPayload {
+        /// Trace entry tag.
+        tag: u32,
+        /// Missing payload index.
+        index: u32,
+    },
+    /// A variant encoding tag is not defined.
+    InvalidVariantTag {
+        /// Invalid variant encoding tag.
+        tag: u32,
     },
 }
 
@@ -269,7 +462,13 @@ impl fmt::Display for TraceTableError {
         match self {
             Self::MissingTrace { trace } => write!(formatter, "missing trace {trace:?}"),
             Self::MissingEntry { entry } => write!(formatter, "missing trace entry {entry}"),
-            Self::UnknownKind { kind } => write!(formatter, "unknown trace kind {kind}"),
+            Self::InvalidEntryTag { tag } => write!(formatter, "invalid trace entry tag {tag}"),
+            Self::MissingPayload { tag, index } => {
+                write!(formatter, "missing trace payload {index} for tag {tag}")
+            }
+            Self::InvalidVariantTag { tag } => {
+                write!(formatter, "invalid trace variant tag {tag}")
+            }
         }
     }
 }
@@ -280,85 +479,138 @@ impl std::error::Error for TraceTableError {}
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 struct TraceEntry {
-    /// Trace entry kind.
-    kind: TraceEntryKind,
-    /// Byte offset used by nested maps.
-    byte_offset: u32,
-    /// Repeated element count.
-    count: u32,
-    /// Repeated element byte stride.
-    stride: u32,
-    /// First child entry id for single-child maps.
-    first_child: u32,
-    /// Tagged variant tag byte width.
-    tag_bytes: u32,
-    /// Fixed local reference byte offsets.
-    local_offsets: EntryRange<u32>,
-    /// Fixed shared reference byte offsets.
-    shared_offsets: EntryRange<u32>,
-    /// Fixed frame reference byte offsets.
-    frame_offsets: EntryRange<u32>,
-    /// Composite child entry ids.
-    children: EntryRange<u32>,
-    /// Tagged variant entries.
-    variants: EntryRange<TraceVariantEntry>,
+    /// Trace payload tag.
+    tag: u32,
+    /// Index inside the tagged payload table.
+    index: u32,
 }
 
-impl TraceEntry {
-    /// Create one trace entry with empty payload ranges.
-    fn new(kind: TraceEntryKind) -> Self {
-        Self {
-            kind,
-            byte_offset: 0,
-            count: 0,
-            stride: 0,
-            first_child: 0,
-            tag_bytes: 0,
-            local_offsets: EntryRange::empty(),
-            shared_offsets: EntryRange::empty(),
-            frame_offsets: EntryRange::empty(),
-            children: EntryRange::empty(),
-            variants: EntryRange::empty(),
+const _: () = assert!(std::mem::size_of::<TraceEntry>() == 8);
+
+/// Fixed reference offsets for one trace entry.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct FixedTrace {
+    /// Local reference byte offsets.
+    local_offsets: EntryRange<u32>,
+    /// Shared reference byte offsets.
+    shared_offsets: EntryRange<u32>,
+    /// Frame reference byte offsets.
+    frame_offsets: EntryRange<u32>,
+}
+
+/// One nested trace entry.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct NestedTrace {
+    /// Nested payload byte offset.
+    byte_offset: u32,
+    /// Nested trace entry id.
+    child: u32,
+}
+
+/// Multiple nested trace entries.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct CompositeTrace {
+    /// Nested trace entry ids.
+    children: EntryRange<u32>,
+}
+
+/// Repeated elements sharing one trace entry.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct RepeatedTrace {
+    /// Element count.
+    count: u32,
+    /// Element byte stride.
+    stride: u32,
+    /// Element trace entry id.
+    element: u32,
+}
+
+/// Discriminant-selected trace entry.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct VariantTraceEntry {
+    /// Variant encoding tag.
+    tag: u32,
+    /// Physical discriminant field.
+    field: DiscriminantField,
+    /// Case represented outside one niche range.
+    untagged_case: u32,
+    /// First case represented by the niche range.
+    niche_case_start: u32,
+    /// Last case represented by the niche range.
+    niche_case_end: u32,
+    /// First physical niche value.
+    niche_start: Discriminant,
+    /// Variant trace cases.
+    cases: EntryRange<VariantTraceCase>,
+}
+
+const _: () = assert!(std::mem::size_of::<VariantTraceEntry>() <= 64);
+
+impl VariantTraceEntry {
+    /// Build one stable variant trace payload.
+    fn new(encoding: VariantEncoding, cases: EntryRange<VariantTraceCase>) -> Self {
+        match encoding {
+            VariantEncoding::Direct { field } => Self {
+                tag: VARIANT_DIRECT,
+                field,
+                untagged_case: 0,
+                niche_case_start: 0,
+                niche_case_end: 0,
+                niche_start: Discriminant::from_bits(0),
+                cases,
+            },
+            VariantEncoding::Niche {
+                field,
+                untagged_case,
+                niche_case_start,
+                niche_case_end,
+                niche_start,
+            } => Self {
+                tag: VARIANT_NICHE,
+                field,
+                untagged_case,
+                niche_case_start,
+                niche_case_end,
+                niche_start,
+                cases,
+            },
         }
     }
-}
 
-/// Fixed-width compact trace entry kind.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-struct TraceEntryKind(u32);
-
-impl TraceEntryKind {
-    /// Empty trace map.
-    const EMPTY: Self = Self(0);
-    /// Fixed offset trace map.
-    const FIXED: Self = Self(1);
-    /// Nested offset trace map.
-    const NESTED: Self = Self(2);
-    /// Composite trace map.
-    const COMPOSITE: Self = Self(3);
-    /// Repeated element trace map.
-    const REPEATED: Self = Self(4);
-    /// Tagged variant trace map.
-    const TAGGED: Self = Self(5);
-
-    /// Return the raw trace kind.
-    const fn raw(self) -> u32 {
-        self.0
+    /// Return the MIR variant encoding represented by this payload.
+    fn encoding(self) -> Result<VariantEncoding, TraceTableError> {
+        match self.tag {
+            VARIANT_DIRECT => Ok(VariantEncoding::Direct { field: self.field }),
+            VARIANT_NICHE => Ok(VariantEncoding::Niche {
+                field: self.field,
+                untagged_case: self.untagged_case,
+                niche_case_start: self.niche_case_start,
+                niche_case_end: self.niche_case_end,
+                niche_start: self.niche_start,
+            }),
+            tag => Err(TraceTableError::InvalidVariantTag { tag }),
+        }
     }
 }
 
 /// Flat compact trace variant entry.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-struct TraceVariantEntry {
-    /// Normalized variant tag value.
-    tag: u64,
+struct VariantTraceCase {
+    /// Logical variant discriminant value.
+    discriminant: Discriminant,
     /// Variant payload byte offset.
     payload_offset: u32,
     /// Variant payload child entry id.
     child: u32,
 }
+
+const _: () = assert!(std::mem::size_of::<VariantTraceCase>() <= 24);
 
 /// Build-time compact trace table builder.
 struct TraceTableBuilder {
@@ -366,12 +618,22 @@ struct TraceTableBuilder {
     roots: Vec<u32>,
     /// Flat trace entries.
     entries: Vec<TraceEntry>,
+    /// Fixed trace payloads.
+    fixed: Vec<FixedTrace>,
+    /// Nested trace payloads.
+    nested: Vec<NestedTrace>,
+    /// Composite trace payloads.
+    composite: Vec<CompositeTrace>,
+    /// Repeated trace payloads.
+    repeated: Vec<RepeatedTrace>,
+    /// Variant trace payloads.
+    variants: Vec<VariantTraceEntry>,
     /// Flattened trace byte offsets.
     offsets: EntryStore<u32>,
     /// Flattened child entry ids.
     children: EntryStore<u32>,
-    /// Flattened tagged variant entries.
-    variants: EntryStore<TraceVariantEntry>,
+    /// Flattened variant cases.
+    cases: EntryStore<VariantTraceCase>,
 }
 
 impl TraceTableBuilder {
@@ -380,16 +642,21 @@ impl TraceTableBuilder {
         Self {
             roots: Vec::new(),
             entries: Vec::new(),
+            fixed: Vec::new(),
+            nested: Vec::new(),
+            composite: Vec::new(),
+            repeated: Vec::new(),
+            variants: Vec::new(),
             offsets: EntryStore::new(),
             children: EntryStore::new(),
-            variants: EntryStore::new(),
+            cases: EntryStore::new(),
         }
     }
 
     /// Push one trace map and return its entry id.
     fn push_map(&mut self, map: &TraceMap) -> u32 {
-        let entry_id = self.entries.len() as u32;
         let entry = self.entry(map);
+        let entry_id = self.entries.len() as u32;
         self.entries.push(entry);
 
         entry_id
@@ -398,67 +665,93 @@ impl TraceTableBuilder {
     /// Build one flat entry for one trace map.
     fn entry(&mut self, map: &TraceMap) -> TraceEntry {
         match map {
-            TraceMap::Empty => TraceEntry::new(TraceEntryKind::EMPTY),
+            TraceMap::Empty => TraceEntry {
+                tag: TRACE_EMPTY,
+                index: 0,
+            },
             TraceMap::Fixed {
                 local_offsets,
                 shared_offsets,
                 frame_offsets,
             } => {
-                let mut entry = TraceEntry::new(TraceEntryKind::FIXED);
-                entry.local_offsets = self.offsets.append(local_offsets.iter().copied());
-                entry.shared_offsets = self.offsets.append(shared_offsets.iter().copied());
-                entry.frame_offsets = self.offsets.append(frame_offsets.iter().copied());
+                let fixed = FixedTrace {
+                    local_offsets: self.offsets.append(local_offsets.iter().copied()),
+                    shared_offsets: self.offsets.append(shared_offsets.iter().copied()),
+                    frame_offsets: self.offsets.append(frame_offsets.iter().copied()),
+                };
+                let index = self.fixed.len() as u32;
+                self.fixed.push(fixed);
 
-                entry
+                TraceEntry {
+                    tag: TRACE_FIXED,
+                    index,
+                }
             }
             TraceMap::Nested { byte_offset, map } => {
-                let mut entry = TraceEntry::new(TraceEntryKind::NESTED);
-                entry.byte_offset = *byte_offset;
-                entry.first_child = self.push_map(map);
+                let nested = NestedTrace {
+                    byte_offset: *byte_offset,
+                    child: self.push_map(map),
+                };
+                let index = self.nested.len() as u32;
+                self.nested.push(nested);
 
-                entry
+                TraceEntry {
+                    tag: TRACE_NESTED,
+                    index,
+                }
             }
             TraceMap::Composite { maps } => {
                 let children = maps
                     .iter()
                     .map(|map| self.push_map(map))
                     .collect::<Vec<_>>();
+                let composite = CompositeTrace {
+                    children: self.children.append(children),
+                };
+                let index = self.composite.len() as u32;
+                self.composite.push(composite);
 
-                let mut entry = TraceEntry::new(TraceEntryKind::COMPOSITE);
-                entry.children = self.children.append(children);
-
-                entry
+                TraceEntry {
+                    tag: TRACE_COMPOSITE,
+                    index,
+                }
             }
             TraceMap::Repeated {
                 count,
                 stride,
                 element,
             } => {
-                let mut entry = TraceEntry::new(TraceEntryKind::REPEATED);
-                entry.count = *count;
-                entry.stride = *stride;
-                entry.first_child = self.push_map(element);
+                let repeated = RepeatedTrace {
+                    count: *count,
+                    stride: *stride,
+                    element: self.push_map(element),
+                };
+                let index = self.repeated.len() as u32;
+                self.repeated.push(repeated);
 
-                entry
+                TraceEntry {
+                    tag: TRACE_REPEATED,
+                    index,
+                }
             }
-            TraceMap::Tagged {
-                tag_bytes,
-                variants,
-            } => {
-                let variants = variants
+            TraceMap::Variant { encoding, cases } => {
+                let cases = cases
                     .iter()
-                    .map(|variant| TraceVariantEntry {
-                        tag: variant.tag,
-                        payload_offset: variant.payload_offset,
-                        child: self.push_map(&variant.map),
+                    .map(|case| VariantTraceCase {
+                        discriminant: case.discriminant,
+                        payload_offset: case.payload_offset,
+                        child: self.push_map(&case.map),
                     })
                     .collect::<Vec<_>>();
+                let cases = self.cases.append(cases);
+                let variant = VariantTraceEntry::new(*encoding, cases);
+                let index = self.variants.len() as u32;
+                self.variants.push(variant);
 
-                let mut entry = TraceEntry::new(TraceEntryKind::TAGGED);
-                entry.tag_bytes = *tag_bytes as u32;
-                entry.variants = self.variants.append(variants);
-
-                entry
+                TraceEntry {
+                    tag: TRACE_VARIANT,
+                    index,
+                }
             }
         }
     }
@@ -467,21 +760,94 @@ impl TraceTableBuilder {
     fn pack(self, sections: &mut SectionPacker) -> TraceTable {
         let roots = sections.insert(self.roots);
         let entries = sections.insert(self.entries);
+        let fixed = sections.insert(self.fixed);
+        let nested = sections.insert(self.nested);
+        let composite = sections.insert(self.composite);
+        let repeated = sections.insert(self.repeated);
+        let variants = sections.insert(self.variants);
         let offsets = sections.insert(self.offsets.into_entries());
         let children = sections.insert(self.children.into_entries());
-        let variants = sections.insert(self.variants.into_entries());
+        let cases = sections.insert(self.cases.into_entries());
 
         TraceTable {
             roots,
             entries,
+            fixed,
+            nested,
+            composite,
+            repeated,
+            variants,
             offsets,
             children,
-            variants,
+            cases,
         }
     }
 }
 
 // SAFETY: trace entries are fixed-width program entries containing only integers and ranges.
-unsafe impl SectionEntry for TraceEntryKind {}
 unsafe impl SectionEntry for TraceEntry {}
-unsafe impl SectionEntry for TraceVariantEntry {}
+unsafe impl SectionEntry for FixedTrace {}
+unsafe impl SectionEntry for NestedTrace {}
+unsafe impl SectionEntry for CompositeTrace {}
+unsafe impl SectionEntry for RepeatedTrace {}
+unsafe impl SectionEntry for VariantTraceEntry {}
+unsafe impl SectionEntry for VariantTraceCase {}
+
+#[cfg(test)]
+mod tests {
+    use destack_core::{SectionImage, SectionPacker};
+    use destack_mir as mir;
+    use destack_mir::{DiscriminantField, VariantEncoding};
+
+    use super::*;
+
+    /// Roundtrip direct and niche variant maps through compact trace sections.
+    #[test]
+    fn test_roundtrip_variant_trace_maps() {
+        let cases = vec![
+            VariantTrace {
+                discriminant: 3u128.into(),
+                payload_offset: 8,
+                map: TraceMap::Fixed {
+                    local_offsets: vec![0].into_boxed_slice(),
+                    shared_offsets: Box::default(),
+                    frame_offsets: Box::default(),
+                },
+            },
+            VariantTrace {
+                discriminant: 7u128.into(),
+                payload_offset: 16,
+                map: TraceMap::Empty,
+            },
+        ]
+        .into_boxed_slice();
+        let direct = TraceMap::Variant {
+            encoding: VariantEncoding::Direct {
+                field: DiscriminantField::scalar(4, 1),
+            },
+            cases: cases.clone(),
+        };
+        let niche = TraceMap::Variant {
+            encoding: VariantEncoding::Niche {
+                field: DiscriminantField::scalar(8, 8),
+                untagged_case: 0,
+                niche_case_start: 1,
+                niche_case_end: 1,
+                niche_start: 0u128.into(),
+            },
+            cases,
+        };
+        let mut source = mir::TraceTable::new();
+        let direct_id = source.insert(direct.clone());
+        let niche_id = source.insert(niche.clone());
+        let mut sections = SectionPacker::new();
+        let table = TraceTable::pack(&mut sections, &source);
+        let (directory, storage) = sections.finish();
+        let sections =
+            SectionImage::load(&directory, &storage).expect("trace sections should load");
+        let view = table.view(sections);
+
+        assert_eq!(view.trace_map(direct_id), Ok(direct));
+        assert_eq!(view.trace_map(niche_id), Ok(niche));
+    }
+}

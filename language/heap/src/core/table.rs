@@ -1,137 +1,105 @@
-use destack_core::CowBuffer;
+use std::sync::Arc;
 
-use super::{HeapError, HeapResult};
+/// The page count stored in one page table chunk.
+const PAGE_TABLE_CHUNK_LEN: usize = 1024;
 
-/// The entry count per copy-on-write table chunk.
-const COW_TABLE_CHUNK_LEN: usize = 256;
-
-/// One dense table backed by copy-on-write chunks.
+/// One sparse page table keyed by world page index.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CowTable<T> {
-    /// The number of live entries stored in this table.
-    len: usize,
-    /// The shared metadata chunks in stable order.
-    chunks: Vec<CowBuffer<T>>,
+pub(crate) struct PageTable<T> {
+    /// Shared page chunks indexed directly by world chunk index.
+    chunks: Vec<Option<Arc<PageChunk<T>>>>,
 }
 
-impl<T> Default for CowTable<T> {
+/// One allocated page table chunk.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PageChunk<T> {
+    /// The number of occupied entries in this chunk.
+    occupied_count: usize,
+    /// The page entries in this chunk.
+    entries: Box<[Option<T>]>,
+}
+
+impl<T> Default for PageTable<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> CowTable<T> {
-    /// Create one empty table.
-    pub(crate) fn new() -> Self {
-        Self {
-            len: 0,
-            chunks: Vec::new(),
-        }
+impl<T> PageTable<T> {
+    /// Create one empty page table.
+    pub(crate) const fn new() -> Self {
+        Self { chunks: Vec::new() }
     }
 
-    /// Build one table from one dense vector.
-    pub(crate) fn from_vec(values: Vec<T>) -> Self
+    /// Return one page entry.
+    pub(crate) fn get(&self, page_index: usize) -> Option<&T> {
+        let chunk_index = page_index / PAGE_TABLE_CHUNK_LEN;
+        let entry_index = page_index % PAGE_TABLE_CHUNK_LEN;
+        let chunk = self.chunks.get(chunk_index)?.as_ref()?;
+
+        chunk.entries[entry_index].as_ref()
+    }
+
+    /// Set one page entry.
+    pub(crate) fn set(&mut self, page_index: usize, entry: T)
     where
         T: Clone,
     {
-        // keep one empty table empty
-        if values.is_empty() {
-            return Self::new();
+        let chunk_index = page_index / PAGE_TABLE_CHUNK_LEN;
+        let entry_index = page_index % PAGE_TABLE_CHUNK_LEN;
+        if self.chunks.len() <= chunk_index {
+            self.chunks.resize_with(chunk_index + 1, || None);
         }
 
-        let len = values.len();
-        let chunks = values
-            .chunks(COW_TABLE_CHUNK_LEN)
-            .map(|chunk| CowBuffer::from_vec(chunk.to_vec()))
-            .collect();
-
-        Self { len, chunks }
-    }
-
-    /// Return the number of stored entries.
-    pub(crate) const fn len(&self) -> usize {
-        self.len
-    }
-
-    /// Return one immutable entry by dense index.
-    pub(crate) fn get(&self, index: usize) -> Option<&T> {
-        // reject indices outside the dense table first
-        if index >= self.len {
-            return None;
+        // detach only the metadata chunk touched by this branch
+        let chunk = self.chunks[chunk_index].get_or_insert_with(|| Arc::new(PageChunk::new()));
+        let chunk = Arc::make_mut(chunk);
+        if chunk.entries[entry_index].is_none() {
+            chunk.occupied_count += 1;
         }
-
-        let chunk_index = index / COW_TABLE_CHUNK_LEN;
-        let entry_index = index % COW_TABLE_CHUNK_LEN;
-
-        self.chunks.get(chunk_index)?.as_slice().get(entry_index)
+        chunk.entries[entry_index] = Some(entry);
     }
 
-    /// Return one mutable entry by dense index.
-    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T>
+    /// Clear one page entry.
+    pub(crate) fn clear(&mut self, page_index: usize)
     where
         T: Clone,
     {
-        // reject indices outside the dense table first
-        if index >= self.len {
-            return None;
-        }
-
-        let chunk_index = index / COW_TABLE_CHUNK_LEN;
-        let entry_index = index % COW_TABLE_CHUNK_LEN;
-        self.chunks
-            .get_mut(chunk_index)?
-            .make_mut()
-            .get_mut(entry_index)
-    }
-
-    /// Append one new entry at the dense tail.
-    pub(crate) fn push(&mut self, value: T)
-    where
-        T: Clone,
-    {
-        // allocate one fresh chunk when the tail is full
-        if self.len.is_multiple_of(COW_TABLE_CHUNK_LEN) || self.chunks.is_empty() {
-            self.chunks
-                .push(CowBuffer::from_vec(Vec::with_capacity(COW_TABLE_CHUNK_LEN)));
-        }
-
-        // append into the current tail chunk
-        let last_chunk_index = self.chunks.len() - 1;
-        let last_chunk = &mut self.chunks[last_chunk_index];
-        last_chunk.make_mut().push(value);
-        self.len += 1;
-    }
-
-    /// Set one existing dense entry by index.
-    pub(crate) fn set(&mut self, index: usize, value: T) -> HeapResult<()>
-    where
-        T: Clone,
-    {
-        let Some(entry) = self.get_mut(index) else {
-            return Err(HeapError::internal("missing table entry"));
+        let chunk_index = page_index / PAGE_TABLE_CHUNK_LEN;
+        let entry_index = page_index % PAGE_TABLE_CHUNK_LEN;
+        let Some(Some(chunk)) = self.chunks.get_mut(chunk_index) else {
+            return;
         };
 
-        *entry = value;
-
-        Ok(())
-    }
-
-    /// Set one dense entry or append it at the exact tail.
-    pub(crate) fn set_or_push(&mut self, index: usize, value: T) -> HeapResult<()>
-    where
-        T: Clone,
-    {
-        if index == self.len() {
-            self.push(value);
-
-            return Ok(());
+        // preserve a shared chunk when the requested page is already empty
+        if chunk.entries[entry_index].is_none() {
+            return;
         }
 
-        self.set(index, value)
+        let chunk = Arc::make_mut(chunk);
+        chunk.entries[entry_index] = None;
+        chunk.occupied_count -= 1;
+        if chunk.occupied_count == 0 {
+            self.chunks[chunk_index] = None;
+        }
     }
 
-    /// Return one iterator over every stored entry.
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
-        self.chunks.iter().flat_map(CowBuffer::as_slice)
+    /// Remove every page entry.
+    pub(crate) fn clear_all(&mut self) {
+        self.chunks.clear();
+    }
+}
+
+impl<T> PageChunk<T> {
+    /// Create one empty page chunk.
+    fn new() -> Self {
+        let entries = std::iter::repeat_with(|| None)
+            .take(PAGE_TABLE_CHUNK_LEN)
+            .collect();
+
+        Self {
+            occupied_count: 0,
+            entries,
+        }
     }
 }

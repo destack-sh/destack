@@ -70,20 +70,6 @@ impl Bitmap {
     /// Set one bit.
     #[inline(always)]
     pub fn set(&mut self, offset: usize) {
-        if offset >= self.capacity {
-            return;
-        }
-
-        let word_index = offset / BITMAP_WORD_BITS;
-        let bit_offset = offset % BITMAP_WORD_BITS;
-        let mask = 1_u64 << bit_offset;
-
-        self.words[word_index] |= mask;
-    }
-
-    /// Set one bit that the caller already knows is inside this bitmap.
-    #[inline(always)]
-    pub(crate) fn set_in_bounds(&mut self, offset: usize) {
         debug_assert!(offset < self.capacity);
 
         let word_index = offset / BITMAP_WORD_BITS;

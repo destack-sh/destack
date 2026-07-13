@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapConfigurationError, HeapError, HeapResult};
+use crate::{GcDrop, HeapConfigurationError, HeapError, HeapResult};
 
 /// The default proportional heap growth target after one cycle.
 pub const DEFAULT_GC_GROWTH_PERCENT: u32 = 100;
@@ -31,29 +31,19 @@ pub struct GcOptions {
     pub minimum_work_bytes: usize,
 }
 
+impl Default for GcOptions {
+    fn default() -> Self {
+        Self {
+            growth_percent: DEFAULT_GC_GROWTH_PERCENT,
+            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
+            soft_limit_bytes: None,
+            minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
+        }
+    }
+}
+
 impl GcOptions {
-    /// Build the default collector configuration for one heap.
-    pub fn local() -> Self {
-        Self {
-            growth_percent: DEFAULT_GC_GROWTH_PERCENT,
-            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
-            soft_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
-            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
-        }
-    }
-
-    /// Build the default collector configuration for one shared heap.
-    pub fn shared() -> Self {
-        Self {
-            growth_percent: DEFAULT_GC_GROWTH_PERCENT,
-            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
-            soft_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
-            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
-        }
-    }
-
     /// Validate this collector configuration.
     pub fn validate(self) -> HeapResult<Self> {
         if self.trigger_percent > 100 {
@@ -300,6 +290,8 @@ pub enum GcPhase {
     ScanEdges,
     /// Reachable allocations are being marked.
     Mark,
+    /// Unreachable allocations are running Drop.
+    Drop,
     /// Unreachable allocations are being reclaimed.
     Sweep,
     /// Young survivors are being moved out of the nursery.
@@ -314,8 +306,9 @@ impl GcPhase {
             Self::PublishRoots => 1,
             Self::ScanEdges => 2,
             Self::Mark => 3,
-            Self::Sweep => 4,
-            Self::Promote => 5,
+            Self::Drop => 4,
+            Self::Sweep => 5,
+            Self::Promote => 6,
         }
     }
 
@@ -326,8 +319,9 @@ impl GcPhase {
             1 => Self::PublishRoots,
             2 => Self::ScanEdges,
             3 => Self::Mark,
-            4 => Self::Sweep,
-            5 => Self::Promote,
+            4 => Self::Drop,
+            5 => Self::Sweep,
+            6 => Self::Promote,
             _ => unreachable!("invalid gc phase byte: {bits}"),
         }
     }
@@ -344,7 +338,7 @@ pub struct GcStats {
     pub freed_bytes: u64,
     /// Number of live allocated bytes after the collection.
     pub allocated_bytes: u64,
-    /// Total retained allocator bytes after the collection.
+    /// Total retained heap bytes after the collection.
     pub retained_bytes: u64,
 }
 
@@ -397,6 +391,8 @@ pub enum GcAdvance {
     Started(GcStart),
     /// Collector work ran but the cycle is not complete.
     Stepped(GcStep),
+    /// One unreachable allocation must run Drop.
+    Drop(GcDrop),
     /// One collection cycle completed.
     Completed(GcCycle),
 }
@@ -450,22 +446,30 @@ impl GcAdvance {
     pub const fn completed_stats(self) -> Option<GcStats> {
         match self {
             Self::Completed(cycle) => Some(cycle.stats),
-            Self::Idle | Self::Started(_) | Self::Stepped(_) => None,
+            Self::Idle | Self::Started(_) | Self::Stepped(_) | Self::Drop(_) => None,
         }
     }
 
-    /// Return one progress value with additional work charged to it.
-    pub const fn with_work_added(self, work_bytes: usize) -> Self {
+    /// Return one progress value with prior budget and work charged to it.
+    pub const fn with_prior_work(self, work_bytes: usize) -> Self {
         match self {
             Self::Stepped(mut step) => {
+                step.budget_bytes += work_bytes;
                 step.work_bytes += work_bytes;
 
                 Self::Stepped(step)
             }
             Self::Completed(mut cycle) => {
+                cycle.budget_bytes += work_bytes;
                 cycle.work_bytes += work_bytes;
 
                 Self::Completed(cycle)
+            }
+            Self::Drop(mut drop) => {
+                drop.budget_bytes += work_bytes;
+                drop.work_bytes += work_bytes;
+
+                Self::Drop(drop)
             }
             Self::Idle | Self::Started(_) => self,
         }
@@ -483,6 +487,11 @@ impl GcAdvance {
                 cycle.is_start = true;
 
                 Self::Completed(cycle)
+            }
+            Self::Drop(mut drop) => {
+                drop.is_start = true;
+
+                Self::Drop(drop)
             }
             Self::Idle | Self::Started(_) => self,
         }

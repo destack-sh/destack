@@ -3,7 +3,6 @@ use std::fmt::{self, Display, Formatter};
 
 use destack_memory::MemoryError;
 
-use crate::allocator::PageId;
 use crate::{AccountingRegion, HeapReference, SharedHeapReference, TraceTableError};
 
 /// One heap result.
@@ -95,40 +94,8 @@ pub enum HeapConfigurationError {
     InvalidGcTriggerPercent { percent: u32 },
     /// The configured minimum GC work is unsupported.
     InvalidGcMinimumWorkBytes { bytes: usize },
-    /// The configured allocator page width is unsupported.
+    /// The configured heap page width is unsupported.
     InvalidPageSizeBytes { bytes: usize },
-    /// The configured allocator chunk width is unsupported.
-    InvalidAllocatorChunkSizeBytes { bytes: usize },
-    /// The configured virtual memory map width is unsupported.
-    InvalidMemoryMapSizeBytes { bytes: usize },
-    /// The configured allocator chunk width is not aligned to the allocator page width.
-    MisalignedAllocatorChunkSize {
-        /// The configured allocator page width in bytes.
-        page_size_bytes: usize,
-        /// The configured allocator chunk width in bytes.
-        chunk_size_bytes: usize,
-    },
-    /// The configured virtual memory map width is not aligned to the allocator page width.
-    MisalignedMemoryMapSize {
-        /// The configured allocator page width in bytes.
-        page_size_bytes: usize,
-        /// The configured virtual memory map width in bytes.
-        memory_map_size_bytes: usize,
-    },
-    /// The explicit allocator does not match the configured allocator page width.
-    AllocatorPageSizeMismatch {
-        /// The allocator page width configured through heap options.
-        option_page_size_bytes: usize,
-        /// The actual allocator page width.
-        allocator_page_size_bytes: usize,
-    },
-    /// The explicit allocator does not match the configured heap chunk width.
-    AllocatorChunkSizeMismatch {
-        /// The chunk width configured through heap options.
-        option_chunk_size_bytes: usize,
-        /// The actual chunk width of the explicit allocator.
-        allocator_chunk_size_bytes: usize,
-    },
     /// The configured heap young-block threshold exceeds young-space capacity.
     YoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
     /// The configured heap young-space capacity exceeds young metadata capacity.
@@ -237,29 +204,10 @@ pub enum HeapRepresentationError {
         /// The representation that was exceeded.
         context: &'static str,
     },
-    /// One allocator image exceeded the encoded chunk range.
-    AllocatorChunkLimitExceeded {
-        /// The chunks required by the allocator image.
-        required_chunks: usize,
-        /// The maximum chunks representable by the allocator image.
-        max_chunks: usize,
-    },
     /// One live large-block id cannot be represented.
     InvalidLargeBlockId {
         /// The invalid large-block id.
         id: u64,
-    },
-    /// One page identifier exceeded the encoded allocator page range.
-    InvalidPageId {
-        /// The invalid page index.
-        index: usize,
-    },
-    /// One page span exceeded the encoded allocator page range.
-    InvalidPageSpan {
-        /// The first page of the span.
-        first_page: PageId,
-        /// The requested page count.
-        page_count: usize,
     },
     /// One span slot exceeded the encoded small-space slot range.
     InvalidSlot {
@@ -474,49 +422,7 @@ impl Display for HeapConfigurationError {
                 write!(formatter, "invalid minimum gc work bytes: {bytes}")
             }
             Self::InvalidPageSizeBytes { bytes } => {
-                write!(formatter, "invalid allocator page width: {bytes}")
-            }
-            Self::InvalidAllocatorChunkSizeBytes { bytes } => {
-                write!(formatter, "invalid allocator chunk width: {bytes}")
-            }
-            Self::InvalidMemoryMapSizeBytes { bytes } => {
-                write!(formatter, "invalid virtual memory map width: {bytes}")
-            }
-            Self::MisalignedAllocatorChunkSize {
-                page_size_bytes,
-                chunk_size_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "allocator chunk width {chunk_size_bytes} is not aligned to allocator page width {page_size_bytes}"
-                )
-            }
-            Self::MisalignedMemoryMapSize {
-                page_size_bytes,
-                memory_map_size_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "virtual memory map width {memory_map_size_bytes} is not aligned to allocator page width {page_size_bytes}"
-                )
-            }
-            Self::AllocatorPageSizeMismatch {
-                option_page_size_bytes,
-                allocator_page_size_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "allocator page width mismatch: options {option_page_size_bytes}, allocator {allocator_page_size_bytes}"
-                )
-            }
-            Self::AllocatorChunkSizeMismatch {
-                option_chunk_size_bytes,
-                allocator_chunk_size_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "allocator chunk width mismatch: options {option_chunk_size_bytes}, allocator {allocator_chunk_size_bytes}"
-                )
+                write!(formatter, "invalid heap page width: {bytes}")
             }
             Self::YoungThresholdExceedsCapacity {
                 threshold,
@@ -632,29 +538,8 @@ impl Display for HeapRepresentationError {
             Self::LimitExceeded { context } => {
                 write!(formatter, "representation limit exceeded: {context}")
             }
-            Self::AllocatorChunkLimitExceeded {
-                required_chunks,
-                max_chunks,
-            } => {
-                write!(
-                    formatter,
-                    "allocator chunk limit exceeded: required {required_chunks}, max {max_chunks}"
-                )
-            }
             Self::InvalidLargeBlockId { id } => {
                 write!(formatter, "invalid large-block id: {id}")
-            }
-            Self::InvalidPageId { index } => {
-                write!(formatter, "invalid page id index: {index}")
-            }
-            Self::InvalidPageSpan {
-                first_page,
-                page_count,
-            } => {
-                write!(
-                    formatter,
-                    "invalid page span: first page {first_page:?}, page count {page_count}"
-                )
             }
             Self::InvalidSlot {
                 span_index,

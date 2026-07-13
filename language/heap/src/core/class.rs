@@ -1,9 +1,9 @@
-use destack_serde::Reflect;
 use std::sync::Arc;
 
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::constants::{DEFAULT_MAX_SMALL_ALLOCATION_BYTES, DEFAULT_SIZE_CLASS_TABLE_CLASSES};
+use super::size::{DEFAULT_MAX_SMALL_ALLOCATION_BYTES, DEFAULT_SIZE_CLASS_TABLE_CLASSES};
 use crate::{
     HeapConfigurationError, HeapError, SizeClassPolicyError, SizeClassTableError, align_up,
 };

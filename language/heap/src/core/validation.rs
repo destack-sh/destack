@@ -1,12 +1,12 @@
 use crate::{HeapConfigurationError, HeapError, SizeClassTable, SizeClassTableError};
 
-/// The largest page or chunk width stored by allocator metadata.
-const MAX_ALLOCATOR_WIDTH_BYTES: usize = u32::MAX as usize;
+/// The largest page width stored by heap metadata.
+const MAX_HEAP_PAGE_SIZE_BYTES: usize = u32::MAX as usize;
 
-/// Validate one configured allocator page size.
+/// Validate one configured heap page size.
 pub(crate) fn validate_page_size_bytes(page_size_bytes: usize) -> Result<usize, HeapError> {
     if page_size_bytes == 0
-        || page_size_bytes > MAX_ALLOCATOR_WIDTH_BYTES
+        || page_size_bytes > MAX_HEAP_PAGE_SIZE_BYTES
         || !page_size_bytes.is_power_of_two()
     {
         Err(HeapError::configuration(
@@ -17,64 +17,6 @@ pub(crate) fn validate_page_size_bytes(page_size_bytes: usize) -> Result<usize, 
     } else {
         Ok(page_size_bytes)
     }
-}
-
-/// Validate one configured allocator chunk size against one allocator page size.
-pub(crate) fn validate_allocator_chunk_size_bytes(
-    page_size_bytes: usize,
-    allocator_chunk_size_bytes: usize,
-) -> Result<usize, HeapError> {
-    if allocator_chunk_size_bytes == 0 || allocator_chunk_size_bytes > MAX_ALLOCATOR_WIDTH_BYTES {
-        return Err(HeapError::configuration(
-            HeapConfigurationError::InvalidAllocatorChunkSizeBytes {
-                bytes: allocator_chunk_size_bytes,
-            },
-        ));
-    }
-
-    if !allocator_chunk_size_bytes.is_power_of_two() {
-        return Err(HeapError::configuration(
-            HeapConfigurationError::InvalidAllocatorChunkSizeBytes {
-                bytes: allocator_chunk_size_bytes,
-            },
-        ));
-    }
-
-    if !allocator_chunk_size_bytes.is_multiple_of(page_size_bytes) {
-        return Err(HeapError::configuration(
-            HeapConfigurationError::MisalignedAllocatorChunkSize {
-                page_size_bytes,
-                chunk_size_bytes: allocator_chunk_size_bytes,
-            },
-        ));
-    }
-
-    Ok(allocator_chunk_size_bytes)
-}
-
-/// Validate one configured virtual memory map size against one allocator page size.
-pub(crate) fn validate_memory_map_size_bytes(
-    page_size_bytes: usize,
-    memory_map_size_bytes: usize,
-) -> Result<usize, HeapError> {
-    if memory_map_size_bytes == 0 {
-        return Err(HeapError::configuration(
-            HeapConfigurationError::InvalidMemoryMapSizeBytes {
-                bytes: memory_map_size_bytes,
-            },
-        ));
-    }
-
-    if !memory_map_size_bytes.is_multiple_of(page_size_bytes) {
-        return Err(HeapError::configuration(
-            HeapConfigurationError::MisalignedMemoryMapSize {
-                page_size_bytes,
-                memory_map_size_bytes,
-            },
-        ));
-    }
-
-    Ok(memory_map_size_bytes)
 }
 
 /// Validate one configured small-block alignment.

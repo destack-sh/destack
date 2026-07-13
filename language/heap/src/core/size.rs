@@ -1,18 +1,9 @@
 use std::sync::{Arc, LazyLock};
 
-use super::class::SizeClass;
+use super::SizeClass;
 
-/// The default allocator page size.
-pub const DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES: usize = 8 * 1024;
-
-/// The default allocator chunk size.
-pub const DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES: usize = if cfg!(target_arch = "wasm32") {
-    512 * 1024
-} else if cfg!(target_pointer_width = "64") && !cfg!(target_os = "windows") {
-    64 * 1024 * 1024
-} else {
-    4 * 1024 * 1024
-};
+/// The default heap page size.
+pub const DEFAULT_HEAP_PAGE_SIZE_BYTES: usize = 8 * 1024;
 
 /// The default small-block class payload sizes and span page counts.
 pub(crate) const DEFAULT_SIZE_CLASSES: [(usize, usize); 67] = [
@@ -95,7 +86,7 @@ pub(crate) static DEFAULT_SIZE_CLASS_TABLE_CLASSES: LazyLock<Arc<[SizeClass]>> =
         DEFAULT_SIZE_CLASSES
             .iter()
             .map(|&(bytes, span_page_count)| {
-                let span_size_bytes = span_page_count * DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
+                let span_size_bytes = span_page_count * DEFAULT_HEAP_PAGE_SIZE_BYTES;
 
                 SizeClass::with_span_size_bytes(bytes, span_size_bytes)
             })

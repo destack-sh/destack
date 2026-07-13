@@ -51,4 +51,9 @@ impl Slot {
     pub const fn slot_index(self) -> usize {
         self.slot_index as usize
     }
+
+    /// Return this slot's byte offset inside its span.
+    pub const fn byte_offset(self, size_class: usize) -> usize {
+        size_class * self.slot_index()
+    }
 }

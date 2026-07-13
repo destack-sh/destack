@@ -1,9 +1,8 @@
 use destack_mir::{TraceId, TraceMap};
 
-use crate::allocator::Bitmap;
 use crate::{
-    HeapError, HeapReference, HeapRepresentationError, HeapResult, RootSlot, SharedHeapReference,
-    TraceView, TraceVisitor,
+    Bitmap, HeapError, HeapReference, HeapRepresentationError, HeapResult, RootSlot,
+    SharedHeapReference, TraceView, TraceVisitor,
 };
 
 /// Native reference field width.
@@ -33,7 +32,7 @@ impl ReferenceRange {
     }
 
     /// Return whether this range overlaps one reference field.
-    fn overlaps(self, offset: usize, width: usize) -> bool {
+    pub(crate) fn overlaps(self, offset: usize, width: usize) -> bool {
         match self {
             Self::All => true,
             Self::Bytes { start, end } => ranges_overlap(start, end, offset, width),
@@ -110,6 +109,15 @@ pub(crate) trait ReferenceClass: Sized {
 
     /// Decode one reference from native bits.
     fn from_bits(bits: usize) -> Self;
+
+    /// Return whether one trace map may contain this reference class.
+    fn is_present(trace_map: &TraceMap) -> bool;
+
+    /// Return whether one byte range may overlap this reference class.
+    fn overlaps(trace_map: &TraceMap, range: ReferenceRange) -> bool;
+
+    /// Select this reference class from exact side bitmaps.
+    fn bitmap<'a>(local: &'a Bitmap, shared: &'a Bitmap) -> &'a Bitmap;
 }
 
 /// Worker-local reference fields.
@@ -126,6 +134,18 @@ impl ReferenceClass for HeapReference {
 
     fn from_bits(bits: usize) -> Self {
         HeapReference::from_bits(bits)
+    }
+
+    fn is_present(trace_map: &TraceMap) -> bool {
+        trace_map.has_local_reference()
+    }
+
+    fn overlaps(trace_map: &TraceMap, range: ReferenceRange) -> bool {
+        overlaps_reference_range::<Self>(trace_map, range)
+    }
+
+    fn bitmap<'a>(local: &'a Bitmap, _shared: &'a Bitmap) -> &'a Bitmap {
+        local
     }
 }
 
@@ -144,6 +164,76 @@ impl ReferenceClass for SharedHeapReference {
     fn from_bits(bits: usize) -> Self {
         SharedHeapReference::from_bits(bits)
     }
+
+    fn is_present(trace_map: &TraceMap) -> bool {
+        trace_map.has_shared_reference()
+    }
+
+    fn overlaps(trace_map: &TraceMap, range: ReferenceRange) -> bool {
+        overlaps_reference_range::<Self>(trace_map, range)
+    }
+
+    fn bitmap<'a>(_local: &'a Bitmap, shared: &'a Bitmap) -> &'a Bitmap {
+        shared
+    }
+}
+
+/// Visit exact references encoded in one allocation bitmap range.
+pub(crate) fn visit_allocation_references<R: ReferenceClass>(
+    local_reference_bits: &Bitmap,
+    shared_reference_bits: &Bitmap,
+    allocation_byte_offset: usize,
+    byte_len: usize,
+    input: ReferenceInput<'_>,
+    range: ReferenceRange,
+    visit: &mut dyn FnMut(R) -> HeapResult<()>,
+) -> HeapResult<()> {
+    let reference_bits = R::bitmap(local_reference_bits, shared_reference_bits);
+    let bit_start = allocation_byte_offset / REFERENCE_BYTES;
+    let word_count = byte_len.div_ceil(REFERENCE_BYTES);
+
+    for word_index in 0..word_count {
+        if !reference_bits.contains(bit_start + word_index) {
+            continue;
+        }
+
+        let offset = word_index * REFERENCE_BYTES;
+        if !range.overlaps(offset, R::BYTE_LEN) {
+            continue;
+        }
+
+        let bits = match input {
+            ReferenceInput::Mapped { base_address } => {
+                // SAFETY: exact side bits name pointer-width fields in this mapped allocation
+                unsafe { read_reference_bits(base_address + offset) }
+            }
+            ReferenceInput::Bytes { start, bytes } => {
+                reference_bits_from_bytes(bytes, start, offset)?
+            }
+        };
+        visit(R::from_bits(bits))?;
+    }
+
+    Ok(())
+}
+
+/// Return whether one allocation bitmap range contains one reference class.
+pub(crate) fn allocation_has_reference<R: ReferenceClass>(
+    local_reference_bits: &Bitmap,
+    shared_reference_bits: &Bitmap,
+    allocation_byte_offset: usize,
+    byte_len: usize,
+    range: ReferenceRange,
+) -> bool {
+    let reference_bits = R::bitmap(local_reference_bits, shared_reference_bits);
+    let bit_start = allocation_byte_offset / REFERENCE_BYTES;
+    let word_count = byte_len.div_ceil(REFERENCE_BYTES);
+
+    (0..word_count).any(|word_index| {
+        let offset = word_index * REFERENCE_BYTES;
+
+        reference_bits.contains(bit_start + word_index) && range.overlaps(offset, R::BYTE_LEN)
+    })
 }
 
 /// Heap reference edge encoded in object or frame bytes.
@@ -155,13 +245,13 @@ pub enum HeapEdge {
     Shared(SharedHeapReference),
 }
 
-/// Visit exact reference offsets for one untagged trace map.
-pub(crate) fn visit_untagged_reference_offsets<R: ReferenceClass>(
+/// Visit exact reference offsets for one payload-independent trace map.
+pub(crate) fn visit_static_reference_offsets<R: ReferenceClass>(
     trace_map: &TraceMap,
     range: ReferenceRange,
     visit: &mut impl FnMut(usize),
 ) {
-    debug_assert!(!trace_map.has_tagged_reference());
+    debug_assert!(!trace_map.has_variant_reference());
 
     walk_reference_offset_union::<R>(trace_map, 0, range, &mut |offset| {
         visit(offset);
@@ -170,7 +260,7 @@ pub(crate) fn visit_untagged_reference_offsets<R: ReferenceClass>(
     });
 }
 
-/// Walk the union of reference offsets across tagged variants.
+/// Walk the union of reference offsets across variants.
 fn walk_reference_offset_union<R: ReferenceClass>(
     trace_map: &TraceMap,
     base_offset: usize,
@@ -218,11 +308,11 @@ fn walk_reference_offset_union<R: ReferenceClass>(
                 }
             }
         }
-        TraceMap::Tagged { variants, .. } => {
-            for variant in variants {
-                let variant_offset = base_offset + variant.payload_offset as usize;
+        TraceMap::Variant { cases, .. } => {
+            for case in cases {
+                let variant_offset = base_offset + case.payload_offset as usize;
 
-                if !walk_reference_offset_union::<R>(&variant.map, variant_offset, range, visit) {
+                if !walk_reference_offset_union::<R>(&case.map, variant_offset, range, visit) {
                     return false;
                 }
             }
@@ -313,21 +403,14 @@ fn direct_trace_map(
 
 /// Return whether one write range may overlap any local reference bytes.
 pub(crate) fn overlaps_heap_range(trace_map: &TraceMap, start: usize, len: usize) -> bool {
-    overlaps_reference_range::<HeapReference>(trace_map, start, len)
-}
-
-/// Return whether one write range may overlap any shared reference bytes.
-pub(crate) fn overlaps_shared_range(trace_map: &TraceMap, start: usize, len: usize) -> bool {
-    overlaps_reference_range::<SharedHeapReference>(trace_map, start, len)
+    overlaps_reference_range::<HeapReference>(trace_map, ReferenceRange::bytes(start, len))
 }
 
 /// Return whether one byte range may overlap any reference field of one class.
 fn overlaps_reference_range<R: ReferenceClass>(
     trace_map: &TraceMap,
-    start: usize,
-    len: usize,
+    range: ReferenceRange,
 ) -> bool {
-    let range = ReferenceRange::bytes(start, len);
     let mut overlaps = false;
 
     walk_reference_offset_union::<R>(trace_map, 0, range, &mut |_| {
@@ -428,7 +511,7 @@ pub(crate) fn write_slot_reference_bits(
     slot_index: usize,
     size_class: usize,
 ) {
-    debug_assert!(!trace_map.has_tagged_reference());
+    debug_assert!(!trace_map.has_variant_reference());
 
     // noscan layouts have no side bits
     if !trace_map.has_heap_reference() {
@@ -454,7 +537,7 @@ pub(crate) fn write_allocation_reference_bits(
     shared_reference_bits: &mut Bitmap,
     byte_offset: usize,
 ) {
-    debug_assert!(!trace_map.has_tagged_reference());
+    debug_assert!(!trace_map.has_variant_reference());
 
     // noscan layouts have no side bits
     if !trace_map.has_heap_reference() {
@@ -490,9 +573,9 @@ fn set_reference_bits<R: ReferenceClass>(
     reference_bits: &mut Bitmap,
     bit_start: usize,
 ) {
-    debug_assert!(!trace_map.has_tagged_reference());
+    debug_assert!(!trace_map.has_variant_reference());
 
-    visit_untagged_reference_offsets::<R>(trace_map, ReferenceRange::All, &mut |offset| {
+    visit_static_reference_offsets::<R>(trace_map, ReferenceRange::All, &mut |offset| {
         let word_index = offset / REFERENCE_BYTES;
         let bit_index = bit_start + word_index;
 
@@ -650,20 +733,19 @@ fn walk_trace_map<W: TraceVisitor>(
                 walk_trace_map(element, element_offset, range, walker)?;
             }
         }
-        TraceMap::Tagged {
-            tag_bytes,
-            variants,
-        } => {
-            let Some(tag) = walker.tag(base_offset, *tag_bytes)? else {
-                for variant in variants {
-                    let variant_offset = base_offset + variant.payload_offset as usize;
+        TraceMap::Variant { encoding, cases } => {
+            let field = encoding.field();
+            let offset = base_offset + field.offset as usize;
+            let Some(scalar) = walker.scalar(offset, field.byte_len)? else {
+                for case in cases {
+                    let variant_offset = base_offset + case.payload_offset as usize;
 
-                    walk_trace_map(&variant.map, variant_offset, range, walker)?;
+                    walk_trace_map(&case.map, variant_offset, range, walker)?;
                 }
 
                 return Ok(());
             };
-            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
+            let Some(variant) = trace_map.variant(scalar) else {
                 return Ok(());
             };
             let variant_offset = base_offset + variant.payload_offset as usize;
@@ -726,11 +808,11 @@ impl<R: ReferenceClass> TraceVisitor for MemoryReferenceVisitWalker<'_, R> {
         )
     }
 
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
-        // SAFETY: mapped block tags are inside live payload memory
-        let tag = unsafe { read_reference_tag(self.base_address + offset, width) };
+    fn scalar(&mut self, offset: usize, byte_len: u8) -> HeapResult<Option<u128>> {
+        // SAFETY: mapped discriminants are inside live payload memory
+        let scalar = unsafe { read_discriminant_scalar(self.base_address + offset, byte_len) };
 
-        Ok(Some(tag))
+        Ok(Some(scalar))
     }
 }
 
@@ -766,9 +848,9 @@ impl<R: ReferenceClass> TraceVisitor for ByteReferenceVisitWalker<'_, R> {
         )
     }
 
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
-        Ok(reference_tag_from_bytes(
-            self.bytes, self.start, offset, width,
+    fn scalar(&mut self, offset: usize, byte_len: u8) -> HeapResult<Option<u128>> {
+        Ok(discriminant_scalar_from_bytes(
+            self.bytes, self.start, offset, byte_len,
         ))
     }
 }
@@ -817,9 +899,9 @@ impl TraceVisitor for ByteEdgeWalker<'_> {
         )
     }
 
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
-        Ok(reference_tag_from_bytes(
-            self.bytes, self.start, offset, width,
+    fn scalar(&mut self, offset: usize, byte_len: u8) -> HeapResult<Option<u128>> {
+        Ok(discriminant_scalar_from_bytes(
+            self.bytes, self.start, offset, byte_len,
         ))
     }
 }
@@ -874,9 +956,9 @@ impl TraceVisitor for ByteSlotWalker<'_> {
         )
     }
 
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
-        Ok(reference_tag_from_bytes(
-            self.bytes, self.start, offset, width,
+    fn scalar(&mut self, offset: usize, byte_len: u8) -> HeapResult<Option<u128>> {
+        Ok(discriminant_scalar_from_bytes(
+            self.bytes, self.start, offset, byte_len,
         ))
     }
 }
@@ -890,32 +972,37 @@ unsafe fn read_reference_bits(address: usize) -> usize {
     unsafe { (address as *const usize).read() }
 }
 
-/// Return one unsigned reference-map tag from mapped memory.
-unsafe fn read_reference_tag(address: usize, width: u8) -> u64 {
-    let mut raw = [0u8; std::mem::size_of::<u64>()];
+/// Return one variant discriminant scalar from mapped memory.
+unsafe fn read_discriminant_scalar(address: usize, byte_len: u8) -> u128 {
+    let mut raw = [0u8; std::mem::size_of::<u128>()];
 
-    for (index, byte) in raw.iter_mut().take(width as usize).enumerate() {
-        // SAFETY: callers provide mapped payload addresses for tag bytes
+    for (index, byte) in raw.iter_mut().take(byte_len as usize).enumerate() {
+        // SAFETY: callers provide mapped payload addresses for discriminant bytes
         *byte = unsafe { (address as *const u8).add(index).read() };
     }
 
-    u64::from_le_bytes(raw)
+    u128::from_le_bytes(raw)
 }
 
-/// Return one unsigned reference-map tag from caller-provided bytes.
-fn reference_tag_from_bytes(bytes: &[u8], start: usize, offset: usize, width: u8) -> Option<u64> {
+/// Return one variant discriminant scalar from caller-provided bytes.
+fn discriminant_scalar_from_bytes(
+    bytes: &[u8],
+    start: usize,
+    offset: usize,
+    byte_len: u8,
+) -> Option<u128> {
     if offset < start {
         return None;
     }
 
     let local_start = offset - start;
-    let local_end = local_start + width as usize;
+    let local_end = local_start + byte_len as usize;
     let window = bytes.get(local_start..local_end)?;
 
-    let mut raw = [0u8; std::mem::size_of::<u64>()];
-    raw[..width as usize].copy_from_slice(window);
+    let mut raw = [0u8; std::mem::size_of::<u128>()];
+    raw[..byte_len as usize].copy_from_slice(window);
 
-    Some(u64::from_le_bytes(raw))
+    Some(u128::from_le_bytes(raw))
 }
 
 /// Return one native-width reference payload from caller-provided bytes.
@@ -982,7 +1069,123 @@ fn reference_bytes_mut(
 
 #[cfg(test)]
 mod tests {
+    use destack_mir::{DiscriminantField, VariantEncoding, VariantTrace};
+
     use super::*;
+
+    /// Preserve every repeated reference through allocation bitmap encoding.
+    #[test]
+    fn test_roundtrip_repeated_allocation_trace_map() {
+        let element = TraceMap::Fixed {
+            local_offsets: vec![0].into_boxed_slice(),
+            shared_offsets: vec![].into_boxed_slice(),
+            frame_offsets: vec![].into_boxed_slice(),
+        };
+        let repeated = TraceMap::Repeated {
+            count: 2,
+            stride: 8,
+            element: Box::new(element),
+        };
+        let mut local = Bitmap::with_capacity(16);
+        let mut shared = Bitmap::with_capacity(16);
+
+        write_allocation_reference_bits(&repeated, &mut local, &mut shared, 8);
+        let decoded = allocation_trace_map(&local, &shared, 8, 16);
+
+        assert_eq!(
+            decoded,
+            TraceMap::Fixed {
+                local_offsets: vec![0, 8].into_boxed_slice(),
+                shared_offsets: vec![].into_boxed_slice(),
+                frame_offsets: vec![].into_boxed_slice(),
+            }
+        );
+    }
+
+    /// Select variant references through a direct discriminant field.
+    #[test]
+    fn test_scans_variant_reference_at_nonzero_discriminant_offset() {
+        let trace_map = TraceMap::Variant {
+            encoding: VariantEncoding::Direct {
+                field: DiscriminantField::scalar(3, 1),
+            },
+            cases: vec![VariantTrace {
+                discriminant: 7u128.into(),
+                payload_offset: 8,
+                map: TraceMap::Fixed {
+                    local_offsets: vec![0].into_boxed_slice(),
+                    shared_offsets: Vec::new().into_boxed_slice(),
+                    frame_offsets: Vec::new().into_boxed_slice(),
+                },
+            }]
+            .into_boxed_slice(),
+        };
+        let expected = HeapReference::new(42);
+        let mut bytes = vec![0; 8 + HeapReference::BYTE_LEN];
+        bytes[3] = 7;
+        expected
+            .write_to_bytes(&mut bytes[8..])
+            .expect("reference bytes should have the native width");
+
+        let mut references = Vec::new();
+        scan_references::<HeapReference>(
+            &trace_map,
+            ReferenceInput::bytes(0, &bytes),
+            ReferenceRange::All,
+            &mut references,
+        )
+        .expect("variant reference bytes should scan");
+
+        assert_eq!(references, vec![expected]);
+    }
+
+    /// Select variant references through a payload niche.
+    #[test]
+    fn test_scans_niche_variant_reference() {
+        let trace_map = TraceMap::Variant {
+            encoding: VariantEncoding::Niche {
+                field: DiscriminantField::scalar(0, 1),
+                untagged_case: 0,
+                niche_case_start: 1,
+                niche_case_end: 1,
+                niche_start: 0u128.into(),
+            },
+            cases: vec![
+                VariantTrace {
+                    discriminant: 1u128.into(),
+                    payload_offset: 0,
+                    map: TraceMap::Empty,
+                },
+                VariantTrace {
+                    discriminant: 0u128.into(),
+                    payload_offset: 8,
+                    map: TraceMap::Fixed {
+                        local_offsets: vec![0].into_boxed_slice(),
+                        shared_offsets: Box::default(),
+                        frame_offsets: Box::default(),
+                    },
+                },
+            ]
+            .into_boxed_slice(),
+        };
+        let expected = HeapReference::new(42);
+        let mut bytes = vec![1; 8 + HeapReference::BYTE_LEN];
+        bytes[0] = 0;
+        expected
+            .write_to_bytes(&mut bytes[8..])
+            .expect("reference bytes should have the native width");
+
+        let mut references = Vec::new();
+        scan_references::<HeapReference>(
+            &trace_map,
+            ReferenceInput::bytes(0, &bytes),
+            ReferenceRange::All,
+            &mut references,
+        )
+        .expect("niche trace should scan");
+
+        assert_eq!(references, vec![expected]);
+    }
 
     /// Reject partial byte windows that overlap one encoded shared reference.
     #[test]
