@@ -2,10 +2,7 @@ use crate::TraceView;
 
 use crate::shared::gc::{MarkWork, SharedMarkWorker};
 use crate::shared::storage::{HeapPlace, HeapStorage};
-use crate::{
-    GcPhase, HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
-    visit_references,
-};
+use crate::{GcPhase, HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference};
 
 impl HeapStorage {
     /// Record one shared heap write barrier before one byte store.
@@ -32,10 +29,10 @@ impl HeapStorage {
         };
 
         // scan references overwritten by this store
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        visit_references::<SharedHeapReference>(
-            &trace_map,
+        let base_address = self.memory.base_address() + extent.base.offset();
+        self.visit_references::<SharedHeapReference>(
+            extent.place,
+            trace_view,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut |reference| {
@@ -48,8 +45,9 @@ impl HeapStorage {
         )?;
 
         // scan references inserted by this store
-        visit_references::<SharedHeapReference>(
-            &trace_map,
+        self.visit_references::<SharedHeapReference>(
+            extent.place,
+            trace_view,
             ReferenceInput::bytes(byte_offset, bytes),
             ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut |reference| {
@@ -76,14 +74,12 @@ impl HeapStorage {
             return Ok(());
         }
 
-        // concurrent publication
+        // trace initialized edges while mark publication remains open
         let Some(_publication) = self.gc.begin_mark_publication() else {
-            if phase == GcPhase::Sweep {
-                let Some(extent) = self.resolve_extent(reference) else {
-                    return Err(HeapError::invalid_shared_heap_reference(reference));
-                };
-                self.mark_place(extent.storage)?;
-            }
+            let Some(extent) = self.resolve_extent(reference) else {
+                return Err(HeapError::invalid_shared_heap_reference(reference));
+            };
+            self.mark_place(extent.place)?;
 
             return Ok(());
         };
@@ -94,7 +90,7 @@ impl HeapStorage {
 
         // new blocks without initial shared edges can stay black
         if !has_initial_edges {
-            self.mark_place(extent.storage)?;
+            self.mark_place(extent.place)?;
 
             return Ok(());
         }
@@ -137,12 +133,12 @@ impl HeapStorage {
         };
 
         // skip references already marked in this cycle
-        if !self.mark_place(extent.storage)? {
+        if !self.mark_place(extent.place)? {
             return Ok(());
         }
 
         // queue trace work for the newly marked storage
-        match extent.storage {
+        match extent.place {
             HeapPlace::SmallSlot(slot) => {
                 self.gc
                     .trace_queue
@@ -162,14 +158,14 @@ impl HeapStorage {
         Ok(())
     }
 
-    /// Mark one shared heap storage and return whether this was the first mark.
-    pub(super) fn mark_place(&self, storage: HeapPlace) -> HeapResult<bool> {
+    /// Mark one shared heap place and return whether this was the first mark.
+    pub(super) fn mark_place(&self, place: HeapPlace) -> HeapResult<bool> {
         // load shared heap state for physical mark bits
         let store = self.state.read();
         let mark_epoch = self.gc.mark_epoch();
 
-        // mark by physical shared heap storage
-        match storage {
+        // mark by physical shared heap place
+        match place {
             HeapPlace::SmallSlot(slot) => {
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::internal("missing span"));
@@ -178,7 +174,13 @@ impl HeapStorage {
                 return Ok(span.mark_slot(slot.slot_index(), mark_epoch));
             }
             HeapPlace::LargeBlock(block_id) => {
-                let Some(block) = store.large.blocks.get(block_id.index()?).cloned() else {
+                let Some(block) = store
+                    .large
+                    .blocks
+                    .get(block_id.index()?)
+                    .and_then(Option::as_ref)
+                    .cloned()
+                else {
                     return Err(HeapError::internal("missing large block"));
                 };
                 let mut block = block.write();

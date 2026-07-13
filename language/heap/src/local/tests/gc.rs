@@ -1,16 +1,17 @@
 use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
-    AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, GcAdvance, GcCollector, GcOptions, GcPhase,
-    Heap, HeapError, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
-    SharedHeapReference, SizeClassTable, TestLayout, local_trace_map, shared_trace_map,
-    test_layout, test_layouts, visit_heap_references,
+    AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
+    DropId, DropReference, GcAdvance, GcCollector, GcOptions, GcPhase, Heap, HeapError,
+    HeapOptions, HeapReference, HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable,
+    TestLayout, local_trace_map, shared_trace_map, test_layout, test_layouts,
+    visit_heap_references,
 };
 use destack_mir::{TraceMap, TraceTable};
 
 use super::{
-    TestHeapPlan, TestTraceTable, owned_allocation_plan, read_mapped_bytes, test_heap,
-    test_storage, trace_view, write_mapped_bytes,
+    TestHeapPlan, TestTraceTable, read_mapped_bytes, test_heap, test_storage, trace_view,
+    write_mapped_bytes,
 };
 
 /// Build one heap whose pacer triggers immediately in step-driven tests.
@@ -83,7 +84,11 @@ fn test_collect_minor_promotes_reachable_entries() {
 
     // collect the nursery from the explicit root set
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
+        .collect_minor(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("young collection should succeed");
 
     // promote the reachable payload and drop the unreachable payload
@@ -131,7 +136,11 @@ fn test_collect_minor_promotes_reachable_noscan_spans() {
 
     // collect the nursery from the fixed-size span root
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
+        .collect_minor(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("young collection should succeed");
 
     // promote the live span slot without freeing anything
@@ -161,8 +170,8 @@ fn test_reserve_local_young_span_uses_exact_trace_cache() {
     let mut heap = test_heap(options);
     let first_shape = AllocationShape::new(16, 1, Some(first_trace_id), first_map);
     let second_shape = AllocationShape::new(16, 1, Some(second_trace_id), second_map);
-    let first_site = owned_allocation_plan(heap.options(), &first_shape);
-    let second_site = owned_allocation_plan(heap.options(), &second_shape);
+    let first_site = heap.options().allocation_plan(&first_shape);
+    let second_site = heap.options().allocation_plan(&second_shape);
 
     // allocate from two same-size traced classes
     let first = heap
@@ -195,8 +204,12 @@ fn test_collect_minor_recycles_young_zeroed_bytes() {
     assert!(heap.is_young(reference));
 
     // collect with no roots so the young page can be recycled
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
-        .expect("young collection should succeed");
+    heap.collect_minor(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |_| Ok(()),
+    )
+    .expect("young collection should succeed");
 
     // reuse young space through the zeroed path
     let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
@@ -229,7 +242,11 @@ fn test_collect_minor_promotes_reachable_child_entries() {
 
     // collect and rewrite both parent and child references
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
+        .collect_minor(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("young collection should succeed");
 
     // promote the reachable graph without freeing anything
@@ -277,7 +294,11 @@ fn test_collect_minor_promotes_table_traced_young_span_slots() {
 
     // collect using the trace table that owns the parent map
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view)
+        .collect_minor(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view,
+            &mut |_| Ok(()),
+        )
         .expect("young collection should succeed");
 
     // promote the parent and preserve its traced child edge
@@ -305,7 +326,11 @@ fn test_collect_minor_rejects_invalid_root() {
 
     // reject the invalid root before mutating collection state
     let error = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
+        .collect_minor(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect_err("invalid roots should fail collection");
 
     assert_eq!(error, HeapError::invalid_heap_reference(invalid));
@@ -323,7 +348,11 @@ fn test_collect_minor_updates_gc_state() {
 
     // span one complete minor collection
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
+        .collect_minor(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("young collection should succeed");
 
     // record the completed collection in heap state
@@ -402,8 +431,12 @@ fn test_collect_minor_promotes_interior_roots() {
     let mut roots = [HeapReference::new(reference.offset() + 5)];
 
     // collection should rewrite the interior root, not just the base
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
-        .expect("young collection should succeed");
+    heap.collect_minor(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |_| Ok(()),
+    )
+    .expect("young collection should succeed");
     let extent = heap
         .resolve_extent(roots[0])
         .expect("interior root should resolve");
@@ -438,7 +471,11 @@ fn test_collect_minor_traces_pinned_roots() {
 
     // pinned roots should seed minor marking
     let stats = heap
-        .collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
+        .collect_minor(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("young collection should succeed");
 
     // keep the pinned parent in storage while promoting the child
@@ -485,8 +522,12 @@ fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
     assert!(!heap.is_young(parent));
 
     // first minor collection should retain the dirty card for the pinned child
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
-        .expect("young collection should keep pinned child");
+    heap.collect_minor(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |_| Ok(()),
+    )
+    .expect("young collection should keep pinned child");
 
     assert_eq!(read_heap_reference(&heap, roots[0]), child);
     assert!(heap.is_live(child));
@@ -494,8 +535,12 @@ fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
 
     // after unpinning, the retained dirty card should let minor collection promote the child
     heap.unpin(child).expect("unpin should succeed");
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
-        .expect("young collection should rescan retained card");
+    heap.collect_minor(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |_| Ok(()),
+    )
+    .expect("young collection should rescan retained card");
 
     let promoted_child = read_heap_reference(&heap, roots[0]);
 
@@ -522,7 +567,11 @@ fn test_collect_full_traces_pinned_roots() {
 
     // full collection should trace pins even without explicit roots
     let stats = heap
-        .collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_view())
+        .collect_full(
+            &mut |visit| visit_roots(&mut roots, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("full collection should succeed");
 
     // keep the pinned payload live
@@ -698,6 +747,166 @@ fn test_step_collection_stays_idle_without_request() {
 
     // keep the collector idle
     assert_eq!(progress, GcAdvance::Idle);
+}
+
+/// Surface one unreachable young allocation before reclaiming it.
+#[test]
+fn test_step_collection_drops_young_allocation_before_reclamation() {
+    let options = HeapOptions::local();
+    let mut heap = test_heap(options);
+    let shape = test_layout(16, TraceMap::empty())
+        .block()
+        .with_drop(DropId::from_index(0))
+        .expect("Drop plan should build");
+    let reference = heap.test_allocate(shape, Payload::Zeroed);
+    let mut roots = [];
+
+    // request one minor cycle and advance to its drop callback
+    heap.request_minor_gc();
+    let drop = loop {
+        let progress = heap
+            .step_collection(
+                &mut |visit| visit_roots(&mut roots, visit),
+                DEFAULT_GC_MINIMUM_WORK_BYTES,
+                trace_view(),
+            )
+            .expect("young collection step should succeed");
+        if let GcAdvance::Drop(drop) = progress {
+            break drop;
+        }
+    };
+
+    // preserve the allocation until its callback has run
+    assert_eq!(drop.collector, GcCollector::LocalMinor);
+    assert_eq!(drop.reference, DropReference::Local(reference));
+    assert_eq!(drop.drop, DropId::from_index(0));
+    assert!(heap.is_heap_live(reference));
+    heap.complete_drop(drop.reference)
+        .expect("young allocation Drop should complete");
+
+    // reclaim the allocation after its destructor completes
+    loop {
+        let progress = heap
+            .step_collection(
+                &mut |visit| visit_roots(&mut roots, visit),
+                DEFAULT_GC_MINIMUM_WORK_BYTES,
+                trace_view(),
+            )
+            .expect("young collection step should succeed");
+        if progress.completed_stats().is_some() {
+            break;
+        }
+    }
+
+    assert!(!heap.is_heap_live(reference));
+}
+
+/// Surface one unreachable mature allocation before reclaiming it.
+#[test]
+fn test_step_collection_drops_mature_allocation_before_reclamation() {
+    let options = HeapOptions {
+        heap_young_size_bytes: 0,
+        ..HeapOptions::local()
+    };
+    let mut heap = test_heap(options);
+    let shape = test_layout(16, TraceMap::empty())
+        .block()
+        .with_drop(DropId::from_index(1))
+        .expect("Drop plan should build");
+    let reference = heap.test_allocate(shape, Payload::Zeroed);
+    let mut roots = [];
+
+    // request one major cycle and advance to its drop callback
+    heap.request_full_gc();
+    let drop = loop {
+        let progress = heap
+            .step_collection(
+                &mut |visit| visit_roots(&mut roots, visit),
+                DEFAULT_GC_MINIMUM_WORK_BYTES,
+                trace_view(),
+            )
+            .expect("major collection step should succeed");
+        if let GcAdvance::Drop(drop) = progress {
+            break drop;
+        }
+    };
+
+    // preserve the allocation until its callback has run
+    assert_eq!(drop.collector, GcCollector::LocalMajor);
+    assert_eq!(drop.reference, DropReference::Local(reference));
+    assert_eq!(drop.drop, DropId::from_index(1));
+    assert!(heap.is_heap_live(reference));
+    heap.complete_drop(drop.reference)
+        .expect("mature allocation Drop should complete");
+
+    // reclaim the allocation after its destructor completes
+    loop {
+        let progress = heap
+            .step_collection(
+                &mut |visit| visit_roots(&mut roots, visit),
+                DEFAULT_GC_MINIMUM_WORK_BYTES,
+                trace_view(),
+            )
+            .expect("major collection step should succeed");
+        if progress.completed_stats().is_some() {
+            break;
+        }
+    }
+
+    assert!(!heap.is_heap_live(reference));
+}
+
+/// Surface repeated values individually in reverse acquisition order.
+#[test]
+fn test_step_collection_drops_repeated_values_incrementally() {
+    let options = HeapOptions {
+        heap_young_size_bytes: 0,
+        ..HeapOptions::local()
+    };
+    let mut heap = test_heap(options.clone());
+    let element = AllocationShape::new(16, 8, None, TraceMap::empty())
+        .with_drop(DropId::from_index(2))
+        .expect("Drop plan should build");
+    let element = options.allocation_plan(&element);
+    let shape = element
+        .repeat(&TraceMap::empty(), 3)
+        .expect("repeated allocation should build");
+    let reference = heap.test_allocate(shape, Payload::Zeroed);
+    let mut roots = [];
+    let mut dropped = Vec::new();
+
+    // collect every value-level Drop request before physical reclamation
+    heap.request_full_gc();
+    loop {
+        let budget_bytes = DEFAULT_GC_MINIMUM_WORK_BYTES + dropped.len();
+        let progress = heap
+            .step_collection(
+                &mut |visit| visit_roots(&mut roots, visit),
+                budget_bytes,
+                trace_view(),
+            )
+            .expect("major collection step should succeed");
+
+        if let GcAdvance::Drop(drop) = progress {
+            assert_eq!(drop.budget_bytes, budget_bytes);
+            dropped.push(drop.reference);
+            heap.complete_drop(drop.reference)
+                .expect("repeated value Drop should complete");
+        }
+        if progress.completed_stats().is_some() {
+            break;
+        }
+    }
+
+    assert_eq!(
+        dropped,
+        [
+            DropReference::Local(HeapReference::new(reference.offset() + 32)),
+            DropReference::Local(HeapReference::new(reference.offset() + 16)),
+            DropReference::Local(reference),
+        ]
+    );
+    assert!(!heap.is_heap_live(reference));
 }
 
 /// Run one full bounded cycle after heap block pressure.
@@ -945,7 +1154,12 @@ fn test_step_major_gc_spreads_full_cycle() {
 
     // finish the bounded major cycle
     let stats = heap
-        .drain_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
+        .drain_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("major drain should succeed");
 
     // reclaim only the unreachable mature block
@@ -977,7 +1191,12 @@ fn test_step_major_gc_keeps_young_noscan_span_allocated_during_cycle() {
 
     // drain the active cycle
     let stats = heap
-        .drain_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
+        .drain_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("major drain should succeed");
 
     // preserve post-cycle blocks by treating them as black
@@ -1032,7 +1251,12 @@ fn test_step_major_gc_scans_large_blocks_incrementally() {
 
     // finish the bounded scan and sweep
     let stats = heap
-        .drain_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
+        .drain_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_view(),
+            &mut |_| Ok(()),
+        )
         .expect("major drain should succeed");
 
     // retain both children reached through the large parent
@@ -1053,8 +1277,12 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     let mut roots = [root];
 
     // the first full cycle should leave only the explicit root
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_view())
-        .expect("full collection should succeed");
+    heap.collect_full(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |_| Ok(()),
+    )
+    .expect("full collection should succeed");
 
     assert_eq!(heap.allocation_count(), 1);
 
@@ -1066,8 +1294,12 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     assert!(heap.is_young(even_more));
 
     // the next minor cycle should clear the unreachable nursery
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view())
-        .expect("minor collection should succeed");
+    heap.collect_minor(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |_| Ok(()),
+    )
+    .expect("minor collection should succeed");
 
     assert_eq!(heap.allocation_count(), 1);
 }
@@ -1110,6 +1342,7 @@ fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
         &mut |visit| visit_roots(&mut roots, visit),
         usize::MAX,
         trace_view(),
+        &mut |_| Ok(()),
     )
     .expect("young drain should succeed");
 
@@ -1127,7 +1360,7 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
     let options = HeapOptions::local();
     let mut heap = test_heap(options);
     let layout = test_layout(16, TraceMap::empty());
-    let plan = owned_allocation_plan(heap.options(), &layout.block());
+    let plan = heap.options().allocation_plan(&layout.block());
     let small_plan = plan.small_allocation().expect("plan should be small");
     let mut roots: Vec<HeapReference> = Vec::new();
 
@@ -1136,13 +1369,15 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
         heap.test_allocate(layout.block(), Payload::Zeroed);
     }
 
-    // drive an empty major cycle into its sweep phase
+    // drive an empty major cycle through Drop into sweep
     heap.storage
         .start_major_gc(&mut |visit| visit_roots(&mut roots, visit))
         .expect("major collection should start");
-    heap.storage
-        .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
-        .expect("major step should succeed");
+    while heap.storage.collector.major_phase != Phase::Sweep {
+        heap.storage
+            .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1, trace_view())
+            .expect("major step should succeed");
+    }
     assert_eq!(heap.storage.collector.major_phase, Phase::Sweep);
 
     // close the fast path while the cycle is active
@@ -1160,6 +1395,7 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
             &mut |visit| visit_roots(&mut roots, visit),
             usize::MAX,
             trace_view(),
+            &mut |_| Ok(()),
         )
         .expect("major drain should succeed");
 
@@ -1193,8 +1429,12 @@ fn test_collect_minor_rewrites_pinned_young_slot_payload() {
     assert!(heap.is_young(child));
 
     // collect the nursery while the parent stays pinned
-    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), trace_view)
-        .expect("young collection should succeed");
+    heap.collect_minor(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view,
+        &mut |_| Ok(()),
+    )
+    .expect("young collection should succeed");
 
     // keep the pinned parent in place
     assert_eq!(roots[0], parent);
@@ -1217,7 +1457,7 @@ fn test_step_collection_recycles_filled_default_nursery() {
     let trigger_bytes = options.heap_young_size_bytes * options.gc.trigger_percent as usize / 100;
     let mut heap = test_heap(options);
     let layout = test_layout(
-        crate::DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
+        DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
         TraceMap::empty(),
     );
     let mut roots: Vec<HeapReference> = Vec::new();

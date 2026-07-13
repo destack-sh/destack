@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use crate::local::gc::PinSet;
 use crate::local::storage::LargeBlockId;
-use crate::{HeapReference, TraceQueue, TraceReference};
+use crate::{
+    DropCursor, DropReference, GcDrop, HeapError, HeapReference, HeapResult, TraceQueue,
+    TraceReference,
+};
 
 /// The budget charged for one metadata-only GC step.
 pub(crate) const GC_METADATA_STEP_BYTES: usize = 1;
@@ -20,12 +23,14 @@ pub(crate) struct CollectorState {
 
     /// The current minor collection phase.
     pub(crate) minor_phase: Phase,
-    /// The next young range start bit to sweep.
-    pub(crate) young_sweep_range_cursor: usize,
-    /// The next young span index to sweep.
-    pub(crate) young_sweep_span_cursor: usize,
-    /// The next slot inside the current young span to sweep.
-    pub(crate) young_sweep_slot_cursor: usize,
+    /// The minor reclamation phase interrupted by marking.
+    pub(crate) minor_resume_phase: Phase,
+    /// The next young range start bit to visit after marking.
+    pub(crate) young_reclaim_range_cursor: usize,
+    /// The next young span index to visit after marking.
+    pub(crate) young_reclaim_span_cursor: usize,
+    /// The next slot inside the current young span to visit after marking.
+    pub(crate) young_reclaim_slot_cursor: usize,
     /// The next dirty mature extent queued for young marking.
     pub(crate) young_dirty_extent_cursor: usize,
     /// The next dirty card inside the current mature extent.
@@ -47,12 +52,14 @@ pub(crate) struct CollectorState {
     pub(crate) major_queue: TraceQueue<MarkWork>,
     /// The active local mark epoch.
     pub(crate) mark_epoch: u64,
-    /// The active major sweep cursor.
-    pub(crate) major_sweep: MajorSweepCursor,
+    /// The active major post-mark cursor.
+    pub(crate) major_reclaim: MajorReclaimCursor,
     /// The number of blocks freed by the active local major cycle.
     pub(crate) major_freed_allocations: usize,
     /// The number of bytes freed by the active local major cycle.
     pub(crate) major_freed_bytes: u64,
+    /// Incremental Drop progress for one unreachable allocation.
+    pending_drop: Option<DropCursor>,
 
     /// Live local references whose layouts may contain shared heap references.
     pub(crate) shared_edge_roots: Vec<HeapReference>,
@@ -78,6 +85,63 @@ pub(crate) enum DirtyExtent {
 }
 
 impl CollectorState {
+    /// Claim the first value from one local allocation.
+    pub(crate) fn claim_drop(
+        &mut self,
+        mut cursor: DropCursor,
+        budget_bytes: usize,
+    ) -> HeapResult<GcDrop> {
+        // reject overlapping allocation cursors
+        if self.pending_drop.is_some() {
+            return Err(HeapError::internal("local Drop is already claimed"));
+        }
+
+        // publish the cursor only after its first claim succeeds
+        let drop = cursor.claim(budget_bytes)?;
+        self.pending_drop = Some(cursor);
+
+        Ok(drop)
+    }
+
+    /// Claim the next value from the pending local allocation.
+    pub(crate) fn continue_drop(&mut self, budget_bytes: usize) -> HeapResult<Option<GcDrop>> {
+        let Some(cursor) = &mut self.pending_drop else {
+            return Ok(None);
+        };
+
+        // wait for the runtime to complete the active value
+        if cursor.is_claimed() {
+            return Ok(None);
+        }
+
+        cursor.claim(budget_bytes).map(Some)
+    }
+
+    /// Return whether one local value is claimed for Drop.
+    pub(crate) fn is_drop_claimed(&self) -> bool {
+        self.pending_drop.is_some_and(|cursor| cursor.is_claimed())
+    }
+
+    /// Complete the currently claimed local value.
+    pub(crate) fn complete_drop(&mut self, reference: DropReference) -> HeapResult<()> {
+        let Some(cursor) = &mut self.pending_drop else {
+            return Err(HeapError::internal("local Drop cursor is missing"));
+        };
+        cursor.complete(reference)?;
+
+        Ok(())
+    }
+
+    /// Retire the allocation cursor whose values completed Drop.
+    pub(crate) fn retire_completed_drop(&mut self) {
+        let is_complete = self
+            .pending_drop
+            .is_some_and(|cursor| cursor.is_complete() && !cursor.is_claimed());
+        if is_complete {
+            self.pending_drop = None;
+        }
+    }
+
     /// Return whether a local collection is currently running.
     pub(crate) fn is_collecting(&self) -> bool {
         self.minor_phase != Phase::Idle || self.major_phase != Phase::Idle
@@ -193,28 +257,30 @@ pub(crate) enum Phase {
     Idle,
     /// The collector is marking reachable blocks.
     Mark,
+    /// The collector is running Drop for unreachable blocks.
+    Drop,
     /// The collector is reclaiming unreachable blocks.
     Sweep,
 }
 
-/// Active local major sweep cursor.
+/// Active local major post-mark heap cursor.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct MajorSweepCursor {
-    /// The next young range start bit to sweep.
+pub(crate) struct MajorReclaimCursor {
+    /// The next young range start bit to visit.
     pub(crate) young_range_cursor: usize,
-    /// The next young span index to sweep.
+    /// The next young span index to visit.
     pub(crate) young_span_cursor: usize,
-    /// The next young span slot index to sweep.
+    /// The next young span slot index to visit.
     pub(crate) young_slot_cursor: usize,
-    /// The next mature small span index to sweep.
+    /// The next mature small span index to visit.
     pub(crate) small_span_cursor: usize,
-    /// The next mature small span slot index to sweep.
+    /// The next mature small span slot index to visit.
     pub(crate) small_slot_cursor: usize,
-    /// The mature small span table length captured when sweep started.
+    /// The mature small span table length captured when reclamation started.
     pub(crate) small_span_limit: usize,
-    /// The next mature large block index to sweep.
+    /// The next mature large block index to visit.
     pub(crate) large_cursor: usize,
-    /// The mature large block table length captured when sweep started.
+    /// The mature large block table length captured when reclamation started.
     pub(crate) large_limit: usize,
 }
 

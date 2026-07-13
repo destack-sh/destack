@@ -327,7 +327,7 @@ impl GcPhase {
     }
 }
 
-/// Summary statistics for a garbage collection cycle.
+/// Garbage collection cycle statistics.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct GcStats {
     /// Number of blocks freed by the collection.
@@ -377,7 +377,7 @@ pub struct GcCycle {
     pub budget_bytes: usize,
     /// Actual charged work in bytes for the final increment.
     pub work_bytes: usize,
-    /// Summary statistics for the completed cycle.
+    /// Statistics for the completed cycle.
     pub stats: GcStats,
 }
 
@@ -391,7 +391,7 @@ pub enum GcAdvance {
     Started(GcStart),
     /// Collector work ran but the cycle is not complete.
     Stepped(GcStep),
-    /// One unreachable allocation must run Drop.
+    /// One unreachable value must run Drop.
     Drop(GcDrop),
     /// One collection cycle completed.
     Completed(GcCycle),
@@ -447,6 +447,16 @@ impl GcAdvance {
         match self {
             Self::Completed(cycle) => Some(cycle.stats),
             Self::Idle | Self::Started(_) | Self::Stepped(_) | Self::Drop(_) => None,
+        }
+    }
+
+    /// Return the work charged by this collector increment.
+    pub const fn work_bytes(self) -> usize {
+        match self {
+            Self::Stepped(step) => step.work_bytes,
+            Self::Drop(drop) => drop.work_bytes,
+            Self::Completed(cycle) => cycle.work_bytes,
+            Self::Idle | Self::Started(_) => 0,
         }
     }
 

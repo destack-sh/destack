@@ -5,7 +5,7 @@ use parking_lot::{Mutex, MutexGuard};
 
 use crate::SharedHeapReference;
 
-use crate::GcPhase;
+use crate::{DropCursor, DropReference, GcDrop, GcPhase, HeapError, HeapResult};
 
 /// One active shared GC state.
 #[derive(Debug, Default)]
@@ -18,7 +18,7 @@ pub(crate) struct CollectorState {
     phase: AtomicU8,
 
     /// Whether shared mark publication is closed for termination.
-    mark_closing: AtomicBool,
+    is_mark_closing: AtomicBool,
     /// The number of shared mark publications currently in flight.
     pub(crate) mark_publishers: AtomicUsize,
     /// The number of mark items currently being traced.
@@ -26,8 +26,8 @@ pub(crate) struct CollectorState {
     /// The active mark epoch.
     mark_epoch: AtomicU64,
 
-    /// The active sweep state.
-    sweep: Mutex<SweepState>,
+    /// The active post-mark reclamation state.
+    reclaim: Mutex<ReclaimState>,
 }
 
 impl CollectorState {
@@ -58,64 +58,145 @@ impl CollectorState {
         self.mark_epoch.load(Ordering::Acquire)
     }
 
-    /// Reset sweep state for a new mark cycle.
-    pub(crate) fn reset_sweep(&self) {
-        *self.sweep.lock() = SweepState::default();
+    /// Reset reclamation state for a new mark cycle.
+    pub(crate) fn reset_reclaim(&self) {
+        *self.reclaim.lock() = ReclaimState::default();
     }
 
-    /// Start sweeping from the beginning of the shared heap.
-    pub(crate) fn start_sweep(&self, small_span_limit: usize, large_limit: usize) {
-        *self.sweep.lock() = SweepState {
-            cursor: SweepCursor {
+    /// Start one post-mark heap pass from the beginning.
+    pub(crate) fn start_reclaim(&self, small_span_limit: usize, large_limit: usize) {
+        *self.reclaim.lock() = ReclaimState {
+            cursor: ReclaimCursor {
                 small_span_limit,
                 large_limit,
-                ..SweepCursor::default()
+                ..ReclaimCursor::default()
             },
-            ..SweepState::default()
+            ..ReclaimState::default()
         };
     }
 
-    /// Return the current sweep cursor.
-    pub(crate) fn sweep_cursor(&self) -> SweepCursor {
-        self.sweep.lock().cursor
+    /// Restart the active post-mark cursor from its captured table limits.
+    pub(crate) fn restart_reclaim(&self) {
+        let mut reclaim = self.reclaim.lock();
+        let small_span_limit = reclaim.cursor.small_span_limit;
+        let large_limit = reclaim.cursor.large_limit;
+        reclaim.cursor = ReclaimCursor {
+            small_span_limit,
+            large_limit,
+            ..ReclaimCursor::default()
+        };
     }
 
-    /// Set the current sweep cursor.
-    pub(crate) fn set_sweep_cursor(&self, cursor: SweepCursor) {
-        self.sweep.lock().cursor = cursor;
+    /// Return the current reclamation cursor.
+    pub(crate) fn reclaim_cursor(&self) -> ReclaimCursor {
+        self.reclaim.lock().cursor
     }
 
-    /// Record block bytes freed by sweep.
-    pub(crate) fn record_sweep_freed(&self, freed_allocations: usize, freed_bytes: u64) {
-        let mut sweep = self.sweep.lock();
-
-        sweep.freed_allocations += freed_allocations;
-        sweep.freed_bytes += freed_bytes;
+    /// Set the current reclamation cursor.
+    pub(crate) fn set_reclaim_cursor(&self, cursor: ReclaimCursor) {
+        self.reclaim.lock().cursor = cursor;
     }
 
-    /// Return the completed sweep free counts.
-    pub(crate) fn sweep_freed(&self) -> SweepFreed {
-        let sweep = self.sweep.lock();
+    /// Claim the first value from one shared allocation with the advanced heap cursor.
+    pub(crate) fn claim_drop(
+        &self,
+        reclaim_cursor: ReclaimCursor,
+        mut drop_cursor: DropCursor,
+        budget_bytes: usize,
+    ) -> HeapResult<GcDrop> {
+        let mut reclaim = self.reclaim.lock();
 
-        SweepFreed {
-            allocations: sweep.freed_allocations,
-            bytes: sweep.freed_bytes,
+        // reject overlapping allocation cursors
+        if reclaim.pending_drop.is_some() {
+            return Err(HeapError::internal("shared Drop is already claimed"));
         }
+
+        // publish the cursor only after its first claim succeeds
+        let drop = drop_cursor.claim(budget_bytes)?;
+        reclaim.cursor = reclaim_cursor;
+        reclaim.pending_drop = Some(drop_cursor);
+
+        Ok(drop)
+    }
+
+    /// Claim the next value from the pending shared allocation.
+    pub(crate) fn continue_drop(&self, budget_bytes: usize) -> HeapResult<Option<GcDrop>> {
+        let mut reclaim = self.reclaim.lock();
+        let Some(cursor) = &mut reclaim.pending_drop else {
+            return Ok(None);
+        };
+
+        // wait for the runtime to complete the active value
+        if cursor.is_claimed() {
+            return Ok(None);
+        }
+
+        cursor.claim(budget_bytes).map(Some)
+    }
+
+    /// Return whether one shared allocation still has values to drop.
+    pub(crate) fn has_pending_drop(&self) -> bool {
+        self.reclaim.lock().pending_drop.is_some()
+    }
+
+    /// Return whether one shared value is claimed for Drop.
+    pub(crate) fn is_drop_claimed(&self) -> bool {
+        self.reclaim
+            .lock()
+            .pending_drop
+            .is_some_and(|cursor| cursor.is_claimed())
+    }
+
+    /// Complete the currently claimed shared value.
+    pub(crate) fn complete_drop(&self, reference: DropReference) -> HeapResult<()> {
+        let mut reclaim = self.reclaim.lock();
+        let Some(cursor) = &mut reclaim.pending_drop else {
+            return Err(HeapError::internal("shared Drop cursor is missing"));
+        };
+        cursor.complete(reference)?;
+
+        Ok(())
+    }
+
+    /// Retire the shared allocation cursor whose values completed Drop.
+    pub(crate) fn retire_completed_drop(&self) {
+        let mut reclaim = self.reclaim.lock();
+        let is_complete = reclaim
+            .pending_drop
+            .is_some_and(|cursor| cursor.is_complete() && !cursor.is_claimed());
+        if is_complete {
+            reclaim.pending_drop = None;
+        }
+    }
+
+    /// Record blocks reclaimed by sweep.
+    pub(crate) fn record_reclaimed(&self, allocation_count: usize, byte_count: u64) {
+        let mut reclaim = self.reclaim.lock();
+
+        reclaim.freed_allocations += allocation_count;
+        reclaim.freed_bytes += byte_count;
+    }
+
+    /// Return the blocks reclaimed by the active cycle.
+    pub(crate) fn reclaimed(&self) -> (usize, u64) {
+        let reclaim = self.reclaim.lock();
+
+        (reclaim.freed_allocations, reclaim.freed_bytes)
     }
 
     /// Return whether shared mark publication is currently closed.
     pub(crate) fn is_mark_closing(&self) -> bool {
-        self.mark_closing.load(Ordering::Acquire)
+        self.is_mark_closing.load(Ordering::Acquire)
     }
 
     /// Open shared mark publication.
     pub(crate) fn open_mark_publication(&self) {
-        self.mark_closing.store(false, Ordering::Release);
+        self.is_mark_closing.store(false, Ordering::Release);
     }
 
     /// Close shared mark publication for termination.
     pub(crate) fn close_mark_publication(&self) {
-        self.mark_closing.store(true, Ordering::Release);
+        self.is_mark_closing.store(true, Ordering::Release);
     }
 
     /// Return whether the active shared mark phase is fully drained.
@@ -424,35 +505,28 @@ pub(crate) struct MarkPublication<'a> {
     state: &'a CollectorState,
 }
 
-/// Active shared sweep cursor.
+/// Active shared post-mark heap cursor.
 #[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct SweepCursor {
-    /// The next small span index to sweep.
+pub(crate) struct ReclaimCursor {
+    /// The next small span index to visit.
     pub(crate) small_span_index: usize,
-    /// The next small slot index to sweep inside the current span.
+    /// The next small slot index to visit inside the current span.
     pub(crate) small_slot_index: usize,
-    /// The small span table length captured when sweep started.
+    /// The small span table length captured when reclamation started.
     pub(crate) small_span_limit: usize,
-    /// The next large block index to sweep.
+    /// The next large block index to visit.
     pub(crate) large_index: usize,
-    /// The large block table length captured when sweep started.
+    /// The large block table length captured when reclamation started.
     pub(crate) large_limit: usize,
 }
 
-/// Block counts freed by one shared sweep cycle.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SweepFreed {
-    /// The blocks freed by the sweep cycle.
-    pub(crate) allocations: usize,
-    /// The bytes freed by the sweep cycle.
-    pub(crate) bytes: u64,
-}
-
-/// Active shared sweep state.
+/// Active shared post-mark reclamation state.
 #[derive(Debug, Default)]
-struct SweepState {
-    /// The next block to sweep.
-    cursor: SweepCursor,
+struct ReclaimState {
+    /// The next heap block to visit.
+    cursor: ReclaimCursor,
+    /// Incremental Drop progress for one shared allocation.
+    pending_drop: Option<DropCursor>,
     /// The blocks freed so far in the active cycle.
     freed_allocations: usize,
     /// The bytes freed so far in the active cycle.

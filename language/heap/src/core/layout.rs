@@ -183,10 +183,10 @@ impl AllocationShape {
     }
 
     /// Return this shape with one single-value drop plan.
-    pub const fn with_drop(mut self, drop: DropId) -> Self {
-        self.drop = Some(DropPlan::one(drop));
+    pub fn with_drop(mut self, drop: DropId) -> HeapResult<Self> {
+        self.drop = Some(DropPlan::one(drop, self.byte_len)?);
 
-        self
+        Ok(self)
     }
 
     /// Return whether this shape describes a valid non-empty heap block.

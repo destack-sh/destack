@@ -2,12 +2,13 @@ use crate::TraceView;
 use destack_mir::TraceMap;
 
 use crate::local::gc::{
-    GC_METADATA_STEP_BYTES, MajorSweepCursor, MarkWork, Phase, charge_bitmap_skip,
+    GC_METADATA_STEP_BYTES, MajorReclaimCursor, MarkWork, Phase, charge_bitmap_skip,
 };
 use crate::local::storage::{GcStats, HeapExtent, HeapPlace, HeapStorage};
 use crate::{
-    GcAdvance, GcCollector, GcPhase, HeapError, HeapGcStateError, HeapOperationSource,
-    HeapReference, HeapResult, ReferenceInput, ReferenceRange, RootSlot, scan_references,
+    DropCursor, DropPlan, DropReference, GcAdvance, GcCollector, GcDrop, GcPhase, HeapError,
+    HeapGcStateError, HeapOperationSource, HeapReference, HeapResult, ReferenceInput,
+    ReferenceRange, RootSlot, scan_references,
 };
 
 impl HeapStorage {
@@ -20,7 +21,7 @@ impl HeapStorage {
     pub(crate) fn publish_major_allocation(
         &mut self,
         reference: HeapReference,
-        storage: HeapPlace,
+        place: HeapPlace,
         trace_map: &TraceMap,
     ) -> HeapResult<()> {
         // inactive collector
@@ -28,9 +29,9 @@ impl HeapStorage {
             return Ok(());
         }
 
-        self.mark_place(storage)?;
+        self.mark_place(place)?;
 
-        self.enqueue_payload_references(reference, storage, 0, usize::MAX, trace_map)
+        self.enqueue_payload_references(reference, place, 0, usize::MAX, trace_map)
     }
 
     /// Queue local references written into one active local major cycle.
@@ -47,23 +48,20 @@ impl HeapStorage {
         }
 
         // scan the written range into the reusable scratch
-        let scan_len = byte_len.min(self.byte_len_for_place(extent.storage)? - byte_offset);
+        let scan_len = byte_len.min(self.resolve_byte_len(extent.place)? - byte_offset);
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        self.trace_map_for_place_ref(extent.storage, trace_view)
-            .and_then(|trace_map| {
-                // skip writes that cannot touch local references
-                if !trace_map.has_local_reference() {
-                    return Ok(());
-                }
+        let base_address = self.memory.base_address() + extent.base.offset();
+        self.visit_references::<HeapReference>(
+            extent.place,
+            trace_view,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(byte_offset, scan_len),
+            &mut |reference| {
+                scratch.push(reference);
 
-                scan_references::<HeapReference>(
-                    &trace_map,
-                    ReferenceInput::mapped(base_address),
-                    ReferenceRange::bytes(byte_offset, scan_len),
-                    &mut scratch,
-                )
-            })?;
+                Ok(())
+            },
+        )?;
 
         // enqueue the discovered references
         for reference in scratch.drain(..) {
@@ -78,7 +76,7 @@ impl HeapStorage {
     fn enqueue_payload_references(
         &mut self,
         reference: HeapReference,
-        storage: HeapPlace,
+        place: HeapPlace,
         byte_offset: usize,
         byte_len: usize,
         trace_map: &TraceMap,
@@ -88,12 +86,12 @@ impl HeapStorage {
         }
 
         // resolve the scan window inside the block payload
-        let byte_len_for_place = self.byte_len_for_place(storage)?;
-        let scan_len = byte_len.min(byte_len_for_place - byte_offset);
+        let place_byte_len = self.resolve_byte_len(place)?;
+        let scan_len = byte_len.min(place_byte_len - byte_offset);
 
         // scan local reference slots into the reusable scratch
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
-        let base_address = self.mapping.base_address() + reference.offset();
+        let base_address = self.memory.base_address() + reference.offset();
         let result = scan_references::<HeapReference>(
             trace_map,
             ReferenceInput::mapped(base_address),
@@ -122,16 +120,17 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         trace_view: TraceView<'_>,
+        drop: &mut impl FnMut(GcDrop) -> Result<(), E>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
     {
         // collect the nursery first so full collection sees mature references
-        let _minor = self.collect_minor(roots, trace_view)?;
+        let _minor = self.collect_minor(roots, trace_view, drop)?;
 
         self.start_major_gc(roots)?;
 
-        self.drain_major_gc(roots, usize::MAX, trace_view)
+        self.drain_major_gc(roots, usize::MAX, trace_view, drop)
     }
 
     /// Drain the active local major collection and return its completed stats.
@@ -140,6 +139,7 @@ impl HeapStorage {
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
+        drop: &mut impl FnMut(GcDrop) -> Result<(), E>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -149,6 +149,10 @@ impl HeapStorage {
             match self.step_major_gc(roots, budget_bytes, trace_view)? {
                 GcAdvance::Completed(cycle) => return Ok(cycle.stats),
                 GcAdvance::Stepped(_) => continue,
+                GcAdvance::Drop(request) => {
+                    drop(request)?;
+                    self.collector.complete_drop(request.reference)?;
+                }
                 GcAdvance::Started(_) => {
                     return Err(HeapError::Internal {
                         context: "local full collection returned a start event during drain",
@@ -185,7 +189,7 @@ impl HeapStorage {
         self.collector.mark_epoch += 1;
         self.clear_young_mark_bits();
         self.collector.major_queue.clear();
-        self.collector.major_sweep = MajorSweepCursor::default();
+        self.collector.major_reclaim = MajorReclaimCursor::default();
         self.collector.major_freed_allocations = 0;
         self.collector.major_freed_bytes = 0;
         self.collector.major_phase = Phase::Mark;
@@ -217,20 +221,19 @@ impl HeapStorage {
             Phase::Mark => {
                 // roots may have changed between incremental steps
                 self.seed_major_roots(roots)?;
-                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_view)?;
+                let marked_bytes = self.step_major_gc_mark(budget_bytes, trace_view)?;
 
-                // switch to sweep when mark work drains
+                // switch to reclamation when mark work drains
                 if self.collector.major_queue.is_empty() {
-                    self.start_major_sweep();
-                    self.collector.major_phase = Phase::Sweep;
+                    self.start_major_reclaim();
+                    self.collector.major_phase = Phase::Drop;
 
-                    // spend remaining budget in the sweep phase
+                    // spend remaining budget dropping dead values
                     if marked_bytes < budget_bytes {
                         let remaining_bytes = budget_bytes - marked_bytes;
+                        let advance = self.step_major_gc_reclaim(remaining_bytes)?;
 
-                        return Ok(self
-                            .step_unreachable_reference_sweep(remaining_bytes)?
-                            .with_work_added(marked_bytes));
+                        return Ok(advance.with_prior_work(marked_bytes));
                     }
                 }
 
@@ -241,8 +244,8 @@ impl HeapStorage {
                     marked_bytes,
                 ))
             }
-            Phase::Sweep => {
-                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_view)?;
+            Phase::Drop | Phase::Sweep => {
+                let marked_bytes = self.step_major_gc_mark(budget_bytes, trace_view)?;
                 if !self.collector.major_queue.is_empty() {
                     return Ok(GcAdvance::stepped(
                         GcCollector::LocalMajor,
@@ -261,10 +264,15 @@ impl HeapStorage {
                 }
 
                 let remaining_bytes = budget_bytes - marked_bytes;
+                let advance = match self.collector.major_phase {
+                    Phase::Drop => self.step_major_gc_reclaim(remaining_bytes)?,
+                    Phase::Sweep => self.step_major_gc_sweep(remaining_bytes)?,
+                    Phase::Idle | Phase::Mark => {
+                        return Err(HeapError::internal("invalid major reclamation phase").into());
+                    }
+                };
 
-                Ok(self
-                    .step_unreachable_reference_sweep(remaining_bytes)?
-                    .with_work_added(marked_bytes))
+                Ok(advance.with_prior_work(marked_bytes))
             }
         }
     }
@@ -307,44 +315,131 @@ impl HeapStorage {
         self.gc.record_cycle(GcCollector::LocalMajor, stats);
         self.collector.major_phase = Phase::Idle;
         self.collector.major_queue.clear();
-        self.collector.major_sweep = MajorSweepCursor::default();
+        self.collector.major_reclaim = MajorReclaimCursor::default();
         self.collector.major_freed_allocations = 0;
         self.collector.major_freed_bytes = 0;
 
         Ok(stats)
     }
 
-    /// Start sweeping over the heap tables visible to the active major cycle.
-    fn start_major_sweep(&mut self) {
+    /// Start one post-mark pass over the heap tables visible to the active major cycle.
+    fn start_major_reclaim(&mut self) {
         // publish active span accounting before cursor bounds are captured
         self.flush_young_cursor();
 
-        // capture sweep limits for a stable bounded pass
-        self.collector.major_sweep = MajorSweepCursor {
+        // capture reclamation limits for a stable bounded pass
+        self.collector.major_reclaim = MajorReclaimCursor {
             small_span_limit: self.small.spans.len(),
             large_limit: self.large.blocks.len(),
-            ..MajorSweepCursor::default()
+            ..MajorReclaimCursor::default()
         };
     }
 
+    /// Restart the post-mark cursor for sweep.
+    fn start_major_sweep(&mut self) {
+        let small_span_limit = self.collector.major_reclaim.small_span_limit;
+        let large_limit = self.collector.major_reclaim.large_limit;
+        self.collector.major_reclaim = MajorReclaimCursor {
+            small_span_limit,
+            large_limit,
+            ..MajorReclaimCursor::default()
+        };
+        self.collector.major_phase = Phase::Sweep;
+    }
+
+    /// Advance major Drop and spend any remaining budget in sweep.
+    fn step_major_gc_reclaim(&mut self, budget_bytes: usize) -> HeapResult<GcAdvance> {
+        let advance = self.step_major_gc_drop(budget_bytes)?;
+        let drop_bytes = advance.work_bytes();
+
+        // continue directly into sweep when Drop completed within this budget
+        if self.collector.major_phase == Phase::Sweep && drop_bytes < budget_bytes {
+            let remaining_bytes = budget_bytes - drop_bytes;
+
+            return self
+                .step_major_gc_sweep(remaining_bytes)
+                .map(|advance| advance.with_prior_work(drop_bytes));
+        }
+
+        Ok(advance)
+    }
+
+    /// Run Drop for unreachable values within one byte budget.
+    fn step_major_gc_drop(&mut self, budget_bytes: usize) -> HeapResult<GcAdvance> {
+        // preserve the active value until its destructor completes
+        if self.collector.is_drop_claimed() {
+            return Ok(GcAdvance::Idle);
+        }
+
+        // retire one completed allocation cursor without reclaiming storage
+        self.collector.retire_completed_drop();
+
+        // continue one repeated allocation before scanning onward
+        if let Some(drop) = self.collector.continue_drop(budget_bytes)? {
+            return Ok(GcAdvance::Drop(drop));
+        }
+
+        let mut work_bytes = 0usize;
+
+        // scan young variable ranges first
+        if let Some(drop) =
+            self.step_major_young_range_reclaim(Phase::Drop, budget_bytes, &mut work_bytes)?
+        {
+            return Ok(GcAdvance::Drop(drop));
+        }
+
+        // scan young fixed spans with remaining budget
+        if let Some(drop) =
+            self.step_major_young_span_reclaim(Phase::Drop, budget_bytes, &mut work_bytes)?
+        {
+            return Ok(GcAdvance::Drop(drop));
+        }
+
+        // scan mature small spans with remaining budget
+        if let Some(drop) =
+            self.step_major_small_span_reclaim(Phase::Drop, budget_bytes, &mut work_bytes)?
+        {
+            return Ok(GcAdvance::Drop(drop));
+        }
+
+        // scan mature large blocks last
+        if let Some(drop) =
+            self.step_major_large_block_reclaim(Phase::Drop, budget_bytes, &mut work_bytes)?
+        {
+            return Ok(GcAdvance::Drop(drop));
+        }
+
+        // begin sweep only after every unreachable value completed Drop
+        if self.major_reclaim_drained() {
+            self.start_major_sweep();
+        }
+
+        Ok(GcAdvance::stepped(
+            GcCollector::LocalMajor,
+            GcPhase::Drop,
+            budget_bytes,
+            work_bytes,
+        ))
+    }
+
     /// Sweep unreachable references within one byte budget.
-    fn step_unreachable_reference_sweep(&mut self, budget_bytes: usize) -> HeapResult<GcAdvance> {
+    fn step_major_gc_sweep(&mut self, budget_bytes: usize) -> HeapResult<GcAdvance> {
         let mut swept_bytes = 0usize;
 
         // sweep young variable ranges first
-        self.step_major_young_range_sweep(budget_bytes, &mut swept_bytes)?;
+        self.step_major_young_range_reclaim(Phase::Sweep, budget_bytes, &mut swept_bytes)?;
 
         // sweep young fixed spans with remaining budget
-        self.step_major_young_span_sweep(budget_bytes, &mut swept_bytes)?;
+        self.step_major_young_span_reclaim(Phase::Sweep, budget_bytes, &mut swept_bytes)?;
 
         // sweep mature small spans with remaining budget
-        self.step_major_small_span_sweep(budget_bytes, &mut swept_bytes)?;
+        self.step_major_small_span_reclaim(Phase::Sweep, budget_bytes, &mut swept_bytes)?;
 
         // sweep mature large blocks last
-        self.step_major_large_block_sweep(budget_bytes, &mut swept_bytes)?;
+        self.step_major_large_block_reclaim(Phase::Sweep, budget_bytes, &mut swept_bytes)?;
 
         // finish when all sweep cursors drain
-        if self.major_sweep_drained() {
+        if self.major_reclaim_drained() {
             return self.finish_major_gc().map(|stats| {
                 GcAdvance::completed(
                     GcCollector::LocalMajor,
@@ -364,42 +459,43 @@ impl HeapStorage {
         ))
     }
 
-    /// Sweep unreachable young range blocks within one byte budget.
-    fn step_major_young_range_sweep(
+    /// Process unreachable young range blocks for one reclamation phase.
+    fn step_major_young_range_reclaim(
         &mut self,
+        phase: Phase,
         budget_bytes: usize,
-        swept_bytes: &mut usize,
-    ) -> HeapResult<()> {
-        while *swept_bytes < budget_bytes
-            && self.collector.major_sweep.young_range_cursor < self.young.ranges.len()
+        work_bytes: &mut usize,
+    ) -> HeapResult<Option<GcDrop>> {
+        while *work_bytes < budget_bytes
+            && self.collector.major_reclaim.young_range_cursor < self.young.ranges.len()
         {
             // skip clear bitmap words as charged metadata work
             let Some(block_index) = self
                 .young
                 .live
-                .first_set_from(self.collector.major_sweep.young_range_cursor)
+                .first_set_from(self.collector.major_reclaim.young_range_cursor)
             else {
-                self.collector.major_sweep.young_range_cursor = charge_bitmap_skip(
-                    self.collector.major_sweep.young_range_cursor,
+                self.collector.major_reclaim.young_range_cursor = charge_bitmap_skip(
+                    self.collector.major_reclaim.young_range_cursor,
                     self.young.ranges.len(),
                     budget_bytes,
-                    swept_bytes,
+                    work_bytes,
                 );
 
-                return Ok(());
+                return Ok(None);
             };
 
             // charge skipped dead range bits
-            self.collector.major_sweep.young_range_cursor = charge_bitmap_skip(
-                self.collector.major_sweep.young_range_cursor,
+            self.collector.major_reclaim.young_range_cursor = charge_bitmap_skip(
+                self.collector.major_reclaim.young_range_cursor,
                 block_index,
                 budget_bytes,
-                swept_bytes,
+                work_bytes,
             );
-            if *swept_bytes >= budget_bytes {
-                return Ok(());
+            if *work_bytes >= budget_bytes {
+                return Ok(None);
             }
-            self.collector.major_sweep.young_range_cursor = block_index + 1;
+            self.collector.major_reclaim.young_range_cursor = block_index + 1;
 
             // resolve the live range selected by the bitmap
             let Some(block) = self.young_range(block_index) else {
@@ -412,128 +508,202 @@ impl HeapStorage {
 
             // marked ranges survive this cycle
             if self.young.marked.contains(block_index) {
-                *swept_bytes += byte_len.max(1);
+                *work_bytes += if phase == Phase::Drop {
+                    GC_METADATA_STEP_BYTES
+                } else {
+                    byte_len.max(1)
+                };
 
                 continue;
             }
 
-            // unmarked ranges are dead
-            self.free_swept_reference(reference, byte_len)?;
-            *swept_bytes += byte_len.max(1);
+            // run Drop without reclaiming storage
+            if phase == Phase::Drop {
+                if let Some(drop) = block.drop {
+                    let cursor = DropCursor::new(
+                        GcCollector::LocalMajor,
+                        DropReference::Local(reference),
+                        byte_len,
+                        drop,
+                        *work_bytes,
+                    )?;
+                    let drop = self.collector.claim_drop(cursor, budget_bytes)?;
+
+                    return Ok(Some(drop));
+                }
+
+                *work_bytes += GC_METADATA_STEP_BYTES;
+            }
+            // reclaim only after the complete Drop pass
+            else if phase == Phase::Sweep {
+                self.free_swept_reference(reference, byte_len)?;
+                *work_bytes += byte_len.max(1);
+            } else {
+                return Err(HeapError::internal("invalid major range reclamation phase"));
+            }
         }
 
-        Ok(())
+        Ok(None)
     }
 
-    /// Sweep unreachable young span slots within one byte budget.
-    fn step_major_young_span_sweep(
+    /// Process unreachable young span slots for one reclamation phase.
+    fn step_major_young_span_reclaim(
         &mut self,
+        phase: Phase,
         budget_bytes: usize,
-        swept_bytes: &mut usize,
-    ) -> HeapResult<()> {
-        while *swept_bytes < budget_bytes
-            && self.collector.major_sweep.young_span_cursor < self.young.spans.len()
+        work_bytes: &mut usize,
+    ) -> HeapResult<Option<GcDrop>> {
+        while *work_bytes < budget_bytes
+            && self.collector.major_reclaim.young_span_cursor < self.young.spans.len()
         {
             // select the active span and reserved slot limit
-            let span_index = self.collector.major_sweep.young_span_cursor;
-            let span = self.select_major_young_span_sweep(span_index)?;
+            let span_index = self.collector.major_reclaim.young_span_cursor;
+            let span = self.major_young_span(span_index)?;
+
+            // skip classes that cannot require a runtime callback during Drop
+            if phase == Phase::Drop && span.drop.is_none() {
+                *work_bytes += GC_METADATA_STEP_BYTES;
+                self.collector.major_reclaim.young_span_cursor += 1;
+                self.collector.major_reclaim.young_slot_cursor = 0;
+
+                continue;
+            }
 
             // sweep slots within this young span
-            while *swept_bytes < budget_bytes
-                && self.collector.major_sweep.young_slot_cursor < span.reserved_slots
+            while *work_bytes < budget_bytes
+                && self.collector.major_reclaim.young_slot_cursor < span.reserved_slots
             {
-                let slot_index = self.collector.major_sweep.young_slot_cursor;
-                self.collector.major_sweep.young_slot_cursor += 1;
+                let slot_index = self.collector.major_reclaim.young_slot_cursor;
+                self.collector.major_reclaim.young_slot_cursor += 1;
 
                 // already freed slots only charge metadata work
                 let Some(bits) = self.young.span_bits_mut(span_index) else {
                     return Err(HeapError::internal("missing span"));
                 };
                 if bits.freed.contains(slot_index) {
-                    *swept_bytes += GC_METADATA_STEP_BYTES;
+                    *work_bytes += GC_METADATA_STEP_BYTES;
 
                     continue;
                 }
 
                 // marked slots survive this cycle
                 if bits.marked.contains(slot_index) {
-                    *swept_bytes += span.size_class.max(1);
+                    *work_bytes += if phase == Phase::Drop {
+                        GC_METADATA_STEP_BYTES
+                    } else {
+                        span.size_class.max(1)
+                    };
 
                     continue;
                 }
 
-                // unmarked slots are dead
-                bits.freed.set(slot_index);
-                bits.marked.clear(slot_index);
+                // run Drop without reclaiming storage
                 let reference =
                     HeapReference::new(span.first_offset + slot_index * span.size_class);
-                self.collector.remove_shared_edge_root(reference);
-                self.record_young_free(span.size_class);
-                self.collector.major_freed_allocations += 1;
-                self.collector.major_freed_bytes += span.size_class as u64;
-                *swept_bytes += span.size_class.max(1);
+                if phase == Phase::Drop {
+                    if let Some(drop) = span.drop {
+                        let cursor = DropCursor::new(
+                            GcCollector::LocalMajor,
+                            DropReference::Local(reference),
+                            span.size_class,
+                            drop,
+                            *work_bytes,
+                        )?;
+                        let drop = self.collector.claim_drop(cursor, budget_bytes)?;
+
+                        return Ok(Some(drop));
+                    }
+
+                    *work_bytes += GC_METADATA_STEP_BYTES;
+                }
+                // reclaim only after the complete Drop pass
+                else if phase == Phase::Sweep {
+                    bits.freed.set(slot_index);
+                    bits.marked.clear(slot_index);
+                    self.collector.remove_shared_edge_root(reference);
+                    self.record_young_free(span.size_class);
+                    self.collector.major_freed_allocations += 1;
+                    self.collector.major_freed_bytes += span.size_class as u64;
+                    *work_bytes += span.size_class.max(1);
+                } else {
+                    return Err(HeapError::internal("invalid major span reclamation phase"));
+                }
             }
 
             // advance after all reserved slots drain
-            if self.collector.major_sweep.young_slot_cursor >= span.reserved_slots {
-                self.collector.major_sweep.young_span_cursor += 1;
-                self.collector.major_sweep.young_slot_cursor = 0;
+            if self.collector.major_reclaim.young_slot_cursor >= span.reserved_slots {
+                self.collector.major_reclaim.young_span_cursor += 1;
+                self.collector.major_reclaim.young_slot_cursor = 0;
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
-    /// Select young span sweep metadata without cloning span bitmaps.
-    fn select_major_young_span_sweep(&self, span_index: usize) -> HeapResult<YoungSpanSweep> {
+    /// Return young span reclamation metadata without cloning span bitmaps.
+    fn major_young_span(&self, span_index: usize) -> HeapResult<YoungSpanReclaim> {
         let Some(span) = self.young.span(span_index) else {
             return Err(HeapError::internal("missing span"));
         };
 
-        let reserved_slots = self
-            .young
-            .span_reserved_slot_count(span_index)
-            .unwrap_or_else(|| span.slot_count());
+        let Some(reserved_slots) = self.young.span_reserved_slot_count(span_index) else {
+            return Err(HeapError::internal("missing young span reservation"));
+        };
 
-        Ok(YoungSpanSweep {
+        Ok(YoungSpanReclaim {
             first_offset: span.first_offset,
             size_class: span.class.size_class(),
             reserved_slots,
+            drop: span.class.drop_plan(),
         })
     }
 
-    /// Sweep unreachable small-span slots within one byte budget.
-    fn step_major_small_span_sweep(
+    /// Process unreachable small-span slots for one reclamation phase.
+    fn step_major_small_span_reclaim(
         &mut self,
+        phase: Phase,
         budget_bytes: usize,
-        swept_bytes: &mut usize,
-    ) -> HeapResult<()> {
-        while *swept_bytes < budget_bytes
-            && self.collector.major_sweep.small_span_cursor
-                < self.collector.major_sweep.small_span_limit
+        work_bytes: &mut usize,
+    ) -> HeapResult<Option<GcDrop>> {
+        while *work_bytes < budget_bytes
+            && self.collector.major_reclaim.small_span_cursor
+                < self.collector.major_reclaim.small_span_limit
         {
             // select mature span sweep metadata
-            let span_index = self.collector.major_sweep.small_span_cursor;
-            let span = self.select_major_small_span_sweep(span_index)?;
+            let span_index = self.collector.major_reclaim.small_span_cursor;
+            let span = self.major_small_span(span_index)?;
+
+            // skip classes that cannot require a runtime callback during Drop
+            if phase == Phase::Drop && span.drop.is_none() {
+                *work_bytes += GC_METADATA_STEP_BYTES;
+                self.collector.major_reclaim.small_span_cursor += 1;
+                self.collector.major_reclaim.small_slot_cursor = 0;
+
+                continue;
+            }
 
             // sweep slots within this mature span
-            while *swept_bytes < budget_bytes
-                && self.collector.major_sweep.small_slot_cursor < span.slot_count
+            while *work_bytes < budget_bytes
+                && self.collector.major_reclaim.small_slot_cursor < span.slot_count
             {
-                let slot_index = self.collector.major_sweep.small_slot_cursor;
-                self.collector.major_sweep.small_slot_cursor += 1;
-                let slot = self.select_major_small_slot_sweep(span_index, slot_index)?;
+                let slot_index = self.collector.major_reclaim.small_slot_cursor;
+                self.collector.major_reclaim.small_slot_cursor += 1;
+                let slot = self.major_small_slot(span_index, slot_index)?;
 
                 // empty slots only charge metadata work
                 if !slot.is_occupied {
-                    *swept_bytes += GC_METADATA_STEP_BYTES;
+                    *work_bytes += GC_METADATA_STEP_BYTES;
 
                     continue;
                 }
 
                 // marked slots survive this cycle
                 if slot.is_marked {
-                    *swept_bytes += span.size_class.max(1);
+                    *work_bytes += if phase == Phase::Drop {
+                        GC_METADATA_STEP_BYTES
+                    } else {
+                        span.size_class.max(1)
+                    };
 
                     continue;
                 }
@@ -541,98 +711,146 @@ impl HeapStorage {
                 // unmarked slots are dead
                 let reference =
                     HeapReference::new(span.first_offset + slot_index * span.size_class);
-                self.free_swept_reference(reference, span.size_class)?;
-                *swept_bytes += span.size_class.max(1);
+                if phase == Phase::Drop {
+                    if let Some(drop) = span.drop {
+                        let cursor = DropCursor::new(
+                            GcCollector::LocalMajor,
+                            DropReference::Local(reference),
+                            span.size_class,
+                            drop,
+                            *work_bytes,
+                        )?;
+                        let drop = self.collector.claim_drop(cursor, budget_bytes)?;
+
+                        return Ok(Some(drop));
+                    }
+
+                    *work_bytes += GC_METADATA_STEP_BYTES;
+                }
+                // reclaim only after the complete Drop pass
+                else if phase == Phase::Sweep {
+                    self.free_swept_reference(reference, span.size_class)?;
+                    *work_bytes += span.size_class.max(1);
+                } else {
+                    return Err(HeapError::internal("invalid mature span reclamation phase"));
+                }
             }
 
             // advance after the span drains
-            if self.collector.major_sweep.small_slot_cursor >= span.slot_count {
-                self.collector.major_sweep.small_span_cursor += 1;
-                self.collector.major_sweep.small_slot_cursor = 0;
+            if self.collector.major_reclaim.small_slot_cursor >= span.slot_count {
+                self.collector.major_reclaim.small_span_cursor += 1;
+                self.collector.major_reclaim.small_slot_cursor = 0;
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
-    /// Select mature small span sweep metadata.
-    fn select_major_small_span_sweep(&self, span_index: usize) -> HeapResult<SmallSpanSweep> {
+    /// Return mature small span reclamation metadata.
+    fn major_small_span(&self, span_index: usize) -> HeapResult<SmallSpanReclaim> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::internal("missing span"));
         };
 
-        Ok(SmallSpanSweep {
+        Ok(SmallSpanReclaim {
             first_offset: span.first_offset,
             size_class: span.class.size_class(),
             slot_count: span.slot_count,
+            drop: span.class.drop_plan(),
         })
     }
 
-    /// Select mature small slot sweep state.
-    fn select_major_small_slot_sweep(
+    /// Return mature small slot reclamation state.
+    fn major_small_slot(
         &self,
         span_index: usize,
         slot_index: usize,
-    ) -> HeapResult<SmallSlotSweep> {
+    ) -> HeapResult<SmallSlotReclaim> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::internal("missing span"));
         };
 
-        Ok(SmallSlotSweep {
+        Ok(SmallSlotReclaim {
             is_occupied: span.occupied.contains(slot_index),
             is_marked: span.mark_epoch == self.collector.mark_epoch
                 && span.marked.contains(slot_index),
         })
     }
 
-    /// Sweep unreachable large blocks within one byte budget.
-    fn step_major_large_block_sweep(
+    /// Process unreachable large blocks for one reclamation phase.
+    fn step_major_large_block_reclaim(
         &mut self,
+        phase: Phase,
         budget_bytes: usize,
-        swept_bytes: &mut usize,
-    ) -> HeapResult<()> {
-        while *swept_bytes < budget_bytes
-            && self.collector.major_sweep.large_cursor < self.collector.major_sweep.large_limit
+        work_bytes: &mut usize,
+    ) -> HeapResult<Option<GcDrop>> {
+        while *work_bytes < budget_bytes
+            && self.collector.major_reclaim.large_cursor < self.collector.major_reclaim.large_limit
         {
             // select the next large block
-            let block_index = self.collector.major_sweep.large_cursor;
-            self.collector.major_sweep.large_cursor += 1;
+            let block_index = self.collector.major_reclaim.large_cursor;
+            self.collector.major_reclaim.large_cursor += 1;
 
             // inactive blocks only charge metadata work
             let Some(block) = self.large.blocks.get(block_index) else {
                 return Err(HeapError::internal("missing large block"));
             };
-            if !block.is_live {
-                *swept_bytes += GC_METADATA_STEP_BYTES;
+            let Some(block) = block else {
+                *work_bytes += GC_METADATA_STEP_BYTES;
 
                 continue;
-            }
+            };
 
             let reference = HeapReference::new(block.first_offset);
             let byte_len = block.byte_len;
 
             // marked blocks survive this cycle
             if block.mark_epoch == self.collector.mark_epoch {
-                *swept_bytes += byte_len.max(1);
+                *work_bytes += if phase == Phase::Drop {
+                    GC_METADATA_STEP_BYTES
+                } else {
+                    byte_len.max(1)
+                };
 
                 continue;
             }
 
-            // unmarked blocks are dead
-            self.free_swept_reference(reference, byte_len)?;
-            *swept_bytes += byte_len.max(1);
+            // run Drop without reclaiming storage
+            if phase == Phase::Drop {
+                if let Some(drop) = block.drop {
+                    let cursor = DropCursor::new(
+                        GcCollector::LocalMajor,
+                        DropReference::Local(reference),
+                        byte_len,
+                        drop,
+                        *work_bytes,
+                    )?;
+                    let drop = self.collector.claim_drop(cursor, budget_bytes)?;
+
+                    return Ok(Some(drop));
+                }
+
+                *work_bytes += GC_METADATA_STEP_BYTES;
+            }
+            // reclaim only after the complete Drop pass
+            else if phase == Phase::Sweep {
+                self.free_swept_reference(reference, byte_len)?;
+                *work_bytes += byte_len.max(1);
+            } else {
+                return Err(HeapError::internal("invalid large block reclamation phase"));
+            }
         }
 
-        Ok(())
+        Ok(None)
     }
 
-    /// Return whether every active major sweep cursor is drained.
-    fn major_sweep_drained(&self) -> bool {
-        self.collector.major_sweep.young_range_cursor >= self.young.ranges.len()
-            && self.collector.major_sweep.young_span_cursor >= self.young.spans.len()
-            && self.collector.major_sweep.small_span_cursor
-                >= self.collector.major_sweep.small_span_limit
-            && self.collector.major_sweep.large_cursor >= self.collector.major_sweep.large_limit
+    /// Return whether the active major post-mark cursor is drained.
+    fn major_reclaim_drained(&self) -> bool {
+        self.collector.major_reclaim.young_range_cursor >= self.young.ranges.len()
+            && self.collector.major_reclaim.young_span_cursor >= self.young.spans.len()
+            && self.collector.major_reclaim.small_span_cursor
+                >= self.collector.major_reclaim.small_span_limit
+            && self.collector.major_reclaim.large_cursor >= self.collector.major_reclaim.large_limit
     }
 
     /// Free one unreachable block discovered by major sweep.
@@ -653,7 +871,7 @@ impl HeapStorage {
     }
 
     /// Mark reachable heap references within one byte budget.
-    fn step_reachable_reference_mark(
+    fn step_major_gc_mark(
         &mut self,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
@@ -698,17 +916,18 @@ impl HeapStorage {
 
         // scan local references inside the payload into the reusable scratch
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        let trace_result = self
-            .trace_map_for_place_ref(extent.storage, trace_view)
-            .and_then(|trace_map| {
-                scan_references::<HeapReference>(
-                    &trace_map,
-                    ReferenceInput::mapped(base_address),
-                    ReferenceRange::All,
-                    &mut scratch,
-                )
-            });
+        let base_address = self.memory.base_address() + extent.base.offset();
+        let trace_result = self.visit_references::<HeapReference>(
+            extent.place,
+            trace_view,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::All,
+            &mut |reference| {
+                scratch.push(reference);
+
+                Ok(())
+            },
+        );
 
         if let Err(error) = trace_result {
             return Err(HeapError::scan_failed(
@@ -737,38 +956,35 @@ impl HeapStorage {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
-        let HeapPlace::LargeBlock(_) = extent.storage else {
+        let HeapPlace::LargeBlock(_) = extent.place else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
         // skip empty ranges and noscan payloads
         let has_local_reference = self
-            .trace_map_for_place_ref(extent.storage, trace_view)
+            .has_reference::<HeapReference>(extent.place, trace_view)
             .map_err(|error| {
                 HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
-            })?
-            .has_local_reference();
+            })?;
         if !has_local_reference || start >= extent.byte_len {
             return Ok(0);
         }
 
-        // scan at most one allocator page into the reusable scratch
-        let range_len = self
-            .allocator()
-            .page_size_bytes()
-            .min(extent.byte_len - start);
+        // scan at most one memory page into the reusable scratch
+        let range_len = self.page_size_bytes().min(extent.byte_len - start);
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        let trace_result = self
-            .trace_map_for_place_ref(extent.storage, trace_view)
-            .and_then(|trace_map| {
-                scan_references::<HeapReference>(
-                    &trace_map,
-                    ReferenceInput::mapped(base_address),
-                    ReferenceRange::bytes(start, range_len),
-                    &mut scratch,
-                )
-            });
+        let base_address = self.memory.base_address() + extent.base.offset();
+        let trace_result = self.visit_references::<HeapReference>(
+            extent.place,
+            trace_view,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(start, range_len),
+            &mut |reference| {
+                scratch.push(reference);
+
+                Ok(())
+            },
+        );
 
         if let Err(error) = trace_result {
             return Err(HeapError::scan_failed(
@@ -807,10 +1023,10 @@ impl HeapStorage {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
-        if self.mark_place(extent.storage)? {
+        if self.mark_place(extent.place)? {
             // marked noscan blocks need no queued scan work
             // large blocks are sliced to keep major steps bounded
-            if matches!(extent.storage, HeapPlace::LargeBlock(_)) {
+            if matches!(extent.place, HeapPlace::LargeBlock(_)) {
                 self.collector.major_queue.push(MarkWork::LargeRange {
                     reference,
                     start: 0,
@@ -836,10 +1052,10 @@ impl HeapStorage {
         }
     }
 
-    /// Return whether one heap storage is marked in the active cycle.
-    pub(super) fn is_marked_place(&self, storage: HeapPlace) -> HeapResult<bool> {
-        // dispatch by physical heap storage
-        match storage {
+    /// Return whether one heap place is marked in the active cycle.
+    pub(super) fn is_marked_place(&self, place: HeapPlace) -> HeapResult<bool> {
+        // dispatch by physical heap place
+        match place {
             HeapPlace::YoungRange { first_offset } => {
                 let Some(range) = self.young_range_by_offset(first_offset) else {
                     return Err(HeapError::internal("missing young range"));
@@ -872,15 +1088,15 @@ impl HeapStorage {
         }
     }
 
-    /// Mark one heap storage and return whether this was the first mark.
-    pub(crate) fn mark_place(&mut self, storage: HeapPlace) -> HeapResult<bool> {
-        // skip already marked storages
-        if self.is_marked_place(storage)? {
+    /// Mark one heap place and return whether this was the first mark.
+    pub(crate) fn mark_place(&mut self, place: HeapPlace) -> HeapResult<bool> {
+        // skip places already marked
+        if self.is_marked_place(place)? {
             return Ok(false);
         }
 
-        // mark by physical heap storage
-        match storage {
+        // mark by physical heap place
+        match place {
             HeapPlace::YoungRange { first_offset } => {
                 let Some(range) = self.young_range_by_offset(first_offset) else {
                     return Err(HeapError::internal("missing young range"));
@@ -933,28 +1149,32 @@ impl HeapStorage {
     }
 }
 
-/// Young span metadata selected for major sweep.
-struct YoungSpanSweep {
+/// Young span metadata needed by major reclamation.
+struct YoungSpanReclaim {
     /// The span byte offset within heap storage.
     first_offset: usize,
     /// The span size class in bytes.
     size_class: usize,
     /// The number of reserved slots to sweep.
     reserved_slots: usize,
+    /// The drop plan for each managed slot.
+    drop: Option<DropPlan>,
 }
 
-/// Mature small span metadata selected for major sweep.
-struct SmallSpanSweep {
+/// Mature small span metadata needed by major reclamation.
+struct SmallSpanReclaim {
     /// The span byte offset within heap storage.
     first_offset: usize,
     /// The span size class in bytes.
     size_class: usize,
     /// The number of slots to sweep.
     slot_count: usize,
+    /// The drop plan for each managed slot.
+    drop: Option<DropPlan>,
 }
 
-/// Mature small slot state selected for major sweep.
-struct SmallSlotSweep {
+/// Mature small slot state needed by major reclamation.
+struct SmallSlotReclaim {
     /// Whether the slot is currently occupied.
     is_occupied: bool,
     /// Whether the slot is marked in the active major cycle.

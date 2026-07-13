@@ -3,10 +3,10 @@ use std::sync::atomic::Ordering;
 use crate::TraceView;
 
 use crate::shared::gc::{MarkWork, SharedMarkWorker};
-use crate::shared::storage::{HeapPlace, HeapStorage, small_slot_offset};
+use crate::shared::storage::{HeapPlace, HeapStorage};
 use crate::{
-    GcPhase, GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult,
-    ReferenceInput, ReferenceRange, SharedHeapReference, SizeClassTableError, visit_references,
+    GcAdvance, GcDrop, GcPhase, GcStats, HeapConfigurationError, HeapError, HeapGcStateError,
+    HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, SizeClassTableError, Slot,
     visit_trace_references,
 };
 
@@ -25,7 +25,7 @@ impl HeapStorage {
         self.gc.advance_mark_epoch();
         self.gc.trace_queue.clear();
         self.gc.open_mark_publication();
-        self.gc.reset_sweep();
+        self.gc.reset_reclaim();
         self.gc.mark_publishers.store(0, Ordering::Release);
         self.gc.mark_inflight.store(0, Ordering::Release);
         self.gc.set_phase(GcPhase::Mark);
@@ -37,11 +37,15 @@ impl HeapStorage {
     }
 
     /// Perform one full shared heap collection over the given roots.
-    pub(crate) fn collect_full(
+    pub(crate) fn collect_full<E>(
         &self,
         roots: &[SharedHeapReference],
         trace_view: TraceView<'_>,
-    ) -> HeapResult<GcStats> {
+        drop: &mut impl FnMut(GcDrop) -> Result<(), E>,
+    ) -> Result<GcStats, E>
+    where
+        E: From<HeapError>,
+    {
         // mark phase
         self.start_mark(roots)?;
 
@@ -50,15 +54,56 @@ impl HeapStorage {
             self.step_mark(None, &[], usize::MAX, trace_view)?;
         }
 
-        // sweep phase
-        if !self.start_sweep_when_drained()? {
-            return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive));
+        // close mark publication and begin post-mark Drop
+        if !self.start_drop_when_drained()? {
+            return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive).into());
         }
 
-        // drain sweep work synchronously
+        // drop every dead value before reclaiming any allocation
         loop {
-            if let Some(stats) = self.step_sweep(usize::MAX)?.completed_stats() {
-                return Ok(stats);
+            match self.gc.phase() {
+                GcPhase::Drop => match self.step_drop(usize::MAX, true)? {
+                    // execute the selected destructor before scanning onward
+                    GcAdvance::Drop(request) => {
+                        drop(request)?;
+                        self.complete_drop(request.reference)?;
+                    }
+                    // continue after bounded Drop work
+                    GcAdvance::Stepped(_) => {}
+                    // reject events that cannot originate in Drop
+                    GcAdvance::Idle | GcAdvance::Started(_) | GcAdvance::Completed(_) => {
+                        return Err(HeapError::internal(
+                            "shared Drop returned an invalid cycle event",
+                        )
+                        .into());
+                    }
+                },
+                GcPhase::Sweep => match self.step_sweep(usize::MAX)? {
+                    // continue after bounded reclamation work
+                    GcAdvance::Stepped(_) => {}
+                    // return completed cycle statistics
+                    GcAdvance::Completed(cycle) => return Ok(cycle.stats),
+                    // reject stalled or structurally invalid reclamation
+                    GcAdvance::Idle => {
+                        return Err(
+                            HeapError::internal("shared reclamation made no progress").into()
+                        );
+                    }
+                    // reject cycle events that cannot originate in reclamation
+                    GcAdvance::Started(_) | GcAdvance::Drop(_) => {
+                        return Err(HeapError::internal(
+                            "shared reclamation returned an invalid cycle event",
+                        )
+                        .into());
+                    }
+                },
+                GcPhase::Idle
+                | GcPhase::PublishRoots
+                | GcPhase::ScanEdges
+                | GcPhase::Mark
+                | GcPhase::Promote => {
+                    return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive).into());
+                }
             }
         }
     }
@@ -82,7 +127,12 @@ impl HeapStorage {
         // mark queue
         let mut marked_bytes = 0usize;
         let batch_capacity = self.trace_batch_capacity()?;
-        let mut batch = Vec::with_capacity(batch_capacity);
+        let mut batch = self.gc.trace_queue.batch(worker);
+        if batch.capacity() < batch_capacity {
+            let additional_capacity = batch_capacity - batch.capacity();
+
+            batch.reserve(additional_capacity);
+        }
         while marked_bytes < budget_bytes {
             // reserve before popping so termination sees in-flight batches
             let batch_len = batch_capacity;
@@ -224,31 +274,30 @@ impl HeapStorage {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
-        let HeapPlace::LargeBlock(_) = extent.storage else {
+        let HeapPlace::LargeBlock(block_id) = extent.place else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
-        // skip empty ranges and noscan payloads
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
+        // skip noscan payloads without stepping through each heap page
+        let trace_map = self.large_block_trace_map(block_id)?;
         if !trace_map.has_shared_reference() {
             return Ok(extent.byte_len);
         }
 
+        // skip empty ranges and noscan payloads
         // range already fully traced
         if start >= extent.byte_len {
             return Ok(0);
         }
 
-        // scan at most one allocator page
-        let range_len = self
-            .allocator
-            .page_size_bytes()
-            .min(extent.byte_len - start);
+        // scan at most one memory page
+        let range_len = self.page_size_bytes().min(extent.byte_len - start);
 
         // payload scan
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        visit_references::<SharedHeapReference>(
-            &trace_map,
+        let base_address = self.memory.base_address() + extent.base.offset();
+        self.visit_references::<SharedHeapReference>(
+            extent.place,
+            trace_view,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(start, range_len),
             &mut |reference| {
@@ -302,7 +351,8 @@ impl HeapStorage {
             let Some(slot_index) = span.claim_next_marked_slot(mark_epoch) else {
                 return Ok(scanned_bytes);
             };
-            let slot_offset = small_slot_offset(span.class.size_class(), slot_index);
+            let slot = Slot::new(span_index, slot_index)?;
+            let slot_offset = slot.byte_offset(span.class.size_class());
             scanned_bytes += slot_bytes;
 
             // noscan slots cost one claimed unit only
@@ -311,7 +361,7 @@ impl HeapStorage {
             }
 
             // scan table-backed class metadata directly
-            let base_address = self.mapping.base_address() + span.first_offset + slot_offset;
+            let base_address = self.memory.base_address() + span.first_offset + slot_offset;
             if let Some(trace_id) = span.class.trace_id() {
                 visit_trace_references::<SharedHeapReference>(
                     trace_view,
@@ -329,21 +379,6 @@ impl HeapStorage {
 
                 continue;
             }
-
-            // scan side-bit metadata for dynamically traced slots
-            let trace_map = span.trace_map(slot_index, trace_view)?;
-            visit_references::<SharedHeapReference>(
-                &trace_map,
-                ReferenceInput::mapped(base_address),
-                ReferenceRange::All,
-                &mut |reference| {
-                    if !reference.is_null() {
-                        self.mark_reference(worker, reference)?;
-                    }
-
-                    Ok(())
-                },
-            )?;
         }
 
         // keep this span queued when the step budget runs out

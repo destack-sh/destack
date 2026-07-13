@@ -228,6 +228,13 @@ pub enum HeapRepresentationError {
         /// The traced field byte width.
         width: usize,
     },
+    /// One Drop plan does not fit its allocation byte length.
+    InvalidDropLayout {
+        /// The allocation byte length.
+        byte_len: usize,
+        /// The planned value stride.
+        stride: usize,
+    },
 }
 
 /// Heap capture blocker reason.
@@ -248,6 +255,8 @@ pub enum HeapGcStateError {
     SharedGcActive,
     /// One shared GC mark operation was requested while shared mark was inactive.
     SharedGcNotMarking,
+    /// One shared GC Drop operation was requested while shared Drop was inactive.
+    SharedGcNotDropping,
     /// One shared GC sweep operation was requested while shared sweep was inactive.
     SharedGcNotSweeping,
     /// One heap reference was unpinned without one active scoped pin.
@@ -559,6 +568,12 @@ impl Display for HeapRepresentationError {
                     "truncated reference bytes: start {start}, width {width}"
                 )
             }
+            Self::InvalidDropLayout { byte_len, stride } => {
+                write!(
+                    formatter,
+                    "invalid Drop layout: byte length {byte_len}, stride {stride}"
+                )
+            }
         }
     }
 }
@@ -580,6 +595,7 @@ impl Display for HeapGcStateError {
             Self::LocalGcActive => write!(formatter, "local gc already active"),
             Self::SharedGcActive => write!(formatter, "shared gc already active"),
             Self::SharedGcNotMarking => write!(formatter, "shared gc not marking"),
+            Self::SharedGcNotDropping => write!(formatter, "shared gc not dropping"),
             Self::SharedGcNotSweeping => write!(formatter, "shared gc not sweeping"),
             Self::PinMissing { reference } => write!(formatter, "pin missing for {reference:?}"),
         }
