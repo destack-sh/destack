@@ -1,31 +1,28 @@
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
-use crate::TraceView;
-use destack_memory::MemoryMap;
-use destack_mir::TraceMap;
+use destack_memory::{MemoryMap, MemoryRange};
 use parking_lot::RwLock;
 
-use super::{AllocationCache, HeapPageMapEntry, HeapPlace, LargeBlock, SmallSpan};
-use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable};
+use super::{AllocationCache, HeapPlace, LargeBlock, PageOwner, SmallSpan};
 use crate::shared::gc::CollectorState;
 use crate::shared::heap::SharedHeapUsage;
 use crate::{
-    GcPhase, GcState, HeapError, HeapResult, SharedHeapOptions, SharedHeapReference, SmallSpanClass,
+    GcPhase, GcState, HeapError, HeapResult, PageTable, SharedHeapOptions, SharedHeapReference,
+    SizeClassTable, SmallSpanClass,
 };
 
 /// The first non-null shared heap large-block id.
 const FIRST_LARGE_ALLOCATION_ID: u64 = 1;
 
-/// One shared heap storage over a shared allocator.
+/// One shared heap storage over a shared memory.
 #[derive(Debug)]
 pub(crate) struct HeapStorage {
-    /// The shared heap storage allocator for every block.
-    pub(crate) allocator: Arc<Allocator>,
-    /// The fixed live byte mapping for shared heap storage.
-    pub(crate) mapping: MemoryMap,
+    /// The shared heap storage memory for every block.
+    pub(crate) memory: Arc<MemoryMap>,
+    /// The logical shared heap page size.
+    pub(crate) page_size_bytes: usize,
     /// The shared heap block state.
     pub(crate) state: RwLock<HeapState>,
     /// The exact shared heap accounting state.
@@ -38,24 +35,16 @@ impl HeapStorage {
     /// Return the base native address for direct shared heap access.
     #[inline(always)]
     pub(crate) fn base_address(&self) -> usize {
-        self.mapping.base_address()
+        self.memory.base_address()
     }
 
-    /// Create a new empty shared heap storage over one shared allocator and options.
-    pub(crate) fn with_options(
-        allocator: Arc<Allocator>,
-        options: &SharedHeapOptions,
-    ) -> HeapResult<Self> {
-        // validate the heap and allocator contract
+    /// Create a new empty shared heap storage over one shared memory and options.
+    pub(crate) fn new(memory: Arc<MemoryMap>, options: &SharedHeapOptions) -> HeapResult<Self> {
+        // validate the heap configuration
         options.validate()?;
-        options.validate_allocator(&allocator)?;
-
-        // reserve the shared memory map
-        let mapping = MemoryMap::reserve(options.memory_map_size_bytes, options.page_size_bytes)?;
 
         // initialize shared heap metadata
         let store = HeapState {
-            page_span_cache: PageSpanCache::new(allocator.pages_per_chunk()),
             small: SmallStorage {
                 size_classes: options.size_classes.clone(),
                 span_size_bytes: options.heap_small_size_bytes,
@@ -67,14 +56,13 @@ impl HeapStorage {
                 free_large_block_ids: Vec::new(),
                 next_unused_large_block_id: FIRST_LARGE_ALLOCATION_ID,
             },
-            page_map: Vec::new(),
-            next_offset: allocator.page_size_bytes(),
+            page_table: PageTable::new(),
             gc: GcState::default(),
         };
 
         Ok(Self {
-            allocator,
-            mapping,
+            memory,
+            page_size_bytes: options.page_size_bytes,
             state: RwLock::new(store),
             accounting: HeapAccounting::default(),
             gc: CollectorState::default(),
@@ -83,23 +71,17 @@ impl HeapStorage {
 
     /// Return the configured shared page size.
     pub(crate) fn page_size_bytes(&self) -> usize {
-        self.allocator.page_size_bytes()
+        self.page_size_bytes
     }
 
-    /// Return the exact retained shared heap allocator-page bytes.
+    /// Return the exact retained shared heap bytes.
     pub(crate) fn retained_bytes(&self) -> u64 {
-        let store = self.state.read();
-
-        self.accounting
-            .retained_bytes(&store, self.allocator.page_size_bytes())
+        self.accounting.retained_bytes()
     }
 
     /// Return the exact usage for this live shared heap storage.
     pub(crate) fn usage(&self) -> SharedHeapUsage {
-        let store = self.state.read();
-
-        self.accounting
-            .usage(&store, self.allocator.page_size_bytes())
+        self.accounting.usage()
     }
 
     /// Return the number of live shared heap blocks.
@@ -139,33 +121,28 @@ impl HeapStorage {
         let mut store = self.state.write();
 
         // release the live storage
-        match extent.storage {
+        match extent.place {
             HeapPlace::SmallSlot(slot) => {
                 self.release_small_slot(&mut store, slot)?;
             }
             HeapPlace::LargeBlock(block_id) => {
-                let Some(block) = store.large.blocks.get(block_id.index()?).cloned() else {
+                let index = block_id.index()?;
+                let Some(block) = store.large.blocks.get_mut(index) else {
                     return Err(HeapError::internal("missing large block"));
                 };
-                let (first_offset, pages) = {
-                    let mut block = block.write();
-                    if !block.is_live {
-                        return Err(HeapError::internal("missing large block"));
-                    }
+                let Some(block) = block.take() else {
+                    return Err(HeapError::internal("missing large block"));
+                };
+                let pages = {
+                    let block = block.read();
 
-                    let first_offset = block.first_offset;
-                    let pages = block.pages;
-                    block.retire();
-
-                    (first_offset, pages)
+                    block.pages
                 };
 
                 store.large.free_large_block_ids.push(block_id.id());
-                self.unmap_page_span(&mut store, first_offset, &pages);
-                store
-                    .page_span_cache
-                    .release_page_span(&self.allocator, pages)?;
-                self.accounting.release_pages(pages, self.page_size_bytes());
+                self.unmap_page_span(&mut store, &pages);
+                self.memory.release(pages)?;
+                self.accounting.release_pages(pages);
             }
         }
         self.accounting.free(released_bytes as usize);
@@ -178,90 +155,52 @@ impl HeapStorage {
         AllocationCache::new()
     }
 
-    /// Return the current live heap page spans.
-    fn live_page_spans(&self, store: &HeapState) -> Vec<PageSpan> {
-        let mut pages = Vec::with_capacity(store.small.spans.len() + store.large.blocks.len());
-
-        // live small spans
-        for span in &store.small.spans {
-            if span.occupied_count() == 0 || span.pages_empty() {
-                continue;
-            }
-
-            pages.push(span.pages());
-        }
-
-        // live large blocks
-        for block in &store.large.blocks {
-            let block = block.read();
-
-            if !block.is_live {
-                continue;
-            }
-
-            pages.push(block.pages);
-        }
-
-        pages
-    }
-
-    /// Release allocator page spans owned by this shared heap storage.
+    /// Release memory page spans owned by this shared heap storage.
     fn close(&mut self) -> HeapResult<()> {
-        // release live page spans through the page-span cache
-        let mut store = self.state.write();
-        let page_spans = self.live_page_spans(&store);
-
-        for page_span in page_spans {
-            store
-                .page_span_cache
-                .release_page_span(&self.allocator, page_span)?;
-        }
-
-        // release cached page spans
-        store.page_span_cache.flush(&self.allocator)
-    }
-
-    /// Return the exact trace map stored for one shared small slot.
-    pub(crate) fn small_slot_trace_map_ref<'a>(
-        &self,
-        span_index: usize,
-        slot_index: usize,
-        trace_view: TraceView<'a>,
-    ) -> HeapResult<Cow<'a, TraceMap>> {
-        // resolve the small span
-        let store = self.state.read();
-        let Some(span) = store.small.spans.get(span_index).cloned() else {
-            return Err(HeapError::internal("missing span"));
-        };
-
-        // validate the slot belongs to the span
-        if !span.contains_slot(slot_index) {
-            return Err(HeapError::internal("missing small slot"));
-        }
-
-        span.trace_map(slot_index, trace_view)
-    }
-
-    /// Return the base reference for one shared heap storage.
-    pub(super) fn base_reference_for_place(
-        &self,
-        storage: HeapPlace,
-    ) -> HeapResult<SharedHeapReference> {
         let store = self.state.read();
 
-        self.base_reference(&store, storage)
+        // release every small span range
+        for span in &store.small.spans {
+            self.memory.release(span.pages())?;
+        }
+
+        // release every live large block range
+        for block in store.large.blocks.iter().flatten() {
+            let block = block.read();
+            self.memory.release(block.pages)?;
+        }
+
+        Ok(())
     }
 
-    /// Return the base reference for one shared heap storage in the current state.
-    fn base_reference(
-        &self,
-        store: &HeapState,
-        storage: HeapPlace,
-    ) -> HeapResult<SharedHeapReference> {
-        // dispatch by physical shared heap storage
-        let base_offset = match storage {
+    /// Return the base reference for one shared heap place.
+    pub(super) fn base_reference(&self, place: HeapPlace) -> HeapResult<SharedHeapReference> {
+        let store = self.state.read();
+
+        store.base_reference(place)
+    }
+}
+
+/// Shared heap memory metadata.
+#[derive(Debug)]
+pub(crate) struct HeapState {
+    /// The shared heap small space.
+    pub(crate) small: SmallStorage,
+    /// The shared heap large space.
+    pub(crate) large: LargeStorage,
+    /// The owning shared heap metadata for each visible memory page.
+    pub(crate) page_table: PageTable<PageOwner>,
+    /// The live shared heap collector state.
+    pub(crate) gc: GcState,
+}
+
+impl HeapState {
+    /// Return the base reference for one shared heap place in the current state.
+    fn base_reference(&self, place: HeapPlace) -> HeapResult<SharedHeapReference> {
+        // dispatch by physical shared heap place
+        let base_offset = match place {
             HeapPlace::SmallSlot(slot) => {
-                let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
+                let Some(span) = self.small.spans.get(slot.span_index()) else {
                     return Err(HeapError::internal("missing span"));
                 };
                 let slot_offset = span.class.size_class() * slot.slot_index();
@@ -269,13 +208,15 @@ impl HeapStorage {
                 span.first_offset + slot_offset
             }
             HeapPlace::LargeBlock(block_id) => {
-                let Some(block) = store.large.blocks.get(block_id.index()?).cloned() else {
+                let Some(block) = self
+                    .large
+                    .blocks
+                    .get(block_id.index()?)
+                    .and_then(Option::as_ref)
+                else {
                     return Err(HeapError::internal("missing large block"));
                 };
                 let block = block.read();
-                if !block.is_live {
-                    return Err(HeapError::internal("missing large block"));
-                }
 
                 block.first_offset
             }
@@ -283,23 +224,6 @@ impl HeapStorage {
 
         Ok(SharedHeapReference::new(base_offset))
     }
-}
-
-/// Shared heap allocator metadata.
-#[derive(Debug)]
-pub(crate) struct HeapState {
-    /// The shared cache of reusable page spans.
-    pub(crate) page_span_cache: PageSpanCache,
-    /// The shared heap small space.
-    pub(crate) small: SmallStorage,
-    /// The shared heap large space.
-    pub(crate) large: LargeStorage,
-    /// The owning shared heap metadata for each visible allocator page.
-    pub(crate) page_map: Vec<Option<HeapPageMapEntry>>,
-    /// The next unused byte offset in shared heap storage.
-    pub(crate) next_offset: usize,
-    /// The live shared heap collector state.
-    pub(crate) gc: GcState,
 }
 
 /// Exact shared heap accounting.
@@ -315,7 +239,7 @@ pub(crate) struct HeapAccounting {
 
 impl HeapAccounting {
     /// Rebuild exact accounting from shared heap metadata.
-    pub(crate) fn from_state(store: &HeapState, page_size_bytes: usize) -> Self {
+    pub(crate) fn from_state(store: &HeapState) -> Self {
         let accounting = Self::default();
 
         // small spans
@@ -325,20 +249,14 @@ impl HeapAccounting {
                 occupied_count,
                 occupied_count as u64 * span.class.size_class() as u64,
             );
-            if occupied_count > 0 && !span.pages_empty() {
-                accounting.retain_pages(span.pages(), page_size_bytes);
-            }
+            accounting.retain_pages(span.pages());
         }
 
         // large blocks
-        for block in &store.large.blocks {
+        for block in store.large.blocks.iter().flatten() {
             let block = block.read();
-            if !block.is_live {
-                continue;
-            }
-
             accounting.allocate(block.byte_len);
-            accounting.retain_pages(block.pages, page_size_bytes);
+            accounting.retain_pages(block.pages);
         }
 
         accounting
@@ -355,19 +273,16 @@ impl HeapAccounting {
     }
 
     /// Return exact retained shared heap bytes.
-    pub(crate) fn retained_bytes(&self, store: &HeapState, page_size_bytes: usize) -> u64 {
-        let live_bytes = self.live_retained_bytes.load(Ordering::Acquire);
-        let cached_bytes = store.page_span_cache.cached_bytes(page_size_bytes);
-
-        live_bytes + cached_bytes
+    pub(crate) fn retained_bytes(&self) -> u64 {
+        self.live_retained_bytes.load(Ordering::Acquire)
     }
 
     /// Return exact shared heap usage.
-    pub(crate) fn usage(&self, store: &HeapState, page_size_bytes: usize) -> SharedHeapUsage {
+    pub(crate) fn usage(&self) -> SharedHeapUsage {
         SharedHeapUsage {
             allocation_count: self.allocation_count(),
             allocated_bytes: self.allocated_bytes(),
-            retained_bytes: self.retained_bytes(store, page_size_bytes),
+            retained_bytes: self.retained_bytes(),
         }
     }
 
@@ -394,15 +309,15 @@ impl HeapAccounting {
     }
 
     /// Record live retained pages.
-    pub(crate) fn retain_pages(&self, pages: PageSpan, page_size_bytes: usize) {
-        let retained_bytes = pages.len() as u64 * page_size_bytes as u64;
+    pub(crate) fn retain_pages(&self, pages: MemoryRange) {
+        let retained_bytes = pages.byte_len as u64;
         self.live_retained_bytes
             .fetch_add(retained_bytes, Ordering::AcqRel);
     }
 
     /// Record released live pages.
-    pub(crate) fn release_pages(&self, pages: PageSpan, page_size_bytes: usize) {
-        let retained_bytes = pages.len() as u64 * page_size_bytes as u64;
+    pub(crate) fn release_pages(&self, pages: MemoryRange) {
+        let retained_bytes = pages.byte_len as u64;
         self.live_retained_bytes
             .fetch_sub(retained_bytes, Ordering::AcqRel);
     }
@@ -425,53 +340,18 @@ pub(crate) struct SmallStorage {
 #[derive(Debug)]
 pub(crate) struct LargeStorage {
     /// The live shared heap blocks.
-    pub(crate) blocks: Vec<Arc<RwLock<LargeBlock>>>,
+    pub(crate) blocks: Vec<Option<Arc<RwLock<LargeBlock>>>>,
     /// The free shared heap block ids available for reuse.
     pub(crate) free_large_block_ids: Vec<u64>,
     /// The next shared heap block id to allocate.
     pub(crate) next_unused_large_block_id: u64,
 }
 
-/// Return one block-local byte offset for one visible range.
-pub(super) fn block_byte_offset(
-    base_offset: usize,
-    start: usize,
-    len: usize,
-    capacity: usize,
-) -> HeapResult<usize> {
-    debug_assert!(base_offset <= capacity);
-
-    // validate the caller start relative to the visible payload
-    let remaining = capacity - base_offset;
-    if start > remaining {
-        return Err(HeapError::InvalidByteRange {
-            start,
-            len,
-            capacity,
-        });
-    }
-
-    // validate the caller length after projecting the start
-    let byte_offset = base_offset + start;
-    let remaining = capacity - byte_offset;
-    if len > remaining {
-        return Err(HeapError::InvalidByteRange {
-            start: byte_offset,
-            len,
-            capacity,
-        });
-    }
-
-    Ok(byte_offset)
-}
-
-/// Return the byte offset for one slot payload inside one span.
-pub(crate) fn small_slot_offset(size_class: usize, slot_index: usize) -> usize {
-    size_class * slot_index
-}
-
 impl Drop for HeapStorage {
     fn drop(&mut self) {
-        let _ = self.close();
+        // abort rather than continue with corrupted shared range metadata
+        if self.close().is_err() {
+            std::process::abort();
+        }
     }
 }

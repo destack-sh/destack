@@ -5,7 +5,7 @@ use crate::{
     test_layout,
 };
 
-use super::{TestHeapPlan, heap_allocation_plan, test_heap, test_heap_with_limits, trace_view};
+use super::{TestHeapPlan, test_heap, test_heap_with_limits, test_memory, trace_view};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
@@ -14,11 +14,11 @@ const SMALL_ALLOCATION_BYTES: usize = 32;
 fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
     // allocate one heap payload under the requested options
     let layout = test_layout(bytes.len(), TraceMap::empty());
-    let heap = &mut test_heap_with_limits(crate::HeapLimits::default(), options);
+    let heap = &mut test_heap_with_limits(HeapLimits::default(), options);
 
     heap.test_allocate(layout.block(), Payload::Bytes(bytes));
 
-    // report retained bytes after allocator rounding
+    // report retained bytes after memory rounding
     heap.usage().retained_bytes
 }
 
@@ -95,7 +95,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     let expected_used_bytes = heap_retained_bytes_after_allocate(options.clone(), &[1]);
     let layout = test_layout(1, TraceMap::empty());
     let shape = layout.block();
-    let heap = &mut test_heap_with_limits(crate::HeapLimits::default(), options);
+    let heap = &mut test_heap_with_limits(HeapLimits::default(), options);
     let baseline = heap.usage().retained_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
@@ -105,7 +105,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
 
     // reject the block before mutating heap accounting
     let error = heap
-        .allocate_payload(&heap_allocation_plan(&heap, &shape), Payload::Bytes(&[1]))
+        .allocate_payload(&heap.test_allocation_plan(&shape), Payload::Bytes(&[1]))
         .expect_err("heap block should be rejected");
 
     assert_eq!(
@@ -134,8 +134,12 @@ fn test_restore_heap_image_preserves_limits() {
     let image = heap.image().expect("heap image should capture");
 
     // restoring one captured image should keep the existing hard limits
-    heap.restore_image(&image, trace_view())
-        .expect("heap image restore should succeed");
+    heap.restore_image(
+        &image,
+        test_memory(image.options().page_size_bytes),
+        trace_view(),
+    )
+    .expect("heap image restore should succeed");
 
     assert_eq!(heap.limits(), limits);
 }

@@ -1,15 +1,13 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use destack_core::{SectionDirectory, SectionImage, SectionPacker, SectionStorage};
+use destack_memory::MemoryMap;
 
 use crate::{TraceTable, TraceView};
 
 use crate::local::storage::HeapStorage;
 use crate::local::{Heap, HeapLimits, HeapOptions};
-use crate::{
-    Allocation, AllocationClass, AllocationPlan, AllocationShape, HeapReference, Payload,
-    allocation_class, test_allocator,
-};
+use crate::{Allocation, AllocationClass, AllocationPlan, AllocationShape, HeapReference, Payload};
 
 static TRACE_TABLE: OnceLock<TestTraceTable> = OnceLock::new();
 
@@ -34,7 +32,9 @@ pub(crate) trait TestHeapPlan {
 
 impl TestHeapPlan for Heap {
     fn test_allocation_plan<'a>(&self, shape: &'a AllocationShape) -> Allocation<'a> {
-        allocation_plan(self.options(), shape)
+        let plan = self.options().allocation_plan(shape);
+
+        plan.allocation(&shape.trace_map)
     }
 
     fn test_allocate(&mut self, shape: AllocationShape, payload: Payload<'_>) -> HeapReference {
@@ -60,16 +60,17 @@ where
 
 impl TestHeapPlan for HeapStorage {
     fn test_allocation_plan<'a>(&self, shape: &'a AllocationShape) -> Allocation<'a> {
-        let class = if shape.trace_map.has_tagged_reference() {
+        let class = if shape.requires_individual_metadata() {
             AllocationClass::large()
         } else {
-            allocation_class(
+            AllocationClass::select(
                 shape.byte_len,
                 shape.alignment,
                 shape.trace_id,
+                shape.drop,
                 shape.is_noscan,
                 &self.small.size_classes,
-                self.allocator().page_size_bytes(),
+                self.page_size_bytes(),
                 self.small.span_size_bytes,
             )
         };
@@ -88,10 +89,9 @@ impl TestHeapPlan for HeapStorage {
 
 /// Build one local heap from explicit limits and options.
 pub(crate) fn test_heap_with_limits(limits: HeapLimits, options: HeapOptions) -> Heap {
-    let allocator = test_allocator(&options);
+    let memory = test_memory(options.page_size_bytes);
 
-    Heap::with_allocator_limits_and_options(allocator, limits, options)
-        .expect("test heap should build")
+    Heap::new(memory, limits, options).expect("test heap should build")
 }
 
 /// Build one local heap from explicit options.
@@ -101,40 +101,22 @@ pub(crate) fn test_heap(options: HeapOptions) -> Heap {
 
 /// Build one local heap storage from explicit options.
 pub(crate) fn test_storage(options: &HeapOptions) -> HeapStorage {
-    let allocator = test_allocator(options);
+    let memory = test_memory(options.page_size_bytes);
 
-    HeapStorage::build_with_options(allocator, options).expect("test heap storage should build")
+    HeapStorage::new(memory, options).expect("test heap storage should build")
+}
+
+/// Reserve one World memory map for heap tests.
+pub(crate) fn test_memory(page_size_bytes: usize) -> Arc<MemoryMap> {
+    Arc::new(
+        MemoryMap::reserve(1024 * 1024 * 1024, page_size_bytes)
+            .expect("test World memory should reserve"),
+    )
 }
 
 /// Return the shared empty trace table for heap tests.
 pub(crate) fn trace_view() -> TraceView<'static> {
     TRACE_TABLE.get_or_init(TestTraceTable::new).view()
-}
-
-/// Build one explicit local heap allocation plan.
-pub(crate) fn owned_allocation_plan(
-    options: &HeapOptions,
-    shape: &AllocationShape,
-) -> AllocationPlan {
-    options.allocation_plan(shape)
-}
-
-/// Build one local heap allocation plan.
-pub(crate) fn allocation_plan<'a>(
-    options: &HeapOptions,
-    shape: &'a AllocationShape,
-) -> Allocation<'a> {
-    let plan = owned_allocation_plan(options, shape);
-
-    plan.allocation(&shape.trace_map)
-}
-
-/// Build one allocation plan for a live test heap.
-pub(crate) fn heap_allocation_plan<'a>(
-    heap: &impl TestHeapPlan,
-    shape: &'a AllocationShape,
-) -> Allocation<'a> {
-    heap.test_allocation_plan(shape)
 }
 
 impl TestTraceTable {

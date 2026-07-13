@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use super::{SmallSpan, SpanList};
-use crate::allocator::Slot;
-use crate::{AllocationUsage, SharedHeapReference, SmallAllocationClass, SmallSpanClass};
+use crate::{AllocationUsage, SharedHeapReference, Slot, SmallSpanClass};
 
 /// One mutator-local shared allocation cache.
 #[derive(Debug)]
@@ -11,15 +10,12 @@ pub struct AllocationCache {
     pub(super) small: Vec<SmallSizeClassCache>,
 }
 
-// SAFETY: runtime worker ownership keeps one shared cache on one worker at a time
-unsafe impl Send for AllocationCache {}
-
 /// One mutator-local block cache for one small size class.
 #[derive(Debug)]
 pub(super) struct SmallSizeClassCache {
     /// The homogeneous payload class allocated by this cache.
     pub(super) class: Option<SmallSpanClass>,
-    /// The dense allocation cursor for fresh spans.
+    /// The active allocation cursor.
     pub(super) cursor: SpanCursor,
     /// The shared span table index.
     pub(super) span_index: u32,
@@ -29,20 +25,28 @@ pub(super) struct SmallSizeClassCache {
     pub(super) first_offset: usize,
     /// The number of slots in this span.
     pub(super) slot_count: usize,
-    /// The next never-tried slot for this cache.
-    pub(super) next_slot: usize,
 }
 
-/// One mutator-local dense shared small block cursor.
+/// One mutator-local shared small span cursor.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct SpanCursor {
-    /// The next byte offset allocated from this cursor.
-    pub(super) next_offset: usize,
-    /// The next byte offset already published into usage accounting.
-    pub(super) accounted_offset: usize,
-    /// The byte offset after this cursor.
-    pub(super) end_offset: usize,
+pub(super) enum SpanCursor {
+    /// Dense bump allocation over one fresh span.
+    Dense {
+        /// The next byte offset allocated from this cursor.
+        next_offset: usize,
+        /// The next byte offset already published into usage accounting.
+        accounted_offset: usize,
+        /// The byte offset after this cursor.
+        end_offset: usize,
+    },
+    /// Bitmap allocation over one reused span.
+    Sparse {
+        /// The next never-tried slot for this cursor.
+        next_slot: usize,
+    },
 }
+
+const _: () = assert!(std::mem::size_of::<SpanCursor>() == 4 * std::mem::size_of::<usize>());
 
 /// One slot reserved from a shared small allocation cache.
 #[derive(Debug, Clone, Copy)]
@@ -61,7 +65,7 @@ pub(super) struct ReservedSlot {
     /// Whether the block came from a dense worker cursor.
     pub(super) is_dense: bool,
     /// Whether the cache still owns usable slots.
-    pub(super) keep_cache: bool,
+    pub(super) should_keep_cache: bool,
 }
 
 impl AllocationCache {
@@ -70,20 +74,14 @@ impl AllocationCache {
         Self { small: Vec::new() }
     }
 
-    /// Ensure the exact small allocation cache entry exists.
+    /// Return one small allocation cache entry, growing the table when needed.
     #[inline(always)]
-    pub(super) fn ensure_small(&mut self, small: SmallAllocationClass) {
-        let cache_index = small.cache_index();
-
+    pub(super) fn ensure_small(&mut self, cache_index: usize) -> &mut SmallSizeClassCache {
         while self.small.len() <= cache_index {
             self.small.push(SmallSizeClassCache::inactive());
         }
 
-        if self.small[cache_index].class.is_none() {
-            self.small[cache_index].class = Some(small.class);
-        }
-
-        debug_assert_eq!(self.small[cache_index].class, Some(small.class));
+        &mut self.small[cache_index]
     }
 
     /// Return whether this cache owns one unflushed shared heap reference.
@@ -92,13 +90,7 @@ impl AllocationCache {
 
         // dense spans are private to the owning mutator until flushed
         for size_class_cache in &self.small {
-            if size_class_cache.cursor.end_offset == 0 {
-                continue;
-            }
-
-            if offset >= size_class_cache.cursor.accounted_offset
-                && offset < size_class_cache.cursor.next_offset
-            {
+            if size_class_cache.cursor.contains_pending_offset(offset) {
                 return true;
             }
         }
@@ -108,26 +100,52 @@ impl AllocationCache {
 }
 
 impl SpanCursor {
-    /// Return an inactive dense cursor.
-    pub(super) const fn inactive() -> Self {
-        Self {
-            next_offset: 0,
-            accounted_offset: 0,
-            end_offset: 0,
+    /// Create one dense cursor.
+    pub(super) const fn dense(next_offset: usize, end_offset: usize) -> Self {
+        Self::Dense {
+            next_offset,
+            accounted_offset: next_offset,
+            end_offset,
+        }
+    }
+
+    /// Create one sparse cursor.
+    pub(super) const fn sparse(next_slot: usize) -> Self {
+        Self::Sparse { next_slot }
+    }
+
+    /// Return whether this cursor owns one uncommitted offset.
+    pub(super) fn contains_pending_offset(self, offset: usize) -> bool {
+        match self {
+            Self::Dense {
+                next_offset,
+                accounted_offset,
+                ..
+            } => offset >= accounted_offset && offset < next_offset,
+            Self::Sparse { .. } => false,
         }
     }
 
     /// Reserve one reference from this dense cursor.
     #[inline(always)]
     pub(super) fn reserve_reference(&mut self, size_class: usize) -> Option<SharedHeapReference> {
+        let Self::Dense {
+            next_offset,
+            end_offset,
+            ..
+        } = self
+        else {
+            return None;
+        };
+
         // cursor exhausted
-        if size_class > self.end_offset - self.next_offset {
+        if size_class > *end_offset - *next_offset {
             return None;
         }
 
         // bump the dense cursor
-        let reference = SharedHeapReference::new(self.next_offset);
-        self.next_offset += size_class;
+        let reference = SharedHeapReference::new(*next_offset);
+        *next_offset += size_class;
 
         Some(reference)
     }
@@ -151,55 +169,78 @@ impl SpanCursor {
 
     /// Return the current dense-cursor slot index.
     #[inline(always)]
-    pub(super) fn next_slot(&self, first_offset: usize, size_class: usize) -> usize {
-        // inactive cursor
-        if self.end_offset == 0 {
-            return 0;
+    pub(super) fn dense_len(self, first_offset: usize, size_class: usize) -> Option<usize> {
+        match self {
+            Self::Dense { next_offset, .. } => Some((next_offset - first_offset) / size_class),
+            Self::Sparse { .. } => None,
         }
-
-        (self.next_offset - first_offset) / size_class
     }
 
     /// Return whether this dense cursor still has one full slot.
     #[inline(always)]
     pub(super) fn has_available_slot(&self, size_class: usize) -> bool {
-        size_class <= self.end_offset - self.next_offset
-    }
-
-    /// Install one dense cursor.
-    pub(super) fn install(&mut self, next_offset: usize, end_offset: usize) {
-        self.next_offset = next_offset;
-        self.accounted_offset = next_offset;
-        self.end_offset = end_offset;
+        match self {
+            Self::Dense {
+                next_offset,
+                end_offset,
+                ..
+            } => size_class <= *end_offset - *next_offset,
+            Self::Sparse { .. } => false,
+        }
     }
 
     /// Return the uncommitted usage held by this cursor.
     #[inline(always)]
-    pub(super) fn pending_usage(&self, size_class: usize) -> AllocationUsage {
-        if self.end_offset == 0 {
+    pub(super) fn pending_usage(&self, class: SmallSpanClass) -> AllocationUsage {
+        let Self::Dense {
+            next_offset,
+            accounted_offset,
+            ..
+        } = self
+        else {
             return AllocationUsage::default();
-        }
+        };
 
-        let allocated_bytes = self.next_offset - self.accounted_offset;
+        let size_class = class.size_class();
+        let allocated_bytes = *next_offset - *accounted_offset;
         let allocation_count = allocated_bytes / size_class;
-
         AllocationUsage::new(allocation_count, allocated_bytes as u64)
     }
 
     /// Flush uncommitted cursor usage.
     #[inline(always)]
-    pub(super) fn flush_usage(&mut self, size_class: usize) -> AllocationUsage {
-        let usage = self.pending_usage(size_class);
-        self.accounted_offset = self.next_offset;
+    pub(super) fn flush_usage(&mut self, class: SmallSpanClass) -> AllocationUsage {
+        let usage = self.pending_usage(class);
+        if let Self::Dense {
+            next_offset,
+            accounted_offset,
+            ..
+        } = self
+        {
+            *accounted_offset = *next_offset;
+        }
 
         usage
     }
 
-    /// Clear this dense cursor.
-    pub(super) fn clear(&mut self) {
-        self.next_offset = 0;
-        self.accounted_offset = 0;
-        self.end_offset = 0;
+    /// Return the next never-tried sparse slot.
+    pub(super) fn take_sparse_slot(&mut self, slot_count: usize) -> Option<usize> {
+        let Self::Sparse { next_slot } = self else {
+            return None;
+        };
+        if *next_slot >= slot_count {
+            return None;
+        }
+
+        let slot_index = *next_slot;
+        *next_slot += 1;
+
+        Some(slot_index)
+    }
+
+    /// Return whether this sparse cursor still has one never-tried slot.
+    pub(super) fn has_sparse_slot(self, slot_count: usize) -> bool {
+        matches!(self, Self::Sparse { next_slot } if next_slot < slot_count)
     }
 }
 
@@ -208,20 +249,19 @@ impl SmallSizeClassCache {
     pub(super) const fn inactive() -> Self {
         Self {
             class: None,
-            cursor: SpanCursor::inactive(),
+            cursor: SpanCursor::sparse(0),
             span_index: 0,
             span: None,
             first_offset: 0,
             slot_count: 0,
-            next_slot: 0,
         }
     }
 
-    /// Reserve one slot from this allocator.
+    /// Reserve one slot from this cache.
     #[inline(always)]
     pub(super) fn reserve_slot(&mut self) -> Option<SmallSlot> {
         // dense cursor path
-        if self.cursor.end_offset > 0 {
+        if matches!(self.cursor, SpanCursor::Dense { .. }) {
             let class = self.class()?;
 
             return self
@@ -230,10 +270,7 @@ impl SmallSizeClassCache {
         }
 
         // first pass through never-tried slots
-        while self.next_slot < self.slot_count {
-            let slot_index = self.next_slot;
-            self.next_slot += 1;
-
+        while let Some(slot_index) = self.cursor.take_sparse_slot(self.slot_count) {
             // reused spans claim bitmap slots
             let span = self.span.as_ref()?;
             if span.reserve_slot_at(slot_index) {
@@ -258,7 +295,7 @@ impl SmallSizeClassCache {
     #[inline(always)]
     pub(super) fn has_available_slot(&self) -> bool {
         // dense cursor capacity
-        if self.cursor.end_offset > 0 {
+        if matches!(self.cursor, SpanCursor::Dense { .. }) {
             let Some(class) = self.class() else {
                 return false;
             };
@@ -267,7 +304,7 @@ impl SmallSizeClassCache {
         }
 
         // never-tried slots remain
-        if self.next_slot < self.slot_count {
+        if self.cursor.has_sparse_slot(self.slot_count) {
             return true;
         }
 
@@ -280,19 +317,17 @@ impl SmallSizeClassCache {
     /// Publish allocated cursor slots from this cache.
     #[inline(always)]
     pub(super) fn publish_cursor(&self) {
-        // non-dense caches have no cursor state to publish
-        if self.cursor.end_offset == 0 {
+        let Some(class) = self.class() else {
             return;
-        }
+        };
+        let Some(dense_len) = self.cursor.dense_len(self.first_offset, class.size_class()) else {
+            return;
+        };
+        let Some(span) = &self.span else {
+            return;
+        };
 
-        // publish every dense slot reserved so far
-        if let Some(span) = &self.span {
-            let Some(class) = self.class() else {
-                return;
-            };
-
-            span.publish_dense_len(self.cursor.next_slot(self.first_offset, class.size_class()));
-        }
+        span.publish_dense_len(dense_len);
     }
 
     /// Finish this cache after its last usable slot.
@@ -311,9 +346,9 @@ impl SmallSizeClassCache {
     #[inline(always)]
     pub(super) fn reference_for_slot(&self, slot_index: usize) -> Option<SharedHeapReference> {
         let class = self.class()?;
-        let mapping_offset = self.first_offset + class.size_class() * slot_index;
+        let reference_offset = self.first_offset + class.size_class() * slot_index;
 
-        Some(SharedHeapReference::new(mapping_offset))
+        Some(SharedHeapReference::new(reference_offset))
     }
 
     /// Return whether this cache currently owns a span.
@@ -332,18 +367,16 @@ impl SmallSizeClassCache {
         self.span = Some(span.clone());
         self.first_offset = span.first_offset;
         self.slot_count = span.slot_count;
-        self.next_slot = next_slot;
 
         // dense spans cover newly mapped spans
-        let end_offset = if is_dense {
-            span.first_offset + span.class.size_class() * span.slot_count
-        } else {
-            0
-        };
-        let next_offset = span.first_offset + span.class.size_class() * next_slot;
+        self.cursor = if is_dense {
+            let next_offset = span.first_offset + span.class.size_class() * next_slot;
+            let end_offset = span.first_offset + span.class.size_class() * span.slot_count;
 
-        // publish cursor bounds to the allocator hot path
-        self.cursor.install(next_offset, end_offset);
+            SpanCursor::dense(next_offset, end_offset)
+        } else {
+            SpanCursor::sparse(next_slot)
+        };
     }
 
     /// Clear the current shared small span from this cache.
@@ -354,10 +387,9 @@ impl SmallSizeClassCache {
         self.span_index = 0;
         self.first_offset = 0;
         self.slot_count = 0;
-        self.next_slot = 0;
 
-        // clear paired dense cursor
-        self.cursor.clear();
+        // clear the paired allocation cursor
+        self.cursor = SpanCursor::sparse(0);
     }
 
     /// Return the span slot for one trusted slot index.

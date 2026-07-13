@@ -1,3 +1,4 @@
+use destack_memory::MemoryMap;
 use destack_serde::Reflect;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,9 +12,10 @@ use super::usage::SharedHeapUsage;
 use crate::shared::gc::{Pacer, SharedMarkWorker};
 use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
-    AccountingRegion, Allocation, AllocationPlan, Allocator, GcAdvance, GcCollector, GcPacer,
-    GcPhase, GcPressure, GcState, GcStats, HeapAllocationError, HeapError, HeapResult, Payload,
-    SharedHeapOptions, SharedHeapReference, SmallAllocationClass, apply_byte_delta,
+    AccountingRegion, Allocation, AllocationPlan, DropReference, GcAdvance, GcCollector, GcDrop,
+    GcPacer, GcPhase, GcPressure, GcState, GcStats, HeapAllocationError, HeapError,
+    HeapGcStateError, HeapResult, Payload, SharedHeapOptions, SharedHeapReference,
+    SmallAllocationClass, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -43,8 +45,6 @@ pub struct SharedHeapImage {
 /// One retained shared heap image state.
 #[derive(Debug)]
 struct ImageState {
-    /// The allocator backing every captured page.
-    allocator: Arc<Allocator>,
     /// The captured shared heap options.
     options: SharedHeapOptions,
     /// The frozen shared heap storage.
@@ -62,42 +62,17 @@ pub struct SharedHeapSnapshot {
 
 impl SharedHeapImage {
     /// Create one frozen shared heap image.
-    pub(crate) fn new(
-        allocator: Arc<Allocator>,
-        options: SharedHeapOptions,
-        storage: HeapStorageImage,
-    ) -> Self {
-        let state = ImageState {
-            allocator,
-            options,
-            storage,
-        };
+    pub(crate) fn new(options: SharedHeapOptions, storage: HeapStorageImage) -> Self {
+        let state = ImageState { options, storage };
 
         Self {
             state: Arc::new(state),
         }
     }
 
-    /// Build one shared heap image from one serialized snapshot.
-    pub fn from_snapshot(snapshot: &SharedHeapSnapshot) -> HeapResult<Self> {
-        let allocator = Arc::new(Allocator::try_new(
-            snapshot.options.page_size_bytes,
-            snapshot.options.allocator_chunk_size_bytes,
-        )?);
-
-        Self::from_snapshot_with_allocator(snapshot, allocator)
-    }
-
-    /// Build one shared heap image from one serialized snapshot and allocator.
-    pub fn from_snapshot_with_allocator(
-        snapshot: &SharedHeapSnapshot,
-        allocator: Arc<Allocator>,
-    ) -> HeapResult<Self> {
-        Ok(Self::new(
-            allocator,
-            snapshot.options.clone(),
-            snapshot.storage.clone(),
-        ))
+    /// Build one shared heap image from one serialized snapshot and memory.
+    pub fn from_snapshot(snapshot: &SharedHeapSnapshot) -> Self {
+        Self::new(snapshot.options.clone(), snapshot.storage.clone())
     }
 
     /// Flatten this image into one serialized snapshot.
@@ -106,11 +81,6 @@ impl SharedHeapImage {
             options: self.options().clone(),
             storage: self.storage().clone(),
         }
-    }
-
-    /// Return the allocator backing every captured page.
-    pub fn allocator(&self) -> &Arc<Allocator> {
-        &self.state.allocator
     }
 
     /// Return the captured shared heap options.
@@ -130,17 +100,16 @@ impl SharedHeapImage {
 }
 
 impl SharedHeap {
-    /// Create one shared heap over one explicit allocator, limits, and options.
-    pub fn with_allocator_limits_and_options(
-        allocator: Arc<Allocator>,
+    /// Create one shared heap over one explicit memory, limits, and options.
+    pub fn new(
+        memory: Arc<MemoryMap>,
         limits: SharedHeapLimits,
         options: SharedHeapOptions,
     ) -> HeapResult<Self> {
         options.validate()?;
-        options.validate_allocator(&allocator)?;
 
         let shared = Self {
-            storage: HeapStorage::with_options(allocator.clone(), &options)?,
+            storage: HeapStorage::new(memory, &options)?,
             options,
             collection_requested: AtomicBool::new(false),
             gc_pacer: Pacer::default(),
@@ -157,7 +126,7 @@ impl SharedHeap {
 
     /// Return the configured shared page size.
     pub fn page_size_bytes(&self) -> usize {
-        self.storage.allocator.page_size_bytes()
+        self.storage.page_size_bytes()
     }
 
     /// Return the configured shared heap options.
@@ -175,7 +144,7 @@ impl SharedHeap {
         self.storage.usage()
     }
 
-    /// Return the exact retained shared allocator-page bytes.
+    /// Return the exact retained shared memory-page bytes.
     pub fn retained_bytes(&self) -> u64 {
         self.storage.retained_bytes()
     }
@@ -211,7 +180,7 @@ impl SharedHeap {
         )
     }
 
-    /// Return and consume one bounded shared assist budget in bytes for one allocator step.
+    /// Return and consume one bounded shared assist budget in bytes for one memory step.
     pub fn take_assist_budget_bytes(&self) -> usize {
         if self.gc_phase() == GcPhase::Idle {
             return 0;
@@ -366,7 +335,7 @@ impl SharedHeap {
         cache: &mut AllocationCache,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
-        self.storage.flush_cache_for_reference(cache, reference);
+        self.storage.flush_reference_cache(cache, reference);
 
         self.storage.free(reference).map(|_| ())
     }
@@ -437,15 +406,21 @@ impl SharedHeap {
     }
 
     /// Perform one full shared heap collection over explicit roots.
-    pub fn collect_full(
+    ///
+    /// Call this at a safepoint after publishing every mutator allocation cache.
+    pub fn collect_full<E>(
         &self,
         roots: &[SharedHeapReference],
         trace_view: TraceView<'_>,
-    ) -> HeapResult<GcStats> {
+        drop: &mut impl FnMut(GcDrop) -> Result<(), E>,
+    ) -> Result<GcStats, E>
+    where
+        E: From<HeapError>,
+    {
         self.gc_pacer
             .begin_cycle(&self.options, self.heap_allocated_bytes());
 
-        let stats = self.storage.collect_full(roots, trace_view)?;
+        let stats = self.storage.collect_full(roots, trace_view, drop)?;
         self.record_gc_cycle(stats);
 
         Ok(stats)
@@ -494,7 +469,7 @@ impl SharedHeap {
 
             // termination check
             if roots_complete {
-                self.storage.start_sweep_when_drained()?;
+                self.storage.start_drop_when_drained()?;
             }
 
             return Ok(GcAdvance::stepped(
@@ -505,8 +480,30 @@ impl SharedHeap {
             ));
         }
 
-        // incremental sweep
-        let progress = self.storage.step_sweep(budget_bytes)?;
+        // incremental post-mark work
+        let progress = match self.gc_phase() {
+            GcPhase::Drop => {
+                let progress = self.storage.step_drop(budget_bytes, worker.is_some())?;
+                let drop_bytes = progress.work_bytes();
+
+                // continue directly into sweep when Drop completed within this budget
+                if self.gc_phase() == GcPhase::Sweep && drop_bytes < budget_bytes {
+                    self.storage
+                        .step_sweep(budget_bytes - drop_bytes)?
+                        .with_prior_work(drop_bytes)
+                } else {
+                    progress
+                }
+            }
+            GcPhase::Sweep => self.storage.step_sweep(budget_bytes)?,
+            GcPhase::Idle
+            | GcPhase::PublishRoots
+            | GcPhase::ScanEdges
+            | GcPhase::Mark
+            | GcPhase::Promote => {
+                return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive));
+            }
+        };
         if let Some(stats) = progress.completed_stats() {
             self.record_gc_cycle(stats);
         }
@@ -514,17 +511,22 @@ impl SharedHeap {
         Ok(progress)
     }
 
-    /// Fork this shared heap over the same shared allocator.
+    /// Complete the currently claimed shared value.
+    pub fn complete_drop(&self, reference: DropReference) -> HeapResult<()> {
+        self.storage.complete_drop(reference)
+    }
+
+    /// Fork this shared heap over the same shared memory.
     ///
     /// Call this only from a safepoint where shared heap mutators are stopped.
-    pub fn fork(&self) -> HeapResult<Self> {
+    pub fn fork(&self, memory: Arc<MemoryMap>) -> HeapResult<Self> {
         Ok(Self {
             options: self.options.clone(),
             collection_requested: AtomicBool::new(
                 self.collection_requested.load(Ordering::Acquire),
             ),
             gc_pacer: self.gc_pacer.fork(),
-            storage: self.storage.fork()?,
+            storage: self.storage.fork(memory)?,
             limits: self.limits,
         })
     }
@@ -532,16 +534,15 @@ impl SharedHeap {
     /// Create one shared heap from one frozen shared heap image and explicit hard limits.
     pub fn from_image_with_limits(
         image: &SharedHeapImage,
+        memory: Arc<MemoryMap>,
         limits: SharedHeapLimits,
     ) -> HeapResult<Self> {
-        let allocator = image.allocator().clone();
         let options = image.options().clone();
 
         options.validate()?;
-        options.validate_allocator(&allocator)?;
 
         let shared = Self {
-            storage: HeapStorage::from_image_with_allocator(allocator.clone(), image.storage())?,
+            storage: HeapStorage::from_image(memory.clone(), image.storage())?,
             options,
             collection_requested: AtomicBool::new(false),
             gc_pacer: Pacer::default(),
@@ -557,30 +558,15 @@ impl SharedHeap {
         Ok(shared)
     }
 
-    /// Create one shared heap from one frozen shared heap image.
-    pub fn from_image(image: &SharedHeapImage) -> HeapResult<Self> {
-        Self::from_image_with_limits(image, SharedHeapLimits::default())
-    }
-
-    /// Create one shared heap from one serialized shared heap snapshot.
-    pub fn from_snapshot_with_limits(
+    /// Create one shared heap from one serialized snapshot, memory, and explicit hard limits.
+    pub fn from_snapshot(
         snapshot: &SharedHeapSnapshot,
         limits: SharedHeapLimits,
+        memory: Arc<MemoryMap>,
     ) -> HeapResult<Self> {
-        let image = SharedHeapImage::from_snapshot(snapshot)?;
+        let image = SharedHeapImage::from_snapshot(snapshot);
 
-        Self::from_image_with_limits(&image, limits)
-    }
-
-    /// Create one shared heap from one serialized snapshot, allocator, and explicit hard limits.
-    pub fn from_snapshot_with_allocator(
-        snapshot: &SharedHeapSnapshot,
-        limits: SharedHeapLimits,
-        allocator: Arc<Allocator>,
-    ) -> HeapResult<Self> {
-        let image = SharedHeapImage::from_snapshot_with_allocator(snapshot, allocator)?;
-
-        Self::from_image_with_limits(&image, limits)
+        Self::from_image_with_limits(&image, memory, limits)
     }
 
     /// Check the current shared heap usage against the configured limits.
@@ -622,11 +608,7 @@ impl SharedHeap {
     pub fn image(&self) -> HeapResult<SharedHeapImage> {
         let heap = self.storage.image()?;
 
-        Ok(SharedHeapImage::new(
-            self.storage.allocator.clone(),
-            self.options.clone(),
-            heap,
-        ))
+        Ok(SharedHeapImage::new(self.options.clone(), heap))
     }
 
     /// Return the number of live shared heap blocks.

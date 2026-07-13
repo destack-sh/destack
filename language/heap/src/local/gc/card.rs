@@ -1,5 +1,4 @@
-use crate::DEFAULT_CARD_SIZE_BYTES;
-use crate::allocator::Bitmap;
+use crate::{Bitmap, DEFAULT_CARD_SIZE_BYTES};
 
 /// One card set for mature remembered regions.
 #[derive(Debug, Clone, PartialEq, Eq)]

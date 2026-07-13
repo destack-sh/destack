@@ -3,15 +3,15 @@ use std::sync::Arc;
 use crate::TraceView;
 use destack_mir::TraceMap;
 
-use crate::allocator::Allocator;
 use crate::local::storage::HeapStorage;
 use crate::{
-    Allocation, AllocationPlan, GcAdvance, GcPacer, GcPressure, GcState, GcStats, HeapError,
-    HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot, SharedHeapReference,
-    SmallAllocationPlan,
+    Allocation, AllocationPlan, DropReference, GcAdvance, GcDrop, GcPacer, GcPressure, GcState,
+    GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
+    SharedHeapReference, SmallAllocationPlan,
 };
+use destack_memory::MemoryMap;
 
-/// One live heap over one shared allocator.
+/// One live heap over one shared memory.
 #[derive(Debug)]
 pub struct Heap {
     /// The configured heap options.
@@ -27,26 +27,16 @@ pub struct Heap {
 }
 
 impl Heap {
-    /// Create one heap over one explicit allocator, limits, and options.
-    pub fn with_allocator_limits_and_options(
-        allocator: Arc<Allocator>,
+    /// Create one heap over one explicit memory, limits, and options.
+    pub fn new(
+        memory: Arc<MemoryMap>,
         limits: HeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
         options.validate_local()?;
-        options.validate_allocator(&allocator)?;
 
-        Self::build_with_options(allocator, limits, options)
-    }
-
-    /// Create one heap from one checked shared allocator, limits, and options.
-    fn build_with_options(
-        allocator: Arc<Allocator>,
-        limits: HeapLimits,
-        options: HeapOptions,
-    ) -> HeapResult<Self> {
         let mut heap = Self {
-            storage: HeapStorage::build_with_options(allocator.clone(), &options)?,
+            storage: HeapStorage::new(memory, &options)?,
             options,
             gc_pacer: GcPacer::default(),
             gc_request: None,
@@ -58,11 +48,6 @@ impl Heap {
         heap.refresh_gc_request();
 
         Ok(heap)
-    }
-
-    /// Return the shared page allocator.
-    pub(crate) fn allocator(&self) -> &Arc<Allocator> {
-        self.storage.allocator()
     }
 
     /// Return the heap options.
@@ -158,6 +143,7 @@ impl Heap {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         trace_view: TraceView<'_>,
+        drop: &mut impl FnMut(GcDrop) -> Result<(), E>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -165,7 +151,7 @@ impl Heap {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
 
-        let stats = self.storage.collect_minor(roots, trace_view)?;
+        let stats = self.storage.collect_minor(roots, trace_view, drop)?;
         self.on_after_gc_cycle(stats);
 
         Ok(stats)
@@ -176,6 +162,7 @@ impl Heap {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         trace_view: TraceView<'_>,
+        drop: &mut impl FnMut(GcDrop) -> Result<(), E>,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -183,7 +170,7 @@ impl Heap {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
 
-        let stats = self.storage.collect_full(roots, trace_view)?;
+        let stats = self.storage.collect_full(roots, trace_view, drop)?;
         self.on_after_gc_cycle(stats);
 
         Ok(stats)
@@ -294,6 +281,11 @@ impl Heap {
 
             Ok(progress)
         }
+    }
+
+    /// Complete the currently claimed local value.
+    pub fn complete_drop(&mut self, reference: DropReference) -> HeapResult<()> {
+        self.storage.collector.complete_drop(reference)
     }
 
     /// Allocate one payload from one allocation plan.

@@ -2,18 +2,17 @@ use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
+use destack_memory::{MemoryMap, MemoryRange};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    HeapPageMapEntry, HeapStorage, LargeBlock, LargeBlockId, LargeBlockImage, SmallSpan,
-    SmallSpanImage, SpanList,
+    HeapStorage, LargeBlock, LargeBlockId, LargeBlockImage, PageOwner, SmallSpan, SmallSpanImage,
+    SpanList,
 };
-use crate::allocator::PageSpanCache;
 use crate::shared::gc::CollectorState;
 use crate::shared::storage::{HeapAccounting, HeapState, LargeStorage, SmallStorage};
-use crate::{Allocator, GcState, HeapResult, PageSpan, SizeClassTable};
+use crate::{GcState, HeapResult, PageTable, SizeClassTable};
 
 /// One frozen shared heap storage image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -26,16 +25,12 @@ pub(crate) struct HeapStorageImage {
     spans: Box<[SmallSpanImage]>,
     /// The configured shared page width.
     page_size_bytes: usize,
-    /// The reserved virtual byte capacity for shared heap storage.
-    memory_map_size_bytes: usize,
     /// The captured shared heap blocks in large space.
-    blocks: Box<[LargeBlockImage]>,
+    blocks: Box<[Option<LargeBlockImage>]>,
     /// The captured free shared heap large-block ids.
     free_large_block_ids: Box<[u64]>,
     /// The next shared heap large-block id to allocate.
     next_unused_large_block_id: u64,
-    /// The next unused byte offset in shared heap storage.
-    next_offset: usize,
     /// The number of allocated shared heap storage blocks.
     allocated_count: usize,
     /// The number of allocated shared heap storage bytes.
@@ -52,11 +47,9 @@ impl HeapStorageImage {
         small_bytes: usize,
         spans: Box<[SmallSpanImage]>,
         page_size_bytes: usize,
-        memory_map_size_bytes: usize,
-        blocks: Box<[LargeBlockImage]>,
+        blocks: Box<[Option<LargeBlockImage>]>,
         free_large_block_ids: Box<[u64]>,
         next_unused_large_block_id: u64,
-        next_offset: usize,
         allocated_count: usize,
         allocated_bytes: u64,
         gc_state: GcState,
@@ -66,11 +59,9 @@ impl HeapStorageImage {
             small_bytes,
             spans,
             page_size_bytes,
-            memory_map_size_bytes,
             blocks,
             free_large_block_ids,
             next_unused_large_block_id,
-            next_offset,
             allocated_count,
             allocated_bytes,
             gc_state,
@@ -97,24 +88,14 @@ impl HeapStorageImage {
         self.page_size_bytes
     }
 
-    /// Return the reserved virtual byte capacity for shared heap storage.
-    pub(crate) const fn memory_map_size_bytes(&self) -> usize {
-        self.memory_map_size_bytes
-    }
-
     /// Return the captured shared heap blocks in large space.
-    pub(crate) fn blocks(&self) -> &[LargeBlockImage] {
+    pub(crate) fn blocks(&self) -> &[Option<LargeBlockImage>] {
         &self.blocks
     }
 
     /// Return the next shared heap large-block id.
     pub(crate) const fn next_unused_large_block_id(&self) -> u64 {
         self.next_unused_large_block_id
-    }
-
-    /// Return the next unused byte offset in shared heap storage.
-    pub(crate) const fn next_offset(&self) -> usize {
-        self.next_offset
     }
 
     /// Return the captured shared heap collector state.
@@ -132,29 +113,51 @@ impl HeapStorageImage {
         }
 
         // count retained large-block bytes
-        for block in self.blocks() {
+        for block in self.blocks().iter().flatten() {
             page_count += block.bytes.len().div_ceil(self.page_size_bytes());
         }
 
         page_count
     }
+
+    /// Restore captured shared heap bytes into one claimed memory map.
+    fn restore_memory(&self, memory: &MemoryMap) -> HeapResult<()> {
+        // restore each captured small span range
+        for span in self.spans() {
+            if span.bytes.is_empty() {
+                continue;
+            }
+
+            memory.write_bytes(span.first_offset, &span.bytes)?;
+        }
+
+        // restore each captured large block range
+        for block in self.blocks().iter().flatten() {
+            if block.byte_len == 0 {
+                continue;
+            }
+
+            memory.write_bytes(block.first_offset, &block.bytes)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl HeapStorage {
-    /// Fork one shared heap storage over the same shared allocator.
+    /// Fork one shared heap storage over the same shared memory.
     ///
     /// Call this only from a safepoint where shared heap mutators are stopped.
-    pub(crate) fn fork(&self) -> HeapResult<Self> {
+    pub(crate) fn fork(&self, memory: Arc<MemoryMap>) -> HeapResult<Self> {
         let store = self.state.read();
-        let mapping = self.mapping.fork_lazy()?;
 
-        // share small span page metadata with the fork
+        // clone small span metadata for independent branch mutation
         let spans = store
             .small
             .spans
             .iter()
             .map(|span| -> HeapResult<Arc<SmallSpan>> {
-                let pages = self.allocator.share_page_span(span.pages())?;
+                let pages = span.pages();
                 let occupied = span.occupied_snapshot();
                 let local_reference_bits = span.local_reference_snapshot();
                 let shared_reference_bits = span.shared_reference_snapshot();
@@ -173,27 +176,22 @@ impl HeapStorage {
             })
             .collect::<HeapResult<Vec<_>>>()?;
 
-        // share large block page metadata with the fork
+        // clone large block metadata for independent branch mutation
         let blocks = store
             .large
             .blocks
             .iter()
-            .map(|block| -> HeapResult<Arc<RwLock<LargeBlock>>> {
-                let block = block.read();
-                let pages = if block.is_live {
-                    self.allocator.share_page_span(block.pages)?
-                } else {
-                    PageSpan::empty()
+            .map(|block| -> HeapResult<Option<Arc<RwLock<LargeBlock>>>> {
+                let Some(block) = block else {
+                    return Ok(None);
                 };
-                let mut block = block.clone();
-                block.pages = pages;
+                let block = block.read().clone();
 
-                Ok(Arc::new(RwLock::new(block)))
+                Ok(Some(Arc::new(RwLock::new(block))))
             })
             .collect::<HeapResult<Vec<_>>>()?;
 
-        let mut cloned_store = HeapState {
-            page_span_cache: PageSpanCache::new(self.allocator.pages_per_chunk()),
+        let cloned_store = HeapState {
             small: SmallStorage {
                 size_classes: store.small.size_classes.clone(),
                 span_size_bytes: store.small.span_size_bytes,
@@ -205,17 +203,14 @@ impl HeapStorage {
                 free_large_block_ids: store.large.free_large_block_ids.clone(),
                 next_unused_large_block_id: store.large.next_unused_large_block_id,
             },
-            page_map: Vec::new(),
-            next_offset: store.next_offset,
+            page_table: store.page_table.clone(),
             gc: store.gc.clone(),
         };
 
-        Self::rebuild_page_map(&mut cloned_store, self.allocator.page_size_bytes());
-
         let space = Self {
-            allocator: self.allocator.clone(),
-            mapping,
-            accounting: HeapAccounting::from_state(&cloned_store, self.allocator.page_size_bytes()),
+            memory,
+            page_size_bytes: self.page_size_bytes,
+            accounting: HeapAccounting::from_state(&cloned_store),
             state: RwLock::new(cloned_store),
             gc: CollectorState::default(),
         };
@@ -225,22 +220,17 @@ impl HeapStorage {
         Ok(space)
     }
 
-    /// Create one shared heap storage from one frozen image over one shared allocator.
-    pub(crate) fn from_image_with_allocator(
-        allocator: Arc<Allocator>,
-        image: &HeapStorageImage,
-    ) -> HeapResult<Self> {
-        let mut mapping =
-            MemoryMap::reserve(image.memory_map_size_bytes(), image.page_size_bytes())?;
-        restore_shared_mapping(image, &mut mapping)?;
-        let mut store = Self::restore_state(image, allocator.as_ref())?;
+    /// Create one shared heap storage from one frozen image over one shared memory.
+    pub(crate) fn from_image(memory: Arc<MemoryMap>, image: &HeapStorageImage) -> HeapResult<Self> {
+        let mut store = Self::restore_state(image, &memory)?;
+        image.restore_memory(&memory)?;
 
-        Self::rebuild_page_map(&mut store, allocator.page_size_bytes());
+        Self::rebuild_page_table(&mut store, image.page_size_bytes());
 
         let space = Self {
-            accounting: HeapAccounting::from_state(&store, allocator.page_size_bytes()),
-            allocator,
-            mapping,
+            accounting: HeapAccounting::from_state(&store),
+            memory,
+            page_size_bytes: image.page_size_bytes(),
             state: RwLock::new(store),
             gc: CollectorState::default(),
         };
@@ -256,10 +246,10 @@ impl HeapStorage {
         let mut spans = Vec::with_capacity(store.small.spans.len());
         let mut blocks = Vec::with_capacity(store.large.blocks.len());
 
-        // capture small spans from the live mapping
+        // capture small spans from the live memory
         for span in &store.small.spans {
-            let byte_len = span.page_count() * self.allocator.page_size_bytes();
-            let bytes = self.mapping.read_bytes(span.first_offset, byte_len)?;
+            let byte_len = span.mapped_byte_len();
+            let bytes = self.memory.read_bytes(span.first_offset, byte_len)?;
 
             spans.push(SmallSpanImage {
                 first_offset: span.first_offset,
@@ -272,24 +262,26 @@ impl HeapStorage {
             });
         }
 
-        // capture large blocks from the live mapping
+        // capture large blocks from the live memory
         for block in &store.large.blocks {
-            let block = block.read();
-            let bytes = if block.is_live {
-                self.mapping
-                    .read_bytes(block.first_offset, block.byte_len)?
-                    .into_boxed_slice()
-            } else {
-                Box::new([])
-            };
+            let Some(block) = block else {
+                blocks.push(None);
 
-            blocks.push(LargeBlockImage {
-                is_live: block.is_live,
+                continue;
+            };
+            let block = block.read();
+            let bytes = self
+                .memory
+                .read_bytes(block.first_offset, block.byte_len)?
+                .into_boxed_slice();
+
+            blocks.push(Some(LargeBlockImage {
                 first_offset: block.first_offset,
                 byte_len: block.byte_len,
                 bytes,
-                trace_map: block.trace_map.clone(),
-            });
+                trace_map: (*block.trace_map).clone(),
+                drop: block.drop,
+            }));
         }
 
         let allocation_count = self.accounting.allocation_count();
@@ -299,12 +291,10 @@ impl HeapStorage {
             store.small.size_classes.clone(),
             store.small.span_size_bytes,
             spans.into_boxed_slice(),
-            self.allocator.page_size_bytes(),
-            self.mapping.byte_len(),
+            self.page_size_bytes,
             blocks.into_boxed_slice(),
             store.large.free_large_block_ids.clone().into_boxed_slice(),
             store.large.next_unused_large_block_id,
-            store.next_offset,
             allocation_count,
             allocated_bytes,
             store.gc.clone(),
@@ -312,9 +302,8 @@ impl HeapStorage {
     }
 
     /// Restore one shared heap state into fresh page spans.
-    fn restore_state(image: &HeapStorageImage, allocator: &Allocator) -> HeapResult<HeapState> {
+    fn restore_state(image: &HeapStorageImage, memory: &MemoryMap) -> HeapResult<HeapState> {
         Ok(HeapState {
-            page_span_cache: PageSpanCache::new(allocator.pages_per_chunk()),
             small: SmallStorage {
                 size_classes: image.size_classes().clone(),
                 span_size_bytes: image.small_bytes(),
@@ -322,7 +311,11 @@ impl HeapStorage {
                     .spans()
                     .iter()
                     .map(|span| -> HeapResult<Arc<SmallSpan>> {
-                        let pages = allocator.allocate_pages(span.bytes.len())?;
+                        let pages = MemoryRange {
+                            offset: span.first_offset,
+                            byte_len: span.bytes.len(),
+                        };
+                        memory.claim(pages)?;
 
                         Ok(Arc::new(SmallSpan::from_image(
                             span.first_offset,
@@ -332,7 +325,7 @@ impl HeapStorage {
                             &span.local_reference_bits,
                             &span.shared_reference_bits,
                             pages,
-                            SpanList::Released,
+                            SpanList::Central,
                         )))
                     })
                     .collect::<HeapResult<Vec<_>>>()?,
@@ -342,28 +335,30 @@ impl HeapStorage {
                 blocks: image
                     .blocks()
                     .iter()
-                    .map(|block| -> HeapResult<Arc<RwLock<LargeBlock>>> {
-                        let pages = if block.is_live {
-                            allocator.allocate_pages(block.bytes.len())?
-                        } else {
-                            PageSpan::empty()
+                    .map(|block| -> HeapResult<Option<Arc<RwLock<LargeBlock>>>> {
+                        let Some(block) = block else {
+                            return Ok(None);
                         };
+                        let pages = MemoryRange {
+                            offset: block.first_offset,
+                            byte_len: block.bytes.len().next_multiple_of(image.page_size_bytes()),
+                        };
+                        memory.claim(pages)?;
 
-                        Ok(Arc::new(RwLock::new(LargeBlock {
-                            is_live: block.is_live,
+                        Ok(Some(Arc::new(RwLock::new(LargeBlock {
                             first_offset: block.first_offset,
                             byte_len: block.byte_len,
                             pages,
-                            trace_map: block.trace_map.clone(),
+                            trace_map: Arc::new(block.trace_map.clone()),
+                            drop: block.drop,
                             mark_epoch: 0,
-                        })))
+                        }))))
                     })
                     .collect::<HeapResult<Vec<_>>>()?,
                 free_large_block_ids: image.free_large_block_ids.to_vec(),
                 next_unused_large_block_id: image.next_unused_large_block_id(),
             },
-            page_map: Vec::new(),
-            next_offset: image.next_offset(),
+            page_table: PageTable::new(),
             gc: image.gc_state().clone(),
         })
     }
@@ -385,20 +380,18 @@ impl HeapStorage {
                 class = span.class;
                 class.validate(
                     &store.small.size_classes,
-                    self.allocator.page_size_bytes(),
+                    self.page_size_bytes,
                     store.small.span_size_bytes,
                 )?;
 
-                if occupied_count == 0 {
-                    span.list.store(SpanList::Released);
-                } else if occupied_count >= slot_count {
+                if occupied_count >= slot_count {
                     span.list.store(SpanList::Full);
                 } else {
                     span.list.store(SpanList::Central);
                 }
             }
 
-            if occupied_count == 0 || occupied_count >= slot_count {
+            if occupied_count >= slot_count {
                 continue;
             }
 
@@ -415,69 +408,45 @@ impl HeapStorage {
         Ok(())
     }
 
-    /// Rebuild the page-map table from live shared blocks.
-    fn rebuild_page_map(store: &mut HeapState, page_size_bytes: usize) {
-        store.page_map.clear();
+    /// Rebuild the page table from live shared blocks.
+    fn rebuild_page_table(store: &mut HeapState, page_size_bytes: usize) {
+        store.page_table.clear_all();
 
         for span_index in 0..store.small.spans.len() {
             let span = store.small.spans[span_index].clone();
 
-            for logical_page_index in 0..span.page_count() {
+            let page_count = span.mapped_byte_len() / page_size_bytes;
+            for logical_page_index in 0..page_count {
                 let page_index = span.first_offset / page_size_bytes + logical_page_index;
 
-                if store.page_map.len() <= page_index {
-                    store.page_map.resize(page_index + 1, None);
-                }
-
-                store.page_map[page_index] = Some(HeapPageMapEntry::SmallSpan {
-                    span_index,
-                    logical_page_index,
-                });
+                store.page_table.set(
+                    page_index,
+                    PageOwner::SmallSpan {
+                        span_index,
+                        logical_page_index,
+                    },
+                );
             }
         }
 
         for block_index in 0..store.large.blocks.len() {
             let block_id = LargeBlockId::new(block_index as u64 + 1);
-            let block = store.large.blocks[block_index].read();
-            if !block.is_live {
+            let Some(block) = &store.large.blocks[block_index] else {
                 continue;
-            }
+            };
+            let block = block.read();
 
-            for logical_page_index in 0..block.pages.len() {
+            for logical_page_index in 0..block.pages.byte_len / page_size_bytes {
                 let page_index = block.first_offset / page_size_bytes + logical_page_index;
 
-                if store.page_map.len() <= page_index {
-                    store.page_map.resize(page_index + 1, None);
-                }
-
-                store.page_map[page_index] = Some(HeapPageMapEntry::LargeBlock {
-                    block_id,
-                    logical_page_index,
-                });
+                store.page_table.set(
+                    page_index,
+                    PageOwner::LargeBlock {
+                        block_id,
+                        logical_page_index,
+                    },
+                );
             }
         }
     }
-}
-
-/// Restore one shared heap mapping from one image.
-fn restore_shared_mapping(image: &HeapStorageImage, mapping: &mut MemoryMap) -> HeapResult<()> {
-    // restore each captured small span range
-    for span in image.spans() {
-        if span.bytes.is_empty() {
-            continue;
-        }
-
-        mapping.write_bytes(span.first_offset, &span.bytes)?;
-    }
-
-    // restore each captured large block range
-    for block in image.blocks() {
-        if !block.is_live || block.byte_len == 0 {
-            continue;
-        }
-
-        mapping.write_bytes(block.first_offset, &block.bytes)?;
-    }
-
-    Ok(())
 }

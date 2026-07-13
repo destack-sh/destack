@@ -1,7 +1,7 @@
 use std::mem;
 
 use destack_heap::{
-    DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES, DEFAULT_SHARED_SMALL_SIZE_BYTES,
+    DEFAULT_HEAP_PAGE_SIZE_BYTES, DEFAULT_SHARED_SMALL_SIZE_BYTES,
     DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES,
     SizeClass, SizeClassTable,
 };
@@ -9,7 +9,7 @@ use destack_heap::{
 const WORD_BYTES: usize = mem::size_of::<usize>();
 const TARGET_YOUNG_RANGE_RECORD_BYTES: usize = mem::size_of::<u32>() * 3;
 const TARGET_TRACE_MAP_ID_BYTES: usize = 4;
-const DIRTY_CARD_BYTES: usize = DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES / 32;
+const DIRTY_CARD_BYTES: usize = DEFAULT_HEAP_PAGE_SIZE_BYTES / 32;
 
 /// One reported size class row.
 #[derive(Debug)]
@@ -64,7 +64,7 @@ fn print_policy() {
     println!("heap metadata overhead report");
     println!();
     println!("defaults");
-    println!("  page bytes:             {DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES}");
+    println!("  page bytes:             {DEFAULT_HEAP_PAGE_SIZE_BYTES}");
     println!("  local young bytes:      {DEFAULT_YOUNG_SIZE_BYTES}");
     println!("  local small span bytes: {DEFAULT_SMALL_SIZE_BYTES}");
     println!("  shared span bytes:      {DEFAULT_SHARED_SMALL_SIZE_BYTES}");
@@ -75,7 +75,7 @@ fn print_policy() {
 /// Print the current eager young-space metadata summary.
 fn print_young_space_summary() {
     let reference_capacity = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(WORD_BYTES);
-    let page_count = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES);
+    let page_count = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(DEFAULT_HEAP_PAGE_SIZE_BYTES);
 
     let local_reference_bytes = bitmap_bytes(reference_capacity);
     let shared_reference_bytes = bitmap_bytes(reference_capacity);
@@ -179,7 +179,7 @@ fn row_for_class(class_index: usize, class: SizeClass, classes: &[SizeClass]) ->
         classes[class_index - 1].bytes + 1
     };
     let span_size_bytes =
-        class.span_size_bytes(DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES, DEFAULT_SMALL_SIZE_BYTES);
+        class.span_size_bytes(DEFAULT_HEAP_PAGE_SIZE_BYTES, DEFAULT_SMALL_SIZE_BYTES);
     let slot_count = (span_size_bytes / class.bytes).max(1);
     let rounding_bytes = class.bytes - min_request_bytes;
 

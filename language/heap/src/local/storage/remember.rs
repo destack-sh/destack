@@ -1,9 +1,9 @@
 use crate::TraceView;
 use destack_mir::TraceMap;
 
-use super::{HeapStorage, LargeBlockId, Phase};
+use super::{HeapPlace, HeapStorage, LargeBlockId, Phase};
 use crate::local::gc::DirtyExtent;
-use crate::{HeapError, HeapResult, overlaps_heap_range, overlaps_shared_range};
+use crate::{HeapError, HeapReference, HeapResult, Slot, overlaps_heap_range};
 
 impl HeapStorage {
     /// Rebuild the mature remembered set conservatively.
@@ -23,12 +23,14 @@ impl HeapStorage {
                     continue;
                 }
 
-                let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_view)?;
-                if !trace_map.has_heap_reference() {
+                let slot = Slot::new(span_index, slot_index)?;
+                let has_reference =
+                    self.has_reference::<HeapReference>(HeapPlace::MatureSlot(slot), trace_view)?;
+                if !has_reference {
                     continue;
                 }
 
-                self.mark_span_slot_dirty(span_index, slot_index, 0, size_class, &trace_map)?;
+                self.remember_span_slot_write(span_index, slot_index, 0, size_class)?;
             }
         }
 
@@ -65,6 +67,9 @@ impl HeapStorage {
 
         for block_index in 0..self.large.blocks.len() {
             let Some(block) = self.large.blocks.get_mut(block_index) else {
+                continue;
+            };
+            let Some(block) = block else {
                 continue;
             };
 
@@ -182,19 +187,10 @@ impl HeapStorage {
             self.collector.dirty_rescan_needed = true;
         }
 
-        // sweeping resumes marking until the remembered set is quiet
-        if self.collector.minor_phase == Phase::Sweep {
+        // reclamation resumes after marking the remembered write
+        if matches!(self.collector.minor_phase, Phase::Drop | Phase::Sweep) {
+            self.collector.minor_resume_phase = self.collector.minor_phase;
             self.collector.minor_phase = Phase::Mark;
         }
-    }
-
-    /// Return whether one local write range may overlap shared heap roots.
-    pub(crate) fn overlaps_shared_roots(
-        &self,
-        trace_map: &TraceMap,
-        byte_offset: usize,
-        byte_len: usize,
-    ) -> bool {
-        overlaps_shared_range(trace_map, byte_offset, byte_len)
     }
 }

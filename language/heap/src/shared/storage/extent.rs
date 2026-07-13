@@ -2,8 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::LargeBlockId;
-use crate::SharedHeapReference;
-use crate::allocator::Slot;
+use crate::{HeapError, HeapResult, SharedHeapReference, Slot};
 
 /// One shared heap allocation place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -14,9 +13,9 @@ pub(crate) enum HeapPlace {
     LargeBlock(LargeBlockId),
 }
 
-/// One page map entry in shared heap storage.
+/// The allocation metadata owning one shared heap page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub(crate) enum HeapPageMapEntry {
+pub(crate) enum PageOwner {
     /// One small-span page and its logical page index.
     SmallSpan {
         /// The owning span index.
@@ -37,11 +36,41 @@ pub(crate) enum HeapPageMapEntry {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct HeapExtent {
     /// The shared heap allocation place.
-    pub(crate) storage: HeapPlace,
+    pub(crate) place: HeapPlace,
     /// The base reference for the owning block.
     pub(crate) base: SharedHeapReference,
     /// The byte offset from the base block.
     pub(crate) byte_offset: usize,
     /// The logical byte length for the owning block.
     pub(crate) byte_len: usize,
+}
+
+impl HeapExtent {
+    /// Project one visible byte range into this allocation.
+    pub(crate) fn project(self, start: usize, len: usize) -> HeapResult<usize> {
+        debug_assert!(self.byte_offset <= self.byte_len);
+
+        // validate the caller start relative to the visible payload
+        let remaining = self.byte_len - self.byte_offset;
+        if start > remaining {
+            return Err(HeapError::InvalidByteRange {
+                start,
+                len,
+                capacity: self.byte_len,
+            });
+        }
+
+        // validate the caller length after projecting the start
+        let byte_offset = self.byte_offset + start;
+        let remaining = self.byte_len - byte_offset;
+        if len > remaining {
+            return Err(HeapError::InvalidByteRange {
+                start: byte_offset,
+                len,
+                capacity: self.byte_len,
+            });
+        }
+
+        Ok(byte_offset)
+    }
 }

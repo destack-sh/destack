@@ -1,11 +1,49 @@
 use crate::local::storage::HeapPlace;
 use crate::{
-    HeapAllocationError, HeapError, HeapOptions, HeapReference, Payload, SizeClassTable,
-    test_aligned_layout, test_layout,
+    AllocationShape, HeapAllocationError, HeapError, HeapOptions, HeapReference, Payload,
+    SizeClassTable, test_aligned_layout, test_layout,
 };
-use destack_mir::{TraceMap, TraceVariant};
+use destack_mir::{DiscriminantField, TraceMap, VariantEncoding, VariantTrace};
 
-use super::{TestHeapPlan, heap_allocation_plan, read_mapped_bytes, test_storage, trace_view};
+use super::{TestHeapPlan, read_mapped_bytes, test_heap, test_storage, trace_view};
+
+/// Preserve allocation-specific trace maps in variable-size young ranges.
+#[test]
+fn test_allocate_heap_preserves_dynamic_trace_map() {
+    let trace_map = TraceMap::Repeated {
+        count: 2,
+        stride: 8,
+        element: Box::new(TraceMap::Fixed {
+            local_offsets: vec![0].into_boxed_slice(),
+            shared_offsets: vec![].into_boxed_slice(),
+            frame_offsets: vec![].into_boxed_slice(),
+        }),
+    };
+    let shape = AllocationShape::new(16, 8, None, trace_map.clone());
+    let mut heap = test_heap(HeapOptions::local());
+    let plan = heap.options().allocation_plan(&shape);
+
+    let reference = heap
+        .allocate_zeroed(plan, &trace_map)
+        .expect("dynamic trace allocation should succeed");
+    let place = heap
+        .storage
+        .place(reference)
+        .expect("dynamic trace allocation should be live");
+    let decoded = heap
+        .trace_map(reference, trace_view())
+        .expect("dynamic trace metadata should resolve");
+
+    assert!(matches!(place, HeapPlace::YoungRange { .. }));
+    assert_eq!(
+        decoded,
+        TraceMap::Fixed {
+            local_offsets: vec![0, 8].into_boxed_slice(),
+            shared_offsets: vec![].into_boxed_slice(),
+            frame_offsets: vec![].into_boxed_slice(),
+        }
+    );
+}
 
 /// Reject one zero-size heap block.
 #[test]
@@ -18,7 +56,7 @@ fn test_allocate_heap_rejects_zero_size_layout() {
 
     // reject zero-size heap objects loudly
     let error = heap
-        .allocate(&heap_allocation_plan(&heap, &shape), Payload::Bytes(&[]))
+        .allocate(&heap.test_allocation_plan(&shape), Payload::Bytes(&[]))
         .expect_err("heap block should reject zero-size layouts");
 
     assert_eq!(
@@ -98,10 +136,10 @@ fn test_allocate_heap_tracks_exact_young_span_payload_lengths() {
     let first_place = heap.place(first).expect("first block should be live");
     let second_place = heap.place(second).expect("second block should be live");
     let first_byte_len = heap
-        .byte_len_for_place(first_place)
+        .resolve_byte_len(first_place)
         .expect("first block byte length should resolve");
     let second_byte_len = heap
-        .byte_len_for_place(second_place)
+        .resolve_byte_len(second_place)
         .expect("second block byte length should resolve");
     let first_address = heap.base_address() + first.offset();
     let second_address = heap.base_address() + second.offset();
@@ -118,10 +156,10 @@ fn test_allocate_heap_tracks_exact_young_span_payload_lengths() {
     assert_eq!(second_bytes, &[0xBB; 10]);
 }
 
-/// Keep tagged trace maps on block records.
+/// Keep variant trace maps on block records.
 #[test]
-fn test_allocate_heap_routes_tagged_trace_map_to_large() {
-    // tagged trace maps require block records, not young span metadata
+fn test_allocate_heap_routes_variant_trace_map_to_large() {
+    // variant trace maps require block records, not young span metadata
     let options = HeapOptions {
         heap_young_size_bytes: 64,
         max_heap_young_allocation_size_bytes: 64,
@@ -129,10 +167,12 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
         size_classes: SizeClassTable::new([16]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let trace_map = TraceMap::Tagged {
-        tag_bytes: 1,
-        variants: vec![TraceVariant {
-            tag: 0,
+    let trace_map = TraceMap::Variant {
+        encoding: VariantEncoding::Direct {
+            field: DiscriminantField::scalar(0, 1),
+        },
+        cases: vec![VariantTrace {
+            discriminant: 0u128.into(),
             payload_offset: 8,
             map: TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
@@ -147,7 +187,7 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
 
     let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
 
-    // tagged payloads should bypass young space
+    // variant payloads should bypass young space
     assert!(matches!(
         heap.place(reference),
         Some(HeapPlace::LargeBlock(_))

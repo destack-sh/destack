@@ -1,16 +1,16 @@
 use destack_mir::TraceMap;
 
 use super::{
-    CardSet, HeapPageMapEntry, HeapPlace, HeapStorage, LargeBlock, LargeBlockId, Phase, SmallSpan,
+    CardSet, HeapPlace, HeapStorage, LargeBlock, LargeBlockId, PageOwner, Phase, SmallSpan,
     YoungSpan, YoungSpanBits,
 };
-use crate::allocator::{PageSpan, Slot};
 use crate::{
-    Allocation, Bitmap, HeapAllocationError, HeapError, HeapReference, HeapRepresentationError,
-    HeapResult, Payload, SmallAllocationClass, SmallSpanClass, align_up,
-    clear_allocation_reference_bits, clear_slot_reference_bits, write_allocation_reference_bits,
-    write_slot_reference_bits,
+    Allocation, Bitmap, DropPlan, HeapAllocationError, HeapError, HeapReference,
+    HeapRepresentationError, HeapResult, Payload, Slot, SmallAllocationClass, SmallSpanClass,
+    align_up, clear_allocation_reference_bits, clear_slot_reference_bits,
+    write_allocation_reference_bits, write_slot_reference_bits,
 };
+use destack_memory::MemoryRange;
 
 impl HeapStorage {
     /// Return the projected retained-byte delta for one block plan.
@@ -135,11 +135,11 @@ impl HeapStorage {
     ) -> HeapResult<Option<usize>> {
         let size_class = class.size_class();
         let first_offset = align_up(self.young.next_offset, self.young.page_size_bytes);
-        if first_offset >= self.young.capacity_bytes {
+        if first_offset >= self.young.end_offset() {
             return Ok(None);
         }
 
-        let available_bytes = self.young.capacity_bytes - first_offset;
+        let available_bytes = self.young.end_offset() - first_offset;
         let configured_bytes = class.span_size_bytes();
         let span_bytes = configured_bytes.min(available_bytes);
         let span_bytes = span_bytes / self.young.page_size_bytes * self.young.page_size_bytes;
@@ -148,14 +148,14 @@ impl HeapStorage {
         }
 
         let slot_count = span_bytes / size_class;
-        let page_start = first_offset / self.young.page_size_bytes;
+        let page_start = (first_offset - self.young.pages.offset) / self.young.page_size_bytes;
         let page_count = span_bytes / self.young.page_size_bytes;
 
         // materialize the whole span before publishing its slots
         self.materialize_young_range(first_offset, span_bytes)?;
         // SAFETY: the span range was materialized above
         unsafe {
-            self.mapping.zero_mapped_bytes(first_offset, span_bytes);
+            self.memory.zero_mapped_bytes(first_offset, span_bytes);
         }
 
         // publish the span before handing out its first reference
@@ -276,7 +276,7 @@ impl HeapStorage {
 
         // reserve from a fixed-size young span
         if let Some(slot) = self.reserve_young_span(layout)? {
-            payload.initialize_zeroed_mapped(&self.mapping, slot.reference.offset());
+            payload.initialize_zeroed_mapped(&self.memory, slot.reference.offset());
             let place = HeapPlace::YoungSlot(Slot::new(slot.span_index, slot.slot_index)?);
             self.publish_young_allocation(slot.reference, place, trace_map, has_initialized_bytes)?;
 
@@ -286,10 +286,10 @@ impl HeapStorage {
         // reserve a no-scan young range when fixed-size spans do not fit
         if layout.is_noscan
             && let Some(first_offset) =
-                self.reserve_young_noscan_range(layout.byte_len, layout.alignment)?
+                self.reserve_young_noscan_range(layout.byte_len, layout.alignment, layout.drop)?
         {
             let reference = HeapReference::new(first_offset);
-            payload.initialize_mapped(&self.mapping, first_offset, layout.byte_len);
+            payload.initialize_mapped(&self.memory, first_offset, layout.byte_len);
             self.record_young_range_allocation(layout.byte_len);
             let place = HeapPlace::YoungRange { first_offset };
             self.publish_young_allocation(reference, place, trace_map, has_initialized_bytes)?;
@@ -304,6 +304,7 @@ impl HeapStorage {
             payload,
             trace_map,
             tracks_shared_edges,
+            layout.drop,
         )? {
             let place = HeapPlace::YoungRange {
                 first_offset: reference.offset(),
@@ -353,7 +354,7 @@ impl HeapStorage {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
-        match extent.storage {
+        match extent.place {
             // retire one young range until the next young sweep
             HeapPlace::YoungRange { first_offset } => {
                 let Some(range) = self.young_range_by_offset(first_offset) else {
@@ -362,10 +363,11 @@ impl HeapStorage {
 
                 self.young.live.clear(range.index);
                 self.young.marked.clear(range.index);
+                let byte_offset = self.young.byte_offset(first_offset);
                 clear_allocation_reference_bits(
                     &mut self.young.local_reference_bits,
                     &mut self.young.shared_reference_bits,
-                    range.range.first_offset,
+                    byte_offset,
                     range.range.byte_len,
                 );
 
@@ -398,26 +400,26 @@ impl HeapStorage {
                 Ok(())
             }
 
-            // release one block in large space and its allocator pages
+            // release one block in large space and its memory pages
             HeapPlace::LargeBlock(block_id) => {
                 let Some(block) = self.large_block(block_id) else {
                     return Err(HeapError::internal("missing large block"));
                 };
 
-                let first_offset = block.first_offset;
                 let pages = block.pages;
 
-                let Some(block) = self.large_block_mut(block_id) else {
+                let index = block_id.index()?;
+                let Some(block) = self.large.blocks.get_mut(index) else {
                     return Err(HeapError::internal("missing large block"));
                 };
 
                 // retire the live large-block slot before releasing its pages
-                block.retire();
+                *block = None;
                 self.large.free_large_block_ids.push(block_id.id());
 
                 self.collector.remove_shared_edge_root(reference);
 
-                self.unmap_page_span(first_offset, &pages);
+                self.unmap_page_span(&pages);
                 self.release_page_span(pages)?;
                 self.record_mature_free(extent.byte_len);
 
@@ -469,12 +471,12 @@ impl HeapStorage {
         }
         // otherwise allocate one dedicated large block
         else {
-            let pages = self.allocate_page_span(layout.byte_len)?;
+            let pages = self.allocate_page_span(layout.byte_len, layout.alignment)?;
             let block_id = self.insert_large_block(
                 layout.byte_len,
-                layout.alignment,
                 pages,
                 layout.trace_map.clone(),
+                layout.drop,
                 true,
             )?;
             let Some(block) = self.large_block(block_id) else {
@@ -482,7 +484,7 @@ impl HeapStorage {
             };
             let first_offset = block.first_offset;
 
-            payload.initialize_mapped(&self.mapping, first_offset, layout.byte_len);
+            payload.initialize_mapped(&self.memory, first_offset, layout.byte_len);
 
             Ok(MatureAllocation {
                 place: HeapPlace::LargeBlock(block_id),
@@ -493,8 +495,7 @@ impl HeapStorage {
 
     /// Release one heap small slot.
     pub(crate) fn release_small_slot(&mut self, slot: Slot) -> HeapResult<()> {
-        let mut requeue_class = None;
-        let pages = {
+        let requeue_class = {
             let Some(span) = self.span_mut(slot.span_index()) else {
                 return Err(HeapError::internal("missing span"));
             };
@@ -523,26 +524,22 @@ impl HeapStorage {
             span.occupied_count -= 1;
             span.free_cursor = span.free_cursor.min(slot_index);
 
-            // release fully empty span pages back into the local cache
+            // retain empty spans for immediate slot reuse
             if span.occupied_count == 0 {
                 span.free_cursor = 0;
                 span.dirty_cards.clear();
                 span.is_dirty_queued = false;
 
-                let pages = span.pages;
-                let first_offset = span.first_offset;
-                span.pages = PageSpan::empty();
-
-                Some((first_offset, pages))
+                Some(span.class)
             }
             // otherwise requeue the span if it was full before the free
             else {
                 let should_requeue = was_full && span.occupied_count < span.slot_count;
                 if should_requeue {
-                    requeue_class = Some(span.class);
+                    Some(span.class)
+                } else {
+                    None
                 }
-
-                None
             }
         };
 
@@ -552,11 +549,6 @@ impl HeapStorage {
                 .entry(class)
                 .or_default()
                 .push(slot.span_index());
-        }
-
-        if let Some((first_offset, pages)) = pages {
-            self.unmap_page_span(first_offset, &pages);
-            self.release_page_span(pages)?;
         }
 
         Ok(())
@@ -585,16 +577,16 @@ impl HeapStorage {
             self.young.next_offset,
             self.young.allocation_alignment_bytes,
         );
-        if write_offset > self.young.capacity_bytes {
+        if write_offset > self.young.end_offset() {
             return false;
         }
 
-        byte_len <= self.young.capacity_bytes - write_offset
+        byte_len <= self.young.end_offset() - write_offset
     }
 
     /// Return the page-rounded retained bytes for one heap large block.
     fn round_up_large_block_bytes(&self, byte_len: usize) -> u64 {
-        let page_size_bytes = self.allocator.page_size_bytes() as u64;
+        let page_size_bytes = self.page_size_bytes() as u64;
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_size_bytes) * page_size_bytes
@@ -604,27 +596,20 @@ impl HeapStorage {
     pub(crate) fn insert_large_block(
         &mut self,
         byte_len: usize,
-        alignment: usize,
-        pages: PageSpan,
+        pages: MemoryRange,
         trace_map: TraceMap,
+        drop: Option<DropPlan>,
         remember: bool,
     ) -> HeapResult<LargeBlockId> {
         // reuse one freed large block id when possible
-        let (block_id, reused_block_id) =
-            if let Some(block_id) = self.large.free_large_block_ids.pop() {
-                (block_id, true)
-            }
-            // otherwise allocate from the unused tail
-            else {
-                let block_id = self.large.next_unused_large_block_id;
-                let next_block_id = self.large.next_unused_large_block_id + 1;
-
-                self.large.next_unused_large_block_id = next_block_id;
-                (block_id, false)
-            };
+        let reused_block_id = self.large.free_large_block_ids.pop();
+        let block_id = match reused_block_id {
+            Some(block_id) => block_id,
+            None => self.large.next_unused_large_block_id,
+        };
 
         if block_id == 0 {
-            if reused_block_id {
+            if reused_block_id.is_some() {
                 self.large.free_large_block_ids.push(block_id);
             }
 
@@ -637,44 +622,56 @@ impl HeapStorage {
 
         let block_id = LargeBlockId::new(block_id);
         let index = block_id.index()?;
+        if index > self.large.blocks.len() {
+            if reused_block_id.is_some() {
+                self.large.free_large_block_ids.push(block_id.id());
+            }
 
-        let first_offset = self.reserve_address_range_aligned(
-            pages.len() * self.allocator.page_size_bytes(),
-            alignment,
-        )?;
+            self.release_page_span(pages)?;
+
+            return Err(HeapError::representation(
+                HeapRepresentationError::InvalidLargeBlockId { id: block_id.id() },
+            ));
+        }
+
+        let first_offset = pages.offset;
 
         // materialize the full large block before publishing it
-        self.mapping
-            .materialize(first_offset, pages.len() * self.allocator.page_size_bytes())?;
-
-        self.map_page_span(first_offset, &pages, |logical_page_index| {
-            HeapPageMapEntry::LargeBlock {
-                block_id,
-                logical_page_index,
+        if let Err(error) = self.memory.materialize(first_offset, pages.byte_len) {
+            if reused_block_id.is_some() {
+                self.large.free_large_block_ids.push(block_id.id());
             }
+
+            self.release_page_span(pages)?;
+
+            return Err(error.into());
+        }
+
+        self.map_page_span(&pages, |logical_page_index| PageOwner::LargeBlock {
+            block_id,
+            logical_page_index,
         });
 
         // materialize the block record
         let block = LargeBlock {
-            is_live: true,
             first_offset,
             byte_len,
             pages,
             trace_map,
+            drop,
             mark_epoch: 0,
             dirty_cards: CardSet::with_len(byte_len),
             is_dirty_queued: false,
         };
 
-        if let Err(error) = self.large.blocks.set_or_push(index, block) {
-            if reused_block_id {
-                self.large.free_large_block_ids.push(block_id.id());
-            }
-
-            self.unmap_page_span(first_offset, &pages);
-            self.release_page_span(pages)?;
-
-            return Err(error);
+        // insert or replace the block record
+        if index == self.large.blocks.len() {
+            self.large.blocks.push(Some(block));
+        } else {
+            self.large.blocks[index] = Some(block);
+        }
+        if reused_block_id.is_none() {
+            self.large.next_unused_large_block_id += 1;
         }
 
         // remember new mature blocks conservatively
@@ -690,6 +687,7 @@ impl HeapStorage {
         &mut self,
         byte_len: usize,
         trace_map: &TraceMap,
+        drop: Option<DropPlan>,
         source_offset: usize,
     ) -> HeapResult<HeapPlace> {
         let storage = if !trace_map.has_heap_reference()
@@ -697,9 +695,9 @@ impl HeapStorage {
         {
             let size_class = self.small.size_classes.classes[class_index];
             let span_size_bytes = size_class
-                .span_size_bytes(self.allocator.page_size_bytes(), self.small.span_size_bytes)
+                .span_size_bytes(self.page_size_bytes(), self.small.span_size_bytes)
                 .max(self.small.span_size_bytes);
-            let class = SmallSpanClass::new(size_class.bytes, span_size_bytes, None, true);
+            let class = SmallSpanClass::new(size_class.bytes, span_size_bytes, None, drop);
             let span_index = self.allocate_small_span(&class)?;
             let Some(span) = self.small.spans.get(span_index) else {
                 return Err(HeapError::internal("missing span"));
@@ -718,12 +716,12 @@ impl HeapStorage {
 
             // SAFETY: young source and mature target are materialized and disjoint
             unsafe {
-                self.mapping
+                self.memory
                     .copy_mapped_bytes(source_offset, target_offset, byte_len);
 
                 // keep zeroed slack semantics for the slot tail
                 if byte_len < class.size_class() {
-                    self.mapping
+                    self.memory
                         .zero_mapped_bytes(target_offset + byte_len, class.size_class() - byte_len);
                 }
             }
@@ -732,14 +730,9 @@ impl HeapStorage {
 
             HeapPlace::MatureSlot(slot)
         } else {
-            let pages = self.allocate_page_span(byte_len)?;
-            let block_id = self.insert_large_block(
-                byte_len,
-                self.allocator.page_size_bytes(),
-                pages,
-                trace_map.clone(),
-                false,
-            )?;
+            let pages = self.allocate_page_span(byte_len, self.page_size_bytes())?;
+            let block_id =
+                self.insert_large_block(byte_len, pages, trace_map.clone(), drop, false)?;
             let Some(block) = self.large_block(block_id) else {
                 return Err(HeapError::internal("missing large block"));
             };
@@ -747,7 +740,7 @@ impl HeapStorage {
 
             // SAFETY: young source and mature target are materialized and disjoint
             unsafe {
-                self.mapping
+                self.memory
                     .copy_mapped_bytes(source_offset, first_offset, byte_len);
             }
 
@@ -767,14 +760,15 @@ impl HeapStorage {
         payload: Payload<'_>,
         trace_map: &TraceMap,
         tracks_shared_edges: bool,
+        drop: Option<DropPlan>,
     ) -> HeapResult<Option<HeapReference>> {
         let Some(write_offset) =
-            self.reserve_young_range(byte_len, alignment, trace_map, tracks_shared_edges)?
+            self.reserve_young_range(byte_len, alignment, trace_map, tracks_shared_edges, drop)?
         else {
             return Ok(None);
         };
 
-        payload.initialize_mapped(&self.mapping, write_offset, byte_len);
+        payload.initialize_mapped(&self.memory, write_offset, byte_len);
 
         Ok(Some(HeapReference::new(write_offset)))
     }
@@ -788,21 +782,21 @@ impl HeapStorage {
             return Ok(());
         }
 
-        // amortize native mapping across several allocator refills
+        // amortize native memory across several memory refills
         let materialize_bytes = self
             .young
             .capacity_bytes
             .min(self.small.span_size_bytes * 8)
             .max(byte_len);
-        let materialize_end = (offset + materialize_bytes).min(self.young.capacity_bytes);
+        let materialize_end = (offset + materialize_bytes).min(self.young.end_offset());
 
         // round to native page frames
-        let frame_size_bytes = self.mapping.frame_size_bytes();
+        let frame_size_bytes = self.memory.frame_size_bytes();
         let frame_start = offset / frame_size_bytes * frame_size_bytes;
         let frame_end = materialize_end.div_ceil(frame_size_bytes) * frame_size_bytes;
 
         // publish the new materialized prefix
-        self.mapping
+        self.memory
             .materialize(frame_start, frame_end - frame_start)?;
         self.young.mapped_until = frame_end;
 
@@ -817,6 +811,7 @@ impl HeapStorage {
         alignment: usize,
         trace_map: &TraceMap,
         tracks_shared_edges: bool,
+        drop: Option<DropPlan>,
     ) -> HeapResult<Option<usize>> {
         if alignment > self.young.allocation_alignment_bytes {
             return Ok(None);
@@ -826,7 +821,7 @@ impl HeapStorage {
             return Ok(None);
         }
 
-        if trace_map.has_tagged_reference() {
+        if trace_map.has_variant_reference() {
             return Ok(None);
         }
 
@@ -835,10 +830,10 @@ impl HeapStorage {
             self.young.next_offset,
             self.young.allocation_alignment_bytes,
         );
-        if write_offset > self.young.capacity_bytes {
+        if write_offset > self.young.end_offset() {
             return Ok(None);
         }
-        if byte_len > self.young.capacity_bytes - write_offset {
+        if byte_len > self.young.end_offset() - write_offset {
             return Ok(None);
         }
 
@@ -847,13 +842,14 @@ impl HeapStorage {
         self.materialize_young_range(write_offset, byte_len)?;
 
         // install the metadata before exposing the address
-        let _range_index = self.young.push_range(write_offset, byte_len);
+        let _range_index = self.young.push_range(write_offset, byte_len, drop);
         if trace_map.has_local_reference() || tracks_shared_edges {
+            let byte_offset = self.young.byte_offset(write_offset);
             write_allocation_reference_bits(
                 trace_map,
                 &mut self.young.local_reference_bits,
                 &mut self.young.shared_reference_bits,
-                write_offset,
+                byte_offset,
             );
         }
 
@@ -870,6 +866,7 @@ impl HeapStorage {
         &mut self,
         byte_len: usize,
         alignment: usize,
+        drop: Option<DropPlan>,
     ) -> HeapResult<Option<usize>> {
         if alignment > self.young.allocation_alignment_bytes {
             return Ok(None);
@@ -883,10 +880,10 @@ impl HeapStorage {
             self.young.next_offset,
             self.young.allocation_alignment_bytes,
         );
-        if write_offset > self.young.capacity_bytes {
+        if write_offset > self.young.end_offset() {
             return Ok(None);
         }
-        if byte_len > self.young.capacity_bytes - write_offset {
+        if byte_len > self.young.end_offset() - write_offset {
             return Ok(None);
         }
 
@@ -895,7 +892,7 @@ impl HeapStorage {
         self.materialize_young_range(write_offset, byte_len)?;
 
         // install exact no-scan metadata
-        self.young.push_range(write_offset, byte_len);
+        self.young.push_range(write_offset, byte_len, drop);
         self.young.next_offset = end_offset;
 
         Ok(Some(write_offset))
@@ -910,31 +907,6 @@ impl HeapStorage {
             };
 
             if span.occupied_count < span.slot_count {
-                if span.occupied_count == 0 && span.pages.is_empty() {
-                    let first_offset = span.first_offset;
-                    let pages = self.allocate_page_span(class.span_size_bytes())?;
-
-                    self.map_page_span(first_offset, &pages, |logical_page_index| {
-                        HeapPageMapEntry::MatureSpan {
-                            span_index,
-                            logical_page_index,
-                        }
-                    });
-
-                    let Some(span) = self.small.spans.get_mut(span_index) else {
-                        self.unmap_page_span(first_offset, &pages);
-                        self.release_page_span(pages)?;
-
-                        return Err(HeapError::internal("missing span"));
-                    };
-
-                    // materialize the full span before handing out slots
-                    self.mapping
-                        .materialize(first_offset, class.span_size_bytes())?;
-
-                    span.pages = pages;
-                }
-
                 return Ok(span_index);
             }
         }
@@ -943,11 +915,11 @@ impl HeapStorage {
         let slot_count = (class.span_size_bytes() / class.size_class()).max(1);
         let scan_word_count = class.size_class().div_ceil(std::mem::size_of::<usize>());
         let dirty_card_bytes = slot_count * class.size_class();
-        let pages = self.allocate_page_span(class.span_size_bytes())?;
-        let first_offset = self.reserve_address_range(class.span_size_bytes())?;
+        let pages = self.allocate_page_span(class.span_size_bytes(), self.page_size_bytes())?;
+        let first_offset = pages.offset;
 
         // materialize the full span before handing out slots
-        self.mapping
+        self.memory
             .materialize(first_offset, class.span_size_bytes())?;
 
         let span = SmallSpan {
@@ -966,11 +938,9 @@ impl HeapStorage {
             is_dirty_queued: false,
         };
         let span_index = self.small.spans.len();
-        self.map_page_span(first_offset, &pages, |logical_page_index| {
-            HeapPageMapEntry::MatureSpan {
-                span_index,
-                logical_page_index,
-            }
+        self.map_page_span(&pages, |logical_page_index| PageOwner::MatureSpan {
+            span_index,
+            logical_page_index,
         });
 
         self.small.spans.push(span);
@@ -995,9 +965,9 @@ impl HeapStorage {
             .get(span_index)
             .ok_or(HeapError::internal("missing span"))?;
         let slot_offset = span.class.size_class() * slot_index;
-        let mapping_offset = span.first_offset + slot_offset;
+        let byte_offset = span.first_offset + slot_offset;
 
-        init.initialize_mapped(&self.mapping, mapping_offset, class.size_class());
+        init.initialize_mapped(&self.memory, byte_offset, class.size_class());
 
         let span = self
             .small

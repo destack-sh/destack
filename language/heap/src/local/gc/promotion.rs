@@ -1,11 +1,10 @@
 use crate::TraceView;
 use destack_mir::TraceMap;
 
-use crate::allocator::Slot;
 use crate::local::gc::{DirtyCard, DirtyExtent};
-use crate::local::storage::{HeapExtent, HeapPageMapEntry, HeapPlace, HeapStorage, LargeBlockId};
+use crate::local::storage::{HeapExtent, HeapPlace, HeapStorage, LargeBlockId, PageOwner};
 use crate::{
-    HeapError, HeapReference, HeapResult, ReferenceRange, RootSlot, visit_heap_root_slots,
+    HeapError, HeapReference, HeapResult, ReferenceRange, RootSlot, Slot, visit_heap_root_slots,
 };
 
 /// Young-to-mature forwarding built for one promotion pass.
@@ -41,8 +40,12 @@ impl ForwardingTable {
 
     /// Return the promoted reference for one young span slot.
     fn slot(&self, slot: Slot) -> Option<HeapReference> {
+        let key = (slot.span_index(), slot.slot_index());
+
         self.slots
-            .binary_search_by_key(&slot_key(slot), |forwarding| slot_key(forwarding.slot))
+            .binary_search_by_key(&key, |forwarding| {
+                (forwarding.slot.span_index(), forwarding.slot.slot_index())
+            })
             .ok()
             .map(|index| self.slots[index].target)
     }
@@ -80,7 +83,7 @@ struct DirtySpanRewrite {
 }
 
 /// Dirty large-block card selected for rewriting.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct DirtyLargeRewrite {
     /// The selected dirty card.
     card: DirtyCard,
@@ -88,13 +91,6 @@ struct DirtyLargeRewrite {
     first_offset: usize,
     /// The block byte length.
     byte_len: usize,
-    /// The trace map used to scan the block.
-    trace_map: TraceMap,
-}
-
-/// Return the sortable key for one young span slot.
-fn slot_key(slot: Slot) -> (usize, usize) {
-    (slot.span_index(), slot.slot_index())
 }
 
 impl HeapStorage {
@@ -149,8 +145,12 @@ impl HeapStorage {
             }
 
             let trace_map = self.young_range_trace_map(range.first_offset)?;
-            let target_place =
-                self.allocate_promoted_payload(range.byte_len, &trace_map, range.first_offset)?;
+            let target_place = self.allocate_promoted_payload(
+                range.byte_len,
+                &trace_map,
+                range.drop,
+                range.first_offset,
+            )?;
             let target = self.base_reference(target_place)?;
 
             // publish forwarding after the copied payload is tracked
@@ -182,10 +182,9 @@ impl HeapStorage {
             let Some(span) = self.young.span(span_index).cloned() else {
                 return Err(HeapError::internal("missing span"));
             };
-            let reserved_slots = self
-                .young
-                .span_reserved_slot_count(span_index)
-                .unwrap_or_else(|| span.slot_count());
+            let Some(reserved_slots) = self.young.span_reserved_slot_count(span_index) else {
+                return Err(HeapError::internal("missing young span reservation"));
+            };
 
             for slot_index in 0..reserved_slots {
                 let slot = Slot::new(span_index, slot_index)?;
@@ -205,10 +204,12 @@ impl HeapStorage {
                     continue;
                 }
 
-                let trace_map = self.trace_map_for_place(HeapPlace::YoungSlot(slot), trace_view)?;
+                let trace_map = self.resolve_trace_map(HeapPlace::YoungSlot(slot), trace_view)?;
+                let drop = span.class.drop_plan();
                 let target_place = self.allocate_promoted_payload(
                     span.class.size_class(),
                     &trace_map,
+                    drop,
                     source.offset(),
                 )?;
                 let target = self.base_reference(target_place)?;
@@ -233,7 +234,7 @@ impl HeapStorage {
     fn publish_promoted_payload(
         &mut self,
         reference: HeapReference,
-        storage: HeapPlace,
+        place: HeapPlace,
         byte_len: usize,
         trace_map: &TraceMap,
         trace_view: TraceView<'_>,
@@ -245,7 +246,7 @@ impl HeapStorage {
         self.record_write_barrier(
             reference,
             HeapExtent {
-                storage,
+                place,
                 base: reference,
                 byte_offset: 0,
                 byte_len,
@@ -374,7 +375,7 @@ impl HeapStorage {
             };
 
             // skip spans without local references
-            let trace_map = self.young_slot_trace_map_ref(span_index, trace_view)?;
+            let trace_map = self.young_slot_trace_map(span_index, trace_view)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
@@ -555,7 +556,7 @@ impl HeapStorage {
                 return Ok(());
             };
 
-            let has_young_reference = self.rewrite_dirty_large_card(&card, forwarding)?;
+            let has_young_reference = self.rewrite_dirty_large_card(block_id, &card, forwarding)?;
             self.finish_rewritten_dirty_large_card(block_id, card.card.index, has_young_reference)?;
             card_cursor = card.card.index + 1;
         }
@@ -579,20 +580,24 @@ impl HeapStorage {
             card,
             first_offset: block.first_offset,
             byte_len: block.byte_len,
-            trace_map: block.trace_map.clone(),
         }))
     }
 
     /// Rewrite one dirty card on one mature large block.
     fn rewrite_dirty_large_card(
-        &mut self,
+        &self,
+        block_id: LargeBlockId,
         card: &DirtyLargeRewrite,
         forwarding: &ForwardingTable,
     ) -> HeapResult<bool> {
+        let Some(block) = self.large_block(block_id) else {
+            return Err(HeapError::internal("missing large block"));
+        };
+
         self.rewrite_payload_reference_range(
             card.first_offset,
             card.byte_len,
-            &card.trace_map,
+            &block.trace_map,
             card.card.byte_start,
             card.card.byte_len,
             forwarding,
@@ -644,7 +649,7 @@ impl HeapStorage {
         }
 
         // SAFETY: live payloads are materialized and the mutator is paused at this safepoint
-        let bytes = unsafe { self.mapping.mapped_bytes_mut(offset, byte_len) };
+        let bytes = unsafe { self.memory.mapped_bytes_mut(offset, byte_len) };
         visit_heap_root_slots(trace_map, 0, bytes, ReferenceRange::All, &mut |mut slot| {
             let Some(reference) = slot.load_heap_reference()? else {
                 return Ok(());
@@ -662,7 +667,7 @@ impl HeapStorage {
 
     /// Rewrite one mapped payload byte range through completed forwarding metadata.
     fn rewrite_payload_reference_range(
-        &mut self,
+        &self,
         offset: usize,
         byte_len: usize,
         trace_map: &TraceMap,
@@ -680,7 +685,7 @@ impl HeapStorage {
             return Ok(false);
         }
 
-        let (window_offset, window_start, window_len) = if trace_map.has_tagged_reference() {
+        let (window_offset, window_start, window_len) = if trace_map.has_variant_reference() {
             (offset, 0, byte_len)
         } else {
             let window_start = range_start.saturating_sub(HeapReference::BYTE_LEN - 1);
@@ -695,7 +700,7 @@ impl HeapStorage {
         let mut has_young_reference = false;
 
         // SAFETY: live payloads are materialized and the mutator is paused at this safepoint
-        let bytes = unsafe { self.mapping.mapped_bytes_mut(window_offset, window_len) };
+        let bytes = unsafe { self.memory.mapped_bytes_mut(window_offset, window_len) };
 
         visit_heap_root_slots(
             trace_map,
@@ -738,7 +743,7 @@ impl HeapStorage {
         };
 
         Ok(matches!(
-            extent.storage,
+            extent.place,
             HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_)
         ))
     }
@@ -753,14 +758,14 @@ impl HeapStorage {
             return Ok(None);
         }
 
-        let page_size_bytes = self.allocator().page_size_bytes();
+        let page_size_bytes = self.page_size_bytes();
         let page_index = reference.offset() / page_size_bytes;
         let page_offset = reference.offset() % page_size_bytes;
-        let Some(HeapPageMapEntry::Young { logical_page_index }) = self.page_entry(page_index)
-        else {
+        let Some(PageOwner::Young { logical_page_index }) = self.page_owner(page_index) else {
             return Ok(None);
         };
-        let logical_byte_offset = logical_page_index * self.young.page_size_bytes + page_offset;
+        let logical_byte_offset =
+            self.young.pages.offset + logical_page_index * self.young.page_size_bytes + page_offset;
 
         if let Some(span_index) = self
             .young

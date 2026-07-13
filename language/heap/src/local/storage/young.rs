@@ -1,11 +1,13 @@
+use destack_memory::MemoryRange;
 use destack_serde::Reflect;
 use std::mem;
 
 use serde::{Deserialize, Serialize};
 
-use crate::allocator::{Allocator, Bitmap, PageSpan, PageSpanCache};
+use crate::Bitmap;
+use destack_memory::MemoryMap;
 
-use crate::{AllocationUsage, HeapReference, HeapResult, SmallSpanClass};
+use crate::{AllocationUsage, DropPlan, HeapReference, HeapResult, SmallSpanClass};
 
 /// One live heap young space.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,8 +23,8 @@ pub(crate) struct YoungSpace {
     /// The required alignment for young block bases.
     pub(crate) allocation_alignment_bytes: usize,
 
-    /// The allocator pages backing this young space.
-    pub(crate) pages: PageSpan,
+    /// The memory pages backing this young space.
+    pub(crate) pages: MemoryRange,
     /// The variable-size young range blocks.
     pub(crate) ranges: Vec<YoungRange>,
 
@@ -50,24 +52,30 @@ pub(crate) struct YoungSpace {
 }
 
 impl YoungSpace {
+    /// Return the logical heap page size.
+    pub(crate) const fn page_size_bytes(&self) -> usize {
+        self.page_size_bytes
+    }
+
     /// Create one empty young space with its full page span.
     pub(crate) fn new(
-        allocator: &Allocator,
+        memory: &MemoryMap,
         capacity_bytes: usize,
         page_size_bytes: usize,
         allocation_alignment_bytes: usize,
-        cache: &mut PageSpanCache,
     ) -> HeapResult<Self> {
         let reference_bit_capacity = capacity_bytes.div_ceil(std::mem::size_of::<usize>());
         let page_count = capacity_bytes.div_ceil(page_size_bytes);
+        let mapped_bytes = capacity_bytes.next_multiple_of(page_size_bytes);
+        let pages = memory.allocate(mapped_bytes, page_size_bytes)?;
 
         Ok(Self {
             capacity_bytes,
             page_size_bytes,
-            next_offset: allocation_alignment_bytes,
-            mapped_until: 0,
+            next_offset: pages.offset + allocation_alignment_bytes,
+            mapped_until: pages.offset,
             allocation_alignment_bytes,
-            pages: cache.allocate_pages(allocator, capacity_bytes)?,
+            pages,
             ranges: Vec::new(),
             live: Bitmap::with_capacity(0),
             marked: Bitmap::with_capacity(0),
@@ -84,12 +92,27 @@ impl YoungSpace {
 
     /// Return the allocated young space byte prefix.
     pub(crate) fn used_bytes(&self) -> usize {
-        self.next_offset - self.allocation_alignment_bytes
+        self.next_offset - self.pages.offset - self.allocation_alignment_bytes
+    }
+
+    /// Return one byte offset inside the young range.
+    pub(crate) fn byte_offset(&self, memory_offset: usize) -> usize {
+        memory_offset - self.pages.offset
+    }
+
+    /// Return the exclusive young-space byte end.
+    pub(crate) const fn end_offset(&self) -> usize {
+        self.pages.offset + self.capacity_bytes
     }
 
     /// Insert one live young range and return its range index.
     #[inline(always)]
-    pub(crate) fn push_range(&mut self, first_offset: usize, byte_len: usize) -> usize {
+    pub(crate) fn push_range(
+        &mut self,
+        first_offset: usize,
+        byte_len: usize,
+        drop: Option<DropPlan>,
+    ) -> usize {
         let range_index = self.ranges.len();
         let range_count = range_index + 1;
 
@@ -98,8 +121,9 @@ impl YoungSpace {
         self.ranges.push(YoungRange {
             first_offset,
             byte_len,
+            drop,
         });
-        self.live.set_in_bounds(range_index);
+        self.live.set(range_index);
         self.marked.clear_in_bounds(range_index);
 
         range_index
@@ -334,11 +358,6 @@ impl YoungSpan {
         self.end_offset - self.first_offset
     }
 
-    /// Return the number of slots in this span.
-    pub(crate) const fn slot_count(&self) -> usize {
-        self.span_size_bytes() / self.class.size_class()
-    }
-
     /// Return the number of slots reserved through one next offset.
     pub(crate) const fn reserved_slot_count_with(&self, next_offset: usize) -> usize {
         (next_offset - self.first_offset) / self.class.size_class()
@@ -442,6 +461,8 @@ pub(crate) struct YoungRange {
     pub(crate) first_offset: usize,
     /// The logical byte length for this block.
     pub(crate) byte_len: usize,
+    /// The drop plan for this managed range.
+    pub(crate) drop: Option<DropPlan>,
 }
 
 /// One young range with its range index.
@@ -465,6 +486,8 @@ pub(crate) struct YoungSpanBits {
 /// One frozen young space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct YoungImage {
+    /// The first byte offset in World memory.
+    memory_offset: usize,
     /// The configured byte capacity for the young space.
     capacity_bytes: usize,
     /// The fixed page width for young space.
@@ -492,6 +515,7 @@ pub(crate) struct YoungImage {
 impl YoungImage {
     /// Create one frozen young space image.
     pub(crate) fn new(
+        memory_offset: usize,
         capacity_bytes: usize,
         page_size_bytes: usize,
         next_offset: usize,
@@ -505,6 +529,7 @@ impl YoungImage {
         shared_reference_bits: Bitmap,
     ) -> Self {
         Self {
+            memory_offset,
             capacity_bytes,
             page_size_bytes,
             next_offset,
@@ -517,6 +542,11 @@ impl YoungImage {
             local_reference_bits,
             shared_reference_bits,
         }
+    }
+
+    /// Return the first byte offset in World memory.
+    pub(crate) const fn memory_offset(&self) -> usize {
+        self.memory_offset
     }
 
     /// Return the young space byte capacity.

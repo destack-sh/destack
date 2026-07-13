@@ -1,11 +1,11 @@
 use crate::TraceView;
 use destack_mir::TraceMap;
-use std::borrow::Cow;
+use std::sync::Arc;
 
-use super::storage::block_byte_offset;
-use super::{HeapExtent, HeapPlace, HeapStorage};
+use super::{HeapExtent, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
-    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, visit_references,
+    HeapError, HeapResult, ReferenceClass, ReferenceInput, ReferenceRange, SharedHeapReference,
+    visit_references, visit_trace_references,
 };
 
 impl HeapStorage {
@@ -16,9 +16,26 @@ impl HeapStorage {
         trace_view: TraceView<'_>,
     ) -> HeapResult<TraceMap> {
         let (extent, _) = self.resolve_range(reference, 0, 0)?;
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
 
-        Ok(trace_map.into_owned())
+        match extent.place {
+            HeapPlace::SmallSlot(slot) => {
+                let store = self.state.read();
+                let Some(span) = store.small.spans.get(slot.span_index()) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+                let Some(trace_id) = span.class.trace_id() else {
+                    return Ok(TraceMap::Empty);
+                };
+
+                Ok(trace_view.trace_map(trace_id)?)
+            }
+            HeapPlace::LargeBlock(block_id) => {
+                let trace_map = self.large_block_trace_map(block_id)?;
+                let trace_map = (*trace_map).clone();
+
+                Ok(trace_map)
+            }
+        }
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -66,10 +83,10 @@ impl HeapStorage {
         }
 
         // scan inserted shared references in mapped heap memory
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        visit_references::<SharedHeapReference>(
-            &trace_map,
+        let base_address = self.memory.base_address() + extent.base.offset();
+        self.visit_references::<SharedHeapReference>(
+            extent.place,
+            trace_view,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(byte_offset, byte_len),
             &mut |reference| self.mark_reference(None, reference),
@@ -89,37 +106,62 @@ impl HeapStorage {
         };
 
         // project caller range into the block payload
-        let byte_offset = block_byte_offset(extent.byte_offset, start, byte_len, extent.byte_len)?;
+        let byte_offset = extent.project(start, byte_len)?;
 
         Ok((extent, byte_offset))
     }
 
-    /// Return the trace map for one shared heap extent.
-    pub(crate) fn trace_map_for_place_ref<'a>(
+    /// Visit references in one shared heap allocation.
+    pub(crate) fn visit_references<R: ReferenceClass>(
         &self,
-        storage: HeapPlace,
-        trace_view: TraceView<'a>,
-    ) -> HeapResult<Cow<'a, TraceMap>> {
-        // dispatch by physical shared heap storage
-        match storage {
+        place: HeapPlace,
+        trace_view: TraceView<'_>,
+        input: ReferenceInput<'_>,
+        range: ReferenceRange,
+        visit: &mut dyn FnMut(R) -> HeapResult<()>,
+    ) -> HeapResult<()> {
+        match place {
             HeapPlace::SmallSlot(slot) => {
-                self.small_slot_trace_map_ref(slot.span_index(), slot.slot_index(), trace_view)
+                let store = self.state.read();
+                let Some(span) = store.small.spans.get(slot.span_index()) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+                let trace_id = span.class.trace_id();
+                drop(store);
+
+                match trace_id {
+                    Some(trace_id) => {
+                        visit_trace_references(trace_view, trace_id, input, range, visit)
+                    }
+                    None => Ok(()),
+                }
             }
             HeapPlace::LargeBlock(block_id) => {
-                let trace_map = self
-                    .state
-                    .read()
-                    .large
-                    .blocks
-                    .get(block_id.index()?)
-                    .cloned()
-                    .ok_or(HeapError::internal("missing large block"))?
-                    .read()
-                    .trace_map
-                    .clone();
+                let trace_map = self.large_block_trace_map(block_id)?;
 
-                Ok(Cow::Owned(trace_map))
+                visit_references(&trace_map, input, range, visit)
             }
         }
+    }
+
+    /// Return the immutable trace map for one shared large block.
+    pub(crate) fn large_block_trace_map(
+        &self,
+        block_id: LargeBlockId,
+    ) -> HeapResult<Arc<TraceMap>> {
+        let store = self.state.read();
+        let Some(block) = store
+            .large
+            .blocks
+            .get(block_id.index()?)
+            .and_then(Option::as_ref)
+            .cloned()
+        else {
+            return Err(HeapError::internal("missing large block"));
+        };
+        drop(store);
+        let trace_map = block.read().trace_map.clone();
+
+        Ok(trace_map)
     }
 }

@@ -3,7 +3,7 @@ mod limits;
 mod options;
 mod usage;
 
-pub use heap::{SharedHeap, SharedHeapImage, SharedHeapSnapshot};
-pub use limits::SharedHeapLimits;
-pub use options::SharedHeapOptions;
-pub use usage::SharedHeapUsage;
+pub use heap::*;
+pub use limits::*;
+pub use options::*;
+pub use usage::*;

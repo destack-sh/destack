@@ -5,11 +5,11 @@ use crate::TraceView;
 use serde::{Deserialize, Serialize};
 
 use super::Heap;
-use crate::allocator::Allocator;
 use crate::local::storage::{GcState, HeapStorage, HeapStorageImage};
 use crate::{HeapError, HeapLimits, HeapOptions};
+use destack_memory::MemoryMap;
 
-/// One frozen heap image over one shared allocator.
+/// One frozen heap image over one shared memory.
 #[derive(Debug, Clone)]
 pub struct HeapImage {
     /// The retained heap image state.
@@ -19,9 +19,6 @@ pub struct HeapImage {
 /// One retained heap image state.
 #[derive(Debug)]
 struct ImageState {
-    /// The shared allocator backing every captured page.
-    allocator: Arc<Allocator>,
-
     /// The heap options used by this image.
     options: HeapOptions,
 
@@ -41,14 +38,19 @@ pub struct HeapSnapshot {
 
 impl HeapImage {
     /// Create one frozen heap image.
-    pub(crate) fn new(
-        allocator: Arc<Allocator>,
-        options: HeapOptions,
-        storage: HeapStorageImage,
-    ) -> Self {
+    pub(crate) fn new(options: HeapOptions, storage: HeapStorageImage) -> Self {
+        let state = ImageState { options, storage };
+
+        Self {
+            state: Arc::new(state),
+        }
+    }
+
+    /// Build one heap image from one serialized payload and memory.
+    pub fn from_snapshot(snapshot: &HeapSnapshot) -> Self {
+        let storage = snapshot.storage.clone();
         let state = ImageState {
-            allocator,
-            options,
+            options: snapshot.options.clone(),
             storage,
         };
 
@@ -57,44 +59,12 @@ impl HeapImage {
         }
     }
 
-    /// Build one heap image from one serialized payload.
-    pub fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapError> {
-        let allocator = Arc::new(Allocator::try_new(
-            snapshot.options.page_size_bytes,
-            snapshot.options.allocator_chunk_size_bytes,
-        )?);
-
-        Self::from_snapshot_with_allocator(snapshot, allocator)
-    }
-
-    /// Build one heap image from one serialized payload and allocator.
-    pub fn from_snapshot_with_allocator(
-        snapshot: &HeapSnapshot,
-        allocator: Arc<Allocator>,
-    ) -> Result<Self, HeapError> {
-        let storage = snapshot.storage.clone();
-        let state = ImageState {
-            allocator,
-            options: snapshot.options.clone(),
-            storage,
-        };
-
-        Ok(Self {
-            state: Arc::new(state),
-        })
-    }
-
     /// Flatten one heap image into one serialized snapshot.
     pub fn snapshot(&self) -> HeapSnapshot {
         HeapSnapshot {
             options: self.options().clone(),
             storage: self.storage().clone(),
         }
-    }
-
-    /// Return the shared allocator for this image.
-    pub fn allocator(&self) -> &Arc<Allocator> {
-        &self.state.allocator
     }
 
     /// Return the heap options for this image.
@@ -136,11 +106,15 @@ impl HeapSnapshot {
 }
 
 impl Heap {
-    /// Fork one live heap over the same shared allocator.
+    /// Fork one live heap over the same shared memory.
     ///
     /// Call this only from a safepoint where the heap cannot mutate.
-    pub fn fork(&mut self, trace_view: TraceView<'_>) -> Result<Self, HeapError> {
-        let storage = self.storage.fork(trace_view)?;
+    pub fn fork(
+        &mut self,
+        memory: Arc<MemoryMap>,
+        trace_view: TraceView<'_>,
+    ) -> Result<Self, HeapError> {
+        let storage = self.storage.fork(memory, trace_view)?;
 
         Ok(Self {
             options: self.options.clone(),
@@ -151,54 +125,28 @@ impl Heap {
         })
     }
 
-    /// Create one heap from one frozen heap image.
-    pub fn from_image(image: &HeapImage, trace_view: TraceView<'_>) -> Result<Self, HeapError> {
-        Self::from_image_with_limits(image, HeapLimits::default(), trace_view)
-    }
-
-    /// Create one heap from one serialized heap snapshot.
+    /// Create one heap from one serialized heap snapshot, memory, and explicit hard limits.
     pub fn from_snapshot(
         snapshot: &HeapSnapshot,
-        trace_view: TraceView<'_>,
-    ) -> Result<Self, HeapError> {
-        let image = HeapImage::from_snapshot(snapshot)?;
-
-        Self::from_image(&image, trace_view)
-    }
-
-    /// Create one heap from one serialized heap snapshot and explicit hard limits.
-    pub fn from_snapshot_with_limits(
-        snapshot: &HeapSnapshot,
+        memory: Arc<MemoryMap>,
         limits: HeapLimits,
         trace_view: TraceView<'_>,
     ) -> Result<Self, HeapError> {
-        let image = HeapImage::from_snapshot(snapshot)?;
+        let image = HeapImage::from_snapshot(snapshot);
 
-        Self::from_image_with_limits(&image, limits, trace_view)
-    }
-
-    /// Create one heap from one serialized heap snapshot, allocator, and explicit hard limits.
-    pub fn from_snapshot_with_allocator(
-        snapshot: &HeapSnapshot,
-        allocator: Arc<Allocator>,
-        limits: HeapLimits,
-        trace_view: TraceView<'_>,
-    ) -> Result<Self, HeapError> {
-        let image = HeapImage::from_snapshot_with_allocator(snapshot, allocator)?;
-
-        Self::from_image_with_limits(&image, limits, trace_view)
+        Self::from_image(&image, memory, limits, trace_view)
     }
 
     /// Create one heap from one frozen heap image and explicit hard limits.
-    pub fn from_image_with_limits(
+    pub fn from_image(
         image: &HeapImage,
+        memory: Arc<MemoryMap>,
         limits: HeapLimits,
         trace_view: TraceView<'_>,
     ) -> Result<Self, HeapError> {
         image.options().validate_local()?;
 
-        let storage =
-            HeapStorage::from_image(image.allocator().clone(), image.storage(), trace_view)?;
+        let storage = HeapStorage::from_image(memory, image.storage(), trace_view)?;
 
         let mut heap = Self {
             options: image.options().clone(),
@@ -217,23 +165,20 @@ impl Heap {
     pub fn image(&mut self) -> Result<HeapImage, HeapError> {
         let storage = self.storage.image()?;
 
-        Ok(HeapImage::new(
-            self.allocator().clone(),
-            self.options().clone(),
-            storage,
-        ))
+        Ok(HeapImage::new(self.options().clone(), storage))
     }
 
     /// Restore this heap from one frozen heap image.
     pub fn restore_image(
         &mut self,
         image: &HeapImage,
+        memory: Arc<MemoryMap>,
         trace_view: TraceView<'_>,
     ) -> Result<(), HeapError> {
         self.storage.check_branch_boundary()?;
 
         let limits = self.limits;
-        *self = Self::from_image_with_limits(image, limits, trace_view)?;
+        *self = Self::from_image(image, memory, limits, trace_view)?;
 
         Ok(())
     }

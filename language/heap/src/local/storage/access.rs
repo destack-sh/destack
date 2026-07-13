@@ -4,14 +4,13 @@ use destack_mir::TraceMap;
 use super::{HeapExtent, HeapPlace, HeapStorage};
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
-    overlaps_heap_range, scan_references,
 };
 
 impl HeapStorage {
     /// Return the base native address for direct heap access.
     #[inline(always)]
     pub(crate) fn base_address(&self) -> usize {
-        self.mapping.base_address()
+        self.memory.base_address()
     }
 
     /// Return whether one heap reference currently refers to one live block.
@@ -23,7 +22,7 @@ impl HeapStorage {
     #[cfg(test)]
     pub(crate) fn is_young(&self, reference: HeapReference) -> bool {
         matches!(
-            self.resolve_extent(reference).map(|extent| extent.storage),
+            self.resolve_extent(reference).map(|extent| extent.place),
             Some(HeapPlace::YoungRange { .. }) | Some(HeapPlace::YoungSlot(_))
         )
     }
@@ -31,7 +30,7 @@ impl HeapStorage {
     /// Return the live place for one heap reference.
     #[cfg(test)]
     pub(crate) fn place(&self, reference: HeapReference) -> Option<HeapPlace> {
-        Some(self.resolve_extent(reference)?.storage)
+        Some(self.resolve_extent(reference)?.place)
     }
 
     /// Return the trace map for one heap reference.
@@ -44,7 +43,7 @@ impl HeapStorage {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
-        self.trace_map_for_place(extent.storage, trace_view)
+        self.resolve_trace_map(extent.place, trace_view)
     }
 
     /// Record one heap write barrier for one live heap block.
@@ -82,28 +81,38 @@ impl HeapStorage {
         trace_view: TraceView<'_>,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         // skip ranges that cannot contain shared references
-        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
-        if !self.overlaps_shared_roots(&trace_map, byte_offset, bytes.len()) {
+        let range = ReferenceRange::bytes(byte_offset, bytes.len());
+        if !self.overlaps_reference::<SharedHeapReference>(extent.place, trace_view, range)? {
             return Ok(Vec::new());
         }
 
         let mut edges = Vec::new();
 
         // overwritten references
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        scan_references::<SharedHeapReference>(
-            &trace_map,
+        let base_address = self.memory.base_address() + extent.base.offset();
+        self.visit_references::<SharedHeapReference>(
+            extent.place,
+            trace_view,
             ReferenceInput::mapped(base_address),
-            ReferenceRange::bytes(byte_offset, bytes.len()),
-            &mut edges,
+            range,
+            &mut |reference| {
+                edges.push(reference);
+
+                Ok(())
+            },
         )?;
 
         // inserted references
-        scan_references::<SharedHeapReference>(
-            &trace_map,
+        self.visit_references::<SharedHeapReference>(
+            extent.place,
+            trace_view,
             ReferenceInput::bytes(byte_offset, bytes),
-            ReferenceRange::bytes(byte_offset, bytes.len()),
-            &mut edges,
+            range,
+            &mut |reference| {
+                edges.push(reference);
+
+                Ok(())
+            },
         )?;
 
         // publish only real shared references
@@ -125,7 +134,7 @@ impl HeapStorage {
         };
 
         // project caller range into the block payload
-        let byte_offset = block_byte_offset(extent.byte_offset, start, byte_len, extent.byte_len)?;
+        let byte_offset = extent.project(start, byte_len)?;
 
         Ok((extent, byte_offset))
     }
@@ -157,19 +166,16 @@ impl HeapStorage {
         self.write_major_barrier(extent, byte_offset, byte_len, trace_view)?;
 
         // only mature extents need remembered-write bookkeeping
-        match extent.storage {
+        match extent.place {
             HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_) => Ok(()),
             HeapPlace::MatureSlot(slot) => {
                 // skip writes that cannot touch local references
-                let is_overlapping = {
-                    let trace_map = self.small_slot_trace_map_ref(
-                        slot.span_index(),
-                        slot.slot_index(),
-                        trace_view,
-                    )?;
-
-                    overlaps_heap_range(&trace_map, byte_offset, byte_len)
-                };
+                let range = ReferenceRange::bytes(byte_offset, byte_len);
+                let is_overlapping = self.overlaps_reference::<HeapReference>(
+                    HeapPlace::MatureSlot(slot),
+                    trace_view,
+                    range,
+                )?;
                 if !is_overlapping {
                     return Ok(());
                 }
@@ -202,48 +208,13 @@ impl HeapStorage {
         }
 
         // skip writes that cannot touch shared references
-        let is_overlapping = {
-            let trace_map = self.trace_map_for_place_ref(extent.storage, trace_view)?;
-
-            self.overlaps_shared_roots(&trace_map, byte_offset, byte_len)
-        };
+        let range = ReferenceRange::bytes(byte_offset, byte_len);
+        let is_overlapping =
+            self.overlaps_reference::<SharedHeapReference>(extent.place, trace_view, range)?;
         if !is_overlapping {
             return Ok(());
         }
 
         self.queue_shared_reference(reference, trace_view)
     }
-}
-
-/// Return one block-local byte offset for one visible range.
-fn block_byte_offset(
-    base_offset: usize,
-    start: usize,
-    len: usize,
-    capacity: usize,
-) -> HeapResult<usize> {
-    debug_assert!(base_offset <= capacity);
-
-    // validate the caller start relative to the visible payload
-    let remaining = capacity - base_offset;
-    if start > remaining {
-        return Err(HeapError::InvalidByteRange {
-            start,
-            len,
-            capacity,
-        });
-    }
-
-    // validate the caller length after projecting the start
-    let byte_offset = base_offset + start;
-    let remaining = capacity - byte_offset;
-    if len > remaining {
-        return Err(HeapError::InvalidByteRange {
-            start: byte_offset,
-            len,
-            capacity,
-        });
-    }
-
-    Ok(byte_offset)
 }

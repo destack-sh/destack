@@ -3,17 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use destack_mir::TraceId;
 
-use crate::allocator::{
-    Allocator, DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
-    SizeClassTable,
-};
 use crate::{
-    AllocationClass, AllocationPlan, AllocationShape, DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
-    DEFAULT_MEMORY_MAP_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-    DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES, GcOptions, HeapConfigurationError,
-    HeapError, allocation_class, validate_allocator_chunk_size_bytes,
-    validate_memory_map_size_bytes, validate_page_size_bytes, validate_size_class_alignment,
-    validate_small_span_size_bytes,
+    AllocationClass, AllocationPlan, AllocationShape, DEFAULT_HEAP_PAGE_SIZE_BYTES,
+    DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
+    DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES, DropPlan, GcOptions,
+    HeapConfigurationError, HeapError, SizeClassTable, validate_page_size_bytes,
+    validate_size_class_alignment, validate_small_span_size_bytes,
 };
 
 /// The configuration for one heap instance.
@@ -29,12 +24,8 @@ pub struct HeapOptions {
     pub max_heap_young_allocation_size_bytes: usize,
     /// The byte size for heap small-block spans.
     pub heap_small_size_bytes: usize,
-    /// The virtual byte capacity for heap storage.
-    pub memory_map_size_bytes: usize,
-    /// The byte size for allocator pages.
+    /// The byte size for memory pages.
     pub page_size_bytes: usize,
-    /// The byte size for one physical allocator chunk.
-    pub allocator_chunk_size_bytes: usize,
     /// The required alignment for configured small-allocation classes.
     pub small_allocation_alignment_bytes: usize,
 }
@@ -51,7 +42,8 @@ impl HeapOptions {
     /// Resolve one heap allocation class for this allocation shape.
     #[inline(always)]
     fn classify_allocation(&self, shape: &AllocationShape) -> AllocationClass {
-        if shape.trace_map.has_tagged_reference() {
+        // keep allocation-specific metadata out of table-backed small spans
+        if shape.requires_individual_metadata() {
             return AllocationClass::large();
         }
 
@@ -59,6 +51,7 @@ impl HeapOptions {
             shape.byte_len,
             shape.alignment,
             shape.trace_id,
+            shape.drop,
             shape.is_noscan,
         )
     }
@@ -70,12 +63,14 @@ impl HeapOptions {
         byte_len: usize,
         alignment: usize,
         trace_id: Option<TraceId>,
+        drop: Option<DropPlan>,
         is_noscan: bool,
     ) -> AllocationClass {
-        allocation_class(
+        AllocationClass::select(
             byte_len,
             alignment,
             trace_id,
+            drop,
             is_noscan,
             &self.size_classes,
             self.page_size_bytes,
@@ -86,14 +81,12 @@ impl HeapOptions {
     /// Build the default option set for one heap.
     pub fn local() -> Self {
         Self {
-            gc: GcOptions::local(),
+            gc: GcOptions::default(),
             size_classes: SizeClassTable::default(),
             heap_young_size_bytes: DEFAULT_YOUNG_SIZE_BYTES,
             max_heap_young_allocation_size_bytes: DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
             heap_small_size_bytes: DEFAULT_SMALL_SIZE_BYTES,
-            memory_map_size_bytes: DEFAULT_MEMORY_MAP_SIZE_BYTES,
-            page_size_bytes: DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
-            allocator_chunk_size_bytes: DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
+            page_size_bytes: DEFAULT_HEAP_PAGE_SIZE_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
@@ -102,9 +95,6 @@ impl HeapOptions {
     fn validate_allocation_shape(&self) -> Result<(), HeapError> {
         self.gc.validate()?;
         validate_page_size_bytes(self.page_size_bytes)?;
-        validate_allocator_chunk_size_bytes(self.page_size_bytes, self.allocator_chunk_size_bytes)?;
-        validate_memory_map_size_bytes(self.page_size_bytes, self.memory_map_size_bytes)?;
-
         validate_size_class_alignment(&self.size_classes, self.small_allocation_alignment_bytes)?;
         validate_small_span_size_bytes(self.heap_small_size_bytes, &self.size_classes)?;
 
@@ -140,39 +130,55 @@ impl HeapOptions {
 
         Ok(())
     }
-
-    /// Validate that one explicit allocator matches these heap options.
-    pub(crate) fn validate_allocator(&self, allocator: &Allocator) -> Result<(), HeapError> {
-        if allocator.page_size_bytes() != self.page_size_bytes {
-            return Err(HeapError::configuration(
-                HeapConfigurationError::AllocatorPageSizeMismatch {
-                    option_page_size_bytes: self.page_size_bytes,
-                    allocator_page_size_bytes: allocator.page_size_bytes(),
-                },
-            ));
-        }
-
-        if allocator.chunk_size_bytes() != self.allocator_chunk_size_bytes {
-            return Err(HeapError::configuration(
-                HeapConfigurationError::AllocatorChunkSizeMismatch {
-                    option_chunk_size_bytes: self.allocator_chunk_size_bytes,
-                    allocator_chunk_size_bytes: allocator.chunk_size_bytes(),
-                },
-            ));
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
+    use destack_memory::MemoryMap;
+    use destack_mir::TraceMap;
+
     use crate::{
-        Allocator, GcOptions, Heap, HeapConfigurationError, HeapError, HeapLimits, HeapOptions,
-        SizeClassTable,
+        AllocationShape, DropId, GcOptions, Heap, HeapConfigurationError, HeapError, HeapLimits,
+        HeapOptions, SharedHeapOptions, SizeClassTable,
     };
+
+    /// Route repeated drops to exact-sized large blocks.
+    #[test]
+    fn test_route_repeated_drop_to_large_blocks() {
+        let drop = DropId::from_index(0);
+        let element = AllocationShape::new(8, 8, None, TraceMap::empty())
+            .with_drop(drop)
+            .expect("Drop plan should build");
+        let element = HeapOptions::local().allocation_plan(&element);
+        let shape = element
+            .repeat(&TraceMap::empty(), 2)
+            .expect("repeated allocation should build");
+
+        let local = HeapOptions::local().allocation_plan(&shape);
+        let shared = SharedHeapOptions::default().allocation_plan(&shape);
+
+        assert!(local.small_allocation().is_none());
+        assert!(shared.small_allocation().is_none());
+    }
+
+    /// Route allocation-specific trace maps away from table-backed small spans.
+    #[test]
+    fn test_route_dynamic_trace_to_individual_metadata() {
+        let trace_map = TraceMap::Fixed {
+            local_offsets: vec![0, 8].into(),
+            shared_offsets: vec![].into(),
+            frame_offsets: vec![].into(),
+        };
+        let shape = AllocationShape::new(16, 8, None, trace_map);
+
+        let local = HeapOptions::local().allocation_plan(&shape);
+        let shared = SharedHeapOptions::default().allocation_plan(&shape);
+
+        assert!(local.small_allocation().is_none());
+        assert!(shared.small_allocation().is_none());
+    }
 
     /// Reject invalid GC trigger percentages at heap construction.
     #[test]
@@ -185,13 +191,12 @@ mod tests {
             ..HeapOptions::local()
         };
 
-        let allocator = Arc::new(
-            Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-                .expect("allocator should build"),
+        let memory = Arc::new(
+            MemoryMap::reserve(1024 * 1024 * 1024, options.page_size_bytes)
+                .expect("test World memory should reserve"),
         );
-        let error =
-            Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
-                .expect_err("invalid heap options should fail loudly");
+        let error = Heap::new(memory, HeapLimits::default(), options)
+            .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(
             error,
@@ -210,13 +215,12 @@ mod tests {
             ..HeapOptions::local()
         };
 
-        let allocator = Arc::new(
-            Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-                .expect("allocator should build"),
+        let memory = Arc::new(
+            MemoryMap::reserve(1024 * 1024 * 1024, options.page_size_bytes)
+                .expect("test World memory should reserve"),
         );
-        let error =
-            Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
-                .expect_err("invalid heap options should fail loudly");
+        let error = Heap::new(memory, HeapLimits::default(), options)
+            .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(
             error,
@@ -237,13 +241,12 @@ mod tests {
             ..HeapOptions::local()
         };
 
-        let allocator = Arc::new(
-            Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-                .expect("allocator should build"),
+        let memory = Arc::new(
+            MemoryMap::reserve(1024 * 1024 * 1024, options.page_size_bytes)
+                .expect("test World memory should reserve"),
         );
-        let error =
-            Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
-                .expect_err("invalid heap options should fail loudly");
+        let error = Heap::new(memory, HeapLimits::default(), options)
+            .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(
             error,

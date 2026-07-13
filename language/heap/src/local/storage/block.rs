@@ -4,41 +4,28 @@ use serde::{Deserialize, Serialize};
 use destack_mir::TraceMap;
 
 use super::CardSet;
-use crate::allocator::PageSpan;
-use crate::{HeapError, HeapRepresentationError, HeapResult};
+use crate::{DropPlan, HeapError, HeapRepresentationError, HeapResult};
+use destack_memory::MemoryRange;
 
 /// One live heap large block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LargeBlock {
-    /// Whether this large-block slot is live.
-    pub(crate) is_live: bool,
     /// The first byte offset inside heap storage.
     pub(crate) first_offset: usize,
     /// The logical byte length of this block.
     pub(crate) byte_len: usize,
-    /// The allocator pages for this block.
-    pub(crate) pages: PageSpan,
+    /// The memory pages for this block.
+    pub(crate) pages: MemoryRange,
     /// The trace map for this block.
     pub(crate) trace_map: TraceMap,
+    /// The drop plan for this managed block.
+    pub(crate) drop: Option<DropPlan>,
     /// The mark epoch when this block was last marked.
     pub(crate) mark_epoch: u64,
     /// The dirty cards remembered for young tracing.
     pub(crate) dirty_cards: CardSet,
     /// Whether this block is already queued for dirty-card scanning.
     pub(crate) is_dirty_queued: bool,
-}
-
-impl LargeBlock {
-    /// Retire this heap large-block slot.
-    pub(crate) fn retire(&mut self) {
-        self.is_live = false;
-        self.first_offset = 0;
-        self.byte_len = 0;
-        self.pages = PageSpan::empty();
-        self.mark_epoch = 0;
-        self.dirty_cards.clear();
-        self.is_dirty_queued = false;
-    }
 }
 
 /// One heap large-block identifier.
@@ -71,8 +58,6 @@ impl LargeBlockId {
 /// One frozen heap large-block image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct LargeBlockImage {
-    /// Whether this block slot is live.
-    pub is_live: bool,
     /// The first byte offset inside heap storage.
     pub first_offset: usize,
     /// The logical byte length of this block.
@@ -81,4 +66,6 @@ pub(crate) struct LargeBlockImage {
     pub bytes: Box<[u8]>,
     /// The trace map for this block.
     pub trace_map: TraceMap,
+    /// The drop plan for this managed block.
+    pub drop: Option<DropPlan>,
 }

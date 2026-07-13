@@ -3,29 +3,25 @@ use std::sync::Arc;
 use destack_mir::TraceMap;
 
 use crate::shared::storage::HeapStorage;
-use crate::{Payload, SharedHeapOptions, SizeClassTable, test_layouts, test_shared_allocator};
+use crate::{Payload, SharedHeapOptions, SizeClassTable, test_layouts};
 
-use super::{heap_allocation_plan, read_mapped_bytes, trace_view, write_mapped_bytes};
-
-/// The allocator chunk size for small-page shared image fixtures.
-const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
+use super::{TestHeapPlan, read_mapped_bytes, test_memory, trace_view, write_mapped_bytes};
 
 /// Preserve shared heap metadata and bytes across image roundtrips.
 #[test]
 fn test_roundtrip_shared_heap_storage_image() {
     let options = SharedHeapOptions {
         page_size_bytes: 4,
-        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
         heap_small_size_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..SharedHeapOptions::default()
     };
-    let allocator = test_shared_allocator(&options);
+    let memory = test_memory(options.page_size_bytes);
     let layouts = test_layouts(&[(6, TraceMap::empty()), (6, TraceMap::empty())]);
     let first_layout = &layouts[0];
     let second_layout = &layouts[1];
-    let heap = HeapStorage::with_options(allocator.clone(), &options)
-        .expect("shared heap storage should build");
+    let heap =
+        HeapStorage::new(memory.clone(), &options).expect("shared heap storage should build");
 
     // capture two blocks in one shared small span
     let first_bytes = vec![1; 6];
@@ -36,7 +32,7 @@ fn test_roundtrip_shared_heap_storage_image() {
     let first = heap
         .allocate(
             &mut shared_cache,
-            &heap_allocation_plan(&heap, &first_shape),
+            &heap.test_allocation_plan(&first_shape),
             Payload::Bytes(&first_bytes),
             true,
         )
@@ -44,13 +40,14 @@ fn test_roundtrip_shared_heap_storage_image() {
     let _second = heap
         .allocate(
             &mut shared_cache,
-            &heap_allocation_plan(&heap, &second_shape),
+            &heap.test_allocation_plan(&second_shape),
             Payload::Bytes(&second_bytes),
             true,
         )
         .expect("shared heap block should succeed");
     let image = heap.image().expect("shared heap image should capture");
-    let restored = HeapStorage::from_image_with_allocator(allocator.clone(), &image)
+    let restored_memory = test_memory(options.page_size_bytes);
+    let restored = HeapStorage::from_image(restored_memory.clone(), &image)
         .expect("shared heap image restore should succeed");
     let restored_image = restored.image().expect("shared heap image should capture");
 
@@ -59,7 +56,7 @@ fn test_roundtrip_shared_heap_storage_image() {
         restored.trace_map(first, trace_view()),
         Ok(TraceMap::empty())
     );
-    assert!(Arc::ptr_eq(&restored.allocator, &allocator));
+    assert!(Arc::ptr_eq(&restored.memory, &restored_memory));
     assert_eq!(image.spans().len(), restored_image.spans().len());
 
     // restored bytes should match the captured shared heap

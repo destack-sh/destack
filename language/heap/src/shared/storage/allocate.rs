@@ -4,14 +4,14 @@ use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
 use super::{
-    AllocationCache, HeapPageMapEntry, HeapPlace, HeapState, HeapStorage, LargeBlock, LargeBlockId,
+    AllocationCache, HeapPlace, HeapState, HeapStorage, LargeBlock, LargeBlockId, PageOwner,
     ReservedSlot, SmallSizeClassCache, SmallSpan, SpanList,
 };
-use crate::allocator::{PageSpan, Slot};
 use crate::{
-    Allocation, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult, Payload,
-    SharedHeapReference, SmallAllocationClass, SmallSpanClass, align_up,
+    Allocation, DropPlan, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult,
+    Payload, SharedHeapReference, Slot, SmallAllocationClass, SmallSpanClass,
 };
+use destack_memory::MemoryRange;
 
 impl HeapStorage {
     /// Allocate one shared heap block.
@@ -40,8 +40,8 @@ impl HeapStorage {
         }
 
         // allocate the payload bytes
-        let storage = self.allocate_place(cache, layout, payload, should_keep_worker_cache)?;
-        let reference = self.base_reference_for_place(storage)?;
+        let place = self.allocate_place(cache, layout, payload, should_keep_worker_cache)?;
+        let reference = self.base_reference(place)?;
 
         // publish initialized shared references to an active mark cycle
         let has_shared_reference = payload.byte_len().is_some() && layout.has_shared_reference;
@@ -120,7 +120,7 @@ impl HeapStorage {
         let Some(class) = size_class_cache.class() else {
             return;
         };
-        let usage = size_class_cache.cursor.flush_usage(class.size_class());
+        let usage = size_class_cache.cursor.flush_usage(class);
         if usage.allocation_count() == 0 {
             return;
         }
@@ -130,7 +130,7 @@ impl HeapStorage {
     }
 
     /// Publish worker-local accounting for the cache that owns one reference.
-    pub(crate) fn flush_cache_for_reference(
+    pub(crate) fn flush_reference_cache(
         &self,
         cache: &mut AllocationCache,
         reference: SharedHeapReference,
@@ -200,8 +200,8 @@ impl HeapStorage {
             return Err(HeapError::internal("missing span"));
         };
 
-        // release the slot and maybe detach an empty span
-        let pages = {
+        // release the slot and requeue reusable span capacity
+        {
             let slot_index = slot.slot_index();
             let was_full = span.occupied_count() == span.slot_count;
 
@@ -209,14 +209,20 @@ impl HeapStorage {
                 return Err(HeapError::internal("missing small slot"));
             }
 
-            if span.occupied_count() == 0 && span.list.load() != SpanList::Worker {
+            let list = span.list.load();
+            if span.occupied_count() == 0 && list != SpanList::Worker {
                 span.reset_free_cursor_to_start();
-                span.list.store(SpanList::Released);
+                span.list.store(SpanList::Central);
 
-                let first_offset = span.first_offset;
-                let pages = span.take_pages();
-
-                Some((first_offset, pages))
+                // full spans are not already present in the central list
+                if list == SpanList::Full {
+                    store
+                        .small
+                        .partial_spans
+                        .entry(span.class)
+                        .or_default()
+                        .push(slot.span_index());
+                }
             } else {
                 // full spans become partial after releasing one slot
                 let should_requeue = was_full
@@ -232,18 +238,7 @@ impl HeapStorage {
                         .or_default()
                         .push(slot.span_index());
                 }
-
-                None
             }
-        };
-
-        // empty spans return their page span to the cache
-        if let Some((first_offset, pages)) = pages {
-            self.unmap_page_span(store, first_offset, &pages);
-            store
-                .page_span_cache
-                .release_page_span(&self.allocator, pages)?;
-            self.accounting.release_pages(pages, self.page_size_bytes());
         }
 
         Ok(())
@@ -261,7 +256,15 @@ impl HeapStorage {
         if let Some(small) = layout.class.as_small() {
             let cache_index = small.cache_index();
             let class = small.class;
-            cache.ensure_small(small);
+
+            // publish and replace a cache that belongs to another logical class
+            let size_class_cache = cache.ensure_small(cache_index);
+            if size_class_cache.class != Some(class) {
+                self.flush_size_class_cache(size_class_cache);
+                *size_class_cache = SmallSizeClassCache::inactive();
+                size_class_cache.class = Some(class);
+            }
+
             let slot = self.allocate_small(
                 cache,
                 cache_index,
@@ -275,38 +278,40 @@ impl HeapStorage {
         }
 
         // large blocks reserve whole page spans
-        let pages = self.allocate_large_pages(layout.byte_len)?;
+        let pages = self.allocate_large_pages(layout.byte_len, layout.alignment)?;
 
         let mut store = self.state.write();
         let block_id = self.insert_large_block(
             &mut store,
             layout.byte_len,
-            layout.alignment,
             pages,
             layout.trace_map.clone(),
+            layout.drop,
         )?;
-        let Some(block) = store.large.blocks.get(block_id.index()?).cloned() else {
+        let Some(block) = store
+            .large
+            .blocks
+            .get(block_id.index()?)
+            .and_then(Option::as_ref)
+            .cloned()
+        else {
             return Err(HeapError::internal("missing large block"));
         };
         let first_offset = block.read().first_offset;
 
-        payload.initialize_mapped(&self.mapping, first_offset, layout.byte_len);
+        payload.initialize_mapped(&self.memory, first_offset, layout.byte_len);
         self.accounting.allocate(layout.byte_len);
-        self.accounting.retain_pages(pages, self.page_size_bytes());
+        self.accounting.retain_pages(pages);
 
         Ok(HeapPlace::LargeBlock(block_id))
     }
 
     /// Allocate large pages outside the shared state lock.
-    fn allocate_large_pages(&self, byte_len: usize) -> HeapResult<PageSpan> {
-        // page-cursor cache owns allocator interaction
-        let pages = {
-            let mut store = self.state.write();
-
-            store
-                .page_span_cache
-                .allocate_pages(&self.allocator, byte_len)?
-        };
+    fn allocate_large_pages(&self, byte_len: usize, alignment: usize) -> HeapResult<MemoryRange> {
+        let page_size_bytes = self.page_size_bytes();
+        let byte_len = byte_len.next_multiple_of(page_size_bytes);
+        let alignment = alignment.max(page_size_bytes);
+        let pages = self.memory.allocate(byte_len, alignment)?;
 
         Ok(pages)
     }
@@ -338,28 +343,6 @@ impl HeapStorage {
                     continue;
                 }
 
-                // rematerialize spans whose pages were released
-                if span.occupied_count() == 0 && span.pages_empty() {
-                    let pages = store
-                        .page_span_cache
-                        .allocate_pages(&self.allocator, class.span_size_bytes())?;
-                    let first_offset = span.first_offset;
-
-                    // materialize the full span before worker-local spans use it
-                    self.mapping
-                        .materialize(first_offset, class.span_size_bytes())?;
-
-                    self.map_page_span(store, first_offset, &pages, |logical_page_index| {
-                        HeapPageMapEntry::SmallSpan {
-                            span_index,
-                            logical_page_index,
-                        }
-                    });
-
-                    span.set_pages(pages);
-                    self.accounting.retain_pages(pages, self.page_size_bytes());
-                }
-
                 span.list.store(SpanList::Worker);
                 span.reset_free_cursor();
 
@@ -372,31 +355,29 @@ impl HeapStorage {
 
         // otherwise map a new span for this size class
         let slot_count = (class.span_size_bytes() / class.size_class()).max(1);
-        let pages = store
-            .page_span_cache
-            .allocate_pages(&self.allocator, class.span_size_bytes())?;
-        let first_offset = self.reserve_address_range(store, class.span_size_bytes())?;
+        let pages = self
+            .memory
+            .allocate(class.span_size_bytes(), self.page_size_bytes())?;
+        let first_offset = pages.offset;
 
         // materialize the full span before worker-local spans use it
-        self.mapping
+        self.memory
             .materialize(first_offset, class.span_size_bytes())?;
         // SAFETY: the span range was materialized above
         unsafe {
-            self.mapping
+            self.memory
                 .zero_mapped_bytes(first_offset, class.span_size_bytes());
         }
 
         let span = SmallSpan::new(first_offset, *class, slot_count, pages, SpanList::Worker);
         let span_index = store.small.spans.len();
-        self.map_page_span(store, first_offset, &pages, |logical_page_index| {
-            HeapPageMapEntry::SmallSpan {
-                span_index,
-                logical_page_index,
-            }
+        self.map_page_span(store, &pages, |logical_page_index| PageOwner::SmallSpan {
+            span_index,
+            logical_page_index,
         });
 
         store.small.spans.push(Arc::new(span));
-        self.accounting.retain_pages(pages, self.page_size_bytes());
+        self.accounting.retain_pages(pages);
 
         Ok(SmallSpanAllocation {
             span_index,
@@ -427,7 +408,7 @@ impl HeapStorage {
                     let slot = block.slot;
 
                     // exhausted caches leave worker ownership immediately
-                    if !block.keep_cache {
+                    if !block.should_keep_cache {
                         self.flush_reserved_slot(size_class_cache, block);
                         size_class_cache.finish();
                         size_class_cache.clear();
@@ -485,10 +466,10 @@ impl HeapStorage {
         };
 
         let slot = block.slot;
-        let should_release_cache = block.keep_cache && !should_keep_worker_cache;
+        let should_release_cache = block.should_keep_cache && !should_keep_worker_cache;
 
         // publish or retire the newly installed cache
-        if !block.keep_cache {
+        if !block.should_keep_cache {
             self.flush_reserved_slot(size_class_cache, block);
             size_class_cache.finish();
             size_class_cache.clear();
@@ -578,7 +559,7 @@ impl HeapStorage {
         let Some(reference) = size_class_cache.reference_for_slot(slot_index) else {
             return Err(HeapError::internal("missing cache class"));
         };
-        let mapping_offset = reference.offset();
+        let byte_offset = reference.offset();
 
         // dense slots come bulk-zeroed, a clear needs-zero bit means the free slot holds zeroes
         let needs_zero = !slot.is_dense
@@ -593,26 +574,26 @@ impl HeapStorage {
                 // clear stale tail bytes before copying short payloads
                 Payload::Bytes(bytes) if bytes.len() < class.size_class() => {
                     if needs_zero {
-                        self.mapping
-                            .zero_mapped_bytes(mapping_offset, class.size_class());
+                        self.memory
+                            .zero_mapped_bytes(byte_offset, class.size_class());
                     }
 
-                    self.mapping.write_mapped_bytes(mapping_offset, bytes);
+                    self.memory.write_mapped_bytes(byte_offset, bytes);
                 }
                 // full-width payloads overwrite the slot completely
-                Payload::Bytes(bytes) => self.mapping.write_mapped_bytes(mapping_offset, bytes),
+                Payload::Bytes(bytes) => self.memory.write_mapped_bytes(byte_offset, bytes),
                 // clear only slots that previously held arbitrary bytes
                 Payload::Zeroed => {
                     if needs_zero {
-                        self.mapping
-                            .zero_mapped_bytes(mapping_offset, class.size_class());
+                        self.memory
+                            .zero_mapped_bytes(byte_offset, class.size_class());
                     }
                 }
                 // no-scan slots keep zeroed reuse semantics even when uninitialized
                 Payload::Uninit if !trace_map.has_heap_reference() => {
                     if needs_zero {
-                        self.mapping
-                            .zero_mapped_bytes(mapping_offset, class.size_class());
+                        self.memory
+                            .zero_mapped_bytes(byte_offset, class.size_class());
                     }
                 }
                 // traced uninitialized slots are owned by the caller until written
@@ -636,12 +617,12 @@ impl HeapStorage {
         }
 
         // decide whether the worker keeps this cache
-        let keep_cache = size_class_cache.has_available_slot();
+        let should_keep_cache = size_class_cache.has_available_slot();
 
         Ok(Some(ReservedSlot {
             slot: span_slot,
             is_dense: slot.is_dense,
-            keep_cache,
+            should_keep_cache,
         }))
     }
 
@@ -650,31 +631,24 @@ impl HeapStorage {
         &self,
         store: &mut HeapState,
         byte_len: usize,
-        alignment: usize,
-        pages: PageSpan,
+        pages: MemoryRange,
         trace_map: TraceMap,
+        drop: Option<DropPlan>,
     ) -> HeapResult<LargeBlockId> {
         // reuse retired large-block ids before growing the table
-        let (block_id, reused_block_id) =
-            if let Some(block_id) = store.large.free_large_block_ids.pop() {
-                (block_id, true)
-            } else {
-                let block_id = store.large.next_unused_large_block_id;
-                let next_block_id = store.large.next_unused_large_block_id + 1;
-
-                store.large.next_unused_large_block_id = next_block_id;
-                (block_id, false)
-            };
+        let reused_block_id = store.large.free_large_block_ids.pop();
+        let block_id = match reused_block_id {
+            Some(block_id) => block_id,
+            None => store.large.next_unused_large_block_id,
+        };
 
         // zero is reserved for null references
         if block_id == 0 {
-            if reused_block_id {
+            if reused_block_id.is_some() {
                 store.large.free_large_block_ids.push(block_id);
             }
 
-            store
-                .page_span_cache
-                .release_page_span(&self.allocator, pages)?;
+            self.memory.release(pages)?;
 
             return Err(HeapError::representation(
                 HeapRepresentationError::InvalidLargeBlockId { id: block_id },
@@ -685,68 +659,53 @@ impl HeapStorage {
         let block_id = LargeBlockId::new(block_id);
         let index = block_id.index()?;
         if index > store.large.blocks.len() {
-            if reused_block_id {
+            if reused_block_id.is_some() {
                 store.large.free_large_block_ids.push(block_id.id());
             }
 
-            store
-                .page_span_cache
-                .release_page_span(&self.allocator, pages)?;
+            self.memory.release(pages)?;
 
             return Err(HeapError::representation(
                 HeapRepresentationError::InvalidLargeBlockId { id: block_id.id() },
             ));
         }
 
-        let first_offset = match self.reserve_address_range_aligned(
-            store,
-            pages.len() * self.allocator.page_size_bytes(),
-            alignment,
-        ) {
-            Ok(first_offset) => first_offset,
-            Err(error) => {
-                store
-                    .page_span_cache
-                    .release_page_span(&self.allocator, pages)?;
-
-                return Err(error);
-            }
-        };
+        let first_offset = pages.offset;
 
         // materialize the full large range before publishing it
-        if let Err(error) = self
-            .mapping
-            .materialize(first_offset, pages.len() * self.allocator.page_size_bytes())
-        {
-            store
-                .page_span_cache
-                .release_page_span(&self.allocator, pages)?;
+        if let Err(error) = self.memory.materialize(first_offset, pages.byte_len) {
+            if reused_block_id.is_some() {
+                store.large.free_large_block_ids.push(block_id.id());
+            }
+
+            self.memory.release(pages)?;
 
             return Err(error.into());
         }
 
-        self.map_page_span(store, first_offset, &pages, |logical_page_index| {
-            HeapPageMapEntry::LargeBlock {
-                block_id,
-                logical_page_index,
-            }
+        self.map_page_span(store, &pages, |logical_page_index| PageOwner::LargeBlock {
+            block_id,
+            logical_page_index,
         });
 
         let block = LargeBlock {
-            is_live: true,
             first_offset,
             byte_len,
             pages,
-            trace_map,
+            trace_map: Arc::new(trace_map),
+            drop,
             mark_epoch: 0,
         };
         let block = Arc::new(RwLock::new(block));
 
         // insert or replace the block record
         if index == store.large.blocks.len() {
-            store.large.blocks.push(block);
+            store.large.blocks.push(Some(block));
         } else {
-            store.large.blocks[index] = block;
+            store.large.blocks[index] = Some(block);
+        }
+        if reused_block_id.is_none() {
+            store.large.next_unused_large_block_id += 1;
         }
 
         Ok(block_id)
@@ -758,39 +717,6 @@ impl HeapStorage {
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_size_bytes) * page_size_bytes
-    }
-
-    /// Reserve one logical shared heap storage byte range.
-    fn reserve_address_range(&self, store: &mut HeapState, byte_len: usize) -> HeapResult<usize> {
-        self.reserve_address_range_aligned(store, byte_len, self.allocator.page_size_bytes())
-    }
-
-    /// Reserve one logical shared heap storage byte range with the given alignment.
-    fn reserve_address_range_aligned(
-        &self,
-        store: &mut HeapState,
-        byte_len: usize,
-        alignment: usize,
-    ) -> HeapResult<usize> {
-        debug_assert!(store.next_offset <= self.mapping.byte_len());
-
-        // align shared ranges to page boundaries or stricter layout alignment
-        let alignment = alignment.max(self.allocator.page_size_bytes());
-        let first_offset = align_up(store.next_offset, alignment);
-        let next_offset = first_offset + byte_len;
-
-        // reject ranges outside the reserved shared memory map
-        if next_offset > self.mapping.byte_len() {
-            return Err(HeapError::InvalidByteRange {
-                start: first_offset,
-                len: byte_len,
-                capacity: self.mapping.byte_len(),
-            });
-        }
-
-        store.next_offset = next_offset;
-
-        Ok(first_offset)
     }
 }
 

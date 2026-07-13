@@ -1,17 +1,15 @@
 use destack_serde::Reflect;
-use std::borrow::Cow;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
-use crate::TraceView;
 use destack_mir::TraceMap;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::allocator::{Bitmap, PageSpan};
 use crate::{
-    HeapReference, HeapResult, ReferenceRange, SharedHeapReference, SmallSpanClass,
-    slot_trace_map_with, visit_untagged_reference_offsets,
+    Bitmap, HeapReference, ReferenceRange, SharedHeapReference, SmallSpanClass,
+    visit_static_reference_offsets,
 };
+use destack_memory::MemoryRange;
 
 /// The number of bits in one atomic bitmap word.
 const ATOMIC_BITMAP_WORD_BITS: usize = u64::BITS as usize;
@@ -31,7 +29,7 @@ pub(crate) struct SmallSpan {
     dense_len: AtomicUsize,
     /// The next likely free slot search cursor.
     pub(crate) free_cursor: AtomicUsize,
-    /// The slots claimed by worker-local allocators.
+    /// The slots claimed by worker-local caches.
     reserved: AtomicBitmap,
     /// The occupied slots in this span.
     pub(crate) occupied: AtomicBitmap,
@@ -53,8 +51,8 @@ pub(crate) struct SmallSpan {
     mark_reset: Mutex<()>,
     /// The block list this span belongs to.
     pub(crate) list: AtomicSpanList,
-    /// The allocator pages for this span.
-    pub(crate) pages: RwLock<PageSpan>,
+    /// The memory pages for this span.
+    pub(crate) pages: MemoryRange,
 }
 
 impl SmallSpan {
@@ -63,7 +61,7 @@ impl SmallSpan {
         first_offset: usize,
         class: SmallSpanClass,
         slot_count: usize,
-        pages: PageSpan,
+        pages: MemoryRange,
         list: SpanList,
     ) -> Self {
         let scan_word_count = class.size_class().div_ceil(std::mem::size_of::<usize>());
@@ -86,7 +84,7 @@ impl SmallSpan {
             mark_epoch: AtomicU64::new(0),
             mark_reset: Mutex::new(()),
             list: AtomicSpanList::new(list),
-            pages: RwLock::new(pages),
+            pages,
         }
     }
 
@@ -98,7 +96,7 @@ impl SmallSpan {
         occupied: &Bitmap,
         local_reference_bits: &Bitmap,
         shared_reference_bits: &Bitmap,
-        pages: PageSpan,
+        pages: MemoryRange,
         list: SpanList,
     ) -> Self {
         let occupied_count = occupied.count_ones();
@@ -122,13 +120,13 @@ impl SmallSpan {
             mark_epoch: AtomicU64::new(0),
             mark_reset: Mutex::new(()),
             list: AtomicSpanList::new(list),
-            pages: RwLock::new(pages),
+            pages,
         }
     }
 
     /// Return the number of occupied slots.
     pub(crate) fn occupied_count(&self) -> usize {
-        let dense_len = self.dense_len.load(Ordering::Relaxed);
+        let dense_len = self.dense_len.load(Ordering::Acquire);
         let materialized_count = self.occupied_count.load(Ordering::Acquire);
 
         dense_len + materialized_count
@@ -136,7 +134,7 @@ impl SmallSpan {
 
     /// Return whether one slot is occupied.
     pub(crate) fn contains_slot(&self, slot_index: usize) -> bool {
-        if slot_index < self.dense_len.load(Ordering::Relaxed) {
+        if slot_index < self.dense_len.load(Ordering::Acquire) {
             return true;
         }
 
@@ -155,33 +153,18 @@ impl SmallSpan {
     }
 
     /// Return the current page span.
-    pub(crate) fn pages(&self) -> PageSpan {
-        *self.pages.read()
+    pub(crate) fn pages(&self) -> MemoryRange {
+        self.pages
     }
 
-    /// Return whether this span has no mapped pages.
-    pub(crate) fn pages_empty(&self) -> bool {
-        self.pages.read().is_empty()
-    }
-
-    /// Return the number of mapped pages.
-    pub(crate) fn page_count(&self) -> usize {
-        self.pages.read().len()
+    /// Return the mapped byte length.
+    pub(crate) fn mapped_byte_len(&self) -> usize {
+        self.pages.byte_len
     }
 
     /// Return the first currently reusable slot.
     pub(crate) fn first_free_slot(&self) -> usize {
         self.next_free_slot(0)
-    }
-
-    /// Replace the current page span.
-    pub(crate) fn set_pages(&self, pages: PageSpan) {
-        *self.pages.write() = pages;
-    }
-
-    /// Take the current page span.
-    pub(crate) fn take_pages(&self) -> PageSpan {
-        std::mem::replace(&mut *self.pages.write(), PageSpan::empty())
     }
 
     /// Reserve one free slot if available.
@@ -211,7 +194,7 @@ impl SmallSpan {
         if slot_index >= self.slot_count {
             return false;
         }
-        if slot_index < self.dense_len.load(Ordering::Relaxed) {
+        if slot_index < self.dense_len.load(Ordering::Acquire) {
             return false;
         }
 
@@ -222,7 +205,7 @@ impl SmallSpan {
     #[inline(always)]
     pub(crate) fn publish_dense_len(&self, dense_len: usize) {
         // make initialized bytes visible through the dense span
-        self.dense_len.store(dense_len, Ordering::Relaxed);
+        self.dense_len.store(dense_len, Ordering::Release);
     }
 
     /// Publish one initialized reserved slot.
@@ -239,7 +222,7 @@ impl SmallSpan {
         self.marked.clear(slot_index);
         self.scanned.clear(slot_index);
 
-        // advance the allocator cursor past this slot
+        // advance the memory cursor past this slot
         self.free_cursor
             .store(self.next_free_slot(slot_index + 1), Ordering::Release);
     }
@@ -269,7 +252,7 @@ impl SmallSpan {
 
     /// Write exact reference bits for one occupied slot.
     pub(crate) fn write_reference_bits(&self, slot_index: usize, trace_map: &TraceMap) {
-        debug_assert!(!trace_map.has_tagged_reference());
+        debug_assert!(!trace_map.has_variant_reference());
 
         if self.class.trace_id().is_some() {
             return;
@@ -292,34 +275,6 @@ impl SmallSpan {
     /// Mark one reserved slot as fully initialized.
     pub(crate) fn clear_needs_zero(&self, slot_index: usize) {
         self.needs_zero.clear(slot_index);
-    }
-
-    /// Return exact reference metadata for one occupied slot.
-    pub(crate) fn trace_map<'a>(
-        &self,
-        slot_index: usize,
-        trace_view: TraceView<'a>,
-    ) -> HeapResult<Cow<'a, TraceMap>> {
-        // no-scan classes never carry reference bits
-        if self.class.is_noscan() {
-            return Ok(Cow::Owned(TraceMap::Empty));
-        }
-
-        // decode the table-backed class trace map
-        if let Some(trace_id) = self.class.trace_id() {
-            let trace_map = trace_view.trace_map(trace_id)?;
-
-            return Ok(Cow::Owned(trace_map));
-        }
-
-        // read only the slot's bit range from both edge classes
-        Ok(Cow::Owned(slot_trace_map_with(
-            |bit_index| self.local_reference_bits.contains(bit_index),
-            |bit_index| self.shared_reference_bits.contains(bit_index),
-            slot_index,
-            self.class.size_class(),
-            self.class.size_class(),
-        )))
     }
 
     /// Return whether one slot is marked in one cycle.
@@ -400,7 +355,7 @@ impl SmallSpan {
     /// Return the occupied bitmap as an image bitmap.
     pub(crate) fn occupied_snapshot(&self) -> Bitmap {
         let mut occupied = self.occupied.snapshot();
-        let dense_len = self.dense_len.load(Ordering::Relaxed);
+        let dense_len = self.dense_len.load(Ordering::Acquire);
 
         // dense-span slots are live but not represented in the occupied bitmap
         for slot_index in 0..dense_len {
@@ -422,7 +377,7 @@ impl SmallSpan {
 
     /// Return the next free slot from a start offset.
     fn next_free_slot(&self, start: usize) -> usize {
-        let start = start.max(self.dense_len.load(Ordering::Relaxed));
+        let start = start.max(self.dense_len.load(Ordering::Acquire));
 
         self.reserved
             .first_clear_from(start)
@@ -467,7 +422,7 @@ impl SmallSpan {
 
     /// Write local reference offsets into exact slot bits.
     fn write_local_reference_offsets(&self, slot_index: usize, trace_map: &TraceMap) {
-        visit_untagged_reference_offsets::<HeapReference>(
+        visit_static_reference_offsets::<HeapReference>(
             trace_map,
             ReferenceRange::All,
             &mut |offset| self.set_local_reference_bit(slot_index, offset),
@@ -476,7 +431,7 @@ impl SmallSpan {
 
     /// Write shared reference offsets into exact slot bits.
     fn write_shared_reference_offsets(&self, slot_index: usize, trace_map: &TraceMap) {
-        visit_untagged_reference_offsets::<SharedHeapReference>(
+        visit_static_reference_offsets::<SharedHeapReference>(
             trace_map,
             ReferenceRange::All,
             &mut |offset| self.set_shared_reference_bit(slot_index, offset),
@@ -534,8 +489,6 @@ pub(crate) enum SpanList {
     Worker,
     /// No block list because the span has no free slots.
     Full,
-    /// No block list because the span has no mapped pages.
-    Released,
 }
 
 /// One atomic span-list value.
@@ -571,7 +524,6 @@ impl SpanList {
             Self::Central => 0,
             Self::Worker => 1,
             Self::Full => 2,
-            Self::Released => 3,
         }
     }
 
@@ -581,7 +533,6 @@ impl SpanList {
             0 => Self::Central,
             1 => Self::Worker,
             2 => Self::Full,
-            3 => Self::Released,
             _ => unreachable!("invalid shared small-span list byte: {bits}"),
         }
     }

@@ -1,4 +1,5 @@
 use std::hint::black_box;
+use std::sync::Arc;
 
 use criterion::{BatchSize, Criterion, Throughput};
 use destack_heap::{Heap, HeapReference, TraceView};
@@ -50,7 +51,7 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
                 let graph = object_graph.allocate_shared(
                     &shared_worker.heap,
                     &shared_worker.worker,
-                    &mut shared_worker.allocator,
+                    &mut shared_worker.cache,
                 );
 
                 black_box(graph.records)
@@ -80,7 +81,7 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
                 let array = reference_array.allocate_shared(
                     &shared_worker.heap,
                     &shared_worker.worker,
-                    &mut shared_worker.allocator,
+                    &mut shared_worker.cache,
                 );
 
                 black_box((array.reference, array.trace_table.trace_count()))
@@ -93,10 +94,17 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
     group.bench_function("local_fork_mutate_records", |bencher| {
         bencher.iter_batched(
             || object_graph.local_heap(),
-            |(mut heap, graph)| {
+            |(memory, mut heap, graph)| {
                 let trace_table = &graph.trace_table;
                 let trace_view = trace_table.view();
-                let mut fork = heap.fork(trace_view).expect("heap fork should succeed");
+                let fork_memory = Arc::new(
+                    memory
+                        .fork_lazy()
+                        .expect("benchmark memory map should fork"),
+                );
+                let mut fork = heap
+                    .fork(fork_memory, trace_view)
+                    .expect("heap fork should succeed");
 
                 for (index, reference) in graph.records.iter().take(WORKLOAD_MUTATIONS).enumerate()
                 {

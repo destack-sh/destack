@@ -1,11 +1,14 @@
+use std::sync::Arc;
+
 use destack_heap::{
-    AllocationCache, AllocationPlan, AllocationShape, Heap, HeapReference, SharedHeap,
-    SharedHeapReference, SharedMarkWorker,
+    AllocationCache, AllocationPlan, AllocationShape, Heap, HeapLimits, HeapOptions, HeapReference,
+    SharedHeap, SharedHeapReference, SharedMarkWorker,
 };
+use destack_memory::MemoryMap;
 use destack_mir::TraceMap;
 
 use crate::config::{LEAF_BYTES, RECORD_BYTES, REFERENCE_BYTES, WORKLOAD_OBJECTS};
-use crate::heap::local_heap;
+use crate::heap::local_memory;
 use crate::trace::BenchTraceTable;
 
 /// One allocated object graph.
@@ -65,11 +68,13 @@ impl ObjectGraphWorkload {
     }
 
     /// Build one local heap with this workload ready to fork.
-    pub(crate) fn local_heap(self) -> (Heap, ObjectGraph<HeapReference>) {
-        let mut heap = local_heap();
+    pub(crate) fn local_heap(self) -> (Arc<MemoryMap>, Heap, ObjectGraph<HeapReference>) {
+        let memory = local_memory();
+        let mut heap = Heap::new(memory.clone(), HeapLimits::default(), HeapOptions::local())
+            .expect("heap should build");
         let graph = self.allocate_local(&mut heap);
 
-        (heap, graph)
+        (memory, heap, graph)
     }
 
     /// Allocate this workload in one local heap with a known trace map.

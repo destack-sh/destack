@@ -54,11 +54,7 @@ impl HeapStorage {
         }
 
         // mature large blocks
-        for block in self.large.blocks.iter() {
-            if !block.is_live {
-                continue;
-            }
-
+        for block in self.large.blocks.iter().flatten() {
             references.push(HeapReference::new(block.first_offset));
         }
 

@@ -1,11 +1,11 @@
 use std::mem::size_of;
 
-use destack_heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
+use destack_heap::DEFAULT_HEAP_PAGE_SIZE_BYTES;
 
 /// The virtual memory range reserved by memory map benchmarks.
 pub(crate) const SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
-/// The allocator page width used by heap benchmarks.
-pub(crate) const PAGE_SIZE_BYTES: usize = DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
+/// The memory page width used by heap benchmarks.
+pub(crate) const PAGE_SIZE_BYTES: usize = DEFAULT_HEAP_PAGE_SIZE_BYTES;
 /// The number of small allocations in one wrapper-path sample.
 pub(crate) const SMALL_ALLOCATIONS: usize = 1024;
 /// The representative small object payload width.

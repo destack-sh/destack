@@ -1,7 +1,7 @@
 mod access;
 mod allocate;
-mod allocator;
 mod block;
+mod cache;
 mod extent;
 mod image;
 mod map;
@@ -9,13 +9,10 @@ mod reference;
 mod span;
 mod storage;
 
-pub use allocator::AllocationCache;
-pub(crate) use allocator::*;
-pub(crate) use block::{LargeBlockImage, *};
+pub(crate) use block::*;
+pub use cache::*;
 pub(crate) use extent::*;
-pub(crate) use image::HeapStorageImage;
-pub use reference::SharedHeapReference;
-pub(crate) use span::{SmallSpanImage, *};
-pub(crate) use storage::{
-    HeapAccounting, HeapState, HeapStorage, LargeStorage, SmallStorage, small_slot_offset,
-};
+pub(crate) use image::*;
+pub use reference::*;
+pub(crate) use span::*;
+pub(crate) use storage::*;

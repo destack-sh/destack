@@ -10,7 +10,7 @@ pub struct HeapUsage {
     pub allocation_count: usize,
     /// The logical live heap payload bytes.
     pub allocated_bytes: u64,
-    /// The exact retained heap allocator-page bytes.
+    /// The exact retained heap memory-page bytes.
     pub retained_bytes: u64,
 }
 
@@ -20,7 +20,7 @@ impl HeapUsage {
         self.allocated_bytes
     }
 
-    /// Return the exact total retained allocator-page bytes.
+    /// Return the exact total retained memory-page bytes.
     pub fn retained_bytes(&self) -> u64 {
         self.retained_bytes
     }

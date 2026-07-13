@@ -4,8 +4,8 @@ mod limits;
 mod options;
 mod usage;
 
-pub use heap::Heap;
-pub use image::{HeapImage, HeapSnapshot};
-pub use limits::HeapLimits;
-pub use options::HeapOptions;
-pub use usage::HeapUsage;
+pub use heap::*;
+pub use image::*;
+pub use limits::*;
+pub use options::*;
+pub use usage::*;
