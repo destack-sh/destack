@@ -27,7 +27,11 @@ fn environment_offset(activation: &Activation<'_>) -> usize {
 /// Return the address of one function value word.
 #[inline]
 fn word_address(activation: &Activation<'_>, function_offset: u32, word_offset: usize) -> usize {
-    activation.frame_pointer_at(function_offset).address() + word_offset
+    let pointer = activation
+        .frame_pointer_at(function_offset)
+        .add_bytes(word_offset);
+
+    activation.memory_address(pointer.offset())
 }
 
 /// Store one function environment word into the function value.

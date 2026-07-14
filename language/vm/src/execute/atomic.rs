@@ -153,8 +153,8 @@ fn atomic_address(
             activation.shared_heap_address(pointer.as_shared_heap_reference(), 0)
         }
         AtomicAddress::Address => pointer.as_address(),
-        AtomicAddress::Stack => pointer.as_stack_pointer().address(),
-        AtomicAddress::Frame => pointer.as_frame_pointer().address(),
+        AtomicAddress::Stack => activation.memory_address(pointer.as_stack_pointer().offset()),
+        AtomicAddress::Frame => activation.memory_address(pointer.as_frame_pointer().offset()),
         AtomicAddress::Static => {
             activation.static_native_address(pointer.as_global_address(), width.byte_len())?
         }

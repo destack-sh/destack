@@ -47,7 +47,8 @@ macro_rules! packed_unary_executor {
 /// Read one packed frame vector.
 #[inline(always)]
 fn read_packed<T: Copy, const N: usize>(activation: &Activation<'_>, offset: u32) -> [T; N] {
-    let pointer = activation.frame_pointer_at(offset).address() as *const [T; N];
+    let pointer = activation.frame_pointer_at(offset);
+    let pointer = activation.memory_address(pointer.offset()) as *const [T; N];
 
     unsafe { std::ptr::read(pointer) }
 }
@@ -55,7 +56,8 @@ fn read_packed<T: Copy, const N: usize>(activation: &Activation<'_>, offset: u32
 /// Write one packed frame vector.
 #[inline(always)]
 fn write_packed<T, const N: usize>(activation: &mut Activation<'_>, offset: u32, value: [T; N]) {
-    let pointer = activation.frame_pointer_at(offset).address() as *mut [T; N];
+    let pointer = activation.frame_pointer_at(offset);
+    let pointer = activation.memory_address(pointer.offset()) as *mut [T; N];
 
     unsafe {
         std::ptr::write(pointer, value);
@@ -389,9 +391,12 @@ pub(crate) fn execute_packed_add_32x4(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // compute frame addresses for the SIMD kernel
-    let dest = activation.frame_pointer_at(instruction.a).address() as *mut u32;
-    let left = activation.frame_pointer_at(instruction.b).address() as *const u32;
-    let right = activation.frame_pointer_at(instruction.c).address() as *const u32;
+    let dest = activation.frame_pointer_at(instruction.a);
+    let left = activation.frame_pointer_at(instruction.b);
+    let right = activation.frame_pointer_at(instruction.c);
+    let dest = activation.memory_address(dest.offset()) as *mut u32;
+    let left = activation.memory_address(left.offset()) as *const u32;
+    let right = activation.memory_address(right.offset()) as *const u32;
 
     store_add_u32x4(dest, left, right);
 

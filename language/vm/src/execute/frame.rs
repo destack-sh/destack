@@ -78,7 +78,8 @@ pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
     let byte_offset = instruction.c as usize;
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
 
-    let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
+    let address = activation.memory_address(pointer.offset());
+    let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address);
     activation.store_cell_at(dest, value);
 
     Ok(())
@@ -95,7 +96,8 @@ pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SI
     let byte_offset = instruction.c as usize;
     let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
 
-    let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
+    let address = activation.memory_address(pointer.offset());
+    let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address);
     activation.store_cell_at(dest, value);
 
     Ok(())
@@ -114,7 +116,8 @@ pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
     let value = activation.load_cell_at(value);
 
-    access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
+    let address = activation.memory_address(pointer.offset());
+    access::store_scalar_at_address::<BYTE_LEN>(address, value);
 
     Ok(())
 }
@@ -132,7 +135,8 @@ pub(crate) fn execute_store_frame_value_scalar<const BYTE_LEN: usize>(
     let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
     let value = activation.load_cell_at(value);
 
-    access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
+    let address = activation.memory_address(pointer.offset());
+    access::store_scalar_at_address::<BYTE_LEN>(address, value);
 
     Ok(())
 }
@@ -248,6 +252,7 @@ fn store_argument_bytes(
 pub(crate) fn frame_value_from_cell(
     program: &Program,
     frames: &[Frame],
+    memory_base: usize,
     ty: TypeId,
     value: Cell,
 ) -> Result<FrameValue, Error> {
@@ -261,11 +266,11 @@ pub(crate) fn frame_value_from_cell(
     let pointer = value.as_frame_pointer();
     let frame = frames
         .iter()
-        .find(|frame| frame.owns_stack_range(pointer.address(), byte_len))
+        .find(|frame| frame.owns_stack_range(memory_base, pointer.offset(), byte_len))
         .ok_or(Error::invalid_space("frame", format!("{value:?}")))?;
     let start = pointer
-        .address()
-        .checked_sub(frame.base_address())
+        .offset()
+        .checked_sub(frame.memory_offset(memory_base))
         .ok_or(Error::invalid_space("frame", format!("{value:?}")))?;
     let end = start + byte_len;
     let bytes = frame

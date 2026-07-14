@@ -12,7 +12,7 @@ use destack_program::{
 
 /// Call frame in the VM machine.
 ///
-/// The byte address is owned by the page-backed VM stack.
+/// The byte address is owned by the world-mapped VM stack.
 #[derive(Debug)]
 pub struct Frame {
     /// Current function id.
@@ -23,8 +23,8 @@ pub struct Frame {
     pub(crate) block: u32,
     /// Program counter within the current block.
     pub(crate) pc: usize,
-    /// The caller frame state after one callee returns.
-    pub(crate) return_state: Option<FrameStateId>,
+    /// The pending invocation while one callee is active.
+    pub(crate) invocation: Option<Invocation>,
     /// The byte offset in the machine stack arena.
     pub(crate) stack_offset: usize,
     /// The frame byte width.
@@ -34,7 +34,37 @@ pub struct Frame {
 }
 
 // frame should fit in 64 bytes
-const _: () = assert!(std::mem::size_of::<Frame>() <= 64);
+const _: () = assert!(mem::size_of::<Frame>() <= 64);
+
+/// One pending invocation in a caller frame.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Invocation {
+    /// The suspended caller frame state.
+    pub(crate) frame_state: FrameStateId,
+    /// The normal continuation frame state.
+    pub(crate) normal_state: FrameStateId,
+    /// The unwind continuation frame state.
+    pub(crate) unwind_state: FrameStateId,
+}
+
+impl Invocation {
+    /// Create one invocation from durable optional states.
+    fn from_states(
+        frame_state: FrameStateId,
+        normal_state: Option<FrameStateId>,
+        unwind_state: Option<FrameStateId>,
+    ) -> RuntimeResult<Option<Self>> {
+        match (normal_state, unwind_state) {
+            (Some(normal_state), Some(unwind_state)) => Ok(Some(Self {
+                frame_state,
+                normal_state,
+                unwind_state,
+            })),
+            (None, None) => Ok(None),
+            _ => Err(RuntimeError::new(Error::invalid_continuation())),
+        }
+    }
+}
 
 impl Frame {
     /// Create a new frame for a function.
@@ -50,7 +80,7 @@ impl Frame {
             frame_layout: function.function.frame_layout,
             block,
             pc: 0,
-            return_state: None,
+            invocation: None,
             stack_offset,
             byte_len: layout.byte_len() as usize,
             base,
@@ -88,8 +118,8 @@ impl Frame {
 
     /// Return the resumable state for this frame's current position.
     pub(crate) fn state(&self, program: &Program) -> RuntimeResult<FrameStateId> {
-        if let Some(return_state) = self.return_state {
-            return Ok(return_state);
+        if let Some(invocation) = self.invocation {
+            return Ok(invocation.frame_state);
         }
 
         let point = self.point(program)?;
@@ -157,6 +187,12 @@ impl Frame {
     #[inline]
     pub(crate) fn base_address(&self) -> usize {
         self.base
+    }
+
+    /// Return the world memory offset of this frame's byte range.
+    #[inline]
+    pub(crate) const fn memory_offset(&self, memory_base: usize) -> usize {
+        self.base - memory_base
     }
 
     /// Return this frame's byte range.
@@ -239,8 +275,8 @@ impl Frame {
         &mut self.bytes_mut()[start..end]
     }
 
-    /// Return the address of one local value.
-    pub(crate) fn local_address(
+    /// Return the frame byte offset of one local value.
+    pub(crate) fn local_offset(
         &self,
         program: &Program,
         layout: &FrameLayout,
@@ -250,7 +286,7 @@ impl Frame {
             .frame_local_slot(layout, local.id)
             .ok_or(Error::undefined_local(local))?;
 
-        Ok(self.slot_address(slot))
+        Ok(slot.offset as usize)
     }
 
     /// Return the function environment for this frame.
@@ -291,12 +327,17 @@ impl Frame {
     }
 
     /// Return whether this frame owns one stack byte range.
-    pub(crate) fn owns_stack_range(&self, address: usize, byte_len: usize) -> bool {
-        let start = self.base_address();
-        let end = address + byte_len;
+    pub(crate) fn owns_stack_range(
+        &self,
+        memory_base: usize,
+        offset: usize,
+        byte_len: usize,
+    ) -> bool {
+        let start = self.memory_offset(memory_base);
+        let end = offset + byte_len;
         let stack_end = start + self.byte_len();
 
-        start <= address && end <= stack_end
+        start <= offset && end <= stack_end
     }
 
     /// Fork this frame over one already forked stack address.
@@ -306,7 +347,7 @@ impl Frame {
             frame_layout: self.frame_layout,
             block: self.block,
             pc: self.pc,
-            return_state: self.return_state,
+            invocation: self.invocation,
             stack_offset: self.stack_offset,
             byte_len: self.byte_len(),
             base,
@@ -319,7 +360,8 @@ impl Frame {
 
         Ok(FrameImage {
             frame_state,
-            return_state: self.return_state,
+            normal_state: self.invocation.map(|invocation| invocation.normal_state),
+            unwind_state: self.invocation.map(|invocation| invocation.unwind_state),
             stack_offset: self.stack_offset,
             byte_len: self.byte_len(),
         })
@@ -329,7 +371,6 @@ impl Frame {
     pub(crate) fn from_image(
         image: &FrameImage,
         program: &Program,
-        stack_offset: usize,
         base: usize,
     ) -> RuntimeResult<Self> {
         let point = program
@@ -344,13 +385,16 @@ impl Frame {
             return Err(RuntimeError::new(Error::invalid_instruction()));
         }
 
+        let invocation =
+            Invocation::from_states(image.frame_state, image.normal_state, image.unwind_state)?;
+
         Ok(Self {
             function,
             frame_layout,
             block,
             pc,
-            return_state: image.return_state,
-            stack_offset,
+            invocation,
+            stack_offset: image.stack_offset,
             byte_len: image.byte_len(),
             base,
         })
@@ -360,7 +404,6 @@ impl Frame {
     pub(crate) fn from_continuation_frame(
         frame: &ContinuationFrame,
         program: &Program,
-        stack_offset: usize,
         base: usize,
     ) -> RuntimeResult<Self> {
         let point = program
@@ -375,13 +418,16 @@ impl Frame {
             return Err(RuntimeError::new(Error::invalid_instruction()));
         }
 
+        let invocation =
+            Invocation::from_states(frame.frame_state, frame.normal_state, frame.unwind_state)?;
+
         Ok(Self {
             function,
             frame_layout,
             block,
             pc,
-            return_state: frame.return_state,
-            stack_offset,
+            invocation,
+            stack_offset: frame.stack_offset,
             byte_len: frame.byte_len(),
             base,
         })
@@ -445,7 +491,7 @@ impl Activation<'_> {
             .allocate_zeroed(byte_len, alignment)
             .map_err(|_| Error::stack_overflow())?;
 
-        self.stack_address(base, byte_len)
+        self.stack_offset(base, byte_len)
     }
 
     /// Allocate uninitialized bytes owned by the current frame.
@@ -460,20 +506,19 @@ impl Activation<'_> {
             .allocate_uninit(byte_len, alignment)
             .map_err(|_| Error::stack_overflow())?;
 
-        self.stack_address(base, byte_len)
+        self.stack_offset(base, byte_len)
     }
 
-    /// Return the checked address for one newly allocated stack range.
-    fn stack_address(&mut self, base: usize, byte_len: usize) -> Result<usize, Error> {
+    /// Return the world memory offset for one newly allocated stack range.
+    fn stack_offset(&mut self, base: usize, byte_len: usize) -> Result<usize, Error> {
         let end = self.machine.stack.len();
         self.active_frame_mut().extend_bytes_to(end);
-        let address = self
-            .machine
-            .stack
-            .address(base, byte_len)
-            .map_err(|_| Error::stack_overflow())?;
+        let end = base + byte_len;
+        if end > self.machine.stack.len() {
+            return Err(Error::stack_overflow());
+        }
 
-        Ok(address)
+        Ok(self.machine.stack.memory_offset(base))
     }
 
     /// Read one cell by frame byte offset.
@@ -485,9 +530,9 @@ impl Activation<'_> {
     /// Return one frame pointer by frame byte offset.
     #[inline(always)]
     pub(crate) fn frame_pointer_at(&self, offset: u32) -> FramePointer {
-        let address = self.frame_base + offset as usize;
+        let offset = self.frame_offset + offset as usize;
 
-        FramePointer::from_address(address)
+        FramePointer::from_offset(offset)
     }
 
     /// Borrow frame bytes at one byte offset.
@@ -525,6 +570,17 @@ impl Activation<'_> {
         // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe {
             ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
+        }
+    }
+
+    /// Zero frame bytes at one byte offset.
+    #[inline(always)]
+    pub(crate) fn zero_frame_bytes_at(&mut self, offset: u32, byte_len: usize) {
+        let address = self.frame_base + offset as usize;
+
+        // SAFETY: lowered frame offsets point inside the active frame layout
+        unsafe {
+            ptr::write_bytes(address as *mut u8, 0, byte_len);
         }
     }
 

@@ -277,12 +277,12 @@ impl Activation<'_> {
                 program::MemoryRange::address(start as u64, byte_len as u64)
             }
             program::CellLayout::StackPointer => {
-                let start = pointer.as_stack_pointer().address() + byte_offset;
+                let start = pointer.as_stack_pointer().offset() + byte_offset;
 
                 program::MemoryRange::stack(start as u64, byte_len as u64)
             }
             program::CellLayout::FramePointer => {
-                let start = pointer.as_frame_pointer().address() + byte_offset;
+                let start = pointer.as_frame_pointer().offset() + byte_offset;
 
                 program::MemoryRange::frame(start as u64, byte_len as u64)
             }
@@ -317,6 +317,6 @@ impl Activation<'_> {
         // frame values are addressed relative to the active frame
         let pointer = self.frame_pointer_at(base).add_bytes(byte_offset as usize);
 
-        program::MemoryRange::frame(pointer.address() as u64, byte_len as u64)
+        program::MemoryRange::frame(pointer.offset() as u64, byte_len as u64)
     }
 }

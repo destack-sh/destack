@@ -1,9 +1,10 @@
 use crate::tests::{
     assert_execution_completed, assert_execution_stopped, create_machine,
-    create_machine_with_target_layout, run_mir_expect, run_mir_ok, run_mir_with_frame_ok,
+    create_machine_with_target_layout, create_machine_with_variant_layout, run_mir_expect,
+    run_mir_ok, run_mir_with_frame_ok,
 };
 use destack_heap::{HeapReference, SharedHeap, SharedHeapReference};
-use destack_mir::{TargetLayout, TraceMap};
+use destack_mir::{DiscriminantField, TargetLayout, TraceMap, VariantEncoding};
 use destack_program::vm::Cell;
 use destack_program::{
     MemoryAccess, MemoryRange, MemoryStop, MemoryTarget, StopReason, Value, WatchSet, WatchpointId,
@@ -157,6 +158,111 @@ entry:
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
 }
 
+/// Direct variant layouts preserve logical discriminants and payload storage.
+#[test]
+fn test_direct_variant_aggregate() {
+    let mir = r#"
+type Choice = variant<uint8, uint64> { 0 = uint64; 1 = void; };
+
+function discriminant(): uint8 {
+entry:
+    v0: uint8 = 1
+    v1: uint64 = 42
+    v2: Choice = aggregate (v0, v1)
+    v3: uint8 = field.get v2, 0
+    return v3
+}
+
+function storage(): uint64 {
+entry:
+    v0: uint8 = 0
+    v1: uint64 = 42
+    v2: Choice = aggregate (v0, v1)
+    v3: uint64 = field.get v2, 1
+    return v3
+}
+"#;
+    let encoding = VariantEncoding::Direct {
+        field: DiscriminantField::scalar(4, 1),
+    };
+    let mut machine = create_machine_with_variant_layout(mir, encoding, &[8, 8], 16, 8);
+
+    assert_eq!(
+        machine
+            .run_function_by_name("discriminant", &[])
+            .expect("direct discriminant should execute"),
+        Value::uint8(1),
+    );
+    assert_eq!(
+        machine
+            .run_function_by_name("storage", &[])
+            .expect("direct storage should execute"),
+        Value::uint64(42),
+    );
+}
+
+/// Niche variant layouts recover logical cases from payload bits.
+#[test]
+fn test_niche_variant_aggregate() {
+    let mir = r#"
+type Choice = variant<uint8, uint64> { 0 = uint64; 1 = void; };
+
+function untagged(): uint8 {
+entry:
+    v0: uint8 = 0
+    v1: uint64 = 42
+    v2: Choice = aggregate (v0, v1)
+    v3: uint8 = field.get v2, 0
+    return v3
+}
+
+function niche(): uint8 {
+entry:
+    v0: uint8 = 1
+    v1: uint64 = 42
+    v2: Choice = aggregate (v0, v1)
+    v3: uint8 = field.get v2, 0
+    return v3
+}
+
+function storage(): uint64 {
+entry:
+    v0: uint8 = 0
+    v1: uint64 = 42
+    v2: Choice = aggregate (v0, v1)
+    v3: uint64 = field.get v2, 1
+    return v3
+}
+"#;
+    let encoding = VariantEncoding::Niche {
+        field: DiscriminantField::scalar(0, 8),
+        untagged_case: 0,
+        niche_case_start: 1,
+        niche_case_end: 1,
+        niche_start: 0u128.into(),
+    };
+    let mut machine = create_machine_with_variant_layout(mir, encoding, &[0, 0], 8, 8);
+
+    assert_eq!(
+        machine
+            .run_function_by_name("untagged", &[])
+            .expect("untagged variant should execute"),
+        Value::uint8(0),
+    );
+    assert_eq!(
+        machine
+            .run_function_by_name("niche", &[])
+            .expect("niche variant should execute"),
+        Value::uint8(1),
+    );
+    assert_eq!(
+        machine
+            .run_function_by_name("storage", &[])
+            .expect("niche storage should execute"),
+        Value::uint64(42),
+    );
+}
+
 /// Watchpoints stop after a matching heap store.
 #[test]
 fn test_watchpoint_stops_at_heap_store() {
@@ -286,7 +392,7 @@ entry:
     let watch_points = WatchSet::new(vec![MemoryStop::new(
         watchpoint_id,
         MemoryAccess::Write,
-        MemoryTarget::Range(MemoryRange::local_heap(0, 1024 * 1024)),
+        MemoryTarget::Range(MemoryRange::local_heap(0, 16 * 1024 * 1024)),
     )]);
 
     let (continuation, reason) = assert_execution_stopped(machine.run_function_by_name_watched(
@@ -564,9 +670,9 @@ function getNested(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 20
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     v3: int32 = 30
-    v4: ((int32, int32), int32) = tuple ((int32, int32), int32) (v2, v3)
+    v4: ((int32, int32), int32) = aggregate (v2, v3)
     v5: (int32, int32) = field.get v4, 0
     v6: int32 = field.get v5, 1
     return v6
@@ -583,12 +689,12 @@ function setNested(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 20
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     v3: int32 = 30
-    v4: ((int32, int32), int32) = tuple ((int32, int32), int32) (v2, v3)
+    v4: ((int32, int32), int32) = aggregate (v2, v3)
     v5: int32 = 40
     v6: int32 = 50
-    v7: (int32, int32) = tuple (int32, int32) (v5, v6)
+    v7: (int32, int32) = aggregate (v5, v6)
     v8: ((int32, int32), int32) = field.set v4, 0, v7
     v9: (int32, int32) = field.get v8, 0
     v10: int32 = field.get v9, 1
@@ -598,13 +704,13 @@ entry:
     run_mir_expect(mir, "setNested", &[], Value::int32(50));
 }
 
-/// Field get reads from an array slot at a fixed index.
+/// Element get reads one fixed-array element.
 #[test]
-fn test_field_get_reads_array_element() {
+fn test_element_get_reads_array_element() {
     let mir = r#"
 function getElem(v0: [int32; 3]): int32 {
 entry(v0: [int32; 3]):
-    v1: int32 = field.get v0, 1
+    v1: int32 = element.get v0, 1
     return v1
 }
 "#;
@@ -621,17 +727,17 @@ entry(v0: [int32; 3]):
     assert_eq!(output, Value::int32(20));
 }
 
-/// Field get on one locally constructed array stays correct.
+/// Element get reads one locally constructed fixed-array element.
 #[test]
-fn test_field_get_reads_constructed_array() {
+fn test_element_get_reads_constructed_array() {
     let mir = r#"
 function getLocalElem(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 20
     v2: int32 = 30
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
-    v4: int32 = field.get v3, 2
+    v3: [int32; 3] = aggregate (v0, v1, v2)
+    v4: int32 = element.get v3, 2
     return v4
 }
 "#;
@@ -639,15 +745,15 @@ entry:
     run_mir_expect(mir, "getLocalElem", &[], Value::int32(30));
 }
 
-/// Field set returns one fresh array value instead of mutating the original.
+/// Element set returns one fresh array value instead of mutating the original.
 #[test]
-fn test_field_set_preserves_source_array() {
+fn test_element_set_preserves_source_array() {
     let mir = r#"
 function setWithoutAlias(v0: [int32; 3], v1: int32): int32 {
 entry(v0: [int32; 3], v1: int32):
-    v2: [int32; 3] = field.set v0, 1, v1
-    v3: int32 = field.get v0, 1
-    v4: int32 = field.get v2, 1
+    v2: [int32; 3] = element.set v0, 1, v1
+    v3: int32 = element.get v0, 1
+    v4: int32 = element.get v2, 1
     v5: int32 = int.add v3, v4
     return v5
 }
@@ -665,14 +771,14 @@ entry(v0: [int32; 3], v1: int32):
     assert_eq!(output, Value::int32(119));
 }
 
-/// Field set creates a new array with one slot replaced.
+/// Element set creates a new fixed array with one element replaced.
 #[test]
-fn test_field_set_replaces_array_element() {
+fn test_element_set_replaces_array_element() {
     let mir = r#"
 function setAndGet(v0: [int32; 3], v1: int32): int32 {
 entry(v0: [int32; 3], v1: int32):
-    v2: [int32; 3] = field.set v0, 1, v1
-    v3: int32 = field.get v2, 1
+    v2: [int32; 3] = element.set v0, 1, v1
+    v3: int32 = element.get v2, 1
     return v3
 }
 "#;
@@ -687,19 +793,19 @@ entry(v0: [int32; 3], v1: int32):
     assert_eq!(output, Value::int32(99));
 }
 
-/// Field set on one locally constructed array stays correct.
+/// Element set updates one locally constructed fixed array.
 #[test]
-fn test_field_set_replaces_constructed_array_element() {
+fn test_element_set_replaces_constructed_array_element() {
     let mir = r#"
 function setLocalAndGet(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 10
     v2: int32 = 20
     v3: int32 = 30
-    v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
-    v5: [int32; 3] = field.set v4, 1, v0
-    v6: int32 = field.get v4, 1
-    v7: int32 = field.get v5, 1
+    v4: [int32; 3] = aggregate (v1, v2, v3)
+    v5: [int32; 3] = element.set v4, 1, v0
+    v6: int32 = element.get v4, 1
+    v7: int32 = element.get v5, 1
     v8: int32 = int.add v6, v7
     return v8
 }
@@ -713,20 +819,20 @@ entry(v0: int32):
     );
 }
 
-/// Field get copies nested array-slot aggregate values.
+/// Element get copies nested aggregate elements from fixed arrays.
 #[test]
-fn test_field_get_copies_nested_array_slot_aggregate() {
+fn test_element_get_copies_nested_aggregate() {
     let mir = r#"
 function getNested(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 20
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     v3: int32 = 30
     v4: int32 = 40
-    v5: (int32, int32) = tuple (int32, int32) (v3, v4)
-    v6: [(int32, int32); 2] = array [(int32, int32); 2] (v2, v5)
-    v7: (int32, int32) = field.get v6, 1
+    v5: (int32, int32) = aggregate (v3, v4)
+    v6: [(int32, int32); 2] = aggregate (v2, v5)
+    v7: (int32, int32) = element.get v6, 1
     v8: int32 = field.get v7, 0
     return v8
 }
@@ -734,24 +840,24 @@ entry:
     run_mir_expect(mir, "getNested", &[], Value::int32(30));
 }
 
-/// Field set copies nested array-slot aggregate values.
+/// Element set copies nested aggregate elements in fixed arrays.
 #[test]
-fn test_field_set_copies_nested_array_slot_aggregate() {
+fn test_element_set_copies_nested_aggregate() {
     let mir = r#"
 function setNested(): int32 {
 entry:
     v0: int32 = 10
     v1: int32 = 20
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
+    v2: (int32, int32) = aggregate (v0, v1)
     v3: int32 = 30
     v4: int32 = 40
-    v5: (int32, int32) = tuple (int32, int32) (v3, v4)
-    v6: [(int32, int32); 2] = array [(int32, int32); 2] (v2, v5)
+    v5: (int32, int32) = aggregate (v3, v4)
+    v6: [(int32, int32); 2] = aggregate (v2, v5)
     v7: int32 = 50
     v8: int32 = 60
-    v9: (int32, int32) = tuple (int32, int32) (v7, v8)
-    v10: [(int32, int32); 2] = field.set v6, 1, v9
-    v11: (int32, int32) = field.get v10, 1
+    v9: (int32, int32) = aggregate (v7, v8)
+    v10: [(int32, int32); 2] = element.set v6, 1, v9
+    v11: (int32, int32) = element.get v10, 1
     v12: int32 = field.get v11, 1
     return v12
 }
@@ -803,7 +909,7 @@ type Box {
 
 function readBox(v0: int32): int32 {
 entry(v0: int32):
-    v1: Box = struct Box (v0)
+    v1: Box = aggregate (v0)
     v2: int32 = field.get v1, 0
     return v2
 }
@@ -853,7 +959,7 @@ type Box {
 
 function makeBox(v0: int32): ref<Box, managed, readonly> {
 entry(v0: int32):
-    v1: Box = struct Box (v0)
+    v1: Box = aggregate (v0)
     v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     return v2
@@ -930,13 +1036,13 @@ entry:
     let Value::HeapReference(slice) = output else {
         panic!("expected heap slice value, got {output:?}");
     };
-    let bytes = read_heap_bytes(&machine.heap, slice, 2 * HeapReference::BYTE_LEN);
-    let reference = decode_heap_reference(&bytes, 0);
+    let descriptor = read_heap_bytes(&machine.heap, slice, 2 * HeapReference::BYTE_LEN);
+    let backing = decode_heap_reference(&descriptor, 0);
 
     assert_eq!(
         machine
             .heap
-            .trace_map(reference, machine.machine.trace_view()),
+            .trace_map(backing, machine.machine.trace_view()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
@@ -958,7 +1064,7 @@ entry:
     v0: ref<int32, managed, readonly> = new.zeroed int32
     v1: int32 = 41
     store v0, v1
-    v2: Holder = struct Holder (v0)
+    v2: Holder = aggregate (v0)
     v3: ref<Holder, managed, readonly> = new.zeroed Holder
     store v3, v2
     v4: ref<ref<int32, managed, readonly>, managed, readonly> = field.address v3, 0

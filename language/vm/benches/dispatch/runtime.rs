@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use destack_compiler::ProgramLinker;
 use destack_heap::{
-    AllocationCache, Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
-    SharedHeapOptions, SharedMarkWorker,
+    AllocationCache, DEFAULT_MEMORY_MAP_SIZE_BYTES, Heap, HeapLimits, HeapOptions, SharedHeap,
+    SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
 };
+use destack_memory::MemoryMap;
 use destack_mir as mir;
 use destack_program::{FunctionId, StaticSpace, Value};
 use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
@@ -13,6 +14,8 @@ use mir::parse::{ParseOptions, Parser};
 
 /// Runtime state needed to call one benchmark entry.
 pub(crate) struct Runtime {
+    /// The world memory map.
+    memory: Arc<MemoryMap>,
     /// The machine under measurement.
     machine: Machine,
     /// The worker-local static byte space.
@@ -37,7 +40,7 @@ impl Runtime {
         // parse the benchmark program
         let file_id = FileId::from_source_bytes(program.as_bytes());
         let parsed = Parser::parse(file_id, program, ParseOptions::default());
-        let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+        let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
             parsed.into_parts();
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
             panic!("benchmark MIR should parse");
@@ -45,12 +48,6 @@ impl Runtime {
 
         // build runtime memory
         let options = MachineOptions::unbounded();
-        let mut local_static = StaticSpace::empty();
-        let mut shared_static = StaticSpace::empty();
-        let heap = heap();
-        let shared = shared_heap();
-        let shared_mark_worker = shared.register_mark_worker();
-        let shared_cache = shared.allocation_cache();
 
         // build the VM machine
         let program = ProgramLinker::new(
@@ -60,18 +57,31 @@ impl Runtime {
             types,
             layouts,
             dispatch,
+            drops,
             strings,
             options.heap.clone(),
             options.shared_heap.clone(),
         )
         .build()
         .expect("benchmark program should link");
+        let program = Arc::new(program);
+        let memory = memory(options.heap.page_size_bytes);
+        let local_static = program
+            .materialize_local_statics(memory.clone())
+            .expect("benchmark local statics should build");
+        let shared_static = program
+            .materialize_shared_statics(memory.clone())
+            .expect("benchmark shared statics should build");
+        let heap = heap(memory.clone());
+        let shared = shared_heap(memory.clone());
+        let shared_mark_worker = shared.register_mark_worker();
+        let shared_cache = shared.allocation_cache();
         let mut machine =
-            Machine::new(Arc::new(program), options).expect("benchmark machine should build");
+            Machine::new(program, memory.clone(), options).expect("benchmark machine should build");
 
-        // initialize program statics
+        // validate machine heap compatibility
         machine
-            .initialize(&heap, &shared, &mut local_static, &mut shared_static)
+            .require_heap_compatibility(&heap, &shared)
             .expect("benchmark machine should initialize");
 
         // resolve the entry once
@@ -80,6 +90,7 @@ impl Runtime {
             .expect("benchmark entry should exist");
 
         Self {
+            memory,
             machine,
             local_static,
             shared_static,
@@ -108,6 +119,9 @@ impl Runtime {
                 &self.shared,
                 &mut self.shared_cache,
                 &self.shared_mark_worker,
+                None,
+                None,
+                None,
                 entry,
                 arguments,
             )
@@ -124,9 +138,14 @@ impl Runtime {
     /// Fork the benchmark heap with the machine trace table.
     pub(crate) fn fork_heap(&mut self) -> Heap {
         let trace_view = self.machine.trace_view();
+        let memory = Arc::new(
+            self.memory
+                .fork_lazy()
+                .expect("benchmark memory map should fork"),
+        );
 
         self.heap
-            .fork(trace_view)
+            .fork(memory, trace_view)
             .expect("benchmark heap should fork")
     }
 }
@@ -137,25 +156,24 @@ fn benchmark_package_id() -> PackageId {
 }
 
 /// Create one worker heap for benchmark execution.
-fn heap() -> Heap {
+fn heap(memory: Arc<MemoryMap>) -> Heap {
     let options = HeapOptions::local();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("benchmark allocator should build"),
-    );
 
-    Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
-        .expect("benchmark heap should build")
+    Heap::new(memory, HeapLimits::default(), options).expect("benchmark heap should build")
 }
 
 /// Create one shared heap for benchmark execution.
-fn shared_heap() -> SharedHeap {
+fn shared_heap(memory: Arc<MemoryMap>) -> SharedHeap {
     let options = SharedHeapOptions::default();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("benchmark shared page allocator should build"),
-    );
 
-    SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
+    SharedHeap::new(memory, SharedHeapLimits::default(), options)
         .expect("benchmark shared heap should build")
+}
+
+/// Reserve one world memory map for benchmark execution.
+fn memory(page_size_bytes: usize) -> Arc<MemoryMap> {
+    Arc::new(
+        MemoryMap::reserve(DEFAULT_MEMORY_MAP_SIZE_BYTES, page_size_bytes)
+            .expect("benchmark memory map should reserve"),
+    )
 }

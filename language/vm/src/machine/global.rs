@@ -82,10 +82,12 @@ impl Activation<'_> {
             GlobalLocation::LocalStatic => self
                 .local_statics_mut()
                 .native_address_mut(&global, address, byte_len)
+                .map_err(Error::from)?
                 .ok_or(Error::invalid_instruction()),
             GlobalLocation::SharedStatic => self
                 .shared_statics_mut()
                 .native_address_mut(&global, address, byte_len)
+                .map_err(Error::from)?
                 .ok_or(Error::invalid_instruction()),
             GlobalLocation::Constant => Err(Error::immutable_global_write(address.global())),
         }

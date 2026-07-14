@@ -37,6 +37,8 @@ pub(crate) struct Activation<'run> {
     pub(crate) frame_index: usize,
     /// Native address of the active frame bytes.
     pub(crate) frame_base: usize,
+    /// World memory offset of the active frame bytes.
+    pub(crate) frame_offset: usize,
     /// Active frame layout.
     pub(crate) frame_layout: program::FrameLayoutId,
 }
@@ -72,6 +74,7 @@ impl<'run> Activation<'run> {
             resume_skip,
             frame_index: 0,
             frame_base: 0,
+            frame_offset: 0,
             frame_layout: 0.into(),
         }
     }
@@ -100,6 +103,7 @@ impl<'run> Activation<'run> {
             .get(frame_index)
             .ok_or(Error::invalid_instruction())?;
         let frame_base = frame.base_address();
+        let frame_offset = self.machine.stack.memory_offset(frame.stack_offset);
         let frame_layout = frame.frame_layout();
         let _frame_layout = self
             .program
@@ -108,9 +112,16 @@ impl<'run> Activation<'run> {
 
         self.frame_index = frame_index;
         self.frame_base = frame_base;
+        self.frame_offset = frame_offset;
         self.frame_layout = frame_layout;
 
         Ok(())
+    }
+
+    /// Return the native address for one world memory offset.
+    #[inline(always)]
+    pub(crate) fn memory_address(&self, offset: usize) -> usize {
+        self.machine.stack.memory_base_address() + offset
     }
 
     /// Return the executable point at one lowered instruction coordinate.

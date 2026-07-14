@@ -1,7 +1,10 @@
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
 use super::{DiagnosticAnchor, Error, StackTraceFrame};
 
 /// A runtime error with call stack and location information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RuntimeError {
     /// The underlying error.
     pub error: Error,

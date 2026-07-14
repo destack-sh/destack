@@ -65,7 +65,8 @@ fn store_scalar_value(
     match value {
         ScalarResult::Cell(value) => activation.store_cell_at(dest, value),
         ScalarResult::Bytes(bytes) => {
-            let dest = activation.frame_pointer_at(dest).address() as *mut u8;
+            let pointer = activation.frame_pointer_at(dest);
+            let dest = activation.memory_address(pointer.offset()) as *mut u8;
             unsafe {
                 std::ptr::copy_nonoverlapping(bytes.as_ptr(), dest, bytes.len());
             }
@@ -88,7 +89,8 @@ fn wide_integer_byte_len(layout: ScalarFormat) -> usize {
 /// Return frame bytes at one lowered frame offset.
 #[inline(always)]
 fn frame_bytes_at<'a>(activation: &'a Activation<'_>, offset: u32, byte_len: usize) -> &'a [u8] {
-    let address = activation.frame_pointer_at(offset).address() as *const u8;
+    let pointer = activation.frame_pointer_at(offset);
+    let address = activation.memory_address(pointer.offset()) as *const u8;
 
     unsafe { std::slice::from_raw_parts(address, byte_len) }
 }
@@ -194,7 +196,8 @@ pub(crate) fn execute_load_const_aggregate(
 
     // copy aggregate payload
     let bytes = activation.constant_bytes(value);
-    let dest = activation.frame_pointer_at(dest).address() as *mut u8;
+    let pointer = activation.frame_pointer_at(dest);
+    let dest = activation.memory_address(pointer.offset()) as *mut u8;
     unsafe {
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), dest, bytes.len());
     }
@@ -1249,7 +1252,8 @@ fn execute_wide_unary(
     // load source bytes
     let arg_bytes = frame_bytes_at(activation, arg, byte_len);
     let result = operation(layout, arg_bytes)?;
-    let dest = activation.frame_pointer_at(dest).address() as *mut u8;
+    let pointer = activation.frame_pointer_at(dest);
+    let dest = activation.memory_address(pointer.offset()) as *mut u8;
     unsafe {
         std::ptr::copy_nonoverlapping(result.as_ptr(), dest, result.len());
     }

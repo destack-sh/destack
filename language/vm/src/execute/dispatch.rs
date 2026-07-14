@@ -166,6 +166,27 @@ macro_rules! dispatch_instruction {
             Op::FunctionEnvironmentCurrent => {
                 $step!({ super::execute_function_environment_current($activation, instruction) })
             }
+            Op::DynamicBind => {
+                $step!(super::execute_dynamic_bind($activation, instruction))
+            }
+            Op::DynamicPayload => {
+                $step!(super::execute_dynamic_payload($activation, instruction))
+            }
+            Op::DynamicType => {
+                $step!(super::execute_dynamic_type($activation, instruction))
+            }
+            Op::VariantConstruct => {
+                $step!(super::execute_variant_construct($activation, instruction))
+            }
+            Op::VariantDiscriminant => {
+                $step!(super::execute_variant_discriminant(
+                    $activation,
+                    instruction
+                ))
+            }
+            Op::VariantStorage => {
+                $step!(super::execute_variant_storage($activation, instruction))
+            }
             Op::LoadHeapU8 => $step!(super::execute_load_heap_scalar::<1, false>(
                 $activation,
                 instruction
@@ -1037,8 +1058,16 @@ macro_rules! dispatch_instruction {
             }
             Op::CastWideInt => $step!(super::execute_cast_wide_int($activation, instruction)),
             Op::CastTensorView => $step!(super::execute_tensor_view_cast($activation, instruction)),
-            Op::Call => $transfer!(super::execute_call($activation, instruction, $block_pc)),
-            Op::CallBranch => $transfer!(super::execute_call_branch($activation, instruction)),
+            Op::DropDynamic => {
+                $step!(super::execute_drop_dynamic($activation, instruction))
+            }
+            Op::Drop => {
+                $transfer!(super::execute_drop($activation, instruction, $block_pc))
+            }
+            Op::Call => {
+                $transfer!(super::execute_call($activation, instruction, $block_pc))
+            }
+            Op::Invoke => $transfer!(super::execute_invoke($activation, instruction)),
             Op::CallFunctionPointer => {
                 $transfer!(super::execute_call_function_pointer(
                     $activation,
@@ -1053,17 +1082,14 @@ macro_rules! dispatch_instruction {
                     $block_pc
                 ))
             }
-            Op::CallFunctionPointerBranch => {
-                $transfer!(super::execute_call_function_pointer_branch(
+            Op::InvokeFunctionPointer => {
+                $transfer!(super::execute_invoke_function_pointer(
                     $activation,
                     instruction
                 ))
             }
-            Op::CallFunctionBranch => {
-                $transfer!(super::execute_call_function_branch(
-                    $activation,
-                    instruction
-                ))
+            Op::InvokeFunction => {
+                $transfer!(super::execute_invoke_function($activation, instruction))
             }
             Op::CallVirtualLocal => $transfer!(super::execute_call_virtual_local(
                 $activation,
@@ -1073,37 +1099,25 @@ macro_rules! dispatch_instruction {
             Op::CallVirtualShared => $transfer!({
                 super::execute_call_virtual_shared($activation, instruction, $block_pc)
             }),
-            Op::CallVirtualLocalBranch => {
-                $transfer!(super::execute_call_virtual_local_branch(
+            Op::InvokeVirtualLocal => {
+                $transfer!(super::execute_invoke_virtual_local(
                     $activation,
                     instruction
                 ))
             }
-            Op::CallVirtualSharedBranch => {
-                $transfer!(super::execute_call_virtual_shared_branch(
+            Op::InvokeVirtualShared => {
+                $transfer!(super::execute_invoke_virtual_shared(
                     $activation,
                     instruction
                 ))
             }
-            Op::CallDynamicLocal => $transfer!(super::execute_call_dynamic_local(
+            Op::CallDynamic => $transfer!(super::execute_call_dynamic(
                 $activation,
                 instruction,
                 $block_pc
             )),
-            Op::CallDynamicShared => $transfer!({
-                super::execute_call_dynamic_shared($activation, instruction, $block_pc)
-            }),
-            Op::CallDynamicLocalBranch => {
-                $transfer!(super::execute_call_dynamic_local_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::CallDynamicSharedBranch => {
-                $transfer!(super::execute_call_dynamic_shared_branch(
-                    $activation,
-                    instruction
-                ))
+            Op::InvokeDynamic => {
+                $transfer!(super::execute_invoke_dynamic($activation, instruction))
             }
             Op::TailCall => $transfer!(super::execute_tail_call($activation, instruction)),
             Op::TailCallSelf => $transfer!(super::execute_tail_call_self($activation, instruction)),
@@ -1128,17 +1142,8 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::TailCallDynamicLocal => {
-                $transfer!(super::execute_tail_call_dynamic_local(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::TailCallDynamicShared => {
-                $transfer!(super::execute_tail_call_dynamic_shared(
-                    $activation,
-                    instruction
-                ))
+            Op::TailCallDynamic => {
+                $transfer!(super::execute_tail_call_dynamic($activation, instruction))
             }
             Op::Jump => $transfer!(super::execute_jump($activation, instruction)),
             Op::BranchBool => $transfer!(super::execute_branch_bool($activation, instruction)),
@@ -1270,8 +1275,10 @@ macro_rules! dispatch_instruction {
                 $step!(super::execute_tensor_transpose($activation, instruction))
             }
             Op::TensorView => $step!(super::execute_tensor_view($activation, instruction)),
-            Op::Panic | Op::PanicValue | Op::UnwindResume => {
-                $transfer!(super::execute_panic($activation, instruction))
+            Op::Panic => $transfer!(super::execute_panic($activation, instruction)),
+            Op::PanicValue => $transfer!(super::execute_panic_value($activation, instruction)),
+            Op::UnwindResume => {
+                $transfer!(super::execute_unwind_resume($activation, instruction))
             }
             Op::Unreachable => $transfer!(super::execute_unreachable($activation, instruction)),
             Op::VectorConvert => $step!(super::execute_vector_convert($activation, instruction)),

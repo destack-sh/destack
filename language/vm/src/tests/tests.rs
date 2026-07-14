@@ -2,19 +2,24 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
 use destack_compiler::ProgramLinker;
-use destack_core::{SectionDirectory, SectionImage, SectionPacker, SectionStorage};
+use destack_core::{SectionDirectory, SectionImage, SectionPacker, SectionStorage, StringPool};
 use destack_heap::{
-    AllocationCache, AllocationPlan, AllocationShape, Allocator, GcStats, Heap, HeapLimits,
+    AllocationCache, AllocationPlan, AllocationShape, GcStats, Heap, HeapError, HeapLimits,
     HeapOptions, HeapReference, SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
     TraceTable, TraceView,
 };
-use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, Type};
+use destack_memory::MemoryMap;
+use destack_mir as mir;
 use destack_program::{
     Layout, LayoutShape, Profile, ProfileOptions, Program, StaticSpace, StopReason, TypeId, Value,
     WatchSet,
 };
 use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
+use mir::parse::{ParseOptions, Parser};
+use mir::{
+    DropTable, LocalNodeId, TargetLayout, TensorDimension, TraceMap, Type, VariantCaseLayout,
+    VariantEncoding, VariantLayout,
+};
 
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::{Continuation, Machine, MachineOptions, Outcome};
@@ -44,7 +49,7 @@ impl TestTraceTable {
     /// Build one empty section-backed trace table.
     fn new() -> Self {
         let mut sections = SectionPacker::new();
-        let traces = TraceTable::pack(&mut sections, &destack_mir::TraceTable::new());
+        let traces = TraceTable::pack(&mut sections, &mir::TraceTable::new());
         let (sections, storage) = sections.finish();
 
         Self {
@@ -66,7 +71,7 @@ impl TestTraceTable {
 /// The machine and authoritative heap used by one test runtime.
 pub(crate) struct TestMachine {
     /// The MIR tree used to build this fixture.
-    pub tree: destack_mir::Tree,
+    pub tree: mir::Tree,
     /// Program type ids keyed by MIR type id.
     type_ids: HashMap<LocalNodeId<Type>, TypeId>,
     /// MIR type ids keyed by program type id.
@@ -87,28 +92,103 @@ pub(crate) struct TestMachine {
     pub shared_cache: AllocationCache,
 }
 
-/// Create one local test heap.
-pub(crate) fn create_test_heap() -> Heap {
-    let options = test_local_heap_options();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("test allocator should build"),
-    );
-
-    Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
-        .expect("test heap should build")
+/// Create one world memory map for VM tests.
+pub(crate) fn create_test_memory() -> Arc<MemoryMap> {
+    Arc::new(
+        MemoryMap::reserve(
+            TEST_LOCAL_SPACE_SIZE_BYTES,
+            test_local_heap_options().page_size_bytes,
+        )
+        .expect("test memory should build"),
+    )
 }
 
-/// Create one shared test heap.
-pub(crate) fn create_test_shared_heap() -> SharedHeap {
+/// Create one local test heap in world memory.
+pub(crate) fn create_test_heap(memory: Arc<MemoryMap>) -> Heap {
+    let options = test_local_heap_options();
+
+    Heap::new(memory, HeapLimits::default(), options).expect("test heap should build")
+}
+
+/// Create one shared test heap in world memory.
+pub(crate) fn create_test_shared_heap(memory: Arc<MemoryMap>) -> SharedHeap {
     let options = test_shared_heap_options();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("test allocator should build"),
+
+    SharedHeap::new(memory, SharedHeapLimits::default(), options)
+        .expect("test shared heap should build")
+}
+
+/// Create one test machine with one explicit physical variant layout.
+pub(crate) fn create_machine_with_variant_layout(
+    mir_text: &str,
+    encoding: VariantEncoding,
+    payload_offsets: &[u32],
+    size: u32,
+    alignment: u32,
+) -> TestMachine {
+    let (tree, target_layout, types, mut layouts, dispatch, drops, strings) =
+        parse_test_mir(mir_text, ParseOptions::default());
+    let variants = tree
+        .iter_nodes::<Type>()
+        .filter_map(|(ty, value)| match value {
+            Type::Variant { .. } => Some((ty, value.clone())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        !variants.is_empty(),
+        "test input should contain a variant type"
     );
 
-    SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
-        .expect("test shared heap should build")
+    // attach the explicit representation to every parsed occurrence
+    for (variant_type, variant) in variants {
+        let Type::Variant {
+            discriminant,
+            storage,
+            cases,
+            ..
+        } = variant
+        else {
+            unreachable!();
+        };
+        assert_eq!(cases.len(), payload_offsets.len());
+        let cases = cases
+            .iter()
+            .zip(payload_offsets)
+            .map(|(case, payload_offset)| VariantCaseLayout {
+                discriminant: match case.discriminant {
+                    mir::Constant::Int { value, .. } => (value as u128).into(),
+                    mir::Constant::UInt { value, .. } => value.into(),
+                    _ => panic!("variant test discriminants should be integer"),
+                },
+                ty: case.ty,
+                payload_offset: *payload_offset,
+            })
+            .collect();
+        let layout = mir::Layout {
+            shape: mir::LayoutShape::Variant(VariantLayout {
+                discriminant,
+                storage,
+                encoding,
+                cases,
+            }),
+            size,
+            alignment,
+            trace_map: TraceMap::empty(),
+        };
+        let layout_id = layouts.insert(layout);
+        layouts.set_layout_id(variant_type, layout_id);
+    }
+
+    TestMachine::build(
+        tree,
+        target_layout,
+        types,
+        layouts,
+        dispatch,
+        drops,
+        strings,
+    )
 }
 
 /// Build one explicit local heap allocation plan for VM tests.
@@ -144,18 +224,12 @@ pub(crate) fn allocate_local_bytes(
 
 /// Create heap options for ordinary local VM tests.
 fn test_local_heap_options() -> HeapOptions {
-    HeapOptions {
-        memory_map_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
-        ..HeapOptions::local()
-    }
+    HeapOptions::local()
 }
 
 /// Create heap options for ordinary shared VM tests.
 pub(crate) fn test_shared_heap_options() -> SharedHeapOptions {
-    SharedHeapOptions {
-        memory_map_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
-        ..SharedHeapOptions::default()
-    }
+    SharedHeapOptions::default()
 }
 
 /// Create machine options matching ordinary VM test heaps.
@@ -177,16 +251,17 @@ fn parse_test_mir(
     mir_text: &str,
     options: ParseOptions,
 ) -> (
-    destack_mir::Tree,
+    mir::Tree,
     TargetLayout,
-    destack_mir::TypeTable,
-    destack_mir::LayoutTable,
-    destack_mir::DispatchTable,
-    destack_core::StringPool,
+    mir::TypeTable,
+    mir::LayoutTable,
+    mir::DispatchTable,
+    DropTable,
+    StringPool,
 ) {
     let file_id = FileId::from_source_bytes(mir_text.as_bytes());
     let parsed = Parser::parse(file_id, mir_text, options);
-    let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+    let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
         parsed.into_parts();
 
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
@@ -198,17 +273,26 @@ fn parse_test_mir(
         panic!("failed to parse MIR: {diagnostic:?}");
     }
 
-    (tree, target_layout, types, layouts, dispatch, strings)
+    (
+        tree,
+        target_layout,
+        types,
+        layouts,
+        dispatch,
+        drops,
+        strings,
+    )
 }
 
 /// Build one executable program from MIR test input.
 fn build_test_program(
-    tree: destack_mir::Tree,
+    tree: mir::Tree,
     target_layout: TargetLayout,
-    types: destack_mir::TypeTable,
-    layouts: destack_mir::LayoutTable,
-    dispatch: destack_mir::DispatchTable,
-    strings: destack_core::StringPool,
+    types: mir::TypeTable,
+    layouts: mir::LayoutTable,
+    dispatch: mir::DispatchTable,
+    drops: DropTable,
+    strings: StringPool,
 ) -> Program {
     let options = test_machine_options();
 
@@ -219,6 +303,7 @@ fn build_test_program(
         types,
         layouts,
         dispatch,
+        drops,
         strings,
         options.heap,
         options.shared_heap,
@@ -228,9 +313,7 @@ fn build_test_program(
 }
 
 /// Assign test-local type id maps for one MIR tree.
-fn type_maps(
-    tree: &destack_mir::Tree,
-) -> (HashMap<LocalNodeId<Type>, TypeId>, Vec<LocalNodeId<Type>>) {
+fn type_maps(tree: &mir::Tree) -> (HashMap<LocalNodeId<Type>, TypeId>, Vec<LocalNodeId<Type>>) {
     let type_nodes = tree
         .iter_nodes::<Type>()
         .map(|(ty, _)| ty)
@@ -248,24 +331,116 @@ fn type_maps(
 impl TestMachine {
     /// Build one test machine from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
-        let (tree, target_layout, types, layouts, dispatch, strings) =
+        let (tree, target_layout, types, layouts, dispatch, drops, strings) =
             parse_test_mir(mir_text, ParseOptions::default());
+
+        Self::build(
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            strings,
+        )
+    }
+
+    /// Build one test machine with one dynamic method table.
+    pub(crate) fn dynamic(
+        mir_text: &str,
+        concrete_name: &str,
+        constraint_name: &str,
+        method_names: &[&str],
+    ) -> Self {
+        let (tree, target_layout, types, layouts, mut dispatch, drops, strings) =
+            parse_test_mir(mir_text, ParseOptions::default());
+
+        // resolve the concrete and constraint types by their MIR display names
+        let concrete = Self::named_type(&tree, &types, &strings, concrete_name);
+        let constraint = Self::named_type(&tree, &types, &strings, constraint_name);
+
+        // resolve dynamic methods in slot order
+        let mut entries = Vec::with_capacity(method_names.len());
+        for method_name in method_names {
+            let function = Self::named_function(&tree, &strings, method_name);
+            entries.push(mir::DynamicEntry::Function { function });
+        }
+        dispatch.insert_dynamic_table(mir::DynamicTable {
+            concrete,
+            constraint,
+            entries,
+        });
+
+        Self::build(
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            strings,
+        )
+    }
+
+    /// Build one test machine with one destructor.
+    pub(crate) fn with_drop(mir_text: &str, type_name: &str, function_name: &str) -> Self {
+        let (tree, target_layout, types, layouts, dispatch, mut drops, strings) =
+            parse_test_mir(mir_text, ParseOptions::default());
+        let ty = Self::named_type(&tree, &types, &strings, type_name);
+        let function = Self::named_function(&tree, &strings, function_name);
+        drops.set_destructor(ty, function);
+
+        Self::build(
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            strings,
+        )
+    }
+
+    /// Build one test machine from parsed MIR state.
+    fn build(
+        tree: mir::Tree,
+        target_layout: TargetLayout,
+        types: mir::TypeTable,
+        layouts: mir::LayoutTable,
+        dispatch: mir::DispatchTable,
+        drops: DropTable,
+        strings: StringPool,
+    ) -> Self {
         let (type_ids, type_nodes) = type_maps(&tree);
         let source_tree = tree.clone();
 
-        let program = build_test_program(tree, target_layout, types, layouts, dispatch, strings);
-        let mut machine = Machine::new(Arc::new(program), test_machine_options())
+        let program = build_test_program(
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            strings,
+        );
+        let memory = create_test_memory();
+        let program = Arc::new(program);
+        let local_static = program
+            .materialize_local_statics(memory.clone())
+            .expect("local test statics should build");
+        let shared_static = program
+            .materialize_shared_statics(memory.clone())
+            .expect("shared test statics should build");
+        let machine = Machine::new(program, memory.clone(), test_machine_options())
             .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
 
-        let mut local_static = StaticSpace::empty();
-        let mut shared_static = StaticSpace::empty();
-        let heap = create_test_heap();
-        let shared_heap = create_test_shared_heap();
+        let heap = create_test_heap(memory.clone());
+        let shared_heap = create_test_shared_heap(memory);
         let shared_mark_worker = shared_heap.register_mark_worker();
         let shared_cache = shared_heap.allocation_cache();
 
         machine
-            .initialize(&heap, &shared_heap, &mut local_static, &mut shared_static)
+            .require_heap_compatibility(&heap, &shared_heap)
             .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
         Self {
@@ -282,8 +457,39 @@ impl TestMachine {
         }
     }
 
+    /// Return one MIR type by its display name.
+    fn named_type(
+        tree: &mir::Tree,
+        types: &mir::TypeTable,
+        strings: &StringPool,
+        expected: &str,
+    ) -> mir::TypeId {
+        for (ty, _) in tree.iter_nodes::<mir::Type>() {
+            let Some(name) = types.display_name(ty) else {
+                continue;
+            };
+
+            if strings.get(name) == expected {
+                return ty;
+            }
+        }
+
+        panic!("missing test type '{expected}'")
+    }
+
+    /// Return one MIR function by its name.
+    fn named_function(tree: &mir::Tree, strings: &StringPool, expected: &str) -> mir::FunctionId {
+        for (function, node) in tree.iter_nodes::<mir::Function>() {
+            if strings.get(node.name) == expected {
+                return function;
+            }
+        }
+
+        panic!("missing test function '{expected}'")
+    }
+
     /// Return the MIR type for one program type.
-    pub(crate) fn mir_type(&self, ty: TypeId) -> destack_mir::LocalNodeId<destack_mir::Type> {
+    pub(crate) fn mir_type(&self, ty: TypeId) -> mir::LocalNodeId<mir::Type> {
         self.type_nodes
             .get(ty.index())
             .copied()
@@ -291,7 +497,7 @@ impl TestMachine {
     }
 
     /// Return the program type for one MIR type.
-    pub(crate) fn program_type(&self, ty: destack_mir::LocalNodeId<destack_mir::Type>) -> TypeId {
+    pub(crate) fn program_type(&self, ty: mir::LocalNodeId<mir::Type>) -> TypeId {
         self.type_ids[&ty]
     }
 
@@ -657,15 +863,23 @@ impl TestMachine {
                     .visit_root_slots(&mut self.local_static, continuations, visit)
                     .expect("failed to collect mutable root slots");
 
-                Ok::<(), destack_heap::HeapError>(())
+                Ok::<(), HeapError>(())
             };
         let mut stats = self
             .heap
-            .collect_full(&mut heap_roots, program.trace_view())
+            .collect_full(&mut heap_roots, program.trace_view(), &mut |_| {
+                Ok::<(), HeapError>(())
+            })
             .expect("failed to collect heap");
+
+        // publish this worker's shared allocations before tracing shared roots
+        self.shared_heap
+            .flush_allocation_cache(&mut self.shared_cache);
         let shared_stats = self
             .shared_heap
-            .collect_full(&shared_roots, program.trace_view())
+            .collect_full(&shared_roots, program.trace_view(), &mut |_| {
+                Ok::<(), HeapError>(())
+            })
             .expect("failed to collect shared heap");
 
         stats.freed_allocations += shared_stats.freed_allocations;
@@ -823,7 +1037,7 @@ pub(crate) fn create_machine_with_target_layout(
     let options = ParseOptions {
         pointer_bytes: target_layout.pointer_bytes(),
     };
-    let (tree, parsed_target_layout, types, layouts, dispatch, strings) =
+    let (tree, parsed_target_layout, types, layouts, dispatch, drops, strings) =
         parse_test_mir(mir_text, options);
     assert_eq!(parsed_target_layout, target_layout);
     let (type_ids, type_nodes) = type_maps(&tree);
@@ -835,18 +1049,25 @@ pub(crate) fn create_machine_with_target_layout(
         types,
         layouts,
         dispatch,
+        drops,
         strings,
     );
-    let mut machine = Machine::new(Arc::new(program), test_machine_options())
+    let memory = create_test_memory();
+    let program = Arc::new(program);
+    let local_static = program
+        .materialize_local_statics(memory.clone())
+        .expect("local test statics should build");
+    let shared_static = program
+        .materialize_shared_statics(memory.clone())
+        .expect("shared test statics should build");
+    let machine = Machine::new(program, memory.clone(), test_machine_options())
         .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
-    let mut local_static = StaticSpace::empty();
-    let mut shared_static = StaticSpace::empty();
-    let heap = create_test_heap();
-    let shared = create_test_shared_heap();
+    let heap = create_test_heap(memory.clone());
+    let shared = create_test_shared_heap(memory);
     let shared_mark_worker = shared.register_mark_worker();
     let shared_cache = shared.allocation_cache();
     machine
-        .initialize(&heap, &shared, &mut local_static, &mut shared_static)
+        .require_heap_compatibility(&heap, &shared)
         .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
     TestMachine {
@@ -997,7 +1218,7 @@ type Box {
 
 function sumBox(v0: int32): int32 {
 entry(v0: int32):
-    v1: Box = struct Box (v0)
+    v1: Box = aggregate (v0)
     v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     v3: ref<int32, managed, readonly> = field.address v2, 0
@@ -1023,7 +1244,7 @@ type Box {
 
 function readValueClass(v0: int32): int32 {
 entry(v0: int32):
-    v1: Box = struct Box (v0)
+    v1: Box = aggregate (v0)
     v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     v3: int32 = call Box.get(v2)
@@ -1063,7 +1284,7 @@ function run(): int32 {
 entry:
     v0: Fn = function.address target
     v1: ref<Holder, managed, readonly> = new.zeroed Holder
-    v2: Holder = struct Holder (v0)
+    v2: Holder = aggregate (v0)
     store v1, v2
     v3: ref<Fn, managed, readonly> = field.address v1, 0
     v4: Fn = load v3
@@ -1075,75 +1296,4 @@ entry:
     let output = run_mir_ok(mir_text, "run", &[]);
 
     assert_eq!(output, Value::int32(7));
-}
-
-/// The dynamic dispatch forwards the concrete object receiver to the selected method.
-#[ignore = "text MIR fixtures cannot declare dynamic tables"]
-#[test]
-fn test_interface_call_forwards_concrete_receiver() {
-    let mir_text = r#"
-type Greeter {
-    value: ref<void, managed, readonly>;
-    table: ref<void, raw, readonly, space(static)>;
-}
-
-type GreeterImpl {
-    vtable: ref<void, raw, readonly>;
-    value: int32;
-}
-
-type Greeter#object {
-    greet: () => int32;
-}
-
-readonly global GreeterImpl#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
-
-external function Greeter.greet(Greeter#object): int32
-
-function callInterface(v0: Greeter): int32 {
-entry(v0: Greeter):
-    v1: ref<void, managed, readonly> = field.get v0, 0
-    v2: int32 = call.dynamic v0, Greeter#object, 1(v1): (Greeter#object) => int32
-    return v2
-}
-
-function runInterface(): int32 {
-entry:
-    v0: int32 = 41
-    v1: ref<GreeterImpl, managed, readonly> = call GreeterImpl.constructor(v0)
-    v2: ref<void, managed, readonly> = cast.bit v1 -> ref<void, managed, readonly>
-    v3: uint64 = 0
-    v4: ref<void, raw, readonly, space(static)> = cast.bit v3 -> ref<void, raw, readonly, space(static)>
-    v5: Greeter = struct Greeter (v2, v4)
-    v6: int32 = call callInterface(v5)
-    return v6
-}
-
-function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
-entry(v0: int32):
-    v1: ref<GreeterImpl, managed, readonly> = new.zeroed GreeterImpl
-    v2: ref<[ref<void, raw, readonly, nullable, space(static)>; 3], raw, readonly, space(static)> = global.address GreeterImpl#vtable
-    v3: ref<void, raw, readonly, space(static)> = cast.bit v2 -> ref<void, raw, readonly, space(static)>
-    v4: int32 = 0
-    v5: GreeterImpl = struct GreeterImpl (v3, v4)
-    store v1, v5
-    v6: GreeterImpl = load v1
-    v7: GreeterImpl = field.set v6, 1, v0
-    store v1, v7
-    return v1
-}
-
-function GreeterImpl.greet(v0: ref<GreeterImpl, managed, readonly>): int32 {
-entry(v0: ref<GreeterImpl, managed, readonly>):
-    v1: GreeterImpl = load v0
-    v2: int32 = field.get v1, 1
-    v3: int32 = 1
-    v4: int32 = int.add v2, v3
-    return v4
-}
-"#;
-
-    let output = run_mir_ok(mir_text, "runInterface", &[]);
-
-    assert_eq!(output, Value::int32(42));
 }

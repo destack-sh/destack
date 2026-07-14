@@ -643,8 +643,8 @@ pub(crate) fn execute_allocate_stack_zeroed(
     let alignment = decode_alignment(instruction.d);
 
     // allocate stack bytes from the lowered layout
-    let address = activation.allocate_stack_zeroed(byte_len, alignment)?;
-    let sp = StackPointer::from_address(address);
+    let offset = activation.allocate_stack_zeroed(byte_len, alignment)?;
+    let sp = StackPointer::from_offset(offset);
     let value = Cell::stack_pointer(sp);
 
     activation.store_cell_at(dest, value);
@@ -662,8 +662,8 @@ pub(crate) fn execute_allocate_stack_uninit(
     let byte_len = byte_len as usize;
     let alignment = decode_alignment(instruction.d);
 
-    let address = activation.allocate_stack_uninit(byte_len, alignment)?;
-    let sp = StackPointer::from_address(address);
+    let offset = activation.allocate_stack_uninit(byte_len, alignment)?;
+    let sp = StackPointer::from_offset(offset);
     let value = Cell::stack_pointer(sp);
 
     activation.store_cell_at(dest, value);

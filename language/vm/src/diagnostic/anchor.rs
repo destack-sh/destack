@@ -1,8 +1,10 @@
 use destack_mir::{Block, Function, Instruction, LocalNodeId};
 use destack_program::FunctionId;
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
 
 /// Anchor for MIR-level error locations.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum DiagnosticAnchor {
     /// No specific location.
     None,
@@ -27,7 +29,7 @@ pub enum DiagnosticAnchor {
 }
 
 /// One frame in a diagnostic call stack.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct StackTraceFrame {
     /// The function being executed.
     pub function: FunctionId,

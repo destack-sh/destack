@@ -275,7 +275,7 @@ pub(crate) fn load_shared_heap_bytes(
 /// Load bytes from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_stack_bytes(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
     destination: *mut u8,
@@ -283,14 +283,18 @@ pub(crate) fn load_stack_bytes(
 ) -> Result<(), Error> {
     let pointer = pointer.add_bytes(access.byte_offset());
 
-    load_native_bytes(pointer.address(), destination, destination_len);
+    load_native_bytes(
+        activation.memory_address(pointer.offset()),
+        destination,
+        destination_len,
+    );
     Ok(())
 }
 
 /// Load bytes from a frame pointer.
 #[inline(always)]
 pub(crate) fn load_frame_bytes(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
     destination: *mut u8,
@@ -298,7 +302,11 @@ pub(crate) fn load_frame_bytes(
 ) -> Result<(), Error> {
     let pointer = pointer.add_bytes(access.byte_offset());
 
-    load_native_bytes(pointer.address(), destination, destination_len);
+    load_native_bytes(
+        activation.memory_address(pointer.offset()),
+        destination,
+        destination_len,
+    );
     Ok(())
 }
 
@@ -361,13 +369,13 @@ pub(crate) fn load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
 /// Load one scalar from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: StackPointer,
     byte_offset: usize,
 ) -> Cell {
     let pointer = pointer.add_bytes(byte_offset);
 
-    load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address())
+    load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(activation.memory_address(pointer.offset()))
 }
 
 /// Load one scalar from a global address.
@@ -429,14 +437,14 @@ pub(crate) fn store_raw_scalar<const BYTE_LEN: usize>(
 /// Store one scalar through a stack pointer.
 #[inline(always)]
 pub(crate) fn store_stack_scalar<const BYTE_LEN: usize>(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: StackPointer,
     byte_offset: usize,
     value: Cell,
 ) {
     let pointer = pointer.add_bytes(byte_offset);
 
-    store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
+    store_scalar_at_address::<BYTE_LEN>(activation.memory_address(pointer.offset()), value);
 }
 
 /// Store one scalar through a global address.
@@ -489,7 +497,7 @@ pub(crate) fn load_shared_heap_scalar_by_layout(
 /// Load one scalar from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_stack_scalar_by_layout(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
 ) -> Cell {
@@ -497,13 +505,16 @@ pub(crate) fn load_stack_scalar_by_layout(
 
     debug_assert_cell_access(access);
 
-    load_scalar_by_layout_at_address(pointer.address(), scalar_format(access))
+    load_scalar_by_layout_at_address(
+        activation.memory_address(pointer.offset()),
+        scalar_format(access),
+    )
 }
 
 /// Load one scalar from a frame pointer.
 #[inline(always)]
 pub(crate) fn load_frame_scalar_by_layout(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
 ) -> Cell {
@@ -511,13 +522,16 @@ pub(crate) fn load_frame_scalar_by_layout(
 
     debug_assert_cell_access(access);
 
-    load_scalar_by_layout_at_address(pointer.address(), scalar_format(access))
+    load_scalar_by_layout_at_address(
+        activation.memory_address(pointer.offset()),
+        scalar_format(access),
+    )
 }
 
 /// Load one physical slot from a frame pointer.
 #[inline(always)]
 pub(crate) fn load_frame_slot_by_layout(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: FramePointer,
     access: SlotProjection,
 ) -> Cell {
@@ -525,7 +539,10 @@ pub(crate) fn load_frame_slot_by_layout(
 
     debug_assert!(access.byte_len() <= Cell::BYTE_LEN);
 
-    load_scalar_by_layout_at_address(pointer.address(), slot_layout(access))
+    load_scalar_by_layout_at_address(
+        activation.memory_address(pointer.offset()),
+        slot_layout(access),
+    )
 }
 
 /// Load one scalar from a global address.
@@ -619,7 +636,7 @@ pub(crate) fn store_shared_heap_bytes(
 /// Store one scalar through a stack pointer.
 #[inline(always)]
 pub(crate) fn store_stack_scalar_by_layout(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
     value: Cell,
@@ -627,20 +644,24 @@ pub(crate) fn store_stack_scalar_by_layout(
     debug_assert_cell_access(access);
     let pointer = pointer.add_bytes(access.byte_offset());
 
-    store_scalar_by_layout_at_address(pointer.address(), scalar_format(access), value);
+    store_scalar_by_layout_at_address(
+        activation.memory_address(pointer.offset()),
+        scalar_format(access),
+        value,
+    );
 }
 
 /// Store bytes into a stack pointer.
 #[inline(always)]
 pub(crate) fn store_stack_bytes(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
     let pointer = pointer.add_bytes(access.byte_offset());
 
-    store_native_bytes(pointer.address(), bytes);
+    store_native_bytes(activation.memory_address(pointer.offset()), bytes);
 
     Ok(())
 }
@@ -648,7 +669,7 @@ pub(crate) fn store_stack_bytes(
 /// Store one scalar through a frame pointer.
 #[inline(always)]
 pub(crate) fn store_frame_scalar_by_layout(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
     value: Cell,
@@ -656,13 +677,17 @@ pub(crate) fn store_frame_scalar_by_layout(
     debug_assert_cell_access(access);
     let pointer = pointer.add_bytes(access.byte_offset());
 
-    store_scalar_by_layout_at_address(pointer.address(), scalar_format(access), value);
+    store_scalar_by_layout_at_address(
+        activation.memory_address(pointer.offset()),
+        scalar_format(access),
+        value,
+    );
 }
 
 /// Store one physical slot through a frame pointer.
 #[inline(always)]
 pub(crate) fn store_frame_slot_by_layout(
-    _machine: &mut Activation<'_>,
+    activation: &mut Activation<'_>,
     pointer: FramePointer,
     access: SlotProjection,
     value: Cell,
@@ -671,7 +696,11 @@ pub(crate) fn store_frame_slot_by_layout(
 
     debug_assert!(access.byte_len() <= Cell::BYTE_LEN);
 
-    store_scalar_by_layout_at_address(pointer.address(), slot_layout(access), value);
+    store_scalar_by_layout_at_address(
+        activation.memory_address(pointer.offset()),
+        slot_layout(access),
+        value,
+    );
 }
 
 /// Store one scalar through a global address.

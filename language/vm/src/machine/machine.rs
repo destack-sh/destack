@@ -1,4 +1,3 @@
-use destack_serde::Reflect;
 use std::fmt;
 use std::sync::Arc;
 
@@ -7,9 +6,11 @@ use destack_heap::{
     AllocationCache, AllocationShape, Heap, HeapReference, HeapResult, RootSlot, SharedHeap,
     SharedMarkWorker, TraceView,
 };
+use destack_memory::MemoryMap;
 use destack_program as program;
 use destack_program::{FrameLayout, GlobalLocation, Program};
-use program::{StaticImage, StaticSpace};
+use destack_serde::Reflect;
+use program::StaticSpace;
 use serde::{Deserialize, Serialize};
 
 use crate::Result as VmResult;
@@ -31,10 +32,12 @@ pub struct Machine {
 
     /// Explicit frame stack used for execution and root walking.
     pub(crate) frames: Vec<Frame>,
-    /// Page-backed byte stack for frame data.
+    /// World-mapped byte stack for frame data.
     pub(crate) stack: Stack,
     /// Last fallible allocation failure observed by this machine.
     pub(crate) last_allocation_failure: Option<Error>,
+    /// The language panic currently unwinding through frames.
+    pub(crate) pending_unwind: Option<RuntimeError>,
 }
 
 /// Immutable machine image.
@@ -46,6 +49,8 @@ pub struct MachineImage {
     pub stack: StackImage,
     /// The captured frame stack.
     pub frames: Vec<FrameImage>,
+    /// The language panic active at the captured frame state.
+    pub pending_unwind: Option<RuntimeError>,
 }
 
 impl fmt::Debug for Machine {
@@ -59,9 +64,13 @@ impl fmt::Debug for Machine {
 
 impl Machine {
     /// Create a new machine for one durable program.
-    pub fn new(program: Arc<Program>, options: MachineOptions) -> RuntimeResult<Self> {
+    pub fn new(
+        program: Arc<Program>,
+        memory: Arc<MemoryMap>,
+        options: MachineOptions,
+    ) -> RuntimeResult<Self> {
         Self::require_program_compatibility(program.as_ref(), &options)?;
-        let stack = Stack::new(options.limits.stack_bytes)?;
+        let stack = Stack::new(memory, options.limits.stack_bytes)?;
 
         Ok(Self {
             program,
@@ -69,6 +78,7 @@ impl Machine {
             frames: Vec::new(),
             stack,
             last_allocation_failure: None,
+            pending_unwind: None,
         })
     }
 
@@ -90,23 +100,20 @@ impl Machine {
         self.program.trace_view()
     }
 
-    /// Return immutable program constants.
-    #[inline]
-    pub fn constants(&self) -> &StaticImage {
-        self.program.constants()
-    }
-
-    /// Return initial shared static storage.
-    #[inline]
-    pub fn shared_statics(&self) -> &StaticImage {
-        self.program.shared_statics()
-    }
-
     /// Restore one machine from one shared immutable image.
-    pub fn from_image(program: Arc<Program>, image: Arc<MachineImage>) -> RuntimeResult<Self> {
+    pub fn from_image(
+        program: Arc<Program>,
+        memory: Arc<MemoryMap>,
+        image: Arc<MachineImage>,
+    ) -> RuntimeResult<Self> {
         Self::require_program_compatibility(program.as_ref(), &image.options)?;
-        let (stack, frames) =
-            Self::restore_stack_and_frames(&program, &image.stack, &image.frames, &image.options)?;
+        let (stack, frames) = Self::restore_stack_and_frames(
+            &program,
+            memory,
+            &image.stack,
+            &image.frames,
+            &image.options,
+        )?;
 
         Ok(Self {
             program,
@@ -114,16 +121,15 @@ impl Machine {
             frames,
             stack,
             last_allocation_failure: None,
+            pending_unwind: image.pending_unwind.clone(),
         })
     }
 
-    /// Initialize heap-shaped program tables and static bytes.
-    pub fn initialize(
-        &mut self,
+    /// Require heaps compatible with this program.
+    pub fn require_heap_compatibility(
+        &self,
         heap: &Heap,
         shared: &SharedHeap,
-        local_static: &mut StaticSpace,
-        shared_static: &mut StaticSpace,
     ) -> RuntimeResult<()> {
         // reject mismatched program and heap allocation shapes
         if heap.options() != self.program.heap_options()
@@ -133,9 +139,6 @@ impl Machine {
                 "program heap options do not match runtime heap options",
             )));
         }
-
-        // initialize static data
-        self.program.initialize_statics(local_static, shared_static);
 
         Ok(())
     }
@@ -398,12 +401,13 @@ impl Machine {
             options: self.options.clone(),
             stack,
             frames,
+            pending_unwind: self.pending_unwind.clone(),
         })
     }
 
     /// Fork this machine for one child branch.
-    pub fn fork(&self) -> RuntimeResult<Self> {
-        let (stack, frames) = self.fork_stack_and_frames()?;
+    pub fn fork(&self, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
+        let (stack, frames) = self.fork_stack_and_frames(memory)?;
 
         Ok(Self {
             program: self.program.clone(),
@@ -411,6 +415,7 @@ impl Machine {
             frames,
             stack,
             last_allocation_failure: self.last_allocation_failure.clone(),
+            pending_unwind: self.pending_unwind.clone(),
         })
     }
 
@@ -418,16 +423,13 @@ impl Machine {
     pub fn restore_image(&mut self, image: &MachineImage) -> RuntimeResult<()> {
         self.options = image.options.clone();
 
-        // rebuild stack and frames over the restored program
-        let (stack, frames) = Self::restore_stack_and_frames(
-            &self.program,
-            &image.stack,
-            &image.frames,
-            &self.options,
-        )?;
-        self.stack = stack;
+        // restore stack bytes in the stable world range
+        self.stack
+            .restore(&image.stack, self.options.limits.stack_bytes)?;
+        let frames = Self::restore_frames(&self.program, &self.stack, &image.frames)?;
         self.frames = frames;
         self.last_allocation_failure = None;
+        self.pending_unwind = image.pending_unwind.clone();
 
         Ok(())
     }
@@ -441,19 +443,27 @@ impl Machine {
     pub(crate) fn reset_stack(&mut self, limits: LimitOptions) -> RuntimeResult<()> {
         self.frames.clear();
         self.last_allocation_failure = None;
-        self.stack.reset(limits.stack_bytes)?;
+        self.pending_unwind = None;
+        if limits.stack_bytes != self.options.limits.stack_bytes {
+            return Err(RuntimeError::new(Error::invalid_program(
+                "execution stack limit differs from machine stack limit",
+            )));
+        }
+        self.stack.reset();
 
         Ok(())
     }
 
     /// Allocate one frame byte record in the stack arena.
     pub(crate) fn allocate_frame(&mut self, layout: &FrameLayout) -> RuntimeResult<(usize, usize)> {
-        let base = self
+        let stack_offset = self
             .stack
             .allocate_zeroed(layout.byte_len() as usize, Cell::BYTE_LEN)?;
-        let frame_base = self.stack.address(base, layout.byte_len() as usize)?;
+        let frame_base = self
+            .stack
+            .address(stack_offset, layout.byte_len() as usize)?;
 
-        Ok((base, frame_base))
+        Ok((stack_offset, frame_base))
     }
 
     /// Release stack bytes above one frame base.
@@ -463,8 +473,11 @@ impl Machine {
     }
 
     /// Fork stack and frames for one child machine.
-    pub(crate) fn fork_stack_and_frames(&self) -> RuntimeResult<(Stack, Vec<Frame>)> {
-        let stack = self.stack.fork()?;
+    pub(crate) fn fork_stack_and_frames(
+        &self,
+        memory: Arc<MemoryMap>,
+    ) -> RuntimeResult<(Stack, Vec<Frame>)> {
+        let stack = self.stack.fork(memory);
         let mut frames = Vec::with_capacity(self.frames.len());
 
         // clone frames over the forked stack bytes
@@ -481,23 +494,34 @@ impl Machine {
     /// Restore stack and frames from one immutable image.
     pub(crate) fn restore_stack_and_frames(
         program: &Program,
+        memory: Arc<MemoryMap>,
         stack_image: &StackImage,
         frame_images: &[FrameImage],
         options: &MachineOptions,
     ) -> RuntimeResult<(Stack, Vec<Frame>)> {
-        let stack = Stack::from_image(stack_image, options.limits.stack_bytes)?;
+        let stack = Stack::from_image(memory, stack_image, options.limits.stack_bytes)?;
+        let frames = Self::restore_frames(program, &stack, frame_images)?;
+
+        Ok((stack, frames))
+    }
+
+    /// Restore frames over one restored stack.
+    fn restore_frames(
+        program: &Program,
+        stack: &Stack,
+        frame_images: &[FrameImage],
+    ) -> RuntimeResult<Vec<Frame>> {
         let mut frames = Vec::with_capacity(frame_images.len());
 
         // restore frame tables over stack image byte ranges
         for frame_image in frame_images {
             let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len())?;
-            let frame =
-                Frame::from_image(frame_image, program, frame_image.stack_offset, frame_base)?;
+            let frame = Frame::from_image(frame_image, program, frame_base)?;
 
             frames.push(frame);
         }
 
-        Ok((stack, frames))
+        Ok(frames)
     }
 
     /// Create a runtime error with current call stack.

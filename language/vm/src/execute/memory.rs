@@ -3,7 +3,7 @@ use destack_mir as mir;
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use destack_program::vm::{Cell, FramePointer, Instruction, Projection, ProjectionId};
+use destack_program::vm::{Cell, Instruction, Projection, ProjectionId};
 
 /// Execute frame cell move.
 #[inline(always)]
@@ -206,7 +206,8 @@ pub(crate) fn execute_store_frame_aggregate(
     let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
     let destination = address.as_frame_pointer().add_bytes(access.byte_offset());
 
-    activation.copy_frame_bytes_to_address(source, destination.address(), byte_len);
+    let destination = activation.memory_address(destination.offset());
+    activation.copy_frame_bytes_to_address(source, destination, byte_len);
 
     Ok(())
 }
@@ -237,7 +238,8 @@ fn decode_aggregate_load(
     let access = activation.projection(access);
 
     let address = activation.load_cell_at(address);
-    let destination = activation.frame_pointer_at(destination).address() as *mut u8;
+    let destination = activation.frame_pointer_at(destination);
+    let destination = activation.memory_address(destination.offset()) as *mut u8;
     let destination_len = access.byte_len();
 
     (address, access, destination, destination_len)
@@ -269,12 +271,12 @@ pub(crate) fn execute_local_address(
     let local = instruction.b;
 
     let local = mir::LocalNodeId::new(local);
-    let address = activation.active_frame().local_address(
+    let offset = activation.active_frame().local_offset(
         activation.program,
         activation.frame_layout(),
         local,
     )?;
-    let pointer = FramePointer::from_address(address);
+    let pointer = activation.frame_pointer_at(offset as u32);
     let value = Cell::frame_pointer(pointer);
 
     activation.store_cell_at(dest, value);

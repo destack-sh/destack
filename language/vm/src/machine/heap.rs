@@ -1,6 +1,6 @@
 use destack_heap::{
-    AllocationCache, AllocationPlan, AllocationShape, Heap, HeapReference, HeapResult, SharedHeap,
-    SharedHeapReference, SmallAllocationPlan, TraceView, repeated_layout,
+    AllocationCache, AllocationClass, AllocationPlan, AllocationShape, Heap, HeapReference,
+    HeapResult, SharedHeap, SharedHeapReference, SmallAllocationPlan, TraceView,
 };
 use destack_mir::TraceMap;
 use destack_program::vm::{AllocationPlanId, SmallAllocationPlanId, TensorLayout};
@@ -43,18 +43,18 @@ impl Activation<'_> {
 
     /// Return one heap allocation plan.
     #[inline(always)]
-    fn heap_allocation_plan(&self, id: AllocationPlanId) -> AllocationPlan {
+    fn allocation_plan(&self, id: AllocationPlanId) -> AllocationPlan {
         self.side_table().allocation_plan(self.sections(), id)
     }
 
     /// Return one small heap allocation plan.
     #[inline(always)]
-    fn heap_small_allocation_plan(&self, id: SmallAllocationPlanId) -> SmallAllocationPlan {
+    fn small_allocation_plan(&self, id: SmallAllocationPlanId) -> SmallAllocationPlan {
         self.side_table().small_allocation_plan(self.sections(), id)
     }
 
     /// Resolve the trace map for one heap allocation plan.
-    fn trace_map_for_allocation<'a>(
+    fn trace_map<'a>(
         &self,
         allocation: AllocationPlan,
         trace_view: TraceView<'a>,
@@ -70,7 +70,7 @@ impl Activation<'_> {
         &mut self,
         id: AllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_allocation_plan(id);
+        let allocation = self.allocation_plan(id);
 
         self.allocate_zeroed_heap_shape(allocation)
     }
@@ -81,7 +81,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.heap_mut().reserve_small_noscan(allocation) {
             return Ok(reference);
         }
@@ -95,7 +95,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.heap_mut().reserve_small_scan(allocation) {
             return Ok(reference);
         }
@@ -109,7 +109,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.heap_mut().reserve_small_shared_edge(allocation) {
             return Ok(reference);
         }
@@ -125,7 +125,7 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<HeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
+        let trace_map = self.trace_map(allocation, program.trace_view())?;
 
         self.heap_mut()
             .allocate_zeroed(allocation, &trace_map)
@@ -138,7 +138,7 @@ impl Activation<'_> {
         &mut self,
         id: AllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_allocation_plan(id);
+        let allocation = self.allocation_plan(id);
 
         self.allocate_uninit_heap_shape(allocation)
     }
@@ -149,7 +149,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.heap_mut().reserve_small_noscan(allocation) {
             return Ok(reference);
         }
@@ -163,7 +163,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.heap_mut().reserve_small_scan(allocation) {
             return Ok(reference);
         }
@@ -177,7 +177,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<HeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.heap_mut().reserve_small_shared_edge(allocation) {
             return Ok(reference);
         }
@@ -193,7 +193,7 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<HeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
+        let trace_map = self.trace_map(allocation, program.trace_view())?;
 
         self.heap_mut()
             .allocate_uninit(allocation, &trace_map)
@@ -208,16 +208,16 @@ impl Activation<'_> {
         length: usize,
     ) -> Result<HeapReference, Error> {
         let program = self.program;
-        let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
-        let (byte_len, trace_map) = repeated_layout(
-            element.byte_len(),
-            element.alignment(),
-            &element_trace_map,
-            length,
-        )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
-        let plan = self.heap().options().allocation_plan(&shape);
+        let element = self.allocation_plan(element);
+        let element_trace_map = self.trace_map(element, program.trace_view())?;
+        let shape = element.repeat(&element_trace_map, length)?;
+
+        // keep dynamic Drop metadata out of static small allocation caches
+        let plan = if shape.drop.is_some() {
+            AllocationPlan::new(&shape, AllocationClass::large())
+        } else {
+            self.heap().options().allocation_plan(&shape)
+        };
         let heap = self.heap_mut();
 
         heap.allocate_zeroed(plan, &shape.trace_map)
@@ -232,16 +232,16 @@ impl Activation<'_> {
         length: usize,
     ) -> Result<HeapReference, Error> {
         let program = self.program;
-        let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
-        let (byte_len, trace_map) = repeated_layout(
-            element.byte_len(),
-            element.alignment(),
-            &element_trace_map,
-            length,
-        )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
-        let plan = self.heap().options().allocation_plan(&shape);
+        let element = self.allocation_plan(element);
+        let element_trace_map = self.trace_map(element, program.trace_view())?;
+        let shape = element.repeat(&element_trace_map, length)?;
+
+        // keep dynamic Drop metadata out of static small allocation caches
+        let plan = if shape.drop.is_some() {
+            AllocationPlan::new(&shape, AllocationClass::large())
+        } else {
+            self.heap().options().allocation_plan(&shape)
+        };
         let heap = self.heap_mut();
 
         heap.allocate_uninit(plan, &shape.trace_map)
@@ -269,7 +269,7 @@ impl Activation<'_> {
         &mut self,
         id: AllocationPlanId,
     ) -> Result<SharedHeapReference, Error> {
-        let allocation = self.heap_allocation_plan(id);
+        let allocation = self.allocation_plan(id);
 
         self.allocate_zeroed_shared_heap_shape(allocation)
     }
@@ -280,7 +280,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<SharedHeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.reserve_shared_small(allocation) {
             return Ok(reference);
         }
@@ -296,7 +296,7 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
+        let trace_map = self.trace_map(allocation, program.trace_view())?;
         let trace_view = program.trace_view();
 
         self.shared
@@ -316,7 +316,7 @@ impl Activation<'_> {
         &mut self,
         id: AllocationPlanId,
     ) -> Result<SharedHeapReference, Error> {
-        let allocation = self.heap_allocation_plan(id);
+        let allocation = self.allocation_plan(id);
 
         self.allocate_uninit_shared_heap_shape(allocation)
     }
@@ -327,7 +327,7 @@ impl Activation<'_> {
         &mut self,
         id: SmallAllocationPlanId,
     ) -> Result<SharedHeapReference, Error> {
-        let allocation = self.heap_small_allocation_plan(id);
+        let allocation = self.small_allocation_plan(id);
         if let Some(reference) = self.reserve_shared_small(allocation) {
             return Ok(reference);
         }
@@ -343,7 +343,7 @@ impl Activation<'_> {
         allocation: AllocationPlan,
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
-        let trace_map = self.trace_map_for_allocation(allocation, program.trace_view())?;
+        let trace_map = self.trace_map(allocation, program.trace_view())?;
         let trace_view = program.trace_view();
 
         self.shared
@@ -365,16 +365,16 @@ impl Activation<'_> {
         length: usize,
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
-        let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
-        let (byte_len, trace_map) = repeated_layout(
-            element.byte_len(),
-            element.alignment(),
-            &element_trace_map,
-            length,
-        )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
-        let plan = self.shared.options().allocation_plan(&shape);
+        let element = self.allocation_plan(element);
+        let element_trace_map = self.trace_map(element, program.trace_view())?;
+        let shape = element.repeat(&element_trace_map, length)?;
+
+        // keep dynamic Drop metadata out of static small allocation caches
+        let plan = if shape.drop.is_some() {
+            AllocationPlan::new(&shape, AllocationClass::large())
+        } else {
+            self.shared.options().allocation_plan(&shape)
+        };
         let trace_view = program.trace_view();
 
         self.shared
@@ -396,16 +396,16 @@ impl Activation<'_> {
         length: usize,
     ) -> Result<SharedHeapReference, Error> {
         let program = self.program;
-        let element = self.heap_allocation_plan(element);
-        let element_trace_map = self.trace_map_for_allocation(element, program.trace_view())?;
-        let (byte_len, trace_map) = repeated_layout(
-            element.byte_len(),
-            element.alignment(),
-            &element_trace_map,
-            length,
-        )?;
-        let shape = AllocationShape::new(byte_len, element.alignment(), None, trace_map);
-        let plan = self.shared.options().allocation_plan(&shape);
+        let element = self.allocation_plan(element);
+        let element_trace_map = self.trace_map(element, program.trace_view())?;
+        let shape = element.repeat(&element_trace_map, length)?;
+
+        // keep dynamic Drop metadata out of static small allocation caches
+        let plan = if shape.drop.is_some() {
+            AllocationPlan::new(&shape, AllocationClass::large())
+        } else {
+            self.shared.options().allocation_plan(&shape)
+        };
         let trace_view = program.trace_view();
 
         self.shared
