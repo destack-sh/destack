@@ -1,8 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::panic::Location;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::{env, fs, thread};
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
+use std::{env, thread};
 
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, ComponentGraph, DirBound,
@@ -15,12 +14,11 @@ use destack_repository::{
     Revision, Settings, TraceSnapshot,
 };
 use destack_source::{
-    Content, DiagnosticCollection, DiffOptions, MemoryFileSystem, ModuleId, ProfileId, TargetId,
-    format_diff,
+    Content, DiagnosticCollection, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
 
 use crate::tests::snapshot::{
-    DirRows, DirSnapshotBuilder, render_diagnostics, render_source_diagnostics,
+    DirRows, DirSnapshotBuilder, assert_snapshot, render_diagnostics, render_source_diagnostics,
 };
 
 use super::module::{TestModule, parse_module, parsed_dependencies};
@@ -329,8 +327,8 @@ impl TestSession {
         let diagnostics = self.diagnostic_snapshot(self.dir_checked_component_key(path));
         self.print_trace_if_requested(path);
 
-        assert_equal(dir, expected_dir);
-        assert_equal(diagnostics, expected_diagnostics);
+        assert_snapshot(dir, expected_dir);
+        assert_snapshot(diagnostics, expected_diagnostics);
     }
 
     /// Assert imported DIR diagnostics for one module.
@@ -368,7 +366,7 @@ impl TestSession {
     pub(crate) fn assert_diagnostics(&self, key: ArtifactKey, expected: &str) {
         self.print_trace_if_requested("diagnostics");
 
-        assert_equal(self.diagnostic_snapshot(key), expected);
+        assert_snapshot(self.diagnostic_snapshot(key), expected);
     }
 
     /// Assert checked DIR rows for multiple modules.
@@ -603,11 +601,11 @@ impl TestSession {
             } else {
                 artifact_key(self, path)
             };
-            assert_equal(self.diagnostic_snapshot(key), "");
+            assert_snapshot(self.diagnostic_snapshot(key), "");
         }
         self.print_trace_if_requested(&paths.join(","));
 
-        assert_equal(dir, expected);
+        assert_snapshot(dir, expected);
     }
 
     /// Render selected DIR snapshots.
@@ -1137,115 +1135,6 @@ fn sidecar_phase(row: &'static str) -> &'static str {
     row.split_once('.')
         .map(|(phase, _)| phase)
         .unwrap_or_else(|| panic!("sidecar row `{row}` must include a phase prefix"))
-}
-
-/// Assert exact multiline text equality.
-#[track_caller]
-fn assert_equal(actual: impl AsRef<str>, expected: &str) {
-    let actual = actual.as_ref();
-    let trimmed = expected.trim_matches('\n');
-    if actual == trimmed {
-        return;
-    }
-
-    // bless runs rewrite the caller's expectation in place
-    if env::var("DESTACK_BLESS").is_ok() {
-        bless_snapshot(Location::caller().file(), expected, actual);
-
-        return;
-    }
-
-    let diff = format_diff(trimmed, actual, &DiffOptions::new());
-
-    panic!("snapshot mismatch\n\n{diff}");
-}
-
-/// One write at a time keeps parallel bless runs off each other's files.
-static BLESS_LOCK: Mutex<()> = Mutex::new(());
-
-/// Byte deltas already written per file this run.
-///
-/// Compiled caller lines go stale as blesses shift the file, so later
-/// anchors correct themselves with the deltas recorded before them.
-static BLESS_SHIFTS: Mutex<Option<HashMap<PathBuf, Vec<(usize, isize)>>>> = Mutex::new(None);
-
-/// Rewrite one blessed expectation inside its fixture source file.
-#[track_caller]
-fn bless_snapshot(file: &str, expected: &str, actual: &str) {
-    let line = Location::caller().line();
-    bless_snapshot_at(file, line, expected, actual);
-}
-
-/// Rewrite the expectation occurrence nearest one caller line.
-fn bless_snapshot_at(file: &str, line: u32, expected: &str, actual: &str) {
-    let _guard = BLESS_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-
-    // caller paths are workspace-relative; tests run in the package root
-    let mut file = PathBuf::from(file);
-    if !file.exists() {
-        file = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../..")
-            .join(&file);
-    }
-    let file = file.as_path();
-    let source = fs::read_to_string(file)
-        .unwrap_or_else(|error| panic!("bless cannot read {}: {error}", file.display()));
-    let anchor: usize = source
-        .split_inclusive('\n')
-        .take(line as usize)
-        .map(str::len)
-        .sum();
-    let mut shifts = BLESS_SHIFTS
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let shifts = shifts.get_or_insert_with(HashMap::new);
-    let file_shifts = shifts.entry(file.to_path_buf()).or_default();
-    let corrected: isize = file_shifts
-        .iter()
-        .filter(|(position, _)| *position < anchor)
-        .map(|(_, delta)| *delta)
-        .sum();
-    let anchor = anchor.saturating_add_signed(corrected);
-
-    // match the pin with its raw-string delimiters so writes can never
-    // land outside a literal, then pick the occurrence nearest the caller
-    let pattern = format!("r#\"{expected}\"#");
-    let mut start = None;
-    let mut from = 0;
-    while let Some(found) = source[from..].find(&pattern) {
-        let found = from + found;
-        let better = match start {
-            Some(previous) => usize::abs_diff(found, anchor) < usize::abs_diff(previous, anchor),
-            None => true,
-        };
-        if better {
-            start = Some(found);
-        }
-        from = found + 1;
-    }
-    let Some(start) = start else {
-        panic!("bless cannot find the expectation in {}", file.display());
-    };
-    let start = start + "r#\"".len();
-    let replacement = format!("\n{actual}\n");
-    file_shifts.push((start, replacement.len() as isize - expected.len() as isize));
-    let delimiters = |text: &str| text.matches("r#\"").count();
-    let expected_delimiters = delimiters(&source);
-    let mut updated = source;
-    updated.replace_range(start..start + expected.len(), &replacement);
-
-    // a bless must never change the file's literal structure
-    assert_eq!(
-        delimiters(&updated),
-        expected_delimiters,
-        "bless corrupted the literal structure of {}",
-        file.display(),
-    );
-    fs::write(file, updated)
-        .unwrap_or_else(|error| panic!("bless cannot write {}: {error}", file.display()));
-    eprintln!("blessed: {}", file.display());
 }
 
 /// Return the blob store shared by every test session in this process.

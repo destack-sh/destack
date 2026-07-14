@@ -126,6 +126,10 @@ test-unit:
     cargo test --release --lib {{ packages-no-linter }}
     cargo test --release --lib -p destack_linter
 
+# bless compiler inline snapshots selected by a test filter
+bless-compiler filter="":
+    DESTACK_BLESS=1 cargo test -p destack_compiler {{filter}} -- --test-threads=1
+
 # run tests
 test:
     just test-unit
