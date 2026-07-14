@@ -50,8 +50,10 @@ pub struct FrameView {
     pub frame_index: usize,
     /// Captured frame state.
     pub frame_state: program::FrameStateId,
-    /// Caller return frame state.
-    pub return_state: Option<program::FrameStateId>,
+    /// Caller normal frame state.
+    pub normal_state: Option<program::FrameStateId>,
+    /// Caller unwind frame state.
+    pub unwind_state: Option<program::FrameStateId>,
     /// Captured frame byte width.
     pub byte_len: usize,
 }
@@ -92,7 +94,8 @@ impl FrameView {
             source: FrameSource::Active,
             frame_index,
             frame_state: frame.frame_state,
-            return_state: frame.return_state,
+            normal_state: frame.normal_state,
+            unwind_state: frame.unwind_state,
             byte_len: frame.byte_len,
         }
     }
@@ -110,7 +113,8 @@ impl FrameView {
             source,
             frame_index,
             frame_state: frame.frame_state,
-            return_state: frame.return_state,
+            normal_state: frame.normal_state,
+            unwind_state: frame.unwind_state,
             byte_len: frame.byte_len,
         }
     }

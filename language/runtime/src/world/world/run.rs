@@ -260,7 +260,9 @@ impl World {
 
         // idle worker safepoints publish roots and donate cooperative GC work
         for (runtime_id, runtime) in &mut self.runtimes {
-            if let Some((worker_id, advance)) = runtime.run_safepoint()? {
+            if let Some((worker_id, advance)) =
+                runtime.run_safepoint(world, self.host.as_ref(), &self.host_queue)?
+            {
                 if !world.observe_gc_advance(*runtime_id, Some(worker_id), advance)? {
                     continue;
                 }
@@ -398,6 +400,21 @@ impl WorldState {
                     self.observe_gc_start(runtime_id, worker_id, step.collector)?;
                 }
 
+                let observation = Self::gc_step(runtime_id, worker_id, step)?;
+
+                self.advance_moment()?;
+                self.observe(observation)?;
+
+                Ok(true)
+            }
+            heap::GcAdvance::Drop(drop) => {
+                let step = heap::GcStep {
+                    collector: drop.collector,
+                    is_start: drop.is_start,
+                    phase: heap::GcPhase::Drop,
+                    budget_bytes: drop.budget_bytes,
+                    work_bytes: drop.work_bytes,
+                };
                 let observation = Self::gc_step(runtime_id, worker_id, step)?;
 
                 self.advance_moment()?;

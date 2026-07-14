@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use destack_compiler::ProgramLinker;
 use destack_heap::{
-    AllocationCache, Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
-    SharedHeapOptions, SharedMarkWorker,
+    AllocationCache, DEFAULT_MEMORY_MAP_SIZE_BYTES, Heap, HeapLimits, HeapOptions, SharedHeap,
+    SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
 };
+use destack_memory::MemoryMap;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_program::{Program, StaticSpace};
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
@@ -130,16 +131,6 @@ impl VmSetup {
         build_machine()
     }
 
-    /// Build one worker-local heap.
-    pub(crate) fn local_heap(self) -> Heap {
-        heap()
-    }
-
-    /// Build one shared heap.
-    pub(crate) fn shared_heap(self) -> SharedHeap {
-        shared_heap()
-    }
-
     /// Build one initialized VM machine with runtime memory.
     pub(crate) fn machine(self) -> VmMachine {
         VmMachine::new()
@@ -167,17 +158,25 @@ pub(crate) struct VmMachine {
 impl VmMachine {
     /// Create one initialized VM machine.
     pub(crate) fn new() -> Self {
-        let mut machine = build_machine();
-        let mut statics = StaticSpace::empty();
-        let mut shared_statics = StaticSpace::empty();
-        let heap = heap();
-        let shared = shared_heap();
+        let options = MachineOptions::unbounded();
+        let program = build_program(&options);
+        let memory = memory(options.heap.page_size_bytes);
+        let statics = program
+            .materialize_local_statics(memory.clone())
+            .expect("footprint local statics should build");
+        let shared_statics = program
+            .materialize_shared_statics(memory.clone())
+            .expect("footprint shared statics should build");
+        let heap = heap(memory.clone());
+        let shared = shared_heap(memory.clone());
         let shared_mark_worker = shared.register_mark_worker();
         let shared_cache = shared.allocation_cache();
+        let machine =
+            Machine::new(program, memory, options).expect("footprint machine should build");
 
         machine
-            .initialize(&heap, &shared, &mut statics, &mut shared_statics)
-            .expect("footprint machine should initialize");
+            .require_heap_compatibility(&heap, &shared)
+            .expect("footprint heaps should match the machine");
 
         Self {
             machine,
@@ -205,6 +204,9 @@ impl VmMachine {
                 &self.shared,
                 &mut self.shared_cache,
                 &self.shared_mark_worker,
+                None,
+                None,
+                None,
                 entry,
                 &[],
             )
@@ -224,8 +226,16 @@ impl VmMachine {
 /// Build one VM machine from the footprint MIR.
 fn build_machine() -> Machine {
     let options = MachineOptions::unbounded();
+    let program = build_program(&options);
+    let memory = memory(options.heap.page_size_bytes);
+
+    Machine::new(program, memory, options).expect("footprint machine should build")
+}
+
+/// Build one executable footprint program.
+fn build_program(options: &MachineOptions) -> Arc<Program> {
     let parsed = Parser::parse(FileId::new(0), VM_PROGRAM, ParseOptions::default());
-    let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+    let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
         parsed.into_parts();
 
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
@@ -243,6 +253,7 @@ fn build_machine() -> Machine {
         types,
         layouts,
         dispatch,
+        drops,
         strings,
         options.heap.clone(),
         options.shared_heap.clone(),
@@ -250,29 +261,28 @@ fn build_machine() -> Machine {
     .build()
     .expect("footprint program should link");
 
-    Machine::new(Arc::new(program), options).expect("footprint machine should build")
+    Arc::new(program)
 }
 
 /// Create one worker heap.
-fn heap() -> Heap {
+fn heap(memory: Arc<MemoryMap>) -> Heap {
     let options = HeapOptions::local();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("footprint allocator should build"),
-    );
 
-    Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
-        .expect("footprint heap should build")
+    Heap::new(memory, HeapLimits::default(), options).expect("footprint heap should build")
 }
 
 /// Create one shared heap.
-fn shared_heap() -> SharedHeap {
+fn shared_heap(memory: Arc<MemoryMap>) -> SharedHeap {
     let options = SharedHeapOptions::default();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("footprint shared page allocator should build"),
-    );
 
-    SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
+    SharedHeap::new(memory, SharedHeapLimits::default(), options)
         .expect("footprint shared heap should build")
+}
+
+/// Reserve one world memory map for footprint measurement.
+fn memory(page_size_bytes: usize) -> Arc<MemoryMap> {
+    Arc::new(
+        MemoryMap::reserve(DEFAULT_MEMORY_MAP_SIZE_BYTES, page_size_bytes)
+            .expect("footprint memory map should reserve"),
+    )
 }

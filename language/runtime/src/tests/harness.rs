@@ -1,9 +1,12 @@
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 use destack_compiler::ProgramLinker;
 use destack_core::StringPool;
+use destack_heap as heap;
+use destack_mir as mir;
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{DispatchTable, LayoutTable, TargetLayout, Tree, TypeTable};
+use destack_mir::{DispatchTable, DropTable, LayoutTable, TargetLayout, Tree, TypeTable};
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
 use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
@@ -96,12 +99,15 @@ b1(v1: int32, v2: int32):
 pub(crate) struct TestMachine {
     /// MIR text used to build the VM machine.
     mir: &'static str,
+    /// Optional destructor keyed by MIR type name.
+    drop: Option<(&'static str, &'static str)>,
 }
 
 impl Default for TestMachine {
     fn default() -> Self {
         Self {
             mir: TEST_ENGINE_MIR,
+            drop: None,
         }
     }
 }
@@ -109,50 +115,66 @@ impl Default for TestMachine {
 impl TestMachine {
     /// Build one test machine from explicit MIR text.
     pub(crate) const fn with_mir(mir: &'static str) -> Self {
-        Self { mir }
+        Self { mir, drop: None }
     }
 
-    /// Build one VM machine for this test machine.
-    pub(crate) fn machine(self) -> vm::Machine {
-        vm_machine_from_mir(self.mir)
+    /// Attach one destructor by type and function name.
+    pub(crate) const fn with_drop(
+        mut self,
+        type_name: &'static str,
+        function_name: &'static str,
+    ) -> Self {
+        self.drop = Some((type_name, function_name));
+
+        self
     }
 
     /// Build one durable program for this test machine.
     pub(crate) fn program(self) -> Arc<program::Program> {
-        self.machine().program_handle()
+        let (tree, target_layout, types, layouts, dispatch, mut drops, strings) =
+            parse_mir(self.mir);
+
+        // attach the destructor requested by this test machine
+        if let Some((type_name, function_name)) = self.drop {
+            let ty = tree
+                .iter_nodes::<mir::Type>()
+                .find_map(|(ty, _)| {
+                    let name = types.display_name(ty)?;
+
+                    (strings.get(name) == type_name).then_some(ty)
+                })
+                .unwrap_or_else(|| panic!("missing test MIR type {type_name}"));
+            let function = tree
+                .iter_nodes::<mir::Function>()
+                .find_map(|(function_id, function)| {
+                    (strings.get(function.name) == function_name).then_some(function_id)
+                })
+                .unwrap_or_else(|| panic!("missing test MIR function {function_name}"));
+            drops.set_destructor(ty, function);
+        }
+
+        let program = ProgramLinker::new(
+            PackageId::from_uri(&Uri::logical("test/runtime")),
+            tree,
+            target_layout,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            strings,
+            vm::MachineOptions::test().heap,
+            vm::MachineOptions::test().shared_heap,
+        )
+        .build()
+        .expect("runtime test program should link");
+
+        Arc::new(program)
     }
 
     /// Build one execution strategy for this test machine.
     pub(crate) fn execution(self) -> Execution {
         Execution::vm(vm::MachineOptions::test())
     }
-}
-
-/// Build one VM machine from MIR text.
-pub(crate) fn vm_machine_from_mir(mir: &str) -> vm::Machine {
-    let program = program_from_mir(mir);
-
-    vm::Machine::new(Arc::new(program), vm::MachineOptions::test())
-        .expect("runtime test VM machine should build")
-}
-
-/// Build one executable program from MIR test text.
-fn program_from_mir(mir: &str) -> program::Program {
-    let (tree, target_layout, types, layouts, dispatch, strings) = parse_mir(mir);
-
-    ProgramLinker::new(
-        PackageId::from_uri(&Uri::logical("test/runtime")),
-        tree,
-        target_layout,
-        types,
-        layouts,
-        dispatch,
-        strings,
-        vm::MachineOptions::test().heap,
-        vm::MachineOptions::test().shared_heap,
-    )
-    .build()
-    .expect("runtime test program should link")
 }
 
 /// Parse one MIR test input for program linking.
@@ -164,11 +186,12 @@ fn parse_mir(
     TypeTable,
     LayoutTable,
     DispatchTable,
+    DropTable,
     StringPool,
 ) {
     let file_id = FileId::from_source_bytes(mir.as_bytes());
     let parsed = Parser::parse(file_id, mir, ParseOptions::default());
-    let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+    let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
         parsed.into_parts();
 
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
@@ -180,7 +203,15 @@ fn parse_mir(
         panic!("failed to parse runtime test MIR: {diagnostic:?}");
     }
 
-    (tree, target_layout, types, layouts, dispatch, strings)
+    (
+        tree,
+        target_layout,
+        types,
+        layouts,
+        dispatch,
+        drops,
+        strings,
+    )
 }
 
 /// Test harness for worker scheduling tests.
@@ -259,8 +290,34 @@ impl HostPoller for TestPoller {
 impl TestRuntime {
     /// Build one test worker runtime.
     pub(crate) fn build(options: &RuntimeOptions, machine: TestMachine) -> Self {
-        let (world, shared, constant_space, shared_static, worker) =
-            worker_for_options(options, machine);
+        let mut world =
+            World::new(options, Environment::default()).expect("runtime test world should build");
+
+        // build program and runtime-owned storage
+        let program = machine.program();
+        let execution = machine.execution();
+        let shared = runtime_shared_heap(&world, options, program.clone());
+        let constant_space = program.constants().clone();
+        let shared_static = program
+            .materialize_shared_statics(world.memory.clone())
+            .expect("shared test statics should build");
+
+        // create the worker over the runtime storage
+        let mut worker = Worker::new_in_world(
+            Environment::default(),
+            options,
+            &mut world.state,
+            &shared,
+            WorkerOptions::default(),
+            program,
+            &execution,
+        )
+        .expect("runtime test worker should build");
+        worker.binding_table.apply_runtime_defaults(options);
+
+        // drain initial host bootstrap events for deterministic scheduler tests
+        poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))
+            .expect("host bootstrap events should drain");
 
         Self {
             world,
@@ -421,6 +478,38 @@ impl TestRuntime {
         self.worker.profile()
     }
 
+    /// Allocate one worker-local test block.
+    pub(crate) fn allocate(&mut self, shape: heap::AllocationShape) -> heap::HeapReference {
+        let plan = self.worker.heap.options().allocation_plan(&shape);
+
+        self.worker
+            .heap
+            .allocate_zeroed(plan, &shape.trace_map)
+            .expect("test heap allocation should succeed")
+    }
+
+    /// Return whether one worker-local test allocation is live.
+    pub(crate) fn is_live(&self, reference: heap::HeapReference) -> bool {
+        self.worker.heap.is_heap_live(reference)
+    }
+
+    /// Request one full worker-local collection.
+    pub(crate) fn request_full_gc(&mut self) {
+        self.worker.heap.request_full_gc();
+    }
+
+    /// Advance one idle worker GC safepoint.
+    pub(crate) fn step_gc(&mut self) -> RuntimeResult<Option<heap::GcAdvance>> {
+        self.worker.run_safepoint(
+            &mut self.world.state,
+            &self.heap,
+            &mut self.shared_static,
+            &self.constant_space,
+            self.world.host.as_ref(),
+            &self.world.host_queue,
+        )
+    }
+
     /// Run until one task completes or one timeout elapses.
     pub(crate) fn run_loop_until_task_complete(
         &mut self,
@@ -562,6 +651,69 @@ impl TestWorldRuntime {
             .expect("world continue should succeed")
     }
 
+    /// Allocate one shared test block and publish its allocation cache.
+    pub(crate) fn allocate_shared(
+        &mut self,
+        shape: heap::AllocationShape,
+    ) -> heap::SharedHeapReference {
+        let runtime = self
+            .world
+            .runtime_mut(self.runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.default_worker_id();
+
+        runtime
+            .with_worker(worker_id, |shared, _, _, worker| {
+                let plan = shared.shared.options().allocation_plan(&shape);
+                let reference = shared
+                    .shared
+                    .allocate_zeroed(
+                        &worker.shared_mark_worker,
+                        &mut worker.shared_cache,
+                        plan,
+                        &shape.trace_map,
+                        shared.program().trace_view(),
+                    )
+                    .expect("shared test allocation should succeed");
+                shared
+                    .shared
+                    .flush_allocation_cache(&mut worker.shared_cache);
+
+                reference
+            })
+            .expect("worker should exist")
+    }
+
+    /// Request one shared collection cycle.
+    pub(crate) fn request_shared_gc(&mut self) {
+        let runtime = self
+            .world
+            .runtime(self.runtime_id)
+            .expect("runtime should exist");
+
+        runtime.heap.shared.request_gc();
+    }
+
+    /// Return whether one shared test allocation is live.
+    pub(crate) fn is_shared_live(&self, reference: heap::SharedHeapReference) -> bool {
+        let runtime = self
+            .world
+            .runtime(self.runtime_id)
+            .expect("runtime should exist");
+
+        runtime.heap.shared.is_heap_live(reference)
+    }
+
+    /// Return the current shared collector phase.
+    pub(crate) fn shared_gc_phase(&self) -> heap::GcPhase {
+        let runtime = self
+            .world
+            .runtime(self.runtime_id)
+            .expect("runtime should exist");
+
+        runtime.heap.shared.gc_phase()
+    }
+
     /// Return the current world moment.
     pub(crate) fn moment(&self) -> Moment {
         self.world.moment()
@@ -637,56 +789,12 @@ pub(crate) fn runtime_shared_heap(
     program: Arc<program::Program>,
 ) -> RuntimeHeap {
     RuntimeHeap::new(
-        world.allocator.clone(),
+        world.memory.clone(),
         world.shared_collector.clone(),
         options,
         program,
     )
     .expect("runtime shared heap should build")
-}
-
-/// Build one worker configured for runtime tests.
-fn worker_for_options(
-    options: &RuntimeOptions,
-    machine: TestMachine,
-) -> (
-    World,
-    RuntimeHeap,
-    program::StaticImage,
-    program::StaticSpace,
-    Worker,
-) {
-    let mut world =
-        World::new(options, Environment::default()).expect("runtime test world should build");
-
-    let program = machine.program();
-    let execution = machine.execution();
-    let shared = runtime_shared_heap(&world, options, program.clone());
-    let world_state = &mut world.state;
-
-    let constant_space = program.constants().clone();
-    let mut shared_static = program.materialize_shared_statics();
-    let mut worker = Worker::new_in_world(
-        destack_repository::Environment::default(),
-        options,
-        world_state,
-        &shared,
-        &mut shared_static,
-        &constant_space,
-        WorkerOptions::default(),
-        program,
-        &execution,
-    )
-    .expect("runtime test worker should build");
-
-    // apply runtime options to binding policy state
-    worker.binding_table.apply_runtime_defaults(options);
-
-    // drain initial host bootstrap events for deterministic scheduler tests
-    poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))
-        .expect("host bootstrap events should drain");
-
-    (world, shared, constant_space, shared_static, worker)
 }
 
 /// Start one VM continuation in a worker test harness.
@@ -712,7 +820,7 @@ pub(crate) fn start_worker_continuation(
         ..
     } = worker;
     let context = ProgramActivation {
-        state: std::ptr::NonNull::from(&mut call_context).cast(),
+        state: NonNull::from(&mut call_context).cast(),
         storage: ProgramStorage {
             heap: worker_heap,
             shared_heap: runtime_heap.shared.as_ref(),

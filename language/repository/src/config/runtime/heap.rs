@@ -6,12 +6,21 @@ use destack_heap::{
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+/// The default virtual byte capacity for one World memory map.
+pub const DEFAULT_WORLD_MEMORY_MAP_SIZE_BYTES: usize = if cfg!(target_pointer_width = "64") {
+    4 * 1024 * 1024 * 1024 * 1024
+} else {
+    1024 * 1024 * 1024
+};
+
 /// Runtime heap configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct HeapOptions {
+    /// Virtual byte capacity reserved for the World memory map.
+    pub memory_map_size_bytes: usize,
     /// Soft memory limit inherited by local and shared heap collectors.
     pub memory_limit_bytes: Option<u64>,
     /// The proportional heap growth target percentage.
@@ -25,6 +34,7 @@ pub struct HeapOptions {
 impl Default for HeapOptions {
     fn default() -> Self {
         Self {
+            memory_map_size_bytes: DEFAULT_WORLD_MEMORY_MAP_SIZE_BYTES,
             memory_limit_bytes: None,
             growth_percent: DEFAULT_GC_GROWTH_PERCENT,
             local: LocalHeapOptions::default(),

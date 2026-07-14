@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use destack_heap::{self as heap, SharedHeapReference};
+use destack_memory::MemoryMap;
 use destack_program as program;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -11,8 +12,8 @@ use destack_repository::RuntimeOptions;
 /// Runtime-owned heap and GC state.
 #[derive(Debug)]
 pub(crate) struct RuntimeHeap {
-    /// World-owned allocator backing runtime and worker heaps.
-    pub(crate) allocator: Arc<heap::Allocator>,
+    /// World-owned memory backing runtime and worker heaps.
+    pub(crate) memory: Arc<MemoryMap>,
     /// Shared heap visible to every worker in this runtime.
     pub(crate) shared: Arc<heap::SharedHeap>,
     /// Durable program owning executable metadata for this heap.
@@ -28,51 +29,55 @@ pub(crate) struct RuntimeHeap {
 impl RuntimeHeap {
     /// Create runtime-owned shared heap state from runtime options.
     pub(crate) fn new(
-        allocator: Arc<heap::Allocator>,
+        memory: Arc<MemoryMap>,
         collector: Arc<SharedCollector>,
         options: &RuntimeOptions,
         program: Arc<program::Program>,
     ) -> RuntimeResult<Self> {
         let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
         let shared = Arc::new(
-            heap::SharedHeap::with_allocator_limits_and_options(
-                allocator.clone(),
+            heap::SharedHeap::new(
+                memory.clone(),
                 shared_heap_options.limits,
                 shared_heap_options.options,
             )
             .map_err(Box::<RuntimeError>::from)?,
         );
 
-        Ok(Self::from_heap(allocator, shared, collector, program))
+        Ok(Self::from_heap(memory, shared, collector, program))
     }
 
     /// Restore runtime-owned shared heap state from a snapshot.
     pub(crate) fn from_snapshot(
         snapshot: &heap::SharedHeapSnapshot,
         options: &RuntimeOptions,
-        allocator: Arc<heap::Allocator>,
+        memory: Arc<MemoryMap>,
         collector: Arc<SharedCollector>,
         program: Arc<program::Program>,
     ) -> RuntimeResult<Self> {
         let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
         let shared = Arc::new(
-            heap::SharedHeap::from_snapshot_with_allocator(
-                snapshot,
-                shared_heap_options.limits,
-                allocator.clone(),
-            )
-            .map_err(Box::<RuntimeError>::from)?,
+            heap::SharedHeap::from_snapshot(snapshot, shared_heap_options.limits, memory.clone())
+                .map_err(Box::<RuntimeError>::from)?,
         );
 
-        Ok(Self::from_heap(allocator, shared, collector, program))
+        Ok(Self::from_heap(memory, shared, collector, program))
     }
 
     /// Fork runtime-owned shared heap state for one child world.
-    pub(crate) fn fork(&self, collector: Arc<SharedCollector>) -> RuntimeResult<Self> {
-        let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
+    pub(crate) fn fork(
+        &self,
+        memory: Arc<MemoryMap>,
+        collector: Arc<SharedCollector>,
+    ) -> RuntimeResult<Self> {
+        let shared = Arc::new(
+            self.shared
+                .fork(memory.clone())
+                .map_err(Box::<RuntimeError>::from)?,
+        );
 
         Ok(Self::from_heap(
-            self.allocator.clone(),
+            memory,
             shared,
             collector,
             self.program.clone(),
@@ -205,7 +210,7 @@ impl RuntimeHeap {
 
     /// Build state around one already-created shared heap.
     fn from_heap(
-        allocator: Arc<heap::Allocator>,
+        memory: Arc<MemoryMap>,
         shared: Arc<heap::SharedHeap>,
         collector: Arc<SharedCollector>,
         program: Arc<program::Program>,
@@ -214,7 +219,7 @@ impl RuntimeHeap {
         let gc = SharedGc::new(shared.clone(), roots.clone());
 
         Self {
-            allocator,
+            memory,
             shared,
             program,
             roots,

@@ -11,7 +11,7 @@ use crate::host::resource::ResourceTableSnapshot;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::RuntimeHeap;
 use crate::runtime::heap::resolve_local_heap_options;
-use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId, ProgramStorage};
+use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId};
 use crate::runtime::scheduler::{
     EventLoop, EventLoopSnapshot, Readiness, StoppedRunnable, StoppedRunnableImage, Waiter,
 };
@@ -97,7 +97,7 @@ pub struct WorkerImage {
     /// Captured authoritative heap snapshot.
     pub heap: heap::HeapSnapshot,
     /// Captured worker-owned static bytes.
-    pub local_static: program::StaticSpace,
+    pub local_static: program::StaticSpaceImage,
     /// Captured worker-owned machine image.
     pub machine_image: Image,
     /// Captured stopped runnable state.
@@ -209,8 +209,6 @@ impl Worker {
         options: &RuntimeOptions,
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
         worker_options: WorkerOptions,
         program: Arc<program::Program>,
         execution: &Execution,
@@ -223,8 +221,6 @@ impl Worker {
             options,
             world,
             runtime_heap,
-            shared_static,
-            constant_space,
             runtime_id,
             worker_id,
             program,
@@ -238,8 +234,6 @@ impl Worker {
         options: &RuntimeOptions,
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
         runtime_id: RuntimeId,
         worker_options: WorkerOptions,
         program: Arc<program::Program>,
@@ -253,8 +247,6 @@ impl Worker {
             options,
             world,
             runtime_heap,
-            shared_static,
-            constant_space,
             runtime_id,
             worker_id,
             program,
@@ -268,15 +260,18 @@ impl Worker {
         options: &RuntimeOptions,
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         program: Arc<program::Program>,
         execution: &Execution,
     ) -> RuntimeResult<Self> {
         let machine_id = MachineId::new(worker_id.0);
-        let mut machine = Machine::new(machine_id, program.clone(), execution)?;
+        let machine = Machine::new(
+            machine_id,
+            program.clone(),
+            runtime_heap.memory.clone(),
+            execution,
+        )?;
 
         // resources
         let resources = ResourceTable::new(worker_id);
@@ -288,26 +283,16 @@ impl Worker {
 
         // heap and local_static
         let heap_options = resolve_local_heap_options(&options.heap)?;
-        let heap = heap::Heap::with_allocator_limits_and_options(
-            runtime_heap.allocator.clone(),
+        let heap = heap::Heap::new(
+            runtime_heap.memory.clone(),
             heap_options.limits,
             heap_options.options,
         )
         .map_err(Box::<RuntimeError>::from)?;
-        let mut heap = heap;
-        let mut local_static = program::StaticSpace::empty();
+        let local_static = program.materialize_local_statics(runtime_heap.memory.clone())?;
         let shared_mark_worker = runtime_heap.register_mark_worker();
-        let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let context = ProgramStorage {
-            heap: &mut heap,
-            shared_heap: runtime_heap.shared.as_ref(),
-            shared_cache: &mut shared_cache,
-            shared_mark_worker: &shared_mark_worker,
-            local_static: &mut local_static,
-            shared_static,
-            constant_space,
-        };
-        machine.initialize(context)?;
+        let shared_cache = runtime_heap.shared.allocation_cache();
+        machine.require_heap_compatibility(&heap, runtime_heap.shared.as_ref())?;
 
         let event_loop = Box::new(EventLoop::default());
 
@@ -546,26 +531,6 @@ impl Worker {
         self.heap.usage()
     }
 
-    /// Run one budgeted local collection step using the current root set.
-    pub fn step_local_collection(&mut self) -> RuntimeResult<heap::GcAdvance> {
-        let budget_bytes = self.heap.take_collection_budget_bytes();
-        let machine = &mut self.machine;
-        let event_loop = &mut self.event_loop;
-        let local_static = &mut self.local_static;
-        let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
-            machine.visit_root_slots(local_static, visit)?;
-            event_loop.visit_root_slots(machine, visit)?;
-            if let Some(stop) = &mut self.stop {
-                stop.visit_root_slots(machine, visit)?;
-            }
-
-            Ok::<(), Box<RuntimeError>>(())
-        };
-
-        self.heap
-            .step_collection(&mut roots, budget_bytes, self.program.trace_view())
-    }
-
     /// Collect shared heap roots from machine, scheduler, and registered providers.
     pub(crate) fn collect_shared_roots(&mut self) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
         let mut roots = Vec::new();
@@ -641,7 +606,7 @@ impl Worker {
                     )
                     .boxed()
                 })?,
-            local_static: self.local_static.clone(),
+            local_static: self.local_static.image()?,
             machine_image: self.machine.image()?,
             stop: self.stop.as_ref().map(StoppedRunnableImage::capture),
             profile: self.profile.clone(),
@@ -673,10 +638,10 @@ impl Worker {
         binding_table.apply_runtime_defaults(&self.options);
 
         let trace_view = self.machine.trace_view();
-        let heap = self.heap.fork(trace_view)?;
-        let local_static = self.local_static.clone();
+        let heap = self.heap.fork(runtime_heap.memory.clone(), trace_view)?;
+        let local_static = self.local_static.fork(runtime_heap.memory.clone());
         let shared_cache = runtime_heap.shared.allocation_cache();
-        let machine = self.machine.fork()?;
+        let machine = self.machine.fork(runtime_heap.memory.clone())?;
         let event_loop = Box::new(self.event_loop.fork()?);
         let stop = self.stop.clone();
         let profile = self.profile.clone();
@@ -709,8 +674,6 @@ impl Worker {
     pub(crate) fn from_image(
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         environment: Arc<Environment>,
@@ -736,37 +699,29 @@ impl Worker {
         let mut event_loop = Box::new(EventLoop::default());
 
         // machine
-        let mut machine = Machine::from_image(
+        let machine = Machine::from_image(
             MachineId::new(worker_id.0),
             program.clone(),
+            runtime_heap.memory.clone(),
             &image.machine_image,
             execution,
         )?;
         // heap
         let heap_options = resolve_local_heap_options(&options.heap)?;
-        let mut heap = heap::Heap::from_snapshot_with_allocator(
+        let heap = heap::Heap::from_snapshot(
             &image.heap,
-            runtime_heap.allocator.clone(),
+            runtime_heap.memory.clone(),
             heap_options.limits,
             program.trace_view(),
         )
         .map_err(Box::<RuntimeError>::from)?;
-        let mut local_static = image.local_static.clone();
+        let local_static =
+            program::StaticSpace::from_image(runtime_heap.memory.clone(), &image.local_static)?;
         let shared_mark_worker = runtime_heap.register_mark_worker();
-        let mut shared_cache = runtime_heap.shared.allocation_cache();
+        let shared_cache = runtime_heap.shared.allocation_cache();
 
-        // restore machine state over the restored heap
-        let context = ProgramStorage {
-            heap: &mut heap,
-            shared_heap: runtime_heap.shared.as_ref(),
-            shared_cache: &mut shared_cache,
-            shared_mark_worker: &shared_mark_worker,
-            local_static: &mut local_static,
-            shared_static,
-            constant_space,
-        };
-        machine.initialize(context)?;
-        machine.restore(&image.machine_image)?;
+        // require the restored heaps to match the restored program
+        machine.require_heap_compatibility(&heap, runtime_heap.shared.as_ref())?;
 
         // restore local state on fresh containers
         event_loop.restore_snapshot(&image.event_loop)?;

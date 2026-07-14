@@ -236,13 +236,14 @@ fn test_stop_at_memory_range_watchpoint() {
     let runtime_id = runtime.runtime_id();
     let worker_id = runtime.default_worker_id();
     let write_site = memory_write_site(&mut runtime, worker_id);
+    let memory_byte_len = runtime.world().memory.byte_len() as u64;
     let watchpoint_id = runtime
         .world_mut()
         .add_watchpoint(
             Some(runtime_id),
             Some(worker_id),
             program::MemoryAccess::Write,
-            program::MemoryTarget::Range(program::MemoryRange::local_heap(0, 1024 * 1024)),
+            program::MemoryTarget::Range(program::MemoryRange::local_heap(0, memory_byte_len)),
         )
         .expect("watchpoint should add");
 

@@ -14,6 +14,7 @@ use crate::runtime::worker::{
 use crate::world::{RestoreContext, RuntimeId, WorkerWake, WorldState};
 use destack_core::CaptureMode;
 use destack_heap as heap;
+use destack_memory::MemoryMap;
 use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
@@ -103,7 +104,7 @@ pub struct RuntimeImage {
     /// Captured runtime-owned shared heap state.
     pub shared_heap: heap::SharedHeapSnapshot,
     /// Captured runtime-owned shared static bytes.
-    pub shared_static: program::StaticSpace,
+    pub shared_static: program::StaticSpaceImage,
     /// Default worker identifier for this runtime.
     pub default_worker_id: WorkerId,
     /// The next worker slot to schedule first.
@@ -144,7 +145,7 @@ impl Runtime {
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
         world: &mut WorldState,
-        allocator: Arc<heap::Allocator>,
+        memory: Arc<MemoryMap>,
         collector: Arc<SharedCollector>,
         program: impl Into<Arc<program::Program>>,
         execution: Execution,
@@ -152,15 +153,13 @@ impl Runtime {
         let environment = environment.into();
         let program = program.into();
         let constant_space = program.constants().clone();
-        let mut shared_static = program.materialize_shared_statics();
-        let shared = RuntimeHeap::new(allocator, collector, options, program.clone())?;
+        let shared_static = program.materialize_shared_statics(memory.clone())?;
+        let shared = RuntimeHeap::new(memory, collector, options, program.clone())?;
         let default_worker = Worker::new_in_world(
             environment.clone(),
             options,
             world,
             &shared,
-            &mut shared_static,
-            &constant_space,
             WorkerOptions::default(),
             program.clone(),
             &execution,
@@ -297,8 +296,6 @@ impl Runtime {
             &self.options,
             world,
             &self.heap,
-            &mut self.shared_static,
-            &self.constant_space,
             self.id,
             worker_options,
             self.program.clone(),
@@ -516,7 +513,12 @@ impl Runtime {
     }
 
     /// Run one idle worker safepoint in stable scheduler order.
-    pub(crate) fn run_safepoint(&mut self) -> RuntimeResult<Option<(WorkerId, heap::GcAdvance)>> {
+    pub(crate) fn run_safepoint(
+        &mut self,
+        world: &mut WorldState,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<Option<(WorkerId, heap::GcAdvance)>> {
         // empty runtimes have no worker maintenance to donate
         let worker_count = self.workers.len();
         if worker_count == 0 {
@@ -525,12 +527,21 @@ impl Runtime {
 
         let start_index = self.next_worker_cursor % worker_count;
         let shared = &self.heap;
+        let shared_static = &mut self.shared_static;
+        let constant_space = &self.constant_space;
 
         // scan workers after the scheduler cursor
         for (worker_index, (worker_id, worker)) in
             self.workers.iter_mut().enumerate().skip(start_index)
         {
-            if let Some(progress) = worker.run_safepoint(shared)? {
+            if let Some(progress) = worker.run_safepoint(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )? {
                 self.next_worker_cursor = (worker_index + 1) % worker_count;
 
                 return Ok(Some((*worker_id, progress)));
@@ -541,7 +552,14 @@ impl Runtime {
         for (worker_index, (worker_id, worker)) in
             self.workers.iter_mut().enumerate().take(start_index)
         {
-            if let Some(progress) = worker.run_safepoint(shared)? {
+            if let Some(progress) = worker.run_safepoint(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )? {
                 self.next_worker_cursor = worker_index + 1;
 
                 return Ok(Some((*worker_id, progress)));
@@ -774,7 +792,7 @@ impl Runtime {
             program: self.program.clone(),
             execution: self.execution.image(),
             shared_heap: self.heap.snapshot()?,
-            shared_static: self.shared_static.clone(),
+            shared_static: self.shared_static.image()?,
             next_worker_cursor: self.next_worker_cursor,
         });
 
@@ -820,11 +838,12 @@ impl Runtime {
     /// Fork one live runtime when all owned workers are quiescent.
     pub(crate) fn try_fork(
         &mut self,
+        memory: Arc<MemoryMap>,
         execution_mode: ExecutionMode,
         collector: Arc<SharedCollector>,
     ) -> RuntimeResult<Option<Self>> {
-        let shared = self.heap.fork(collector)?;
-        let shared_static = self.shared_static.clone();
+        let shared = self.heap.fork(memory.clone(), collector)?;
+        let shared_static = self.shared_static.fork(memory);
 
         // fork each owned worker first
         let mut workers = BTreeMap::new();
@@ -854,7 +873,7 @@ impl Runtime {
     /// Restore one runtime from one materialized runtime image.
     pub(crate) fn from_image(
         world: &mut WorldState,
-        allocator: Arc<heap::Allocator>,
+        memory: Arc<MemoryMap>,
         collector: Arc<SharedCollector>,
         runtime_id: RuntimeId,
         image: &RuntimeImage,
@@ -876,11 +895,11 @@ impl Runtime {
         let shared = RuntimeHeap::from_snapshot(
             &image.shared_heap,
             &image.options,
-            allocator,
+            memory.clone(),
             collector,
             program.clone(),
         )?;
-        let mut shared_static = image.shared_static.clone();
+        let shared_static = program::StaticSpace::from_image(memory, &image.shared_static)?;
         let mut workers = BTreeMap::new();
 
         // workers
@@ -888,8 +907,6 @@ impl Runtime {
             let worker = Worker::from_image(
                 world,
                 &shared,
-                &mut shared_static,
-                &constant_space,
                 runtime_id,
                 *worker_id,
                 environment.clone(),
@@ -989,12 +1006,12 @@ mod tests {
         let trace_map = TraceMap::Empty;
         let shape = AllocationShape::new(bytes.len(), 1, None, trace_map);
         let site = heap.options().allocation_plan(&shape);
-        let mut allocator = heap.allocation_cache();
+        let mut cache = heap.allocation_cache();
         let worker = heap.register_mark_worker();
 
         heap.allocate_bytes(
             &worker,
-            &mut allocator,
+            &mut cache,
             site,
             &shape.trace_map,
             bytes,
@@ -1039,7 +1056,7 @@ mod tests {
         program: Arc<program::Program>,
     ) -> RuntimeHeap {
         RuntimeHeap::new(
-            world.allocator.clone(),
+            world.memory.clone(),
             world.shared_collector.clone(),
             options,
             program,
@@ -1075,17 +1092,18 @@ mod tests {
         let program = machine.program();
         let execution = machine.execution();
         let shared = runtime_shared_heap(&world, &options, program.clone());
+        let memory = world.memory.clone();
         let world_state = &mut world.state;
         let constant_space = program.constants().clone();
-        let mut shared_static = program.materialize_shared_statics();
+        let mut shared_static = program
+            .materialize_shared_statics(memory)
+            .expect("shared test statics should build");
 
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
-            &mut shared_static,
-            &constant_space,
             WorkerOptions::default(),
             program.clone(),
             &execution,
@@ -1140,7 +1158,7 @@ mod tests {
 
         // initial publication drains before events mutate roots
         let progressed_worker = runtime
-            .run_safepoint()
+            .run_safepoint(world_state, host.as_ref(), &host_queue)
             .expect("runtime safepoint should publish initial roots");
         let (progressed_worker, progress) = progressed_worker.expect("worker should publish roots");
         assert_eq!(progressed_worker, worker_id);
@@ -1182,16 +1200,17 @@ mod tests {
         let program = machine.program();
         let execution = machine.execution();
         let shared = runtime_shared_heap(&world, &options, program.clone());
+        let memory = world.memory.clone();
         let world_state = &mut world.state;
         let constant_space = program.constants().clone();
-        let mut shared_static = program.materialize_shared_statics();
+        let shared_static = program
+            .materialize_shared_statics(memory)
+            .expect("shared test statics should build");
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
-            &mut shared_static,
-            &constant_space,
             WorkerOptions::default(),
             program.clone(),
             &execution,
@@ -1245,17 +1264,18 @@ mod tests {
         let program = machine.program();
         let execution = machine.execution();
         let shared = runtime_shared_heap(&world, &options, program.clone());
+        let memory = world.memory.clone();
         let world_state = &mut world.state;
         let constant_space = program.constants().clone();
-        let mut shared_static = program.materialize_shared_statics();
+        let mut shared_static = program
+            .materialize_shared_statics(memory)
+            .expect("shared test statics should build");
 
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
-            &mut shared_static,
-            &constant_space,
             WorkerOptions::default(),
             program.clone(),
             &execution,
@@ -1311,7 +1331,7 @@ mod tests {
 
         // one runtime safepoint should let the owning worker publish its direct roots
         let progressed_worker = runtime
-            .run_safepoint()
+            .run_safepoint(world_state, host.as_ref(), &host_queue)
             .expect("runtime safepoint should succeed");
 
         let (progressed_worker, progress) = progressed_worker.expect("worker should publish roots");

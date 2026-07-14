@@ -1340,6 +1340,7 @@ dependencies = [
  "destack_dir",
  "destack_fir",
  "destack_heap",
+ "destack_memory",
  "destack_mir",
  "destack_program",
  "destack_query",

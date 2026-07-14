@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_core::{CaptureMode, fnv1a_128};
+use destack_memory::MemoryMap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -241,6 +242,11 @@ impl World {
         self.quiesce_shared_gc();
 
         let result = (|| {
+            // restore every runtime into one fresh World memory map
+            let memory = MemoryMap::reserve(self.memory.byte_len(), self.memory.frame_size_bytes())
+                .map_err(Box::<RuntimeError>::from)?;
+            let memory = Arc::new(memory);
+
             self.state.next_runtime_id = image.next_runtime_id;
             self.state.next_worker_id = image.next_worker_id;
             self.state.moment = image.moment;
@@ -260,12 +266,11 @@ impl World {
                     .filter(|(worker_id, _)| image.runtime_owns_worker(*runtime_id, **worker_id))
                     .map(|(worker_id, worker_image)| (*worker_id, worker_image.clone()))
                     .collect::<BTreeMap<_, _>>();
-                let allocator = self.allocator.clone();
                 let collector = self.shared_collector.clone();
 
                 let runtime = Runtime::from_image(
                     &mut self.state,
-                    allocator,
+                    memory.clone(),
                     collector,
                     *runtime_id,
                     runtime_image.as_ref(),
@@ -275,6 +280,7 @@ impl World {
                 restored_runtimes.insert(*runtime_id, runtime);
             }
 
+            self.memory = memory;
             self.runtimes = restored_runtimes;
 
             Ok(())

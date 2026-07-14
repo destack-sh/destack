@@ -4,6 +4,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use destack_heap as heap;
+use destack_memory::MemoryMap;
 use destack_repository::{Environment, ReplayPayloadMode, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -38,8 +39,8 @@ pub struct World {
     pub(crate) poller: HostPollerInstance,
     /// Live runtimes owned by this world.
     pub(crate) runtimes: BTreeMap<RuntimeId, Runtime>,
-    /// Page allocator backing runtime and worker heaps.
-    pub(crate) allocator: Arc<heap::Allocator>,
+    /// Forkable virtual memory for every runtime and worker in this world.
+    pub(crate) memory: Arc<MemoryMap>,
     /// Shared GC scheduler for live runtimes.
     pub(crate) shared_collector: Arc<SharedCollector>,
     /// Shared state used by runtimes and workers.
@@ -55,7 +56,7 @@ impl std::fmt::Debug for World {
             .field("host_queue", &self.host_queue)
             .field("poller", &"<host poller>")
             .field("runtimes", &self.runtimes)
-            .field("allocator", &self.allocator)
+            .field("memory", &self.memory)
             .field("shared_collector", &self.shared_collector)
             .field("state", &self.state)
             .field("lineage", &self.lineage)
@@ -164,14 +165,16 @@ impl World {
         });
         let root_trace_image = Arc::new(state.trace.capture_image());
 
-        // create heap allocator and shared collector
-        let allocator = Arc::new(
-            heap::Allocator::try_new(
-                heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
-                heap::DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
+        // reserve one world-relative address map
+        let memory = Arc::new(
+            MemoryMap::reserve(
+                options.heap.memory_map_size_bytes,
+                heap::DEFAULT_HEAP_PAGE_SIZE_BYTES,
             )
             .map_err(Box::<RuntimeError>::from)?,
         );
+
+        // create the shared collector
         let collector_mode = SharedCollectorMode::from_execution_mode(execution_mode);
         let shared_collector = SharedCollector::new(
             collector_mode,
@@ -193,7 +196,7 @@ impl World {
             host_queue: HostQueue::new(),
             poller,
             runtimes: BTreeMap::new(),
-            allocator,
+            memory,
             shared_collector,
             state,
             lineage,

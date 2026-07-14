@@ -426,7 +426,7 @@ impl World {
             host_queue: HostQueue::new(),
             poller,
             runtimes: Default::default(),
-            allocator: self.allocator.clone(),
+            memory: self.memory.clone(),
             shared_collector: self.shared_collector.clone(),
             state,
             lineage: self.lineage.clone(),
@@ -443,12 +443,17 @@ impl World {
         self.quiesce_shared_gc();
 
         let result = (|| {
+            // fork World memory once before rebuilding dependent heap metadata
+            let memory = Arc::new(self.memory.fork_lazy().map_err(Box::<RuntimeError>::from)?);
+
             // direct live fork still requires all runtimes to be quiescent
             let execution_mode = self.state.trace.mode();
             let collector = self.shared_collector.clone();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
-                let Some(runtime) = runtime.try_fork(execution_mode, collector.clone())? else {
+                let Some(runtime) =
+                    runtime.try_fork(memory.clone(), execution_mode, collector.clone())?
+                else {
                     return Ok(None);
                 };
                 runtimes.insert(*runtime_id, runtime);
@@ -485,7 +490,7 @@ impl World {
                 host_queue: HostQueue::new(),
                 poller,
                 runtimes,
-                allocator: self.allocator.clone(),
+                memory,
                 shared_collector: self.shared_collector.clone(),
                 state,
                 lineage: self.lineage.clone(),

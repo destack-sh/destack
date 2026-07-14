@@ -2,9 +2,10 @@ use std::mem::size_of;
 use std::sync::Once;
 
 use destack_heap::{
-    AllocationCache, Allocator, Heap, HeapOptions, SharedHeap, SharedHeapOptions, SharedMarkWorker,
+    AllocationCache, Heap, HeapOptions, SharedHeap, SharedHeapOptions, SharedMarkWorker,
     SizeClassTable,
 };
+use destack_memory::MemoryMap;
 use destack_program::StaticSpace;
 use destack_repository::{Environment, RuntimeOptions};
 use destack_runtime::diagnostic::DiagnosticStore;
@@ -39,7 +40,6 @@ pub(crate) fn print_once() {
         print_type_sizes();
         print_component_sizes();
         print_allocations(&runtime, vm);
-        print_vm_machine_breakdown(vm);
     });
 }
 
@@ -95,7 +95,7 @@ fn print_type_sizes() {
 /// Print public component sizes inside the larger owner nouns.
 fn print_component_sizes() {
     let rows = [
-        ("heap", "Allocator", size_of::<Allocator>()),
+        ("memory", "MemoryMap", size_of::<MemoryMap>()),
         ("heap", "SizeClassTable", size_of::<SizeClassTable>()),
         ("heap", "HeapOptions", size_of::<HeapOptions>()),
         ("heap", "SharedHeapOptions", size_of::<SharedHeapOptions>()),
@@ -159,49 +159,6 @@ fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
     eprintln!();
 }
 
-/// Print one step-by-step initialized VM machine allocation ledger.
-fn print_vm_machine_breakdown(vm: VmSetup) {
-    let (mut machine, machine_build) = ALLOCATOR.capture(|| vm.build_machine());
-    let (mut statics, statics_empty) = ALLOCATOR.capture(StaticSpace::empty);
-    let (mut shared_statics, shared_statics_empty) = ALLOCATOR.capture(StaticSpace::empty);
-    let (heap, local_heap) = ALLOCATOR.capture(|| vm.local_heap());
-    let (shared, shared_heap) = ALLOCATOR.capture(|| vm.shared_heap());
-    let (_shared_mark_worker, shared_mark_worker) =
-        ALLOCATOR.capture(|| shared.register_mark_worker());
-    let (_shared_cache, shared_cache) = ALLOCATOR.capture(|| shared.allocation_cache());
-    let initialize = ALLOCATOR.measure(|| {
-        machine
-            .initialize(&heap, &shared, &mut statics, &mut shared_statics)
-            .expect("footprint machine should initialize")
-    });
-    let rows = [
-        ("vm.machine.build", machine_build),
-        ("vm.static.empty", statics_empty),
-        ("vm.shared_static.empty", shared_statics_empty),
-        ("vm.local_heap.new", local_heap),
-        ("vm.shared_heap.new", shared_heap),
-        ("vm.shared_mark_worker.new", shared_mark_worker),
-        ("vm.shared_cache.new", shared_cache),
-        ("vm.machine.initialize", initialize),
-    ];
-
-    eprintln!();
-    eprintln!("runtime footprint: vm.machine.new allocation ledger");
-    eprintln!(
-        "{:<28} {:>12} {:>14} {:>14} {:>14}",
-        "step", "allocs", "allocated B", "live B", "peak B"
-    );
-    eprintln!(
-        "{:-<28} {:-<12} {:-<14} {:-<14} {:-<14}",
-        "", "", "", "", ""
-    );
-    for (name, sample) in rows {
-        print_allocation_bytes(name, sample);
-    }
-    print_allocation_bytes("total", sum_allocations(&rows));
-    eprintln!();
-}
-
 /// Print one allocation row.
 fn print_allocation(name: &str, sample: AllocationSample) {
     eprintln!(
@@ -211,33 +168,6 @@ fn print_allocation(name: &str, sample: AllocationSample) {
         format_bytes(sample.live_bytes),
         format_bytes(sample.peak_live_bytes),
     );
-}
-
-/// Print one exact allocation row.
-fn print_allocation_bytes(name: &str, sample: AllocationSample) {
-    eprintln!(
-        "{name:<28} {:>12} {:>14} {:>14} {:>14}",
-        sample.allocations, sample.allocated_bytes, sample.live_bytes, sample.peak_live_bytes,
-    );
-}
-
-/// Sum allocation rows.
-fn sum_allocations(rows: &[(&str, AllocationSample)]) -> AllocationSample {
-    let mut total = AllocationSample {
-        allocations: 0,
-        allocated_bytes: 0,
-        live_bytes: 0,
-        peak_live_bytes: 0,
-    };
-
-    for (_, sample) in rows {
-        total.allocations += sample.allocations;
-        total.allocated_bytes += sample.allocated_bytes;
-        total.live_bytes += sample.live_bytes;
-        total.peak_live_bytes += sample.peak_live_bytes;
-    }
-
-    total
 }
 
 /// Format one byte count.
