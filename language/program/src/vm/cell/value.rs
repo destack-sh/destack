@@ -20,8 +20,8 @@ impl CellLayout {
                 Cell::shared_heap_reference(SharedHeapReference::from_bits(raw as usize))
             }
             Self::Address => Cell::address(raw as usize),
-            Self::StackPointer => Cell::stack_pointer(StackPointer::from_address(raw as usize)),
-            Self::FramePointer => Cell::frame_pointer(FramePointer::from_address(raw as usize)),
+            Self::StackPointer => Cell::stack_pointer(StackPointer::from_offset(raw as usize)),
+            Self::FramePointer => Cell::frame_pointer(FramePointer::from_offset(raw as usize)),
             Self::GlobalAddress => Cell::global_address(GlobalAddress::from_bits(raw)),
             Self::FunctionPointer => {
                 Cell::function_pointer(FunctionPointer::from_bits(raw as usize))

@@ -74,8 +74,10 @@ impl From<FrameSlotId> for u32 {
 pub struct FrameImage {
     /// The captured frame state.
     pub frame_state: FrameStateId,
-    /// The caller return frame state.
-    pub return_state: Option<FrameStateId>,
+    /// The caller normal frame state.
+    pub normal_state: Option<FrameStateId>,
+    /// The caller unwind frame state.
+    pub unwind_state: Option<FrameStateId>,
     /// The byte offset inside the captured stack image.
     pub stack_offset: usize,
     /// The captured frame byte width.

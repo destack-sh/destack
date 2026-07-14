@@ -55,10 +55,14 @@ impl Continuation {
 pub struct ContinuationFrame {
     /// The captured frame state.
     pub frame_state: FrameStateId,
-    /// The caller return frame state.
-    pub return_state: Option<FrameStateId>,
+    /// The caller normal frame state.
+    pub normal_state: Option<FrameStateId>,
+    /// The caller unwind frame state.
+    pub unwind_state: Option<FrameStateId>,
     /// The byte offset inside the continuation byte store.
     pub byte_offset: usize,
+    /// The byte offset inside the worker stack range.
+    pub stack_offset: usize,
     /// The captured frame byte width.
     pub byte_len: usize,
 }

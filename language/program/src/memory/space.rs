@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use destack_core::{SectionImage, SectionPacker, SectionSlice};
+use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -76,8 +79,12 @@ impl StaticImage {
     }
 
     /// Materialize this image into mutable runtime static memory.
-    pub fn materialize(&self, sections: SectionImage<'_>) -> StaticSpace {
-        StaticSpace::new(sections.entries(self.bytes).to_vec().into_boxed_slice())
+    pub fn materialize(
+        &self,
+        sections: SectionImage<'_>,
+        memory: Arc<MemoryMap>,
+    ) -> MemoryResult<StaticSpace> {
+        StaticSpace::new(memory, sections.entries(self.bytes))
     }
 
     /// Return whether no static bytes exist.
@@ -101,38 +108,90 @@ impl StaticImage {
     }
 }
 
+/// Durable mutable static memory image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct StaticSpaceImage {
+    /// The static byte offset inside world memory.
+    pub memory_offset: u64,
+    /// The captured static bytes.
+    pub bytes: Vec<u8>,
+}
+
 /// Runtime-owned mutable static memory.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug)]
 pub struct StaticSpace {
-    /// The static bytes.
-    bytes: Box<[u8]>,
+    /// The world memory map.
+    memory: Arc<MemoryMap>,
+    /// The static byte range inside world memory.
+    range: MemoryRange,
 }
 
 impl StaticSpace {
-    /// Create empty static memory.
-    pub fn empty() -> Self {
+    /// Create static memory from initial bytes.
+    pub fn new(memory: Arc<MemoryMap>, bytes: &[u8]) -> MemoryResult<Self> {
+        let range = memory.allocate(bytes.len(), 1)?;
+        let space = Self { memory, range };
+        space.memory.write_bytes(space.range.offset, bytes)?;
+
+        Ok(space)
+    }
+
+    /// Restore static memory from one image.
+    pub fn from_image(memory: Arc<MemoryMap>, image: &StaticSpaceImage) -> MemoryResult<Self> {
+        let offset =
+            usize::try_from(image.memory_offset).map_err(|_| MemoryError::OffsetOverflow {
+                offset: image.memory_offset,
+            })?;
+        let range = MemoryRange {
+            offset,
+            byte_len: image.bytes.len(),
+        };
+        memory.claim(range)?;
+        let space = Self { memory, range };
+        space.memory.write_bytes(space.range.offset, &image.bytes)?;
+
+        Ok(space)
+    }
+
+    /// Fork static memory over an already forked world map.
+    pub fn fork(&self, memory: Arc<MemoryMap>) -> Self {
         Self {
-            bytes: Box::default(),
+            memory,
+            range: self.range,
         }
     }
 
-    /// Create static memory.
-    fn new(bytes: Box<[u8]>) -> Self {
-        Self { bytes }
+    /// Capture mutable static memory.
+    pub fn image(&self) -> MemoryResult<StaticSpaceImage> {
+        let bytes = self
+            .memory
+            .read_bytes(self.range.offset, self.range.byte_len)?;
+
+        Ok(StaticSpaceImage {
+            memory_offset: self.range.offset as u64,
+            bytes,
+        })
     }
 
-    /// Borrow one global byte range.
-    pub fn bytes(&self, global: &Global) -> Option<&[u8]> {
+    /// Borrow one mapped global byte range mutably.
+    ///
+    /// # Safety
+    ///
+    /// No other access to this memory map may overlap the returned byte range.
+    pub(crate) unsafe fn bytes_mut(&mut self, global: &Global) -> Option<&mut [u8]> {
         let end = global.offset() + global.byte_len();
 
-        self.bytes.get(global.offset()..end)
-    }
+        if end > self.range.byte_len {
+            return None;
+        }
 
-    /// Borrow one global byte range mutably.
-    pub fn bytes_mut(&mut self, global: &Global) -> Option<&mut [u8]> {
-        let end = global.offset() + global.byte_len();
+        // SAFETY: &mut self grants exclusive access to this static range
+        let bytes = unsafe {
+            self.memory
+                .mapped_bytes_mut(self.range.offset, self.range.byte_len)
+        };
 
-        self.bytes.get_mut(global.offset()..end)
+        bytes.get_mut(global.offset()..end)
     }
 
     /// Return a native address for one static byte range.
@@ -148,7 +207,7 @@ impl StaticSpace {
             return None;
         }
 
-        Some(self.bytes.as_ptr() as usize + global.offset() + start)
+        Some(self.memory.base_address() + self.range.offset + global.offset() + start)
     }
 
     /// Return a mutable native address for one static byte range.
@@ -157,49 +216,109 @@ impl StaticSpace {
         global: &Global,
         address: GlobalAddress,
         byte_len: usize,
-    ) -> Option<usize> {
+    ) -> MemoryResult<Option<usize>> {
         let start = address.byte_offset();
-        let end = start.checked_add(byte_len)?;
+        let Some(end) = start.checked_add(byte_len) else {
+            return Ok(None);
+        };
         if end > global.byte_len() {
-            return None;
+            return Ok(None);
         }
 
-        Some(self.bytes.as_mut_ptr() as usize + global.offset() + start)
-    }
+        self.memory
+            .make_writable(self.range.offset + global.offset() + start, byte_len)?;
 
-    /// Return whether static memory owns one byte range.
-    pub fn owns_address_range(
-        &self,
-        global: &Global,
-        address: GlobalAddress,
-        byte_len: usize,
-    ) -> bool {
-        self.native_address(global, address, byte_len).is_some()
-    }
-
-    /// Return whether no static bytes exist.
-    pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
+        Ok(Some(
+            self.memory.base_address() + self.range.offset + global.offset() + start,
+        ))
     }
 
     /// Return the static byte count.
     pub fn byte_len(&self) -> usize {
-        self.bytes.len()
-    }
-
-    /// Return a native projection of this constant space.
-    pub fn as_native_constants(&self) -> NativeConstantSpace {
-        NativeConstantSpace {
-            bytes: self.bytes.as_ptr(),
-            byte_len: self.bytes.len(),
-        }
+        self.range.byte_len
     }
 
     /// Return a native projection of this static space.
     pub fn as_native_statics(&mut self) -> NativeStaticSpace {
         NativeStaticSpace {
-            bytes: self.bytes.as_mut_ptr(),
-            byte_len: self.bytes.len(),
+            bytes: (self.memory.base_address() + self.range.offset) as *mut u8,
+            byte_len: self.range.byte_len,
         }
+    }
+}
+
+impl Drop for StaticSpace {
+    fn drop(&mut self) {
+        // abort because an owned range becoming invalid means memory state is corrupt
+        if self.memory.release(self.range).is_err() {
+            std::process::abort();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Restore mutable static bytes at their captured world offset.
+    #[test]
+    fn test_restore_static_space_image() {
+        let source_memory = Arc::new(
+            MemoryMap::reserve(64 * 1024, 8 * 1024).expect("source memory should reserve"),
+        );
+        let source = StaticSpace::new(source_memory, &[1, 2, 3, 4])
+            .expect("source statics should materialize");
+        let image = source.image().expect("static image should capture");
+        let target_memory = Arc::new(
+            MemoryMap::reserve(64 * 1024, 8 * 1024).expect("target memory should reserve"),
+        );
+
+        let restored =
+            StaticSpace::from_image(target_memory, &image).expect("static image should restore");
+        let restored_image = restored.image().expect("restored image should capture");
+
+        assert_eq!(restored_image, image);
+    }
+
+    /// Isolate forked mutable static bytes on first write.
+    #[test]
+    fn test_fork_static_space_isolates_writes() {
+        let memory = Arc::new(
+            MemoryMap::reserve(64 * 1024, 8 * 1024).expect("parent memory should reserve"),
+        );
+        let parent = StaticSpace::new(memory.clone(), &[1, 2, 3, 4])
+            .expect("parent statics should materialize");
+        let fork_memory = Arc::new(memory.fork_lazy().expect("world memory should fork"));
+        let fork = parent.fork(fork_memory);
+
+        fork.memory
+            .write_bytes(fork.range.offset, &[9, 8, 7, 6])
+            .expect("fork statics should write");
+
+        assert_eq!(
+            parent.image().expect("parent image should capture").bytes,
+            [1, 2, 3, 4]
+        );
+        assert_eq!(
+            fork.image().expect("fork image should capture").bytes,
+            [9, 8, 7, 6]
+        );
+    }
+
+    /// Reuse static memory ranges after their owner is dropped.
+    #[test]
+    fn test_drop_static_space_releases_range() {
+        let memory =
+            Arc::new(MemoryMap::reserve(64 * 1024, 8 * 1024).expect("test memory should reserve"));
+        let first_offset = {
+            let space = StaticSpace::new(memory.clone(), &[1, 2, 3, 4])
+                .expect("first statics should materialize");
+
+            space.range.offset
+        };
+        let second =
+            StaticSpace::new(memory, &[5, 6, 7, 8]).expect("second statics should materialize");
+
+        assert_eq!(second.range.offset, first_offset);
     }
 }

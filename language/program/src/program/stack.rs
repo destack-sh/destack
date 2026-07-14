@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 /// Durable stack image captured at one managed safepoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StackImage {
+    /// The stack byte offset inside world memory.
+    pub memory_offset: u64,
     /// The captured stack bytes.
     pub bytes: Vec<u8>,
 }
@@ -11,7 +13,10 @@ pub struct StackImage {
 impl StackImage {
     /// Create one empty stack image.
     pub fn empty() -> Self {
-        Self { bytes: Vec::new() }
+        Self {
+            memory_offset: 0,
+            bytes: Vec::new(),
+        }
     }
 
     /// Return the captured byte length.

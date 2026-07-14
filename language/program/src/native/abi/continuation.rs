@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::fmt;
 
+use destack_core::Optional;
+
 use crate::{Continuation, ContinuationFrame, FrameStateId};
 
 /// Native frame captured with one continuation.
@@ -8,13 +10,15 @@ use crate::{Continuation, ContinuationFrame, FrameStateId};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NativeFrame {
     /// The captured frame state.
-    pub frame_state: u32,
-    /// Whether the caller return frame state is present.
-    pub return_state_is_present: u32,
-    /// The caller return frame state when present.
-    pub return_state: u32,
+    pub frame_state: FrameStateId,
+    /// The caller normal frame state.
+    pub normal_state: Optional<FrameStateId>,
+    /// The caller unwind frame state.
+    pub unwind_state: Optional<FrameStateId>,
     /// The captured frame bytes in durable continuation encoding.
     pub bytes: *const u8,
+    /// The byte offset inside the world stack range.
+    pub stack_offset: usize,
     /// The captured frame byte length.
     pub byte_len: usize,
 }
@@ -74,15 +78,6 @@ impl NativeContinuation {
 }
 
 impl NativeFrame {
-    /// Return the caller return frame state.
-    pub fn caller_return_state(self) -> Option<FrameStateId> {
-        if self.return_state_is_present == 0 {
-            None
-        } else {
-            Some(self.return_state.into())
-        }
-    }
-
     /// Convert this ABI frame to durable frame state.
     ///
     /// # Safety
@@ -103,9 +98,11 @@ impl NativeFrame {
         let byte_offset = continuation.push_frame_bytes(bytes);
 
         Ok(ContinuationFrame {
-            frame_state: self.frame_state.into(),
-            return_state: self.caller_return_state(),
+            frame_state: self.frame_state,
+            normal_state: self.normal_state.get(),
+            unwind_state: self.unwind_state.get(),
             byte_offset,
+            stack_offset: self.stack_offset,
             byte_len: self.byte_len,
         })
     }

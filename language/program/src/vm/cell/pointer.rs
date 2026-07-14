@@ -36,62 +36,62 @@ impl From<FunctionId> for FunctionPointer {
     }
 }
 
-/// Address inside one frame-owned stack allocation.
+/// World memory offset inside one frame-owned stack allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[repr(transparent)]
 pub struct StackPointer(usize);
 
 impl StackPointer {
-    /// Create a stack pointer from one native address.
+    /// Create a stack pointer from one world memory offset.
     #[inline]
-    pub const fn from_address(address: usize) -> Self {
-        Self(address)
+    pub const fn from_offset(offset: usize) -> Self {
+        Self(offset)
     }
 
-    /// Return the native address.
+    /// Return the world memory offset.
     #[inline]
-    pub const fn address(self) -> usize {
+    pub const fn offset(self) -> usize {
         self.0
     }
 
-    /// Return the native address bits.
+    /// Return the world memory offset bits.
     #[inline]
     pub const fn bits(self) -> usize {
         self.0
     }
 
-    /// Add one byte offset to this address.
+    /// Add one byte offset.
     #[inline]
     pub const fn add_bytes(self, byte_offset: usize) -> Self {
         Self(self.0 + byte_offset)
     }
 }
 
-/// Address inside one frame value.
+/// World memory offset inside one frame value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[repr(transparent)]
 pub struct FramePointer(usize);
 
 impl FramePointer {
-    /// Create a frame pointer from one native address.
+    /// Create a frame pointer from one world memory offset.
     #[inline]
-    pub const fn from_address(address: usize) -> Self {
-        Self(address)
+    pub const fn from_offset(offset: usize) -> Self {
+        Self(offset)
     }
 
-    /// Return the native address.
+    /// Return the world memory offset.
     #[inline]
-    pub const fn address(self) -> usize {
+    pub const fn offset(self) -> usize {
         self.0
     }
 
-    /// Return the native address bits.
+    /// Return the world memory offset bits.
     #[inline]
     pub const fn bits(self) -> usize {
         self.0
     }
 
-    /// Add one byte offset to this address.
+    /// Add one byte offset.
     #[inline]
     pub const fn add_bytes(self, byte_offset: usize) -> Self {
         Self(self.0 + byte_offset)

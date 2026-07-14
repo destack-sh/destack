@@ -1270,6 +1270,7 @@ version = "0.55.4"
 dependencies = [
  "destack_core",
  "destack_heap",
+ "destack_memory",
  "destack_mir",
  "destack_serde",
  "destack_source",
