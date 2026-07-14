@@ -81,17 +81,28 @@ impl Runtime {
             return Ok(None);
         }
 
+        // leave Drop callbacks to a worker with executable state
+        if self.heap.shared.gc_phase() == heap::GcPhase::Drop {
+            return Ok(None);
+        }
+
         if did_start {
             self.start_shared_root_publication()?;
+
+            return Ok(Some(heap::GcAdvance::started(heap::GcCollector::Shared)));
         }
 
         self.refresh_shared_gc_work();
 
-        let mut roots_complete = true;
-
-        if did_start || self.heap.shared.gc_phase() == heap::GcPhase::Mark {
+        // let workers publish roots before coordinator mark work resumes
+        let roots_complete = if self.heap.shared.gc_phase() == heap::GcPhase::Mark {
             self.refresh_shared_edge_scan();
-            roots_complete = self.heap.roots().roots_complete();
+            self.heap.roots().roots_complete()
+        } else {
+            true
+        };
+        if !roots_complete {
+            return Ok(None);
         }
 
         let roots = self.heap.roots().roots_snapshot();
@@ -109,15 +120,6 @@ impl Runtime {
                 self.program.trace_view(),
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let advance = if did_start {
-            if advance.advanced() {
-                advance.with_start()
-            } else {
-                heap::GcAdvance::started(heap::GcCollector::Shared)
-            }
-        } else {
-            advance
-        };
         let is_active = self.heap.shared.gc_phase() != heap::GcPhase::Idle;
 
         if self.heap.shared.gc_phase() != heap::GcPhase::Mark || roots_complete {
@@ -126,7 +128,7 @@ impl Runtime {
             self.heap.roots().request_termination();
         }
 
-        if !is_active && (was_active || did_start) {
+        if !is_active && was_active {
             self.finish_shared_root_publication();
         }
 
@@ -146,6 +148,11 @@ impl Runtime {
         if self.heap.shared.gc_phase() == heap::GcPhase::Idle && self.shared_gc_pending_cleanup() {
             self.finish_shared_root_publication();
 
+            return Ok(None);
+        }
+
+        // leave Drop callbacks to a worker with executable state
+        if self.heap.shared.gc_phase() == heap::GcPhase::Drop {
             return Ok(None);
         }
 

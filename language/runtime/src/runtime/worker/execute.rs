@@ -211,7 +211,15 @@ impl Worker {
             }
 
             // donate GC work before sleeping or declaring idle
-            let safepoint_progressed = self.collect_at_safepoint(shared, true)?;
+            let safepoint_progressed = self.collect_at_safepoint(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+                true,
+            )?;
             let progressed = progressed || safepoint_progressed;
 
             // wait for the next wakeup when no work progressed this tick
@@ -271,7 +279,15 @@ impl Worker {
             DEFAULT_MAX_MICROTASK_DEPTH,
         )?;
 
-        self.finish_run(shared, outcome)
+        self.finish_run(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            outcome,
+        )
     }
 
     /// Continue this worker from a retained runtime stop point.
@@ -298,7 +314,15 @@ impl Worker {
             stop,
         )?;
 
-        self.finish_run(shared, outcome)
+        self.finish_run(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            outcome,
+        )
     }
 
     /// Run one task or scheduler event and retain runtime stop points.
@@ -326,11 +350,28 @@ impl Worker {
             host_queue,
         )?;
 
-        self.finish_run(shared, outcome)
+        self.finish_run(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            outcome,
+        )
     }
 
     /// Run cooperative GC work at one worker safepoint.
-    fn collect_at_safepoint(&mut self, shared: &RuntimeHeap, is_idle: bool) -> RuntimeResult<bool> {
+    fn collect_at_safepoint(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        is_idle: bool,
+    ) -> RuntimeResult<bool> {
         let prioritize_shared = shared.is_terminating()
             || shared.pending_root_epoch(self.id).is_some()
             || (shared.is_marking() && !self.shared_edge_scan_idle());
@@ -340,9 +381,23 @@ impl Worker {
         // cooperative GC work
         loop {
             let advance = if prioritize_shared {
-                self.step_gc_with_shared_priority(shared)?
+                self.step_gc_with_shared_priority(
+                    world,
+                    shared,
+                    shared_static,
+                    constant_space,
+                    host,
+                    host_queue,
+                )?
             } else {
-                self.step_gc_with_local_priority(shared)?
+                self.step_gc_with_local_priority(
+                    world,
+                    shared,
+                    shared_static,
+                    constant_space,
+                    host,
+                    host_queue,
+                )?
             };
 
             if advance.is_none() {
@@ -361,23 +416,47 @@ impl Worker {
     /// Run cooperative GC work at one idle worker safepoint.
     pub(crate) fn run_safepoint(
         &mut self,
+        world: &mut WorldState,
         shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         let prioritize_shared = shared.is_terminating()
             || shared.pending_root_epoch(self.id).is_some()
             || (shared.is_marking() && !self.shared_edge_scan_idle());
 
         if prioritize_shared {
-            self.step_gc_with_shared_priority(shared)
+            self.step_gc_with_shared_priority(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )
         } else {
-            self.step_gc_with_local_priority(shared)
+            self.step_gc_with_local_priority(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )
         }
     }
 
     /// Run one GC safepoint step with shared heap work first.
     fn step_gc_with_shared_priority(
         &mut self,
+        world: &mut WorldState,
         shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // direct shared roots
         if let Some(progress) = self.assist_shared_root_scan(shared)? {
@@ -390,12 +469,26 @@ impl Worker {
         }
 
         // shared mark and sweep work
-        if let Some(progress) = self.assist_shared_gc(shared)? {
+        if let Some(progress) = self.assist_shared_gc(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+        )? {
             return Ok(Some(progress));
         }
 
         // local heap work
-        let progress = self.step_local_collection()?;
+        let progress = self.step_local_collection(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+        )?;
         if progress.advanced() {
             return Ok(Some(progress));
         }
@@ -406,10 +499,22 @@ impl Worker {
     /// Run one GC safepoint step with local heap work first.
     fn step_gc_with_local_priority(
         &mut self,
+        world: &mut WorldState,
         shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // local heap work
-        let progress = self.step_local_collection()?;
+        let progress = self.step_local_collection(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+        )?;
         if progress.advanced() {
             return Ok(Some(progress));
         }
@@ -425,7 +530,14 @@ impl Worker {
         }
 
         // shared mark and sweep work
-        if let Some(progress) = self.assist_shared_gc(shared)? {
+        if let Some(progress) = self.assist_shared_gc(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+        )? {
             return Ok(Some(progress));
         }
 
@@ -493,10 +605,22 @@ impl Worker {
     /// Assist one active shared collection from this worker safepoint.
     fn assist_shared_gc(
         &mut self,
+        world: &mut WorldState,
         runtime_shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         let shared = runtime_shared.shared.as_ref();
-        let budget_bytes = shared.take_assist_budget_bytes();
+        let budget_bytes = if matches!(
+            shared.gc_phase(),
+            heap::GcPhase::Drop | heap::GcPhase::Sweep
+        ) {
+            shared.take_collection_budget_bytes(1)
+        } else {
+            shared.take_assist_budget_bytes()
+        };
         if budget_bytes == 0 || shared.gc_phase() == heap::GcPhase::Idle {
             return Ok(None);
         }
@@ -514,11 +638,107 @@ impl Worker {
             )
             .map_err(Box::<RuntimeError>::from)?;
 
+        if let heap::GcAdvance::Drop(drop) = progress {
+            self.drop_value(
+                world,
+                runtime_shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+                drop,
+            )?;
+            shared
+                .complete_drop(drop.reference)
+                .map_err(Box::<RuntimeError>::from)?;
+        }
+
         if progress.advanced() {
             Ok(Some(progress))
         } else {
             Ok(None)
         }
+    }
+
+    /// Run one budgeted local collection step and any selected Drop callback.
+    fn step_local_collection(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<heap::GcAdvance> {
+        let budget_bytes = self.heap.take_collection_budget_bytes();
+        let machine = &mut self.machine;
+        let event_loop = &mut self.event_loop;
+        let local_static = &mut self.local_static;
+        let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
+            machine.visit_root_slots(local_static, visit)?;
+            event_loop.visit_root_slots(machine, visit)?;
+            if let Some(stop) = &mut self.stop {
+                stop.visit_root_slots(machine, visit)?;
+            }
+
+            Ok::<(), Box<RuntimeError>>(())
+        };
+        let progress =
+            self.heap
+                .step_collection(&mut roots, budget_bytes, self.program.trace_view())?;
+
+        if let heap::GcAdvance::Drop(drop) = progress {
+            self.drop_value(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+                drop,
+            )?;
+            self.heap
+                .complete_drop(drop.reference)
+                .map_err(Box::<RuntimeError>::from)?;
+        }
+
+        Ok(progress)
+    }
+
+    /// Destroy one GC-selected value.
+    fn drop_value(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        drop: heap::GcDrop,
+    ) -> RuntimeResult<()> {
+        let mut call_context = self.binding_call(world, host, host_queue);
+        let Worker {
+            heap,
+            shared_cache,
+            shared_mark_worker,
+            local_static,
+            machine,
+            ..
+        } = self;
+        let context = program::ProgramActivation {
+            state: NonNull::from(&mut call_context).cast(),
+            storage: program::ProgramStorage {
+                heap,
+                shared_heap: shared.shared.as_ref(),
+                shared_cache,
+                shared_mark_worker,
+                local_static,
+                shared_static,
+                constant_space,
+            },
+        };
+
+        machine.drop_value(context, drop)
     }
 
     /// Tick the loop once and return a target task output when requested.
@@ -1094,7 +1314,12 @@ impl Worker {
     /// Publish root changes and donate GC work after one bounded run.
     fn finish_run(
         &mut self,
+        world: &mut WorldState,
         shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         outcome: WorkerRunOutcome,
     ) -> RuntimeResult<WorkerRunOutcome> {
         if outcome != WorkerRunOutcome::Idle {
@@ -1106,7 +1331,15 @@ impl Worker {
         }
 
         if matches!(outcome, WorkerRunOutcome::Progressed { .. }) {
-            self.collect_at_safepoint(shared, false)?;
+            self.collect_at_safepoint(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+                false,
+            )?;
         }
 
         Ok(outcome)

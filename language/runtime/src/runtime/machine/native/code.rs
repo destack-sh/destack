@@ -255,10 +255,6 @@ impl Code {
             .frames
             .iter()
             .map(|frame| {
-                let (return_state_is_present, return_state) = match frame.return_state {
-                    Some(state) => (1, state.0),
-                    None => (0, 0),
-                };
                 let bytes =
                     continuation
                         .frame_bytes(frame)
@@ -267,10 +263,11 @@ impl Code {
                         })?;
 
                 Ok(NativeFrame {
-                    frame_state: frame.frame_state.0,
-                    return_state_is_present,
-                    return_state,
+                    frame_state: frame.frame_state,
+                    normal_state: frame.normal_state.into(),
+                    unwind_state: frame.unwind_state.into(),
                     bytes: bytes.as_ptr(),
+                    stack_offset: frame.stack_offset,
                     byte_len: bytes.len(),
                 })
             })

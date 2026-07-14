@@ -291,11 +291,11 @@ impl SharedGc {
             self.roots.request_termination();
         }
 
-        let is_active = self.heap.gc_phase() != GcPhase::Idle;
         let is_waiting_on_roots =
             self.heap.gc_phase() == GcPhase::Mark && self.heap.mark_idle() && !roots_complete;
+        let should_continue_mark = self.heap.gc_phase() == GcPhase::Mark && !is_waiting_on_roots;
 
-        Ok(progress.advanced() || (is_active && !is_waiting_on_roots))
+        Ok(progress.advanced() || should_continue_mark)
     }
 }
 

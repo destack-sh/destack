@@ -1,6 +1,7 @@
 use std::fmt;
 
 use destack_heap as heap;
+use destack_memory as memory;
 use destack_vm as vm;
 
 use crate::diagnostic::HostError;
@@ -558,6 +559,10 @@ pub enum MachineError {
     DeoptMissing,
     /// Machine panicked.
     Panic,
+    /// Destructor suspended instead of completing.
+    DropSuspended,
+    /// Destructor reached a runtime stop point.
+    DropStopped,
 }
 
 impl RuntimeError {
@@ -943,6 +948,12 @@ impl MachineError {
             Self::Panic => {
                 format!("{machine} machine panicked")
             }
+            Self::DropSuspended => {
+                format!("{machine} machine suspended while dropping a value")
+            }
+            Self::DropStopped => {
+                format!("{machine} machine stopped while dropping a value")
+            }
         }
     }
 }
@@ -1023,6 +1034,16 @@ impl From<heap::HeapError> for Box<RuntimeError> {
             }
             .boxed(),
         }
+    }
+}
+
+impl From<memory::MemoryError> for Box<RuntimeError> {
+    /// Convert one world memory failure into a runtime failure.
+    fn from(error: memory::MemoryError) -> Self {
+        RuntimeError::Internal {
+            message: error.to_string(),
+        }
+        .boxed()
     }
 }
 

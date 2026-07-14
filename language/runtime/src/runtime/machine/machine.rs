@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use destack_heap::{HeapResult, RootSlot, TraceView};
+use destack_heap::{DropReference, GcDrop, Heap, HeapResult, RootSlot, SharedHeap, TraceView};
+use destack_memory::MemoryMap;
 use destack_program as program;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::{Continuation, Entry, Image, Outcome, ProgramActivation, ProgramStorage, native};
+use super::{Continuation, Entry, Image, Outcome, ProgramActivation, native};
 use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
 
 const NATIVE_MACHINE: &str = "native";
@@ -142,9 +143,10 @@ impl Engine {
     /// Create one execution engine for one program.
     pub(crate) fn new(
         program: Arc<program::Program>,
+        memory: Arc<MemoryMap>,
         execution: &Execution,
     ) -> RuntimeResult<Self> {
-        let machine = vm::Machine::new(program, execution.options().clone())
+        let machine = vm::Machine::new(program, memory, execution.options().clone())
             .map_err(Box::<RuntimeError>::from)?;
 
         match execution {
@@ -162,9 +164,10 @@ impl Machine {
     pub fn new(
         id: MachineId,
         program: Arc<program::Program>,
+        memory: Arc<MemoryMap>,
         execution: &Execution,
     ) -> RuntimeResult<Self> {
-        let engine = Engine::new(program, execution)?;
+        let engine = Engine::new(program, memory, execution)?;
 
         Ok(Self { id, engine })
     }
@@ -190,25 +193,19 @@ impl Machine {
         }
     }
 
-    /// Initialize worker-owned static bytes.
-    pub fn initialize(&mut self, context: ProgramStorage<'_>) -> RuntimeResult<()> {
-        match &mut self.engine {
-            Engine::Vm(machine) => vm::Machine::initialize(
-                machine.as_mut(),
-                context.heap,
-                context.shared_heap,
-                context.local_static,
-                context.shared_static,
-            )
-            .map_err(Box::<RuntimeError>::from),
-            Engine::Native { vm, .. } => vm::Machine::initialize(
-                vm.as_mut(),
-                context.heap,
-                context.shared_heap,
-                context.local_static,
-                context.shared_static,
-            )
-            .map_err(Box::<RuntimeError>::from),
+    /// Require heaps compatible with this machine's program.
+    pub fn require_heap_compatibility(
+        &self,
+        heap: &Heap,
+        shared: &SharedHeap,
+    ) -> RuntimeResult<()> {
+        match &self.engine {
+            Engine::Vm(machine) => machine
+                .require_heap_compatibility(heap, shared)
+                .map_err(Box::<RuntimeError>::from),
+            Engine::Native { vm, .. } => vm
+                .require_heap_compatibility(heap, shared)
+                .map_err(Box::<RuntimeError>::from),
         }
     }
 
@@ -220,7 +217,7 @@ impl Machine {
         args: &[program::Value],
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
-        mut profile: Option<&mut program::Profile>,
+        profile: Option<&mut program::Profile>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         let id = self.id;
 
@@ -241,7 +238,7 @@ impl Machine {
                         context.shared_mark_worker,
                         stop_points,
                         watch_points,
-                        profile.as_deref_mut(),
+                        profile,
                         function_id,
                         args,
                     )
@@ -250,7 +247,7 @@ impl Machine {
                 Ok(outcome_from_vm(id, outcome))
             }
             Engine::Native { vm, code } => {
-                // reject native profiling until native code emits profile hooks
+                // reject runtime hooks that native code does not implement
                 if profile.is_some() {
                     return Err(machine_error(
                         NATIVE_MACHINE,
@@ -259,50 +256,111 @@ impl Machine {
                         },
                     ));
                 }
-
-                let program = vm.program();
-
-                // enter native code when no VM-only runtime hooks are active
-                if stop_points.is_none_or(program::StopSet::is_empty)
-                    && watch_points.is_none_or(program::WatchSet::is_empty)
-                {
-                    match code.entry_by_name(program, entry.name()) {
-                        Ok(entry) => {
-                            let outcome = code
-                                .run(program, &mut context, entry, args)
-                                .map_err(native_runtime_error)?;
-
-                            return outcome_from_native(id, vm.as_mut(), context, outcome);
-                        }
-                        Err(native::Error::EntryNotFound { .. }) => {}
-                        Err(error) => return Err(native_runtime_error(error)),
-                    }
+                if stop_points.is_some_and(|points| !points.is_empty()) {
+                    return Err(machine_error(
+                        NATIVE_MACHINE,
+                        MachineError::Unsupported {
+                            feature: "stop points".to_string(),
+                        },
+                    ));
+                }
+                if watch_points.is_some_and(|points| !points.is_empty()) {
+                    return Err(machine_error(
+                        NATIVE_MACHINE,
+                        MachineError::Unsupported {
+                            feature: "watch points".to_string(),
+                        },
+                    ));
                 }
 
-                // fall back to VM when stop or watch hooks are active
-                let entry = vm
-                    .entry_by_name(entry.name())
-                    .map_err(Box::<RuntimeError>::from)?;
-                let context = context.storage;
-                let function_id = entry.function();
-                let outcome = vm
+                let program = vm.program();
+                let entry = code
+                    .entry_by_name(program, entry.name())
+                    .map_err(native_runtime_error)?;
+                let outcome = code
+                    .run(program, &mut context, entry, args)
+                    .map_err(native_runtime_error)?;
+
+                outcome_from_native(id, vm.as_mut(), context, outcome)
+            }
+        }
+    }
+
+    /// Destroy one unreachable value to completion.
+    pub fn drop_value(
+        &mut self,
+        mut context: ProgramActivation<'_>,
+        drop: GcDrop,
+    ) -> RuntimeResult<()> {
+        // resolve the executable destructor
+        let program = self.program();
+        let Some(entry) = program.drop_entry(drop.drop) else {
+            return Err(machine_error(
+                self.kind(),
+                MachineError::EntryUnavailable {
+                    entry: format!("drop {}", drop.drop.index()),
+                },
+            ));
+        };
+        let value = match drop.reference {
+            DropReference::Local(reference) => program::Value::HeapReference(reference),
+            DropReference::Shared(reference) => program::Value::SharedHeapReference(reference),
+        };
+
+        self.run_destructor(&mut context, entry.function, value)
+    }
+
+    /// Run one value destructor to completion.
+    fn run_destructor(
+        &mut self,
+        context: &mut ProgramActivation<'_>,
+        function: program::FunctionId,
+        value: program::Value,
+    ) -> RuntimeResult<()> {
+        let args = [value];
+
+        // execute without debugger or profiler hooks
+        let outcome = match &mut self.engine {
+            Engine::Vm(machine) => {
+                let storage = context.reborrow().storage;
+                let outcome = machine
                     .run_function_yielding(
-                        context.local_static,
-                        context.shared_static,
-                        context.heap,
-                        context.shared_heap,
-                        context.shared_cache,
-                        context.shared_mark_worker,
-                        stop_points,
-                        watch_points,
-                        profile.as_deref_mut(),
-                        function_id,
-                        args,
+                        storage.local_static,
+                        storage.shared_static,
+                        storage.heap,
+                        storage.shared_heap,
+                        storage.shared_cache,
+                        storage.shared_mark_worker,
+                        None,
+                        None,
+                        None,
+                        function,
+                        &args,
                     )
                     .map_err(Box::<RuntimeError>::from)?;
 
-                Ok(outcome_from_vm(id, outcome))
+                outcome_from_vm(self.id, outcome)
             }
+            Engine::Native { vm, code } => {
+                let program = vm.program();
+                let mut activation = context.reborrow();
+                let outcome = code
+                    .run(
+                        program,
+                        &mut activation,
+                        program::EntryPoint::from(function),
+                        &args,
+                    )
+                    .map_err(native_runtime_error)?;
+
+                outcome_from_native(self.id, vm.as_mut(), activation, outcome)?
+            }
+        };
+
+        match outcome {
+            Outcome::Completed { .. } => Ok(()),
+            Outcome::Yielded { .. } => Err(machine_error(self.kind(), MachineError::DropSuspended)),
+            Outcome::Stopped { .. } => Err(machine_error(self.kind(), MachineError::DropStopped)),
         }
     }
 
@@ -314,7 +372,7 @@ impl Machine {
         value: program::Value,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
-        mut profile: Option<&mut program::Profile>,
+        profile: Option<&mut program::Profile>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         if continuation.machine() != self.id {
             return Err(machine_continuation_mismatch(
@@ -339,7 +397,7 @@ impl Machine {
                     context.shared_mark_worker,
                     stop_points,
                     watch_points,
-                    profile.as_deref_mut(),
+                    profile,
                     continuation,
                     value,
                 )
@@ -386,7 +444,7 @@ impl Machine {
                         context.shared_mark_worker,
                         stop_points,
                         watch_points,
-                        profile.as_deref_mut(),
+                        profile,
                         continuation,
                         value,
                     )
@@ -405,7 +463,7 @@ impl Machine {
         continuation: Continuation,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
-        mut profile: Option<&mut program::Profile>,
+        profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         if continuation.machine() != self.id {
@@ -442,7 +500,7 @@ impl Machine {
             context.shared_mark_worker,
             stop_points,
             watch_points,
-            profile.as_deref_mut(),
+            profile,
             resume_skip,
             continuation,
         )
@@ -518,16 +576,17 @@ impl Machine {
     }
 
     /// Fork this machine over already-forked memory.
-    pub fn fork(&self) -> RuntimeResult<Self> {
+    pub fn fork(&self, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
         let engine = match &self.engine {
             Engine::Vm(machine) => {
-                let machine =
-                    vm::Machine::fork(machine.as_ref()).map_err(Box::<RuntimeError>::from)?;
+                let machine = vm::Machine::fork(machine.as_ref(), memory.clone())
+                    .map_err(Box::<RuntimeError>::from)?;
 
                 Engine::Vm(Box::new(machine))
             }
             Engine::Native { vm, code } => {
-                let vm = vm::Machine::fork(vm.as_ref()).map_err(Box::<RuntimeError>::from)?;
+                let vm =
+                    vm::Machine::fork(vm.as_ref(), memory).map_err(Box::<RuntimeError>::from)?;
 
                 Engine::Native {
                     vm: Box::new(vm),
@@ -596,6 +655,7 @@ impl Machine {
     pub fn from_image(
         id: MachineId,
         program: Arc<program::Program>,
+        memory: Arc<MemoryMap>,
         image: &Image,
         execution: &Execution,
     ) -> RuntimeResult<Self> {
@@ -608,7 +668,7 @@ impl Machine {
 
         match image {
             Image::Vm { image, .. } => {
-                let machine = vm::Machine::from_image(program, image.clone())
+                let machine = vm::Machine::from_image(program, memory, image.clone())
                     .map_err(Box::<RuntimeError>::from)?;
 
                 match execution {
@@ -626,7 +686,7 @@ impl Machine {
                 }
             }
             Image::Native { vm: image, .. } => {
-                let machine = vm::Machine::from_image(program, image.clone())
+                let machine = vm::Machine::from_image(program, memory, image.clone())
                     .map_err(Box::<RuntimeError>::from)?;
 
                 match execution {
