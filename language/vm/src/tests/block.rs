@@ -484,7 +484,7 @@ entry:
     v0: int32 = 10
     v1: int32 = 20
     v2: int32 = 30
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     jump b1(v3)
 
 b1(v4: [int32; 3]):
@@ -504,7 +504,7 @@ entry(v0: int32):
     v1: int32 = 10
     v2: int32 = 20
     v3: int32 = 30
-    v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
+    v4: [int32; 3] = aggregate (v1, v2, v3)
     v5: [int32; 3] = field.set v4, 2, v0
     jump b1(v5)
 

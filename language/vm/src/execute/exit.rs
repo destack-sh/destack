@@ -1,9 +1,9 @@
+use destack_program::Program;
 use destack_program::vm::Cell;
 
 use super::frame::{frame_value_from_cell, materialize_value, store_frame_slot_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Outcome};
-use destack_program::Program;
 
 impl Activation<'_> {
     /// Complete one return call.
@@ -23,9 +23,14 @@ impl Activation<'_> {
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(callee.function())))?
             .signature
             .result;
-        let returned =
-            frame_value_from_cell(program, self.machine.frames.as_slice(), return_type, value)
-                .map_err(RuntimeError::new)?;
+        let returned = frame_value_from_cell(
+            program,
+            self.machine.frames.as_slice(),
+            self.machine.stack.memory_base_address(),
+            return_type,
+            value,
+        )
+        .map_err(RuntimeError::new)?;
 
         // pop the callee frame and release its live bytes
         let frame = self
@@ -49,20 +54,20 @@ impl Activation<'_> {
             return Ok(Some(self.machine.complete_execution(value)));
         }
 
-        // otherwise take the call terminator edge before resuming the caller
+        // otherwise resume the caller through its invocation
         let caller_index = self.machine.frames.len() - 1;
-        let return_state = self
+        let invocation = self
             .machine
             .frames
             .get_mut(caller_index)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?
-            .return_state
+            .invocation
             .take();
 
-        // call terminators resume through their explicit edge
-        if let Some(return_state) = return_state {
+        // invocations resume through their normal edge
+        if let Some(invocation) = invocation {
             self.machine
-                .enter_caller_state(program, return_state, returned)?;
+                .enter_caller_state(program, invocation.normal_state, Some(returned))?;
             return Ok(None);
         }
 

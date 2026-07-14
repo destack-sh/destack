@@ -4,7 +4,7 @@ use destack_program::vm::Cell;
 
 use super::Transfer;
 use destack_program::vm::{
-    BoundsCheck, Check, CheckId, CheckKind, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
+    BoundsCheck, Check, CheckId, CheckKind, Edge, EdgeId, Instruction, MoveRange, NarrowCheck,
     OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, VariantCheck,
 };
 use destack_program::{StopReason, TypeId};
@@ -445,10 +445,8 @@ fn evaluate_check(activation: &Activation<'_>, constraint: &Check) -> Result<boo
 /// Execute assume (optimizer hint).
 pub(crate) fn execute_assume(
     _machine: &mut Activation<'_>,
-    instruction: &Instruction,
+    _instruction: &Instruction,
 ) -> Result<(), Error> {
-    let _ = instruction;
-
     Ok(())
 }
 
@@ -481,10 +479,8 @@ pub(crate) fn execute_return_address(
 /// Execute void return.
 pub(crate) fn execute_return_void(
     _machine: &mut Activation<'_>,
-    instruction: &Instruction,
+    _instruction: &Instruction,
 ) -> Transfer {
-    let _ = instruction;
-
     Transfer::Return(Cell::ZERO)
 }
 
@@ -996,23 +992,31 @@ pub(crate) fn execute_abort(_machine: &mut Activation<'_>, _instruction: &Instru
     Transfer::Error(Error::abort())
 }
 
-/// Execute panic.
+/// Begin one panic without a payload.
 pub(crate) fn execute_panic(
+    _activation: &mut Activation<'_>,
+    _instruction: &Instruction,
+) -> Transfer {
+    Transfer::Panic(Error::panic("panic"))
+}
+
+/// Begin one panic with a payload.
+pub(crate) fn execute_panic_value(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    if instruction.op == Op::Panic {
-        return Transfer::Error(Error::panic("panic"));
-    }
-
-    if instruction.op == Op::UnwindResume {
-        return Transfer::Error(Error::panic("panic resumed"));
-    }
-
     let payload = activation.load_cell_at(instruction.a);
     let message = format!("panic payload: {payload:?}");
 
-    Transfer::Error(Error::panic(message))
+    Transfer::Panic(Error::panic(message))
+}
+
+/// Continue the active panic unwind.
+pub(crate) fn execute_unwind_resume(
+    _activation: &mut Activation<'_>,
+    _instruction: &Instruction,
+) -> Transfer {
+    Transfer::ResumeUnwind
 }
 
 /// Execute unreachable (errors).

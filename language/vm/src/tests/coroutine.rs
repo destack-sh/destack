@@ -195,9 +195,9 @@ b0(v0: int32):
     assert_eq!(output, Value::int32(13));
 }
 
-/// Yield preserves one pending call terminator continuation across suspension.
+/// Yield preserves one pending invoke across suspension.
 #[test]
-fn test_yield_preserves_call_terminator_continuation() {
+fn test_yield_preserves_invoke() {
     let mir = r#"
 function worker(v0: int32): int32 {
 b0(v0: int32):
@@ -211,10 +211,12 @@ b1(v2: int32, v3: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 10int32
-    call worker(v0): (int32) => int32 => b1(v1)
+    invoke worker(v0) => b1(v1) | cleanup
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
+cleanup:
+    unwind.resume
 }"#;
     let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
@@ -376,7 +378,7 @@ b0:
     v0: ref<int32, managed, readonly> = new.zeroed int32
     v1: int32 = 1int32
     store v0, v1
-    v2: Pair = struct Pair (v0)
+    v2: Pair = aggregate (v0)
     yield v1 => b1(v2)
 b1(v3: int32, v4: Pair):
     v5: ref<int32, managed, readonly> = field.get v4, 0

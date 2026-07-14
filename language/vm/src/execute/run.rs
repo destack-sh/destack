@@ -1,4 +1,7 @@
+use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_program as program;
+use destack_program::Program;
+use destack_program::vm::Cell;
 use program::{FrameStateId, FunctionId, StaticSpace};
 
 use super::frame::dematerialize_value;
@@ -6,9 +9,6 @@ use super::{dispatch_block, dispatch_block_limited};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
-use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
-use destack_program::Program;
-use destack_program::vm::Cell;
 
 impl Machine {
     /// Execute a function by id.
@@ -148,9 +148,8 @@ impl Machine {
             return Err(self.runtime_error(Error::invalid_continuation()));
         }
 
-        let (stack, frames, resume_frame_index, frame_state) =
-            Self::restore_continuation(&continuation, program, &self.options)?;
-        self.stack = stack;
+        let (frames, resume_frame_index, frame_state) =
+            self.restore_continuation(&continuation, program)?;
         self.frames = frames;
 
         self.resume_continuation(
@@ -192,9 +191,8 @@ impl Machine {
             return Err(self.runtime_error(Error::invalid_continuation()));
         }
 
-        let (stack, frames, resume_frame_index, frame_state) =
-            Self::restore_continuation(&continuation, program, &self.options)?;
-        self.stack = stack;
+        let (frames, resume_frame_index, frame_state) =
+            self.restore_continuation(&continuation, program)?;
         self.frames = frames;
 
         self.continue_restored_continuation(

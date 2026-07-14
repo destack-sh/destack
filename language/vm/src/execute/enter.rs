@@ -1,19 +1,27 @@
-use destack_program::vm::Cell;
+use destack_program::vm::{ArgumentRange, CallTarget, Cell, FunctionCode, MoveRange};
+use destack_program::{FrameStateId, FunctionId, Program};
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_arguments_between_frames, move_values,
     store_parameters,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::machine::{Activation, Frame, Outcome};
+use crate::machine::{Activation, Frame, Invocation, Outcome};
 use crate::options::LimitOptions;
-use destack_program::vm::{ArgumentRange, CallTarget, FunctionCode, MoveRange};
-use destack_program::{FrameStateId, FunctionId, Program};
 
-/// Local lowered function target.
-struct LocalFunction<'a> {
-    /// The lowered function body.
-    function: FunctionCode<'a>,
+/// Source used to initialize one callee's parameters.
+enum ParameterSource<'a> {
+    /// Values already stored in the caller frame.
+    Frame {
+        /// The caller function tables.
+        function: &'a FunctionCode<'a>,
+        /// The caller argument slots.
+        arguments: ArgumentRange,
+        /// Optional direct parameter moves.
+        moves: Option<MoveRange>,
+    },
+    /// Values produced directly by the execution engine.
+    Values(&'a [FrameValue]),
 }
 
 impl Activation<'_> {
@@ -22,7 +30,7 @@ impl Activation<'_> {
         program: &'a Program,
         function_id: FunctionId,
         target: CallTarget,
-    ) -> RuntimeResult<LocalFunction<'a>> {
+    ) -> RuntimeResult<FunctionCode<'a>> {
         // reject binding targets before touching program storage
         let Some(function_index) = target.local_index() else {
             return Err(RuntimeError::new(Error::undefined_function(function_id)));
@@ -33,7 +41,7 @@ impl Activation<'_> {
             .vm_function_by_index(function_index)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
-        Ok(LocalFunction { function })
+        Ok(function)
     }
 
     /// Return the runtime boundary error for one binding call.
@@ -60,13 +68,11 @@ impl Activation<'_> {
         &mut self,
         program: &Program,
         limits: LimitOptions,
-        current_func: &FunctionCode<'_>,
-        callee: LocalFunction<'_>,
-        arguments: ArgumentRange,
+        callee: FunctionCode<'_>,
+        parameters: ParameterSource<'_>,
         env: Option<Cell>,
-        moves: Option<MoveRange>,
         resume_pc: usize,
-        return_state: Option<FrameStateId>,
+        invocation: Option<Invocation>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.machine.frames.len() >= limits.max_stack_depth {
@@ -74,8 +80,8 @@ impl Activation<'_> {
         }
 
         // load callee entry tables
-        let entry_block = callee.function.function.entry;
-        let frame_layout = callee.function.function.frame_layout;
+        let entry_block = callee.function.entry;
+        let frame_layout = callee.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -88,38 +94,49 @@ impl Activation<'_> {
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         caller_frame.pc = resume_pc;
-        caller_frame.return_state = return_state;
+        caller_frame.invocation = invocation;
 
-        let mut new_frame = Frame::new(
-            &callee.function,
-            entry_block,
-            frame_layout,
-            stack_offset,
-            frame_base,
-        );
+        let mut new_frame =
+            Frame::new(&callee, entry_block, frame_layout, stack_offset, frame_base);
         new_frame
             .store_environment(program, frame_layout, env)
             .map_err(|error| self.machine.runtime_error(error))?;
 
-        // bind arguments from the caller into the new frame
-        let caller = self
-            .machine
-            .frames
-            .last()
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        if let Some(moves) = moves {
-            move_values(caller, &mut new_frame, moves, current_func.move_pool)
-                .map_err(RuntimeError::new)?;
-        } else {
-            move_arguments_between_frames(
-                caller,
-                &mut new_frame,
-                callee.function.argument_pool,
-                callee.function.function.parameters,
-                current_func.argument_pool,
+        // bind parameters from their concrete source
+        match parameters {
+            ParameterSource::Frame {
+                function,
                 arguments,
+                moves,
+            } => {
+                let caller = self
+                    .machine
+                    .frames
+                    .last()
+                    .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+
+                if let Some(moves) = moves {
+                    move_values(caller, &mut new_frame, moves, function.move_pool)
+                        .map_err(RuntimeError::new)?;
+                } else {
+                    move_arguments_between_frames(
+                        caller,
+                        &mut new_frame,
+                        callee.argument_pool,
+                        callee.function.parameters,
+                        function.argument_pool,
+                        arguments,
+                    )
+                    .map_err(RuntimeError::new)?;
+                }
+            }
+            ParameterSource::Values(values) => store_parameters(
+                &mut new_frame,
+                callee.argument_pool,
+                callee.function.parameters,
+                values,
             )
-            .map_err(RuntimeError::new)?;
+            .map_err(RuntimeError::new)?,
         }
 
         // push the new frame
@@ -131,13 +148,13 @@ impl Activation<'_> {
     fn reuse_tail_call_frame(
         &mut self,
         program: &Program,
-        callee: LocalFunction<'_>,
+        callee: FunctionCode<'_>,
         arguments: &[FrameValue],
         env: Option<Cell>,
     ) -> RuntimeResult<()> {
         // load the callee entry tables first
-        let entry_block = callee.function.function.entry;
-        let frame_layout = callee.function.function.frame_layout;
+        let entry_block = callee.function.entry;
+        let frame_layout = callee.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -160,7 +177,7 @@ impl Activation<'_> {
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         frame.retarget(
-            &callee.function,
+            &callee,
             entry_block,
             stack_offset,
             frame_layout.byte_len() as usize,
@@ -173,8 +190,8 @@ impl Activation<'_> {
         // bind the new arguments into the reused frame
         store_parameters(
             frame,
-            callee.function.argument_pool,
-            callee.function.function.parameters,
+            callee.argument_pool,
+            callee.function.parameters,
             arguments,
         )
         .map_err(RuntimeError::new)?;
@@ -205,18 +222,49 @@ impl Activation<'_> {
         self.push_call_frame(
             program,
             limits,
-            current_func,
             callee,
-            arguments,
+            ParameterSource::Frame {
+                function: current_func,
+                arguments,
+                moves,
+            },
             env,
-            moves,
             resume_pc,
             None,
         )
     }
 
-    /// Complete one call terminator from the current frame.
-    pub(crate) fn complete_call_branch(
+    /// Complete one value drop from the current frame.
+    pub(crate) fn complete_drop(
+        &mut self,
+        program: &Program,
+        limits: LimitOptions,
+        function: FunctionId,
+        target: CallTarget,
+        address: Cell,
+        resume_pc: usize,
+    ) -> RuntimeResult<()> {
+        // destructors are always local program functions
+        let callee = Self::require_local_function(program, function, target)?;
+        let parameters = callee.function.parameters.slice(callee.argument_pool);
+        let [address_parameter] = parameters else {
+            return Err(RuntimeError::new(Error::invalid_instruction()));
+        };
+        let arguments = [FrameValue::cell(address_parameter.ty, address)];
+
+        self.push_call_frame(
+            program,
+            limits,
+            callee,
+            ParameterSource::Values(&arguments),
+            None,
+            resume_pc,
+            None,
+        )
+    }
+
+    /// Complete one invocation from the current frame.
+    pub(crate) fn complete_invoke(
         &mut self,
         program: &Program,
         limits: LimitOptions,
@@ -225,7 +273,8 @@ impl Activation<'_> {
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Cell>,
-        target_state: FrameStateId,
+        normal_state: FrameStateId,
+        unwind_state: FrameStateId,
     ) -> RuntimeResult<()> {
         // reject binding calls until runtime dispatch is wired
         if target.is_binding() {
@@ -240,6 +289,17 @@ impl Activation<'_> {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
+        // capture the caller at the invoke operation
+        let point = caller.point(program)?;
+        let frame_state = program
+            .frame_state_at(point)
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+        let invocation = Invocation {
+            frame_state,
+            normal_state,
+            unwind_state,
+        };
+
         // resume after the terminator once the callee returns
         let function = program
             .vm_function_by_id(caller.function())
@@ -250,13 +310,15 @@ impl Activation<'_> {
         self.push_call_frame(
             program,
             limits,
-            current_func,
             callee,
-            arguments,
+            ParameterSource::Frame {
+                function: current_func,
+                arguments,
+                moves: None,
+            },
             env,
-            None,
             resume_pc,
-            Some(target_state),
+            Some(invocation),
         )
     }
 

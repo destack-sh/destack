@@ -1,21 +1,17 @@
-use destack_program::{FrameStateId, FunctionId, GlobalAddress, Program};
+use destack_program::vm::{
+    ArgumentRange, Call, CallDynamic, CallTarget, CallVirtual, Cell, Drop, FunctionBind,
+    FunctionCode, FunctionPointer, IndirectCall, IndirectTailCall, Instruction, Invoke,
+    InvokeDynamic, InvokeIndirect, InvokeVirtual, MoveRange, Projection, TailCall, TailCallDynamic,
+    TailCallVirtual,
+};
+use destack_program::{CellLayout, FunctionId, GlobalAddress, Program};
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_values, store_parameters,
 };
-use super::{access, function};
+use super::{Transfer, access, function};
 use crate::diagnostic::Error;
 use crate::machine::{Activation, Frame};
-use destack_program::CellLayout;
-use destack_program::vm::{Cell, FunctionPointer};
-
-use super::Transfer;
-use destack_program::vm::{
-    ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallTarget, CallVirtual,
-    CallVirtualBranch, FunctionBind, FunctionCode, IndirectCall, IndirectCallBranch,
-    IndirectTailCall, Instruction, MoveRange, Projection, TailCall, TailCallDynamic,
-    TailCallVirtual,
-};
 
 /// Load one lowered call table field from a receiver.
 fn load_receiver_field<const IS_SHARED: bool>(
@@ -93,17 +89,23 @@ fn resolve_virtual_callee<const IS_SHARED: bool>(
 }
 
 /// Resolve the callee for one dynamic call.
-fn resolve_dynamic_callee<const IS_SHARED: bool>(
-    activation: &mut Activation<'_>,
-    receiver: Cell,
-    table_field: Projection,
+fn resolve_dynamic_callee(
+    activation: &Activation<'_>,
+    receiver_offset: u32,
     slot: u32,
 ) -> Result<FunctionId, Error> {
-    // load the dynamic table pointer from the erased receiver
-    let dynamic_table_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
-    let dynamic_table_pointer = dynamic_table_value.as_global_address();
+    // resolve the witness table carried directly by the dynamic value
+    let table = activation
+        .load_cell_at(receiver_offset + Cell::BYTE_LEN as u32)
+        .as_dynamic_table();
+    let entry = activation
+        .program
+        .dynamic_entry(table, slot)
+        .ok_or_else(Error::invalid_instruction)?;
 
-    load_dispatch_slot(activation, dynamic_table_pointer, slot)
+    entry
+        .function_value()
+        .ok_or_else(Error::invalid_instruction)
 }
 
 /// Resolve the callee for one indirect call.
@@ -346,24 +348,6 @@ fn enter_call(
     }
 }
 
-/// Build one call terminator transfer.
-fn call_branch_transfer(
-    function_id: FunctionId,
-    target: CallTarget,
-    arguments: ArgumentRange,
-    env: Option<Cell>,
-    target_state: FrameStateId,
-) -> Transfer {
-    // call terminators always use explicit transfer handling
-    Transfer::CallBranch {
-        function: function_id,
-        target,
-        arguments,
-        env,
-        target_state,
-    }
-}
-
 /// Execute direct function call.
 pub(crate) fn execute_call(
     activation: &mut Activation<'_>,
@@ -397,21 +381,53 @@ pub(crate) fn execute_call(
     )
 }
 
-/// Execute direct call terminator.
-pub(crate) fn execute_call_branch(
+/// Execute one concrete value drop.
+pub(crate) fn execute_drop(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+    pc: usize,
+) -> Transfer {
+    let Drop {
+        function,
+        target,
+        value_offset,
+    } = *activation.side::<Drop>(instruction);
+
+    // pass the live world offset for one value
+    let pointer = activation.frame_pointer_at(value_offset);
+    let address = Cell::frame_pointer(pointer);
+
+    Transfer::Drop {
+        function: function.into(),
+        target,
+        address,
+        resume_pc: pc + 1,
+    }
+}
+
+/// Execute one direct invocation.
+pub(crate) fn execute_invoke(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let CallBranch {
+    let Invoke {
         function,
         target,
         arguments,
-        target_state,
-    } = activation.side::<CallBranch>(instruction);
+        normal_state,
+        unwind_state,
+    } = activation.side::<Invoke>(instruction);
 
     let function_id = (*function).into();
 
-    call_branch_transfer(function_id, *target, *arguments, None, *target_state)
+    Transfer::invoke(
+        function_id,
+        *target,
+        *arguments,
+        None,
+        *normal_state,
+        *unwind_state,
+    )
 }
 
 /// Execute a class function call with a statically known receiver heap.
@@ -475,18 +491,19 @@ pub(crate) fn execute_call_virtual_shared(
     execute_call_virtual::<true>(activation, instruction, pc)
 }
 
-/// Execute a virtual call terminator with a statically known receiver heap.
-fn execute_call_virtual_branch<const IS_SHARED: bool>(
+/// Execute a virtual invocation with a statically known receiver heap.
+fn execute_invoke_virtual<const IS_SHARED: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let record = *activation.side::<CallVirtualBranch>(instruction);
-    let CallVirtualBranch {
+    let record = *activation.side::<InvokeVirtual>(instruction);
+    let InvokeVirtual {
         receiver_offset,
         table_field,
         slot,
         arguments,
-        target_state,
+        normal_state,
+        unwind_state,
     } = record;
 
     let receiver_value = activation.load_cell_at(receiver_offset);
@@ -501,27 +518,34 @@ fn execute_call_virtual_branch<const IS_SHARED: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(function_id, target, arguments, None, target_state)
+    Transfer::invoke(
+        function_id,
+        target,
+        arguments,
+        None,
+        normal_state,
+        unwind_state,
+    )
 }
 
-/// Execute virtual call terminator through a local receiver.
-pub(crate) fn execute_call_virtual_local_branch(
+/// Execute a virtual invocation through a local receiver.
+pub(crate) fn execute_invoke_virtual_local(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_virtual_branch::<false>(activation, instruction)
+    execute_invoke_virtual::<false>(activation, instruction)
 }
 
-/// Execute virtual call terminator through a shared receiver.
-pub(crate) fn execute_call_virtual_shared_branch(
+/// Execute a virtual invocation through a shared receiver.
+pub(crate) fn execute_invoke_virtual_shared(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_virtual_branch::<true>(activation, instruction)
+    execute_invoke_virtual::<true>(activation, instruction)
 }
 
-/// Execute a dynamic function call with a statically known receiver heap.
-fn execute_call_dynamic<const IS_SHARED: bool>(
+/// Execute a dynamic function call.
+pub(crate) fn execute_call_dynamic(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
@@ -530,19 +554,15 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
     let record = *activation.side::<CallDynamic>(instruction);
     let CallDynamic {
         receiver_offset,
-        table_field,
         slot,
         arguments,
     } = record;
 
     // resolve dynamic callee
-    let receiver_value = activation.load_cell_at(receiver_offset);
-    let table_field = activation.projection(table_field);
-    let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
-            Ok(function_id) => function_id,
-            Err(error) => return Transfer::Error(error),
-        };
+    let function_id = match resolve_dynamic_callee(activation, receiver_offset, slot) {
+        Ok(function_id) => function_id,
+        Err(error) => return Transfer::Error(error),
+    };
     let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
@@ -563,67 +583,37 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
     )
 }
 
-/// Execute dynamic function call through a local receiver.
-pub(crate) fn execute_call_dynamic_local(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    pc: usize,
-) -> Transfer {
-    execute_call_dynamic::<false>(activation, instruction, pc)
-}
-
-/// Execute dynamic function call through a shared receiver.
-pub(crate) fn execute_call_dynamic_shared(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    pc: usize,
-) -> Transfer {
-    execute_call_dynamic::<true>(activation, instruction, pc)
-}
-
-/// Execute a dynamic call terminator with a statically known receiver heap.
-fn execute_call_dynamic_branch<const IS_SHARED: bool>(
+/// Execute a dynamic invocation.
+pub(crate) fn execute_invoke_dynamic(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let record = *activation.side::<CallDynamicBranch>(instruction);
-    let CallDynamicBranch {
+    let record = *activation.side::<InvokeDynamic>(instruction);
+    let InvokeDynamic {
         receiver_offset,
-        table_field,
         slot,
         arguments,
-        target_state,
+        normal_state,
+        unwind_state,
     } = record;
 
-    let receiver_value = activation.load_cell_at(receiver_offset);
-    let table_field = activation.projection(table_field);
-    let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
-            Ok(function_id) => function_id,
-            Err(error) => return Transfer::Error(error),
-        };
+    let function_id = match resolve_dynamic_callee(activation, receiver_offset, slot) {
+        Ok(function_id) => function_id,
+        Err(error) => return Transfer::Error(error),
+    };
     let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(function_id, target, arguments, None, target_state)
-}
-
-/// Execute dynamic call terminator through a local receiver.
-pub(crate) fn execute_call_dynamic_local_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_call_dynamic_branch::<false>(activation, instruction)
-}
-
-/// Execute dynamic call terminator through a shared receiver.
-pub(crate) fn execute_call_dynamic_shared_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_call_dynamic_branch::<true>(activation, instruction)
+    Transfer::invoke(
+        function_id,
+        target,
+        arguments,
+        None,
+        normal_state,
+        unwind_state,
+    )
 }
 
 /// Execute an indirect call with a statically known callee.
@@ -693,17 +683,18 @@ pub(crate) fn execute_call_function(
     execute_indirect_call::<true>(activation, instruction, pc)
 }
 
-/// Execute an indirect call terminator with a statically known callee.
-fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
+/// Execute an indirect invocation with a statically known callee.
+fn execute_indirect_invoke<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let record = *activation.side::<IndirectCallBranch>(instruction);
-    let IndirectCallBranch {
+    let record = *activation.side::<InvokeIndirect>(instruction);
+    let InvokeIndirect {
         callee_offset,
         signature,
         arguments,
-        target_state,
+        normal_state,
+        unwind_state,
     } = record;
 
     let (function_id, env) =
@@ -725,23 +716,30 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(function_id, target, arguments, env, target_state)
+    Transfer::invoke(
+        function_id,
+        target,
+        arguments,
+        env,
+        normal_state,
+        unwind_state,
+    )
 }
 
-/// Execute function pointer call terminator.
-pub(crate) fn execute_call_function_pointer_branch(
+/// Execute one function pointer invocation.
+pub(crate) fn execute_invoke_function_pointer(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_call_branch::<false>(activation, instruction)
+    execute_indirect_invoke::<false>(activation, instruction)
 }
 
-/// Execute function value call terminator.
-pub(crate) fn execute_call_function_branch(
+/// Execute one function value invocation.
+pub(crate) fn execute_invoke_function(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_call_branch::<true>(activation, instruction)
+    execute_indirect_invoke::<true>(activation, instruction)
 }
 
 /// Enter a tail call by reusing the current frame.
@@ -994,8 +992,8 @@ pub(crate) fn execute_tail_call_virtual_shared(
     execute_tail_call_virtual::<true>(activation, instruction)
 }
 
-/// Execute a dynamic tail call with a statically known receiver heap.
-fn execute_tail_call_dynamic<const IS_SHARED: bool>(
+/// Execute a dynamic tail call.
+pub(crate) fn execute_tail_call_dynamic(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -1003,19 +1001,15 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
     let record = *activation.side::<TailCallDynamic>(instruction);
     let TailCallDynamic {
         receiver_offset,
-        table_field,
         slot,
         arguments,
     } = record;
 
     // resolve dynamic callee
-    let receiver_value = activation.load_cell_at(receiver_offset);
-    let table_field = activation.projection(table_field);
-    let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, slot) {
-            Ok(function_id) => function_id,
-            Err(error) => return Transfer::Error(error),
-        };
+    let function_id = match resolve_dynamic_callee(activation, receiver_offset, slot) {
+        Ok(function_id) => function_id,
+        Err(error) => return Transfer::Error(error),
+    };
     let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
@@ -1028,22 +1022,6 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
         env: None,
         moves: None,
     }
-}
-
-/// Execute dynamic tail call through a local receiver.
-pub(crate) fn execute_tail_call_dynamic_local(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_tail_call_dynamic::<false>(activation, instruction)
-}
-
-/// Execute dynamic tail call through a shared receiver.
-pub(crate) fn execute_tail_call_dynamic_shared(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_tail_call_dynamic::<true>(activation, instruction)
 }
 
 /// Execute an indirect tail call with a statically known callee.

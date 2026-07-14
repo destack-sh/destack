@@ -134,12 +134,12 @@ impl Machine {
         Ok(())
     }
 
-    /// Enter one frame state in the current caller frame from one frame value.
+    /// Enter one frame state in the current caller frame.
     pub(crate) fn enter_caller_state(
         &mut self,
         program: &Program,
         frame_state_id: FrameStateId,
-        value: FrameValue,
+        value: Option<FrameValue>,
     ) -> RuntimeResult<()> {
         let frame_index = self
             .frames
@@ -147,6 +147,6 @@ impl Machine {
             .checked_sub(1)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
-        self.enter_frame_state(program, frame_index, frame_state_id, Some(value))
+        self.enter_frame_state(program, frame_index, frame_state_id, value)
     }
 }

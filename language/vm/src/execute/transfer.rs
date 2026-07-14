@@ -1,10 +1,10 @@
-use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::machine::{Activation, Continuation, Outcome};
-use crate::options::LimitOptions;
 use destack_program::vm::{ArgumentRange, CallTarget, Cell, FunctionCode, MoveRange};
 use destack_program::{FrameStateId, FunctionId, Program, StopReason, TypeId};
 
 use super::frame::move_values_within_frame;
+use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use crate::machine::{Activation, Continuation, Outcome};
+use crate::options::LimitOptions;
 
 /// Control transfer requested by one lowered instruction.
 #[derive(Debug)]
@@ -33,8 +33,19 @@ pub(crate) enum Transfer {
         /// PC to resume at after call returns.
         resume_pc: usize,
     },
-    /// Call another function and enter an explicit continuation.
-    CallBranch {
+    /// Drop one value through its destructor.
+    Drop {
+        /// Function to call.
+        function: FunctionId,
+        /// Lowered call target.
+        target: CallTarget,
+        /// Address of the value being dropped.
+        address: Cell,
+        /// PC to resume at after drop returns.
+        resume_pc: usize,
+    },
+    /// Invoke another function with normal and unwind continuations.
+    Invoke {
         /// Function to call.
         function: FunctionId,
         /// Lowered call target.
@@ -43,8 +54,10 @@ pub(crate) enum Transfer {
         arguments: ArgumentRange,
         /// Optional function environment to pass.
         env: Option<Cell>,
-        /// The continuation frame state.
-        target_state: FrameStateId,
+        /// The normal continuation frame state.
+        normal_state: FrameStateId,
+        /// The unwind continuation frame state.
+        unwind_state: FrameStateId,
     },
     /// Tail call another function.
     TailCall {
@@ -77,8 +90,33 @@ pub(crate) enum Transfer {
     },
     /// Return from current function.
     Return(Cell),
+    /// Begin unwinding one language panic.
+    Panic(Error),
+    /// Continue the active language panic unwind.
+    ResumeUnwind,
     /// Runtime error.
     Error(Error),
+}
+
+impl Transfer {
+    /// Create one invocation transfer.
+    pub(crate) fn invoke(
+        function: FunctionId,
+        target: CallTarget,
+        arguments: ArgumentRange,
+        env: Option<Cell>,
+        normal_state: FrameStateId,
+        unwind_state: FrameStateId,
+    ) -> Self {
+        Self::Invoke {
+            function,
+            target,
+            arguments,
+            env,
+            normal_state,
+            unwind_state,
+        }
+    }
 }
 
 impl Activation<'_> {
@@ -135,6 +173,7 @@ impl Activation<'_> {
         let value = super::frame::frame_value_from_cell(
             program,
             self.machine.frames.as_slice(),
+            self.machine.stack.memory_base_address(),
             source_type,
             value,
         )
@@ -213,14 +252,24 @@ impl Activation<'_> {
                 )?;
                 Ok(None)
             }
-            Transfer::CallBranch {
+            Transfer::Drop {
+                function,
+                target,
+                address,
+                resume_pc,
+            } => {
+                self.complete_drop(program, limits, function, target, address, resume_pc)?;
+                Ok(None)
+            }
+            Transfer::Invoke {
                 function,
                 target,
                 arguments,
                 env,
-                target_state,
+                normal_state,
+                unwind_state,
             } => {
-                self.complete_call_branch(
+                self.complete_invoke(
                     program,
                     limits,
                     current_func,
@@ -228,7 +277,8 @@ impl Activation<'_> {
                     target,
                     arguments,
                     env,
-                    target_state,
+                    normal_state,
+                    unwind_state,
                 )?;
                 Ok(None)
             }
@@ -259,6 +309,8 @@ impl Activation<'_> {
                 frame_state,
             } => self.complete_stop(program, reason, frame_state).map(Some),
             Transfer::Return(value) => self.complete_return(program, value),
+            Transfer::Panic(error) => self.complete_panic(program, error),
+            Transfer::ResumeUnwind => self.complete_unwind(program),
             Transfer::Error(error) => Err(self.machine.runtime_error(error)),
         }
     }
