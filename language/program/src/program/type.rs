@@ -1,12 +1,13 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    EntryRange, EntryStore, SectionEntry, SectionImage, SectionPacker, SectionSlice,
 };
+use destack_heap::DropId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{FunctionId, LayoutId};
+use super::LayoutId;
 
-/// Durable runtime type id inside one program.
+/// Durable 32-bit runtime type id inside one program.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TypeId(pub u32);
@@ -54,7 +55,7 @@ impl TypeTable {
             entries.push(TypeDescriptor {
                 layout: descriptor.layout,
                 supertypes: supertype_range,
-                drop: descriptor.drop.into(),
+                drop: descriptor.drop,
             });
         }
 
@@ -119,14 +120,14 @@ pub struct TypeDescriptor {
     pub layout: LayoutId,
     /// Flattened runtime supertypes satisfied by this type.
     pub supertypes: EntryRange<TypeId>,
-    /// Drop function when this type requires cleanup.
-    pub drop: Optional<FunctionId>,
+    /// Destructor when this type requires cleanup.
+    pub drop: Option<DropId>,
 }
 
 impl TypeDescriptor {
-    /// Return the drop function when this type requires cleanup.
-    pub fn drop_function(self) -> Option<FunctionId> {
-        self.drop.get()
+    /// Return the complete drop identity when this type requires cleanup.
+    pub const fn drop_id(self) -> Option<DropId> {
+        self.drop
     }
 }
 
@@ -137,8 +138,8 @@ pub struct TypeDescriptorBuilder {
     pub layout: LayoutId,
     /// Flattened runtime supertypes satisfied by this type.
     pub supertypes: Vec<TypeId>,
-    /// Drop function when this type requires cleanup.
-    pub drop: Option<FunctionId>,
+    /// Complete drop identity when this type requires cleanup.
+    pub drop: Option<DropId>,
 }
 
 // SAFETY: type ids and descriptors are fixed-width program entries.

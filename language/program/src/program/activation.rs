@@ -14,6 +14,16 @@ pub struct ProgramActivation<'a> {
     pub storage: ProgramStorage<'a>,
 }
 
+impl ProgramActivation<'_> {
+    /// Reborrow this activation for one nested machine call.
+    pub fn reborrow(&mut self) -> ProgramActivation<'_> {
+        ProgramActivation {
+            state: self.state,
+            storage: self.storage.reborrow(),
+        }
+    }
+}
+
 impl fmt::Debug for ProgramActivation<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -40,6 +50,21 @@ pub struct ProgramStorage<'a> {
     pub shared_static: &'a mut StaticSpace,
     /// Program constant memory.
     pub constant_space: &'a StaticImage,
+}
+
+impl ProgramStorage<'_> {
+    /// Reborrow this storage for one nested machine call.
+    pub fn reborrow(&mut self) -> ProgramStorage<'_> {
+        ProgramStorage {
+            heap: self.heap,
+            shared_heap: self.shared_heap,
+            shared_cache: self.shared_cache,
+            shared_mark_worker: self.shared_mark_worker,
+            local_static: self.local_static,
+            shared_static: self.shared_static,
+            constant_space: self.constant_space,
+        }
+    }
 }
 
 impl fmt::Debug for ProgramStorage<'_> {

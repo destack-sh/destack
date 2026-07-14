@@ -5,8 +5,8 @@ use destack_core::{
     StringId,
 };
 use destack_mir::{
-    Access, FloatType, Nullability, ReferenceKind, Space, TensorFormat, TensorReduction,
-    TensorViewFormat, TraceId,
+    Access, Discriminant, FloatType, Nullability, ReferenceKind, Space, TensorFormat,
+    TensorReduction, TensorViewFormat, TraceId, VariantEncoding,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ pub struct LayoutTable {
     /// Flattened field layout entries.
     fields: SectionSlice<LayoutField>,
     /// Flattened variant case layout entries.
-    variants: SectionSlice<VariantCaseLayout>,
+    cases: SectionSlice<VariantCaseLayout>,
     /// Flattened signature parameter type entries.
     parameters: SectionSlice<TypeId>,
     /// Flattened tensor sharding axis entries.
@@ -35,30 +35,25 @@ impl LayoutTable {
     pub fn pack(sections: &mut SectionPacker, layouts: Vec<LayoutBuilder>) -> Self {
         let mut entries = Vec::with_capacity(layouts.len());
         let mut fields = EntryStore::new();
-        let mut variants = EntryStore::new();
+        let mut cases = EntryStore::new();
         let mut parameters = EntryStore::new();
         let mut tensor_axes = EntryStore::new();
 
         // flatten variable layout payloads
         for layout in layouts {
-            entries.push(layout.build(
-                &mut fields,
-                &mut variants,
-                &mut parameters,
-                &mut tensor_axes,
-            ));
+            entries.push(layout.build(&mut fields, &mut cases, &mut parameters, &mut tensor_axes));
         }
 
         let layouts = sections.insert(entries);
         let fields = sections.insert(fields.into_entries());
-        let variants = sections.insert(variants.into_entries());
+        let cases = sections.insert(cases.into_entries());
         let parameters = sections.insert(parameters.into_entries());
         let tensor_axes = sections.insert(tensor_axes.into_entries());
 
         Self {
             layouts,
             fields,
-            variants,
+            cases,
             parameters,
             tensor_axes,
         }
@@ -100,12 +95,12 @@ impl LayoutTable {
     }
 
     /// Return variant cases for one variant layout.
-    pub fn variants<'a>(
+    pub fn cases<'a>(
         &self,
         sections: SectionImage<'a>,
         layout: VariantLayout,
     ) -> &'a [VariantCaseLayout] {
-        layout.variants.slice(sections.entries(self.variants))
+        layout.cases.slice(sections.entries(self.cases))
     }
 
     /// Return signature parameters for one function signature.
@@ -138,11 +133,20 @@ impl LayoutTable {
 pub struct LayoutId(NonZeroU32);
 
 impl LayoutId {
+    /// Create a layout identifier when the raw id is non-zero.
+    #[inline]
+    pub const fn from_raw(raw: u32) -> Option<Self> {
+        match NonZeroU32::new(raw) {
+            Some(raw) => Some(Self(raw)),
+            None => None,
+        }
+    }
+
     /// Create a layout identifier from one raw value.
     #[inline]
     pub const fn new(raw: u32) -> Self {
-        match NonZeroU32::new(raw) {
-            Some(raw) => Self(raw),
+        match Self::from_raw(raw) {
+            Some(id) => id,
             None => unreachable!(),
         }
     }
@@ -462,14 +466,6 @@ impl Layout {
         }
     }
 
-    /// Return the byte offset of a dynamic dispatch pointer.
-    pub const fn dynamic_dispatch_offset(&self) -> Option<u32> {
-        match &self.shape {
-            LayoutShape::Dynamic => Some(self.alignment),
-            _ => None,
-        }
-    }
-
     /// Return the byte width of this layout.
     pub const fn byte_len(&self) -> usize {
         self.size as usize
@@ -612,25 +608,17 @@ pub struct TensorViewLayout {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantLayout {
-    /// The tag layout.
-    pub tag: VariantTagLayout,
-    /// The variant payload byte offset.
-    pub payload_offset: u32,
+    /// The logical discriminant type.
+    pub discriminant: TypeId,
+    /// The logical payload storage type.
+    pub storage: TypeId,
+    /// The physical discriminant encoding.
+    pub encoding: VariantEncoding,
     /// The variant cases.
-    pub variants: EntryRange<VariantCaseLayout>,
+    pub cases: EntryRange<VariantCaseLayout>,
 }
 
-/// Concrete layout for a variant tag.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct VariantTagLayout {
-    /// The tag type when it has been materialized.
-    pub ty: Optional<TypeId>,
-    /// The tag size in bytes.
-    pub size: u32,
-    /// The tag alignment in bytes.
-    pub alignment: u32,
-}
+const _: () = assert!(std::mem::size_of::<VariantLayout>() <= 64);
 
 /// Concrete layout for a nominal newtype.
 #[repr(C)]
@@ -664,11 +652,15 @@ pub struct LayoutField {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantCaseLayout {
+    /// The logical discriminant value.
+    pub discriminant: Discriminant,
     /// The logical case type.
     pub ty: TypeId,
-    /// The case layout.
-    pub layout: LayoutId,
+    /// The case payload byte offset.
+    pub payload_offset: u32,
 }
+
+const _: () = assert!(std::mem::size_of::<VariantCaseLayout>() <= 24);
 
 /// Concrete tensor sharding descriptor.
 #[repr(C, u32)]
@@ -719,11 +711,11 @@ impl LayoutBuilder {
     fn build(
         self,
         fields: &mut EntryStore<LayoutField>,
-        variants: &mut EntryStore<VariantCaseLayout>,
+        cases: &mut EntryStore<VariantCaseLayout>,
         parameters: &mut EntryStore<TypeId>,
         tensor_axes: &mut EntryStore<TensorShardingAxis>,
     ) -> Layout {
-        let shape = self.shape.build(fields, variants, parameters, tensor_axes);
+        let shape = self.shape.build(fields, cases, parameters, tensor_axes);
 
         Layout {
             shape,
@@ -776,7 +768,7 @@ impl LayoutShapeBuilder {
     fn build(
         self,
         fields: &mut EntryStore<LayoutField>,
-        variants: &mut EntryStore<VariantCaseLayout>,
+        cases: &mut EntryStore<VariantCaseLayout>,
         parameters: &mut EntryStore<TypeId>,
         tensor_axes: &mut EntryStore<TensorShardingAxis>,
     ) -> LayoutShape {
@@ -795,9 +787,10 @@ impl LayoutShapeBuilder {
             Self::Tensor(tensor) => LayoutShape::Tensor(tensor.build(tensor_axes)),
             Self::TensorView(tensor) => LayoutShape::TensorView(tensor.build(tensor_axes)),
             Self::Variant(variant) => LayoutShape::Variant(VariantLayout {
-                tag: variant.tag,
-                payload_offset: variant.payload_offset,
-                variants: variants.append(variant.variants),
+                discriminant: variant.discriminant,
+                storage: variant.storage,
+                encoding: variant.encoding,
+                cases: cases.append(variant.cases),
             }),
             Self::Object(layout_fields) => LayoutShape::Object(fields.append(layout_fields)),
             Self::Dynamic => LayoutShape::Dynamic,
@@ -872,12 +865,14 @@ impl TensorViewLayoutBuilder {
 /// Build-time concrete layout for a variant value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantLayoutBuilder {
-    /// The tag layout.
-    pub tag: VariantTagLayout,
-    /// The variant payload byte offset.
-    pub payload_offset: u32,
+    /// The logical discriminant type.
+    pub discriminant: TypeId,
+    /// The logical payload storage type.
+    pub storage: TypeId,
+    /// The physical discriminant encoding.
+    pub encoding: VariantEncoding,
     /// The variant cases.
-    pub variants: Vec<VariantCaseLayout>,
+    pub cases: Vec<VariantCaseLayout>,
 }
 
 /// Build-time concrete tensor sharding descriptor.
@@ -925,7 +920,6 @@ unsafe impl SectionEntry for ElementLayout {}
 unsafe impl SectionEntry for TensorLayout {}
 unsafe impl SectionEntry for TensorViewLayout {}
 unsafe impl SectionEntry for VariantLayout {}
-unsafe impl SectionEntry for VariantTagLayout {}
 unsafe impl SectionEntry for NewtypeLayout {}
 unsafe impl SectionEntry for LayoutField {}
 unsafe impl SectionEntry for VariantCaseLayout {}
@@ -934,9 +928,15 @@ unsafe impl SectionEntry for TensorShardingAxis {}
 
 #[cfg(test)]
 mod tests {
-    use destack_mir::{Access, Nullability, ReferenceKind, Space};
+    use destack_core::{SectionImage, SectionPacker};
+    use destack_mir::{
+        Access, DiscriminantField, Nullability, ReferenceKind, Space, TraceId, VariantEncoding,
+    };
 
-    use crate::{CellLayout, ReferenceFlags, ReferenceLayout, TypeId};
+    use crate::{
+        CellLayout, LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable,
+        ReferenceFlags, ReferenceLayout, TypeId, VariantCaseLayout, VariantLayoutBuilder,
+    };
 
     /// Create one reference layout for reference storage tests.
     fn reference(kind: ReferenceKind, space: Space) -> ReferenceLayout {
@@ -984,5 +984,53 @@ mod tests {
 
         assert_eq!(frame.heap_space(), None);
         assert_eq!(static_reference.heap_space(), None);
+    }
+
+    /// Preserve niche variant layouts in directly mapped program sections.
+    #[test]
+    fn test_pack_niche_variant_layout() {
+        let encoding = VariantEncoding::Niche {
+            field: DiscriminantField::scalar(0, 8),
+            untagged_case: 0,
+            niche_case_start: 1,
+            niche_case_end: 1,
+            niche_start: 0u128.into(),
+        };
+        let layout = LayoutBuilder {
+            shape: LayoutShapeBuilder::Variant(VariantLayoutBuilder {
+                discriminant: TypeId(1),
+                storage: TypeId(2),
+                encoding,
+                cases: vec![
+                    VariantCaseLayout {
+                        discriminant: 0u128.into(),
+                        ty: TypeId(2),
+                        payload_offset: 0,
+                    },
+                    VariantCaseLayout {
+                        discriminant: 1u128.into(),
+                        ty: TypeId(3),
+                        payload_offset: 0,
+                    },
+                ],
+            }),
+            size: 8,
+            alignment: 8,
+            trace: TraceId::new(1),
+        };
+        let mut sections = SectionPacker::new();
+        let table = LayoutTable::pack(&mut sections, vec![layout]);
+        let (directory, storage) = sections.finish();
+        let sections =
+            SectionImage::load(&directory, &storage).expect("layout sections should load");
+        let layout = table
+            .get(sections, LayoutId::new(1))
+            .expect("variant layout should exist");
+        let LayoutShape::Variant(variant) = layout.shape else {
+            panic!("layout should remain a variant");
+        };
+
+        assert_eq!(variant.encoding, encoding);
+        assert_eq!(table.cases(sections, variant).len(), 2);
     }
 }

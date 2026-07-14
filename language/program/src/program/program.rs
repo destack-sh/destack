@@ -1,20 +1,24 @@
+use std::sync::Arc;
+
 use destack_core::{SectionDirectory, SectionImage, SectionStorage, StringId};
 use destack_heap::{
-    AllocationShape, HeapEdge, HeapOptions, HeapReference, HeapResult, ReferenceRange, RootSlot,
-    SharedHeapOptions, SharedHeapReference, TraceTable, TraceView, visit_heap_root_slots,
+    AllocationShape, DropId, HeapEdge, HeapOptions, HeapReference, HeapResult, ReferenceRange,
+    RootSlot, SharedHeapOptions, SharedHeapReference, TraceTable, TraceView, visit_heap_root_slots,
 };
+use destack_memory::{MemoryMap, MemoryResult};
 use destack_mir::{ReferenceKind, Space, TargetLayout, TraceId, TraceMap};
 use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization, FrameSlot,
-    FrameSlotId, FrameStateId, FrameTable, Function, FunctionId, FunctionSignature, FunctionTable,
-    Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
-    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, SampleKey, SampleSite, SampleValue,
-    ScalarFormat, Signature, SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable,
-    native, vm,
+    CellLayout, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId,
+    FrameLayout, FrameLayoutId, FrameMaterialization, FrameSlot, FrameSlotId, FrameStateId,
+    FrameTable, Function, FunctionId, FunctionSignature, FunctionTable, Global, GlobalAddress,
+    GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
+    ProgramInfo, ProgramPoint, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
+    SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable, VariantCaseLayout,
+    VariantLayout, native, vm,
 };
 use vm::error::{Error, Result};
 
@@ -37,6 +41,8 @@ pub struct Program {
     pub(crate) strings: StringTable,
     /// Runtime type table.
     pub(crate) types: TypeTable,
+    /// Destructors keyed by drop id.
+    pub(crate) drops: DropTable,
     /// Runtime layouts keyed by layout id.
     pub(crate) layouts: LayoutTable,
     /// Runtime frame table.
@@ -79,6 +85,7 @@ impl Program {
         shared_heap: SharedHeapOptions,
         strings: StringTable,
         types: TypeTable,
+        drops: DropTable,
         layouts: LayoutTable,
         frames: FrameTable,
         functions: FunctionTable,
@@ -103,6 +110,7 @@ impl Program {
             shared_heap,
             strings,
             types,
+            drops,
             layouts,
             frames,
             functions,
@@ -209,6 +217,20 @@ impl Program {
         &self.dispatch
     }
 
+    /// Return one dynamic table by its durable id.
+    pub fn dynamic_table(&self, table: DynamicTableId) -> Option<&DynamicTable> {
+        self.dispatch.dynamic_table_by_id(self.sections(), table)
+    }
+
+    /// Return one dynamic entry by table id and slot.
+    pub fn dynamic_entry(&self, table: DynamicTableId, slot: u32) -> Option<&DynamicEntry> {
+        let table = self.dynamic_table(table)?;
+
+        self.dispatch
+            .dynamic_entries(self.sections(), table)
+            .get(slot as usize)
+    }
+
     /// Return executable program sites.
     pub fn sites(&self) -> &SiteTable {
         &self.sites
@@ -256,26 +278,14 @@ impl Program {
     }
 
     /// Materialize initial shared static storage.
-    pub fn materialize_shared_statics(&self) -> StaticSpace {
-        self.shared_static_space.materialize(self.sections())
+    pub fn materialize_shared_statics(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
+        self.shared_static_space
+            .materialize(self.sections(), memory)
     }
 
     /// Materialize initial local static storage.
-    pub fn materialize_local_statics(&self) -> StaticSpace {
-        self.local_static_space.materialize(self.sections())
-    }
-
-    /// Initialize runtime-owned static storage from this program.
-    pub fn initialize_statics(
-        &self,
-        local_static: &mut StaticSpace,
-        shared_static: &mut StaticSpace,
-    ) {
-        if shared_static.is_empty() {
-            *shared_static = self.materialize_shared_statics();
-        }
-
-        *local_static = self.materialize_local_statics();
+    pub fn materialize_local_statics(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
+        self.local_static_space.materialize(self.sections(), memory)
     }
 
     /// Resolve one function id by source name.
@@ -302,6 +312,16 @@ impl Program {
     /// Return runtime layouts for this program.
     pub fn layouts(&self) -> &LayoutTable {
         &self.layouts
+    }
+
+    /// Return one complete drop entry.
+    pub fn drop_entry(&self, drop: DropId) -> Option<DropEntry> {
+        self.drops.entry(self.sections(), drop)
+    }
+
+    /// Return the executable drop table.
+    pub fn drops(&self) -> &DropTable {
+        &self.drops
     }
 
     /// Return the heap allocation shape for one layout id.
@@ -491,6 +511,11 @@ impl Program {
         self.layouts.field_count(layout)
     }
 
+    /// Return the cases for one variant layout.
+    pub fn variant_cases(&self, layout: VariantLayout) -> &[VariantCaseLayout] {
+        self.layouts.cases(self.sections(), layout)
+    }
+
     /// Return all fields for one layout when it is field-addressable.
     pub fn layout_fields(&self, layout: &Layout) -> &[LayoutField] {
         self.layouts.fields(self.sections(), layout)
@@ -597,16 +622,11 @@ impl Program {
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
         let sections = self.sections();
-        let globals = self
-            .globals
-            .iter_location(sections, location)
-            .map(|(global_id, global)| (global_id, *global))
-            .collect::<Vec<_>>();
 
         // visit each static global
-        for (global_id, global) in globals {
-            let bytes = static_space
-                .bytes_mut(&global)
+        for (global_id, global) in self.globals.iter_location(sections, location) {
+            // SAFETY: root walking holds exclusive access to this static space
+            let bytes = unsafe { static_space.bytes_mut(global) }
                 .ok_or_else(|| Error::internal(format!("missing global bytes {global_id:?}")))?;
             self.visit_byte_root_slots(global.ty, bytes, visit)?;
         }

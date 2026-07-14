@@ -64,6 +64,18 @@ pub enum Op {
     FunctionEnvironment,
     /// Load the current function environment.
     FunctionEnvironmentCurrent,
+    /// Bind an erased payload to one dynamic table.
+    DynamicBind,
+    /// Load the payload from a dynamic value.
+    DynamicPayload,
+    /// Load the concrete type from a dynamic value.
+    DynamicType,
+    /// Construct one physically encoded variant value.
+    VariantConstruct,
+    /// Load the logical discriminant from a variant value.
+    VariantDiscriminant,
+    /// Load the logical payload storage from a variant value.
+    VariantStorage,
 
     // ============================================================================
     // scalar loads
@@ -736,6 +748,10 @@ pub enum Op {
     // ============================================================================
     // calls
     // ============================================================================
+    /// Drop one value through its statically linked drop function.
+    Drop,
+    /// Release the boxed payload root from one dynamic value.
+    DropDynamic,
     /// Call a known function.
     Call,
     /// Invoke a known function with normal and unwind continuations.
@@ -756,14 +772,10 @@ pub enum Op {
     InvokeVirtualLocal,
     /// Invoke a virtual method through a shared receiver.
     InvokeVirtualShared,
-    /// Call a dynamic function through a local receiver.
-    CallDynamicLocal,
-    /// Call a dynamic function through a shared receiver.
-    CallDynamicShared,
-    /// Invoke a dynamic function through a local receiver.
-    InvokeDynamicLocal,
-    /// Invoke a dynamic function through a shared receiver.
-    InvokeDynamicShared,
+    /// Call a dynamic method through an erased receiver.
+    CallDynamic,
+    /// Invoke a dynamic method through an erased receiver.
+    InvokeDynamic,
     /// Tail call a known function.
     TailCall,
     /// Tail call the current function.
@@ -776,10 +788,8 @@ pub enum Op {
     TailCallVirtualLocal,
     /// Tail call a virtual method through a shared receiver.
     TailCallVirtualShared,
-    /// Tail call a dynamic function through a local receiver.
-    TailCallDynamicLocal,
-    /// Tail call a dynamic function through a shared receiver.
-    TailCallDynamicShared,
+    /// Tail call a dynamic method through an erased receiver.
+    TailCallDynamic,
 
     // ============================================================================
     // control flow
@@ -1019,18 +1029,15 @@ impl Op {
                 | Self::CallVirtualShared
                 | Self::InvokeVirtualLocal
                 | Self::InvokeVirtualShared
-                | Self::CallDynamicLocal
-                | Self::CallDynamicShared
-                | Self::InvokeDynamicLocal
-                | Self::InvokeDynamicShared
+                | Self::CallDynamic
+                | Self::InvokeDynamic
                 | Self::TailCall
                 | Self::TailCallSelf
                 | Self::TailCallFunctionPointer
                 | Self::TailCallFunction
                 | Self::TailCallVirtualLocal
                 | Self::TailCallVirtualShared
-                | Self::TailCallDynamicLocal
-                | Self::TailCallDynamicShared
+                | Self::TailCallDynamic
         )
     }
 

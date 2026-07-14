@@ -229,6 +229,17 @@ pub struct FunctionBind {
     pub environment: CellLayout,
 }
 
+/// Concrete value drop.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct Drop {
+    /// The destructor function index.
+    pub function: u32,
+    /// The resolved drop function target.
+    pub target: CallTarget,
+    /// The dropped value frame offset.
+    pub value_offset: u32,
+}
+
 /// Direct function call.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Call {
@@ -290,10 +301,8 @@ pub struct InvokeVirtual {
 /// Dynamic method call.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallDynamic {
-    /// The receiver cell offset.
+    /// The receiver frame offset.
     pub receiver_offset: u32,
-    /// The dynamic table field projection.
-    pub table_field: ProjectionId,
     /// The dynamic table slot.
     pub slot: u32,
     /// The pooled argument range.
@@ -303,10 +312,8 @@ pub struct CallDynamic {
 /// Dynamic method invocation.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct InvokeDynamic {
-    /// The receiver cell offset.
+    /// The receiver frame offset.
     pub receiver_offset: u32,
-    /// The dynamic table field projection.
-    pub table_field: ProjectionId,
     /// The dynamic table slot.
     pub slot: u32,
     /// The pooled argument range.
@@ -1057,10 +1064,8 @@ pub struct TailCallVirtual {
 /// Dynamic tail call.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TailCallDynamic {
-    /// The receiver cell offset.
+    /// The receiver frame offset.
     pub receiver_offset: u32,
-    /// The dynamic table field projection.
-    pub table_field: ProjectionId,
     /// The dynamic table slot.
     pub slot: u32,
     /// The pooled argument range.

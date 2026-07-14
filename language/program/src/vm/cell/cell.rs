@@ -1,4 +1,4 @@
-use crate::{GlobalAddress, Value};
+use crate::{DynamicTableId, GlobalAddress, Value};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir::{Constant, FloatType};
 use destack_serde::Reflect;
@@ -123,19 +123,25 @@ impl Cell {
     /// View this value as a stack pointer.
     #[inline(always)]
     pub const fn as_stack_pointer(self) -> StackPointer {
-        StackPointer::from_address(self.0 as usize)
+        StackPointer::from_offset(self.0 as usize)
     }
 
     /// View this value as a frame pointer.
     #[inline(always)]
     pub const fn as_frame_pointer(self) -> FramePointer {
-        FramePointer::from_address(self.0 as usize)
+        FramePointer::from_offset(self.0 as usize)
     }
 
     /// View this value as a global address.
     #[inline(always)]
     pub const fn as_global_address(self) -> GlobalAddress {
         GlobalAddress::from_bits(self.0)
+    }
+
+    /// View this value as a dynamic table id.
+    #[inline(always)]
+    pub const fn as_dynamic_table(self) -> DynamicTableId {
+        DynamicTableId(self.0 as u32)
     }
 
     /// View this value as a function pointer.
@@ -268,6 +274,12 @@ impl Cell {
     #[inline(always)]
     pub const fn function_pointer(pointer: FunctionPointer) -> Self {
         Self(pointer.bits() as u64)
+    }
+
+    /// Create a dynamic table id value.
+    #[inline(always)]
+    pub const fn dynamic_table(table: DynamicTableId) -> Self {
+        Self(table.0 as u64)
     }
 
     /// Return the packed bytes for this value.

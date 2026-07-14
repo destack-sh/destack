@@ -7,8 +7,8 @@ use serde::de::DeserializeOwned;
 
 use super::Program;
 use crate::{
-    DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, ProgramInfo, SiteTable,
-    StaticImage, StringTable, TypeTable, native, vm,
+    DispatchTable, DropTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, ProgramInfo,
+    SiteTable, StaticImage, StringTable, TypeTable, native, vm,
 };
 use destack_heap::{HeapOptions, SharedHeapOptions, TraceTable};
 use destack_mir::TargetLayout;
@@ -98,6 +98,7 @@ impl Program {
         Self::push_field(&mut bytes, &self.shared_heap)?;
         Self::push_field(&mut bytes, &self.strings)?;
         Self::push_field(&mut bytes, &self.types)?;
+        Self::push_field(&mut bytes, &self.drops)?;
         Self::push_field(&mut bytes, &self.layouts)?;
         Self::push_field(&mut bytes, &self.frames)?;
         Self::push_field(&mut bytes, &self.functions)?;
@@ -128,6 +129,7 @@ impl Program {
         let shared_heap = Self::pull_field::<SharedHeapOptions>(descriptor, &mut offset)?;
         let strings = Self::pull_field::<StringTable>(descriptor, &mut offset)?;
         let types = Self::pull_field::<TypeTable>(descriptor, &mut offset)?;
+        let drops = Self::pull_field::<DropTable>(descriptor, &mut offset)?;
         let layouts = Self::pull_field::<LayoutTable>(descriptor, &mut offset)?;
         let frames = Self::pull_field::<FrameTable>(descriptor, &mut offset)?;
         let functions = Self::pull_field::<FunctionTable>(descriptor, &mut offset)?;
@@ -159,6 +161,7 @@ impl Program {
             shared_heap,
             strings,
             types,
+            drops,
             layouts,
             frames,
             functions,
@@ -301,8 +304,8 @@ mod tests {
     use destack_serde::{from_slice, to_vec};
 
     use crate::{
-        DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, Program, ProgramInfo,
-        ProgramLoadError, SiteTable, StaticImage, StringTable, TypeTable, vm,
+        DispatchTable, DropTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, Program,
+        ProgramInfo, ProgramLoadError, SiteTable, StaticImage, StringTable, TypeTable, vm,
     };
 
     /// Store and load a program without nesting section bytes in the artifact blob codec.
@@ -352,6 +355,7 @@ mod tests {
 
         // build empty section-backed program tables
         let types = TypeTable::pack(&mut sections, Vec::new());
+        let drops = DropTable::pack(&mut sections, Vec::new());
         let layouts = LayoutTable::pack(&mut sections, Vec::new());
         let frames = FrameTable::pack(&mut sections, Vec::new(), Vec::new());
         let functions = FunctionTable::pack(&mut sections, Vec::new(), Vec::new());
@@ -398,6 +402,7 @@ mod tests {
             SharedHeapOptions::default(),
             strings,
             types,
+            drops,
             layouts,
             frames,
             functions,

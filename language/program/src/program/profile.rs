@@ -38,14 +38,14 @@ pub struct ProfileOptions {
 }
 
 /// Runtime profile for one explicit counter site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CounterProfile {
     /// Number of observed increments.
     pub count: u64,
 }
 
 /// Runtime profile for one heap allocation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AllocationProfile {
     /// Number of observed allocations.
     pub count: u64,
@@ -54,21 +54,21 @@ pub struct AllocationProfile {
 }
 
 /// Runtime profile for one function call site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CallProfile {
     /// Number of observed calls.
     pub count: u64,
 }
 
 /// Runtime profile for one control-flow edge site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EdgeProfile {
     /// Number of observed transfers.
     pub count: u64,
 }
 
 /// Runtime profile for one continuation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ContinuationProfile {
     /// Number of observed continuation captures.
     pub captured: u64,
@@ -77,7 +77,7 @@ pub struct ContinuationProfile {
 }
 
 /// Runtime profile for one explicit sample site.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SampleProfile {
     /// Number of observed samples.
     pub count: u64,

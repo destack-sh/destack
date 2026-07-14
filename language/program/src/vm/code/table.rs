@@ -9,8 +9,8 @@ use crate::{FunctionSignature, Signature, TypeId};
 
 use super::{
     AggregateSelect, AllocationBranch, AtomicCompareExchange, Call, CallDynamic, CallVirtual,
-    ConstValue, ConstValueBuilder, FunctionBind, IndirectCall, IndirectTailCall, IntrinsicCall,
-    Invoke, InvokeDynamic, InvokeIndirect, InvokeVirtual, MoveRange, Projection,
+    ConstValue, ConstValueBuilder, Drop, FunctionBind, IndirectCall, IndirectTailCall,
+    IntrinsicCall, Invoke, InvokeDynamic, InvokeIndirect, InvokeVirtual, MoveRange, Projection,
     SliceAllocationBranch, SliceProjection, SwitchCase, TailCall, TailCallDynamic, TailCallVirtual,
     TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
     TensorConvert, TensorConvolution, TensorConvolutionDimensions,
@@ -478,6 +478,7 @@ side_record_table! {
     vector_reduce: VectorReduce,
     vector_convert: VectorConvert,
     function_bind: FunctionBind,
+    drop: Drop,
     call: Call,
     invoke: Invoke,
     call_virtual: CallVirtual,
