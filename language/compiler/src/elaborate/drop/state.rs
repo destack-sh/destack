@@ -7,8 +7,6 @@ use super::owned::OwnedValues;
 pub(super) struct DropState {
     /// Whole owned values still available.
     pub(super) owned: OwnedValues,
-    /// Moved subplaces inside available owned values.
-    pub(super) moved: Vec<mir::Place>,
     /// Known places keyed by SSA value.
     places: Vec<Option<mir::Place>>,
 }
@@ -18,7 +16,6 @@ impl DropState {
     pub(super) fn parameters(function: &mir::Function, owned: &OwnedValues) -> Self {
         Self {
             owned: OwnedValues::parameters(function, owned),
-            moved: Vec::new(),
             places: vec![None; function.value_types().len()],
         }
     }
@@ -27,20 +24,11 @@ impl DropState {
     pub(super) fn intersect_with(&mut self, other: &Self) {
         self.owned.intersect_with(&other.owned);
         self.intersect_places_with(other);
-
-        // keep partial moves observed on any surviving owned value
-        for moved in &other.moved {
-            if !self.moved.contains(moved) {
-                self.moved.push(moved.clone());
-            }
-        }
-        self.retain_owned_moved();
     }
 
     /// Retain values known to be owned.
     pub(super) fn retain_owned(&mut self, owned: &OwnedValues) {
         self.owned.retain_owned(owned);
-        self.retain_owned_moved();
     }
 
     /// Return whether one value is available.
@@ -51,7 +39,7 @@ impl DropState {
     /// Mark consumed whole values as unavailable.
     pub(super) fn remove_consumed(&mut self, consumed: &OwnedValues) {
         for value in consumed.values() {
-            self.move_value(value);
+            self.remove(value);
         }
     }
 
@@ -63,7 +51,7 @@ impl DropState {
         owned: &OwnedValues,
     ) {
         if self.owned.contains(argument) && owned.contains(parameter) {
-            self.move_place(mir::Place::value(argument));
+            self.remove(argument);
             self.owned.insert(parameter);
         }
 
@@ -84,9 +72,6 @@ impl DropState {
         }
 
         self.owned.insert(destination);
-        self.moved.retain(
-            |moved| !matches!(moved.origin, mir::PlaceOrigin::Value(value) if value == destination),
-        );
     }
 
     /// Return the known place for one value.
@@ -144,21 +129,21 @@ impl DropState {
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate,
-                index,
+                field,
                 ..
             } => self.set_projected_place(
                 *destination,
                 *aggregate,
-                mir::Projection::Field { index: *index },
+                mir::Projection::Field { index: *field },
             ),
             mir::Instruction::ElementAddr {
                 destination,
-                array,
+                base,
                 index,
                 ..
             } => self.set_projected_place(
                 *destination,
-                *array,
+                *base,
                 mir::Projection::Index { index: *index },
             ),
             mir::Instruction::SliceView {
@@ -174,15 +159,6 @@ impl DropState {
                     start: *start,
                     length: *length,
                 },
-            ),
-            mir::Instruction::VariantPayload {
-                destination,
-                variant,
-                tag,
-            } => self.set_projected_place(
-                *destination,
-                *variant,
-                mir::Projection::Variant { tag: tag.clone() },
             ),
             mir::Instruction::Cast {
                 destination,
@@ -207,36 +183,9 @@ impl DropState {
         }
     }
 
-    /// Mark one place as moved.
-    pub(super) fn move_place(&mut self, place: mir::Place) {
-        let mir::PlaceOrigin::Value(value) = place.origin else {
-            return;
-        };
-        if !self.owned.contains(value) {
-            return;
-        }
-
-        // move the whole value
-        if place.path.is_root() {
-            self.move_value(value);
-            return;
-        }
-
-        // avoid redundant child moves
-        if self.moved.iter().any(|moved| moved.contains(&place)) {
-            return;
-        }
-
-        self.moved.retain(|moved| !place.contains(moved));
-        self.moved.push(place);
-    }
-
     /// Mark one whole value as moved.
-    fn move_value(&mut self, value: mir::Value) {
+    pub(super) fn remove(&mut self, value: mir::Value) {
         self.owned.remove(value);
-        self.moved.retain(
-            |moved| !matches!(moved.origin, mir::PlaceOrigin::Value(origin) if origin == value),
-        );
     }
 
     /// Keep only places also known in another predecessor state.
@@ -316,13 +265,5 @@ impl DropState {
         }
 
         index
-    }
-
-    /// Remove moved places outside the surviving owned values.
-    fn retain_owned_moved(&mut self) {
-        self.moved.retain(|moved| match moved.origin {
-            mir::PlaceOrigin::Value(value) => self.owned.contains(value),
-            mir::PlaceOrigin::Local(_) | mir::PlaceOrigin::Global(_) => false,
-        });
     }
 }

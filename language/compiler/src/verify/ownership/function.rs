@@ -99,7 +99,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
             self.context
                 .emit_error(VerifyError::UndeclaredBorrowObligation {
-                    anchor: self.context.anchor(self.tree, self.function_id.into()),
+                    anchor: self.context.anchor(self.function_id.into()),
                 });
         }
     }
@@ -196,9 +196,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             flow.bind(argument, parameter.value);
         }
 
-        // bind the implicit call result when the continuation receives one
+        // bind the implicit invoke result when the continuation receives one
         if terminator.has_successor_result(successor) {
-            let bindings = self.call_terminator_result_sources(predecessor_id, terminator, &flow);
+            let bindings = self.invoke_result_sources(predecessor_id, terminator, &flow);
             let parameter = self
                 .tree
                 .get(successor)
@@ -304,6 +304,14 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     ) {
         let anchor = instruction_id.into_any();
 
+        // reject another operation while aggregate decomposition is incomplete
+        if !matches!(
+            instruction,
+            mir::Instruction::FieldGet { .. } | mir::Instruction::ElementGet { .. }
+        ) {
+            self.reject_partial_moves(anchor);
+        }
+
         // check uses against initialized places
         self.check_instruction_uses(instruction, anchor);
 
@@ -329,9 +337,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.create_projection_loan(*destination, *aggregate, anchor);
             }
             mir::Instruction::ElementAddr {
-                destination, array, ..
+                destination, base, ..
             } => {
-                self.create_projection_loan(*destination, *array, anchor);
+                self.create_projection_loan(*destination, *base, anchor);
             }
             mir::Instruction::SliceView {
                 destination,
@@ -343,21 +351,21 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             mir::Instruction::FieldGet {
                 destination,
                 aggregate,
-                index,
+                field,
                 ..
             } => {
-                let projection = self.static_slot_projection(*aggregate, *index);
+                let projection = mir::Projection::Field { index: *field };
                 self.move_projection_value(*destination, *aggregate, projection.clone(), anchor);
                 self.propagate_projection_sources(*aggregate, projection, *destination);
             }
-            mir::Instruction::VariantPayload {
+            mir::Instruction::ElementGet {
                 destination,
-                variant,
-                tag,
+                aggregate,
+                index,
             } => {
-                let projection = mir::Projection::Variant { tag: tag.clone() };
-                self.move_projection_value(*destination, *variant, projection.clone(), anchor);
-                self.propagate_projection_sources(*variant, projection, *destination);
+                let projection = mir::Projection::Element { index: *index };
+                self.move_projection_value(*destination, *aggregate, projection.clone(), anchor);
+                self.propagate_projection_sources(*aggregate, projection, *destination);
             }
             mir::Instruction::LocalAddr {
                 destination, local, ..
@@ -368,10 +376,21 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 destination,
                 aggregate,
                 value,
-                index,
+                field,
                 ..
             } => {
-                let projection = self.static_slot_projection(*aggregate, *index);
+                let projection = mir::Projection::Field { index: *field };
+                self.check_aggregate_set(*aggregate, *value, anchor);
+                self.propagate_sources(*aggregate, *destination);
+                self.propagate_sources_to_path(*value, *destination, projection);
+            }
+            mir::Instruction::ElementSet {
+                destination,
+                aggregate,
+                value,
+                index,
+            } => {
+                let projection = mir::Projection::Element { index: *index };
                 self.check_aggregate_set(*aggregate, *value, anchor);
                 self.propagate_sources(*aggregate, *destination);
                 self.propagate_sources_to_path(*value, *destination, projection);
@@ -410,43 +429,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             mir::Instruction::GlobalAddr { destination, .. } => {
                 self.define_sources(*destination, BorrowSources::one(BorrowSource::Static));
             }
-            mir::Instruction::Call { function, call, .. } => {
+            mir::Instruction::Call { call, .. } => {
                 let arguments = self.tree.get_values(call.arguments).to_vec();
-                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
-                self.define_call_result_sources(
-                    instruction.destination(),
-                    Some(*function),
-                    &call.signature,
-                    &arguments,
-                );
-            }
-            mir::Instruction::CallVirtual { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
                 let function = self.resolved_instruction_target(instruction_id, instruction);
                 self.check_call_obligations(&call.signature, arguments.clone(), anchor);
                 self.define_call_result_sources(
                     instruction.destination(),
                     function,
-                    &call.signature,
-                    &arguments,
-                );
-            }
-            mir::Instruction::CallDynamic { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
-                self.define_call_result_sources(
-                    instruction.destination(),
-                    None,
-                    &call.signature,
-                    &arguments,
-                );
-            }
-            mir::Instruction::CallIndirect { call, .. } => {
-                let arguments = self.tree.get_values(call.arguments).to_vec();
-                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
-                self.define_call_result_sources(
-                    instruction.destination(),
-                    None,
                     &call.signature,
                     &arguments,
                 );
@@ -471,6 +460,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         terminator: &mir::Terminator,
     ) {
         let anchor = terminator_id.into_any();
+
+        // reject control flow while an aggregate remains partially moved
+        self.reject_partial_moves(anchor);
 
         // check terminator uses against initialized values
         for value in terminator.uses(self.tree) {
@@ -517,21 +509,23 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     ) {
         match instruction {
             mir::Instruction::FieldGet {
-                aggregate, index, ..
+                aggregate, field, ..
             }
             | mir::Instruction::FieldAddr {
-                aggregate, index, ..
+                aggregate, field, ..
             } => {
-                let projection = self.static_slot_projection(*aggregate, *index);
+                let projection = mir::Projection::Field { index: *field };
                 self.check_projection_use(*aggregate, projection, anchor);
             }
-            mir::Instruction::VariantPayload { variant, tag, .. } => {
-                let projection = mir::Projection::Variant { tag: tag.clone() };
-                self.check_projection_use(*variant, projection, anchor);
+            mir::Instruction::ElementGet {
+                aggregate, index, ..
+            } => {
+                let projection = mir::Projection::Element { index: *index };
+                self.check_projection_use(*aggregate, projection, anchor);
             }
-            mir::Instruction::ElementAddr { array, index, .. } => {
+            mir::Instruction::ElementAddr { base, index, .. } => {
                 let projection = mir::Projection::Index { index: *index };
-                self.check_projection_use(*array, projection, anchor);
+                self.check_projection_use(*base, projection, anchor);
                 self.check_value_use(*index, anchor);
             }
             mir::Instruction::SliceView {
@@ -593,13 +587,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Emit a move-use diagnostic.
     fn emit_move_error(&mut self, moved: MoveUse, anchor: mir::LocalNodeIdAny) {
-        let moved_at = self.context.anchor(self.tree, moved.at);
+        let moved_at = self.context.anchor(moved.at);
         match moved.state {
             // report places moved by every predecessor
             MoveState::Moved => {
                 self.emit_error(
                     VerifyError::UseAfterMove {
-                        anchor: self.context.anchor(self.tree, anchor),
+                        anchor: self.context.anchor(anchor),
                         moved_at: moved_at.clone(),
                     }
                     .label(moved_at, "value moved here"),
@@ -609,7 +603,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             MoveState::MaybeMoved => {
                 self.emit_error(
                     VerifyError::MaybeUseAfterMove {
-                        anchor: self.context.anchor(self.tree, anchor),
+                        anchor: self.context.anchor(anchor),
                         moved_at: moved_at.clone(),
                     }
                     .label(moved_at, "value moved on this path"),
@@ -644,19 +638,53 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return;
         }
 
-        // reject partial moves through custom drop hooks
-        if !self.is_variant_value(base) && self.has_custom_drop(base) {
-            self.emit_error(VerifyError::PartialMoveOfCustomDrop {
-                anchor: self.context.anchor(self.tree, anchor),
+        // reject moves out of values whose hook requires the complete receiver
+        if self.has_drop_hook(base) {
+            self.emit_error(VerifyError::MoveOutOfDrop {
+                anchor: self.context.anchor(anchor),
             });
             return;
         }
 
-        // mark the projected place as moved
+        // move the complete variant or selected aggregate child
+        let parent = self.place_for_value(base);
         let place = self.place_moved_by_projection(base, projection);
-        if self.check_place_change(&place, anchor) {
-            self.flow.moves.move_place(place, anchor);
+        if !self.check_place_change(&place, anchor) {
+            return;
         }
+        if !self.flow.moves.move_place(place, anchor) || self.is_variant_value(base) {
+            return;
+        }
+
+        // begin or advance complete aggregate decomposition
+        if self.flow.moves.step_decomposition(&parent, anchor) {
+            return;
+        }
+
+        let child_count = self.decomposition_child_count(base);
+        if child_count == 0 {
+            self.flow.moves.move_place(parent, anchor);
+        } else {
+            self.flow
+                .moves
+                .begin_decomposition(parent, child_count, anchor);
+        }
+    }
+
+    /// Reject an aggregate decomposition before another operation.
+    fn reject_partial_moves(&mut self, anchor: mir::LocalNodeIdAny) {
+        let Some(moved) = self.flow.moves.collapse_partial_moves() else {
+            return;
+        };
+        let moved_at = self.context.anchor(moved.at);
+
+        self.emit_error(
+            VerifyError::PartialMove {
+                anchor: self.context.anchor(anchor),
+                moved_at: moved_at.clone(),
+            }
+            .label(moved_at, "aggregate decomposition begins here"),
+        );
     }
 
     /// Create a loan whose projected place is recorded on the reference.
@@ -695,7 +723,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let sources = self.sources_for_place(&place);
         if !sources.allows_borrow(access) {
             self.emit_error(VerifyError::ExclusiveBorrowFromSharedManaged {
-                anchor: self.context.anchor(self.tree, anchor),
+                anchor: self.context.anchor(anchor),
             });
 
             self.flow.invalidate_borrow(reference);
@@ -717,10 +745,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             })
             .cloned()
         {
-            let active_borrow = self.context.anchor(self.tree, conflict.created_at);
+            let active_borrow = self.context.anchor(conflict.created_at);
             self.emit_error(
                 VerifyError::BorrowConflict {
-                    anchor: self.context.anchor(self.tree, anchor),
+                    anchor: self.context.anchor(anchor),
                     active_borrow: active_borrow.clone(),
                 }
                 .label(active_borrow, "borrow starts here"),
@@ -744,7 +772,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             .is_some_and(|access| !access.can_write())
         {
             self.emit_error(VerifyError::WriteThroughReadonlyReference {
-                anchor: self.context.anchor(self.tree, anchor),
+                anchor: self.context.anchor(anchor),
             });
         }
 
@@ -758,10 +786,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             })
             .cloned()
         {
-            let borrowed_at = self.context.anchor(self.tree, loan.created_at);
+            let borrowed_at = self.context.anchor(loan.created_at);
             self.emit_error(
                 VerifyError::InvalidationOfBorrowedPlace {
-                    anchor: self.context.anchor(self.tree, anchor),
+                    anchor: self.context.anchor(anchor),
                     borrowed_at: borrowed_at.clone(),
                 }
                 .label(borrowed_at, "borrow starts here"),
@@ -773,7 +801,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let target_sources = self.sources_for_place(&pointer_place);
         if value_sources.has_function_local_source() && target_sources.is_escaping() {
             self.emit_error(VerifyError::BorrowOutlivesOrigin {
-                anchor: self.context.anchor(self.tree, anchor),
+                anchor: self.context.anchor(anchor),
             });
         }
     }
@@ -791,7 +819,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         // reject local borrows embedded into escaping aggregates
         if value_sources.has_function_local_source() && aggregate_sources.is_escaping() {
             self.emit_error(VerifyError::BorrowOutlivesOrigin {
-                anchor: self.context.anchor(self.tree, anchor),
+                anchor: self.context.anchor(anchor),
             });
         }
     }
@@ -810,30 +838,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         terminator: &mir::Terminator,
         anchor: mir::LocalNodeIdAny,
     ) {
-        let bindings = match terminator {
-            mir::Terminator::TailCall { function, call } => self.call_result_source_bindings(
-                Some(*function),
-                &call.signature,
-                self.tree.get_values(call.arguments),
-                &self.flow,
-            ),
-            mir::Terminator::TailCallVirtual { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                let function = self.resolved_terminator_target(block_id, terminator);
-                self.call_result_source_bindings(function, &call.signature, &arguments, &self.flow)
-            }
-            mir::Terminator::TailCallDynamic { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                self.call_result_source_bindings(None, &call.signature, &arguments, &self.flow)
-            }
-            mir::Terminator::TailCallIndirect { call, .. } => self.call_result_source_bindings(
-                None,
-                &call.signature,
-                self.tree.get_values(call.arguments),
-                &self.flow,
-            ),
-            _ => return,
+        let mir::Terminator::TailCall { call } = terminator else {
+            return;
         };
+        let function = self.resolved_terminator_target(block_id, terminator);
+        let arguments = self.tree.get_values(call.arguments);
+        let bindings =
+            self.call_result_source_bindings(function, &call.signature, arguments, &self.flow);
 
         self.check_return_bindings(bindings, anchor);
     }
@@ -872,7 +883,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
         if has_error {
             self.emit_error(VerifyError::BorrowOutlivesOrigin {
-                anchor: self.context.anchor(self.tree, anchor),
+                anchor: self.context.anchor(anchor),
             });
         }
     }
@@ -890,10 +901,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 BorrowSuspension::Rejected => {
                     let borrowed_at = self
                         .context
-                        .anchor(self.tree, self.anchor_for_borrowed_reference(value, anchor));
+                        .anchor(self.anchor_for_borrowed_reference(value, anchor));
                     self.emit_error(
                         VerifyError::ManagedBorrowAcrossSuspension {
-                            anchor: self.context.anchor(self.tree, anchor),
+                            anchor: self.context.anchor(anchor),
                             borrowed_at: borrowed_at.clone(),
                         }
                         .label(borrowed_at, "managed borrow is live here"),
@@ -925,25 +936,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         anchor: mir::LocalNodeIdAny,
     ) {
         match terminator {
-            mir::Terminator::Call { call, .. } | mir::Terminator::TailCall { call, .. } => {
-                self.check_call_obligations(
-                    &call.signature,
-                    self.tree.get_values(call.arguments).to_vec(),
-                    anchor,
-                );
-            }
-            mir::Terminator::CallVirtual { receiver, call, .. }
-            | mir::Terminator::TailCallVirtual { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                self.check_call_obligations(&call.signature, arguments, anchor);
-            }
-            mir::Terminator::CallDynamic { receiver, call, .. }
-            | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                self.check_call_obligations(&call.signature, arguments, anchor);
-            }
-            mir::Terminator::CallIndirect { call, .. }
-            | mir::Terminator::TailCallIndirect { call, .. } => {
+            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
                 self.check_call_obligations(
                     &call.signature,
                     self.tree.get_values(call.arguments).to_vec(),
@@ -982,37 +975,20 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         })
     }
 
-    /// Return borrow sources for one call terminator result.
-    fn call_terminator_result_sources(
+    /// Return borrow sources for one invoke result.
+    fn invoke_result_sources(
         &self,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         flow: &FlowState,
     ) -> Option<Vec<(mir::Path, BorrowSources)>> {
-        match terminator {
-            mir::Terminator::Call { function, call, .. } => Some(self.call_result_source_bindings(
-                Some(*function),
-                &call.signature,
-                self.tree.get_values(call.arguments),
-                flow,
-            )),
-            mir::Terminator::CallVirtual { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                let function = self.resolved_terminator_target(block_id, terminator);
-                Some(self.call_result_source_bindings(function, &call.signature, &arguments, flow))
-            }
-            mir::Terminator::CallDynamic { receiver, call, .. } => {
-                let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                Some(self.call_result_source_bindings(None, &call.signature, &arguments, flow))
-            }
-            mir::Terminator::CallIndirect { call, .. } => Some(self.call_result_source_bindings(
-                None,
-                &call.signature,
-                self.tree.get_values(call.arguments),
-                flow,
-            )),
-            _ => None,
-        }
+        let mir::Terminator::Invoke { call, .. } = terminator else {
+            return None;
+        };
+        let function = self.resolved_terminator_target(block_id, terminator);
+        let arguments = self.tree.get_values(call.arguments);
+
+        Some(self.call_result_source_bindings(function, &call.signature, arguments, flow))
     }
 
     /// Check callee obligations against call arguments.
@@ -1231,38 +1207,16 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.require_suspension_sources(lifetimes, anchor);
             }
             BorrowSuspension::Rejected => {
-                let borrowed_at = self.context.anchor(self.tree, anchor);
+                let borrowed_at = self.context.anchor(anchor);
                 self.emit_error(
                     VerifyError::ManagedBorrowAcrossSuspension {
-                        anchor: self.context.anchor(self.tree, anchor),
+                        anchor: self.context.anchor(anchor),
                         borrowed_at: borrowed_at.clone(),
                     }
                     .label(borrowed_at, "managed borrow is used across suspension"),
                 );
             }
         }
-    }
-
-    /// Return call arguments with a receiver in parameter slot zero.
-    fn call_arguments_with_receiver(
-        &self,
-        receiver: mir::Value,
-        arguments: mir::ValueSlice,
-    ) -> Vec<mir::Value> {
-        self.call_arguments_with_receiver_vec(receiver, self.tree.get_values(arguments))
-    }
-
-    /// Return call arguments with a receiver in parameter slot zero.
-    fn call_arguments_with_receiver_vec(
-        &self,
-        receiver: mir::Value,
-        arguments: &[mir::Value],
-    ) -> Vec<mir::Value> {
-        let mut values = Vec::with_capacity(arguments.len() + 1);
-        values.push(receiver);
-        values.extend_from_slice(arguments);
-
-        values
     }
 
     /// Return values with borrowed sources that cross one suspension point.
@@ -1379,10 +1333,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         };
 
         // reject changes blocked by active loans
-        let borrowed_at = self.context.anchor(self.tree, loan.created_at);
+        let borrowed_at = self.context.anchor(loan.created_at);
         self.emit_error(
             VerifyError::InvalidationOfBorrowedPlace {
-                anchor: self.context.anchor(self.tree, anchor),
+                anchor: self.context.anchor(anchor),
                 borrowed_at: borrowed_at.clone(),
             }
             .label(borrowed_at, "borrow starts here"),
@@ -1439,13 +1393,43 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         self.tree.get(ty).copy().is_no()
     }
 
-    /// Return whether a value has a custom drop hook.
-    fn has_custom_drop(&self, value: mir::Value) -> bool {
+    /// Return the direct move-only child count for one aggregate.
+    fn decomposition_child_count(&self, value: mir::Value) -> u64 {
+        let Some(ty) = self.function.value_type(value) else {
+            return 0;
+        };
+        let ty = self.tree.repr_type(ty);
+
+        match self.tree.get(ty) {
+            mir::Type::Struct { fields, .. } => fields
+                .iter()
+                .filter(|field| self.tree.get(self.tree.get(**field).ty).copy().is_no())
+                .count() as u64,
+            mir::Type::Tuple { elements, .. } => elements
+                .iter()
+                .filter(|element| self.tree.get(**element).copy().is_no())
+                .count() as u64,
+            mir::Type::FixedArray {
+                element, length, ..
+            } => {
+                if self.tree.get(*element).copy().is_no() {
+                    *length
+                } else {
+                    0
+                }
+            }
+            mir::Type::Newtype { inner, .. } => u64::from(self.tree.get(*inner).copy().is_no()),
+            _ => 0,
+        }
+    }
+
+    /// Return whether a value has a user-authored drop hook.
+    fn has_drop_hook(&self, value: mir::Value) -> bool {
         let Some(ty) = self.function.value_type(value) else {
             return false;
         };
 
-        self.context.drops.drop_hook(ty).is_some()
+        self.context.drops.hook(ty).is_some()
     }
 
     /// Return whether one value has a variant type.
@@ -1471,24 +1455,6 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let ty = self.function.value_type(value)?;
 
         self.tree.get(ty).reference_access()
-    }
-
-    /// Return the place projection represented by one static layout slot.
-    fn static_slot_projection(&self, value: mir::Value, index: u32) -> mir::Projection {
-        let Some(ty) = self.function.value_type(value) else {
-            return mir::Projection::Field { index };
-        };
-
-        let ty = match self.tree.get(ty) {
-            mir::Type::Reference { pointee, .. } => *pointee,
-            _ => ty,
-        };
-
-        if matches!(self.tree.get(ty), mir::Type::FixedArray { .. }) {
-            mir::Projection::Element { index }
-        } else {
-            mir::Projection::Field { index }
-        }
     }
 
     /// Propagate known borrow sources from one value to another.

@@ -308,7 +308,7 @@ type Value = variant<uint8, ref<int32, borrowed, mutable>> { 0uint8 = ref<int32,
 
 function test(v0: Value): ref<int32, borrowed, lifetime(static), mutable> {
 entry(v0: Value):
-    v1: ref<int32, borrowed, mutable> = variant.payload v0, 0uint8
+    v1: ref<int32, borrowed, mutable> = field.get v0, 1
     return v1
 }
 "#,

@@ -260,7 +260,7 @@ type Box {
 function test(v0: ref<Box, borrowed, mutable>, v1: int32): void {
 entry(v0: ref<Box, borrowed, mutable>, v1: int32):
     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
-    v3: Box = struct Box (v1)
+    v3: Box = aggregate (v1)
     store v0, v3
     v4: int32 = load v2
     return

@@ -26,6 +26,8 @@ pub(super) struct Move {
 pub(super) struct MoveSet {
     /// The moved places.
     pub(super) moves: Vec<Move>,
+    /// The aggregate decompositions in progress.
+    decompositions: Vec<Decomposition>,
 }
 
 /// Result of checking a place use against moved places.
@@ -37,7 +39,39 @@ pub(super) struct MoveUse {
     pub(super) at: mir::LocalNodeIdAny,
 }
 
+/// One aggregate decomposition in progress.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Decomposition {
+    /// The aggregate being decomposed.
+    parent: mir::Place,
+    /// The move-only children not yet extracted.
+    remaining: u64,
+    /// The first extraction for diagnostics.
+    at: mir::LocalNodeIdAny,
+}
+
 impl MoveSet {
+    /// Collapse incomplete aggregate moves after reporting them.
+    pub(super) fn collapse_partial_moves(&mut self) -> Option<MoveUse> {
+        let partial_move = self.decompositions.first().map(|decomposition| MoveUse {
+            state: MoveState::Moved,
+            at: decomposition.at,
+        });
+        let roots = self
+            .decompositions
+            .iter()
+            .map(|decomposition| (decomposition.parent.clone(), decomposition.at))
+            .collect::<Vec<_>>();
+        self.decompositions.clear();
+
+        // consume each invalid aggregate to keep later diagnostics focused
+        for (root, at) in roots {
+            self.move_place(root, at);
+        }
+
+        partial_move
+    }
+
     /// Check one place use.
     pub(super) fn check_use(
         &self,
@@ -66,10 +100,10 @@ impl MoveSet {
     }
 
     /// Mark one place as moved.
-    pub(super) fn move_place(&mut self, place: mir::Place, at: mir::LocalNodeIdAny) {
+    pub(super) fn move_place(&mut self, place: mir::Place, at: mir::LocalNodeIdAny) -> bool {
         // skip places already covered by parent moves
         if self.moves.iter().any(|moved| moved.place.contains(&place)) {
-            return;
+            return false;
         }
 
         // remove tracked children superseded by this move
@@ -80,6 +114,52 @@ impl MoveSet {
             state: MoveState::Moved,
             at,
         });
+
+        true
+    }
+
+    /// Begin one aggregate decomposition after its first child move.
+    pub(super) fn begin_decomposition(
+        &mut self,
+        parent: mir::Place,
+        child_count: u64,
+        at: mir::LocalNodeIdAny,
+    ) {
+        if child_count == 1 {
+            self.move_place(parent, at);
+        } else {
+            self.decompositions.push(Decomposition {
+                parent,
+                remaining: child_count - 1,
+                at,
+            });
+        }
+    }
+
+    /// Advance one aggregate decomposition after another child move.
+    pub(super) fn step_decomposition(
+        &mut self,
+        parent: &mir::Place,
+        at: mir::LocalNodeIdAny,
+    ) -> bool {
+        let index = self
+            .decompositions
+            .iter()
+            .position(|decomposition| decomposition.parent == *parent);
+        let Some(index) = index else {
+            return false;
+        };
+
+        let decomposition = &mut self.decompositions[index];
+        decomposition.remaining -= 1;
+
+        // replace child moves with the complete aggregate move
+        if decomposition.remaining == 0 {
+            self.decompositions.remove(index);
+            self.move_place(parent.clone(), at);
+        }
+
+        true
     }
 
     /// Mark one place as initialized.
@@ -132,6 +212,9 @@ impl MoveSet {
             moves.push(Move { place, state, at });
         }
 
-        Self { moves }
+        Self {
+            moves,
+            decompositions: Vec::new(),
+        }
     }
 }

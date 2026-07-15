@@ -136,21 +136,21 @@ impl FlowState {
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate,
-                index,
+                field,
                 ..
             } => self.set_projected_place(
                 *destination,
                 *aggregate,
-                mir::Projection::Field { index: *index },
+                mir::Projection::Field { index: *field },
             ),
             mir::Instruction::ElementAddr {
                 destination,
-                array,
+                base,
                 index,
                 ..
             } => self.set_projected_place(
                 *destination,
-                *array,
+                *base,
                 mir::Projection::Index { index: *index },
             ),
             mir::Instruction::SliceView {
@@ -166,15 +166,6 @@ impl FlowState {
                     start: *start,
                     length: *length,
                 },
-            ),
-            mir::Instruction::VariantPayload {
-                destination,
-                variant,
-                tag,
-            } => self.set_projected_place(
-                *destination,
-                *variant,
-                mir::Projection::Variant { tag: tag.clone() },
             ),
             mir::Instruction::Cast {
                 destination,
@@ -201,16 +192,19 @@ impl FlowState {
 
     /// Merge places known on every predecessor.
     fn merge_places(predecessors: &[FlowState]) -> Vec<Option<mir::Place>> {
+        let Some(first) = predecessors.first() else {
+            return Vec::new();
+        };
         let value_count = predecessors
             .iter()
-            .map(|predecessor| predecessor.places.len())
-            .max()
-            .unwrap_or(0);
+            .fold(first.places.len(), |count, predecessor| {
+                count.max(predecessor.places.len())
+            });
         let mut places = Vec::with_capacity(value_count);
 
         // keep only places all predecessors agree on
         for index in 0..value_count {
-            let Some(place) = predecessors[0].place_at(index).cloned() else {
+            let Some(place) = first.place_at(index).cloned() else {
                 places.push(None);
                 continue;
             };

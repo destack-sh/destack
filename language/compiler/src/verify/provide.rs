@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirVerified};
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 use std::sync::Arc;
@@ -33,27 +33,20 @@ impl Compiler {
         let lowered = artifacts
             .mir_lowered(module, profile, target)
             .map_err(CompilerError::from)?;
-        let mut state = VerifyState::new(
-            module,
-            profile,
-            target,
-            context,
-            (*lowered).clone(),
-            self.strings(),
-        );
+        let mut state = VerifyState::new(module, profile, target, context, &lowered);
 
         state.check_ownership();
-        if !state.has_errors() {
-            state.generate_drop_glue();
-            state.insert_drops();
-        }
+        state.check_drop_hooks();
 
-        for diagnostic in state.take_diagnostics() {
+        // emit every diagnostic and fail the verified artifact
+        let mut diagnostics = state.take_diagnostics();
+        let Some(diagnostic) = diagnostics.pop() else {
+            return Ok(ArtifactPayload::MirVerified(Arc::new(MirVerified)));
+        };
+        for diagnostic in diagnostics {
             state.context.emit(diagnostic.as_ref())?;
         }
 
-        let verified = state.finish();
-
-        Ok(ArtifactPayload::MirVerified(Arc::new(verified)))
+        Err(CompilerError::Diagnostic(diagnostic))
     }
 }

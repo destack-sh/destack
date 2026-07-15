@@ -10,8 +10,8 @@ use super::state::DropState;
 pub(super) struct DropPoint {
     /// Instruction index where drop is inserted.
     pub(super) index: usize,
-    /// Place whose owned storage is dropped.
-    pub(super) place: mir::Place,
+    /// Complete owned value to drop.
+    pub(super) value: mir::Value,
 }
 
 /// Drop plan for one function.
@@ -22,8 +22,8 @@ pub(super) struct DropPlan<'a> {
     tree: &'a mir::Tree,
     /// Move-only values in this function.
     owned: OwnedValues,
-    /// Receiver consumed by a custom drop function.
-    drop_receiver: Option<mir::Value>,
+    /// Receiver borrowed by a user-authored drop hook.
+    hook_receiver: Option<mir::Value>,
     /// SSA value liveness.
     liveness: mir::FunctionLiveness,
     /// Available owned values at block entry.
@@ -37,7 +37,7 @@ impl<'a> DropPlan<'a> {
     pub(super) fn build(
         function: &'a mir::Function,
         tree: &'a mir::Tree,
-        drop_receiver: Option<mir::Value>,
+        hook_receiver: Option<mir::Value>,
     ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<DropPoint>> {
         let liveness = mir::FunctionLiveness::build(function, tree);
 
@@ -45,7 +45,7 @@ impl<'a> DropPlan<'a> {
             function,
             tree,
             owned: OwnedValues::new(function.value_types().len()),
-            drop_receiver,
+            hook_receiver,
             liveness,
             available_at_entry: HashMap::new(),
             drops: HashMap::new(),
@@ -64,7 +64,7 @@ impl<'a> DropPlan<'a> {
         // seed parameters owned at function entry
         for parameter in &self.function.parameters {
             let value = parameter.value;
-            if Some(value) == self.drop_receiver {
+            if Some(value) == self.hook_receiver {
                 continue;
             }
 
@@ -76,7 +76,7 @@ impl<'a> DropPlan<'a> {
         // track instruction destinations by value type
         for (index, ty) in self.function.value_types().iter().enumerate() {
             let value = mir::Value::new(index as u32);
-            if Some(value) == self.drop_receiver {
+            if Some(value) == self.hook_receiver {
                 continue;
             }
 
@@ -191,11 +191,10 @@ impl<'a> DropPlan<'a> {
         for &instruction_id in &block.instructions {
             let instruction = self.tree.get(instruction_id);
             let consumed = self.consumed_by_instruction(instruction);
-            let moved_places = self.places_moved_by_instruction(instruction, &available);
 
             available.remove_consumed(&consumed);
-            for place in moved_places {
-                available.move_place(place);
+            if let Some(value) = self.decomposed_value(instruction) {
+                available.remove(value);
             }
             available.apply_instruction(instruction);
             available.insert_destination(instruction, &self.owned);
@@ -208,7 +207,7 @@ impl<'a> DropPlan<'a> {
 
         available.remove_consumed(&consumed);
         for value in self.drops_before_terminator(block_id, &available, &carried) {
-            available.move_place(mir::Place::value(value));
+            available.remove(value);
         }
 
         available
@@ -253,15 +252,15 @@ impl<'a> DropPlan<'a> {
         for (index, &instruction_id) in block.instructions.iter().enumerate() {
             let instruction = self.tree.get(instruction_id);
             let consumed = self.consumed_by_instruction(instruction);
-            let moved_places = self.places_moved_by_instruction(instruction, available);
 
             available.remove_consumed(&consumed);
-            for place in moved_places {
-                available.move_place(place);
+            if let Some(value) = self.decomposed_value(instruction) {
+                available.remove(value);
             }
             available.apply_instruction(instruction);
             self.plan_after_instruction(block_id, index, instruction, available, &consumed);
             available.insert_destination(instruction, &self.owned);
+            self.plan_dead_destination(block_id, index, instruction, available);
         }
 
         // drop remaining values before the terminator
@@ -272,8 +271,8 @@ impl<'a> DropPlan<'a> {
 
         available.remove_consumed(&consumed);
         for value in self.drops_before_terminator(block_id, available, &carried) {
-            self.add_drops_for_value(block_id, end_index, value, &available.moved);
-            available.move_place(mir::Place::value(value));
+            self.add_drop(block_id, end_index, value);
+            available.remove(value);
         }
     }
 
@@ -289,7 +288,7 @@ impl<'a> DropPlan<'a> {
         let used = self.owned_instruction_uses(instruction);
 
         // skip values consumed by the instruction itself
-        for value in used.values() {
+        for value in used.values().rev() {
             if consumed.contains(value) || !available.contains(value) {
                 continue;
             }
@@ -303,9 +302,34 @@ impl<'a> DropPlan<'a> {
                 continue;
             }
 
-            self.add_drops_for_value(block_id, index + 1, value, &available.moved);
-            available.move_place(mir::Place::value(value));
+            self.add_drop(block_id, index + 1, value);
+            available.remove(value);
         }
+    }
+
+    /// Plan an unused owned destination immediately after its definition.
+    fn plan_dead_destination(
+        &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        index: usize,
+        instruction: &mir::Instruction,
+        available: &mut DropState,
+    ) {
+        let Some(destination) = instruction.destination() else {
+            return;
+        };
+        if !available.contains(destination) {
+            return;
+        }
+        if self
+            .liveness
+            .is_value_live_after_instruction(block_id, index, destination, self.tree)
+        {
+            return;
+        }
+
+        self.add_drop(block_id, index + 1, destination);
+        available.remove(destination);
     }
 
     /// Return whether a borrow derived from one value is still live.
@@ -360,38 +384,20 @@ impl<'a> DropPlan<'a> {
         values
     }
 
-    /// Return places moved by one instruction.
-    fn places_moved_by_instruction(
-        &self,
-        instruction: &mir::Instruction,
-        available: &DropState,
-    ) -> Vec<mir::Place> {
-        // move known slots when extracting move-only values
-        if let mir::Instruction::FieldGet {
-            destination,
-            aggregate,
-            index,
-            ..
-        } = instruction
-            && self.is_owned_value(*destination)
-        {
-            let projection = self.static_slot_projection(*aggregate, *index);
-
-            vec![self.place_moved_by_projection(available, *aggregate, projection)]
-        }
-        // move the full variant when extracting a move-only payload
-        else if let mir::Instruction::VariantPayload {
-            destination,
-            variant,
-            ..
-        } = instruction
-            && self.is_owned_value(*destination)
-        {
-            vec![self.place_for_value(available, *variant)]
-        }
-        // nothing
-        else {
-            Vec::new()
+    /// Return aggregate ownership replaced by one projected destination.
+    fn decomposed_value(&self, instruction: &mir::Instruction) -> Option<mir::Value> {
+        match instruction {
+            mir::Instruction::FieldGet {
+                destination,
+                aggregate,
+                ..
+            }
+            | mir::Instruction::ElementGet {
+                destination,
+                aggregate,
+                ..
+            } if self.is_owned_value(*destination) => Some(*aggregate),
+            _ => None,
         }
     }
 
@@ -440,6 +446,7 @@ impl<'a> DropPlan<'a> {
         available
             .owned
             .values()
+            .rev()
             .filter(|value| !carried.contains(*value))
             .filter(|value| !self.is_value_used_by_terminator(block_id, *value))
             .filter(|value| !self.liveness.is_value_live_out(block_id, *value))
@@ -467,31 +474,12 @@ impl<'a> DropPlan<'a> {
             .any(|used| used == value)
     }
 
-    /// Add planned drops for one value.
-    fn add_drops_for_value(
-        &mut self,
-        block: mir::LocalNodeId<mir::Block>,
-        index: usize,
-        value: mir::Value,
-        moved: &[mir::Place],
-    ) {
-        let place = mir::Place::value(value);
-        let ty = self
-            .function
-            .value_type(value)
-            .expect("owned value must have a type");
-
-        for place in self.drop_places_for(place, ty, moved) {
-            self.add_drop(block, index, place);
-        }
-    }
-
     /// Add one planned drop.
-    fn add_drop(&mut self, block: mir::LocalNodeId<mir::Block>, index: usize, place: mir::Place) {
+    fn add_drop(&mut self, block: mir::LocalNodeId<mir::Block>, index: usize, value: mir::Value) {
         self.drops
             .entry(block)
             .or_default()
-            .push(DropPoint { index, place });
+            .push(DropPoint { index, value });
     }
 
     /// Return whether one value has move-only ownership.
@@ -503,43 +491,6 @@ impl<'a> DropPlan<'a> {
         self.tree.get(ty).copy().is_no()
     }
 
-    /// Return the moved place for one projection.
-    fn place_moved_by_projection(
-        &self,
-        available: &DropState,
-        value: mir::Value,
-        projection: mir::Projection,
-    ) -> mir::Place {
-        let place = self.place_for_value(available, value);
-        if self.is_variant_value(value) {
-            return place;
-        }
-
-        place.with_projection(projection)
-    }
-
-    /// Return the place projection represented by one static layout slot.
-    fn static_slot_projection(&self, value: mir::Value, index: u32) -> mir::Projection {
-        let Some(ty) = self.function.value_type(value) else {
-            return mir::Projection::Field { index };
-        };
-
-        if matches!(self.tree.get(ty), mir::Type::FixedArray { .. }) {
-            mir::Projection::Element { index }
-        } else {
-            mir::Projection::Field { index }
-        }
-    }
-
-    /// Return whether one value has a variant type.
-    fn is_variant_value(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.function.value_type(value) else {
-            return false;
-        };
-
-        matches!(self.tree.get(ty), mir::Type::Variant { .. })
-    }
-
     /// Return whether one value is a borrowed reference-like value.
     fn is_borrowed_reference(&self, value: mir::Value) -> bool {
         let Some(ty) = self.function.value_type(value) else {
@@ -547,103 +498,5 @@ impl<'a> DropPlan<'a> {
         };
 
         self.tree.get(ty).is_borrowed_reference()
-    }
-
-    /// Return the best known place for one value.
-    fn place_for_value(&self, available: &DropState, value: mir::Value) -> mir::Place {
-        available.place_for_value(value)
-    }
-
-    /// Return minimal initialized places that need drops.
-    fn drop_places_for(
-        &self,
-        place: mir::Place,
-        ty: mir::LocalNodeId<mir::Type>,
-        moved: &[mir::Place],
-    ) -> Vec<mir::Place> {
-        if moved.iter().any(|moved| moved.contains(&place)) {
-            return Vec::new();
-        }
-        if !moved.iter().any(|moved| place.contains(moved)) {
-            return vec![place];
-        }
-
-        self.child_drop_places(place, ty, moved)
-    }
-
-    /// Return child drop places after a partial move.
-    fn child_drop_places(
-        &self,
-        place: mir::Place,
-        ty: mir::LocalNodeId<mir::Type>,
-        moved: &[mir::Place],
-    ) -> Vec<mir::Place> {
-        match self.tree.get(ty) {
-            mir::Type::Struct { fields, .. } => fields
-                .iter()
-                .enumerate()
-                .flat_map(|(index, field)| {
-                    let field = self.tree.get(*field);
-                    self.drop_child_place(
-                        &place,
-                        mir::Projection::Field {
-                            index: index as u32,
-                        },
-                        field.ty,
-                        moved,
-                    )
-                })
-                .collect(),
-            mir::Type::Tuple { elements, .. } => elements
-                .iter()
-                .enumerate()
-                .flat_map(|(index, element)| {
-                    self.drop_child_place(
-                        &place,
-                        mir::Projection::Field {
-                            index: index as u32,
-                        },
-                        *element,
-                        moved,
-                    )
-                })
-                .collect(),
-            mir::Type::FixedArray {
-                element, length, ..
-            } => (0..*length)
-                .flat_map(|index| {
-                    self.drop_child_place(
-                        &place,
-                        mir::Projection::Element {
-                            index: index as u32,
-                        },
-                        *element,
-                        moved,
-                    )
-                })
-                .collect(),
-            mir::Type::Newtype { inner, .. } => {
-                self.drop_child_place(&place, mir::Projection::Field { index: 0 }, *inner, moved)
-            }
-            mir::Type::Variant { .. } | mir::Type::Slice { .. } => Vec::new(),
-            _ => Vec::new(),
-        }
-    }
-
-    /// Return drop places under one child projection.
-    fn drop_child_place(
-        &self,
-        parent: &mir::Place,
-        projection: mir::Projection,
-        ty: mir::TypeId,
-        moved: &[mir::Place],
-    ) -> Vec<mir::Place> {
-        if self.tree.get(ty).copy().is_yes() {
-            return Vec::new();
-        }
-
-        let place = parent.clone().with_projection(projection);
-
-        self.drop_places_for(place, ty, moved)
     }
 }

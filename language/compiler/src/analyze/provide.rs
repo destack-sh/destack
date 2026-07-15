@@ -20,7 +20,7 @@ impl Compiler {
         _context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::mir_verified(module, profile, target));
+        dependencies.require(ArtifactKey::mir_elaborated(module, profile, target));
 
         Ok(dependencies)
     }
@@ -34,14 +34,17 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context.revision());
-        let verified = artifacts
-            .mir_verified(module, profile, target)
+        let elaborated = artifacts
+            .mir_elaborated(module, profile, target)
             .map_err(CompilerError::from)?;
 
-        // summarize the verified tree's linkable references
-        let analyses =
-            mir::TreeAnalysisCache::new(&verified.dispatch, &verified.memory, &verified.effects);
-        let links = analyses.get::<mir::LinkGraph>(&verified.tree);
+        // summarize the elaborated tree's linkable references
+        let analyses = mir::TreeAnalysisCache::new(
+            &elaborated.dispatch,
+            &elaborated.memory,
+            &elaborated.effects,
+        );
+        let links = analyses.get::<mir::LinkGraph>(&elaborated.tree);
 
         Ok(ArtifactPayload::MirAnalyzed(Arc::new(MirAnalyzed::new(
             (*links).clone(),

@@ -4,9 +4,9 @@ use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection, ArtifactProjectionKey,
     ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
     DirCheckedComponent, DirCheckedModule, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
-    ModuleIndex, ModuleLinted, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
-    ProgramIndex, Script, WorkspaceLinted,
+    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered,
+    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex, PackageLinted,
+    Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -282,6 +282,19 @@ impl<'a> ArtifactReader<'a> {
         self.read(
             ArtifactKey::mir_verified(module, profile, target),
             ArtifactTable::mir_verified,
+        )
+    }
+
+    /// Read one elaborated MIR artifact.
+    pub fn mir_elaborated(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<Arc<MirElaborated>, ProviderError> {
+        self.read(
+            ArtifactKey::mir_elaborated(module, profile, target),
+            ArtifactTable::mir_elaborated,
         )
     }
 

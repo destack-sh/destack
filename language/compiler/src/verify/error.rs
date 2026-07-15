@@ -39,18 +39,66 @@ pub enum VerifyError {
         moved_at: DiagnosticAnchor,
     },
 
-    /// Cannot partially move a type with a custom drop hook.
+    /// An aggregate remains partially moved before another operation.
     ///
     /// ```mir
-    /// v1: Row = struct Row (v0, v2)
-    /// v3: ref<int32, unique, mutable> = field.get v1, 0 // Row has custom drop
+    /// v1: Row = aggregate (v0, v2)
+    /// v3: ref<int32, unique, mutable> = field.get v1, 0
+    /// call consume(v3) // v1 still owns its other field
     /// ```
+    #[diagnostic(code = "EV102", message = "aggregate is only partially moved")]
+    PartialMove {
+        /// The operation reached before decomposition completed.
+        anchor: DiagnosticAnchor,
+        /// The projection that began decomposition.
+        moved_at: DiagnosticAnchor,
+    },
+
+    /// A Drop method cannot suspend execution.
+    #[diagnostic(code = "EV103", message = "Drop method may suspend")]
+    DropMaySuspend {
+        /// The Drop method.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A Drop method cannot panic.
+    #[diagnostic(code = "EV104", message = "Drop method may panic")]
+    DropMayPanic {
+        /// The Drop method.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A Drop method cannot allocate storage.
+    #[diagnostic(code = "EV105", message = "Drop method may allocate")]
+    DropMayAllocate {
+        /// The Drop method.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A Drop method cannot observe entropy or host state.
+    #[diagnostic(code = "EV106", message = "Drop method may observe entropy")]
+    DropMayObserveEntropy {
+        /// The Drop method.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// Cannot move a field out of a type that implements Drop.
     #[diagnostic(
-        code = "EV102",
-        message = "cannot partially move value with custom drop"
+        code = "EV107",
+        message = "cannot move out of a value that implements Drop"
     )]
-    PartialMoveOfCustomDrop {
-        /// The partial move.
+    MoveOutOfDrop {
+        /// The projected move.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A Drop method must exclusively borrow its receiver and return void.
+    #[diagnostic(
+        code = "EV108",
+        message = "Drop method must take one exclusive borrowed receiver and return void"
+    )]
+    InvalidDropSignature {
+        /// The invalid Drop method.
         anchor: DiagnosticAnchor,
     },
 

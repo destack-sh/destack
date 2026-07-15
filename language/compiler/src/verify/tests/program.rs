@@ -1,10 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use destack_artifact::{DiagnosticBuilder, MirLowered, MirVerified, ToDiagnostic};
-use destack_mir as mir;
-use destack_source::{
-    DiagnosticCollection, DiffOptions, FileId, PrintOptions, print_diagnostics, print_diff,
-};
+use destack_artifact::{DiagnosticBuilder, ToDiagnostic};
+use destack_source::{DiagnosticCollection, FileId, PrintOptions, print_diagnostics};
 
 use crate::DiagnosticAnchor;
 use crate::tests::TestProgram;
@@ -15,157 +12,30 @@ impl TestProgram {
     pub(in crate::verify::tests) fn run_ownership(
         &mut self,
     ) -> Vec<DiagnosticBuilder<VerifyError>> {
-        let lowered = std::mem::take(&mut self.lowered);
         let mut state = VerifyState::new(
             self.module_id(),
             self.profile_id(),
             self.target_id(),
             &self.provider,
-            lowered,
-            &self.strings,
+            &self.lowered,
         );
         state.check_ownership();
-        let diagnostics = state.errors().to_vec();
-        self.store_verified(state.finish());
 
-        diagnostics
+        state.errors().to_vec()
     }
 
-    /// Run drop insertion.
-    pub(in crate::verify::tests) fn run_drop_phase(&mut self) -> String {
-        let lowered = std::mem::take(&mut self.lowered);
+    /// Run Drop hook verification.
+    pub(in crate::verify::tests) fn run_drop_hooks(&self) -> Vec<DiagnosticBuilder<VerifyError>> {
         let mut state = VerifyState::new(
             self.module_id(),
             self.profile_id(),
             self.target_id(),
             &self.provider,
-            lowered,
-            &self.strings,
+            &self.lowered,
         );
-        if !state.has_errors() {
-            state.generate_drop_glue();
-            state.insert_drops();
-        }
-        self.store_verified(state.finish());
+        state.check_drop_hooks();
 
-        mir::format_mir(
-            &self.lowered.tree,
-            self.lowered.target,
-            &self.strings,
-            mir::MirFormatOptions::default(),
-        )
-        .expect("format MIR")
-    }
-
-    /// Run full MIR verification.
-    pub(in crate::verify::tests) fn run_verify(&mut self) -> String {
-        let lowered = std::mem::take(&mut self.lowered);
-        let mut state = VerifyState::new(
-            self.module_id(),
-            self.profile_id(),
-            self.target_id(),
-            &self.provider,
-            lowered,
-            &self.strings,
-        );
-        state.check_ownership();
-        if !state.has_errors() {
-            state.generate_drop_glue();
-            state.insert_drops();
-        }
-        self.store_verified(state.finish());
-
-        mir::format_mir(
-            &self.lowered.tree,
-            self.lowered.target,
-            &self.strings,
-            mir::MirFormatOptions::default(),
-        )
-        .expect("format MIR")
-    }
-
-    /// Assert the MIR produced by drop insertion.
-    #[track_caller]
-    pub(in crate::verify::tests) fn assert_drop_mir(&mut self, expected: &str) {
-        let actual = self.run_drop_phase();
-        let expected = expected.trim();
-        let actual = actual.trim();
-
-        if actual != expected {
-            print_diff(
-                expected,
-                actual,
-                &DiffOptions::new().with_path("verify/drop.mir"),
-            );
-            panic!("dropped MIR mismatch");
-        }
-    }
-
-    /// Assert the MIR produced by full verification.
-    #[track_caller]
-    pub(in crate::verify::tests) fn assert_verified_mir(&mut self, expected: &str) {
-        let actual = self.run_verify();
-        let expected = expected.trim();
-        let actual = actual.trim();
-
-        if actual != expected {
-            print_diff(
-                expected,
-                actual,
-                &DiffOptions::new().with_path("verify/verified.mir"),
-            );
-            panic!("verified MIR mismatch");
-        }
-    }
-
-    /// Return the type id with the given display name.
-    #[track_caller]
-    pub(in crate::verify::tests) fn type_by_name(&self, name: &str) -> mir::LocalNodeId<mir::Type> {
-        self.lowered
-            .tree
-            .iter_nodes::<mir::Type>()
-            .find_map(|(id, _)| {
-                let display_name = self.lowered.types.display_name(id)?;
-                (self.strings.get(display_name) == name).then_some(id)
-            })
-            .unwrap_or_else(|| panic!("missing MIR type {name}"))
-    }
-
-    /// Mark a dynamic value type as having dynamic drop glue.
-    #[track_caller]
-    pub(in crate::verify::tests) fn mark_dynamic_drop_for_constraint(&mut self, name: &str) {
-        let constraint = self.type_by_name(name);
-        let ty = self
-            .lowered
-            .tree
-            .iter_nodes::<mir::Type>()
-            .find_map(|(id, ty)| match ty {
-                mir::Type::Dynamic { constraint: found } if *found == constraint => Some(id),
-                _ => None,
-            })
-            .unwrap_or_else(|| panic!("missing dynamic MIR type for {name}"));
-        let glue = mir::DropGlue::Dynamic {
-            slot: mir::DispatchSlot::new(0),
-        };
-
-        self.lowered.drops.set_drop_glue(ty, glue);
-    }
-
-    /// Mark one type as having a custom drop hook.
-    #[track_caller]
-    pub(in crate::verify::tests) fn mark_drop_hook(&mut self, name: &str, function_name: &str) {
-        let ty = self.type_by_name(name);
-        let function = self
-            .lowered
-            .tree
-            .iter_nodes::<mir::Function>()
-            .find_map(|(id, function)| {
-                (self.strings.get(function.name) == function_name).then_some(id)
-            })
-            .unwrap_or_else(|| panic!("missing MIR function {function_name}"));
-        let hook = mir::DropHook { function };
-
-        self.lowered.drops.set_drop_hook(ty, hook);
+        state.errors().to_vec()
     }
 
     /// Assert no ownership errors.
@@ -293,12 +163,25 @@ impl TestProgram {
         assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
     }
 
-    /// Assert one partial move of custom drop type error.
-    pub(in crate::verify::tests) fn assert_error_partial_move_of_custom_drop(&mut self) {
+    /// Assert one incomplete aggregate move error.
+    pub(in crate::verify::tests) fn assert_error_partial_move(&mut self) {
         let diagnostics = self.run_ownership();
-        let VerifyError::PartialMoveOfCustomDrop { anchor } =
-            self.one_ownership_error(&diagnostics)
+        let VerifyError::PartialMove { anchor, moved_at } = self.one_ownership_error(&diagnostics)
         else {
+            panic!("{}", self.render_verify_diagnostics(&diagnostics));
+        };
+
+        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+        assert!(
+            matches!(moved_at, DiagnosticAnchor::Span(_)),
+            "{moved_at:#?}"
+        );
+    }
+
+    /// Assert one move out of a type with a Drop hook.
+    pub(in crate::verify::tests) fn assert_error_move_out_of_drop(&mut self) {
+        let diagnostics = self.run_ownership();
+        let VerifyError::MoveOutOfDrop { anchor } = self.one_ownership_error(&diagnostics) else {
             panic!("{}", self.render_verify_diagnostics(&diagnostics));
         };
 
@@ -379,20 +262,5 @@ impl TestProgram {
             self.anchor_start(first) < self.anchor_start(second),
             "expected {first:#?} before {second:#?}",
         );
-    }
-
-    /// Store a verified artifact as the next lowered test artifact.
-    fn store_verified(&mut self, verified: MirVerified) {
-        self.lowered = MirLowered {
-            tree: verified.tree,
-            target: verified.target,
-            types: verified.types,
-            layouts: verified.layouts,
-            dispatch: verified.dispatch,
-            drops: verified.drops,
-            memory: verified.memory,
-            effects: verified.effects,
-            profile: verified.profile,
-        };
     }
 }

@@ -38,7 +38,7 @@ impl OwnedValues {
     }
 
     /// Return copied values in this set.
-    pub(super) fn values(&self) -> impl Iterator<Item = mir::Value> + '_ {
+    pub(super) fn values(&self) -> impl DoubleEndedIterator<Item = mir::Value> + '_ {
         self.values
             .iter()
             .enumerate()

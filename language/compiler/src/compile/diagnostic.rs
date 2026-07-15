@@ -1,10 +1,11 @@
 pub use destack_artifact::{DiagnosticAnchor, DiagnosticDefinition, DiagnosticFormat};
 
 use crate::{
-    AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, EmitError,
-    EmitWarning, ExpandError, ExpandWarning, ExportError, ExportWarning, ImportError,
-    ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, MaterializeError,
-    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError, VerifyWarning,
+    AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, ElaborateError,
+    ElaborateWarning, EmitError, EmitWarning, ExpandError, ExpandWarning, ExportError,
+    ExportWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError,
+    MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
+    VerifyWarning,
 };
 use destack_core::{NameMatch, NameMatchTier};
 use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, Patch, PatchSet};
@@ -27,6 +28,7 @@ impl DiagnosticRegistry {
         MaterializeError::ALL,
         LowerError::ALL,
         VerifyError::ALL,
+        ElaborateError::ALL,
         AnalyzeError::ALL,
         OptimizeError::ALL,
         EmitError::ALL,
@@ -41,8 +43,8 @@ impl DiagnosticRegistry {
         ExportWarning::ALL,
         CheckWarning::ALL,
         MaterializeWarning::ALL,
-        LowerWarning::ALL,
         VerifyWarning::ALL,
+        ElaborateWarning::ALL,
         AnalyzeWarning::ALL,
         OptimizeWarning::ALL,
         EmitWarning::ALL,
@@ -59,6 +61,7 @@ impl DiagnosticRegistry {
             || MaterializeError::is_valid_code(code)
             || LowerError::is_valid_code(code)
             || VerifyError::is_valid_code(code)
+            || ElaborateError::is_valid_code(code)
             || AnalyzeError::is_valid_code(code)
             || OptimizeError::is_valid_code(code)
             || EmitError::is_valid_code(code)
@@ -73,8 +76,8 @@ impl DiagnosticRegistry {
             || ExportWarning::is_valid_code(code)
             || CheckWarning::is_valid_code(code)
             || MaterializeWarning::is_valid_code(code)
-            || LowerWarning::is_valid_code(code)
             || VerifyWarning::is_valid_code(code)
+            || ElaborateWarning::is_valid_code(code)
             || AnalyzeWarning::is_valid_code(code)
             || OptimizeWarning::is_valid_code(code)
             || EmitWarning::is_valid_code(code)
@@ -97,6 +100,7 @@ impl DiagnosticRegistry {
             .or_else(|| MaterializeError::definition(code))
             .or_else(|| LowerError::definition(code))
             .or_else(|| VerifyError::definition(code))
+            .or_else(|| ElaborateError::definition(code))
             .or_else(|| AnalyzeError::definition(code))
             .or_else(|| OptimizeError::definition(code))
             .or_else(|| EmitError::definition(code))
@@ -107,8 +111,8 @@ impl DiagnosticRegistry {
             .or_else(|| ExportWarning::definition(code))
             .or_else(|| CheckWarning::definition(code))
             .or_else(|| MaterializeWarning::definition(code))
-            .or_else(|| LowerWarning::definition(code))
             .or_else(|| VerifyWarning::definition(code))
+            .or_else(|| ElaborateWarning::definition(code))
             .or_else(|| AnalyzeWarning::definition(code))
             .or_else(|| OptimizeWarning::definition(code))
             .or_else(|| EmitWarning::definition(code))
@@ -142,6 +146,7 @@ impl DiagnosticRegistry {
             'M' => MaterializeError::ALL_CODES,
             'L' => LowerError::ALL_CODES,
             'V' => VerifyError::ALL_CODES,
+            'E' => ElaborateError::ALL_CODES,
             'A' => AnalyzeError::ALL_CODES,
             'O' => OptimizeError::ALL_CODES,
             'G' => EmitError::ALL_CODES,
@@ -159,8 +164,8 @@ impl DiagnosticRegistry {
             'T' => ExportWarning::ALL_CODES,
             'C' => CheckWarning::ALL_CODES,
             'M' => MaterializeWarning::ALL_CODES,
-            'L' => LowerWarning::ALL_CODES,
             'V' => &[],
+            'E' => ElaborateWarning::ALL_CODES,
             'A' => AnalyzeWarning::ALL_CODES,
             'O' => OptimizeWarning::ALL_CODES,
             'G' => EmitWarning::ALL_CODES,

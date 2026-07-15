@@ -84,7 +84,7 @@ impl PlaceAlias {
 
                 Some((start, end))
             }
-            mir::Projection::AnyElement | mir::Projection::Variant { .. } => None,
+            mir::Projection::AnyElement => None,
             mir::Projection::Slice { start, length } => {
                 let start = self.constant_index(*start)?;
                 let length = self.constant_index(*length)?;

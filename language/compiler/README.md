@@ -19,7 +19,8 @@ The compiler is organized around artifact-producing phases.
 | `materialize/` | `DirChecked` + macro state -> `DirMaterialized` |
 | `lower/` | `DirMaterialized` -> `MirLowered` |
 | `verify/` | `MirLowered` -> `MirVerified` |
-| `optimize/` | `MirVerified` + `MirLowered` -> `MirOptimized` |
+| `elaborate/` | `MirLowered` + `MirVerified` -> `MirElaborated` |
+| `optimize/` | `MirElaborated` -> `MirOptimized` |
 | `generate/` | compiler artifacts -> module outputs |
 | `link/` | module outputs -> package outputs |
 | `library/` | compiler-owned bundled library access |

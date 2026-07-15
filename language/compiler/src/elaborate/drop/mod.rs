@@ -1,4 +1,3 @@
-mod glue;
 mod insert;
 mod owned;
 mod plan;

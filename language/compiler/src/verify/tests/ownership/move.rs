@@ -37,9 +37,10 @@ type Pair {
 
 function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
-    v2: Pair = struct Pair (v0, v1)
+    v2: Pair = aggregate (v0, v1)
     v3: ref<int32, unique, mutable> = field.get v2, 0
     v4: ref<int32, unique, mutable> = field.get v2, 0
+    v5: ref<int32, unique, mutable> = field.get v2, 1
     return
 }
 "#,
@@ -49,7 +50,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 }
 
 #[test]
-fn test_allow_disjoint_field_use_after_projected_move() {
+fn test_allow_complete_struct_decomposition() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
@@ -59,7 +60,7 @@ type Pair {
 
 function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
-    v2: Pair = struct Pair (v0, v1)
+    v2: Pair = aggregate (v0, v1)
     v3: ref<int32, unique, mutable> = field.get v2, 0
     v4: ref<int32, unique, mutable> = field.get v2, 1
     return
@@ -71,6 +72,190 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 }
 
 #[test]
+fn test_allow_complete_tuple_decomposition() {
+    let mut program = TestProgram::mir(
+        r#"
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+    v2: { ref<int32, unique, mutable>, ref<int32, unique, mutable> } = aggregate (v0, v1)
+    v3: ref<int32, unique, mutable> = field.get v2, 0
+    v4: ref<int32, unique, mutable> = field.get v2, 1
+    return
+}
+"#,
+    );
+
+    program.assert_no_ownership_errors();
+}
+
+#[test]
+fn test_allow_complete_array_decomposition() {
+    let mut program = TestProgram::mir(
+        r#"
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+    v2: [ref<int32, unique, mutable>; 2] = aggregate (v0, v1)
+    v3: ref<int32, unique, mutable> = element.get v2, 0
+    v4: ref<int32, unique, mutable> = element.get v2, 1
+    return
+}
+"#,
+    );
+
+    program.assert_no_ownership_errors();
+}
+
+#[test]
+fn test_allow_complete_nested_decomposition() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
+}
+
+type Outer {
+    pair: Pair;
+    tail: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>):
+    v3: Pair = aggregate (v0, v1)
+    v4: Outer = aggregate (v3, v2)
+    v5: Pair = field.get v4, 0
+    v6: ref<int32, unique, mutable> = field.get v4, 1
+    v7: ref<int32, unique, mutable> = field.get v5, 0
+    v8: ref<int32, unique, mutable> = field.get v5, 1
+    return
+}
+"#,
+    );
+
+    program.assert_no_ownership_errors();
+}
+
+#[test]
+fn test_reject_incomplete_decomposition_before_return() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+    v2: Pair = aggregate (v0, v1)
+    v3: ref<int32, unique, mutable> = field.get v2, 0
+    return
+}
+"#,
+    );
+
+    program.assert_error_partial_move();
+}
+
+#[test]
+fn test_reject_incomplete_decomposition_before_call() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
+}
+
+function consume(v0: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>):
+    return
+}
+
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+    v2: Pair = aggregate (v0, v1)
+    v3: ref<int32, unique, mutable> = field.get v2, 0
+    call consume(v3)
+    return
+}
+"#,
+    );
+
+    program.assert_error_partial_move();
+}
+
+#[test]
+fn test_reject_incomplete_decomposition_before_branch() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean):
+    v3: Pair = aggregate (v0, v1)
+    v4: ref<int32, unique, mutable> = field.get v3, 0
+    branch v2, b1, b2
+
+b1:
+    return
+
+b2:
+    return
+}
+"#,
+    );
+
+    program.assert_error_partial_move();
+}
+
+#[test]
+fn test_reject_incomplete_decomposition_before_yield() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: int32): int32 {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: int32):
+    v3: Pair = aggregate (v0, v1)
+    v4: ref<int32, unique, mutable> = field.get v3, 0
+    yield v2 => b1
+
+b1(v5: int32):
+    return v5
+}
+"#,
+    );
+
+    program.assert_error_partial_move();
+}
+
+#[test]
+fn test_reject_incomplete_decomposition_before_panic() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, managed, readonly>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, managed, readonly>):
+    v3: Pair = aggregate (v0, v1)
+    v4: ref<int32, unique, mutable> = field.get v3, 0
+    panic v2
+}
+"#,
+    );
+
+    program.assert_error_partial_move();
+}
+
+#[test]
 fn test_reject_variant_use_after_payload_move() {
     let mut program = TestProgram::mir(
         r#"
@@ -78,8 +263,8 @@ type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, u
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable> = variant.payload v0, 0uint8
-    v2: int32 = variant.payload v0, 1uint8
+    v1: ref<int32, unique, mutable> = field.get v0, 1
+    v2: int32 = field.get v0, 1
     return
 }
 "#,
@@ -89,7 +274,7 @@ entry(v0: Value):
 }
 
 #[test]
-fn test_reject_partial_move_of_custom_drop() {
+fn test_reject_move_out_of_drop() {
     let mut program = TestProgram::mir(
         r#"
 type Row {
@@ -97,11 +282,11 @@ type Row {
     right: ref<int32, unique, mutable>;
 }
 
-external function dropRow(Row): void
+external function dropRow(ref<Row, borrowed, exclusive>): void
 
 function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
-    v2: Row = struct Row (v0, v1)
+    v2: Row = aggregate (v0, v1)
     v3: ref<int32, unique, mutable> = field.get v2, 0
     return
 }
@@ -109,7 +294,27 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     );
     program.mark_drop_hook("Row", "dropRow");
 
-    program.assert_error_partial_move_of_custom_drop();
+    program.assert_error_move_out_of_drop();
+}
+
+#[test]
+fn test_reject_move_out_of_variant_with_drop() {
+    let mut program = TestProgram::mir(
+        r#"
+type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, unique, mutable>; };
+
+external function dropValue(ref<Value, borrowed, exclusive>): void
+
+function test(v0: Value): void {
+entry(v0: Value):
+    v1: ref<int32, unique, mutable> = field.get v0, 1
+    return
+}
+"#,
+    );
+    program.mark_drop_hook("Value", "dropValue");
+
+    program.assert_error_move_out_of_drop();
 }
 
 #[test]
@@ -175,7 +380,7 @@ type Box {
 
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
-    v1: Box = struct Box (v0)
+    v1: Box = aggregate (v0)
     v2: int32 = load v0
     return
 }

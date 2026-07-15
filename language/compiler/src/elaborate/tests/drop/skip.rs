@@ -132,7 +132,7 @@ entry(v0: slice<int32, managed, mutable>):
 }
 
 #[test]
-fn test_skip_generated_glue_for_move_only_copy_fields() {
+fn test_skip_generated_function_for_move_only_copy_fields() {
     let mut program = TestProgram::mir(
         r#"
 type Point {
@@ -147,7 +147,7 @@ entry(v0: Point):
 "#,
     );
 
-    program.assert_verified_mir(
+    program.assert_elaborated_mir(
         r#"
 type Point {
     x: int32;
@@ -163,7 +163,7 @@ entry(v0: Point):
 }
 
 #[test]
-fn test_skip_generated_glue_for_zero_length_array() {
+fn test_skip_generated_function_for_zero_length_array() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
@@ -177,7 +177,7 @@ entry(v0: [Box; 0]):
 "#,
     );
 
-    program.assert_verified_mir(
+    program.assert_elaborated_mir(
         r#"
 type Box {
     value: ref<int32, unique, mutable>;

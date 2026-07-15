@@ -6,7 +6,7 @@ use super::function::FunctionVerifyState;
 impl VerifyState<'_> {
     /// Verify ownership for the current MIR tree.
     pub(in crate::verify) fn check_ownership(&mut self) {
-        let tree = std::mem::take(&mut self.tree);
+        let tree = self.tree;
 
         // verify every body-backed function
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -14,9 +14,7 @@ impl VerifyState<'_> {
                 continue;
             }
 
-            FunctionVerifyState::new(function_id, function, &tree, self).check();
+            FunctionVerifyState::new(function_id, function, tree, self).check();
         }
-
-        self.tree = tree;
     }
 }

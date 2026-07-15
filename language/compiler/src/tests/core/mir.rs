@@ -6,8 +6,8 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProviderContext, Revision};
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, FileId, FileType, ModuleId,
-    PackageId, ProfileId, Span, TargetId, Uri,
+    DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget, File, FileId,
+    FileType, ModuleId, PackageId, ProfileId, Span, TargetId, Uri,
 };
 use std::sync::Arc;
 
@@ -33,15 +33,28 @@ impl TestProgram {
             FileType::Destack,
             source.to_string(),
         ));
-        let (tree, strings) =
-            mir::parse::Parser::parse(file_id, source, mir::parse::ParseOptions::default())
-                .finish()
-                .expect("failed to parse MIR");
+        let parsed =
+            mir::parse::Parser::parse(file_id, source, mir::parse::ParseOptions::default());
+        if parsed
+            .diagnostics
+            .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+        {
+            panic!("failed to parse MIR: {:?}", parsed.diagnostics);
+        }
+        let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings, _) =
+            parsed.into_parts();
 
         Self {
             lowered: MirLowered {
                 tree,
-                ..MirLowered::new()
+                target,
+                types,
+                layouts,
+                dispatch,
+                drops,
+                memory,
+                effects,
+                profile,
             },
             strings,
             provider: TestMirProvider { file },
@@ -61,6 +74,42 @@ impl TestProgram {
     /// Return the test target id.
     pub(crate) fn target_id(&self) -> TargetId {
         test_target_id()
+    }
+
+    /// Return the type id with one display name.
+    #[track_caller]
+    pub(crate) fn type_by_name(&self, name: &str) -> mir::TypeId {
+        self.lowered
+            .tree
+            .iter_nodes::<mir::Type>()
+            .find_map(|(id, _)| {
+                let display_name = self.lowered.types.display_name(id)?;
+
+                (self.strings.get(display_name) == name).then_some(id)
+            })
+            .unwrap_or_else(|| panic!("missing MIR type {name}"))
+    }
+
+    /// Return the function id with one name.
+    #[track_caller]
+    pub(crate) fn function_by_name(&self, name: &str) -> mir::FunctionId {
+        self.lowered
+            .tree
+            .iter_nodes::<mir::Function>()
+            .find_map(|(id, function)| (self.strings.get(function.name) == name).then_some(id))
+            .unwrap_or_else(|| panic!("missing MIR function {name}"))
+    }
+
+    /// Mark one type as having a user-authored drop hook.
+    #[track_caller]
+    pub(crate) fn mark_drop_hook(&mut self, name: &str, function_name: &str) {
+        let ty = self.type_by_name(name);
+        let function = self.function_by_name(function_name);
+        self.lowered.drops.set_hook(ty, function);
+        self.lowered
+            .effects
+            .functions
+            .insert(function, mir::FunctionEffect::none());
     }
 }
 

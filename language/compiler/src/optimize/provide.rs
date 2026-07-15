@@ -29,7 +29,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::mir_verified(module, profile, target));
+        dependencies.require(ArtifactKey::mir_elaborated(module, profile, target));
 
         // resolve the optimization program scope
         let target_config = self.target_for_module(module, &target, context)?;
@@ -90,19 +90,19 @@ impl Compiler {
 
         // load provider inputs
         let artifacts = self.artifact_reader(context.revision());
-        let verified = artifacts
-            .mir_verified(module, profile, *target)
+        let elaborated = artifacts
+            .mir_elaborated(module, profile, *target)
             .map_err(CompilerError::from)?;
         let mut optimized = MirOptimized {
-            tree: verified.tree.clone(),
-            target: verified.target,
-            types: verified.types.clone(),
-            layouts: verified.layouts.clone(),
-            dispatch: verified.dispatch.clone(),
-            drops: verified.drops.clone(),
-            memory: verified.memory.clone(),
-            effects: verified.effects.clone(),
-            profile: verified.profile.clone(),
+            tree: elaborated.tree.clone(),
+            target: elaborated.target,
+            types: elaborated.types.clone(),
+            layouts: elaborated.layouts.clone(),
+            dispatch: elaborated.dispatch.clone(),
+            drops: elaborated.drops.clone(),
+            memory: elaborated.memory.clone(),
+            effects: elaborated.effects.clone(),
+            profile: elaborated.profile.clone(),
         };
 
         // load analysis for the optimization program scope

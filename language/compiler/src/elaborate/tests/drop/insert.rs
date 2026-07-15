@@ -246,7 +246,7 @@ external function callee(): int32
 
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    call callee() => b1 | cleanup
+    invoke callee() => b1 | cleanup
 
 b1(v1: int32):
     return v1
@@ -264,7 +264,7 @@ external function callee(): int32
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
     free v0
-    call callee() => b1 | cleanup
+    invoke callee() => b1 | cleanup
 
 b1(v1: int32):
     return v1
@@ -284,7 +284,7 @@ external function callee(): int32
 
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    call callee() => b1 | cleanup
+    invoke callee() => b1 | cleanup
 
 b1(v1: int32):
     v2: int32 = load v0
@@ -302,7 +302,7 @@ external function callee(): int32
 
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    call callee() => b1 | cleanup
+    invoke callee() => b1 | cleanup
 
 b1(v1: int32):
     v2: int32 = load v0
@@ -353,7 +353,7 @@ cleanup:
 }
 
 #[test]
-fn test_insert_drop_for_remaining_struct_field_after_partial_move() {
+fn test_insert_drop_after_complete_struct_decomposition() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
@@ -368,8 +368,9 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
-    v2: Pair = struct Pair (v0, v1)
+    v2: Pair = aggregate (v0, v1)
     v3: ref<int32, unique, mutable> = field.get v2, 0
+    v4: ref<int32, unique, mutable> = field.get v2, 1
     call consume(v3)
     return
 }
@@ -391,7 +392,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
-    v2: Pair = struct Pair (v0, v1)
+    v2: Pair = aggregate (v0, v1)
     v3: ref<int32, unique, mutable> = field.get v2, 0
     v4: ref<int32, unique, mutable> = field.get v2, 1
     free v4
@@ -399,12 +400,14 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     return
 }
 
-function Pair.drop(v0: Pair): void {
-entry(v0: Pair):
-    v1: ref<int32, unique, mutable> = field.get v0, 0
-    free v1
-    v2: ref<int32, unique, mutable> = field.get v0, 1
+function Pair.destruct(v0: ref<Pair, borrowed, exclusive>): void {
+entry(v0: ref<Pair, borrowed, exclusive>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+    v2: ref<int32, unique, mutable> = load v1
     free v2
+    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    v4: ref<int32, unique, mutable> = load v3
+    free v4
     return
 }
 "#,
@@ -412,7 +415,7 @@ entry(v0: Pair):
 }
 
 #[test]
-fn test_insert_drop_for_nested_remaining_fields_after_partial_move() {
+fn test_insert_drop_after_complete_nested_decomposition() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
@@ -432,10 +435,12 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>):
-    v3: Pair = struct Pair (v0, v1)
-    v4: Outer = struct Outer (v3, v2)
+    v3: Pair = aggregate (v0, v1)
+    v4: Outer = aggregate (v3, v2)
     v5: Pair = field.get v4, 0
+    v7: ref<int32, unique, mutable> = field.get v4, 1
     v6: ref<int32, unique, mutable> = field.get v5, 0
+    v8: ref<int32, unique, mutable> = field.get v5, 1
     call consume(v6)
     return
 }
@@ -462,8 +467,8 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>):
-    v3: Pair = struct Pair (v0, v1)
-    v4: Outer = struct Outer (v3, v2)
+    v3: Pair = aggregate (v0, v1)
+    v4: Outer = aggregate (v3, v2)
     v5: Pair = field.get v4, 0
     v7: ref<int32, unique, mutable> = field.get v4, 1
     free v7
@@ -474,21 +479,29 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<
     return
 }
 
-function Pair.drop(v0: Pair): void {
-entry(v0: Pair):
-    v1: ref<int32, unique, mutable> = field.get v0, 0
-    free v1
-    v2: ref<int32, unique, mutable> = field.get v0, 1
+function Pair.destruct(v0: ref<Pair, borrowed, exclusive>): void {
+entry(v0: ref<Pair, borrowed, exclusive>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+    v2: ref<int32, unique, mutable> = load v1
     free v2
+    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    v4: ref<int32, unique, mutable> = load v3
+    free v4
     return
 }
 
-function Outer.drop(v0: Outer): void {
-entry(v0: Outer):
-    v1: Pair = field.get v0, 0
-    call Pair.drop(v1)
-    v2: ref<int32, unique, mutable> = field.get v0, 1
+function Outer.destruct(v0: ref<Outer, borrowed, exclusive>): void {
+entry(v0: ref<Outer, borrowed, exclusive>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+    v2: ref<int32, unique, mutable> = load v1
     free v2
+    v3: ref<Pair, borrowed, exclusive> = field.address v0, 0
+    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v3, 1
+    v5: ref<int32, unique, mutable> = load v4
+    free v5
+    v6: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v3, 0
+    v7: ref<int32, unique, mutable> = load v6
+    free v7
     return
 }
 "#,
@@ -503,7 +516,7 @@ type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, u
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable> = variant.payload v0, 0uint8
+    v1: ref<int32, unique, mutable> = field.get v0, 1
     return
 }
 "#,
@@ -515,19 +528,23 @@ type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, u
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable> = variant.payload v0, 0uint8
+    v1: ref<int32, unique, mutable> = field.get v0, 1
     free v1
     return
 }
 
-function Value.drop(v0: Value): void {
-entry(v0: Value):
-    v1: uint8 = variant.tag v0
-    check variant.tag v1, 0uint8 => b1, b2
+function Value.destruct(v0: ref<Value, borrowed, exclusive>): void {
+entry(v0: ref<Value, borrowed, exclusive>):
+    v1: ref<uint8, borrowed, exclusive> = field.address v0, 0
+    v2: uint8 = load v1
+    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+    v4: uint8 = 0
+    v5: boolean = int.eq v2, v4
+    branch v5, b1, b2
 
 b1:
-    v2: ref<int32, unique, mutable> = variant.payload v0, 0uint8
-    free v2
+    v6: ref<int32, unique, mutable> = load v3
+    free v6
     jump b2
 
 b2:
