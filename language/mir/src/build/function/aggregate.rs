@@ -148,7 +148,7 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Bind an erased payload to its concrete runtime type.
+    /// Bind a typed managed payload to its concrete runtime type.
     pub fn dynamic_bind(
         &mut self,
         dynamic_type: LocalNodeId<Type>,

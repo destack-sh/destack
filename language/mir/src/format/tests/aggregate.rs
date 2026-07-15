@@ -112,8 +112,8 @@ type Writer {
 
 type FileWriter { }
 
-function dynamicAccess(v0: ref<void, managed, readonly>): typeId {
-entry(v0: ref<void, managed, readonly>):
+function dynamicAccess(v0: ref<FileWriter, managed, readonly>): typeId {
+entry(v0: ref<FileWriter, managed, readonly>):
     v1: dynamic<Writer> = dynamic.bind v0, FileWriter
     v2: typeId = dynamic.type v1
     v3: ref<void, managed, readonly> = dynamic.payload v1

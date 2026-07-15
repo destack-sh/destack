@@ -270,11 +270,11 @@ pub enum Instruction {
     },
 
     // dynamic values
-    /// Bind an erased payload to its concrete runtime type.
+    /// Bind a typed managed payload to its concrete runtime type.
     DynamicBind {
         /// The SSA value to define with the dynamic value.
         destination: Value,
-        /// The boxed local managed payload.
+        /// The typed local managed payload.
         payload: Value,
         /// The concrete payload type.
         concrete: TypeId,
