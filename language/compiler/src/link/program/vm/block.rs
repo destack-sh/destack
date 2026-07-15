@@ -13,6 +13,7 @@ use crate::{LinkError, LinkResult};
 use super::super::TypeLinker;
 use super::layout::StorageLayout;
 use super::linker::Linker;
+use super::resume::InvokeStates;
 use super::value::{Operand, OperandLowerer, OperandMap};
 
 /// One lowered block traversal order.
@@ -92,14 +93,9 @@ impl BlockOrder {
                 mir::Terminator::Yield { resume, .. } => {
                     queue.push(resume.block);
                 }
-                mir::Terminator::Call { target, unwind, .. }
-                | mir::Terminator::CallIndirect { target, unwind, .. }
-                | mir::Terminator::CallVirtual { target, unwind, .. }
-                | mir::Terminator::CallDynamic { target, unwind, .. } => {
+                mir::Terminator::Invoke { target, unwind, .. } => {
                     queue.push(target.block);
-                    if let Some(unwind) = unwind {
-                        queue.push(unwind.block);
-                    }
+                    queue.push(unwind.block);
                 }
                 mir::Terminator::Error => {
                     return Err(program.invalid_input("terminator"));
@@ -109,10 +105,7 @@ impl BlockOrder {
                 | mir::Terminator::UnwindResume
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::Unreachable
-                | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallIndirect { .. }
-                | mir::Terminator::TailCallVirtual { .. }
-                | mir::Terminator::TailCallDynamic { .. } => {}
+                | mir::Terminator::TailCall { .. } => {}
             }
         }
 
@@ -142,8 +135,8 @@ pub(super) struct FunctionContext<'a> {
     pub(super) entry_block: u32,
     /// The lowered yield frame state by MIR block id.
     pub(super) yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, FrameStateId>,
-    /// The lowered call terminator frame state by MIR block id.
-    pub(super) call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, FrameStateId>,
+    /// The lowered invocation frame states by MIR block id.
+    pub(super) invoke_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, InvokeStates>,
     /// The call target by program function id.
     pub(super) call_targets: &'a [Option<CallTarget>],
     /// VM linker state.

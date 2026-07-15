@@ -130,12 +130,14 @@ impl<'a> OperandLowerer<'a> {
                 width: u16::from(self.pointer_bytes()) * 8,
                 signed: true,
             }),
-            mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-                Some(Operand::Int {
-                    width: u16::from(self.pointer_bytes()) * 8,
-                    signed: false,
-                })
-            }
+            mir::Type::Usize | mir::Type::TypeDescriptor => Some(Operand::Int {
+                width: u16::from(self.pointer_bytes()) * 8,
+                signed: false,
+            }),
+            mir::Type::TypeId => Some(Operand::Int {
+                width: u32::BITS as u16,
+                signed: false,
+            }),
             mir::Type::Float(float_type) => Some(Operand::Float {
                 format: *float_type,
             }),

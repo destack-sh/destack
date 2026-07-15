@@ -2,7 +2,8 @@ use crate::diagnostic::{Error, ImportError, Trap};
 use crate::tests::{
     TestMachine, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_expect_error,
 };
-use destack_program::{DynamicTableId, Value};
+use destack_mir::{Space, TraceMap, Type};
+use destack_program::{CallDispatch, DynamicTableId, Value};
 
 /// function.address produces a function pointer for call.indirect.
 #[test]
@@ -49,20 +50,18 @@ entry:
     v1: ReaderImpl = aggregate (v0)
     v2: ref<ReaderImpl, managed, readonly> = new.zeroed ReaderImpl
     store v2, v1
-    v3: ref<void, managed, readonly> = cast.bit v2 -> ref<void, managed, readonly>
-    v4: dynamic<Reader> = dynamic.bind v3, ReaderImpl
-    v5: ref<ReaderImpl, managed, readonly> = dynamic.payload v4
-    v6: int32 = call.dynamic v4, Reader, 0(v5): (ref<ReaderImpl, managed, readonly>) => int32
-    return v6
+    v3: dynamic<Reader> = dynamic.bind v2, ReaderImpl
+    v4: ref<void, managed, readonly> = dynamic.payload v3
+    v5: int32 = call.dynamic v3, Reader, 0(v4): (ref<void, managed, readonly>) => int32
+    return v5
 }
 
 function concreteType(): typeId {
 entry:
     v0: ref<ReaderImpl, managed, readonly> = new.zeroed ReaderImpl
-    v1: ref<void, managed, readonly> = cast.bit v0 -> ref<void, managed, readonly>
-    v2: dynamic<Reader> = dynamic.bind v1, ReaderImpl
-    v3: typeId = dynamic.type v2
-    return v3
+    v1: dynamic<Reader> = dynamic.bind v0, ReaderImpl
+    v2: typeId = dynamic.type v1
+    return v2
 }
 
 function invokeRun(): int32 {
@@ -71,12 +70,11 @@ entry:
     v1: ReaderImpl = aggregate (v0)
     v2: ref<ReaderImpl, managed, readonly> = new.zeroed ReaderImpl
     store v2, v1
-    v3: ref<void, managed, readonly> = cast.bit v2 -> ref<void, managed, readonly>
-    v4: dynamic<Reader> = dynamic.bind v3, ReaderImpl
-    v5: ref<ReaderImpl, managed, readonly> = dynamic.payload v4
-    invoke.dynamic v4, Reader, 0(v5): (ref<ReaderImpl, managed, readonly>) => int32 => completed | cleanup
-completed(v6: int32):
-    return v6
+    v3: dynamic<Reader> = dynamic.bind v2, ReaderImpl
+    v4: ref<void, managed, readonly> = dynamic.payload v3
+    invoke.dynamic v3, Reader, 0(v4): (ref<void, managed, readonly>) => int32 => completed | cleanup
+completed(v5: int32):
+    return v5
 cleanup:
     unwind.resume
 }
@@ -87,23 +85,63 @@ entry:
     v1: ReaderImpl = aggregate (v0)
     v2: ref<ReaderImpl, managed, readonly> = new.zeroed ReaderImpl
     store v2, v1
-    v3: ref<void, managed, readonly> = cast.bit v2 -> ref<void, managed, readonly>
-    v4: dynamic<Reader> = dynamic.bind v3, ReaderImpl
-    v5: ref<ReaderImpl, managed, readonly> = dynamic.payload v4
-    tail.call.dynamic v4, Reader, 0(v5): (ref<ReaderImpl, managed, readonly>) => int32
+    v3: dynamic<Reader> = dynamic.bind v2, ReaderImpl
+    v4: ref<void, managed, readonly> = dynamic.payload v3
+    tail.call.dynamic v3, Reader, 0(v4): (ref<void, managed, readonly>) => int32
 }
 
 function dropDynamic(): int32 {
 entry:
     v0: ref<ReaderImpl, managed, readonly> = new.zeroed ReaderImpl
-    v1: ref<void, managed, readonly> = cast.bit v0 -> ref<void, managed, readonly>
-    v2: dynamic<Reader> = dynamic.bind v1, ReaderImpl
-    drop v2
-    v3: int32 = 45
-    return v3
+    v1: dynamic<Reader> = dynamic.bind v0, ReaderImpl
+    drop v1
+    v2: int32 = 45
+    return v2
 }
 "#;
     let mut machine = TestMachine::dynamic(mir, "ReaderImpl", "Reader", &["ReaderImpl.read"]);
+
+    // record local payload space across every dynamic call mode
+    let program = &machine.machine.program;
+    let dynamic_calls = program
+        .sites()
+        .calls(program.sections())
+        .iter()
+        .filter(|site| site.dispatch == CallDispatch::Dynamic)
+        .collect::<Vec<_>>();
+    assert_eq!(dynamic_calls.len(), 3);
+    assert!(
+        dynamic_calls
+            .iter()
+            .all(|site| site.space.get() == Some(Space::Local))
+    );
+
+    // keep each dynamic payload visible to local frame tracing
+    let dynamic_types = machine
+        .tree
+        .iter_nodes::<Type>()
+        .filter_map(|(ty, value)| matches!(value, Type::Dynamic { .. }).then_some(ty))
+        .map(|ty| machine.program_type(ty))
+        .collect::<Vec<_>>();
+    for dynamic_type in dynamic_types {
+        let layout = program
+            .layout(dynamic_type)
+            .expect("dynamic layout should exist");
+        let trace = program
+            .trace_map(layout.trace)
+            .expect("dynamic trace map should decode");
+        let TraceMap::Fixed {
+            local_offsets,
+            shared_offsets,
+            frame_offsets,
+        } = trace
+        else {
+            panic!("dynamic layout should use one fixed trace map");
+        };
+        assert_eq!(local_offsets.as_ref(), &[0]);
+        assert!(shared_offsets.is_empty());
+        assert!(frame_offsets.is_empty());
+    }
 
     // dispatch through the witness while forwarding the projected payload
     let output = machine

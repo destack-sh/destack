@@ -118,6 +118,7 @@ impl Compiler {
             optimized.types.clone(),
             optimized.layouts.clone(),
             optimized.dispatch.clone(),
+            optimized.drops.clone(),
             self.strings().clone(),
             heap,
             shared_heap,

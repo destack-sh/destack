@@ -1,6 +1,7 @@
-use destack_heap::{AllocationClass, AllocationPlan, AllocationShape};
+use destack_heap::{AllocationClass, AllocationPlan, AllocationShape, DropId};
 use destack_mir as mir;
 
+use destack_program::AllocationInitialization;
 use destack_program::vm::{AllocationBranch, Edge, Instruction, Op, SliceAllocationBranch};
 
 use crate::LinkResult;
@@ -8,15 +9,6 @@ use crate::LinkResult;
 use super::layout::StorageLayout;
 use super::lower::BlockLowerer;
 use super::pool::Pool;
-
-/// Allocation byte initialization mode.
-#[derive(Clone, Copy)]
-pub(super) enum AllocationInitialization {
-    /// Initialize the allocation to zero bytes.
-    Zeroed,
-    /// Leave allocation bytes uninitialized.
-    Uninit,
-}
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one heap allocation.
@@ -29,11 +21,13 @@ impl<'a> BlockLowerer<'a> {
         initialization: AllocationInitialization,
     ) -> LinkResult<Instruction> {
         // resolve allocation target and layout
-        let layout = self.layout_for_type(layout)?;
+        let layout_type = layout;
+        let layout = self.layout_for_type(layout_type)?;
         let space = self.function.space_for_type(result_type)?;
+        let drop = self.managed_drop(result_type, layout_type);
 
         // precompute the heap allocation shape
-        let (allocation, class) = self.allocation_plan(pool, space, layout)?;
+        let (allocation, class) = self.allocation_plan(pool, space, layout, drop)?;
         let op = self.allocation_op(
             space,
             class,
@@ -72,12 +66,15 @@ impl<'a> BlockLowerer<'a> {
     ) -> LinkResult<Instruction> {
         let (result, success) = self.lower_allocation_success(pool, success)?;
 
-        let layout = self.layout_for_type(layout)?;
+        let layout_type = layout;
+        let layout = self.layout_for_type(layout_type)?;
         let space = self
             .operand_map()
             .space(result)
             .ok_or_else(|| self.invalid_pointer_type(format!("{result:?}")))?;
-        let (allocation, _) = self.allocation_plan(pool, space, layout)?;
+        let result_type = self.value_type_for_value(result)?;
+        let drop = self.managed_drop(result_type, layout_type);
+        let (allocation, _) = self.allocation_plan(pool, space, layout, drop)?;
         let allocation = pool.allocation_plan(allocation);
         let failure = self.lower_block_edge(pool, failure)?;
         let record = AllocationBranch {
@@ -136,7 +133,8 @@ impl<'a> BlockLowerer<'a> {
         // resolve descriptor, backing element, and dynamic length
         let element_layout = self.layout_for_type(element)?;
         let space = self.slice_backing_space(result_type)?;
-        let (element, _) = self.allocation_plan(pool, space, element_layout)?;
+        let drop = self.managed_drop(result_type, element);
+        let (element, _) = self.allocation_plan(pool, space, element_layout, drop)?;
         let access = self
             .slice_projection(result_type)
             .ok_or_else(|| self.invalid_instruction("slice projection"))?;
@@ -180,7 +178,8 @@ impl<'a> BlockLowerer<'a> {
 
         let element_layout = self.layout_for_type(element)?;
         let space = self.slice_backing_space(result_type)?;
-        let (element, _) = self.allocation_plan(pool, space, element_layout)?;
+        let drop = self.managed_drop(result_type, element);
+        let (element, _) = self.allocation_plan(pool, space, element_layout, drop)?;
         let element = pool.allocation_plan(element);
         let access = self
             .slice_projection(result_type)
@@ -254,7 +253,7 @@ impl<'a> BlockLowerer<'a> {
         // encode the exact layout into the instruction
         let layout = self.layout_for_type(layout)?;
         let byte_len = layout.byte_len() as u64;
-        let alignment = encode_alignment_log2(layout.alignment());
+        let alignment = layout.alignment_log2();
 
         Ok(Instruction::new(
             match initialization {
@@ -340,12 +339,13 @@ impl<'a> BlockLowerer<'a> {
         &self,
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LinkResult<mir::Space> {
-        let mir::Type::Slice { kind, space, .. } = self.function.tree.get(result_type) else {
+        let result_type = self.function.tree.repr_type(result_type);
+        let mir::Type::Slice { space, .. } = self.function.tree.get(result_type) else {
             return Err(self.type_mismatch("slice result type", format!("{result_type:?}")));
         };
 
-        match (space, kind) {
-            (mir::Space::Local | mir::Space::Shared, _) => Ok(*space),
+        match space {
+            mir::Space::Local | mir::Space::Shared => Ok(*space),
             _ => Err(self.invalid_pointer_type(format!("{space:?}"))),
         }
     }
@@ -370,11 +370,6 @@ impl<'a> BlockLowerer<'a> {
     }
 }
 
-/// Encode one power-of-two alignment into an instruction field.
-fn encode_alignment_log2(alignment: usize) -> u32 {
-    alignment.trailing_zeros()
-}
-
 impl BlockLowerer<'_> {
     /// Build one allocation plan for a concrete MIR type.
     fn allocation_plan(
@@ -382,6 +377,7 @@ impl BlockLowerer<'_> {
         pool: &mut Pool<'_, '_>,
         space: mir::Space,
         layout: &StorageLayout,
+        drop: Option<DropId>,
     ) -> LinkResult<(AllocationPlan, AllocationClass)> {
         // resolve the allocation class from the destination space
         let is_noscan = !layout.trace_map.has_heap_reference();
@@ -393,6 +389,12 @@ impl BlockLowerer<'_> {
             trace_id,
             layout.trace_map.clone(),
         );
+        let shape = match drop {
+            Some(drop) => shape
+                .with_drop(drop)
+                .map_err(|error| self.invalid_input(error.to_string()))?,
+            None => shape,
+        };
         let allocation = match space {
             mir::Space::Local => self.function.heap_options.allocation_plan(&shape),
             mir::Space::Shared => self.function.shared_heap_options.allocation_plan(&shape),
@@ -403,6 +405,19 @@ impl BlockLowerer<'_> {
         let class = allocation.class;
 
         Ok((allocation, class))
+    }
+
+    /// Return the drop identity for one managed allocation.
+    fn managed_drop(&self, result: mir::TypeId, dropped: mir::TypeId) -> Option<DropId> {
+        let result = self.function.type_linker().storage_type(result);
+        let is_managed =
+            self.function.tree.get(result).reference_kind() == Some(mir::ReferenceKind::Managed);
+
+        if is_managed {
+            self.function.program.program().drop_id(dropped)
+        } else {
+            None
+        }
     }
 
     /// Select one heap allocation operation from destination and size class.

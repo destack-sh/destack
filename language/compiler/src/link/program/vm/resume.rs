@@ -13,6 +13,25 @@ use super::super::ProgramLinker;
 use super::FrameLinker;
 use super::lower::SourceBlock;
 
+/// Frame states entered after one invocation completes or unwinds.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct InvokeStates {
+    /// The normal return state.
+    pub(super) normal: FrameStateId,
+    /// The panic unwind state.
+    pub(super) unwind: FrameStateId,
+}
+
+/// Normal and unwind edges leaving one invocation block.
+struct InvokeEdges<'a> {
+    /// The normal return edge.
+    normal: &'a mir::BlockTarget,
+    /// The panic unwind edge.
+    unwind: &'a mir::BlockTarget,
+    /// The call result type.
+    result: mir::TypeId,
+}
+
 /// Linked resume states for VM execution.
 #[derive(Debug)]
 pub(crate) struct ResumeLinker<'a> {
@@ -60,7 +79,7 @@ impl<'a> ResumeLinker<'a> {
     }
 
     /// Build the source resume lookups for one function.
-    pub(crate) fn build_entries(
+    pub(super) fn build_entries(
         &mut self,
         function_id: mir::FunctionId,
         frame_layout_id: FrameLayoutId,
@@ -69,47 +88,66 @@ impl<'a> ResumeLinker<'a> {
         frames: &mut FrameLinker<'_>,
     ) -> LinkResult<(
         HashMap<mir::BlockId, FrameStateId>,
-        HashMap<mir::BlockId, FrameStateId>,
+        HashMap<mir::BlockId, InvokeStates>,
     )> {
         let block_ids = self.tree.get(function_id).blocks().to_vec();
         let mut yield_resume = HashMap::new();
-        let mut call_resume = HashMap::new();
+        let mut invokes = HashMap::new();
 
         // assign resume states to suspension and call edges
         for block_id in block_ids {
             // yield resumes into one single continuation block
-            if let Some((resume, resume_arguments)) = self.yield_edge(block_id) {
-                let received_value = self.received_value(resume, resume_arguments.len())?;
+            if let Some(resume) = Self::yield_edge(self.tree, block_id) {
+                let resume_arguments = resume.arguments(self.tree);
+                let received_value = self.received_resume(resume.block, resume_arguments.len())?;
                 let frame_state_id = self.append_entry_state(
                     frame_layout_id,
                     frame_layout,
                     liveness,
-                    resume,
-                    &resume_arguments,
-                    received_value,
+                    resume.block,
+                    resume_arguments,
+                    Some(received_value),
                     frames,
                 )?;
 
                 yield_resume.insert(block_id, frame_state_id);
             }
-            // call continuations may bind one leading return value
-            else if let Some((target, arguments)) = self.call_edge(block_id) {
-                let received_value = self.received_value(target, arguments.len())?;
-                let target_state_id = self.append_entry_state(
+            // invokes bind one return value only on their normal edge
+            else if let Some(edges) = Self::invoke_edges(self.tree, self.program, block_id)? {
+                let normal_arguments = edges.normal.arguments(self.tree);
+                let received_value =
+                    self.received_result(edges.normal.block, normal_arguments.len(), edges.result)?;
+                let normal_state = self.append_entry_state(
                     frame_layout_id,
                     frame_layout,
                     liveness,
-                    target,
-                    &arguments,
+                    edges.normal.block,
+                    normal_arguments,
                     received_value,
                     frames,
                 )?;
+                let unwind_arguments = edges.unwind.arguments(self.tree);
+                let unwind_state = self.append_entry_state(
+                    frame_layout_id,
+                    frame_layout,
+                    liveness,
+                    edges.unwind.block,
+                    unwind_arguments,
+                    None,
+                    frames,
+                )?;
 
-                call_resume.insert(block_id, target_state_id);
+                invokes.insert(
+                    block_id,
+                    InvokeStates {
+                        normal: normal_state,
+                        unwind: unwind_state,
+                    },
+                );
             }
         }
 
-        Ok((yield_resume, call_resume))
+        Ok((yield_resume, invokes))
     }
 
     /// Append states for every lowered instruction point.
@@ -178,31 +216,96 @@ impl<'a> ResumeLinker<'a> {
     }
 
     /// Return the yield edge leaving one block.
-    fn yield_edge(&self, block: mir::BlockId) -> Option<(mir::BlockId, Vec<mir::Value>)> {
-        let block = self.tree.get(block);
-        let terminator = self.tree.get(block.terminator);
+    fn yield_edge(tree: &mir::Tree, block: mir::BlockId) -> Option<&mir::BlockTarget> {
+        let block = tree.get(block);
+        let terminator = tree.get(block.terminator);
 
         match terminator {
-            mir::Terminator::Yield { resume, .. } => {
-                Some((resume.block, resume.arguments(self.tree).to_vec()))
-            }
+            mir::Terminator::Yield { resume, .. } => Some(resume),
             _ => None,
         }
     }
 
-    /// Return the call continuation edge leaving one block.
-    fn call_edge(&self, block: mir::BlockId) -> Option<(mir::BlockId, Vec<mir::Value>)> {
-        let block = self.tree.get(block);
-        let terminator = self.tree.get(block.terminator);
+    /// Return the normal and unwind edges leaving one invocation block.
+    fn invoke_edges<'tree>(
+        tree: &'tree mir::Tree,
+        program: &ProgramLinker,
+        block: mir::BlockId,
+    ) -> LinkResult<Option<InvokeEdges<'tree>>> {
+        let block = tree.get(block);
+        let terminator = tree.get(block.terminator);
 
-        match terminator {
-            mir::Terminator::Call { target, .. }
-            | mir::Terminator::CallIndirect { target, .. }
-            | mir::Terminator::CallVirtual { target, .. }
-            | mir::Terminator::CallDynamic { target, .. } => {
-                Some((target.block, target.arguments(self.tree).to_vec()))
-            }
-            _ => None,
+        let mir::Terminator::Invoke {
+            call,
+            target,
+            unwind,
+        } = terminator
+        else {
+            return Ok(None);
+        };
+        let result = tree
+            .get(call.signature)
+            .function_signature_parts()
+            .map(|(_, _, result)| result)
+            .ok_or_else(|| program.invalid_instruction("invoke signature"))?;
+
+        Ok(Some(InvokeEdges {
+            normal: target,
+            unwind,
+            result,
+        }))
+    }
+
+    /// Return the resume command received by one yield continuation.
+    fn received_resume(
+        &self,
+        block: mir::BlockId,
+        explicit_argument_count: usize,
+    ) -> LinkResult<mir::Value> {
+        let entry_block = self.tree.get(block);
+        let expected_count = explicit_argument_count + 1;
+
+        // require the resume command before any explicit edge arguments
+        if entry_block.parameters.len() != expected_count {
+            return Err(self
+                .program
+                .invalid_instruction("yield resume target arity"));
+        }
+
+        entry_block
+            .parameters
+            .first()
+            .map(|parameter| parameter.value)
+            .ok_or_else(|| self.program.invalid_instruction("yield resume command"))
+    }
+
+    /// Return the result received by one normal invocation edge when present.
+    fn received_result(
+        &self,
+        block: mir::BlockId,
+        explicit_argument_count: usize,
+        result: mir::TypeId,
+    ) -> LinkResult<Option<mir::Value>> {
+        let entry_block = self.tree.get(block);
+        let result = self.tree.repr_type(result);
+        let has_result = !matches!(self.tree.get(result), mir::Type::Void);
+        let expected_count = explicit_argument_count + usize::from(has_result);
+
+        // require the signature result before any explicit edge arguments
+        if entry_block.parameters.len() != expected_count {
+            return Err(self.program.invalid_instruction("invoke target arity"));
+        }
+
+        if has_result {
+            let value = entry_block
+                .parameters
+                .first()
+                .map(|parameter| parameter.value)
+                .ok_or_else(|| self.program.invalid_instruction("invoke result"))?;
+
+            Ok(Some(value))
+        } else {
+            Ok(None)
         }
     }
 
@@ -228,10 +331,7 @@ impl<'a> ResumeLinker<'a> {
         let instruction = self.tree.get(instruction_id);
 
         match instruction {
-            mir::Instruction::Call { destination, .. }
-            | mir::Instruction::CallVirtual { destination, .. }
-            | mir::Instruction::CallDynamic { destination, .. }
-            | mir::Instruction::CallIndirect { destination, .. } => {
+            mir::Instruction::Call { destination, .. } => {
                 let Some(destination) = destination else {
                     return Ok(None);
                 };
@@ -243,27 +343,7 @@ impl<'a> ResumeLinker<'a> {
         }
     }
 
-    /// Return the leading received value for one edge when present.
-    fn received_value(
-        &self,
-        block: mir::BlockId,
-        explicit_argument_count: usize,
-    ) -> LinkResult<Option<mir::Value>> {
-        let entry_block = self.tree.get(block);
-
-        // block edges bind the received value before explicit arguments
-        if entry_block.parameters.len() == explicit_argument_count + 1 {
-            return Ok(entry_block
-                .parameters
-                .first()
-                .map(|parameter| parameter.value));
-        }
-
-        Ok(None)
-    }
-
     /// Append one resume state and its entry bindings.
-    #[allow(clippy::too_many_arguments)]
     fn append_entry_state(
         &mut self,
         frame_layout_id: FrameLayoutId,
@@ -280,6 +360,12 @@ impl<'a> ResumeLinker<'a> {
         } else {
             &entry_block.parameters[..]
         };
+
+        // require one argument for every explicit block parameter
+        if entry_parameters.len() != arguments.len() {
+            return Err(self.program.invalid_instruction("resume target arity"));
+        }
+
         let bindings = entry_parameters
             .iter()
             .zip(arguments.iter())
@@ -332,7 +418,6 @@ impl<'a> ResumeLinker<'a> {
     }
 
     /// Append one resume state and its attached tables.
-    #[allow(clippy::too_many_arguments)]
     fn append_state(
         &mut self,
         frame_layout_id: FrameLayoutId,

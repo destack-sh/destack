@@ -3,12 +3,17 @@ use std::collections::HashMap;
 use destack_core::{SectionPacker, StringId, StringPool};
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program::{CounterId, FunctionId, GlobalId, Program, SiteTable, StringTable, TypeId};
+use destack_program::{
+    CounterId, DynamicTableId, FunctionId, GlobalId, Program, SiteTable, StringTable, TypeId,
+};
 use destack_source::PackageId;
+use heap::DropId;
 
 use crate::{LinkError, LinkResult};
 
-use super::{DispatchLinker, FunctionLinker, LayoutLinker, StaticLinker, TypeLinker, vm};
+use super::{
+    DispatchLinker, DropLinker, FunctionLinker, LayoutLinker, StaticLinker, TypeLinker, vm,
+};
 
 /// Build one program from one MIR tree and immutable string pool.
 #[derive(Debug)]
@@ -37,6 +42,12 @@ pub struct ProgramLinker {
     type_ids: HashMap<mir::TypeId, TypeId>,
     /// MIR type ids keyed by program type id.
     types_by_id: Vec<mir::TypeId>,
+    /// Dense drop ids keyed by MIR type id.
+    drop_ids: HashMap<mir::TypeId, DropId>,
+    /// MIR destructors in dense drop id order.
+    destructors: Vec<mir::FunctionId>,
+    /// Dense dynamic table ids keyed by concrete type and constraint.
+    dynamic_table_ids: HashMap<(mir::TypeId, mir::TypeId), DynamicTableId>,
     /// Dense program global ids keyed by MIR global id.
     global_ids: HashMap<mir::GlobalId, GlobalId>,
     /// Dense program counter ids keyed by function-local MIR counter id.
@@ -45,7 +56,6 @@ pub struct ProgramLinker {
 
 impl ProgramLinker {
     /// Create one program linker.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         package: PackageId,
         tree: mir::Tree,
@@ -53,12 +63,15 @@ impl ProgramLinker {
         types: mir::TypeTable,
         layouts: mir::LayoutTable,
         dispatch: mir::DispatchTable,
+        drops: mir::DropTable,
         strings: StringPool,
         heap_options: heap::HeapOptions,
         shared_heap_options: heap::SharedHeapOptions,
     ) -> Self {
         let function_ids = Self::build_function_ids(&tree);
         let (type_ids, types_by_id) = Self::build_type_ids(&tree);
+        let (drop_ids, destructors) = Self::build_drops(&tree, &drops);
+        let dynamic_table_ids = Self::build_dynamic_table_ids(&dispatch);
         let global_ids = Self::build_global_ids(&tree);
         let counter_ids = Self::build_counter_ids(&tree);
 
@@ -75,6 +88,9 @@ impl ProgramLinker {
             function_ids,
             type_ids,
             types_by_id,
+            drop_ids,
+            destructors,
+            dynamic_table_ids,
             global_ids,
             counter_ids,
         }
@@ -94,6 +110,7 @@ impl ProgramLinker {
             &self,
         )
         .link(&mut sections)?;
+        let drops = DropLinker::new(&self).link(&mut sections);
         let types = TypeLinker::new(&self.tree, &self.target_layout, &self.type_table, &self)
             .link(&mut sections, &layouts.ids)?;
         let statics = StaticLinker::new(&self.tree, &self.target_layout, &self, &layouts.storage)
@@ -139,6 +156,7 @@ impl ProgramLinker {
             self.shared_heap_options,
             strings,
             types,
+            drops,
             layouts.layouts,
             vm.frames,
             functions,
@@ -273,6 +291,23 @@ impl ProgramLinker {
         self.function_ids[&function]
     }
 
+    /// Return the program drop id for one MIR type when present.
+    pub(crate) fn drop_id(&self, ty: mir::TypeId) -> Option<DropId> {
+        self.drop_ids.get(&ty).copied()
+    }
+
+    /// Return the destructor function for one MIR type when present.
+    pub(crate) fn destructor(&self, ty: mir::TypeId) -> Option<mir::FunctionId> {
+        let drop = self.drop_id(ty)?;
+
+        Some(self.destructors[drop.index()])
+    }
+
+    /// Iterate destructors in dense drop id order.
+    pub(crate) fn destructors(&self) -> impl Iterator<Item = mir::FunctionId> + '_ {
+        self.destructors.iter().copied()
+    }
+
     /// Return the number of program function ids.
     pub(crate) fn function_count(&self) -> usize {
         self.function_ids.len()
@@ -286,6 +321,15 @@ impl ProgramLinker {
     /// Return the program type id for one MIR type.
     pub(crate) fn type_id(&self, ty: mir::TypeId) -> TypeId {
         self.type_ids[&ty]
+    }
+
+    /// Return the dynamic table id for one concrete type and constraint.
+    pub(crate) fn dynamic_table_id(
+        &self,
+        concrete: mir::TypeId,
+        constraint: mir::TypeId,
+    ) -> Option<DynamicTableId> {
+        self.dynamic_table_ids.get(&(concrete, constraint)).copied()
     }
 
     /// Return the input type id for one program type id.
@@ -332,6 +376,40 @@ impl ProgramLinker {
             .collect();
 
         (type_ids, types_by_id)
+    }
+
+    /// Build dense drop identities and functions in program type order.
+    fn build_drops(
+        tree: &mir::Tree,
+        drops: &mir::DropTable,
+    ) -> (HashMap<mir::TypeId, DropId>, Vec<mir::FunctionId>) {
+        let mut ids = HashMap::new();
+        let mut destructors = Vec::new();
+
+        for (ty, _) in tree.iter_nodes::<mir::Type>() {
+            if let Some(function) = drops.destructor(ty) {
+                ids.insert(ty, DropId::from_index(ids.len() as u32));
+                destructors.push(function);
+            }
+        }
+
+        (ids, destructors)
+    }
+
+    /// Build dense dynamic table ids from MIR dispatch order.
+    fn build_dynamic_table_ids(
+        dispatch: &mir::DispatchTable,
+    ) -> HashMap<(mir::TypeId, mir::TypeId), DynamicTableId> {
+        let mut ids = HashMap::with_capacity(dispatch.dynamic_tables.len());
+
+        for (index, table) in dispatch.iter_dynamic_tables().enumerate() {
+            ids.insert(
+                (table.concrete, table.constraint),
+                DynamicTableId(index as u32),
+            );
+        }
+
+        ids
     }
 
     /// Build dense global ids from MIR storage order.

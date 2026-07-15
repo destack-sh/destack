@@ -1,9 +1,8 @@
 use destack_mir as mir;
 
-use super::allocation::AllocationInitialization;
+use destack_program::AllocationInitialization;
 use destack_program::vm::{
     BoundsCheck, Check, CheckKind, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck,
-    VariantCheck,
 };
 
 use crate::LinkResult;
@@ -117,15 +116,6 @@ impl<'a> BlockLowerer<'a> {
                     self.type_id_cell_offset(value)?,
                     expected.0,
                 ))
-            }
-            mir::CheckConstraint::Variant { value, expected } => {
-                let value = *value;
-                let check = VariantCheck {
-                    value: self.cell_offset(value)?,
-                    expected: self.constant_cell_bits(expected)?,
-                };
-
-                Ok(Check::variant(check))
             }
         }
     }
@@ -373,14 +363,8 @@ impl<'a> BlockLowerer<'a> {
                 )
             }
 
-            mir::Terminator::Call { .. }
-            | mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallVirtual { .. }
-            | mir::Terminator::CallDynamic { .. }
-            | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallVirtual { .. }
-            | mir::Terminator::TailCallDynamic { .. } => self.lower_call_terminator(term, pool)?,
+            mir::Terminator::Invoke { call, .. } => self.lower_invoke(call, pool)?,
+            mir::Terminator::TailCall { call } => self.lower_tail_call(call, pool)?,
         })
     }
 
@@ -407,25 +391,6 @@ impl<'a> BlockLowerer<'a> {
             self.cell_offset(value)
         } else {
             Err(self.type_mismatch("type-id value", format!("{value_type:?}")))
-        }
-    }
-
-    /// Return one constant as VM cell bits.
-    fn constant_cell_bits(&self, value: &mir::Constant) -> LinkResult<u64> {
-        match value {
-            mir::Constant::Null => Ok(0),
-            mir::Constant::Boolean { value } => Ok(u64::from(*value)),
-            mir::Constant::Int { value, width, .. } if *width <= u64::BITS as u16 => {
-                Ok((*value as i64) as u64)
-            }
-            mir::Constant::UInt { value, width } if *width <= u64::BITS as u16 => {
-                u64::try_from(*value).map_err(|_| self.invalid_instruction("constant cell bits"))
-            }
-            mir::Constant::Float { bits, .. } => Ok(*bits),
-            mir::Constant::Char { value } => Ok(u64::from(*value as u32)),
-            mir::Constant::Int { .. } | mir::Constant::UInt { .. } => {
-                Err(self.invalid_instruction("constant cell bits"))
-            }
         }
     }
 

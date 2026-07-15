@@ -1,11 +1,13 @@
 use destack_mir as mir;
 
+use destack_program::AllocationInitialization;
 use destack_program::vm::{Instruction, Op};
 
 use crate::LinkResult;
 
 use super::lower::BlockLowerer;
 use super::pool::Pool;
+
 impl<'a> BlockLowerer<'a> {
     /// Lower one MIR instruction into zero or more VM instructions.
     pub(super) fn lower_instructions(
@@ -14,28 +16,32 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_, '_>,
     ) -> LinkResult<Vec<Instruction>> {
         match inst {
-            mir::Instruction::Struct {
+            mir::Instruction::Aggregate {
                 destination,
-                fields,
-                ..
-            } => self.lower_frame_constructor(*destination, *fields),
-            mir::Instruction::Tuple {
-                destination,
-                elements,
-                ..
-            } => self.lower_frame_constructor(*destination, *elements),
-            mir::Instruction::Array {
-                destination,
-                elements,
-                ..
-            } => self.lower_frame_constructor(*destination, *elements),
+                values,
+            } => self.lower_aggregate(*destination, self.function.tree.get_values(*values)),
             mir::Instruction::FieldSet {
+                destination,
+                aggregate: base,
+                field,
+                value,
+            } => self.lower_projection_update(*destination, *base, *field, *value),
+            mir::Instruction::ElementSet {
                 destination,
                 aggregate: base,
                 index,
                 value,
-            } => self.lower_field_update(*destination, *base, *index, *value),
-            mir::Instruction::FieldGet { .. } => self.lower_field_read(inst),
+            } => self.lower_projection_update(*destination, *base, *index, *value),
+            mir::Instruction::FieldGet {
+                destination,
+                aggregate: base,
+                field,
+            } => self.lower_projection_read(*destination, *base, *field),
+            mir::Instruction::ElementGet {
+                destination,
+                aggregate: base,
+                index,
+            } => self.lower_projection_read(*destination, *base, *index),
             _ => Ok(vec![self.lower_instruction(inst, pool)?]),
         }
     }
@@ -127,29 +133,35 @@ impl<'a> BlockLowerer<'a> {
                 self.lower_store(pool, *pointer, *value)?
             }
 
-            mir::Instruction::Struct { .. } => return Err(self.invalid_instruction("struct")),
-
-            mir::Instruction::Tuple { .. } => return Err(self.invalid_instruction("tuple")),
-
-            mir::Instruction::Array { .. } => return Err(self.invalid_instruction("array")),
+            mir::Instruction::Aggregate { .. } => {
+                return Err(self.invalid_instruction("aggregate"));
+            }
 
             mir::Instruction::FieldGet { .. } => return Err(self.invalid_instruction("field get")),
 
             mir::Instruction::FieldSet { .. } => return Err(self.invalid_instruction("field set")),
 
+            mir::Instruction::ElementGet { .. } => {
+                return Err(self.invalid_instruction("element get"));
+            }
+
+            mir::Instruction::ElementSet { .. } => {
+                return Err(self.invalid_instruction("element set"));
+            }
+
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate: base,
-                index,
+                field,
                 ..
-            } => self.lower_field_addr(*destination, *base, *index)?,
+            } => self.lower_field_addr(*destination, *base, *field)?,
 
             mir::Instruction::ElementAddr {
                 destination,
-                array,
+                base,
                 index,
                 ..
-            } => self.lower_element_addr(pool, *destination, *array, *index)?,
+            } => self.lower_element_addr(pool, *destination, *base, *index)?,
 
             mir::Instruction::SliceView { .. } => {
                 return Err(self.invalid_instruction("slice view"));
@@ -159,21 +171,22 @@ impl<'a> BlockLowerer<'a> {
                 return Err(self.invalid_instruction("slice length"));
             }
 
-            mir::Instruction::DynamicPayload { .. } => {
-                return Err(self.invalid_instruction("dynamic payload"));
-            }
+            mir::Instruction::DynamicBind {
+                destination,
+                payload,
+                concrete,
+            } => self.lower_dynamic_bind(*destination, *payload, *concrete)?,
 
-            mir::Instruction::DynamicType { .. } => {
-                return Err(self.invalid_instruction("dynamic type"));
-            }
+            mir::Instruction::DynamicPayload {
+                destination,
+                dynamic,
+                ..
+            } => self.lower_dynamic_payload(*destination, *dynamic)?,
 
-            mir::Instruction::VariantTag { .. } => {
-                return Err(self.invalid_instruction("variant tag"));
-            }
-
-            mir::Instruction::VariantPayload { .. } => {
-                return Err(self.invalid_instruction("variant payload"));
-            }
+            mir::Instruction::DynamicType {
+                destination,
+                dynamic,
+            } => self.lower_dynamic_type(*destination, *dynamic)?,
 
             mir::Instruction::VectorSplat { destination, value } => {
                 self.lower_vector_splat(pool, *destination, *value)?
@@ -226,35 +239,9 @@ impl<'a> BlockLowerer<'a> {
 
             inst if is_tensor_instruction(inst) => self.lower_tensor(inst, pool)?,
 
-            mir::Instruction::Call {
-                destination,
-                function,
-                call,
-                ..
-            } => self.lower_call(*destination, *function, call, pool)?,
+            mir::Instruction::Call { call, .. } => self.lower_call(call, pool)?,
 
-            mir::Instruction::CallVirtual {
-                destination,
-                receiver,
-                slot: method,
-                call,
-                ..
-            } => self.lower_virtual_call(*destination, *receiver, *method, call, pool)?,
-
-            mir::Instruction::CallDynamic {
-                destination,
-                receiver,
-                slot: method,
-                call,
-                ..
-            } => self.lower_dynamic_call(*destination, *receiver, *method, call, pool)?,
-
-            mir::Instruction::CallIndirect {
-                destination,
-                callee,
-                call,
-                ..
-            } => self.lower_indirect_call(*destination, *callee, call, pool)?,
+            mir::Instruction::Drop { value } => self.lower_drop(*value, pool)?,
 
             mir::Instruction::NewZeroed {
                 destination,
@@ -265,7 +252,7 @@ impl<'a> BlockLowerer<'a> {
                 *destination,
                 *layout,
                 *result_type,
-                super::allocation::AllocationInitialization::Zeroed,
+                AllocationInitialization::Zeroed,
             )?,
 
             mir::Instruction::NewUninit {
@@ -277,7 +264,7 @@ impl<'a> BlockLowerer<'a> {
                 *destination,
                 *layout,
                 *result_type,
-                super::allocation::AllocationInitialization::Uninit,
+                AllocationInitialization::Uninit,
             )?,
 
             mir::Instruction::NewComplete {
@@ -296,7 +283,7 @@ impl<'a> BlockLowerer<'a> {
                 *element,
                 *length,
                 *result_type,
-                super::allocation::AllocationInitialization::Zeroed,
+                AllocationInitialization::Zeroed,
             )?,
 
             mir::Instruction::NewSliceUninit {
@@ -311,7 +298,7 @@ impl<'a> BlockLowerer<'a> {
                 *element,
                 *length,
                 *result_type,
-                super::allocation::AllocationInitialization::Uninit,
+                AllocationInitialization::Uninit,
             )?,
 
             mir::Instruction::Free { value } => self.lower_free(*value)?,
@@ -324,7 +311,7 @@ impl<'a> BlockLowerer<'a> {
                 *destination,
                 *layout,
                 *result_type,
-                super::allocation::AllocationInitialization::Zeroed,
+                AllocationInitialization::Zeroed,
             )?,
 
             mir::Instruction::FrameAllocUninit {
@@ -335,7 +322,7 @@ impl<'a> BlockLowerer<'a> {
                 *destination,
                 *layout,
                 *result_type,
-                super::allocation::AllocationInitialization::Uninit,
+                AllocationInitialization::Uninit,
             )?,
 
             mir::Instruction::Pin {

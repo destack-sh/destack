@@ -17,6 +17,7 @@ use super::block::{BlockOrder, FunctionContext};
 use super::layout::StorageLayout;
 use super::linker::Linker;
 use super::pool::Pool;
+use super::resume::InvokeStates;
 use super::value::OperandMap;
 
 /// One whole-function lowerer.
@@ -39,7 +40,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         frame_layout_id: FrameLayoutId,
         frame_layout: &'a FrameLayout,
         yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, FrameStateId>,
-        call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, FrameStateId>,
+        invoke_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, InvokeStates>,
         value_types: &'a [mir::LocalNodeId<mir::Type>],
         side_table: &'table mut SideTableBuilder,
     ) -> LinkResult<Option<Self>> {
@@ -78,7 +79,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             function_id: func_id,
             entry_block,
             yield_frame_states,
-            call_frame_states,
+            invoke_frame_states,
             call_targets: program.call_targets(),
             program,
             frame_layout,

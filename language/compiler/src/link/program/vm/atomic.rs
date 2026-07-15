@@ -239,7 +239,7 @@ impl BlockLowerer<'_> {
             return Err(self.invalid_pointer_type(format!("{pointer:?}")));
         };
 
-        let pointer = type_linker.reference_cell_layout(space.clone(), *kind);
+        let pointer = type_linker.reference_cell_layout(*space, *kind);
         let address = atomic_address(pointer)
             .ok_or_else(|| self.invalid_pointer_type(format!("{pointer:?}")))?;
 

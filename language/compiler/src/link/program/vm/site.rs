@@ -7,7 +7,6 @@ use destack_program::{
 
 use crate::LinkResult;
 
-use super::allocation;
 use super::lower::BlockLowerer;
 
 impl BlockLowerer<'_> {
@@ -29,7 +28,7 @@ impl BlockLowerer<'_> {
                 AllocationOperation::Object,
                 *layout,
                 *result_type,
-                allocation::AllocationInitialization::Zeroed,
+                AllocationInitialization::Zeroed,
             )?),
             mir::Instruction::NewUninit {
                 layout,
@@ -40,7 +39,7 @@ impl BlockLowerer<'_> {
                 AllocationOperation::Object,
                 *layout,
                 *result_type,
-                allocation::AllocationInitialization::Uninit,
+                AllocationInitialization::Uninit,
             )?),
             mir::Instruction::NewSliceZeroed {
                 element,
@@ -51,7 +50,7 @@ impl BlockLowerer<'_> {
                 AllocationOperation::Slice,
                 *element,
                 *result_type,
-                allocation::AllocationInitialization::Zeroed,
+                AllocationInitialization::Zeroed,
             )?),
             mir::Instruction::NewSliceUninit {
                 element,
@@ -62,7 +61,7 @@ impl BlockLowerer<'_> {
                 AllocationOperation::Slice,
                 *element,
                 *result_type,
-                allocation::AllocationInitialization::Uninit,
+                AllocationInitialization::Uninit,
             )?),
             _ => None,
         };
@@ -88,7 +87,7 @@ impl BlockLowerer<'_> {
                     AllocationOperation::Object,
                     *layout,
                     result_type,
-                    allocation::AllocationInitialization::Zeroed,
+                    AllocationInitialization::Zeroed,
                 )?)
             }
             mir::Terminator::NewUninitTry {
@@ -100,7 +99,7 @@ impl BlockLowerer<'_> {
                     AllocationOperation::Object,
                     *layout,
                     result_type,
-                    allocation::AllocationInitialization::Uninit,
+                    AllocationInitialization::Uninit,
                 )?)
             }
             mir::Terminator::NewSliceZeroedTry {
@@ -112,7 +111,7 @@ impl BlockLowerer<'_> {
                     AllocationOperation::Slice,
                     *element,
                     result_type,
-                    allocation::AllocationInitialization::Zeroed,
+                    AllocationInitialization::Zeroed,
                 )?)
             }
             mir::Terminator::NewSliceUninitTry {
@@ -124,7 +123,7 @@ impl BlockLowerer<'_> {
                     AllocationOperation::Slice,
                     *element,
                     result_type,
-                    allocation::AllocationInitialization::Uninit,
+                    AllocationInitialization::Uninit,
                 )?)
             }
             _ => None,
@@ -211,41 +210,8 @@ impl BlockLowerer<'_> {
         let point = self.program_point(pc);
 
         let site = match instruction {
-            mir::Instruction::Call { function, call, .. } => {
-                Some(self.direct_call_site(point, CallMode::Return, *function, call.signature))
-            }
-            mir::Instruction::CallVirtual {
-                receiver,
-                class,
-                slot,
-                call,
-                ..
-            } => Some(self.dispatch_call_site(
-                point,
-                CallMode::Return,
-                CallDispatch::Virtual,
-                *receiver,
-                *class,
-                *slot,
-                call.signature,
-            )?),
-            mir::Instruction::CallDynamic {
-                receiver,
-                constraint,
-                slot,
-                call,
-                ..
-            } => Some(self.dispatch_call_site(
-                point,
-                CallMode::Return,
-                CallDispatch::Dynamic,
-                *receiver,
-                *constraint,
-                *slot,
-                call.signature,
-            )?),
-            mir::Instruction::CallIndirect { call, .. } => {
-                Some(self.indirect_call_site(point, CallMode::Return, call.signature))
+            mir::Instruction::Call { call, .. } => {
+                Some(self.call_site(point, CallMode::Return, call)?)
             }
             _ => None,
         };
@@ -305,78 +271,12 @@ impl BlockLowerer<'_> {
         let point = self.program_point(pc);
 
         let site = match terminator {
-            mir::Terminator::Call { function, call, .. } => {
-                Some(self.direct_call_site(point, CallMode::Return, *function, call.signature))
+            mir::Terminator::Invoke { call, .. } => {
+                Some(self.call_site(point, CallMode::Return, call)?)
             }
-            mir::Terminator::CallIndirect { call, .. } => {
-                Some(self.indirect_call_site(point, CallMode::Return, call.signature))
+            mir::Terminator::TailCall { call } => {
+                Some(self.call_site(point, CallMode::Tail, call)?)
             }
-            mir::Terminator::CallVirtual {
-                receiver,
-                class,
-                slot,
-                call,
-                ..
-            } => Some(self.dispatch_call_site(
-                point,
-                CallMode::Return,
-                CallDispatch::Virtual,
-                *receiver,
-                *class,
-                *slot,
-                call.signature,
-            )?),
-            mir::Terminator::CallDynamic {
-                receiver,
-                constraint,
-                slot,
-                call,
-                ..
-            } => Some(self.dispatch_call_site(
-                point,
-                CallMode::Return,
-                CallDispatch::Dynamic,
-                *receiver,
-                *constraint,
-                *slot,
-                call.signature,
-            )?),
-            mir::Terminator::TailCall { function, call, .. } => {
-                Some(self.direct_call_site(point, CallMode::Tail, *function, call.signature))
-            }
-            mir::Terminator::TailCallIndirect { call, .. } => {
-                Some(self.indirect_call_site(point, CallMode::Tail, call.signature))
-            }
-            mir::Terminator::TailCallVirtual {
-                receiver,
-                class,
-                slot,
-                call,
-                ..
-            } => Some(self.dispatch_call_site(
-                point,
-                CallMode::Tail,
-                CallDispatch::Virtual,
-                *receiver,
-                *class,
-                *slot,
-                call.signature,
-            )?),
-            mir::Terminator::TailCallDynamic {
-                receiver,
-                constraint,
-                slot,
-                call,
-                ..
-            } => Some(self.dispatch_call_site(
-                point,
-                CallMode::Tail,
-                CallDispatch::Dynamic,
-                *receiver,
-                *constraint,
-                *slot,
-                call.signature,
-            )?),
             _ => None,
         };
 
@@ -398,7 +298,7 @@ impl BlockLowerer<'_> {
         allocation: AllocationOperation,
         storage_type: mir::TypeId,
         result_type: mir::TypeId,
-        initialization: allocation::AllocationInitialization,
+        initialization: AllocationInitialization,
     ) -> LinkResult<AllocationSite> {
         let storage_layout = self.layout_for_type(storage_type)?.layout_id;
         let space = match allocation {
@@ -409,7 +309,7 @@ impl BlockLowerer<'_> {
         Ok(AllocationSite {
             point,
             operation: allocation,
-            initialization: self.allocation_initialization(initialization),
+            initialization,
             space,
             result_type: self.function.program.type_id(result_type),
             storage_type: self.function.program.type_id(storage_type),
@@ -431,17 +331,6 @@ impl BlockLowerer<'_> {
         };
 
         self.value_type_for_value(result)
-    }
-
-    /// Convert compiler allocation initialization into the program row shape.
-    fn allocation_initialization(
-        &self,
-        initialization: allocation::AllocationInitialization,
-    ) -> AllocationInitialization {
-        match initialization {
-            allocation::AllocationInitialization::Zeroed => AllocationInitialization::Zeroed,
-            allocation::AllocationInitialization::Uninit => AllocationInitialization::Uninit,
-        }
     }
 
     /// Build one direct memory access site row.
@@ -494,6 +383,54 @@ impl BlockLowerer<'_> {
         }
     }
 
+    /// Build one call site row.
+    fn call_site(
+        &self,
+        point: ProgramPoint,
+        mode: CallMode,
+        call: &mir::Call,
+    ) -> LinkResult<CallSite> {
+        match &call.callee {
+            mir::Callee::Direct { function } => {
+                Ok(self.direct_call_site(point, mode, *function, call.signature))
+            }
+            mir::Callee::Indirect { .. } => {
+                Ok(self.indirect_call_site(point, mode, call.signature))
+            }
+            mir::Callee::Virtual {
+                receiver,
+                class,
+                slot,
+            } => {
+                let space = self
+                    .operand_map()
+                    .space(*receiver)
+                    .ok_or_else(|| self.invalid_pointer_type(format!("{receiver:?}")))?;
+
+                Ok(self.dispatch_call_site(
+                    point,
+                    mode,
+                    CallDispatch::Virtual,
+                    space,
+                    *class,
+                    *slot,
+                    call.signature,
+                ))
+            }
+            mir::Callee::Dynamic {
+                constraint, slot, ..
+            } => Ok(self.dispatch_call_site(
+                point,
+                mode,
+                CallDispatch::Dynamic,
+                mir::Space::Local,
+                *constraint,
+                *slot,
+                call.signature,
+            )),
+        }
+    }
+
     /// Build one direct call site row.
     fn direct_call_site(
         &self,
@@ -520,17 +457,12 @@ impl BlockLowerer<'_> {
         point: ProgramPoint,
         mode: CallMode,
         dispatch: CallDispatch,
-        receiver: mir::Value,
+        space: mir::Space,
         dispatch_type: mir::TypeId,
         slot: mir::DispatchSlot,
         signature_type: mir::TypeId,
-    ) -> LinkResult<CallSite> {
-        let space = self
-            .operand_map()
-            .space(receiver)
-            .ok_or_else(|| self.invalid_pointer_type(format!("{receiver:?}")))?;
-
-        Ok(CallSite {
+    ) -> CallSite {
+        CallSite {
             point,
             mode,
             dispatch,
@@ -539,7 +471,7 @@ impl BlockLowerer<'_> {
             dispatch_type: Optional::some(self.function.program.type_id(dispatch_type)),
             signature_type: self.function.program.type_id(signature_type),
             slot: Optional::some(slot.0),
-        })
+        }
     }
 
     /// Build one indirect call site row.

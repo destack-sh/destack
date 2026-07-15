@@ -1,11 +1,11 @@
 use crate::tests::{
-    assert_execution_completed, assert_execution_stopped, create_machine,
+    TestMachine, assert_execution_completed, assert_execution_stopped, create_machine,
     create_machine_with_target_layout, create_machine_with_variant_layout, run_mir_expect,
     run_mir_ok, run_mir_with_frame_ok,
 };
-use destack_heap::{HeapReference, SharedHeap, SharedHeapReference};
-use destack_mir::{DiscriminantField, TargetLayout, TraceMap, VariantEncoding};
-use destack_program::vm::Cell;
+use destack_heap::{Heap, HeapReference, SharedHeap, SharedHeapReference};
+use destack_mir::{DiscriminantField, TargetLayout, TraceMap, Type, VariantEncoding};
+use destack_program::vm::{Cell, Op, SmallAllocationPlanId};
 use destack_program::{
     MemoryAccess, MemoryRange, MemoryStop, MemoryTarget, StopReason, Value, WatchSet, WatchpointId,
 };
@@ -35,11 +35,7 @@ fn decode_usize(bytes: &[u8], offset: usize) -> usize {
 }
 
 /// Read managed heap bytes for representation assertions.
-fn read_heap_bytes(
-    heap: &destack_heap::Heap,
-    reference: HeapReference,
-    byte_len: usize,
-) -> Vec<u8> {
+fn read_heap_bytes(heap: &Heap, reference: HeapReference, byte_len: usize) -> Vec<u8> {
     let mut bytes = vec![0u8; byte_len];
     let address = heap.heap_base_address() + reference.offset();
     unsafe {
@@ -261,6 +257,51 @@ entry:
             .expect("niche storage should execute"),
         Value::uint64(42),
     );
+}
+
+/// Variant trace maps select references from the active logical case.
+#[test]
+fn test_trace_variant_case() {
+    let mir = r#"
+type Node { }
+type Choice = variant<uint8, ref<Node, managed, readonly>> {
+    0 = ref<Node, managed, readonly>;
+    1 = void;
+};
+
+function choose(v0: ref<Node, managed, readonly>): Choice {
+entry(v0: ref<Node, managed, readonly>):
+    v1: uint8 = 0
+    v2: Choice = aggregate (v1, v0)
+    return v2
+}
+"#;
+    let encoding = VariantEncoding::Direct {
+        field: DiscriminantField::scalar(8, 1),
+    };
+    let machine = create_machine_with_variant_layout(mir, encoding, &[0, 0], 16, 8);
+    let variant_types = machine
+        .tree
+        .iter_nodes::<Type>()
+        .filter_map(|(ty, value)| matches!(value, Type::Variant { .. }).then_some(ty))
+        .map(|ty| machine.program_type(ty))
+        .collect::<Vec<_>>();
+
+    // retain the managed reference only for the reference-bearing case
+    let program = &machine.machine.program;
+    for variant_type in variant_types {
+        let layout = program
+            .layout(variant_type)
+            .expect("variant layout should exist");
+        let trace = program
+            .trace_map(layout.trace)
+            .expect("variant trace map should decode");
+        let TraceMap::Variant { cases, .. } = trace else {
+            panic!("variant layout should use a variant trace map");
+        };
+        assert!(cases[0].map.has_local_reference());
+        assert_eq!(cases[1].map, TraceMap::Empty);
+    }
 }
 
 /// Watchpoints stop after a matching heap store.
@@ -947,6 +988,56 @@ entry:
             .trace_map(reference, machine.machine.trace_view()),
         Ok(TraceMap::empty())
     );
+}
+
+/// Uninitialized managed allocations retain their completed value destructor.
+#[test]
+fn test_new_uninit_records_drop_plan() {
+    let mir = r#"
+type Item {
+    value: ref<int32, unique, mutable>;
+}
+
+function Item.drop(v0: ref<Item, borrowed, exclusive>): void {
+entry(v0: ref<Item, borrowed, exclusive>):
+    return
+}
+
+function allocItem(): uninit<ref<Item, managed, mutable>> {
+entry:
+    v0: uninit<ref<Item, managed, mutable>> = new.uninit Item
+    return v0
+}
+"#;
+    let machine = TestMachine::with_drop(mir, "Item", "Item.drop");
+    let program = &machine.machine.program;
+    let function = program
+        .function_id_by_name("allocItem")
+        .expect("allocation function should exist");
+    let code = program
+        .vm_function_by_id(function)
+        .expect("allocation function should have VM code");
+    let allocation = code
+        .code
+        .iter()
+        .find(|instruction| {
+            matches!(
+                instruction.op,
+                Op::AllocateHeapSmallNoscanUninit
+                    | Op::AllocateHeapSmallScanUninit
+                    | Op::AllocateHeapSmallSharedEdgeUninit
+            )
+        })
+        .expect("allocation function should contain one uninitialized allocation");
+    let plan = program
+        .side_table()
+        .small_allocation_plan(program.sections(), SmallAllocationPlanId(allocation.b));
+    let drop = plan
+        .allocation
+        .drop_plan()
+        .expect("managed allocation should retain its destructor");
+
+    assert!(program.drop_entry(drop.drop).is_some());
 }
 
 /// Managed nominal stores write the struct field bytes.

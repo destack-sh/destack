@@ -22,21 +22,6 @@ struct FrameRange {
 }
 
 impl FrameRange {
-    /// Return the byte offset from the frame value base.
-    fn byte_offset(self) -> usize {
-        self.byte_offset
-    }
-
-    /// Return the byte width of this byte range.
-    fn byte_len(self) -> usize {
-        self.byte_len
-    }
-
-    /// Return the cell representation for this range.
-    fn cell_layout(self) -> Option<CellLayout> {
-        self.cell_layout
-    }
-
     /// Return this frame range as a projection.
     fn to_projection(self) -> Projection {
         Projection::fixed(
@@ -49,26 +34,22 @@ impl FrameRange {
 }
 
 impl<'a> BlockLowerer<'a> {
-    /// Lower one MIR value constructor into frame stores.
-    pub(super) fn lower_frame_constructor(
-        &self,
-        destination: mir::Value,
-        values: mir::ValueSlice,
-    ) -> LinkResult<Vec<Instruction>> {
-        // resolve constructor values
-        let values = self.function.tree.get_values(values);
-
-        self.lower_frame_init(destination, values)
-    }
-
-    /// Lower one MIR value constructor into frame stores.
-    pub(super) fn lower_frame_init(
+    /// Lower one MIR aggregate into frame stores.
+    pub(super) fn lower_aggregate(
         &self,
         destination: mir::Value,
         values: &[mir::Value],
     ) -> LinkResult<Vec<Instruction>> {
         // resolve physical frame ranges
         let destination_type = self.value_type_for_value(destination)?;
+        let destination_repr = self.function.tree.repr_type(destination_type);
+        if matches!(
+            self.function.tree.get(destination_repr),
+            mir::Type::Variant { .. }
+        ) {
+            return self.lower_variant_init(destination, destination_type, values);
+        }
+
         let ranges = self.frame_ranges(destination_type)?;
 
         // require one source per range
@@ -86,30 +67,29 @@ impl<'a> BlockLowerer<'a> {
         Ok(instructions)
     }
 
-    /// Lower one frame field read into a cell load or frame move.
-    pub(super) fn lower_field_read(&self, inst: &mir::Instruction) -> LinkResult<Vec<Instruction>> {
-        let mir::Instruction::FieldGet {
-            destination,
-            aggregate: base,
-            index,
-        } = inst
-        else {
-            return Err(self.invalid_instruction("field read"));
-        };
-
+    /// Lower one static aggregate projection into a cell load or frame move.
+    pub(super) fn lower_projection_read(
+        &self,
+        destination: mir::Value,
+        base: mir::Value,
+        index: u32,
+    ) -> LinkResult<Vec<Instruction>> {
         // resolve values and layout
-        let destination = *destination;
-        let base = *base;
         let destination_type = self.value_type_for_value(destination)?;
         let base_type = self.value_type_for_value(base)?;
+        let base_repr = self.function.tree.repr_type(base_type);
+        if matches!(self.function.tree.get(base_repr), mir::Type::Variant { .. }) {
+            return self.lower_variant_read(destination, base, base_type, index);
+        }
+
         let layout = self.layout_for_type(base_type)?;
         let field_count = layout
             .field_count()
             .or_else(|| layout.element_count())
             .ok_or_else(|| self.invalid_instruction("field read count"))?;
         let field = self
-            .field_projection(base_type, *index)
-            .ok_or_else(|| self.invalid_field_access(*index, field_count))?;
+            .field_projection(base_type, index)
+            .ok_or_else(|| self.invalid_field_access(index, field_count))?;
 
         // read cell fields directly
         if field.cell_layout().is_some() {
@@ -148,8 +128,8 @@ impl<'a> BlockLowerer<'a> {
         )?])
     }
 
-    /// Lower one functional field update into frame stores.
-    pub(super) fn lower_field_update(
+    /// Lower one functional aggregate projection update into frame stores.
+    pub(super) fn lower_projection_update(
         &self,
         destination: mir::Value,
         base: mir::Value,
@@ -158,6 +138,14 @@ impl<'a> BlockLowerer<'a> {
     ) -> LinkResult<Vec<Instruction>> {
         // resolve original frame value and replacement field
         let destination_type = self.value_type_for_value(destination)?;
+        let destination_repr = self.function.tree.repr_type(destination_type);
+        if matches!(
+            self.function.tree.get(destination_repr),
+            mir::Type::Variant { .. }
+        ) {
+            return Err(self.invalid_instruction("variant field update"));
+        }
+
         let layout = self.layout_for_type(destination_type)?;
         let field_count = layout
             .field_count()
@@ -184,6 +172,51 @@ impl<'a> BlockLowerer<'a> {
             self.store_frame_range(destination, base, whole)?,
             self.store_frame_range(destination, value, field)?,
         ])
+    }
+
+    /// Lower one logical variant constructor into physical variant encoding.
+    fn lower_variant_init(
+        &self,
+        destination: mir::Value,
+        destination_type: mir::TypeId,
+        values: &[mir::Value],
+    ) -> LinkResult<Vec<Instruction>> {
+        let [discriminant, storage] = values else {
+            return Err(self.invalid_field_access(values.len() as u32, 2));
+        };
+        let layout = self.layout_for_type(destination_type)?;
+
+        Ok(vec![Instruction::new(
+            Op::VariantConstruct,
+            self.value_offset(destination)?,
+            self.value_offset(*discriminant)?,
+            self.value_offset(*storage)?,
+            layout.layout_id.raw(),
+        )])
+    }
+
+    /// Lower one logical variant projection through its physical encoding.
+    fn lower_variant_read(
+        &self,
+        destination: mir::Value,
+        base: mir::Value,
+        base_type: mir::TypeId,
+        index: u32,
+    ) -> LinkResult<Vec<Instruction>> {
+        let op = match index {
+            0 => Op::VariantDiscriminant,
+            1 => Op::VariantStorage,
+            _ => return Err(self.invalid_field_access(index, 2)),
+        };
+        let layout = self.layout_for_type(base_type)?;
+
+        Ok(vec![Instruction::new(
+            op,
+            self.value_offset(destination)?,
+            self.value_offset(base)?,
+            layout.layout_id.raw(),
+            0,
+        )])
     }
 
     /// Return direct byte ranges for one frame-backed value type.
@@ -243,7 +276,7 @@ impl<'a> BlockLowerer<'a> {
         range: FrameRange,
     ) -> LinkResult<Instruction> {
         // move non-cell values as aggregate ranges
-        if range.cell_layout().is_none() {
+        if range.cell_layout.is_none() {
             let destination_access = range.to_projection();
             let source_access = FrameRange {
                 byte_offset: 0,
@@ -262,9 +295,9 @@ impl<'a> BlockLowerer<'a> {
         // store cell values through the normal frame store path
         let access = Projection::fixed(
             range.value_type,
-            range.byte_offset(),
-            range.byte_len(),
-            range.cell_layout(),
+            range.byte_offset,
+            range.byte_len,
+            range.cell_layout,
         );
         let op = select_frame_value_store_op(access)
             .ok_or_else(|| self.invalid_instruction("frame value store operation"))?;

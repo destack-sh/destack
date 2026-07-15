@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use destack_mir as mir;
-use destack_mir::{TraceMap, TraceVariant};
+use destack_mir::{TraceMap, VariantTrace};
 
+use destack_program::LayoutId;
 use destack_program::vm::Cell;
-use destack_program::{CellLayout, LayoutId};
 
 use crate::LinkResult;
 
@@ -159,6 +159,11 @@ impl StorageLayout {
     /// Return the byte alignment of this layout.
     pub(crate) fn alignment(&self) -> usize {
         self.alignment
+    }
+
+    /// Return the power-of-two alignment exponent.
+    pub(crate) fn alignment_log2(&self) -> u32 {
+        self.alignment.trailing_zeros()
     }
 
     /// Return one field layout by index.
@@ -338,13 +343,7 @@ impl StorageLayoutBuilder<'_> {
 
                 layout
             }
-            mir::Type::Dynamic { .. } => {
-                let layout = self
-                    .table
-                    .type_layout(ty)
-                    .ok_or_else(|| self.program.invalid_input("dynamic layout"))?;
-                self.layout_from_table_entry(layout_id, layout)?
-            }
+            mir::Type::Dynamic { .. } => self.dynamic_layout(layout_id),
             mir::Type::Newtype { .. } | mir::Type::WithLifetimes { .. } => {
                 unreachable!("repr_type must peel transparent type wrappers")
             }
@@ -356,13 +355,7 @@ impl StorageLayoutBuilder<'_> {
                     .collect::<Vec<_>>();
                 self.record_layout(layout_id, ty, field_types)?
             }
-            mir::Type::Variant { .. } => {
-                let layout = self
-                    .table
-                    .type_layout(ty)
-                    .ok_or_else(|| self.program.invalid_input("variant layout"))?;
-                self.layout_from_table_entry(layout_id, layout)?
-            }
+            mir::Type::Variant { .. } => self.variant_layout(layout_id, ty)?,
             mir::Type::Tuple { elements, .. } => {
                 let element_types = elements.to_vec();
                 self.record_layout(layout_id, ty, element_types)?
@@ -370,12 +363,7 @@ impl StorageLayoutBuilder<'_> {
             mir::Type::FixedArray {
                 element, length, ..
             } => self.array_layout(layout_id, ty, *element, *length as usize)?,
-            mir::Type::Slice {
-                kind,
-                element: _,
-                space,
-                ..
-            } => self.slice_layout(*kind, space.clone(), layout_id)?,
+            mir::Type::Slice { .. } => self.slice_layout(layout_id),
             mir::Type::Function { environment, .. } => {
                 self.function_layout(layout_id, *environment)?
             }
@@ -454,8 +442,12 @@ impl StorageLayoutBuilder<'_> {
 
                 (byte_len, byte_len.clamp(1, 8))
             }
+            mir::Type::TypeId => {
+                let byte_len = std::mem::size_of::<u32>();
+
+                (byte_len, byte_len)
+            }
             mir::Type::TypeDescriptor
-            | mir::Type::TypeId
             | mir::Type::Reference { .. }
             | mir::Type::FunctionPointer { .. } => {
                 let byte_len = self.target_layout.pointer_bytes() as usize;
@@ -475,21 +467,25 @@ impl StorageLayoutBuilder<'_> {
         })
     }
 
-    /// Build one storage layout from one MIR layout table entry.
-    fn layout_from_table_entry(
+    /// Build one physical variant layout.
+    fn variant_layout(
         &mut self,
         layout_id: LayoutId,
-        layout: &mir::Layout,
+        ty: mir::TypeId,
     ) -> LinkResult<StorageLayout> {
-        let mut fields = Vec::with_capacity(layout.shape.fields().len());
+        let layout = self
+            .table
+            .type_layout(ty)
+            .ok_or_else(|| self.program.invalid_input("variant layout"))?;
+        let mir::LayoutShape::Variant(variant) = &layout.shape else {
+            return Err(self.program.invalid_input("variant layout shape"));
+        };
 
-        for field in layout.shape.fields() {
-            self.layout(field.ty)?;
-            fields.push(FieldLayout {
-                ty: field.ty,
-                offset: field.offset as usize,
-                byte_len: field.size as usize,
-            });
+        // build every type referenced by the physical variant layout
+        self.layout(variant.discriminant)?;
+        self.layout(variant.storage)?;
+        for case in &variant.cases {
+            self.layout(case.ty)?;
         }
 
         Ok(StorageLayout {
@@ -497,7 +493,7 @@ impl StorageLayoutBuilder<'_> {
             byte_len: layout.size as usize,
             trace_map: TraceMap::empty(),
             alignment: layout.alignment as usize,
-            fields: Some(fields),
+            fields: None,
             element: None,
             element_count: None,
             is_scalar: false,
@@ -575,29 +571,18 @@ impl StorageLayoutBuilder<'_> {
     }
 
     /// Build one slice descriptor layout.
-    fn slice_layout(
-        &self,
-        kind: mir::ReferenceKind,
-        space: mir::Space,
-        layout_id: LayoutId,
-    ) -> LinkResult<StorageLayout> {
-        let cell_layout = CellLayout::reference(space, kind);
-        let pointer_bytes = self.target_layout.pointer_bytes() as usize;
-        let pointer_byte_len = cell_layout.byte_len(pointer_bytes);
-        let length_offset = align_offset(pointer_byte_len, pointer_bytes);
-        let byte_len = length_offset + pointer_bytes;
-
-        Ok(StorageLayout {
+    fn slice_layout(&self, layout_id: LayoutId) -> StorageLayout {
+        StorageLayout {
             layout_id,
-            byte_len,
+            byte_len: Cell::BYTE_LEN * 2,
             trace_map: TraceMap::empty(),
-            alignment: pointer_bytes,
+            alignment: Cell::BYTE_LEN,
             fields: None,
             element: None,
             element_count: None,
             is_scalar: false,
             is_slice: true,
-        })
+        }
     }
 
     /// Build one function value layout.
@@ -606,7 +591,6 @@ impl StorageLayoutBuilder<'_> {
         layout_id: LayoutId,
         environment_type: mir::LocalNodeId<mir::Type>,
     ) -> LinkResult<StorageLayout> {
-        let pointer_bytes = self.target_layout.pointer_bytes() as usize;
         let environment_layout = self.layout(environment_type)?;
         if !environment_layout.is_cell() {
             return Err(self.program.invalid_input("function environment layout"));
@@ -614,15 +598,30 @@ impl StorageLayoutBuilder<'_> {
 
         Ok(StorageLayout {
             layout_id,
-            byte_len: pointer_bytes * 2,
+            byte_len: Cell::BYTE_LEN * 2,
             trace_map: TraceMap::empty(),
-            alignment: pointer_bytes,
+            alignment: Cell::BYTE_LEN,
             fields: None,
             element: None,
             element_count: None,
             is_scalar: false,
             is_slice: false,
         })
+    }
+
+    /// Build one dynamic carrier layout.
+    fn dynamic_layout(&self, layout_id: LayoutId) -> StorageLayout {
+        StorageLayout {
+            layout_id,
+            byte_len: Cell::BYTE_LEN * 2,
+            trace_map: TraceMap::empty(),
+            alignment: Cell::BYTE_LEN,
+            fields: None,
+            element: None,
+            element_count: None,
+            is_scalar: false,
+            is_slice: false,
+        }
     }
 
     /// Build one opaque handle layout.
@@ -788,10 +787,21 @@ impl StorageLayoutBuilder<'_> {
             return self.function_trace_map(*environment);
         }
 
+        if matches!(
+            self.tree.get(self.tree.repr_type(ty)),
+            mir::Type::Dynamic { .. }
+        ) {
+            // trace the boxed local payload stored in the first carrier cell
+            let mut offsets = ReferenceOffsets::default();
+            offsets.push(mir::Space::Local, 0);
+
+            return Ok(offsets.into_trace_map());
+        }
+
         if let Some(layout) = self.table.type_layout(ty)
             && matches!(layout.shape, mir::LayoutShape::Variant(_))
         {
-            return self.build_variant_trace_map(ty, layout);
+            return self.build_variant_trace_map(layout);
         }
 
         let mut offsets = ReferenceOffsets::default();
@@ -812,7 +822,7 @@ impl StorageLayoutBuilder<'_> {
                 "function environment layout for {environment_type:?}"
             ))
         })?;
-        let offset = u32::from(self.target_layout.pointer_bytes());
+        let offset = Cell::BYTE_LEN as u32;
 
         if !environment_layout.is_cell() {
             return Err(self.program.invalid_input("function environment layout"));
@@ -828,109 +838,32 @@ impl StorageLayoutBuilder<'_> {
         Ok(offsets.into_trace_map())
     }
 
-    /// Build a tag-selected trace map for one lowered variant.
-    fn build_variant_trace_map(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-        layout: &mir::Layout,
-    ) -> LinkResult<TraceMap> {
+    /// Build a discriminant-selected trace map for one lowered variant.
+    fn build_variant_trace_map(&self, layout: &mir::Layout) -> LinkResult<TraceMap> {
         let mir::LayoutShape::Variant(layout) = &layout.shape else {
             return Err(self
                 .program
                 .invalid_input("trace map requested for non-variant layout"));
         };
-        let mir::Type::Variant {
-            tag,
-            storage,
-            cases,
-            ..
-        } = self.tree.get(ty)
-        else {
-            return Err(self
-                .program
-                .invalid_input("trace map requested for non-variant type"));
-        };
-        let tag_type = *tag;
-        let storage_type = *storage;
+        let mut trace_variants = Vec::with_capacity(layout.cases.len());
 
-        let tag_bytes = self.variant_tag_bytes(tag_type)?;
-        let mut trace_variants = Vec::with_capacity(cases.len());
-
-        for case in cases.iter() {
-            let element_type = case.ty;
-            let map = self.variant_trace_map(storage_type, element_type)?;
-            trace_variants.push(TraceVariant {
-                tag: self.variant_tag_bits(tag_type, &case.tag)?,
-                payload_offset: layout.payload_offset,
+        for case in &layout.cases {
+            let map = self.variant_trace_map(case.ty)?;
+            trace_variants.push(VariantTrace {
+                discriminant: case.discriminant,
+                payload_offset: case.payload_offset,
                 map,
             });
         }
 
-        Ok(TraceMap::Tagged {
-            tag_bytes,
-            variants: trace_variants.into_boxed_slice(),
-        })
-    }
-
-    /// Return one variant tag as normalized runtime bits.
-    fn variant_tag_bits(
-        &self,
-        tag_type: mir::LocalNodeId<mir::Type>,
-        tag: &mir::Constant,
-    ) -> LinkResult<u64> {
-        match (self.tree.get(tag_type), tag) {
-            (
-                mir::Type::Int {
-                    width,
-                    is_signed: true,
-                },
-                mir::Constant::Int { value, .. },
-            ) if *width <= u64::BITS as u16 => Ok((*value as i64) as u64),
-            (
-                mir::Type::Int {
-                    width,
-                    is_signed: false,
-                },
-                mir::Constant::UInt { value, .. },
-            ) if *width <= u64::BITS as u16 => u64::try_from(*value).map_err(|_| {
-                self.program
-                    .layout_overflow("variant tag does not fit in one cell")
-            }),
-            _ => Err(self
-                .program
-                .invalid_input("variant tag does not match tag type")),
-        }
-    }
-
-    /// Return the tag byte width for one variant tag type.
-    fn variant_tag_bytes(&self, tag_type: mir::LocalNodeId<mir::Type>) -> LinkResult<u8> {
-        let mir::Type::Int { width, .. } = self.tree.get(tag_type) else {
-            return Err(self
-                .program
-                .invalid_input(format!("variant tag type is not integer: {tag_type:?}")));
-        };
-
-        u8::try_from(scalar_byte_len(*width as usize)).map_err(|_| {
-            self.program
-                .layout_overflow(format!("variant tag width: {width}"))
+        Ok(TraceMap::Variant {
+            encoding: layout.encoding,
+            cases: trace_variants.into_boxed_slice(),
         })
     }
 
     /// Return the storage trace map for one variant.
-    fn variant_trace_map(
-        &self,
-        storage_type: mir::LocalNodeId<mir::Type>,
-        element_type: mir::LocalNodeId<mir::Type>,
-    ) -> LinkResult<TraceMap> {
-        let storage_layout = self.layouts.get(&storage_type).ok_or_else(|| {
-            self.program
-                .invalid_input(format!("variant storage layout for {storage_type:?}"))
-        })?;
-
-        if storage_layout.is_cell() {
-            return Ok(storage_layout.trace_map.clone());
-        }
-
+    fn variant_trace_map(&self, element_type: mir::TypeId) -> LinkResult<TraceMap> {
         self.layouts
             .get(&element_type)
             .map(|layout| layout.trace_map.clone())

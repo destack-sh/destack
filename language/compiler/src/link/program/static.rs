@@ -13,7 +13,7 @@ use super::vm::StorageLayout;
 /// Linked static memory spaces for one program.
 #[derive(Debug)]
 pub(crate) struct ProgramStatics {
-    /// Executable global metadata.
+    /// Program global table.
     pub(crate) globals: GlobalTable,
     /// Immutable program constants.
     pub(crate) constants: StaticImage,
@@ -269,11 +269,14 @@ impl<'a> StaticLinker<'a> {
 
                 self.integer_constant_bytes(constant, width, true, byte_len)
             }
-            mir::Type::Usize | mir::Type::TypeId => {
+            mir::Type::Usize => {
                 self.validate_pointer_byte_len(byte_len)?;
                 let width = self.target_layout.pointer_bits();
 
                 self.integer_constant_bytes(constant, width, false, byte_len)
+            }
+            mir::Type::TypeId => {
+                self.integer_constant_bytes(constant, u32::BITS as u16, false, byte_len)
             }
             mir::Type::Float(format) => self.float_constant_bytes(constant, *format, byte_len),
             mir::Type::Reference { nullability, .. } => {

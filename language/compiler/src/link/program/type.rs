@@ -7,7 +7,6 @@ use destack_program::{
     NewtypeLayout, ReferenceFlags, ReferenceLayout, ScalarFormat, Signature, SliceLayout,
     TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder, TensorViewLayoutBuilder,
     TypeDescriptorBuilder, TypeId, TypeTable, VariantCaseLayout, VariantLayoutBuilder,
-    VariantTagLayout,
 };
 
 use crate::LinkResult;
@@ -77,8 +76,13 @@ impl<'a> TypeLinker<'a> {
         let storage_type = self.storage_type(type_id);
         let layout = self.program_layout_id(storage_type, layout_ids)?;
         let supertypes = self.supertypes(type_id);
+        let drop = self.program.drop_id(type_id);
 
-        Ok(TypeDescriptorBuilder { layout, supertypes })
+        Ok(TypeDescriptorBuilder {
+            layout,
+            supertypes,
+            drop,
+        })
     }
 
     /// Return the program cell layout for one MIR type id.
@@ -136,18 +140,16 @@ impl<'a> TypeLinker<'a> {
             }
             mir::LayoutShape::Variant(layout) => {
                 LayoutShapeBuilder::Variant(VariantLayoutBuilder {
-                    tag: VariantTagLayout {
-                        ty: layout.tag.ty.map(|ty| self.type_id(ty)).into(),
-                        size: layout.tag.size,
-                        alignment: layout.tag.alignment,
-                    },
-                    payload_offset: layout.payload_offset,
-                    variants: layout
-                        .variants
+                    discriminant: self.type_id(layout.discriminant),
+                    storage: self.type_id(layout.storage),
+                    encoding: layout.encoding,
+                    cases: layout
+                        .cases
                         .iter()
                         .map(|variant| VariantCaseLayout {
+                            discriminant: variant.discriminant,
                             ty: self.type_id(variant.ty),
-                            layout: LayoutId::new(variant.layout.raw()),
+                            payload_offset: variant.payload_offset,
                         })
                         .collect(),
                 })
@@ -265,17 +267,18 @@ impl<'a> TypeLinker<'a> {
             mir::Type::Isize => Some(CellLayout::Int {
                 width: self.pointer_bytes() * 8,
             }),
-            mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-                Some(CellLayout::Uint {
-                    width: self.pointer_bytes() * 8,
-                })
-            }
+            mir::Type::Usize | mir::Type::TypeDescriptor => Some(CellLayout::Uint {
+                width: self.pointer_bytes() * 8,
+            }),
+            mir::Type::TypeId => Some(CellLayout::Uint {
+                width: u32::BITS as u8,
+            }),
             mir::Type::Float(mir::FloatType::Float16) => Some(CellLayout::Float16),
             mir::Type::Float(mir::FloatType::Bfloat16) => Some(CellLayout::Bfloat16),
             mir::Type::Float(mir::FloatType::Float32) => Some(CellLayout::Float32),
             mir::Type::Float(mir::FloatType::Float64) => Some(CellLayout::Float64),
             mir::Type::Reference { kind, space, .. } => {
-                Some(self.reference_cell_layout(space.clone(), *kind))
+                Some(self.reference_cell_layout(*space, *kind))
             }
             mir::Type::FunctionPointer { .. } => Some(CellLayout::FunctionPointer),
             mir::Type::Tensor { .. } => Some(CellLayout::HeapReference),
@@ -289,9 +292,11 @@ impl<'a> TypeLinker<'a> {
         match ty {
             mir::Type::Int { width, is_signed } => Some(ScalarFormat::int(*width, *is_signed)),
             mir::Type::Isize => Some(ScalarFormat::int(u16::from(self.pointer_bytes()) * 8, true)),
-            mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => Some(
-                ScalarFormat::int(u16::from(self.pointer_bytes()) * 8, false),
-            ),
+            mir::Type::Usize | mir::Type::TypeDescriptor => Some(ScalarFormat::int(
+                u16::from(self.pointer_bytes()) * 8,
+                false,
+            )),
+            mir::Type::TypeId => Some(ScalarFormat::int(u32::BITS as u16, false)),
             mir::Type::Float(float_type) => Some(ScalarFormat::Float {
                 format: *float_type,
             }),

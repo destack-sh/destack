@@ -32,9 +32,6 @@ impl<'a> DispatchLinker<'a> {
         for virtual_table in self.dispatch.iter_virtual_tables() {
             virtuals.push(VirtualTableBuilder {
                 ty: self.program.type_id(virtual_table.ty),
-                destructor: virtual_table
-                    .destructor
-                    .map(|function| self.program.function_id(function)),
                 methods: virtual_table
                     .methods
                     .iter()

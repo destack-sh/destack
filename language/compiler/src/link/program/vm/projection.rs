@@ -183,18 +183,6 @@ impl<'a> BlockLowerer<'a> {
         self.field_projection_at_offset(receiver_type, 0)
     }
 
-    /// Build the dispatch-table projection for one dynamic receiver.
-    pub(super) fn dynamic_table_projection(
-        &self,
-        receiver_type: Option<mir::LocalNodeId<mir::Type>>,
-    ) -> Option<Projection> {
-        let receiver_type = receiver_type?;
-        let raw_layout = self.function.layout_for_type(receiver_type)?;
-        let dispatch_offset = raw_layout.dynamic_dispatch_offset()?;
-
-        self.field_projection_at_offset(receiver_type, dispatch_offset as usize)
-    }
-
     /// Build one element projection from one storage layout.
     pub(super) fn element_projection(
         &self,

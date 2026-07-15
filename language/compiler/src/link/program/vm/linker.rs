@@ -14,6 +14,7 @@ use crate::LinkResult;
 
 use super::super::ProgramLinker;
 use super::lower::FunctionLowerer;
+use super::resume::InvokeStates;
 use super::{FrameLinker, LoweredFunction, ResumeLinker, StorageLayout};
 
 /// Linked VM code and execution metadata.
@@ -86,7 +87,6 @@ pub(crate) struct Linker<'a> {
 
 impl<'a> Linker<'a> {
     /// Create one VM linker.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         tree: &'a mir::Tree,
         target_layout: &'a mir::TargetLayout,
@@ -310,7 +310,7 @@ impl<'a> Linker<'a> {
         let frame_layout_id = self.frames.next_layout_id();
         let frame_layout = self.frames.build_layout(function, &value_types)?;
         let liveness = mir::FunctionLiveness::build(function, self.tree);
-        let (yield_resume, call_resume) = self.resume.build_entries(
+        let (yield_frame_states, invoke_frame_states) = self.resume.build_entries(
             function_id,
             frame_layout_id,
             &frame_layout,
@@ -324,8 +324,8 @@ impl<'a> Linker<'a> {
                 function_id,
                 frame_layout_id,
                 &frame_layout,
-                &yield_resume,
-                &call_resume,
+                &yield_frame_states,
+                &invoke_frame_states,
                 &value_types,
                 side_table,
             )?
@@ -379,7 +379,7 @@ impl<'a> Linker<'a> {
         frame_layout_id: FrameLayoutId,
         frame_layout: &FrameLayout,
         yield_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, FrameStateId>,
-        call_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, FrameStateId>,
+        invoke_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, InvokeStates>,
         value_types: &[mir::LocalNodeId<mir::Type>],
         side_table: &mut SideTableBuilder,
     ) -> LinkResult<Option<LoweredFunction>> {
@@ -389,7 +389,7 @@ impl<'a> Linker<'a> {
             frame_layout_id,
             frame_layout,
             yield_frame_states,
-            call_frame_states,
+            invoke_frame_states,
             value_types,
             side_table,
         )?;
