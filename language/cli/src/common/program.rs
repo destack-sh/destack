@@ -4,8 +4,8 @@ use std::sync::Arc;
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryBlobStore;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, Host, LintPreset,
-    LintSeverity, LinterOptions, Ref, Repository, Settings, default_blob_store, open_repository,
+    DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, Host, Ref, Repository,
+    Settings, default_blob_store, open_repository,
 };
 use destack_source::{FileSystem, FileWatcher, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{LocalWorkspace, ManifestOverride, Workspace};
@@ -86,95 +86,20 @@ impl From<LineEndingArg> for LineEnding {
     }
 }
 
-/// Lint rule preset.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum LintPresetArg {
-    /// No rules enabled by default.
-    None,
-    /// Recommended rules enabled (default).
-    #[default]
-    Recommended,
-    /// All rules enabled.
-    All,
-}
-
-impl From<LintPresetArg> for LintPreset {
-    fn from(value: LintPresetArg) -> Self {
-        match value {
-            LintPresetArg::None => LintPreset::None,
-            LintPresetArg::Recommended => LintPreset::Recommended,
-            LintPresetArg::All => LintPreset::All,
-        }
-    }
-}
-
 /// Arguments for configuring linter options.
 #[derive(Args, Debug, Clone, Default)]
 pub struct LinterOptionsArgs {
-    /// Lint rule preset (none|recommended|all, default: recommended).
-    #[arg(long = "lint-preset", value_enum)]
-    pub preset: Option<LintPresetArg>,
-
-    /// Allow specific lint rules (set to note severity).
+    /// Disable specific lint rules.
     #[arg(long = "allow", value_name = "RULE")]
     pub allow: Vec<String>,
 
-    /// Warn on specific lint rules (set to warning severity).
+    /// Warn on specific lint rules.
     #[arg(long = "warn", value_name = "RULE")]
     pub warn: Vec<String>,
 
-    /// Deny specific lint rules (set to error severity).
+    /// Report specific lint rules as errors.
     #[arg(long = "deny", value_name = "RULE")]
     pub deny: Vec<String>,
-
-    /// Maximum cyclomatic complexity (default: 40).
-    #[arg(long = "max-complexity")]
-    pub max_complexity: Option<usize>,
-
-    /// Maximum function parameters (default: 4).
-    #[arg(long = "max-params")]
-    pub max_params: Option<usize>,
-
-    /// Maximum nesting depth (default: 4).
-    #[arg(long = "max-depth")]
-    pub max_depth: Option<usize>,
-
-    /// Maximum lines per file (default: 500).
-    #[arg(long = "max-lines")]
-    pub max_lines: Option<usize>,
-}
-
-impl From<LinterOptionsArgs> for LinterOptions {
-    fn from(args: LinterOptionsArgs) -> Self {
-        let mut options = LinterOptions::default();
-        if let Some(preset) = args.preset {
-            options.preset = preset.into();
-        }
-        // apply rule overrides
-        for rule in args.allow {
-            options.overrides.insert(rule, LintSeverity::Note);
-        }
-        for rule in args.warn {
-            options.overrides.insert(rule, LintSeverity::Warning);
-        }
-        for rule in args.deny {
-            options.overrides.insert(rule, LintSeverity::Error);
-        }
-        // complexity thresholds
-        if let Some(max_complexity) = args.max_complexity {
-            options.complexity.max_cyclomatic_complexity = max_complexity;
-        }
-        if let Some(max_params) = args.max_params {
-            options.complexity.max_params = max_params;
-        }
-        if let Some(max_depth) = args.max_depth {
-            options.complexity.max_depth = max_depth;
-        }
-        if let Some(max_lines) = args.max_lines {
-            options.complexity.max_lines = max_lines;
-        }
-        options
-    }
 }
 
 /// Arguments for configuring formatter options.

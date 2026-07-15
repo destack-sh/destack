@@ -14,7 +14,7 @@ use destack_session::Session;
 use destack_source::{
     Content, DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 /// One shared in memory workspace for suite execution.
 #[derive(Debug)]
@@ -159,60 +159,7 @@ fn formatter_json_value(formatter: FormatterOptions) -> Value {
 
 /// Convert linter options to one config json value.
 fn linter_json_value(linter: &LinterOptions) -> Value {
-    let mut rules = Map::new();
-    let mut categories = Map::new();
-    let mut overrides = Map::new();
-
-    // rules
-    rules.insert(
-        "preset".to_string(),
-        json!(match linter.preset {
-            destack_repository::LintPreset::None => "none",
-            destack_repository::LintPreset::Recommended => "recommended",
-            destack_repository::LintPreset::Strict => "strict",
-            destack_repository::LintPreset::All => "all",
-        }),
-    );
-
-    // category overrides
-    for (category, severity) in &linter.categories {
-        categories.insert(
-            category.name().to_string(),
-            lint_severity_json_value(*severity),
-        );
-    }
-    if !categories.is_empty() {
-        rules.insert("categories".to_string(), Value::Object(categories));
-    }
-
-    // rule overrides
-    for (rule, severity) in &linter.overrides {
-        overrides.insert(rule.clone(), lint_severity_json_value(*severity));
-    }
-    for (rule, severity) in overrides {
-        rules.insert(rule, severity);
-    }
-
-    json!({
-        "enabled": linter.enabled,
-        "rules": Value::Object(rules),
-        "complexity": {
-            "maxCyclomaticComplexity": linter.complexity.max_cyclomatic_complexity,
-            "maxParams": linter.complexity.max_params,
-            "maxDepth": linter.complexity.max_depth,
-            "maxLines": linter.complexity.max_lines,
-        },
-    })
-}
-
-/// Convert lint severity to one config json value.
-fn lint_severity_json_value(severity: destack_repository::LintSeverity) -> Value {
-    json!(match severity {
-        destack_repository::LintSeverity::Off => "off",
-        destack_repository::LintSeverity::Note => "off",
-        destack_repository::LintSeverity::Warning => "warn",
-        destack_repository::LintSeverity::Error => "error",
-    })
+    serde_json::to_value(linter).expect("failed to serialize linter options")
 }
 
 /// Return the current workspace revision for one repository.

@@ -34,52 +34,9 @@ export {
     DestackLayoutOverride,
 } from "../_generated/repository/config/layout.js";
 export {
-    LinterComplexityOptions,
-} from "../_generated/repository/config/linter/complexity.js";
-export {
-    ArrayTypeStyle,
-    BitwiseOperator,
-    ConditionAssignmentMode,
-    CyclomaticComplexityVariant,
-    EmptyFunctionKind,
-    FilenameCase,
-    GroupedAccessorPairsOrder,
-    LintCategory,
-    LintPreset,
-    LintSeverity,
+    LintLevel,
     LinterOptions,
-    MaxParamsCountThis,
-    ObjectShorthandMode,
-    OperatorAssignmentMode,
-    PreferConstDestructuring,
-    ReturnAwaitMode,
-    SortImportsMemberSyntax,
-    UnicodeRegexpRequireFlag,
-    WarningCommentLocation,
-    YodaMode,
 } from "../_generated/repository/config/linter/core.js";
-export {
-    LinterCorrectnessOptions,
-} from "../_generated/repository/config/linter/correctness.js";
-export {
-    LinterPerformanceOptions,
-} from "../_generated/repository/config/linter/performance.js";
-export {
-    LintModuleBoundariesOptions,
-    LintModuleComponent,
-    LintModuleDependencyException,
-    LintModuleDependencyRule,
-    LinterRestrictionOptions,
-} from "../_generated/repository/config/linter/restriction.js";
-export {
-    LinterSecurityOptions,
-} from "../_generated/repository/config/linter/security.js";
-export {
-    LinterStyleOptions,
-} from "../_generated/repository/config/linter/style.js";
-export {
-    LinterSuspiciousOptions,
-} from "../_generated/repository/config/linter/suspicious.js";
 export {
     DestackLock,
     PackageLock,

@@ -5,7 +5,7 @@ use serde_json::{Map, Value, json};
 
 use crate::common::ProgramArgs;
 use crate::common::program::{
-    FormatterOptionsArgs, IndentStyleArg, LineEndingArg, LintPresetArg, LinterOptionsArgs,
+    FormatterOptionsArgs, IndentStyleArg, LineEndingArg, LinterOptionsArgs,
 };
 use crate::diagnostic::ConsoleResult;
 
@@ -139,44 +139,20 @@ fn formatter_override_value(args: &FormatterOptionsArgs) -> Option<Value> {
 fn linter_override_value(args: &LinterOptionsArgs) -> Option<Value> {
     let mut object: Map<String, Value> = Map::new();
     let mut rules: Map<String, Value> = Map::new();
-    let mut complexity: Map<String, Value> = Map::new();
 
     // rule selection
-    if let Some(preset) = args.preset {
-        rules.insert(
-            "preset".to_string(),
-            json!(lint_preset_override_value(preset)),
-        );
-    }
     for rule in &args.allow {
         rules.insert(rule.clone(), json!("off"));
     }
     for rule in &args.warn {
-        rules.insert(rule.clone(), json!("warn"));
+        rules.insert(rule.clone(), json!("warning"));
     }
     for rule in &args.deny {
         rules.insert(rule.clone(), json!("error"));
     }
 
-    // complexity
-    if let Some(max_complexity) = args.max_complexity {
-        complexity.insert("maxCyclomaticComplexity".to_string(), json!(max_complexity));
-    }
-    if let Some(max_params) = args.max_params {
-        complexity.insert("maxParams".to_string(), json!(max_params));
-    }
-    if let Some(max_depth) = args.max_depth {
-        complexity.insert("maxDepth".to_string(), json!(max_depth));
-    }
-    if let Some(max_lines) = args.max_lines {
-        complexity.insert("maxLines".to_string(), json!(max_lines));
-    }
-
     if !rules.is_empty() {
         object.insert("rules".to_string(), Value::Object(rules));
-    }
-    if !complexity.is_empty() {
-        object.insert("complexity".to_string(), Value::Object(complexity));
     }
 
     if object.is_empty() {
@@ -200,14 +176,5 @@ fn line_ending_override_value(value: LineEndingArg) -> &'static str {
         LineEndingArg::Lf => "lf",
         LineEndingArg::Crlf => "crlf",
         LineEndingArg::Cr => "cr",
-    }
-}
-
-/// Convert one lint preset argument to one config value.
-fn lint_preset_override_value(value: LintPresetArg) -> &'static str {
-    match value {
-        LintPresetArg::None => "none",
-        LintPresetArg::Recommended => "recommended",
-        LintPresetArg::All => "all",
     }
 }
