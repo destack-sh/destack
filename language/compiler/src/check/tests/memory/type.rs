@@ -1,6 +1,57 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_reject_lifetime_roots_as_placement_spaces() {
+    let session = TestSession::single(
+        r#"
+struct Cell {}
+
+type StaticCell = WithSpace<Cell, "static">;
+type FrameCell = WithSpace<Cell, "frame">;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cell {}
+
+type StaticCell = WithSpace<Cell, "static">;
+type FrameCell = WithSpace<Cell, "frame">;
+
+=== checked ===
+struct Cell {}
+/// @type.symbol symbol=Cell source="struct Cell {}" type=Cell
+/// @definition.struct symbol=Cell source="struct Cell {}"
+
+type StaticCell = WithSpace<Cell, "static">;
+/// @type.symbol symbol=StaticCell source="type StaticCell = WithSpace<Cell, \"static\">" type=<error>
+/// @definition.type symbol=StaticCell source="type StaticCell = WithSpace<Cell, \"static\">" value=<error>
+/// @resolution.name source=WithSpace target=memory.type.WithSpace
+/// @resolution.name source=Cell target=Cell
+
+type FrameCell = WithSpace<Cell, "frame">;
+/// @type.symbol symbol=FrameCell source="type FrameCell = WithSpace<Cell, \"frame\">" type=<error>
+/// @definition.type symbol=FrameCell source="type FrameCell = WithSpace<Cell, \"frame\">" value=<error>
+/// @resolution.name source=WithSpace target=memory.type.WithSpace
+/// @resolution.name source=Cell target=Cell
+"#,
+        r#"
+/// @diagnostic.error code=EC201 message="type '\"static\"' does not satisfy 'Space'"
+/// @diagnostic.label line=4 column=35 span="\"static\"" line_source="type StaticCell = WithSpace<Cell, \"static\">;"
+/// @diagnostic.related file="type.ds" message="required by this bound on 'S'"
+/// @diagnostic.note message="'Space' reduces to '\"local\" | \"shared\"'"
+/// @diagnostic.error code=EC201 message="type '\"frame\"' does not satisfy 'Space'"
+/// @diagnostic.label line=5 column=34 span="\"frame\"" line_source="type FrameCell = WithSpace<Cell, \"frame\">;"
+/// @diagnostic.related file="type.ds" message="required by this bound on 'S'"
+/// @diagnostic.note message="'Space' reduces to '\"local\" | \"shared\"'"
+"#,
+    );
+}
+
+#[test]
 fn test_read_base_and_payload_from_owned_borrow() {
     let session = TestSession::single(
         r#"
@@ -186,7 +237,54 @@ borrowedAccess satisfies "mutable";
 }
 
 #[test]
-fn test_static_value_default_uses_type_expression_bridge() {
+fn test_read_lifetime_only_from_borrowed_form() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+type ManagedLifetime = LifetimeOf<Managed<User>>;
+type ManagedLifetimeFallback = LifetimeOr<Managed<User>, "static">;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class User {}
+
+type ManagedLifetime = LifetimeOf<Managed<User>>;
+type ManagedLifetimeFallback = LifetimeOr<Managed<User>, "static">;
+
+=== checked ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=User
+/// @definition.class symbol=User source="class User {}"
+
+type ManagedLifetime = LifetimeOf<Managed<User>>;
+/// @type.symbol symbol=ManagedLifetime source="type ManagedLifetime = LifetimeOf<Managed<User>>" type=LifetimeOf<Managed<User>> reduced=never
+/// @definition.type symbol=ManagedLifetime source="type ManagedLifetime = LifetimeOf<Managed<User>>" value=LifetimeOf<Managed<User>> reduced=never
+/// @resolution.name source=LifetimeOf target=memory.type.LifetimeOf
+/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=User target=User
+
+type ManagedLifetimeFallback = LifetimeOr<Managed<User>, "static">;
+/// @type.symbol symbol=ManagedLifetimeFallback source="type ManagedLifetimeFallback = LifetimeOr<Managed<User>, \"static\">" type=LifetimeOr<Managed<User>, "static"> reduced="static"
+/// @definition.type symbol=ManagedLifetimeFallback source="type ManagedLifetimeFallback = LifetimeOr<Managed<User>, \"static\">" value=LifetimeOr<Managed<User>, "static"> reduced="static"
+/// @resolution.name source=LifetimeOr target=memory.type.LifetimeOr
+/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=User target=User
+
+/// @generic.instance id="LifetimeOr<Managed<User>, \"static\">" template=memory.type.LifetimeOr arguments=(Managed<User>, "static")
+/// @generic.instance id=LifetimeOf<Managed<User>> template=memory.type.LifetimeOf arguments=(Managed<User>)
+/// @generic.instance id=Managed<User> template=memory.managed.Managed arguments=(User)
+"#,
+    );
+}
+
+#[test]
+fn test_use_lifetime_query_as_comptime_default() {
     let session = TestSession::single(
         r#"
 struct Cell {
@@ -265,6 +363,90 @@ cell satisfies Borrowed<Cell, "static">;
 }
 
 #[test]
+fn test_use_place_query_as_comptime_default() {
+    let session = TestSession::single(
+        r#"
+struct Cell { value: int32; }
+
+type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
+
+declare const localCell: PreservePlace<local Cell>;
+declare const sharedCell: PreservePlace<shared Cell>;
+
+localCell satisfies local Cell;
+sharedCell satisfies shared Cell;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cell {
+    value: int32;
+}
+
+type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
+
+declare const localCell: PreservePlace<local Cell>;
+declare const sharedCell: PreservePlace<shared Cell>;
+
+localCell satisfies local Cell;
+sharedCell satisfies shared Cell;
+
+=== checked ===
+struct Cell { value: int32; }
+/// @type.symbol symbol=Cell source="struct Cell { value: int32; }" type=Cell
+/// @definition.struct symbol=Cell source="struct Cell { value: int32; }"
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
+/// @type.symbol symbol=Cell.value source="value: int32" type=int32
+
+type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
+/// @generic.template symbol=PreservePlace parameters=(Q, comptime P: Place = PlaceOf<Q>)
+/// @type.symbol symbol=PreservePlace type=WithPlace<BaseOf<Q>, P> reduced=Placed<BaseOf<Q>, P>
+/// @definition.type symbol=PreservePlace template=(Q, comptime P: Place = PlaceOf<Q>) value=WithPlace<BaseOf<Q>, P> reduced=Placed<BaseOf<Q>, P>
+/// @type.symbol symbol=PreservePlace.Q source=Q type=Q
+/// @type.symbol symbol=PreservePlace.P source="comptime P: Place = type PlaceOf<Q>" type=P
+/// @resolution.name source=Place target=memory.place.Place
+/// @resolution.name source=PlaceOf target=memory.type.PlaceOf
+/// @resolution.name source=Q target=PreservePlace.Q
+/// @resolution.name source=WithPlace target=memory.type.WithPlace
+/// @resolution.name source=BaseOf target=memory.type.BaseOf
+/// @resolution.name source=Q target=PreservePlace.Q
+/// @resolution.name source=P target=PreservePlace.P
+
+declare const localCell: PreservePlace<local Cell>;
+/// @type.symbol symbol=localCell source=localCell type=PreservePlace<Placed<Cell, "local">, PlaceOf<Placed<Cell, "local">>> reduced=Placed<Cell, "local">
+/// @resolution.name source=PreservePlace target=PreservePlace
+/// @resolution.name source=Cell target=Cell
+
+declare const sharedCell: PreservePlace<shared Cell>;
+/// @type.symbol symbol=sharedCell source=sharedCell type=PreservePlace<Placed<Cell, "shared">, PlaceOf<Placed<Cell, "shared">>> reduced=Placed<Cell, "shared">
+/// @resolution.name source=PreservePlace target=PreservePlace
+/// @resolution.name source=Cell target=Cell
+
+localCell satisfies local Cell;
+/// @resolution.name source=localCell target=localCell
+/// @resolution.name source=Cell target=Cell
+
+sharedCell satisfies shared Cell;
+/// @resolution.name source=sharedCell target=sharedCell
+/// @resolution.name source=Cell target=Cell
+
+/// @generic.instance id="PlaceOf<Placed<Cell, \"local\">>" template=memory.type.PlaceOf arguments=(Placed<Cell, "local">)
+/// @generic.instance id="PlaceOf<Placed<Cell, \"shared\">>" template=memory.type.PlaceOf arguments=(Placed<Cell, "shared">)
+/// @generic.instance id="PreservePlace<Placed<Cell, \"local\">, PlaceOf<Placed<Cell, \"local\">>>" template=PreservePlace arguments=(Placed<Cell, "local">, PlaceOf<Placed<Cell, "local">>)
+/// @generic.instance id="PreservePlace<Placed<Cell, \"shared\">, PlaceOf<Placed<Cell, \"shared\">>>" template=PreservePlace arguments=(Placed<Cell, "shared">, PlaceOf<Placed<Cell, "shared">>)
+/// @generic.instance id="WithPlace<BaseOf<Q>, P>" template=memory.type.WithPlace arguments=(BaseOf<Q>, P)
+/// @generic.instance id=BaseOf<Q> template=memory.type.BaseOf arguments=(Q)
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
 fn test_read_default_axes_from_plain_type() {
     let session = TestSession::single(
         r#"
@@ -315,8 +497,8 @@ type AccessDefault = AccessOr<Cell, "readonly">;
 /// @resolution.name source=Cell target=Cell
 
 type PlaceDefault = PlaceOr<Cell, "shared">;
-/// @type.symbol symbol=PlaceDefault source="type PlaceDefault = PlaceOr<Cell, \"shared\">" type=PlaceOr<Cell, "shared"> reduced="ambient"
-/// @definition.type symbol=PlaceDefault source="type PlaceDefault = PlaceOr<Cell, \"shared\">" value=PlaceOr<Cell, "shared"> reduced="ambient"
+/// @type.symbol symbol=PlaceDefault source="type PlaceDefault = PlaceOr<Cell, \"shared\">" type=PlaceOr<Cell, "shared"> reduced="relative"
+/// @definition.type symbol=PlaceDefault source="type PlaceDefault = PlaceOr<Cell, \"shared\">" value=PlaceOr<Cell, "shared"> reduced="relative"
 /// @resolution.name source=PlaceOr target=memory.type.PlaceOr
 /// @resolution.name source=Cell target=Cell
 
@@ -328,7 +510,7 @@ type PlaceDefault = PlaceOr<Cell, "shared">;
 }
 
 #[test]
-fn test_lifetime_and_space_defaults_apply_to_plain_type() {
+fn test_apply_lifetime_and_space_defaults_to_plain_type() {
     let session = TestSession::single(
         r#"
 struct Cell {
@@ -382,14 +564,14 @@ type SpaceFallback = SpaceOr<Cell, "shared">;
 }
 
 #[test]
-fn test_place_in_maps_ambient_place_to_requested_space() {
+fn test_place_in_resolves_relative_place_to_requested_space() {
     let session = TestSession::single(
         r#"
 struct Cell {
     value: int32;
 }
 
-type AmbientInShared = PlaceIn<Cell, "shared">;
+type RelativeInShared = PlaceIn<Cell, "shared">;
 "#,
     );
 
@@ -402,7 +584,7 @@ struct Cell {
     value: int32;
 }
 
-type AmbientInShared = PlaceIn<Cell, "shared">;
+type RelativeInShared = PlaceIn<Cell, "shared">;
 
 === checked ===
 struct Cell {
@@ -415,9 +597,9 @@ struct Cell {
 
 }
 
-type AmbientInShared = PlaceIn<Cell, "shared">;
-/// @type.symbol symbol=AmbientInShared source="type AmbientInShared = PlaceIn<Cell, \"shared\">" type=PlaceIn<Cell, "shared"> reduced="shared"
-/// @definition.type symbol=AmbientInShared source="type AmbientInShared = PlaceIn<Cell, \"shared\">" value=PlaceIn<Cell, "shared"> reduced="shared"
+type RelativeInShared = PlaceIn<Cell, "shared">;
+/// @type.symbol symbol=RelativeInShared source="type RelativeInShared = PlaceIn<Cell, \"shared\">" type=PlaceIn<Cell, "shared"> reduced="shared"
+/// @definition.type symbol=RelativeInShared source="type RelativeInShared = PlaceIn<Cell, \"shared\">" value=PlaceIn<Cell, "shared"> reduced="shared"
 /// @resolution.name source=PlaceIn target=memory.type.PlaceIn
 /// @resolution.name source=Cell target=Cell
 
@@ -640,7 +822,7 @@ struct Cell {
 }
 
 type SharedCheck = IsShared<shared Cell>;
-type AmbientSharedCheck = IsSharedIn<Cell, "shared">;
+type RelativeSharedCheck = IsSharedIn<Cell, "shared">;
 "#,
     );
 
@@ -654,7 +836,7 @@ struct Cell {
 }
 
 type SharedCheck = IsShared<shared Cell>;
-type AmbientSharedCheck = IsSharedIn<Cell, "shared">;
+type RelativeSharedCheck = IsSharedIn<Cell, "shared">;
 
 === checked ===
 struct Cell {
@@ -673,9 +855,9 @@ type SharedCheck = IsShared<shared Cell>;
 /// @resolution.name source=IsShared target=memory.type.IsShared
 /// @resolution.name source=Cell target=Cell
 
-type AmbientSharedCheck = IsSharedIn<Cell, "shared">;
-/// @type.symbol symbol=AmbientSharedCheck source="type AmbientSharedCheck = IsSharedIn<Cell, \"shared\">" type=IsSharedIn<Cell, "shared"> reduced=true
-/// @definition.type symbol=AmbientSharedCheck source="type AmbientSharedCheck = IsSharedIn<Cell, \"shared\">" value=IsSharedIn<Cell, "shared"> reduced=true
+type RelativeSharedCheck = IsSharedIn<Cell, "shared">;
+/// @type.symbol symbol=RelativeSharedCheck source="type RelativeSharedCheck = IsSharedIn<Cell, \"shared\">" type=IsSharedIn<Cell, "shared"> reduced=true
+/// @definition.type symbol=RelativeSharedCheck source="type RelativeSharedCheck = IsSharedIn<Cell, \"shared\">" value=IsSharedIn<Cell, "shared"> reduced=true
 /// @resolution.name source=IsSharedIn target=memory.type.IsSharedIn
 /// @resolution.name source=Cell target=Cell
 
@@ -769,14 +951,14 @@ borrowedCell satisfies Borrowed<Cell, "static">;
 }
 
 #[test]
-fn test_with_place_sets_explicit_place() {
+fn test_with_place_replaces_explicit_place() {
     let session = TestSession::single(
         r#"
 struct Cell {
     value: int32;
 }
 
-type SharedOwned = WithPlace<^Cell, "shared">;
+type SharedOwned = WithPlace<local ^Cell, "shared">;
 
 declare const sharedOwned: SharedOwned;
 
@@ -793,7 +975,7 @@ struct Cell {
     value: int32;
 }
 
-type SharedOwned = WithPlace<^Cell, "shared">;
+type SharedOwned = WithPlace<local ^Cell, "shared">;
 
 declare const sharedOwned: SharedOwned;
 
@@ -810,9 +992,9 @@ struct Cell {
 
 }
 
-type SharedOwned = WithPlace<^Cell, "shared">;
-/// @type.symbol symbol=SharedOwned source="type SharedOwned = WithPlace<^Cell, \"shared\">" type=WithPlace<Owned<Cell>, "shared"> reduced=Placed<Cell, "shared">
-/// @definition.type symbol=SharedOwned source="type SharedOwned = WithPlace<^Cell, \"shared\">" value=WithPlace<Owned<Cell>, "shared"> reduced=Placed<Cell, "shared">
+type SharedOwned = WithPlace<local ^Cell, "shared">;
+/// @type.symbol symbol=SharedOwned source="type SharedOwned = WithPlace<local ^Cell, \"shared\">" type=WithPlace<Placed<Owned<Cell>, "local">, "shared"> reduced=Placed<Cell, "shared">
+/// @definition.type symbol=SharedOwned source="type SharedOwned = WithPlace<local ^Cell, \"shared\">" value=WithPlace<Placed<Owned<Cell>, "local">, "shared"> reduced=Placed<Cell, "shared">
 /// @resolution.name source=WithPlace target=memory.type.WithPlace
 /// @resolution.name source=Cell target=Cell
 
@@ -824,24 +1006,23 @@ sharedOwned satisfies shared ^Cell;
 /// @resolution.name source=sharedOwned target=sharedOwned
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="WithPlace<Owned<Cell>, \"shared\">" template=memory.type.WithPlace arguments=(Owned<Cell>, "shared")
+/// @generic.instance id="WithPlace<Placed<Owned<Cell>, \"local\">, \"shared\">" template=memory.type.WithPlace arguments=(Placed<Owned<Cell>, "local">, "shared")
 "#,
     );
 }
 
 #[test]
-fn test_with_lifetime_sets_borrow_lifetime() {
+fn test_with_lifetime_replaces_borrow_lifetime() {
     let session = TestSession::single(
         r#"
 struct Cell {
     value: int32;
 }
 
-type StaticBorrow = WithLifetime<Borrowed<Cell, "static">, "static">;
-
-declare const staticBorrow: StaticBorrow;
-
-staticBorrow satisfies Borrowed<Cell, "static">;
+type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifetime<
+    Borrowed<Cell, Source>,
+    Target
+>;
 "#,
     );
 
@@ -854,11 +1035,10 @@ struct Cell {
     value: int32;
 }
 
-type StaticBorrow = WithLifetime<Borrowed<Cell, "static">, "static">;
-
-declare const staticBorrow: StaticBorrow;
-
-staticBorrow satisfies Borrowed<Cell, "static">;
+type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifetime<
+    Borrowed<Cell, Source>,
+    Target
+>;
 
 === checked ===
 struct Cell {
@@ -871,30 +1051,34 @@ struct Cell {
 
 }
 
-type StaticBorrow = WithLifetime<Borrowed<Cell, "static">, "static">;
-/// @type.symbol symbol=StaticBorrow source="type StaticBorrow = WithLifetime<Borrowed<Cell, \"static\">, \"static\">" type=WithLifetime<Borrowed<Cell, "static", "mutable">, "static"> reduced=Borrowed<Cell, "static", "mutable">
-/// @definition.type symbol=StaticBorrow source="type StaticBorrow = WithLifetime<Borrowed<Cell, \"static\">, \"static\">" value=WithLifetime<Borrowed<Cell, "static", "mutable">, "static"> reduced=Borrowed<Cell, "static", "mutable">
+type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifetime<
+/// @generic.template symbol=Reborrow parameters=(comptime Source: Lifetime, comptime Target: Lifetime)
+/// @type.symbol symbol=Reborrow type=WithLifetime<Borrowed<Cell, Source, "mutable">, Target> reduced=Borrowed<Cell, Target, "mutable">
+/// @definition.type symbol=Reborrow template=(comptime Source: Lifetime, comptime Target: Lifetime) value=WithLifetime<Borrowed<Cell, Source, "mutable">, Target> reduced=Borrowed<Cell, Target, "mutable">
+/// @type.symbol symbol=Reborrow.Source source="comptime Source: Lifetime" type=Source
+/// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
+/// @type.symbol symbol=Reborrow.Target source="comptime Target: Lifetime" type=Target
+/// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @resolution.name source=WithLifetime target=memory.type.WithLifetime
-/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
-/// @resolution.name source=Cell target=Cell
 
-declare const staticBorrow: StaticBorrow;
-/// @type.symbol symbol=staticBorrow source=staticBorrow type=StaticBorrow reduced=Borrowed<Cell, "static", "mutable">
-/// @resolution.name source=StaticBorrow target=StaticBorrow
+    Borrowed<Cell, Source>,
+    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Cell target=Cell
+    /// @resolution.name source=Source target=Reborrow.Source
 
-staticBorrow satisfies Borrowed<Cell, "static">;
-/// @resolution.name source=staticBorrow target=staticBorrow
-/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
-/// @resolution.name source=Cell target=Cell
+    Target
+    /// @resolution.name source=Target target=Reborrow.Target
 
-/// @generic.instance id="Borrowed<Cell, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Cell, "static", "mutable")
-/// @generic.instance id="WithLifetime<Borrowed<Cell, \"static\", \"mutable\">, \"static\">" template=memory.type.WithLifetime arguments=(Borrowed<Cell, "static", "mutable">, "static")
+>;
+
+/// @generic.instance id="Borrowed<Cell, Source, \"mutable\">" template=memory.borrow.Borrowed arguments=(Cell, Source, "mutable")
+/// @generic.instance id="WithLifetime<Borrowed<Cell, Source, \"mutable\">, Target>" template=memory.type.WithLifetime arguments=(Borrowed<Cell, Source, "mutable">, Target)
 "#,
     );
 }
 
 #[test]
-fn test_with_space_resolves_ambient_space() {
+fn test_with_space_resolves_relative_space() {
     let session = TestSession::single(
         r#"
 struct Cell {
@@ -902,17 +1086,14 @@ struct Cell {
 }
 
 type SharedOwned = WithSpace<^Cell, "shared">;
-type LocalSharedOwned = WithSpace<shared ^Cell, "local">;
 
 declare const sharedOwned: SharedOwned;
-declare const localSharedOwned: LocalSharedOwned;
 
 sharedOwned satisfies shared ^Cell;
-localSharedOwned satisfies local ^Cell;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -922,13 +1103,10 @@ struct Cell {
 }
 
 type SharedOwned = WithSpace<^Cell, "shared">;
-type LocalSharedOwned = WithSpace<shared ^Cell, "local">;
 
 declare const sharedOwned: SharedOwned;
-declare const localSharedOwned: LocalSharedOwned;
 
 sharedOwned satisfies shared ^Cell;
-localSharedOwned satisfies local ^Cell;
 
 === checked ===
 struct Cell {
@@ -947,37 +1125,76 @@ type SharedOwned = WithSpace<^Cell, "shared">;
 /// @resolution.name source=WithSpace target=memory.type.WithSpace
 /// @resolution.name source=Cell target=Cell
 
-type LocalSharedOwned = WithSpace<shared ^Cell, "local">;
-/// @type.symbol symbol=LocalSharedOwned source="type LocalSharedOwned = WithSpace<shared ^Cell, \"local\">" type=WithSpace<Placed<Owned<Cell>, "shared">, "local"> reduced=Placed<Cell, "shared">
-/// @definition.type symbol=LocalSharedOwned source="type LocalSharedOwned = WithSpace<shared ^Cell, \"local\">" value=WithSpace<Placed<Owned<Cell>, "shared">, "local"> reduced=Placed<Cell, "shared">
-/// @resolution.name source=WithSpace target=memory.type.WithSpace
-/// @resolution.name source=Cell target=Cell
-
 declare const sharedOwned: SharedOwned;
 /// @type.symbol symbol=sharedOwned source=sharedOwned type=SharedOwned reduced=Placed<Cell, "shared">
 /// @resolution.name source=SharedOwned target=SharedOwned
-
-declare const localSharedOwned: LocalSharedOwned;
-/// @type.symbol symbol=localSharedOwned source=localSharedOwned type=LocalSharedOwned reduced=Placed<Cell, "shared">
-/// @resolution.name source=LocalSharedOwned target=LocalSharedOwned
 
 sharedOwned satisfies shared ^Cell;
 /// @resolution.name source=sharedOwned target=sharedOwned
 /// @resolution.name source=Cell target=Cell
 
-localSharedOwned satisfies local ^Cell;
-/// @resolution.name source=localSharedOwned target=localSharedOwned
+/// @generic.instance id="WithSpace<Owned<Cell>, \"shared\">" template=memory.type.WithSpace arguments=(Owned<Cell>, "shared")
+"#,
+    );
+}
+
+#[test]
+fn test_with_space_preserves_explicit_space() {
+    let session = TestSession::single(
+        r#"
+struct Cell {
+    value: int32;
+}
+
+type StillShared = WithSpace<shared ^Cell, "local">;
+declare const value: StillShared;
+
+value satisfies shared ^Cell;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cell {
+    value: int32;
+}
+
+type StillShared = WithSpace<shared ^Cell, "local">;
+declare const value: StillShared;
+
+value satisfies shared ^Cell;
+
+=== checked ===
+struct Cell {
+/// @type.symbol symbol=Cell type=Cell
+/// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Cell.value source="value: int32" type=int32
+
+}
+
+type StillShared = WithSpace<shared ^Cell, "local">;
+/// @type.symbol symbol=StillShared source="type StillShared = WithSpace<shared ^Cell, \"local\">" type=WithSpace<Placed<Owned<Cell>, "shared">, "local"> reduced=Placed<Cell, "shared">
+/// @definition.type symbol=StillShared source="type StillShared = WithSpace<shared ^Cell, \"local\">" value=WithSpace<Placed<Owned<Cell>, "shared">, "local"> reduced=Placed<Cell, "shared">
+/// @resolution.name source=WithSpace target=memory.type.WithSpace
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="WithSpace<Owned<Cell>, \"shared\">" template=memory.type.WithSpace arguments=(Owned<Cell>, "shared")
+declare const value: StillShared;
+/// @type.symbol symbol=value source=value type=StillShared reduced=Placed<Cell, "shared">
+/// @resolution.name source=StillShared target=StillShared
+
+value satisfies shared ^Cell;
+/// @resolution.name source=value target=value
+/// @resolution.name source=Cell target=Cell
+
 /// @generic.instance id="WithSpace<Placed<Owned<Cell>, \"shared\">, \"local\">" template=memory.type.WithSpace arguments=(Placed<Owned<Cell>, "shared">, "local")
 "#,
-        r#"
-/// @diagnostic.error code=EC201 message="type 'LocalSharedOwned' does not satisfy 'local ^Cell'"
-/// @diagnostic.label line=13 column=18 span="satisfies" line_source="localSharedOwned satisfies local ^Cell;"
-/// @diagnostic.note message="'LocalSharedOwned' reduces to 'shared Cell'"
-/// @diagnostic.note message="'local ^Cell' reduces to 'local Cell'"
-"#,
+        r#""#,
     );
 }
 
@@ -1147,7 +1364,7 @@ rebased satisfies shared ^readonly Payload;
 }
 
 #[test]
-fn test_borrowed_readonly_payload_clamps_access() {
+fn test_clamp_borrow_access_over_readonly_payload() {
     let session = TestSession::single(
         r#"
 struct Cell {
@@ -1206,110 +1423,6 @@ borrow satisfies Borrowed<Cell, "static", "readonly">;
 
 /// @generic.instance id="Borrowed<Readonly<Cell>, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Readonly<Cell>, "static", "mutable")
 /// @generic.instance id=Readonly<Cell> template=types.object.Readonly arguments=(Cell)
-"#,
-    );
-}
-
-#[test]
-fn test_default_trait_returns_this_type() {
-    let session = TestSession::single(
-        r#"
-import { Phantom } from "destack:memory";
-
-const marker: Phantom<int32> = Phantom<int32>.default();
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-import { Phantom } from "destack:memory";
-
-const marker: Phantom<int32> = Phantom<int32>.default<int32>();
-
-=== checked ===
-import { Phantom } from "destack:memory";
-
-const marker: Phantom<int32> = Phantom<int32>.default();
-/// @type.symbol symbol=marker source=marker type=memory.phantom.Phantom<int32>
-/// @resolution.name source=Phantom target=memory.phantom.Phantom
-/// @type.node source=Phantom<int32> type=memory.phantom.Phantom<int32>
-/// @type.node source=Phantom<int32>.default type=() => memory.phantom.Phantom<int32>
-/// @type.node source=Phantom<int32>.default() type=memory.phantom.Phantom<int32>
-/// @resolution.name source=Phantom target=memory.phantom.Phantom
-/// @resolution.member source=Phantom<int32>.default receiver=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default
-/// @resolution.call source=Phantom<int32>.default() parameters=() return=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default receiver=memory.phantom.Phantom<int32> instance=memory.phantom.Phantom<int32>.<extension#1>.default
-/// @resolution.instantiation source=Phantom<int32> target=memory.phantom.Phantom instance=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32> id=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32>.default id=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32>.default() id=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32>.default() id=memory.phantom.Phantom<int32>.<extension#1>.default
-
-/// @generic.instance id=memory.phantom.Phantom<int32> template=memory.phantom.Phantom arguments=(int32)
-/// @generic.instance id=memory.phantom.Phantom<int32>.<extension#1>.default template=memory.phantom.default arguments=(int32)
-"#,
-    );
-}
-
-#[test]
-fn test_placement_commutes_with_ownership() {
-    let session = TestSession::single(
-        r#"
-struct Cell {
-    value: int32;
-}
-
-declare const outer: shared ^Cell;
-declare const inner: ^shared Cell;
-
-outer satisfies ^shared Cell;
-inner satisfies shared ^Cell;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-struct Cell {
-    value: int32;
-}
-
-declare const outer: shared ^Cell;
-declare const inner: shared ^Cell;
-
-outer satisfies ^shared Cell;
-inner satisfies shared ^Cell;
-
-=== checked ===
-struct Cell {
-/// @type.symbol symbol=Cell type=Cell
-/// @definition.struct symbol=Cell
-/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
-
-    value: int32;
-    /// @type.symbol symbol=Cell.value source="value: int32" type=int32
-
-}
-
-declare const outer: shared ^Cell;
-/// @type.symbol symbol=outer source=outer type=Placed<Owned<Cell>, "shared"> reduced=Placed<Cell, "shared">
-/// @resolution.name source=Cell target=Cell
-
-declare const inner: ^shared Cell;
-/// @type.symbol symbol=inner source=inner type=Placed<Owned<Cell>, "shared"> reduced=Placed<Cell, "shared">
-/// @resolution.name source=Cell target=Cell
-
-outer satisfies ^shared Cell;
-/// @resolution.name source=outer target=outer
-/// @resolution.name source=Cell target=Cell
-
-inner satisfies shared ^Cell;
-/// @resolution.name source=inner target=inner
-/// @resolution.name source=Cell target=Cell
 "#,
     );
 }

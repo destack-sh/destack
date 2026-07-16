@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_owned_expression_yields_owned_value() {
+fn test_yield_owned_value_from_move_expression() {
     let session = TestSession::single(
         r#"
 struct Point {
@@ -55,7 +55,7 @@ point satisfies ^Point;
 }
 
 #[test]
-fn test_plain_value_materializes_into_owned_destination() {
+fn test_materialize_plain_value_into_owned_destination() {
     let session = TestSession::single(
         r#"
 struct Point {
@@ -99,7 +99,7 @@ let point: ^Point = Point { x: 1 };
 }
 
 #[test]
-fn test_owned_fields_keep_ownership_form() {
+fn test_preserve_owned_form_on_fields() {
     let session = TestSession::single(
         r#"
 struct Data {
@@ -176,7 +176,7 @@ container.data satisfies ^Data;
 }
 
 #[test]
-fn test_readonly_owned_value_rejects_nested_mutation() {
+fn test_reject_nested_mutation_of_readonly_owned_value() {
     let session = TestSession::single(
         r#"
 struct Profile {

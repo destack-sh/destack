@@ -1,12 +1,90 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_return_lifetime_infers_from_body() {
+fn test_assign_module_and_function_borrows_static_and_frame_lifetimes() {
     let session = TestSession::single(
         r#"
-struct Node {
-    id: int32;
+struct Point { x: int32; }
+
+const modulePoint = ^Point { x: 1 };
+const moduleBorrow = &readonly modulePoint;
+
+function inspectFrame(): void {
+    const framePoint = ^Point { x: 2 };
+    const frameBorrow = &readonly framePoint;
+
+    moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
+    frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
 }
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+
+const modulePoint: ^Point = ^Point { x: 1 };
+const moduleBorrow: Borrowed<Point, "static", "readonly"> = &readonly modulePoint;
+
+function inspectFrame(): void {
+    const framePoint: ^Point = ^Point { x: 2 };
+    const frameBorrow: Borrowed<Point, "frame", "readonly"> = &readonly framePoint;
+
+    moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
+    frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
+}
+
+=== checked ===
+struct Point { x: int32; }
+/// @type.symbol symbol=Point source="struct Point { x: int32; }" type=Point
+/// @definition.struct symbol=Point source="struct Point { x: int32; }"
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+const modulePoint = ^Point { x: 1 };
+/// @type.symbol symbol=modulePoint source=modulePoint type=Owned<Point> reduced=Point
+/// @resolution.name source=Point target=Point
+
+const moduleBorrow = &readonly modulePoint;
+/// @type.symbol symbol=moduleBorrow source=moduleBorrow type=Borrowed<Point, "static", "readonly">
+/// @resolution.name source=modulePoint target=modulePoint
+
+function inspectFrame(): void {
+/// @type.symbol symbol=inspectFrame type=() => void
+
+    const framePoint = ^Point { x: 2 };
+    /// @type.symbol symbol=inspectFrame.framePoint source=framePoint type=Owned<Point> reduced=Point
+    /// @resolution.name source=Point target=Point
+
+    const frameBorrow = &readonly framePoint;
+    /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=Borrowed<Point, "frame", "readonly">
+    /// @resolution.name source=framePoint target=inspectFrame.framePoint
+
+    moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
+    /// @resolution.name source=moduleBorrow target=moduleBorrow
+    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Point target=Point
+
+    frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
+    /// @resolution.name source=frameBorrow target=inspectFrame.frameBorrow
+    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Point target=Point
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_infer_return_lifetime_from_function_body() {
+    let session = TestSession::single(
+        r#"
+struct Node { id: int32; }
 
 function first(a: &Node, b: &Node): &Node {
     return a;
@@ -16,7 +94,7 @@ function first(a: &Node, b: &Node): &Node {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked(),
         r#"
 === annotated ===
 struct Node {
@@ -31,15 +109,11 @@ function first<comptime L0: Lifetime, comptime L1: Lifetime>(
 }
 
 === checked ===
-struct Node {
-/// @type.symbol symbol=Node type=Node
-/// @definition.struct symbol=Node
+struct Node { id: int32; }
+/// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
+/// @definition.struct symbol=Node source="struct Node { id: int32; }"
 /// @definition.field symbol=Node.id source="id: int32" key=id type=int32
-
-    id: int32;
-    /// @type.symbol symbol=Node.id source="id: int32" type=int32
-
-}
+/// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function first(a: &Node, b: &Node): &Node {
 /// @generic.template symbol=first parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
@@ -51,20 +125,18 @@ function first(a: &Node, b: &Node): &Node {
 /// @resolution.name source=Node target=Node
 
     return a;
-    /// @type.node source=a type=Borrowed<Node, first.L0, "mutable">
     /// @resolution.name source=a target=first.a
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]
-fn test_conditional_return_lifetime_joins_branch_lifetimes() {
+fn test_join_conditional_return_borrow_provenance() {
     let session = TestSession::single(
         r#"
-struct Node {
-    id: int32;
-}
+struct Node { id: int32; }
 
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
     return flag ? a : b;
@@ -74,7 +146,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked(),
         r#"
 === annotated ===
 struct Node {
@@ -90,15 +162,11 @@ function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
 }
 
 === checked ===
-struct Node {
-/// @type.symbol symbol=Node type=Node
-/// @definition.struct symbol=Node
+struct Node { id: int32; }
+/// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
+/// @definition.struct symbol=Node source="struct Node { id: int32; }"
 /// @definition.field symbol=Node.id source="id: int32" key=id type=int32
-
-    id: int32;
-    /// @type.symbol symbol=Node.id source="id: int32" type=int32
-
-}
+/// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
 /// @generic.template symbol=choose parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
@@ -111,25 +179,20 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 /// @resolution.name source=Node target=Node
 
     return flag ? a : b;
-    /// @type.node source="flag ? a : b" type=Borrowed<Node, choose.L0 | choose.L1, "mutable">
-    /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=choose.flag
-    /// @type.node source=a type=Borrowed<Node, choose.L0, "mutable">
     /// @resolution.name source=a target=choose.a
-    /// @type.node source=b type=Borrowed<Node, choose.L1, "mutable">
     /// @resolution.name source=b target=choose.b
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]
-fn test_ambient_elided_return_lifetime_reports_error() {
+fn test_require_explicit_result_lifetime_in_bodyless_signature() {
     let session = TestSession::single(
         r#"
-struct Node {
-    id: int32;
-}
+struct Node { id: int32; }
 
 declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
     a: Borrowed<Node, L0, "mutable">,
@@ -153,15 +216,11 @@ declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
 ): &Node;
 
 === checked ===
-struct Node {
-/// @type.symbol symbol=Node type=Node
-/// @definition.struct symbol=Node
+struct Node { id: int32; }
+/// @type.symbol symbol=Node source="struct Node { id: int32; }" type=Node
+/// @definition.struct symbol=Node source="struct Node { id: int32; }"
 /// @definition.field symbol=Node.id source="id: int32" key=id type=int32
-
-    id: int32;
-    /// @type.symbol symbol=Node.id source="id: int32" type=int32
-
-}
+/// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
 /// @generic.template symbol=choose parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
@@ -190,23 +249,18 @@ declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
 /// @generic.instance id="Borrowed<Node, L1, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, L1, "mutable")
 "#,
         r#"
-/// @diagnostic.error code=EC614 message="ambient signatures must name result lifetimes explicitly"
-/// @diagnostic.label line=6 column=18 span="choose" line_source="declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>("
+/// @diagnostic.error code=EC614 message="bodyless signatures must name result lifetimes explicitly"
+/// @diagnostic.label line=4 column=18 span="choose" line_source="declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>("
 "#,
     );
 }
 
 #[test]
-fn test_stored_borrow_field_infers_hidden_lifetime() {
+fn test_induce_lifetimes_for_stored_borrow_fields() {
     let session = TestSession::single(
         r#"
-struct Engine {
-    frame: uint64;
-}
-
-struct AssetStore {
-    count: uint32;
-}
+struct Engine { frame: uint64; }
+struct AssetStore { count: uint32; }
 
 struct WorldView {
     engine: &Engine;
@@ -223,7 +277,6 @@ struct WorldView {
 struct Engine {
     frame: uint64;
 }
-
 struct AssetStore {
     count: uint32;
 }
@@ -234,25 +287,17 @@ struct WorldView<comptime L0: Lifetime, comptime L1: Lifetime> {
 }
 
 === checked ===
-struct Engine {
-/// @type.symbol symbol=Engine type=Engine
-/// @definition.struct symbol=Engine
+struct Engine { frame: uint64; }
+/// @type.symbol symbol=Engine source="struct Engine { frame: uint64; }" type=Engine
+/// @definition.struct symbol=Engine source="struct Engine { frame: uint64; }"
 /// @definition.field symbol=Engine.frame source="frame: uint64" key=frame type=uint64
+/// @type.symbol symbol=Engine.frame source="frame: uint64" type=uint64
 
-    frame: uint64;
-    /// @type.symbol symbol=Engine.frame source="frame: uint64" type=uint64
-
-}
-
-struct AssetStore {
-/// @type.symbol symbol=AssetStore type=AssetStore
-/// @definition.struct symbol=AssetStore
+struct AssetStore { count: uint32; }
+/// @type.symbol symbol=AssetStore source="struct AssetStore { count: uint32; }" type=AssetStore
+/// @definition.struct symbol=AssetStore source="struct AssetStore { count: uint32; }"
 /// @definition.field symbol=AssetStore.count source="count: uint32" key=count type=uint32
-
-    count: uint32;
-    /// @type.symbol symbol=AssetStore.count source="count: uint32" type=uint32
-
-}
+/// @type.symbol symbol=AssetStore.count source="count: uint32" type=uint32
 
 struct WorldView {
 /// @generic.template symbol=WorldView parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
@@ -275,14 +320,12 @@ struct WorldView {
 }
 
 #[test]
-fn test_elided_result_lifetime_borrows_from_the_receiver() {
+fn test_tie_elided_result_lifetime_and_place_to_receiver() {
     let session = TestSession::single(
         r#"
 import { todo } from "destack:error";
 
-struct Cell {
-    value: int32;
-}
+struct Cell { value: int32; }
 
 extension of Cell {
     peek(&readonly this): &readonly int32 {
@@ -312,24 +355,20 @@ extension of Cell {
 === checked ===
 import { todo } from "destack:error";
 
-struct Cell {
-/// @type.symbol symbol=Cell type=Cell
-/// @definition.struct symbol=Cell
+struct Cell { value: int32; }
+/// @type.symbol symbol=Cell source="struct Cell { value: int32; }" type=Cell
+/// @definition.struct symbol=Cell source="struct Cell { value: int32; }"
 /// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
-
-    value: int32;
-    /// @type.symbol symbol=Cell.value source="value: int32" type=int32
-
-}
+/// @type.symbol symbol=Cell.value source="value: int32" type=int32
 
 extension of Cell {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
-/// @definition.method symbol=peek slot=peek type=<comptime peek.L0: Lifetime>(this: Borrowed<Cell, peek.L0, "readonly">) => Borrowed<int32, peek.L0, "readonly">
+/// @definition.method symbol=peek slot=peek type=<comptime peek.L0: Lifetime>(this: Borrowed<this, peek.L0, "readonly">) => Borrowed<int32, peek.L0, "readonly">
 /// @resolution.name source=Cell target=Cell
 
     peek(&readonly this): &readonly int32 {
     /// @generic.template symbol=peek parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=peek type=<comptime peek.L0: Lifetime>(this: Borrowed<Cell, peek.L0, "readonly">) => Borrowed<int32, peek.L0, "readonly">
+    /// @type.symbol symbol=peek type=<comptime peek.L0: Lifetime>(this: Borrowed<this, peek.L0, "readonly">) => Borrowed<int32, peek.L0, "readonly">
     /// @type.symbol symbol=peek.this source="&readonly this" type=Borrowed<this, peek.L0, "readonly">
 
         todo("peek")
@@ -343,37 +382,26 @@ extension of Cell {
 }
 
 #[test]
-fn test_bodyless_borrowed_receiver_elides_view_lifetimes() {
+fn test_preserve_access_generic_on_receiver_borrow() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
-import { WithAccess, Access } from "destack:memory";
+import { Access, WithAccess } from "destack:memory";
 
 interface Viewing {
     type View;
 
-    view<comptime A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
-}
-
-struct Buffer {
-    value: int32;
-}
-
-extension of Buffer implements Viewing {
-    type View = int32;
-
-    view<comptime A: Access = "readonly">(this: WithAccess<&Buffer, A>): WithAccess<&int32, A> {
-        todo("view")
-    }
+    view<comptime A: Access = "readonly">(
+        this: WithAccess<&this, A>,
+    ): WithAccess<&this.View, A>;
 }
 "#,
     );
+
     session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
 import { Access, WithAccess } from "destack:memory";
 
 interface Viewing {
@@ -382,90 +410,36 @@ interface Viewing {
     view<comptime A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
 }
 
-struct Buffer {
-    value: int32;
-}
-
-extension of Buffer implements Viewing {
-    type View = int32;
-
-    view<comptime A: Access = "readonly">(
-        this: WithAccess<&Buffer, A>,
-    ): WithAccess<Borrowed<int32, L1, "mutable">, A> {
-        todo("view" as string | undefined)
-    }
-}
-
 === checked ===
-import { todo } from "destack:error";
-import { WithAccess, Access } from "destack:memory";
+import { Access, WithAccess } from "destack:memory";
 
 interface Viewing {
 /// @type.symbol symbol=Viewing type=Viewing
 /// @definition.interface symbol=Viewing
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
-/// @definition.method symbol=Viewing.view slot=view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Viewing, Viewing.view.L1, "mutable">, A#1>) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1>
+/// @definition.method symbol=Viewing.view slot=view type=<comptime A: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<this, Viewing.view.L1, "mutable">, A>) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A>
 
     type View;
 
-    view<comptime A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
-    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A#1: memory.access.Access = "readonly", comptime L1: Lifetime)
-    /// @type.symbol symbol=Viewing.view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Viewing, Viewing.view.L1, "mutable">, A#1>) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1> reduced=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Borrowed<Viewing, Viewing.view.L1, A#1>) => Borrowed<this.View, Viewing.view.L1, A#1>
-    /// @type.symbol symbol=Viewing.view.A source="comptime A: Access = \"readonly\"" type=A#1
+    view<comptime A: Access = "readonly">(
+    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A: memory.access.Access = "readonly", comptime L1: Lifetime)
+    /// @type.symbol symbol=Viewing.view type=<comptime A: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<this, Viewing.view.L1, "mutable">, A>) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A> reduced=<comptime A: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Borrowed<this, Viewing.view.L1, A>) => Borrowed<this.View, Viewing.view.L1, A>
+    /// @type.symbol symbol=Viewing.view.A source="comptime A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
-    /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<Borrowed<this, Viewing.view.L1, "mutable">, A#1> reduced=Borrowed<this, Viewing.view.L1, A#1>
+
+        this: WithAccess<&this, A>,
+        /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<Borrowed<this, Viewing.view.L1, "mutable">, A> reduced=Borrowed<this, Viewing.view.L1, A>
+        /// @resolution.name source=WithAccess target=memory.type.WithAccess
+        /// @resolution.name source=A target=Viewing.view.A
+
+    ): WithAccess<&this.View, A>;
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
     /// @resolution.name source=A target=Viewing.view.A
-    /// @resolution.name source=WithAccess target=memory.type.WithAccess
-    /// @resolution.name source=A target=Viewing.view.A
 
 }
 
-struct Buffer {
-/// @type.symbol symbol=Buffer type=Buffer
-/// @definition.struct symbol=Buffer
-/// @definition.field symbol=Buffer.value source="value: int32" key=value type=int32
-
-    value: int32;
-    /// @type.symbol symbol=Buffer.value source="value: int32" type=int32
-
-}
-
-extension of Buffer implements Viewing {
-/// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.implements symbol=<module>#2 source=Viewing target=Viewing
-/// @definition.associated.type symbol=View source="type View = int32" key=View value=int32
-/// @definition.method symbol=view slot=view type=<comptime A#2: memory.access.Access = "readonly", comptime view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Buffer, view.L1, "mutable">, A#2>) => memory.type.WithAccess<Borrowed<int32, view.L1, "mutable">, A#2>
-/// @resolution.name source=Buffer target=Buffer
-/// @resolution.name source=Viewing target=Viewing
-
-    type View = int32;
-    /// @type.symbol symbol=View source="type View = int32" type=int32
-
-    view<comptime A: Access = "readonly">(this: WithAccess<&Buffer, A>): WithAccess<&int32, A> {
-    /// @generic.template symbol=view parent=template#1 parameters=(comptime A#2: memory.access.Access = "readonly", comptime L1: Lifetime)
-    /// @type.symbol symbol=view type=<comptime A#2: memory.access.Access = "readonly", comptime view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Buffer, view.L1, "mutable">, A#2>) => memory.type.WithAccess<Borrowed<int32, view.L1, "mutable">, A#2> reduced=<comptime A#2: memory.access.Access = "readonly", comptime view.L1: Lifetime>(this: Borrowed<Buffer, view.L1, A#2>) => Borrowed<int32, view.L1, A#2>
-    /// @type.symbol symbol=view.A source="comptime A: Access = \"readonly\"" type=A#2
-    /// @resolution.name source=Access target=memory.access.Access
-    /// @type.symbol symbol=view.this source="this: WithAccess<&Buffer, A>" type=memory.type.WithAccess<Borrowed<Buffer, view.L1, "mutable">, A#2> reduced=Borrowed<Buffer, view.L1, A#2>
-    /// @resolution.name source=WithAccess target=memory.type.WithAccess
-    /// @resolution.name source=Buffer target=Buffer
-    /// @resolution.name source=A target=view.A
-    /// @resolution.name source=WithAccess target=memory.type.WithAccess
-    /// @resolution.name source=A target=view.A
-
-        todo("view")
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"view\")" parameters=(string | undefined) arguments=(provided("view") as string | undefined) return=never kind=symbol target=error.panic.todo
-
-    }
-}
-
-/// @generic.instance id="memory.type.WithAccess<Borrowed<Buffer, view.L1, \"mutable\">, A#2>" template=memory.type.WithAccess arguments=(Borrowed<Buffer, view.L1, "mutable">, A#2)
-/// @generic.instance id="memory.type.WithAccess<Borrowed<Viewing, Viewing.view.L1, \"mutable\">, A#1>" template=memory.type.WithAccess arguments=(Borrowed<Viewing, Viewing.view.L1, "mutable">, A#1)
-/// @generic.instance id="memory.type.WithAccess<Borrowed<int32, view.L1, \"mutable\">, A#2>" template=memory.type.WithAccess arguments=(Borrowed<int32, view.L1, "mutable">, A#2)
-/// @generic.instance id="memory.type.WithAccess<Borrowed<this, Viewing.view.L1, \"mutable\">, A#1>" template=memory.type.WithAccess arguments=(Borrowed<this, Viewing.view.L1, "mutable">, A#1)
-/// @generic.instance id="memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, \"mutable\">, A#1>" template=memory.type.WithAccess arguments=(Borrowed<this.View, Viewing.view.L1, "mutable">, A#1)
+/// @generic.instance id="memory.type.WithAccess<Borrowed<this, Viewing.view.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<this, Viewing.view.L1, "mutable">, A)
+/// @generic.instance id="memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<this.View, Viewing.view.L1, "mutable">, A)
 "#,
     );
 }

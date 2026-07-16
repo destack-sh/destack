@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_receiver_shorthands_expand_to_this_parameter() {
+fn test_keep_instance_signatures_dependent_on_this() {
     let session = TestSession::single(
         r#"
 class Counter {
@@ -36,7 +36,7 @@ class Counter {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked(),
         r#"
 === annotated ===
 class Counter {
@@ -72,36 +72,31 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Counter.borrow slot=borrow type=<comptime Counter.borrow.L0: Lifetime>(this: Borrowed<Counter, Counter.borrow.L0, "mutable">) => int32
-/// @definition.method symbol=Counter.increment slot=increment type=<comptime Counter.increment.L0: Lifetime>(this: Borrowed<Counter, Counter.increment.L0, "exclusive">) => void
-/// @definition.method symbol=Counter.inspect slot=inspect type=<comptime Counter.inspect.L0: Lifetime>(this: Borrowed<Counter, Counter.inspect.L0, "readonly">) => int32
-/// @definition.method symbol=Counter.peek slot=peek type=(this: Readonly<Counter>) => int32
-/// @definition.method symbol=Counter.read slot=read type=(this: Counter) => int32
+/// @definition.method symbol=Counter.borrow slot=borrow type=<comptime Counter.borrow.L0: Lifetime>(this: Borrowed<this, Counter.borrow.L0, "mutable">) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<comptime Counter.increment.L0: Lifetime>(this: Borrowed<this, Counter.increment.L0, "exclusive">) => void
+/// @definition.method symbol=Counter.inspect slot=inspect type=<comptime Counter.inspect.L0: Lifetime>(this: Borrowed<this, Counter.inspect.L0, "readonly">) => int32
+/// @definition.method symbol=Counter.peek slot=peek type=(this: Readonly<this>) => int32
+/// @definition.method symbol=Counter.read slot=read type=(this: this) => int32
 /// @definition.method symbol=Counter.zero slot=zero static=true type=() => Counter
 
     value: int32 = 0;
     /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
-    /// @type.node source=0 type=0
 
     read(this): int32 {
-    /// @type.symbol symbol=Counter.read type=(this: Counter) => int32
+    /// @type.symbol symbol=Counter.read type=(this: this) => int32
     /// @type.symbol symbol=Counter.read.this source=this type=this
 
         return this.value;
-        /// @type.node source=this type=Counter
-        /// @type.node source=this.value type=int32
         /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
 
     }
 
     peek(readonly this): int32 {
-    /// @type.symbol symbol=Counter.peek type=(this: Readonly<Counter>) => int32
+    /// @type.symbol symbol=Counter.peek type=(this: Readonly<this>) => int32
     /// @type.symbol symbol=Counter.peek.this source="readonly this" type=Readonly<this>
 
         return this.value;
-        /// @type.node source=this type=Readonly<Counter>
-        /// @type.node source=this.value type=int32
         /// @resolution.member source=this.value receiver=Readonly<Counter> kind=symbol target=Counter.value
         /// @resolution.receiver source=this kind=this declaration=Counter type=Readonly<Counter>
 
@@ -109,12 +104,10 @@ class Counter {
 
     borrow(&this): int32 {
     /// @generic.template symbol=Counter.borrow parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Counter.borrow type=<comptime Counter.borrow.L0: Lifetime>(this: Borrowed<Counter, Counter.borrow.L0, "mutable">) => int32
+    /// @type.symbol symbol=Counter.borrow type=<comptime Counter.borrow.L0: Lifetime>(this: Borrowed<this, Counter.borrow.L0, "mutable">) => int32
     /// @type.symbol symbol=Counter.borrow.this source=&this type=Borrowed<this, Counter.borrow.L0, "mutable">
 
         return this.value;
-        /// @type.node source=this type=Borrowed<Counter, Counter.borrow.L0, "mutable">
-        /// @type.node source=this.value type=int32
         /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.borrow.L0, "mutable"> kind=symbol target=Counter.value
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.borrow.L0, "mutable">
 
@@ -122,12 +115,10 @@ class Counter {
 
     inspect(&readonly this): int32 {
     /// @generic.template symbol=Counter.inspect parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Counter.inspect type=<comptime Counter.inspect.L0: Lifetime>(this: Borrowed<Counter, Counter.inspect.L0, "readonly">) => int32
+    /// @type.symbol symbol=Counter.inspect type=<comptime Counter.inspect.L0: Lifetime>(this: Borrowed<this, Counter.inspect.L0, "readonly">) => int32
     /// @type.symbol symbol=Counter.inspect.this source="&readonly this" type=Borrowed<this, Counter.inspect.L0, "readonly">
 
         return this.value;
-        /// @type.node source=this type=Borrowed<Counter, Counter.inspect.L0, "readonly">
-        /// @type.node source=this.value type=int32
         /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.inspect.L0, "readonly"> kind=symbol target=Counter.value
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.inspect.L0, "readonly">
 
@@ -135,22 +126,15 @@ class Counter {
 
     increment(&exclusive this): void {
     /// @generic.template symbol=Counter.increment parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Counter.increment type=<comptime Counter.increment.L0: Lifetime>(this: Borrowed<Counter, Counter.increment.L0, "exclusive">) => void
+    /// @type.symbol symbol=Counter.increment type=<comptime Counter.increment.L0: Lifetime>(this: Borrowed<this, Counter.increment.L0, "exclusive">) => void
     /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=Borrowed<this, Counter.increment.L0, "exclusive">
 
         this.value = this.value + 1;
-        /// @type.node source="this.value = this.value + 1" type=int32
-        /// @type.node source=this type=Borrowed<Counter, Counter.increment.L0, "exclusive">
-        /// @type.node source=this.value type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
         /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
-        /// @type.node source="this.value + 1" type=int32
-        /// @type.node source=this type=Borrowed<Counter, Counter.increment.L0, "exclusive">
-        /// @type.node source=this.value type=int32
         /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.L0, "exclusive"> kind=symbol target=Counter.value
         /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
-        /// @type.node source=1 type=1
 
     }
 
@@ -159,7 +143,6 @@ class Counter {
     /// @resolution.name source=Counter target=Counter
 
         return new Counter();
-        /// @type.node source="new Counter()" type=Counter
         /// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=default
         /// @resolution.name source=Counter target=Counter
 
@@ -170,12 +153,110 @@ class Counter {
 }
 
 #[test]
-fn test_interface_receivers_induce_lifetimes_like_class_receivers() {
+fn test_resolve_relative_method_parameters_from_receiver() {
     let session = TestSession::single(
         r#"
+class Message {}
+
 newtype interface Sink {
-    write(&readonly this, value: string): void;
+    write(&readonly this, value: Message): Message;
 }
+
+declare const localSink: local Sink;
+declare const sharedSink: shared Sink;
+declare const localMessage: local Message;
+declare const sharedMessage: shared Message;
+
+localSink.write(localMessage) satisfies local Message;
+sharedSink.write(sharedMessage) satisfies shared Message;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Message {}
+
+newtype interface Sink {
+    write(&readonly this, value: Message): Message;
+}
+
+declare const localSink: local Sink;
+declare const sharedSink: shared Sink;
+declare const localMessage: local Message;
+declare const sharedMessage: shared Message;
+
+localSink.write(localMessage) satisfies local Message;
+sharedSink.write(sharedMessage) satisfies shared Message;
+
+=== checked ===
+class Message {}
+/// @type.symbol symbol=Message source="class Message {}" type=Message
+/// @definition.class symbol=Message source="class Message {}"
+
+newtype interface Sink {
+/// @type.symbol symbol=Sink type=Sink
+/// @definition.interface symbol=Sink nominal=true
+/// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<comptime Sink.write.L0: Lifetime>(this: Borrowed<this, Sink.write.L0, "readonly">, Message) => Message
+
+    write(&readonly this, value: Message): Message;
+    /// @generic.template symbol=Sink.write parent=template#0 parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: Message): Message" type=<comptime Sink.write.L0: Lifetime>(this: Borrowed<this, Sink.write.L0, "readonly">, Message) => Message
+    /// @type.symbol symbol=Sink.write.this source="&readonly this" type=Borrowed<this, Sink.write.L0, "readonly">
+    /// @type.symbol symbol=Sink.write.value source="value: Message" type=Message
+    /// @resolution.name source=Message target=Message
+    /// @resolution.name source=Message target=Message
+
+}
+
+declare const localSink: local Sink;
+/// @type.symbol symbol=localSink source=localSink type=Placed<Sink, "local">
+/// @resolution.name source=Sink target=Sink
+
+declare const sharedSink: shared Sink;
+/// @type.symbol symbol=sharedSink source=sharedSink type=Placed<Sink, "shared">
+/// @resolution.name source=Sink target=Sink
+
+declare const localMessage: local Message;
+/// @type.symbol symbol=localMessage source=localMessage type=Placed<Message, "local">
+/// @resolution.name source=Message target=Message
+
+declare const sharedMessage: shared Message;
+/// @type.symbol symbol=sharedMessage source=sharedMessage type=Placed<Message, "shared">
+/// @resolution.name source=Message target=Message
+
+localSink.write(localMessage) satisfies local Message;
+/// @resolution.name source=localSink target=localSink
+/// @resolution.member source=localSink.write receiver=Placed<Sink, "local"> kind=symbol target=Sink.write
+/// @resolution.call source=localSink.write(localMessage) parameters=(Message) arguments=(provided(localMessage) as Message) return=Message kind=symbol target=Sink.write receiver=Placed<Sink, "local"> adjustments=(borrow)
+/// @resolution.name source=localMessage target=localMessage
+/// @resolution.name source=Message target=Message
+
+sharedSink.write(sharedMessage) satisfies shared Message;
+/// @resolution.name source=sharedSink target=sharedSink
+/// @resolution.member source=sharedSink.write receiver=Placed<Sink, "shared"> kind=symbol target=Sink.write
+/// @resolution.call source=sharedSink.write(sharedMessage) parameters=(Placed<Message, "shared">) arguments=(provided(sharedMessage) as Placed<Message, "shared">) return=Placed<Message, "shared"> kind=symbol target=Sink.write receiver=Placed<Sink, "shared"> adjustments=(borrow)
+/// @resolution.name source=sharedMessage target=sharedMessage
+/// @resolution.name source=Message target=Message
+"#,
+    );
+}
+
+#[test]
+fn test_require_exclusive_receiver_for_exclusive_methods() {
+    let session = TestSession::single(
+        r#"
+class Buffer {
+    clear(&exclusive this): void {}
+}
+
+declare const localBuffer: local Buffer;
+declare const sharedBuffer: shared Buffer;
+
+localBuffer.clear();
+sharedBuffer.clear();
 "#,
     );
 
@@ -184,24 +265,49 @@ newtype interface Sink {
         DirRows::checked(),
         r#"
 === annotated ===
-newtype interface Sink {
-    write(&readonly this, value: string): void;
+class Buffer {
+    clear(&exclusive this): void {}
 }
+
+declare const localBuffer: local Buffer;
+declare const sharedBuffer: shared Buffer;
+
+localBuffer.clear();
+sharedBuffer.clear();
 
 === checked ===
-newtype interface Sink {
-/// @type.symbol symbol=Sink type=Sink
-/// @definition.interface symbol=Sink nominal=true
-/// @definition.method symbol=Sink.write source="write(&readonly this, value: string): void" slot=write type=<comptime Sink.write.L0: Lifetime>(this: Borrowed<Sink, Sink.write.L0, "readonly">, string) => void
+class Buffer {
+/// @type.symbol symbol=Buffer type=Buffer
+/// @definition.class symbol=Buffer
+/// @definition.method symbol=Buffer.clear source="clear(&exclusive this): void {}" slot=clear type=<comptime Buffer.clear.L0: Lifetime>(this: Borrowed<this, Buffer.clear.L0, "exclusive">) => void
 
-    write(&readonly this, value: string): void;
-    /// @generic.template symbol=Sink.write parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: string): void" type=<comptime Sink.write.L0: Lifetime>(this: Borrowed<Sink, Sink.write.L0, "readonly">, string) => void
-    /// @type.symbol symbol=Sink.write.this source="&readonly this" type=Borrowed<this, Sink.write.L0, "readonly">
-    /// @type.symbol symbol=Sink.write.value source="value: string" type=string
+    clear(&exclusive this): void {}
+    /// @generic.template symbol=Buffer.clear parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=Buffer.clear source="clear(&exclusive this): void {}" type=<comptime Buffer.clear.L0: Lifetime>(this: Borrowed<this, Buffer.clear.L0, "exclusive">) => void
+    /// @type.symbol symbol=Buffer.clear.this source="&exclusive this" type=Borrowed<this, Buffer.clear.L0, "exclusive">
 
 }
+
+declare const localBuffer: local Buffer;
+/// @type.symbol symbol=localBuffer source=localBuffer type=Placed<Buffer, "local">
+/// @resolution.name source=Buffer target=Buffer
+
+declare const sharedBuffer: shared Buffer;
+/// @type.symbol symbol=sharedBuffer source=sharedBuffer type=Placed<Buffer, "shared">
+/// @resolution.name source=Buffer target=Buffer
+
+localBuffer.clear();
+/// @resolution.name source=localBuffer target=localBuffer
+/// @resolution.member source=localBuffer.clear receiver=Placed<Buffer, "local"> kind=symbol target=Buffer.clear
+/// @resolution.call source=localBuffer.clear() parameters=() return=void kind=symbol target=Buffer.clear receiver=Placed<Buffer, "local"> adjustments=(borrow)
+
+sharedBuffer.clear();
+/// @resolution.name source=sharedBuffer target=sharedBuffer
+/// @resolution.member source=sharedBuffer.clear receiver=Placed<Buffer, "shared"> kind=symbol target=Buffer.clear
 "#,
-        r#""#,
+        r#"
+/// @diagnostic.error code=EC322 message="receiver type 'shared Buffer' is not assignable to the method's 'this' type 'shared &exclusive Buffer'"
+/// @diagnostic.label line=10 column=1 span="sharedBuffer.clear()" line_source="sharedBuffer.clear();"
+"#,
     );
 }

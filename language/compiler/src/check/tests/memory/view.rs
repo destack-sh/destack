@@ -1,12 +1,12 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_readonly_drops_over_immutable_payloads() {
+fn test_project_immutable_field_without_readonly_wrapper() {
     let session = TestSession::single(
         r#"
 function label(name: string): void {}
 
-class Counter {
+local class Counter {
     readonly name: string;
 
     constructor(name: string) {
@@ -20,17 +20,17 @@ class Counter {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_node_types(),
+        DirRows::checked(),
         r#"
 === annotated ===
 function label(name: string): void {}
 
-class Counter {
+local class Counter {
     readonly name: string;
 
-    constructor(name: string): Counter {
+    constructor(name: string): this {
         this.name = name;
     }
 
@@ -44,24 +44,22 @@ function label(name: string): void {}
 /// @type.symbol symbol=label source="function label(name: string): void {}" type=(string) => void
 /// @type.symbol symbol=label.name source="name: string" type=string
 
-class Counter {
+local class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => Counter
-/// @definition.method symbol=Counter.describe slot=describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<Counter, Counter.describe.L0, "readonly">) => void
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => this
+/// @definition.method symbol=Counter.describe slot=describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<this, Counter.describe.L0, "readonly">) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=Counter.constructor type=(string) => Counter
+    /// @type.symbol symbol=Counter.constructor type=(string) => this
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;
-        /// @type.node source="this.name = name" type=string
-        /// @type.node source=this.name type=string
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Counter, "local">
         /// @resolution.pattern.assign source=this.name kind=place place=field(Counter.name) type=string
         /// @resolution.name source=name target=Counter.constructor.name
 
@@ -69,37 +67,33 @@ class Counter {
 
     describe(&readonly this): void {
     /// @generic.template symbol=Counter.describe parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Counter.describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<Counter, Counter.describe.L0, "readonly">) => void
+    /// @type.symbol symbol=Counter.describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<this, Counter.describe.L0, "readonly">) => void
     /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=Borrowed<this, Counter.describe.L0, "readonly">
 
         label(this.name)
-        /// @type.node source=label(this.name) type=void
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @type.node source=this.name type=string
-        /// @resolution.member source=this.name receiver=Borrowed<Counter, Counter.describe.L0, "readonly"> kind=symbol target=Counter.name
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.describe.L0, "readonly">
+        /// @resolution.member source=this.name receiver=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local"> kind=symbol target=Counter.name
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local">
 
     }
 }
 "#,
-        r#""#,
     );
 }
 
 #[test]
-fn test_reads_never_widen_readonly_handles() {
+fn test_preserve_readonly_access_when_projecting_managed_field() {
     let session = TestSession::single(
         r#"
 newtype interface Sink {
     write(value: string): void;
 }
 
-function full(sink: Sink): void {}
+function consume(sink: Sink): void {}
+function inspect(sink: readonly Sink): void {}
 
-function forward(sink: readonly Sink): void {}
-
-class Meter {
+local class Meter {
     private sink: Sink;
 
     constructor(sink: Sink) {
@@ -107,11 +101,11 @@ class Meter {
     }
 
     leak(&readonly this): void {
-        full(this.sink)
+        consume(this.sink)
     }
 
-    give(&readonly this): void {
-        forward(this.sink)
+    forward(&readonly this): void {
+        inspect(this.sink)
     }
 }
 "#,
@@ -119,30 +113,29 @@ class Meter {
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_node_types(),
+        DirRows::checked(),
         r#"
 === annotated ===
 newtype interface Sink {
     write(value: string): void;
 }
 
-function full(sink: Dynamic<Sink>): void {}
+function consume(sink: Dynamic<Sink>): void {}
+function inspect(sink: readonly Dynamic<Sink>): void {}
 
-function forward(sink: readonly Dynamic<Sink>): void {}
-
-class Meter {
+local class Meter {
     private sink: Dynamic<Sink>;
 
-    constructor(sink: Dynamic<Sink>): Meter {
+    constructor(sink: Dynamic<Sink>): this {
         this.sink = sink;
     }
 
     leak(&readonly this): void {
-        full(this.sink);
+        consume(this.sink);
     }
 
-    give(&readonly this): void {
-        forward(this.sink);
+    forward(&readonly this): void {
+        inspect(this.sink);
     }
 }
 
@@ -150,45 +143,43 @@ class Meter {
 newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink nominal=true
-/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: Sink, string) => void
+/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: Sink, string) => void
+    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=Sink.write.value source="value: string" type=string
 
 }
 
-function full(sink: Sink): void {}
-/// @type.symbol symbol=full source="function full(sink: Sink): void {}" type=(Dynamic<Sink>) => void
-/// @type.symbol symbol=full.sink source="sink: Sink" type=Dynamic<Sink>
+function consume(sink: Sink): void {}
+/// @type.symbol symbol=consume source="function consume(sink: Sink): void {}" type=(Dynamic<Sink>) => void
+/// @type.symbol symbol=consume.sink source="sink: Sink" type=Dynamic<Sink>
 /// @resolution.name source=Sink target=Sink
 
-function forward(sink: readonly Sink): void {}
-/// @type.symbol symbol=forward source="function forward(sink: readonly Sink): void {}" type=(Readonly<Dynamic<Sink>>) => void
-/// @type.symbol symbol=forward.sink source="sink: readonly Sink" type=Readonly<Dynamic<Sink>>
+function inspect(sink: readonly Sink): void {}
+/// @type.symbol symbol=inspect source="function inspect(sink: readonly Sink): void {}" type=(Readonly<Dynamic<Sink>>) => void
+/// @type.symbol symbol=inspect.sink source="sink: readonly Sink" type=Readonly<Dynamic<Sink>>
 /// @resolution.name source=Sink target=Sink
 
-class Meter {
+local class Meter {
 /// @type.symbol symbol=Meter type=Meter
 /// @definition.class symbol=Meter
 /// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink type=Dynamic<Sink>
-/// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=(Dynamic<Sink>) => Meter
-/// @definition.method symbol=Meter.give slot=give type=<comptime Meter.give.L0: Lifetime>(this: Borrowed<Meter, Meter.give.L0, "readonly">) => void
-/// @definition.method symbol=Meter.leak slot=leak type=<comptime Meter.leak.L0: Lifetime>(this: Borrowed<Meter, Meter.leak.L0, "readonly">) => void
+/// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=(Dynamic<Sink>) => this
+/// @definition.method symbol=Meter.forward slot=forward type=<comptime Meter.forward.L0: Lifetime>(this: Borrowed<this, Meter.forward.L0, "readonly">) => void
+/// @definition.method symbol=Meter.leak slot=leak type=<comptime Meter.leak.L0: Lifetime>(this: Borrowed<this, Meter.leak.L0, "readonly">) => void
 
     private sink: Sink;
     /// @type.symbol symbol=Meter.sink source="private sink: Sink" type=Dynamic<Sink>
     /// @resolution.name source=Sink target=Sink
 
     constructor(sink: Sink) {
-    /// @type.symbol symbol=Meter.constructor type=(Dynamic<Sink>) => Meter
+    /// @type.symbol symbol=Meter.constructor type=(Dynamic<Sink>) => this
     /// @type.symbol symbol=Meter.constructor.sink source="sink: Sink" type=Dynamic<Sink>
     /// @resolution.name source=Sink target=Sink
 
         this.sink = sink;
-        /// @type.node source="this.sink = sink" type=Dynamic<Sink>
-        /// @type.node source=this.sink type=Dynamic<Sink>
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Meter
+        /// @resolution.receiver source=this kind=this declaration=Meter type=Placed<Meter, "local">
         /// @resolution.pattern.assign source=this.sink kind=place place=field(Meter.sink) type=Dynamic<Sink>
         /// @resolution.name source=sink target=Meter.constructor.sink
 
@@ -196,48 +187,44 @@ class Meter {
 
     leak(&readonly this): void {
     /// @generic.template symbol=Meter.leak parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Meter.leak type=<comptime Meter.leak.L0: Lifetime>(this: Borrowed<Meter, Meter.leak.L0, "readonly">) => void
+    /// @type.symbol symbol=Meter.leak type=<comptime Meter.leak.L0: Lifetime>(this: Borrowed<this, Meter.leak.L0, "readonly">) => void
     /// @type.symbol symbol=Meter.leak.this source="&readonly this" type=Borrowed<this, Meter.leak.L0, "readonly">
 
-        full(this.sink)
-        /// @type.node source=full(this.sink) type=void
-        /// @resolution.name source=full target=full
-        /// @resolution.call source=full(this.sink) parameters=(Dynamic<Sink>) arguments=(provided(this.sink) as Dynamic<Sink>) return=void kind=symbol target=full
-        /// @type.node source=this.sink type=Readonly<Dynamic<Sink>>
-        /// @resolution.member source=this.sink receiver=Borrowed<Meter, Meter.leak.L0, "readonly"> kind=symbol target=Meter.sink
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Borrowed<Meter, Meter.leak.L0, "readonly">
+        consume(this.sink)
+        /// @resolution.name source=consume target=consume
+        /// @resolution.call source=consume(this.sink) parameters=(Dynamic<Sink>) arguments=(provided(this.sink) as Dynamic<Sink>) return=void kind=symbol target=consume
+        /// @resolution.member source=this.sink receiver=Placed<Borrowed<Meter, Meter.leak.L0, "readonly">, "local"> kind=symbol target=Meter.sink
+        /// @resolution.receiver source=this kind=this declaration=Meter type=Placed<Borrowed<Meter, Meter.leak.L0, "readonly">, "local">
 
     }
 
-    give(&readonly this): void {
-    /// @generic.template symbol=Meter.give parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Meter.give type=<comptime Meter.give.L0: Lifetime>(this: Borrowed<Meter, Meter.give.L0, "readonly">) => void
-    /// @type.symbol symbol=Meter.give.this source="&readonly this" type=Borrowed<this, Meter.give.L0, "readonly">
+    forward(&readonly this): void {
+    /// @generic.template symbol=Meter.forward parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=Meter.forward type=<comptime Meter.forward.L0: Lifetime>(this: Borrowed<this, Meter.forward.L0, "readonly">) => void
+    /// @type.symbol symbol=Meter.forward.this source="&readonly this" type=Borrowed<this, Meter.forward.L0, "readonly">
 
-        forward(this.sink)
-        /// @type.node source=forward(this.sink) type=void
-        /// @resolution.name source=forward target=forward
-        /// @resolution.call source=forward(this.sink) parameters=(Readonly<Dynamic<Sink>>) arguments=(provided(this.sink) as Readonly<Dynamic<Sink>>) return=void kind=symbol target=forward
-        /// @type.node source=this.sink type=Readonly<Dynamic<Sink>>
-        /// @resolution.member source=this.sink receiver=Borrowed<Meter, Meter.give.L0, "readonly"> kind=symbol target=Meter.sink
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Borrowed<Meter, Meter.give.L0, "readonly">
+        inspect(this.sink)
+        /// @resolution.name source=inspect target=inspect
+        /// @resolution.call source=inspect(this.sink) parameters=(Readonly<Dynamic<Sink>>) arguments=(provided(this.sink) as Readonly<Dynamic<Sink>>) return=void kind=symbol target=inspect
+        /// @resolution.member source=this.sink receiver=Placed<Borrowed<Meter, Meter.forward.L0, "readonly">, "local"> kind=symbol target=Meter.sink
+        /// @resolution.receiver source=this kind=this declaration=Meter type=Placed<Borrowed<Meter, Meter.forward.L0, "readonly">, "local">
 
     }
 }
 "#,
         r#"
 /// @diagnostic.error code=EC209 message="argument of type 'readonly Dynamic<Sink>' is not assignable to parameter of type 'Dynamic<Sink>'"
-/// @diagnostic.label line=18 column=19 span="sink" line_source="full(this.sink)"
-/// @diagnostic.related line=18 column=9 span="full(this.sink)" line_source="full(this.sink)" message="in this call"
+/// @diagnostic.label line=17 column=22 span="sink" line_source="consume(this.sink)"
+/// @diagnostic.related line=17 column=9 span="consume(this.sink)" line_source="consume(this.sink)" message="in this call"
 "#,
     );
 }
 
 #[test]
-fn test_declaration_order_does_not_change_judgments() {
+fn test_project_readonly_field_before_later_function_declaration() {
     let session = TestSession::single(
         r#"
-class Counter {
+local class Counter {
     readonly name: string;
 
     constructor(name: string) {
@@ -253,15 +240,15 @@ function label(name: string): void {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_node_types(),
+        DirRows::checked(),
         r#"
 === annotated ===
-class Counter {
+local class Counter {
     readonly name: string;
 
-    constructor(name: string): Counter {
+    constructor(name: string): this {
         this.name = name;
     }
 
@@ -273,24 +260,22 @@ class Counter {
 function label(name: string): void {}
 
 === checked ===
-class Counter {
+local class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => Counter
-/// @definition.method symbol=Counter.describe slot=describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<Counter, Counter.describe.L0, "readonly">) => void
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => this
+/// @definition.method symbol=Counter.describe slot=describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<this, Counter.describe.L0, "readonly">) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=Counter.constructor type=(string) => Counter
+    /// @type.symbol symbol=Counter.constructor type=(string) => this
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;
-        /// @type.node source="this.name = name" type=string
-        /// @type.node source=this.name type=string
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Counter, "local">
         /// @resolution.pattern.assign source=this.name kind=place place=field(Counter.name) type=string
         /// @resolution.name source=name target=Counter.constructor.name
 
@@ -298,16 +283,14 @@ class Counter {
 
     describe(&readonly this): void {
     /// @generic.template symbol=Counter.describe parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Counter.describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<Counter, Counter.describe.L0, "readonly">) => void
+    /// @type.symbol symbol=Counter.describe type=<comptime Counter.describe.L0: Lifetime>(this: Borrowed<this, Counter.describe.L0, "readonly">) => void
     /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=Borrowed<this, Counter.describe.L0, "readonly">
 
         label(this.name)
-        /// @type.node source=label(this.name) type=void
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @type.node source=this.name type=string
-        /// @resolution.member source=this.name receiver=Borrowed<Counter, Counter.describe.L0, "readonly"> kind=symbol target=Counter.name
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.describe.L0, "readonly">
+        /// @resolution.member source=this.name receiver=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local"> kind=symbol target=Counter.name
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local">
 
     }
 }
@@ -316,6 +299,5 @@ function label(name: string): void {}
 /// @type.symbol symbol=label source="function label(name: string): void {}" type=(string) => void
 /// @type.symbol symbol=label.name source="name: string" type=string
 "#,
-        r#""#,
     );
 }

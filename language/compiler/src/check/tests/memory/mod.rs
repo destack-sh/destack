@@ -1,8 +1,13 @@
+mod access;
 mod borrow;
+mod containment;
+mod context;
 mod conversion;
+mod declaration;
+mod generic;
 mod lifetime;
 mod owned;
+mod placement;
 mod receiver;
-mod space;
 mod r#type;
 mod view;
