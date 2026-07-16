@@ -93,7 +93,7 @@ class User {
 class User {
     name: string;
 
-    constructor(name: string): User {
+    constructor(name: string): this {
         this.name = name;
     }
 }
@@ -103,13 +103,13 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => this
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor type=(string) => User
+    /// @type.symbol symbol=User.constructor type=(string) => this
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -151,7 +151,7 @@ class User {
 class User {
     name: string;
 
-    constructor(enabled: boolean, name: string): User {
+    constructor(enabled: boolean, name: string): this {
         if (enabled) {
             this.name = name;
         }
@@ -163,13 +163,13 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(boolean, string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(boolean, string) => this
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(enabled: boolean, name: string) {
-    /// @type.symbol symbol=User.constructor type=(boolean, string) => User
+    /// @type.symbol symbol=User.constructor type=(boolean, string) => this
     /// @type.symbol symbol=User.constructor.enabled source="enabled: boolean" type=boolean
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 

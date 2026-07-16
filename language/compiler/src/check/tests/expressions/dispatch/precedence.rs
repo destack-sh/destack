@@ -306,7 +306,7 @@ export extension<T, E> of Outcome<T, E> {
 /// @generic.template symbol=<module>#2 parameters=(T#3, E#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Outcome<T#3, E#3>
 /// @definition.method symbol=err slot=err static=true type=(E#3) => Outcome<T#3, E#3>
-/// @definition.method symbol=map slot=map type=<U>(this: Outcome<T#3, E#3>, Function<(T#3,), U>) => Outcome<U, E#3>
+/// @definition.method symbol=map slot=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
 /// @definition.method symbol=ok slot=ok static=true type=(T#3) => Outcome<T#3, E#3>
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=E source=E type=E#3
@@ -360,7 +360,7 @@ export extension<T, E> of Outcome<T, E> {
 
     map<U>(f: (value: T) => U): Outcome<U, E> {
     /// @generic.template symbol=map parent=template#3 parameters=(U)
-    /// @type.symbol symbol=map type=<U>(this: Outcome<T#3, E#3>, Function<(T#3,), U>) => Outcome<U, E#3>
+    /// @type.symbol symbol=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
     /// @type.symbol symbol=map.U source=U type=U
     /// @type.symbol symbol=map.f source="f: (value: T) => U" type=Function<(T#3,), U>
     /// @resolution.name source=T target=T
@@ -609,7 +609,9 @@ function read<T>(pack: &readonly Pack<T>): readonly T {
 
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 "#,
-        r#""#,
+        r#"
+
+"#,
     );
 }
 

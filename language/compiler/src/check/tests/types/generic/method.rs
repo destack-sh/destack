@@ -59,13 +59,13 @@ function checkedAdd<T: Scalar>(a: T, b: T): T | undefined {
 extension Arithmetic<T: Scalar> of T {
 /// @generic.template symbol=Arithmetic parameters=(T#2: Scalar)
 /// @definition.extension symbol=Arithmetic form=local target=T#2
-/// @definition.method symbol=Arithmetic.checkedAdd slot=checkedAdd type=(this: T#2, T#2) => T#2 | undefined
+/// @definition.method symbol=Arithmetic.checkedAdd slot=checkedAdd type=(this: this, T#2) => T#2 | undefined
 /// @type.symbol symbol=Arithmetic.T source="T: Scalar" type=T#2
 /// @resolution.name source=Scalar target=Scalar
 /// @resolution.name source=T target=Arithmetic.T
 
     checkedAdd(other: T): T | undefined {
-    /// @type.symbol symbol=Arithmetic.checkedAdd type=(this: T#2, T#2) => T#2 | undefined
+    /// @type.symbol symbol=Arithmetic.checkedAdd type=(this: this, T#2) => T#2 | undefined
     /// @type.symbol symbol=Arithmetic.checkedAdd.other source="other: T" type=T#2
     /// @resolution.name source=T target=Arithmetic.T
     /// @resolution.name source=T target=Arithmetic.T
@@ -86,7 +86,7 @@ extension Arithmetic<T: Scalar> of T {
 
 /// @generic.instance id=checkedAdd<T#2> template=checkedAdd arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=13 constraints=7 obligations=5 solutions=1 bounds=2 decisions=12
+/// @check.stats.solve variables=1 types=14 constraints=7 obligations=5 solutions=1 bounds=2 decisions=12
 "#,
         r#"
 "#,
@@ -144,12 +144,12 @@ function choose<T>(a: T, b: T): T {
 extension Forward<T> of T {
 /// @generic.template symbol=Forward parameters=(T#2)
 /// @definition.extension symbol=Forward form=local target=T#2
-/// @definition.method symbol=Forward.choose slot=choose type=(this: T#2, T#2) => T#2
+/// @definition.method symbol=Forward.choose slot=choose type=(this: this, T#2) => T#2
 /// @type.symbol symbol=Forward.T source=T type=T#2
 /// @resolution.name source=T target=Forward.T
 
     choose(other: T): T {
-    /// @type.symbol symbol=Forward.choose type=(this: T#2, T#2) => T#2
+    /// @type.symbol symbol=Forward.choose type=(this: this, T#2) => T#2
     /// @type.symbol symbol=Forward.choose.other source="other: T" type=T#2
     /// @resolution.name source=T target=Forward.T
     /// @resolution.name source=T target=Forward.T
@@ -170,7 +170,7 @@ extension Forward<T> of T {
 
 /// @generic.instance id=choose<T#2> template=choose arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=7 constraints=7 obligations=3 solutions=1 bounds=2 decisions=11
+/// @check.stats.solve variables=1 types=8 constraints=7 obligations=3 solutions=1 bounds=2 decisions=11
 "#,
         r#"
 "#,
@@ -211,12 +211,12 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T#1)
-/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<Box<T#1>, Box.get.L0, "readonly">) => Borrowed<T#1, Box.get.L0, "readonly">
+/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<this, Box.get.L0, "readonly">) => Borrowed<T#1, Box.get.L0, "readonly">
 /// @type.symbol symbol=Box.T source=T type=T#1
 
     get(&readonly this): &readonly T;
     /// @generic.template symbol=Box.get parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<comptime Box.get.L0: Lifetime>(this: Borrowed<Box<T#1>, Box.get.L0, "readonly">) => Borrowed<T#1, Box.get.L0, "readonly">
+    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<comptime Box.get.L0: Lifetime>(this: Borrowed<this, Box.get.L0, "readonly">) => Borrowed<T#1, Box.get.L0, "readonly">
     /// @type.symbol symbol=Box.get.this source="&readonly this" type=Borrowed<this, Box.get.L0, "readonly">
     /// @resolution.name source=T target=Box.T
 
@@ -233,18 +233,17 @@ function read<T>(source: &readonly Box<T>): &readonly T {
 
     return source.get();
     /// @type.node source=source type=Borrowed<Box<T#2>, read.L1, "readonly">
-    /// @type.node source=source.get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<Box<T#2>, Box.get.L0, "readonly">) => Borrowed<T#2, Box.get.L0, "readonly">
-    /// @type.node source=source.get() type=Borrowed<T#2, Box.get.L0, "readonly">
+    /// @type.node source=source.get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<Borrowed<Box<T#2>, read.L1, "readonly">, Box.get.L0, "readonly">) => Borrowed<T#2, Box.get.L0, "readonly"> reduced=<comptime Box.get.L0: Lifetime>(this: Borrowed<Box<T#2>, Box.get.L0, "readonly">) => Borrowed<T#2, Box.get.L0, "readonly">
+    /// @type.node source=source.get() type=Borrowed<T#2, read.L1, "readonly">
     /// @resolution.name source=source target=read.source
     /// @resolution.member source=source.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> kind=symbol target=Box.get
-    /// @resolution.call source=source.get() parameters=() return=Borrowed<T#2, Box.get.L0, "readonly"> kind=symbol target=Box.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> instance=Box<T#2>.get
+    /// @resolution.call source=source.get() parameters=() return=Borrowed<T#2, read.L1, "readonly"> kind=symbol target=Box.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> instance=Box<T#2>.get
     /// @generic.instance source=source id=Box<T#2>
     /// @generic.instance source=source.get id=Box<T#2>
     /// @generic.instance source=source.get() id=Box<T#2>.get
 
 }
 
-/// @generic.instance id=Box<T#1> template=Box arguments=(T#1)
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @generic.instance id=Box<T#2>.get template=Box.get arguments=(T#2)
 "#,

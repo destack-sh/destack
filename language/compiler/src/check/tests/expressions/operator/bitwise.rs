@@ -166,7 +166,7 @@ extension of Flags implements And<Flags> {
 /// @definition.extension symbol=<module>#2 form=local target=Flags
 /// @definition.implements symbol=<module>#2 source=And<Flags> target=ops.bitwise.And arguments=(Flags)
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
-/// @definition.method symbol=and slot=and type=(this: Flags, Flags) => Flags
+/// @definition.method symbol=and slot=and type=(this: this, Flags) => Flags
 /// @resolution.name source=Flags target=Flags
 /// @resolution.name source=And target=ops.bitwise.And
 /// @resolution.name source=Flags target=Flags
@@ -176,7 +176,7 @@ extension of Flags implements And<Flags> {
     /// @resolution.name source=Flags target=Flags
 
     and(other: Flags): Flags {
-    /// @type.symbol symbol=and type=(this: Flags, Flags) => Flags
+    /// @type.symbol symbol=and type=(this: this, Flags) => Flags
     /// @type.symbol symbol=and.other source="other: Flags" type=Flags
     /// @resolution.name source=Flags target=Flags
     /// @resolution.name source=Flags target=Flags

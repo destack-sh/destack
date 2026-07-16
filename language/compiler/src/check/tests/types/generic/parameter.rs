@@ -500,7 +500,7 @@ interface Equal<in T> {
 class Bucket<in out K: Equal<K>> {
     key: K;
 
-    constructor(key: K): Bucket<K> {
+    constructor(key: K): this {
         this.key = key;
     }
 
@@ -515,11 +515,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T>, T) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: Equal<T>, T) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T
     /// @resolution.name source=T target=Equal.T
 
@@ -530,8 +530,8 @@ class Bucket<K: Equal<K>> {
 /// @type.symbol symbol=Bucket type=Bucket
 /// @definition.class symbol=Bucket template=(in out K: Equal<K>)
 /// @definition.field symbol=Bucket.key source="key: K" key=key type=K
-/// @definition.method symbol=Bucket.constructor slot=constructor role=constructor type=(K) => Bucket<K>
-/// @definition.method symbol=Bucket.pair slot=pair type=(this: Bucket<K>) => Bucket<K>
+/// @definition.method symbol=Bucket.constructor slot=constructor role=constructor type=(K) => this
+/// @definition.method symbol=Bucket.pair slot=pair type=(this: this) => Bucket<K>
 /// @type.symbol symbol=Bucket.K source="K: Equal<K>" type=K
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=K target=Bucket.K
@@ -541,7 +541,7 @@ class Bucket<K: Equal<K>> {
     /// @resolution.name source=K target=Bucket.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Bucket.constructor type=(K) => Bucket<K>
+    /// @type.symbol symbol=Bucket.constructor type=(K) => this
     /// @type.symbol symbol=Bucket.constructor.key source="key: K" type=K
     /// @resolution.name source=K target=Bucket.K
 
@@ -553,7 +553,7 @@ class Bucket<K: Equal<K>> {
     }
 
     pair(): Bucket<K> {
-    /// @type.symbol symbol=Bucket.pair type=(this: Bucket<K>) => Bucket<K>
+    /// @type.symbol symbol=Bucket.pair type=(this: this) => Bucket<K>
     /// @resolution.name source=Bucket target=Bucket
     /// @resolution.name source=K target=Bucket.K
 
@@ -569,7 +569,6 @@ class Bucket<K: Equal<K>> {
 }
 
 /// @generic.instance id=Bucket<K> template=Bucket arguments=(K)
-/// @generic.instance id=Equal<T> template=Equal arguments=(T)
 "#, "");
 }
 
@@ -610,7 +609,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): Box<K> {
+    constructor(key: K): this {
         this.key = key;
     }
 }
@@ -627,11 +626,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: Equal<T#1>, T#1) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T#1
     /// @resolution.name source=T target=Equal.T
 
@@ -651,7 +650,7 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => this
 /// @type.symbol symbol=Box.K source=K type=K#1
 
     key: K;
@@ -659,7 +658,7 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K#1) => Box<K#1>
+    /// @type.symbol symbol=Box.constructor type=(K#1) => this
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -675,7 +674,7 @@ extension<K> of Box<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
 /// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=Equal<K#2>
-/// @definition.method symbol=check slot=check type=(this: Box<K#2>) => boolean
+/// @definition.method symbol=check slot=check type=(this: this) => boolean
 /// @type.symbol symbol=K source=K type=K#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=K target=K
@@ -684,7 +683,7 @@ extension<K> of Box<K> where K: Equal<K> {
 /// @resolution.name source=K target=K
 
     check(): boolean {
-    /// @type.symbol symbol=check type=(this: Box<K#2>) => boolean
+    /// @type.symbol symbol=check type=(this: this) => boolean
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
@@ -696,9 +695,6 @@ extension<K> of Box<K> where K: Equal<K> {
     }
 }
 
-/// @generic.instance id=Box<K#1> template=Box arguments=(K#1)
-/// @generic.instance id=Box<K#2> template=Box arguments=(K#2)
-/// @generic.instance id=Equal<T#1> template=Equal arguments=(T#1)
 /// @generic.instance id=probe<K#2> template=probe arguments=(K#2)
 "#, "");
 }
@@ -738,7 +734,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): Box<K> {
+    constructor(key: K): this {
         this.key = key;
     }
 
@@ -753,11 +749,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: Equal<T#1>, T#1) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T#1
     /// @resolution.name source=T target=Equal.T
 
@@ -777,8 +773,8 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K
-/// @definition.method symbol=Box.check slot=check type=(this: Box<K>) => boolean
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K) => Box<K>
+/// @definition.method symbol=Box.check slot=check type=(this: this) => boolean
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K) => this
 /// @type.symbol symbol=Box.K source=K type=K
 
     key: K;
@@ -786,7 +782,7 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K) => Box<K>
+    /// @type.symbol symbol=Box.constructor type=(K) => this
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K
     /// @resolution.name source=K target=Box.K
 
@@ -798,7 +794,7 @@ class Box<K> {
     }
 
     check(): boolean where K: Equal<K> {
-    /// @type.symbol symbol=Box.check type=(this: Box<K>) => boolean
+    /// @type.symbol symbol=Box.check type=(this: this) => boolean
     /// @resolution.name source=K target=Box.K
     /// @resolution.name source=Equal target=Equal
     /// @resolution.name source=K target=Box.K
@@ -813,8 +809,6 @@ class Box<K> {
     }
 }
 
-/// @generic.instance id=Box<K> template=Box arguments=(K)
-/// @generic.instance id=Equal<T#1> template=Equal arguments=(T#1)
 /// @generic.instance id=probe<K> template=probe arguments=(K)
 "#, "");
 }
@@ -848,7 +842,7 @@ declare function probe<T>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): Box<K> {
+    constructor(key: K): this {
         this.key = key;
     }
 }
@@ -872,7 +866,7 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => this
 /// @type.symbol symbol=Box.K source=K type=K#1
 
     key: K;
@@ -880,7 +874,7 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K#1) => Box<K#1>
+    /// @type.symbol symbol=Box.constructor type=(K#1) => this
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -895,13 +889,13 @@ class Box<K> {
 extension<K> of Box<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
-/// @definition.method symbol=check slot=check type=(this: Box<K#2>) => boolean
+/// @definition.method symbol=check slot=check type=(this: this) => boolean
 /// @type.symbol symbol=K source=K type=K#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=K target=K
 
     check(): boolean {
-    /// @type.symbol symbol=check type=(this: Box<K#2>) => boolean
+    /// @type.symbol symbol=check type=(this: this) => boolean
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
@@ -913,8 +907,6 @@ extension<K> of Box<K> {
     }
 }
 
-/// @generic.instance id=Box<K#1> template=Box arguments=(K#1)
-/// @generic.instance id=Box<K#2> template=Box arguments=(K#2)
 /// @generic.instance id=probe<K#2> template=probe arguments=(K#2)
 "#, "");
 }
@@ -964,7 +956,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): Box<K> {
+    constructor(key: K): this {
         this.key = key;
     }
 }
@@ -979,10 +971,10 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 interface Hash {
 /// @type.symbol symbol=Hash type=Hash
 /// @definition.interface symbol=Hash
-/// @definition.method symbol=Hash.hash source="hash(): float64" slot=hash type=(this: Hash) => float64
+/// @definition.method symbol=Hash.hash source="hash(): float64" slot=hash type=(this: this) => float64
 
     hash(): float64;
-    /// @type.symbol symbol=Hash.hash source="hash(): float64" type=(this: Hash) => float64
+    /// @type.symbol symbol=Hash.hash source="hash(): float64" type=(this: this) => float64
 
 }
 
@@ -991,11 +983,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: Equal<T#1>, T#1) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T#1
     /// @resolution.name source=T target=Equal.T
 
@@ -1015,7 +1007,7 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => this
 /// @type.symbol symbol=Box.K source=K type=K#1
 
     key: K;
@@ -1023,7 +1015,7 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K#1) => Box<K#1>
+    /// @type.symbol symbol=Box.constructor type=(K#1) => this
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -1039,7 +1031,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2: Hash)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
 /// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=Equal<K#2>
-/// @definition.method symbol=check slot=check type=(this: Box<K#2>) => boolean
+/// @definition.method symbol=check slot=check type=(this: this) => boolean
 /// @type.symbol symbol=K source="K: Hash" type=K#2
 /// @resolution.name source=Hash target=Hash
 /// @resolution.name source=Box target=Box
@@ -1049,7 +1041,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 /// @resolution.name source=K target=K
 
     check(): boolean {
-    /// @type.symbol symbol=check type=(this: Box<K#2>) => boolean
+    /// @type.symbol symbol=check type=(this: this) => boolean
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
@@ -1061,9 +1053,6 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
     }
 }
 
-/// @generic.instance id=Box<K#1> template=Box arguments=(K#1)
-/// @generic.instance id=Box<K#2> template=Box arguments=(K#2)
-/// @generic.instance id=Equal<T#1> template=Equal arguments=(T#1)
 /// @generic.instance id=probe<K#2> template=probe arguments=(K#2)
 "#, "");
 }
@@ -1099,10 +1088,10 @@ function twice<T>(value: T): int32 where T: Doubling {
 interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
-/// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: Doubling) => int32
+/// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: this) => int32
 
     double(): int32;
-    /// @type.symbol symbol=Doubling.double source="double(): int32" type=(this: Doubling) => int32
+    /// @type.symbol symbol=Doubling.double source="double(): int32" type=(this: this) => int32
 
 }
 
@@ -1498,7 +1487,7 @@ extension<T> of Box<T> {
 class Box<in out T> {
     value: T;
 
-    constructor(value: T): Box<T> {
+    constructor(value: T): this {
         this.value = value;
     }
 }
@@ -1521,7 +1510,7 @@ class Box<T> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T#1)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(T#1) => Box<T#1>
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(T#1) => this
 /// @type.symbol symbol=Box.T source=T type=T#1
 
     value: T;
@@ -1529,7 +1518,7 @@ class Box<T> {
     /// @resolution.name source=T target=Box.T
 
     constructor(value: T) {
-    /// @type.symbol symbol=Box.constructor type=(T#1) => Box<T#1>
+    /// @type.symbol symbol=Box.constructor type=(T#1) => this
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T#1
     /// @resolution.name source=T target=Box.T
 
@@ -1591,7 +1580,6 @@ extension<T> of Box<T> {
     }
 }
 
-/// @generic.instance id=Box<T#1> template=Box arguments=(T#1)
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @generic.instance id=Box<T#3> template=Box arguments=(T#3)
 /// @generic.instance id=Box<T#3>.<extension#1>.make template=make arguments=(T#3)

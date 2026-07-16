@@ -31,10 +31,10 @@ interface Drawable extends Named {
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=(this: Named) => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
 
 }
 
@@ -42,11 +42,11 @@ interface Drawable extends Named {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 /// @resolution.name source=Named target=Named
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 "#,
@@ -84,11 +84,11 @@ struct Shape {}
 interface Drawable extends Shape {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 /// @resolution.name source=Shape target=Shape
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 "#,
@@ -220,11 +220,11 @@ interface Base<T> {
 /// @type.symbol symbol=Base type=Base
 /// @definition.interface symbol=Base template=(out T)
 /// @definition.where symbol=Base relation=satisfies left=this right=Base<T>
-/// @definition.method symbol=Base.value source="value(): T" slot=value type=(this: Base<T>) => T
+/// @definition.method symbol=Base.value source="value(): T" slot=value type=(this: this) => T
 /// @type.symbol symbol=Base.T source=T type=T
 
     value(): T;
-    /// @type.symbol symbol=Base.value source="value(): T" type=(this: Base<T>) => T
+    /// @type.symbol symbol=Base.value source="value(): T" type=(this: this) => T
     /// @resolution.name source=T target=Base.T
 
 }
@@ -248,8 +248,6 @@ interface Both extends Left, Right {}
 /// @definition.extends symbol=Both source=Right target=Right
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
-
-/// @generic.instance id=Base<T> template=Base arguments=(T)
 "#,
         r#"
 /// @diagnostic.error code=EC617 message="type 'Both' has conflicting heritage for 'Base'"

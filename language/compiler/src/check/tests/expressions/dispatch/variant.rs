@@ -131,13 +131,13 @@ newtype Wrapper<T> = Promise<T>;
 extension<T> of Wrapper<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Wrapper<T#2>
-/// @definition.method symbol=take slot=take type=async (this: Wrapper<T#2>) => Promise<T#2>
+/// @definition.method symbol=take slot=take type=async (this: this) => Promise<T#2>
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Wrapper target=Wrapper
 /// @resolution.name source=T target=T
 
     async take(): Promise<T> {
-    /// @type.symbol symbol=take type=async (this: Wrapper<T#2>) => Promise<T#2>
+    /// @type.symbol symbol=take type=async (this: this) => Promise<T#2>
     /// @resolution.name source=Promise target=async.promise.Promise
     /// @resolution.name source=T target=T
 

@@ -226,13 +226,13 @@ struct Badge {
 extension of Badge implements PartialEqual<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=ops.equality.PartialEqual arguments=(Badge)
-/// @definition.method symbol=equal slot=equal type=(this: Badge, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=(this: this, Badge) => boolean
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 /// @resolution.name source=Badge target=Badge
 
     equal(other: Badge): boolean {
-    /// @type.symbol symbol=equal type=(this: Badge, Badge) => boolean
+    /// @type.symbol symbol=equal type=(this: this, Badge) => boolean
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 

@@ -186,10 +186,10 @@ class Document implements Printable {
 interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable
-/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
+/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
 
     print(): void;
-    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: Printable) => void
+    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: this) => void
 
 }
 
@@ -198,11 +198,11 @@ class Document implements Printable {
 /// @definition.class symbol=Document
 /// @definition.where symbol=Document source=Printable relation=satisfies left=this right=Printable
 /// @definition.implements symbol=Document source=Printable target=Printable
-/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: this) => void
 /// @resolution.name source=Printable target=Printable
 
     print(): void {}
-    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: this) => void
 
 }
 "#,
@@ -242,10 +242,10 @@ class Document implements Alias {
 interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable
-/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
+/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
 
     print(): void;
-    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: Printable) => void
+    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: this) => void
 
 }
 type Alias = Printable;
@@ -256,11 +256,11 @@ type Alias = Printable;
 class Document implements Alias {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
-/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: this) => void
 /// @resolution.name source=Alias target=Alias
 
     print(): void {}
-    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: this) => void
 
 }
 "#,
@@ -302,10 +302,10 @@ class Point implements Drawable {
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 
@@ -368,10 +368,10 @@ class Point implements Drawable {
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=(this: Named) => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
 
 }
 
@@ -379,11 +379,11 @@ interface Drawable extends Named {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 /// @resolution.name source=Named target=Named
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 
@@ -392,11 +392,11 @@ class Point implements Drawable {
 /// @definition.class symbol=Point
 /// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
-/// @definition.method symbol=Point.draw source="draw(): void {}" slot=draw type=(this: Point) => void
+/// @definition.method symbol=Point.draw source="draw(): void {}" slot=draw type=(this: this) => void
 /// @resolution.name source=Drawable target=Drawable
 
     draw(): void {}
-    /// @type.symbol symbol=Point.draw source="draw(): void {}" type=(this: Point) => void
+    /// @type.symbol symbol=Point.draw source="draw(): void {}" type=(this: this) => void
 
 }
 "#,
@@ -469,10 +469,10 @@ class Document {
 class Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
-/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: Document) => void
+/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: this) => void
 
     override print(): void {}
-    /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: Document) => void
+    /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: this) => void
 
 }
 "#,
@@ -514,10 +514,10 @@ class Document extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.print source="virtual print(): void {}" slot=print abstraction=virtual type=(this: Base) => void
+/// @definition.method symbol=Base.print source="virtual print(): void {}" slot=print abstraction=virtual type=(this: this) => void
 
     virtual print(): void {}
-    /// @type.symbol symbol=Base.print source="virtual print(): void {}" type=(this: Base) => void
+    /// @type.symbol symbol=Base.print source="virtual print(): void {}" type=(this: this) => void
 
 }
 
@@ -525,11 +525,11 @@ class Document extends Base {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
 /// @definition.extends symbol=Document source=Base target=Base
-/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: this) => void
 /// @resolution.name source=Base target=Base
 
     print(): void {}
-    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: this) => void
 
 }
 "#,
@@ -572,10 +572,10 @@ class Document extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.print source="print(): void {}" slot=print type=(this: Base) => void
+/// @definition.method symbol=Base.print source="print(): void {}" slot=print type=(this: this) => void
 
     print(): void {}
-    /// @type.symbol symbol=Base.print source="print(): void {}" type=(this: Base) => void
+    /// @type.symbol symbol=Base.print source="print(): void {}" type=(this: this) => void
 
 }
 
@@ -583,11 +583,11 @@ class Document extends Base {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
 /// @definition.extends symbol=Document source=Base target=Base
-/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: Document) => void
+/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: this) => void
 /// @resolution.name source=Base target=Base
 
     override print(): void {}
-    /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: Document) => void
+    /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: this) => void
 
 }
 "#,
@@ -659,10 +659,10 @@ class Writer {
 class Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.class symbol=Writer
-/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: Writer, string) => void
+/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: this, string) => void
 
     abstract write(value: string): void;
-    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: Writer, string) => void
+    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=Writer.write.value source="value: string" type=string
 
 }
@@ -701,10 +701,10 @@ class FileWriter extends Writer {}
 abstract class Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.class symbol=Writer abstract=true
-/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: Writer, string) => void
+/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: this, string) => void
 
     abstract write(value: string): void;
-    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: Writer, string) => void
+    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=Writer.write.value source="value: string" type=string
 
 }
@@ -835,10 +835,10 @@ class Parser extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.parse slot=parse abstraction=virtual type=(this: Base, string) => string
+/// @definition.method symbol=Base.parse slot=parse abstraction=virtual type=(this: this, string) => string
 
     virtual parse(value: string): string {
-    /// @type.symbol symbol=Base.parse type=(this: Base, string) => string
+    /// @type.symbol symbol=Base.parse type=(this: this, string) => string
     /// @type.symbol symbol=Base.parse.value source="value: string" type=string
 
         return value;
@@ -851,11 +851,11 @@ class Parser extends Base {
 /// @type.symbol symbol=Parser type=Parser
 /// @definition.class symbol=Parser
 /// @definition.extends symbol=Parser source=Base target=Base
-/// @definition.method symbol=Parser.parse slot=parse override=true type=(this: Parser, string) => int32
+/// @definition.method symbol=Parser.parse slot=parse override=true type=(this: this, string) => int32
 /// @resolution.name source=Base target=Base
 
     override parse(value: string): int32 {
-    /// @type.symbol symbol=Parser.parse type=(this: Parser, string) => int32
+    /// @type.symbol symbol=Parser.parse type=(this: this, string) => int32
     /// @type.symbol symbol=Parser.parse.value source="value: string" type=string
 
         return 1;

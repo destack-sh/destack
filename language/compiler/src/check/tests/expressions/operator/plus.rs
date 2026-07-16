@@ -98,7 +98,7 @@ extension of Vector implements Add<Vector> {
 /// @definition.extension symbol=<module>#2 form=local target=Vector
 /// @definition.implements symbol=<module>#2 source=Add<Vector> target=ops.plus.Add arguments=(Vector)
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
-/// @definition.method symbol=add slot=add type=(this: Vector, Vector) => Vector
+/// @definition.method symbol=add slot=add type=(this: this, Vector) => Vector
 /// @resolution.name source=Vector target=Vector
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Vector target=Vector
@@ -108,7 +108,7 @@ extension of Vector implements Add<Vector> {
     /// @resolution.name source=Vector target=Vector
 
     add(other: Vector): Vector {
-    /// @type.symbol symbol=add type=(this: Vector, Vector) => Vector
+    /// @type.symbol symbol=add type=(this: this, Vector) => Vector
     /// @type.symbol symbol=add.other source="other: Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
     /// @resolution.name source=Vector target=Vector
@@ -226,7 +226,7 @@ extension of Score implements Add<Score> {
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=ops.plus.Add arguments=(Score)
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=(this: Score, Score) => Score
+/// @definition.method symbol=add slot=add type=(this: this, Score) => Score
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Score target=Score
@@ -236,7 +236,7 @@ extension of Score implements Add<Score> {
     /// @resolution.name source=Score target=Score
 
     add(other: Score): Score {
-    /// @type.symbol symbol=add type=(this: Score, Score) => Score
+    /// @type.symbol symbol=add type=(this: this, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
@@ -328,7 +328,7 @@ extension of Score implements Add {
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add target=ops.plus.Add arguments=(this)
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=(this: Score, Score) => Score
+/// @definition.method symbol=add slot=add type=(this: this, Score) => Score
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 
@@ -337,7 +337,7 @@ extension of Score implements Add {
     /// @resolution.name source=Score target=Score
 
     add(other: Score): Score {
-    /// @type.symbol symbol=add type=(this: Score, Score) => Score
+    /// @type.symbol symbol=add type=(this: this, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score

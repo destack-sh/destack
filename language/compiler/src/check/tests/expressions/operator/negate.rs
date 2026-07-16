@@ -62,7 +62,7 @@ extension of Charge implements Negate {
 /// @definition.extension symbol=<module>#2 form=local target=Charge
 /// @definition.implements symbol=<module>#2 source=Negate target=ops.negate.Negate
 /// @definition.associated.type symbol=Output source="type Output = Charge" key=Output value=Charge
-/// @definition.method symbol=negate slot=negate type=(this: Charge) => Charge
+/// @definition.method symbol=negate slot=negate type=(this: this) => Charge
 /// @resolution.name source=Charge target=Charge
 /// @resolution.name source=Negate target=ops.negate.Negate
 
@@ -71,7 +71,7 @@ extension of Charge implements Negate {
     /// @resolution.name source=Charge target=Charge
 
     negate(): Charge {
-    /// @type.symbol symbol=negate type=(this: Charge) => Charge
+    /// @type.symbol symbol=negate type=(this: this) => Charge
     /// @resolution.name source=Charge target=Charge
 
         Charge { value: -this.value }

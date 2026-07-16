@@ -344,7 +344,7 @@ struct Store {
 extension of Store implements Index<string>, IndexSet<string, int32> {
     type Output = int32 | undefined;
 
-    index(key: string): Store.Output {
+    index(key: string): this.Output {
         return this.storage[key];
     }
 
@@ -381,8 +381,8 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target=ops.subscript.IndexSet arguments=(string, int32)
 /// @definition.implements symbol=<module>#2 source=Index<string> target=ops.subscript.Index arguments=(string, "readonly")
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
-/// @definition.method symbol=index slot=index type=(this: Store, string) => Store.Output
-/// @definition.method symbol=indexSet slot=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<Store, indexSet.L0, "exclusive">, string, int32) => void
+/// @definition.method symbol=index slot=index type=(this: this, string) => this.Output
+/// @definition.method symbol=indexSet slot=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<this, indexSet.L0, "exclusive">, string, int32) => void
 /// @resolution.name source=Store target=Store
 /// @resolution.name source=Index target=ops.subscript.Index
 /// @resolution.name source=IndexSet target=ops.subscript.IndexSet
@@ -391,7 +391,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
     /// @type.symbol symbol=Output source="type Output = int32 | undefined" type=int32 | undefined
 
     index(key: string): this.Output {
-    /// @type.symbol symbol=index type=(this: Store, string) => Store.Output reduced=(this: Store, string) => int32 | undefined
+    /// @type.symbol symbol=index type=(this: this, string) => this.Output
     /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];
@@ -405,7 +405,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 
     indexSet(&exclusive this, key: string, value: int32): void {
     /// @generic.template symbol=indexSet parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<Store, indexSet.L0, "exclusive">, string, int32) => void
+    /// @type.symbol symbol=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<this, indexSet.L0, "exclusive">, string, int32) => void
     /// @type.symbol symbol=indexSet.this source="&exclusive this" type=Borrowed<this, indexSet.L0, "exclusive">
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32" type=int32

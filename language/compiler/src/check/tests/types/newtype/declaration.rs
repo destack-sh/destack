@@ -43,10 +43,10 @@ const writer: NamedWriter = Buffer {};
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: Writer, readonly Array<uint8>) => usize
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: this, readonly Array<uint8>) => usize
 
     write(bytes: readonly uint8[]): usize;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(this: Writer, readonly Array<uint8>) => usize
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(this: this, readonly Array<uint8>) => usize
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
 
 }
@@ -59,10 +59,10 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=(this: Buffer, readonly Array<uint8>) => usize
+/// @definition.method symbol=Buffer.write slot=write type=(this: this, readonly Array<uint8>) => usize
 
     write(bytes: readonly uint8[]): usize {
-    /// @type.symbol symbol=Buffer.write type=(this: Buffer, readonly Array<uint8>) => usize
+    /// @type.symbol symbol=Buffer.write type=(this: this, readonly Array<uint8>) => usize
     /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
 
         bytes.length

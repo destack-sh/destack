@@ -84,7 +84,7 @@ let bad: ValueType = "no";
 }
 
 #[test]
-fn test_typeof_class_includes_static_surface() {
+fn test_typeof_class_projects_statics_and_satisfies_construct_shapes() {
     let session = TestSession::single(
         r#"
 class Counter {
@@ -114,7 +114,7 @@ class Counter {
     static version: int32;
     value: int32;
 
-    constructor(value: int32): Counter {
+    constructor(value: int32): this {
         this.value = value;
     }
 }
@@ -132,7 +132,7 @@ class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.field symbol=Counter.version source="static version: int32" key=version static=true type=int32
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => Counter
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => this
 
     static version: int32;
     /// @type.symbol symbol=Counter.version source="static version: int32" type=int32
@@ -141,7 +141,7 @@ class Counter {
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Counter.constructor type=(int32) => Counter
+    /// @type.symbol symbol=Counter.constructor type=(int32) => this
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;

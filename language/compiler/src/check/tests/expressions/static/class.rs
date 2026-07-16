@@ -210,7 +210,7 @@ class Packet<in out T> {
 
     value: T;
 
-    constructor(value: T): Packet<T> {
+    constructor(value: T): this {
         this.value = value;
     }
 }
@@ -225,7 +225,7 @@ class Packet<T> {
 /// @type.symbol symbol=Packet type=Packet
 /// @definition.class symbol=Packet template=(in out T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
-/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=(T) => Packet<T>
+/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=(T) => this
 /// @type.symbol symbol=Packet.T source=T type=T
 
     @if(T extends string)
@@ -236,7 +236,7 @@ class Packet<T> {
     /// @resolution.name source=T target=Packet.T
 
     constructor(value: T) {
-    /// @type.symbol symbol=Packet.constructor type=(T) => Packet<T>
+    /// @type.symbol symbol=Packet.constructor type=(T) => this
     /// @type.symbol symbol=Packet.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Packet.T
 

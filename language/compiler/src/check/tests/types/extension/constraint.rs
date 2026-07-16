@@ -61,10 +61,10 @@ const text: string = boxed.read<Document>();
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable
-/// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: Readable) => string
+/// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: this) => string
 
     read(): string;
-    /// @type.symbol symbol=Readable.read source="read(): string" type=(this: Readable) => string
+    /// @type.symbol symbol=Readable.read source="read(): string" type=(this: this) => string
 
 }
 
@@ -84,10 +84,10 @@ struct Box<T> {
 struct Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.struct symbol=Document
-/// @definition.method symbol=Document.read slot=read type=(this: Document) => string
+/// @definition.method symbol=Document.read slot=read type=(this: this) => string
 
     read(): string {
-    /// @type.symbol symbol=Document.read type=(this: Document) => string
+    /// @type.symbol symbol=Document.read type=(this: this) => string
 
         return "ok";
     }
@@ -97,7 +97,7 @@ extension<T> of Box<T> where T: Readable {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
 /// @definition.where symbol=<module>#2 source="T: Readable" relation=satisfies left=T#2 right=Readable
-/// @definition.method symbol=read slot=read type=(this: Box<T#2>) => string
+/// @definition.method symbol=read slot=read type=(this: this) => string
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
@@ -105,7 +105,7 @@ extension<T> of Box<T> where T: Readable {
 /// @resolution.name source=Readable target=Readable
 
     read(): string {
-    /// @type.symbol symbol=read type=(this: Box<T#2>) => string
+    /// @type.symbol symbol=read type=(this: this) => string
 
         return this.value.read();
         /// @resolution.member source=this.value receiver=Box<T#2> kind=symbol target=Box.value
@@ -130,7 +130,6 @@ const text = boxed.read();
 
 /// @generic.instance id=Box<Document> template=Box arguments=(Document)
 /// @generic.instance id=Box<Document>.<extension#1>.read template=read arguments=(Document)
-/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 "#,
     );
 }
@@ -188,10 +187,10 @@ boxed.read();
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable
-/// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: Readable) => string
+/// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: this) => string
 
     read(): string;
-    /// @type.symbol symbol=Readable.read source="read(): string" type=(this: Readable) => string
+    /// @type.symbol symbol=Readable.read source="read(): string" type=(this: this) => string
 
 }
 
@@ -216,7 +215,7 @@ extension<T> of Box<T> where T: Readable {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
 /// @definition.where symbol=<module>#2 source="T: Readable" relation=satisfies left=T#2 right=Readable
-/// @definition.method symbol=read slot=read type=(this: Box<T#2>) => string
+/// @definition.method symbol=read slot=read type=(this: this) => string
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
@@ -224,12 +223,12 @@ extension<T> of Box<T> where T: Readable {
 /// @resolution.name source=Readable target=Readable
 
     read(): string {
-    /// @type.symbol symbol=read type=(this: Box<T#2>) => string
+    /// @type.symbol symbol=read type=(this: this) => string
 
         return this.value.read();
         /// @type.node source=this type=Box<T#2>
         /// @type.node source=this.value type=T#2
-        /// @type.node source=this.value.read type=(this: Readable) => string
+        /// @type.node source=this.value.read type=(this: T#2) => string
         /// @type.node source=this.value.read() type=string
         /// @resolution.member source=this.value receiver=Box<T#2> kind=symbol target=Box.value
         /// @resolution.member source=this.value.read receiver=T#2 kind=symbol target=Readable.read
@@ -324,13 +323,13 @@ interface Keyed<I> {
 /// @definition.interface symbol=Keyed template=(in I)
 /// @definition.where symbol=Keyed relation=satisfies left=this right=Keyed<I>
 /// @definition.associated.type symbol=Keyed.Output source="type Output" key=Output
-/// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(this: Keyed<I>, I) => this.Output
+/// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(this: this, I) => this.Output
 /// @type.symbol symbol=Keyed.I source=I type=I
 
     type Output;
 
     index(key: I): this.Output;
-    /// @type.symbol symbol=Keyed.index source="index(key: I): this.Output" type=(this: Keyed<I>, I) => this.Output
+    /// @type.symbol symbol=Keyed.index source="index(key: I): this.Output" type=(this: this, I) => this.Output
     /// @type.symbol symbol=Keyed.index.key source="key: I" type=I
     /// @resolution.name source=I target=Keyed.I
 
@@ -355,7 +354,7 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 /// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=ops.equality.Equal<K#2>
 /// @definition.implements symbol=<module>#2 source=Keyed<K> target=Keyed arguments=(K#2)
 /// @definition.associated.type symbol=Output source="type Output = V | undefined" key=Output value="V#2 | undefined"
-/// @definition.method symbol=index slot=index type=(this: Table<K#2, V#2>, K#2) => V#2 | undefined
+/// @definition.method symbol=index slot=index type=(this: this, K#2) => V#2 | undefined
 /// @type.symbol symbol=K source="K: Hash" type=K#2
 /// @resolution.name source=Hash target=ops.hash.Hash
 /// @type.symbol symbol=V source=V type=V#2
@@ -373,7 +372,7 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
     /// @resolution.name source=V target=V
 
     index(key: K): V | undefined {
-    /// @type.symbol symbol=index type=(this: Table<K#2, V#2>, K#2) => V#2 | undefined
+    /// @type.symbol symbol=index type=(this: this, K#2) => V#2 | undefined
     /// @type.symbol symbol=index.key source="key: K" type=K#2
     /// @resolution.name source=K target=K
     /// @resolution.name source=V target=V
@@ -385,7 +384,6 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
     }
 }
 
-/// @generic.instance id="Table<K#2, V#2>" template=Table arguments=(K#2, V#2)
 /// @generic.instance id=Keyed<I> template=Keyed arguments=(I)
 "#,
     );
@@ -458,7 +456,7 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
 /// @definition.where symbol=<module>#2 source="T: Copy" relation=satisfies left=T#2 right=memory.capability.Copy
-/// @definition.method symbol=duplicate slot=duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<Pack<T#2>, duplicate.L0, "readonly">) => T#2
+/// @definition.method symbol=duplicate slot=duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<this, duplicate.L0, "readonly">) => T#2
 /// @type.symbol symbol=T#1 source=T type=T#2
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#1
@@ -467,7 +465,7 @@ export extension<T> of Pack<T> where T: Copy {
 
     duplicate(&readonly this): T {
     /// @generic.template symbol=duplicate parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<Pack<T#2>, duplicate.L0, "readonly">) => T#2
+    /// @type.symbol symbol=duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<this, duplicate.L0, "readonly">) => T#2
     /// @type.symbol symbol=duplicate.this source="&readonly this" type=Borrowed<this, duplicate.L0, "readonly">
     /// @resolution.name source=T target=T#1
 
@@ -485,7 +483,7 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.template symbol=<module>#3 parameters=(T#3)
 /// @definition.extension symbol=<module>#3 form=exported target=Pack<T#3>
 /// @definition.where symbol=<module>#3 source="T: Copy" relation=satisfies left=T#3 right=memory.capability.Copy
-/// @definition.method symbol=twice slot=twice type=<comptime twice.L0: Lifetime>(this: Borrowed<Pack<T#3>, twice.L0, "readonly">) => T#3
+/// @definition.method symbol=twice slot=twice type=<comptime twice.L0: Lifetime>(this: Borrowed<this, twice.L0, "readonly">) => T#3
 /// @type.symbol symbol=T#2 source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#2
@@ -494,7 +492,7 @@ export extension<T> of Pack<T> where T: Copy {
 
     twice(&readonly this): T {
     /// @generic.template symbol=twice parent=template#2 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=twice type=<comptime twice.L0: Lifetime>(this: Borrowed<Pack<T#3>, twice.L0, "readonly">) => T#3
+    /// @type.symbol symbol=twice type=<comptime twice.L0: Lifetime>(this: Borrowed<this, twice.L0, "readonly">) => T#3
     /// @type.symbol symbol=twice.this source="&readonly this" type=Borrowed<this, twice.L0, "readonly">
     /// @resolution.name source=T target=T#2
 
@@ -512,7 +510,6 @@ export extension<T> of Pack<T> where T: Copy {
     }
 }
 
-/// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=Pack<T#3>.<extension#1>.duplicate template=duplicate arguments=(T#3)
 "#,

@@ -795,7 +795,7 @@ declare class Pipe<T> {
 /// @type.symbol symbol=Pipe type=Pipe
 /// @definition.class symbol=Pipe template=(in out T)
 /// @definition.field symbol=Pipe.store source="store: T" key=store type=T
-/// @definition.method symbol=Pipe.put source="put(this, value: T): void" slot=put type=(this: Pipe<T>, T) => void
+/// @definition.method symbol=Pipe.put source="put(this, value: T): void" slot=put type=(this: this, T) => void
 /// @type.symbol symbol=Pipe.T source=T type=T
 
     store: T;
@@ -803,7 +803,7 @@ declare class Pipe<T> {
     /// @resolution.name source=T target=Pipe.T
 
     put(this, value: T): void;
-    /// @type.symbol symbol=Pipe.put source="put(this, value: T): void" type=(this: Pipe<T>, T) => void
+    /// @type.symbol symbol=Pipe.put source="put(this, value: T): void" type=(this: this, T) => void
     /// @type.symbol symbol=Pipe.put.this source=this type=this
     /// @type.symbol symbol=Pipe.put.value source="value: T" type=T
     /// @resolution.name source=T target=Pipe.T
@@ -823,7 +823,6 @@ const widened: ^Pipe<Shape> = pipe;
 
 /// @generic.instance id=Pipe<Circle> template=Pipe arguments=(Circle)
 /// @generic.instance id=Pipe<Shape> template=Pipe arguments=(Shape)
-/// @generic.instance id=Pipe<T> template=Pipe arguments=(T)
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '^Pipe<Circle>' is not assignable to type '^Pipe<Shape>'"
@@ -903,13 +902,13 @@ class Stack<T> {
 extension<T> of Stack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Stack<T#2>
-/// @definition.method symbol=refill slot=refill type=(this: Stack<T#2>, T#2) => void
+/// @definition.method symbol=refill slot=refill type=(this: this, T#2) => void
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=T target=T
 
     refill(this, value: T): void {
-    /// @type.symbol symbol=refill type=(this: Stack<T#2>, T#2) => void
+    /// @type.symbol symbol=refill type=(this: this, T#2) => void
     /// @type.symbol symbol=refill.this source=this type=this
     /// @type.symbol symbol=refill.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
@@ -935,7 +934,6 @@ const widened: Stack<Shape> = circles;
 
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
-/// @generic.instance id=Stack<T#2> template=Stack arguments=(T#2)
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'Stack<Circle>' is not assignable to type 'Stack<Shape>'"
@@ -1015,13 +1013,13 @@ class Stack<T> {
 extension<T> of Stack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Stack<T#2>
-/// @definition.method symbol=refill slot=refill type=(this: Stack<T#2>, T#2) => void
+/// @definition.method symbol=refill slot=refill type=(this: this, T#2) => void
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=T target=T
 
     refill(this, value: T): void {
-    /// @type.symbol symbol=refill type=(this: Stack<T#2>, T#2) => void
+    /// @type.symbol symbol=refill type=(this: this, T#2) => void
     /// @type.symbol symbol=refill.this source=this type=this
     /// @type.symbol symbol=refill.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
@@ -1047,7 +1045,6 @@ const view: readonly Stack<Shape> = circles;
 
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
-/// @generic.instance id=Stack<T#2> template=Stack arguments=(T#2)
 "#,
     );
 }
@@ -1107,7 +1104,7 @@ class Bag<T> {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag template=(in out T)
 /// @definition.field symbol=Bag.items source="items: T[] = []" key=items type=Array<T>
-/// @definition.method symbol=Bag.refill slot=refill type=(this: Bag<T>, T) => void
+/// @definition.method symbol=Bag.refill slot=refill type=(this: this, T) => void
 /// @type.symbol symbol=Bag.T source=T type=T
 
     items: T[] = [];
@@ -1115,7 +1112,7 @@ class Bag<T> {
     /// @resolution.name source=T target=Bag.T
 
     refill(this, value: T): void {
-    /// @type.symbol symbol=Bag.refill type=(this: Bag<T>, T) => void
+    /// @type.symbol symbol=Bag.refill type=(this: this, T) => void
     /// @type.symbol symbol=Bag.refill.this source=this type=this
     /// @type.symbol symbol=Bag.refill.value source="value: T" type=T
     /// @resolution.name source=T target=Bag.T
@@ -1141,7 +1138,6 @@ const view: readonly Bag<Shape> = circles;
 
 /// @generic.instance id=Bag<Circle> template=Bag arguments=(Circle)
 /// @generic.instance id=Bag<Shape> template=Bag arguments=(Shape)
-/// @generic.instance id=Bag<T> template=Bag arguments=(T)
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'Bag<Circle>' is not assignable to type 'readonly Bag<Shape>'"

@@ -132,7 +132,7 @@ extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
-/// @definition.method symbol=multiply slot=multiply type=(this: Force, float64) => Force
+/// @definition.method symbol=multiply slot=multiply type=(this: this, float64) => Force
 /// @resolution.name source=Force target=Force
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 
@@ -141,7 +141,7 @@ extension of Force implements Multiply<float64> {
     /// @resolution.name source=Force target=Force
 
     multiply(other: float64): Force {
-    /// @type.symbol symbol=multiply type=(this: Force, float64) => Force
+    /// @type.symbol symbol=multiply type=(this: this, float64) => Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=Force
 
@@ -254,7 +254,7 @@ extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=force.Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=force.Force
-/// @definition.method symbol=multiply slot=multiply type=(this: force.Force, float64) => force.Force
+/// @definition.method symbol=multiply slot=multiply type=(this: this, float64) => force.Force
 /// @resolution.name source=Force target=force.Force
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 
@@ -263,7 +263,7 @@ extension of Force implements Multiply<float64> {
     /// @resolution.name source=Force target=force.Force
 
     multiply(other: float64): Force {
-    /// @type.symbol symbol=multiply type=(this: force.Force, float64) => force.Force
+    /// @type.symbol symbol=multiply type=(this: this, float64) => force.Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=force.Force
 

@@ -207,20 +207,20 @@ shape.draw();
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=(this: Rectangle) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=(this: this) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=(this: Rectangle) => void
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=(this: this) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=(this: Circle) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=(this: this) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=(this: Circle) => void
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=(this: this) => void
 
 }
 
@@ -234,7 +234,6 @@ shape.draw();
 /// @resolution.name source=shape target=shape
 /// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=universal targets=[Rectangle.draw, Circle.draw]
 /// @resolution.call source=shape.draw() parameters=() return=void kind=universal targets=[Rectangle.draw, Circle.draw]
-
 "#);
 }
 
@@ -281,20 +280,20 @@ function draw(shape: Shape): void {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=(this: Rectangle) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=(this: this) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=(this: Rectangle) => void
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=(this: this) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=(this: Circle) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=(this: this) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=(this: Circle) => void
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=(this: this) => void
 
 }
 

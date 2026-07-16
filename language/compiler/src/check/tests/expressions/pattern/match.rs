@@ -404,7 +404,7 @@ match (user) {
 class User {
     name: string;
 
-    constructor(name: string): User {
+    constructor(name: string): this {
         this.name = name;
     }
 }
@@ -420,13 +420,13 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => this
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor type=(string) => User
+    /// @type.symbol symbol=User.constructor type=(string) => this
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;

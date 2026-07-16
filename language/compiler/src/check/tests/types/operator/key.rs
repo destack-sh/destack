@@ -343,14 +343,14 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
-/// @definition.method symbol=User.print slot=print type=(this: User) => string
+/// @definition.method symbol=User.print slot=print type=(this: this) => string
 
     name: string = "";
     /// @type.symbol symbol=User.name source="name: string = \"\"" type=string
     /// @type.node source="\"\"" type=""
 
     print(): string {
-    /// @type.symbol symbol=User.print type=(this: User) => string
+    /// @type.symbol symbol=User.print type=(this: this) => string
 
         return this.name;
         /// @type.node source=this type=User

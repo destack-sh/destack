@@ -125,11 +125,11 @@ found satisfies boolean;
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
-/// @definition.method symbol=Bag.has slot=has type=<comptime Bag.has.L0: Lifetime>(this: Bag, Borrowed<string, Bag.has.L0, "readonly">) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<comptime Bag.has.L0: Lifetime>(this: this, Borrowed<string, Bag.has.L0, "readonly">) => boolean
 
     has(key: &readonly string): boolean {
     /// @generic.template symbol=Bag.has parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Bag.has type=<comptime Bag.has.L0: Lifetime>(this: Bag, Borrowed<string, Bag.has.L0, "readonly">) => boolean
+    /// @type.symbol symbol=Bag.has type=<comptime Bag.has.L0: Lifetime>(this: this, Borrowed<string, Bag.has.L0, "readonly">) => boolean
     /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=Borrowed<string, Bag.has.L0, "readonly">
 
         return true;

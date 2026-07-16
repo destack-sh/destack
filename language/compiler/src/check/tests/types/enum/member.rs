@@ -98,7 +98,7 @@ enum Status {
 /// @definition.enum symbol=Status
 /// @definition.variant symbol=Status.Active source="Active = 1" key=Active
 /// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive
-/// @definition.method symbol=Status.isActive slot=isActive type=(this: Status) => boolean
+/// @definition.method symbol=Status.isActive slot=isActive type=(this: this) => boolean
 
     Active = 1,
     /// @type.symbol symbol=Status.Active source="Active = 1" type=Status.Active
@@ -109,7 +109,7 @@ enum Status {
     /// @type.node source=2 type=2
 
     isActive(): boolean {
-    /// @type.symbol symbol=Status.isActive type=(this: Status) => boolean
+    /// @type.symbol symbol=Status.isActive type=(this: this) => boolean
 
         return this == Status.Active;
         /// @type.node source="this == Status.Active" type=boolean
@@ -128,7 +128,7 @@ const value = Status.Active.isActive();
 /// @type.symbol symbol=value source=value type=boolean
 /// @type.node source=Status type=Status
 /// @type.node source=Status.Active type=Status.Active
-/// @type.node source=Status.Active.isActive type=(this: Status) => boolean
+/// @type.node source=Status.Active.isActive type=(this: Status.Active) => boolean
 /// @type.node source=Status.Active.isActive() type=boolean
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active

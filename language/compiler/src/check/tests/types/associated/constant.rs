@@ -88,13 +88,13 @@ interface RegisterBlock {
 /// @type.symbol symbol=RegisterBlock type=RegisterBlock
 /// @definition.interface symbol=RegisterBlock
 /// @definition.associated.const symbol=RegisterBlock.Width source="comptime const Width: usize" key=Width type=usize
-/// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=(this: RegisterBlock) => FixedArray<uint8, this.Width>
+/// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=(this: this) => FixedArray<uint8, this.Width>
 
     comptime const Width: usize;
     /// @type.symbol symbol=RegisterBlock.Width source="comptime const Width: usize" type=usize
 
     read(): [uint8; this.Width];
-    /// @type.symbol symbol=RegisterBlock.read source="read(): [uint8; this.Width]" type=(this: RegisterBlock) => FixedArray<uint8, this.Width>
+    /// @type.symbol symbol=RegisterBlock.read source="read(): [uint8; this.Width]" type=(this: this) => FixedArray<uint8, this.Width>
 
 }
 

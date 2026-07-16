@@ -35,7 +35,7 @@ const first = values[0];
 
 /// @generic.instance id=Array<float64>.<extension#6>.index#4 template=collections.array.index#4 arguments=(float64, float64)
 
-/// @check.stats.solve variables=0 types=16 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=3 types=19 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -75,7 +75,7 @@ const first = values[0];
 
 /// @generic.instance id="Array<1 | 2>.<extension#6>.index#4" template=collections.array.index#4 arguments=(1 | 2, 1 | 2)
 
-/// @check.stats.solve variables=0 types=14 constraints=4 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=3 types=17 constraints=4 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

@@ -31,10 +31,10 @@ function paint(item: Dynamic<Drawable>): void {
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 

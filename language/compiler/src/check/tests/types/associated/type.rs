@@ -134,12 +134,12 @@ interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item" key=Item
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: Iterator) => this.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
 
     type Item;
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: Iterator) => this.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
 
 }
 
@@ -199,7 +199,7 @@ interface Producing {
 class Factory implements Producing {
     type Output = int32;
 
-    produce(): Factory.Output {
+    produce(): this.Output {
         return 7;
     }
 }
@@ -213,12 +213,12 @@ interface Producing {
 /// @type.symbol symbol=Producing type=Producing
 /// @definition.interface symbol=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => this.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: Producing) => this.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -228,14 +228,14 @@ class Factory implements Producing {
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=Factory.produce slot=produce type=(this: Factory) => Factory.Output
+/// @definition.method symbol=Factory.produce slot=produce type=(this: this) => this.Output
 /// @resolution.name source=Producing target=Producing
 
     type Output = int32;
     /// @type.symbol symbol=Factory.Output source="type Output = int32" type=int32
 
     produce(): this.Output {
-    /// @type.symbol symbol=Factory.produce type=(this: Factory) => Factory.Output reduced=(this: Factory) => int32
+    /// @type.symbol symbol=Factory.produce type=(this: this) => this.Output
 
         return 7;
     }
@@ -297,13 +297,13 @@ interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item = uint8" key=Item value=uint8
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: Iterator) => this.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
 
     type Item = uint8;
     /// @type.symbol symbol=Iterator.Item source="type Item = uint8" type=uint8
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: Iterator) => this.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
 
 }
 

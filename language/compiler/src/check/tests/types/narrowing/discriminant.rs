@@ -451,7 +451,7 @@ type State<T> = Pending<T> | Fulfilled<T>;
 class Cell<in T> {
     state: State<T>;
 
-    constructor(pending: Pending<T>): Cell<T> {
+    constructor(pending: Pending<T>): this {
         this.state = pending as State<T>;
     }
 
@@ -551,9 +551,9 @@ class Cell<T> {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.class symbol=Cell template=(in T#5)
 /// @definition.field symbol=Cell.state source="state: State<T>" key=state type=State<T#5>
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Pending<T#5>) => Cell<T#5>
-/// @definition.method symbol=Cell.consume slot=consume type=(this: Cell<T#5>, T#5) => void
-/// @definition.method symbol=Cell.poke slot=poke type=(this: Cell<T#5>, Waiter<T#5>) => void
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Pending<T#5>) => this
+/// @definition.method symbol=Cell.consume slot=consume type=(this: this, T#5) => void
+/// @definition.method symbol=Cell.poke slot=poke type=(this: this, Waiter<T#5>) => void
 /// @type.symbol symbol=Cell.T source=T type=T#5
 
     state: State<T>;
@@ -562,7 +562,7 @@ class Cell<T> {
     /// @resolution.name source=T target=Cell.T
 
     constructor(pending: Pending<T>) {
-    /// @type.symbol symbol=Cell.constructor type=(Pending<T#5>) => Cell<T#5>
+    /// @type.symbol symbol=Cell.constructor type=(Pending<T#5>) => this
     /// @type.symbol symbol=Cell.constructor.pending source="pending: Pending<T>" type=Pending<T#5>
     /// @resolution.name source=Pending target=Pending
     /// @resolution.name source=T target=Cell.T
@@ -575,7 +575,7 @@ class Cell<T> {
     }
 
     consume(value: T): void {
-    /// @type.symbol symbol=Cell.consume type=(this: Cell<T#5>, T#5) => void
+    /// @type.symbol symbol=Cell.consume type=(this: this, T#5) => void
     /// @type.symbol symbol=Cell.consume.value source="value: T" type=T#5
     /// @resolution.name source=T target=Cell.T
 
@@ -585,7 +585,7 @@ class Cell<T> {
     }
 
     poke(waiter: Waiter<T>): void {
-    /// @type.symbol symbol=Cell.poke type=(this: Cell<T#5>, Waiter<T#5>) => void
+    /// @type.symbol symbol=Cell.poke type=(this: this, Waiter<T#5>) => void
     /// @type.symbol symbol=Cell.poke.waiter source="waiter: Waiter<T>" type=Waiter<T#5>
     /// @resolution.name source=Waiter target=Waiter
     /// @resolution.name source=T target=Cell.T
@@ -642,7 +642,6 @@ class Cell<T> {
     }
 }
 
-/// @generic.instance id=Cell<T#5> template=Cell arguments=(T#5)
 /// @generic.instance id=Cell<T#5>.consume template=Cell.consume arguments=(T#5)
 /// @generic.instance id=Fulfilled<T#4> template=Fulfilled arguments=(T#4)
 /// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)

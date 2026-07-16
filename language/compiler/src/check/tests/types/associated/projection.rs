@@ -44,7 +44,7 @@ struct Pair<out T: Numeric> {
 extension<T: Numeric> of Pair<T> implements Doubles {
     type Output = Pair<T>;
 
-    double(): Pair<T>.Output {
+    double(): this.Output {
         Pair<T> { x: this.x + this.x }
     }
 }
@@ -56,11 +56,11 @@ interface Doubles {
 /// @type.symbol symbol=Doubles type=Doubles
 /// @definition.interface symbol=Doubles
 /// @definition.associated.type symbol=Doubles.Output source="type Output" key=Output
-/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: Doubles) => this.Output
+/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: this) => this.Output
 
     type Output;
     double(): this.Output;
-    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=(this: Doubles) => this.Output
+    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -83,7 +83,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 /// @definition.extension symbol=<module>#2 form=local target=Pair<T#2>
 /// @definition.implements symbol=<module>#2 source=Doubles target=Doubles
 /// @definition.associated.type symbol=Output source="type Output = Pair<T>" key=Output value=Pair<T#2>
-/// @definition.method symbol=double slot=double type=(this: Pair<T#2>) => Pair<T#2>.Output
+/// @definition.method symbol=double slot=double type=(this: this) => this.Output
 /// @type.symbol symbol=T source="T: Numeric" type=T#2
 /// @resolution.name source=Numeric target=math.scalar.Numeric
 /// @resolution.name source=Pair target=Pair
@@ -96,7 +96,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
     /// @resolution.name source=T target=T
 
     double(): this.Output {
-    /// @type.symbol symbol=double type=(this: Pair<T#2>) => Pair<T#2>.Output reduced=(this: Pair<T#2>) => Pair<T#2>
+    /// @type.symbol symbol=double type=(this: this) => this.Output
 
         Pair { x: this.x + this.x }
         /// @type.node source="Pair { x: this.x + this.x }" type=Pair<T#2>

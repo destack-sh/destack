@@ -31,7 +31,7 @@ function capture<T>(): void {
 type Consume<T> = (value: T) => void;
 
 class Cell<T> {
-    constructor(executor: (arg0: Consume<T>) => void): Cell<T> {
+    constructor(executor: (arg0: Consume<T>) => void): this {
         executor;
     }
 }
@@ -57,11 +57,11 @@ class Cell<T> {
 /// @generic.template symbol=Cell parameters=(T#2)
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.class symbol=Cell template=(T#2)
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Function<(Consume<T#2>,), void>) => Cell<T#2>
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Function<(Consume<T#2>,), void>) => this
 /// @type.symbol symbol=Cell.T source=T type=T#2
 
     constructor(executor: (consume: Consume<T>) => void) {
-    /// @type.symbol symbol=Cell.constructor type=(Function<(Consume<T#2>,), void>) => Cell<T#2>
+    /// @type.symbol symbol=Cell.constructor type=(Function<(Consume<T#2>,), void>) => this
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (consume: Consume<T>) => void" type=Function<(Consume<T#2>,), void>
     /// @resolution.name source=Consume target=Consume
     /// @resolution.name source=T target=Cell.T
@@ -118,7 +118,6 @@ function capture<T>(): void {
 
 }
 
-/// @generic.instance id=Cell<T#2> template=Cell arguments=(T#2)
 /// @generic.instance id=Cell<T#3> template=Cell arguments=(T#3)
 /// @generic.instance id=Consume<T#2> template=Consume arguments=(T#2)
 /// @generic.instance id=Consume<T#3> template=Consume arguments=(T#3)
@@ -154,7 +153,7 @@ function capture(): void {
         r#"
 === annotated ===
 class Cell<out T> {
-    constructor(executor: (arg0: T) => void): Cell<T> {
+    constructor(executor: (arg0: T) => void): this {
         executor;
     }
 }
@@ -173,11 +172,11 @@ class Cell<T> {
 /// @generic.template symbol=Cell parameters=(out T)
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.class symbol=Cell template=(out T)
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Function<(T,), void>) => Cell<T>
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Function<(T,), void>) => this
 /// @type.symbol symbol=Cell.T source=T type=T
 
     constructor(executor: (value: T) => void) {
-    /// @type.symbol symbol=Cell.constructor type=(Function<(T,), void>) => Cell<T>
+    /// @type.symbol symbol=Cell.constructor type=(Function<(T,), void>) => this
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (value: T) => void" type=Function<(T,), void>
     /// @resolution.name source=T target=Cell.T
 
@@ -223,7 +222,6 @@ function capture(): void {
 
 }
 
-/// @generic.instance id=Cell<T> template=Cell arguments=(T)
 /// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
 "#,
         r#""#,

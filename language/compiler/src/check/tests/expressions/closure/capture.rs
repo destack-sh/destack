@@ -253,10 +253,10 @@ const send: ^Function<(string,), void> = ((message: string): void => {
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
 /// @definition.struct symbol=Socket
-/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=(this: Socket, string) => void
+/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=(this: this, string) => void
 
     write(message: string): void {}
-    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=(this: Socket, string) => void
+    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=(this: this, string) => void
     /// @capture.function function=Socket.write bindings=0
     /// @type.symbol symbol=Socket.write.message source="message: string" type=string
 
@@ -347,10 +347,10 @@ const load = async () => await client.read();
 declare class Client {
 /// @type.symbol symbol=Client type=Client
 /// @definition.class symbol=Client
-/// @definition.method symbol=Client.read source="read(): Promise<string>" slot=read type=(this: Client) => Promise<string>
+/// @definition.method symbol=Client.read source="read(): Promise<string>" slot=read type=(this: this) => Promise<string>
 
     read(): Promise<string>;
-    /// @type.symbol symbol=Client.read source="read(): Promise<string>" type=(this: Client) => Promise<string>
+    /// @type.symbol symbol=Client.read source="read(): Promise<string>" type=(this: this) => Promise<string>
     /// @resolution.name source=Promise target=async.promise.Promise
 
 }
@@ -419,14 +419,14 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Counter.make slot=make type=(this: Counter) => Function<(), int32>
+/// @definition.method symbol=Counter.make slot=make type=(this: this) => Function<(), int32>
 
     value: int32 = 0;
     /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
     /// @type.node source=0 type=0
 
     make(): () => int32 {
-    /// @type.symbol symbol=Counter.make type=(this: Counter) => Function<(), int32>
+    /// @type.symbol symbol=Counter.make type=(this: this) => Function<(), int32>
     /// @capture.function function=Counter.make bindings=0
 
         return () => this.value;

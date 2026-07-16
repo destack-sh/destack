@@ -44,11 +44,11 @@ class Wrapper<T> {
 /// @generic.template symbol=Wrapper parameters=(out T#1)
 /// @type.symbol symbol=Wrapper type=Wrapper
 /// @definition.class symbol=Wrapper template=(out T#1)
-/// @definition.method symbol=Wrapper.open slot=open type=(this: Wrapper<T#1>) => T#1
+/// @definition.method symbol=Wrapper.open slot=open type=(this: this) => T#1
 /// @type.symbol symbol=Wrapper.T source=T type=T#1
 
     open(): T {
-    /// @type.symbol symbol=Wrapper.open type=(this: Wrapper<T#1>) => T#1
+    /// @type.symbol symbol=Wrapper.open type=(this: this) => T#1
     /// @resolution.name source=T target=Wrapper.T
 
         throw "unreachable";
@@ -66,13 +66,13 @@ newtype Sealed<T> = Wrapper<T>;
 extension<T> of Sealed<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=Sealed<T#3>
-/// @definition.method symbol=reveal slot=reveal type=(this: Sealed<T#3>) => T#3
+/// @definition.method symbol=reveal slot=reveal type=(this: this) => T#3
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Sealed target=Sealed
 /// @resolution.name source=T target=T
 
     reveal(): T {
-    /// @type.symbol symbol=reveal type=(this: Sealed<T#3>) => T#3
+    /// @type.symbol symbol=reveal type=(this: this) => T#3
     /// @resolution.name source=T target=T
 
         this.open()
@@ -84,8 +84,6 @@ extension<T> of Sealed<T> {
     }
 }
 
-/// @generic.instance id=Sealed<T#3> template=Sealed arguments=(T#3)
-/// @generic.instance id=Wrapper<T#1> template=Wrapper arguments=(T#1)
 /// @generic.instance id=Wrapper<T#3>.open template=Wrapper.open arguments=(T#3)
 "#,
         r#""#,

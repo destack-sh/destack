@@ -311,13 +311,13 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=(this: Counter) => Counter
+/// @definition.method symbol=Counter.increment slot=increment type=(this: this) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): Counter {
-    /// @type.symbol symbol=Counter.increment type=(this: Counter) => Counter
+    /// @type.symbol symbol=Counter.increment type=(this: this) => Counter
     /// @resolution.name source=Counter target=Counter
 
         Counter { value: this.value + 1 }
@@ -538,13 +538,13 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=(this: Counter) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=(this: this) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): int32 {
-    /// @type.symbol symbol=Counter.increment type=(this: Counter) => int32
+    /// @type.symbol symbol=Counter.increment type=(this: this) => int32
 
         this.value = this.value + 1;
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter

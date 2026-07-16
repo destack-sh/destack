@@ -21,7 +21,7 @@ ok satisfies (string, number);
         r#"
 === annotated ===
 class User {
-    constructor(name: string, age: float64): User {}
+    constructor(name: string, age: float64): this {}
 }
 
 type Args = ConstructorParameters<typeof User>;
@@ -33,10 +33,10 @@ ok satisfies (string, number);
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => User
+/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => this
 
     constructor(name: string, age: number) {}
-    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => User
+    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => this
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 
@@ -141,7 +141,7 @@ const bad: Args = ("Ada", "old");
         r#"
 === annotated ===
 class User {
-    constructor(name: string, age: float64): User {}
+    constructor(name: string, age: float64): this {}
 }
 
 type Args = ConstructorParameters<typeof User>;
@@ -152,10 +152,10 @@ const bad: Args = ("Ada", "old");
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => User
+/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => this
 
     constructor(name: string, age: number) {}
-    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => User
+    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => this
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 

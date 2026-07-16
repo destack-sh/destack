@@ -90,13 +90,13 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=(this: Point) => int32
+/// @definition.method symbol=Point.length slot=length type=(this: this) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(): int32 {
-    /// @type.symbol symbol=Point.length type=(this: Point) => int32
+    /// @type.symbol symbol=Point.length type=(this: this) => int32
 
         return this.x;
         /// @type.node source=this type=Point
@@ -237,11 +237,9 @@ values.push(1);
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=Array<int32> kind=existential targets=[collections.array.push#1, collections.array.push#2]
 /// @resolution.call source=values.push(1) parameters=(int32) arguments=(provided(1) as int32) return=void kind=symbol target=collections.array.push#1 receiver=Array<int32> adjustments=(borrow) instance=Array<int32>.<extension#6>.push#1
-/// @generic.instance source=values.push id=Array<int32>
 /// @generic.instance source=values.push(1) id=Array<int32>.<extension#6>.push#1
 /// @type.node source=1 type=1
 
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=Array<int32>.<extension#6>.push#1 template=collections.array.push#1 arguments=(int32)
 "#,
     );

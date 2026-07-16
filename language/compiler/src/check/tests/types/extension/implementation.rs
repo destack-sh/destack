@@ -51,10 +51,10 @@ extension of User implements Show {
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: Show) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 
@@ -65,12 +65,12 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show#1 slot=show type=(this: User) => string
+/// @definition.method symbol=show#1 slot=show type=(this: this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
-    /// @type.symbol symbol=show#1 type=(this: User) => string
+    /// @type.symbol symbol=show#1 type=(this: this) => string
 
         return "user";
     }
@@ -79,12 +79,12 @@ extension of User implements Show {
 extension of User implements Show {
 /// @definition.extension symbol=<module>#3 form=local target=User
 /// @definition.implements symbol=<module>#3 source=Show target=Show
-/// @definition.method symbol=show#2 slot=show type=(this: User) => string
+/// @definition.method symbol=show#2 slot=show type=(this: this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
-    /// @type.symbol symbol=show#2 type=(this: User) => string
+    /// @type.symbol symbol=show#2 type=(this: this) => string
 
         return "debug";
     }
@@ -129,10 +129,10 @@ extension of User implements Show {}
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: Show) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 
@@ -200,10 +200,10 @@ extension of User implements Show {
 newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named nominal=true
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=(this: Named) => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
 
 }
 
@@ -211,11 +211,11 @@ newtype interface Show extends Named {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
 /// @definition.extends symbol=Show source=Named target=Named
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 /// @resolution.name source=Named target=Named
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: Show) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 
@@ -226,12 +226,12 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show slot=show type=(this: User) => string
+/// @definition.method symbol=show slot=show type=(this: this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
-    /// @type.symbol symbol=show type=(this: User) => string
+    /// @type.symbol symbol=show type=(this: this) => string
 
         return "user";
     }
@@ -301,11 +301,11 @@ newtype interface PartialEqual<T = this> {
 /// @type.symbol symbol=PartialEqual type=PartialEqual
 /// @definition.interface symbol=PartialEqual template=(in T#1 = this) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
-/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: PartialEqual<T#1>, T#1) => boolean
+/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
     equal(other: T): boolean;
-    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: PartialEqual<T#1>, T#1) => boolean
+    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
     /// @resolution.name source=T target=PartialEqual.T
 
@@ -328,13 +328,13 @@ struct Badge {}
 extension of Badge implements Equal<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal arguments=(Badge)
-/// @definition.method symbol=equal slot=equal type=(this: Badge, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=(this: this, Badge) => boolean
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=Badge target=Badge
 
     equal(other: Badge): boolean {
-    /// @type.symbol symbol=equal type=(this: Badge, Badge) => boolean
+    /// @type.symbol symbol=equal type=(this: this, Badge) => boolean
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
@@ -370,7 +370,6 @@ const ok = compare(Badge {}, Badge {});
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Badge target=Badge
 
-/// @generic.instance id=PartialEqual<T#1> template=PartialEqual arguments=(T#1)
 /// @generic.instance id=PartialEqual<T#3>.equal template=PartialEqual.equal arguments=(T#3)
 /// @generic.instance id=compare<Badge> template=compare arguments=(Badge)
 "#,
@@ -462,10 +461,10 @@ struct User {}
 interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: Show) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 type Alias = Show;
@@ -475,12 +474,12 @@ type Alias = Show;
 
 extension of User implements Alias {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=(this: User) => string
+/// @definition.method symbol=show slot=show type=(this: this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Alias target=Alias
 
     show(): string {
-    /// @type.symbol symbol=show type=(this: User) => string
+    /// @type.symbol symbol=show type=(this: this) => string
 
         return "";
     }
@@ -540,31 +539,31 @@ struct User {}
 interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: Show) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 interface Debug {
 /// @type.symbol symbol=Debug type=Debug
 /// @definition.interface symbol=Debug
-/// @definition.method symbol=Debug.debug source="debug(): string" slot=debug type=(this: Debug) => string
+/// @definition.method symbol=Debug.debug source="debug(): string" slot=debug type=(this: this) => string
 
     debug(): string;
-    /// @type.symbol symbol=Debug.debug source="debug(): string" type=(this: Debug) => string
+    /// @type.symbol symbol=Debug.debug source="debug(): string" type=(this: this) => string
 
 }
 
 extension of User implements Show | Debug {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=(this: User) => string
+/// @definition.method symbol=show slot=show type=(this: this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 /// @resolution.name source=Debug target=Debug
 
     show(): string {
-    /// @type.symbol symbol=show type=(this: User) => string
+    /// @type.symbol symbol=show type=(this: this) => string
 
         return "";
     }
@@ -608,7 +607,7 @@ interface Doubling {
 extension of int32 implements Doubling {
     type Output = int32;
 
-    double(): int32.Output {
+    double(): this.Output {
         todo("double" as string | undefined)
     }
 }
@@ -618,12 +617,12 @@ interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
 /// @definition.associated.type symbol=Doubling.Output source="type Output" key=Output
-/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: Doubling) => this.Output
+/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: this) => this.Output
 
     type Output;
 
     double(): this.Output;
-    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=(this: Doubling) => this.Output
+    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -631,14 +630,14 @@ extension of int32 implements Doubling {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=double slot=double type=(this: int32) => int32.Output
+/// @definition.method symbol=double slot=double type=(this: this) => this.Output
 /// @resolution.name source=Doubling target=Doubling
 
     type Output = int32;
     /// @type.symbol symbol=Output source="type Output = int32" type=int32
 
     double(): this.Output {
-    /// @type.symbol symbol=double type=(this: int32) => int32.Output reduced=(this: int32) => int32
+    /// @type.symbol symbol=double type=(this: this) => this.Output
 
         todo("double")
         /// @resolution.name source=todo target=error.panic.todo
@@ -802,7 +801,7 @@ interface Halving {
 extension of int32 implements Halving {
     type Output = int32;
 
-    halve(&readonly this): Borrowed<int32, L0, "readonly">.Output {
+    halve(&readonly this): this.Output {
         todo("halve" as string | undefined)
     }
 }
@@ -812,12 +811,12 @@ interface Halving {
 /// @type.symbol symbol=Halving type=Halving
 /// @definition.interface symbol=Halving
 /// @definition.associated.type symbol=Halving.Output source="type Output" key=Output
-/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: Halving) => this.Output
+/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: this) => this.Output
 
     type Output;
 
     halve(): this.Output;
-    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=(this: Halving) => this.Output
+    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -825,7 +824,7 @@ extension of int32 implements Halving {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Halving target=Halving
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=halve slot=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => Borrowed<int32, halve.L0, "readonly">.Output
+/// @definition.method symbol=halve slot=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<this, halve.L0, "readonly">) => this.Output
 /// @resolution.name source=Halving target=Halving
 
     type Output = int32;
@@ -833,7 +832,7 @@ extension of int32 implements Halving {
 
     halve(&readonly this): this.Output {
     /// @generic.template symbol=halve parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => Borrowed<int32, halve.L0, "readonly">.Output reduced=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => int32
+    /// @type.symbol symbol=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<this, halve.L0, "readonly">) => this.Output
     /// @type.symbol symbol=halve.this source="&readonly this" type=Borrowed<this, halve.L0, "readonly">
 
         todo("halve")
@@ -907,7 +906,7 @@ struct Cell {
 extension of Cell implements Reading {
     type Output = int32;
 
-    read(): Cell.Output {
+    read(): this.Output {
         todo("read" as string | undefined)
     }
 }
@@ -915,7 +914,7 @@ extension of Cell implements Reading {
 extension of Cell implements Writing {
     type Output = float64;
 
-    write(): Cell.Output {
+    write(): this.Output {
         todo("write" as string | undefined)
     }
 }
@@ -925,12 +924,12 @@ interface Reading {
 /// @type.symbol symbol=Reading type=Reading
 /// @definition.interface symbol=Reading
 /// @definition.associated.type symbol=Reading.Output source="type Output" key=Output
-/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: Reading) => this.Output
+/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: this) => this.Output
 
     type Output;
 
     read(): this.Output;
-    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=(this: Reading) => this.Output
+    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -938,12 +937,12 @@ interface Writing {
 /// @type.symbol symbol=Writing type=Writing
 /// @definition.interface symbol=Writing
 /// @definition.associated.type symbol=Writing.Output source="type Output" key=Output
-/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: Writing) => this.Output
+/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: this) => this.Output
 
     type Output;
 
     write(): this.Output;
-    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=(this: Writing) => this.Output
+    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -961,7 +960,7 @@ extension of Cell implements Reading {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
 /// @definition.implements symbol=<module>#2 source=Reading target=Reading
 /// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=read slot=read type=(this: Cell) => Cell.Output
+/// @definition.method symbol=read slot=read type=(this: this) => this.Output
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Reading target=Reading
 
@@ -969,7 +968,7 @@ extension of Cell implements Reading {
     /// @type.symbol symbol=Output#1 source="type Output = int32" type=int32
 
     read(): this.Output {
-    /// @type.symbol symbol=read type=(this: Cell) => Cell.Output reduced=(this: Cell) => int32
+    /// @type.symbol symbol=read type=(this: this) => this.Output
 
         todo("read")
         /// @resolution.name source=todo target=error.panic.todo
@@ -982,7 +981,7 @@ extension of Cell implements Writing {
 /// @definition.extension symbol=<module>#3 form=local target=Cell
 /// @definition.implements symbol=<module>#3 source=Writing target=Writing
 /// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
-/// @definition.method symbol=write slot=write type=(this: Cell) => Cell.Output
+/// @definition.method symbol=write slot=write type=(this: this) => this.Output
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Writing target=Writing
 
@@ -990,7 +989,7 @@ extension of Cell implements Writing {
     /// @type.symbol symbol=Output#2 source="type Output = float64" type=float64
 
     write(): this.Output {
-    /// @type.symbol symbol=write type=(this: Cell) => Cell.Output reduced=(this: Cell) => float64
+    /// @type.symbol symbol=write type=(this: this) => this.Output
 
         todo("write")
         /// @resolution.name source=todo target=error.panic.todo
@@ -1101,12 +1100,12 @@ interface Eq<T> {
 /// @type.symbol symbol=Eq type=Eq
 /// @definition.interface symbol=Eq template=(in out T#1)
 /// @definition.where symbol=Eq relation=satisfies left=this right=Eq<T#1>
-/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<comptime Eq.equals.L0: Lifetime>(this: Eq<T#1>, Borrowed<T#1, Eq.equals.L0, "readonly">) => boolean
+/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<comptime Eq.equals.L0: Lifetime>(this: this, Borrowed<T#1, Eq.equals.L0, "readonly">) => boolean
 /// @type.symbol symbol=Eq.T source=T type=T#1
 
     equals(other: &readonly T): boolean;
     /// @generic.template symbol=Eq.equals parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<comptime Eq.equals.L0: Lifetime>(this: Eq<T#1>, Borrowed<T#1, Eq.equals.L0, "readonly">) => boolean
+    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<comptime Eq.equals.L0: Lifetime>(this: this, Borrowed<T#1, Eq.equals.L0, "readonly">) => boolean
     /// @type.symbol symbol=Eq.equals.other source="other: &readonly T" type=Borrowed<T#1, Eq.equals.L0, "readonly">
     /// @resolution.name source=T target=Eq.T
 
@@ -1117,12 +1116,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in out T#2)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#2>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: Has<T#2>, Borrowed<T#2, Has.has.L0, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#2, Has.has.L0, "readonly">) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#2
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: Has<T#2>, Borrowed<T#2, Has.has.L0, "readonly">) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#2, Has.has.L0, "readonly">) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#2, Has.has.L0, "readonly">
     /// @resolution.name source=T target=Has.T
 
@@ -1145,7 +1144,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#4: Eq<T#4>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#4)
-/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, comptime has.L1: Lifetime>(this: Pack<T#4>, Borrowed<Q, has.L1, "readonly">) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
 /// @resolution.name source=T target=T
@@ -1156,7 +1155,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 
     has<Q: Eq<Q>>(value: &readonly Q): boolean {
     /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, comptime L1: Lifetime)
-    /// @type.symbol symbol=has type=<Q: Eq<Q>, comptime has.L1: Lifetime>(this: Pack<T#4>, Borrowed<Q, has.L1, "readonly">) => boolean
+    /// @type.symbol symbol=has type=<Q: Eq<Q>, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
     /// @type.symbol symbol=has.Q source="Q: Eq<Q>" type=Q
     /// @resolution.name source=Eq target=Eq
     /// @resolution.name source=Q target=has.Q
@@ -1168,10 +1167,6 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 
     }
 }
-
-/// @generic.instance id=Eq<T#1> template=Eq arguments=(T#1)
-/// @generic.instance id=Has<T#2> template=Has arguments=(T#2)
-/// @generic.instance id=Pack<T#4> template=Pack arguments=(T#4)
 "#,
         r#""#,
     );
@@ -1230,12 +1225,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in out T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.L0, "readonly">
     /// @resolution.name source=T target=Has.T
 
@@ -1258,7 +1253,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#3)
-/// @definition.method symbol=has slot=has type=<Q: Marker, comptime has.L1: Lifetime>(this: Pack<T#3>, Borrowed<Q, has.L1, "readonly">) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Marker, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1267,7 +1262,7 @@ export extension<T> of Pack<T> implements Has<T> {
 
     has<Q: Marker>(value: &readonly Q): boolean {
     /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, comptime L1: Lifetime)
-    /// @type.symbol symbol=has type=<Q: Marker, comptime has.L1: Lifetime>(this: Pack<T#3>, Borrowed<Q, has.L1, "readonly">) => boolean
+    /// @type.symbol symbol=has type=<Q: Marker, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker
     /// @type.symbol symbol=has.value source="value: &readonly Q" type=Borrowed<Q, has.L1, "readonly">
@@ -1278,9 +1273,6 @@ export extension<T> of Pack<T> implements Has<T> {
 
     }
 }
-
-/// @generic.instance id=Has<T#1> template=Has arguments=(T#1)
-/// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 "#,
         r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has<T>'"
 /// @diagnostic.label line=12 column=43 span="Has" line_source="export extension<T> of Pack<T> implements Has<T> {"
@@ -1333,12 +1325,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in out T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.L0, "readonly">
     /// @resolution.name source=T target=Has.T
 
@@ -1361,7 +1353,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#3)
-/// @definition.method symbol=has slot=has type=<Q, comptime has.L1: Lifetime>(this: Pack<T#3>, Borrowed<Q, has.L1, "exclusive">) => boolean
+/// @definition.method symbol=has slot=has type=<Q, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "exclusive">) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1370,7 +1362,7 @@ export extension<T> of Pack<T> implements Has<T> {
 
     has<Q>(value: &exclusive Q): boolean {
     /// @generic.template symbol=has parent=template#2 parameters=(Q, comptime L1: Lifetime)
-    /// @type.symbol symbol=has type=<Q, comptime has.L1: Lifetime>(this: Pack<T#3>, Borrowed<Q, has.L1, "exclusive">) => boolean
+    /// @type.symbol symbol=has type=<Q, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "exclusive">) => boolean
     /// @type.symbol symbol=has.Q source=Q type=Q
     /// @type.symbol symbol=has.value source="value: &exclusive Q" type=Borrowed<Q, has.L1, "exclusive">
     /// @resolution.name source=Q target=has.Q
@@ -1380,9 +1372,6 @@ export extension<T> of Pack<T> implements Has<T> {
 
     }
 }
-
-/// @generic.instance id=Has<T#1> template=Has arguments=(T#1)
-/// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 "#,
         r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has<T>'"
 /// @diagnostic.label line=10 column=43 span="Has" line_source="export extension<T> of Pack<T> implements Has<T> {"
@@ -1510,7 +1499,7 @@ export extension<K, V> of Bag<K, V>
 /// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
 /// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target=iter.iterator.Iterable arguments=((K#3, V#3))
 /// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target=iter.iterator.Iterable arguments=(Entry<Borrowed<K#3, <module>#2.L2, "readonly">, Borrowed<V#3, <module>#2.L3, "mutable">>)
-/// @definition.method symbol=iterator#1 slot=iterator type=(this: Bag<K#3, V#3>) => iter.iterator.Iterator<(K#3, V#3), unknown>
+/// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3), unknown>
 /// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", comptime iterator#2.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A>) => iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>>, unknown>
 /// @type.symbol symbol=K source=K type=K#3
 /// @type.symbol symbol=V source=V type=V#3
@@ -1531,7 +1520,7 @@ export extension<K, V> of Bag<K, V>
         /// @resolution.name source=V target=V
 
     iterator(): Iterator<(K, V)> {
-    /// @type.symbol symbol=iterator#1 type=(this: Bag<K#3, V#3>) => iter.iterator.Iterator<(K#3, V#3), unknown>
+    /// @type.symbol symbol=iterator#1 type=(this: this) => iter.iterator.Iterator<(K#3, V#3), unknown>
     /// @resolution.name source=Iterator target=iter.iterator.Iterator
     /// @resolution.name source=K target=K
     /// @resolution.name source=V target=V

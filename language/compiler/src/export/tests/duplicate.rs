@@ -86,7 +86,7 @@ export const value = 1;
     compiler.assert_dir_exported_diagnostics(
         "main.ds", r#"
 /// @diagnostic.error code=ET107 message="global namespace export requires an alias"
-/// @diagnostic.label line=3 column=5 span="export * from \"./dep.ds\"" line_source="export * from \"./dep.ds\";"
+/// @diagnostic.label line=3 column=12 span="* from \"./dep.ds\"" line_source="export * from \"./dep.ds\";"
 "#,
     );
 }

@@ -56,11 +56,11 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=(this: Point) => int32
+/// @definition.method symbol=sum slot=sum type=(this: this) => int32
 /// @resolution.name source=Point target=Point
 
     sum(): int32 {
-    /// @type.symbol symbol=sum type=(this: Point) => int32
+    /// @type.symbol symbol=sum type=(this: this) => int32
 
         return this.x + this.y;
         /// @type.node source="this.x + this.y" type=int32
@@ -148,11 +148,11 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=(this: Point) => int32
+/// @definition.method symbol=sum slot=sum type=(this: this) => int32
 /// @resolution.name source=Point target=Point
 
     sum(): int32 {
-    /// @type.symbol symbol=sum type=(this: Point) => int32
+    /// @type.symbol symbol=sum type=(this: this) => int32
 
         return this.x + this.y;
         /// @type.node source="this.x + this.y" type=int32
@@ -178,7 +178,6 @@ point.length();
 /// @type.node source=point.length type=<error>
 /// @type.node source=point.length() type=<error>
 /// @resolution.name source=point target=point
-
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="member 'length' does not exist on type 'Point'"

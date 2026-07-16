@@ -228,10 +228,10 @@ const plain: IsPlain = false;
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: Drawable) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 
@@ -241,14 +241,14 @@ struct DrawnPoint implements Drawable {
 /// @definition.where symbol=DrawnPoint source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=DrawnPoint source=Drawable target=Drawable
 /// @definition.field symbol=DrawnPoint.x source="x: int32" key=x type=int32
-/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=(this: DrawnPoint) => void
+/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=(this: this) => void
 /// @resolution.name source=Drawable target=Drawable
 
     x: int32;
     /// @type.symbol symbol=DrawnPoint.x source="x: int32" type=int32
 
     draw(): void {}
-    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=(this: DrawnPoint) => void
+    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=(this: this) => void
 
 }
 

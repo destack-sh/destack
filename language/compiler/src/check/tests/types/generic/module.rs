@@ -112,11 +112,11 @@ export newtype interface PartialEqual<T = this> {
 /// @type.symbol symbol=PartialEqual type=PartialEqual
 /// @definition.interface symbol=PartialEqual template=(in T#1 = this) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
-/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: PartialEqual<T#1>, T#1) => boolean
+/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
     equal(other: T): boolean;
-    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: PartialEqual<T#1>, T#1) => boolean
+    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
     /// @resolution.name source=T target=PartialEqual.T
 
@@ -131,8 +131,6 @@ export newtype interface Equal<T = this> extends PartialEqual<T> {}
 /// @type.symbol symbol=Equal.T source="T = this" type=T#2
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=T target=Equal.T
-
-/// @generic.instance id=PartialEqual<T#1> template=PartialEqual arguments=(T#1)
 
 === main.ds ===
 
@@ -338,12 +336,12 @@ interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
     /// @resolution.name source=T target=Iter.T
 
 }
@@ -360,7 +358,6 @@ const value = probe(todo("iter"));
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
-/// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
 /// @generic.instance id="Iter<int32, unknown>" template=Iter arguments=(int32, unknown)
 "#,
         "",
@@ -412,17 +409,15 @@ export newtype interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown) nominal=true
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
     /// @resolution.name source=T target=Iter.T
 
 }
-
-/// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
 
 === lib.ds ===
 
@@ -550,22 +545,20 @@ export interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: Iter<T, R>) => a.Marker
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
+/// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: this) => a.Marker
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
     /// @resolution.name source=T target=Iter.T
 
     mark(): Marker;
-    /// @type.symbol symbol=Iter.mark source="mark(): Marker" type=(this: Iter<T, R>) => a.Marker
+    /// @type.symbol symbol=Iter.mark source="mark(): Marker" type=(this: this) => a.Marker
     /// @resolution.name source=Marker target=a.Marker
 
 }
-
-/// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
 "#,
     );
 }
