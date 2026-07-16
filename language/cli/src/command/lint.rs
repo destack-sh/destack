@@ -102,17 +102,15 @@ pub fn run(args: &LintArgs) -> i32 {
 #[derive(serde::Serialize)]
 struct LintListEntry {
     /// Stable rule selector.
-    id: String,
+    id: &'static str,
     /// Diagnostic code for the rule.
-    code: String,
-    /// Display name for the rule.
-    name: String,
+    code: &'static str,
     /// Rule category name.
     category: &'static str,
     /// Standard level before configuration overrides.
     level: &'static str,
     /// Human-readable description.
-    description: String,
+    description: &'static str,
     /// Whether the rule provides a fix.
     fixable: bool,
     /// Compiler representation inspected by the rule.
@@ -128,15 +126,14 @@ fn list_rules(args: &LintArgs) -> i32 {
         .map(|rule| {
             let meta = rule.meta;
             LintListEntry {
-                id: meta.id.clone(),
-                code: meta.code.clone(),
-                name: meta.name.clone(),
+                id: meta.id,
+                code: meta.code,
                 category: meta.category.name(),
-                description: meta.description.clone(),
+                description: meta.description,
                 fixable: meta.is_fixable(),
                 level: meta.default_level.name(),
-                tier: rule.tier.name(),
-                scope: rule.scope.name(),
+                tier: rule.tier().name(),
+                scope: rule.scope().name(),
             }
         })
         .collect();

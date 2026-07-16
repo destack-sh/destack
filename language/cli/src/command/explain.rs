@@ -5,9 +5,9 @@ use std::collections::BTreeMap;
 
 use destack_compiler::{
     BindError, BindWarning, CheckError, CheckWarning, DiagnosticDefinition, EmitError, EmitWarning,
-    ExpandError, ExpandWarning, ExportError, ExportWarning, ImportError, ImportWarning, LinkError,
-    LinkWarning, LowerError, LowerWarning, MaterializeError, MaterializeWarning, OptimizeError,
-    OptimizeWarning, VerifyError, VerifyWarning,
+    ExpandError, ExpandWarning, ExportError, ExportWarning, ImportError, LinkError, LinkWarning,
+    LowerError, LowerWarning, MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning,
+    VerifyError, VerifyWarning,
 };
 use destack_linter as linter;
 
@@ -138,15 +138,13 @@ enum CompilerPhase {
 #[derive(Serialize)]
 struct LintExplainEntry {
     /// Diagnostic code for the rule.
-    code: String,
+    code: &'static str,
     /// Stable rule selector.
-    id: String,
-    /// Display name for the rule.
-    name: String,
+    id: &'static str,
     /// Rule category name.
     category: &'static str,
     /// Human-readable description.
-    description: String,
+    description: &'static str,
     /// Whether the rule provides a fix.
     fixable: bool,
     /// Standard level before configuration overrides.
@@ -191,15 +189,13 @@ struct CompilerListEntry {
 #[derive(Serialize)]
 struct LintListEntry {
     /// Stable rule selector.
-    id: String,
+    id: &'static str,
     /// Diagnostic code for the rule.
-    code: String,
-    /// Display name for the rule.
-    name: String,
+    code: &'static str,
     /// Rule category name.
     category: &'static str,
     /// Human-readable description.
-    description: String,
+    description: &'static str,
     /// Whether the rule provides a fix.
     fixable: bool,
     /// Standard level before configuration overrides.
@@ -314,11 +310,6 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         phase: CompilerPhase::Bind,
         severity: CompilerSeverity::Warning,
         definitions: BindWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Import,
-        severity: CompilerSeverity::Warning,
-        definitions: ImportWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Expand,
@@ -494,15 +485,14 @@ fn collect_lint_list_entries() -> Vec<LintListEntry> {
         .map(|rule| {
             let meta = rule.meta;
             LintListEntry {
-                id: meta.id.clone(),
-                code: meta.code.clone(),
-                name: meta.name.clone(),
+                id: meta.id,
+                code: meta.code,
                 category: meta.category.name(),
-                description: meta.description.clone(),
+                description: meta.description,
                 fixable: meta.is_fixable(),
                 level: meta.default_level.name(),
-                tier: rule.tier.name(),
-                scope: rule.scope.name(),
+                tier: rule.tier().name(),
+                scope: rule.scope().name(),
             }
         })
         .collect()
@@ -630,15 +620,14 @@ fn find_lint_entry(needle: &str) -> Option<LintExplainEntry> {
             rule.meta.code.eq_ignore_ascii_case(needle) || rule.meta.id.eq_ignore_ascii_case(needle)
         })
         .map(|rule| LintExplainEntry {
-            code: rule.meta.code.clone(),
-            id: rule.meta.id.clone(),
-            name: rule.meta.name.clone(),
+            code: rule.meta.code,
+            id: rule.meta.id,
             category: rule.meta.category.name(),
-            description: rule.meta.description.clone(),
+            description: rule.meta.description,
             fixable: rule.meta.is_fixable(),
             level: rule.meta.default_level.name(),
-            tier: rule.tier.name(),
-            scope: rule.scope.name(),
+            tier: rule.tier().name(),
+            scope: rule.scope().name(),
         })
 }
 
@@ -696,7 +685,6 @@ fn output_lint_entry(args: &ExplainArgs, entry: LintExplainEntry) -> i32 {
 
     // print the lint rule details
     console::info(&format!("{} ({})", entry.id, entry.code));
-    console::info(&format!("name: {}", entry.name));
     console::info(&format!("category: {}", entry.category));
     console::info(&format!("level: {}", entry.level));
     console::info(&format!("tier: {}", entry.tier));
