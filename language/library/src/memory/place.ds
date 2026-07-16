@@ -1,10 +1,10 @@
 /// Concrete memory space tag kind.
 @languageItem("memory.Space")
-export type Space = "local" | "shared" | "static" | "frame";
+export type Space = "local" | "shared";
 
 /// Placement tag kind for qualified storage.
 @languageItem("memory.Place")
-export type Place = "ambient" | Space;
+export type Place = "relative" | Space;
 
 /// Placement form for exactly `T`.
 @languageItem("memory.Placed")
