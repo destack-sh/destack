@@ -295,7 +295,7 @@ service.user satisfies shared User;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -341,10 +341,6 @@ service.user satisfies shared User;
 /// @resolution.name source=service target=service
 /// @resolution.member source=service.user receiver=Service kind=symbol target=Service.user
 /// @resolution.name source=User target=User
-"#,
-        r#"
-/// @diagnostic.error code=EC201 message="type 'User' does not satisfy 'shared User'"
-/// @diagnostic.label line=11 column=14 span="satisfies" line_source="service.user satisfies shared User;"
 "#,
     );
 }

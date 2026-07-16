@@ -23,8 +23,8 @@ mod visit;
 
 pub(in crate::check) use argument::GenericArgument;
 pub(in crate::check) use declaration::TemplatePass;
-pub(in crate::check) use function::{FunctionHeader, ParameterType};
-pub(in crate::check) use generic::InducedLifetimeOwner;
+pub(in crate::check) use function::FunctionHeader;
+pub(in crate::check) use generic::InducedParameterOwner;
 pub(in crate::check) use narrow::ConditionBranch;
 pub(in crate::check) use state::*;
 pub(in crate::check) use r#static::StaticGate;

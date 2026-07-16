@@ -59,7 +59,7 @@ local class Counter {
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Counter, "local">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
         /// @resolution.pattern.assign source=this.name kind=place place=field(Counter.name) type=string
         /// @resolution.name source=name target=Counter.constructor.name
 
@@ -73,8 +73,8 @@ local class Counter {
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local"> kind=symbol target=Counter.name
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local">
+        /// @resolution.member source=this.name receiver=Borrowed<Counter, Counter.describe.L0, "readonly"> kind=symbol target=Counter.name
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.describe.L0, "readonly">
 
     }
 }
@@ -179,7 +179,7 @@ local class Meter {
     /// @resolution.name source=Sink target=Sink
 
         this.sink = sink;
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Placed<Meter, "local">
+        /// @resolution.receiver source=this kind=this declaration=Meter type=Meter
         /// @resolution.pattern.assign source=this.sink kind=place place=field(Meter.sink) type=Dynamic<Sink>
         /// @resolution.name source=sink target=Meter.constructor.sink
 
@@ -193,8 +193,8 @@ local class Meter {
         consume(this.sink)
         /// @resolution.name source=consume target=consume
         /// @resolution.call source=consume(this.sink) parameters=(Dynamic<Sink>) arguments=(provided(this.sink) as Dynamic<Sink>) return=void kind=symbol target=consume
-        /// @resolution.member source=this.sink receiver=Placed<Borrowed<Meter, Meter.leak.L0, "readonly">, "local"> kind=symbol target=Meter.sink
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Placed<Borrowed<Meter, Meter.leak.L0, "readonly">, "local">
+        /// @resolution.member source=this.sink receiver=Borrowed<Meter, Meter.leak.L0, "readonly"> kind=symbol target=Meter.sink
+        /// @resolution.receiver source=this kind=this declaration=Meter type=Borrowed<Meter, Meter.leak.L0, "readonly">
 
     }
 
@@ -206,8 +206,8 @@ local class Meter {
         inspect(this.sink)
         /// @resolution.name source=inspect target=inspect
         /// @resolution.call source=inspect(this.sink) parameters=(Readonly<Dynamic<Sink>>) arguments=(provided(this.sink) as Readonly<Dynamic<Sink>>) return=void kind=symbol target=inspect
-        /// @resolution.member source=this.sink receiver=Placed<Borrowed<Meter, Meter.forward.L0, "readonly">, "local"> kind=symbol target=Meter.sink
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Placed<Borrowed<Meter, Meter.forward.L0, "readonly">, "local">
+        /// @resolution.member source=this.sink receiver=Borrowed<Meter, Meter.forward.L0, "readonly"> kind=symbol target=Meter.sink
+        /// @resolution.receiver source=this kind=this declaration=Meter type=Borrowed<Meter, Meter.forward.L0, "readonly">
 
     }
 }
@@ -275,7 +275,7 @@ local class Counter {
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Counter, "local">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
         /// @resolution.pattern.assign source=this.name kind=place place=field(Counter.name) type=string
         /// @resolution.name source=name target=Counter.constructor.name
 
@@ -289,8 +289,8 @@ local class Counter {
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local"> kind=symbol target=Counter.name
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Placed<Borrowed<Counter, Counter.describe.L0, "readonly">, "local">
+        /// @resolution.member source=this.name receiver=Borrowed<Counter, Counter.describe.L0, "readonly"> kind=symbol target=Counter.name
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.describe.L0, "readonly">
 
     }
 }

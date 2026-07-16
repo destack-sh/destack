@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::check::{
     BodyOwner, BodyPhase, BodyTarget, ExpectedType, GenericParameterId, GenericTemplateId,
-    ParameterType, ValueUse, WalkState,
+    ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -29,19 +29,23 @@ impl WalkState<'_, '_> {
         }
 
         // shape the parameter binding by its declared kind
-        let (variance, is_variadic, is_const, is_comptime) = match generic_parameter {
+        let (variance, kind, is_variadic, is_const) = match generic_parameter {
             // <T>
             dir::GenericParameter::Type {
                 variance, is_const, ..
-            } => (*variance, false, *is_const, false),
+            } => (*variance, dir::GenericParameterKind::Type, false, *is_const),
             // <...T>
             dir::GenericParameter::VariadicType {
                 variance, is_const, ..
-            } => (*variance, true, *is_const, false),
+            } => (*variance, dir::GenericParameterKind::Type, true, *is_const),
             // <comptime C: T>
-            dir::GenericParameter::Value { .. } => (None, false, false, true),
+            dir::GenericParameter::Value { .. } => {
+                (None, dir::GenericParameterKind::Value, false, false)
+            }
             // <comptime ...C: T>
-            dir::GenericParameter::VariadicValue { .. } => (None, true, false, true),
+            dir::GenericParameter::VariadicValue { .. } => {
+                (None, dir::GenericParameterKind::Value, true, false)
+            }
             // ignore damaged nodes
             dir::GenericParameter::Error => return Ok(None),
         };
@@ -53,9 +57,9 @@ impl WalkState<'_, '_> {
             None,
             None,
             dir::GenericParameterOrigin::Explicit,
+            kind,
             is_variadic,
             is_const,
-            is_comptime,
         )?;
 
         // the parameter name writes its own parameter type
@@ -173,7 +177,7 @@ impl WalkState<'_, '_> {
         parameter: &dir::Parameter,
         is_annotation_required: bool,
         represents_open_type: bool,
-    ) -> CompilerResult<Option<ParameterType>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
         }
@@ -204,7 +208,7 @@ impl WalkState<'_, '_> {
                 if let Some(symbol) = symbol
                     && let Some(parameter_type) = parameter_type
                 {
-                    self.bind_symbol_type(symbol, parameter_type.binding)?;
+                    self.bind_symbol_type(symbol, parameter_type)?;
                 }
 
                 // check default after the parameter type is known
@@ -216,10 +220,11 @@ impl WalkState<'_, '_> {
                             phase: BodyPhase::Main,
                             module: self.module,
                             body: BodyTarget::Node(default.into_any()),
-                            ret: Some(ExpectedType::Type(parameter_type.argument)),
+                            ret: Some(ExpectedType::Type(parameter_type)),
                             generator: None,
                             ret_use: ValueUse::Store,
                             binds: None,
+                            constructs: false,
                         });
                     }
                     self.restore_flow(before_default);
@@ -247,7 +252,7 @@ impl WalkState<'_, '_> {
                 if let Some(symbol) = symbol
                     && let Some(parameter_type) = parameter_type
                 {
-                    self.bind_symbol_type(symbol, parameter_type.binding)?;
+                    self.bind_symbol_type(symbol, parameter_type)?;
                 }
 
                 result = parameter_type;
@@ -275,10 +280,11 @@ impl WalkState<'_, '_> {
                         phase: BodyPhase::Main,
                         module: self.module,
                         body: BodyTarget::Node(pattern.into_any()),
-                        ret: Some(ExpectedType::Type(parameter_type.binding)),
+                        ret: Some(ExpectedType::Type(parameter_type)),
                         generator: None,
                         ret_use: ValueUse::Store,
                         binds: None,
+                        constructs: false,
                     });
                 }
 
@@ -291,10 +297,11 @@ impl WalkState<'_, '_> {
                             phase: BodyPhase::Main,
                             module: self.module,
                             body: BodyTarget::Node(default.into_any()),
-                            ret: Some(ExpectedType::Type(parameter_type.argument)),
+                            ret: Some(ExpectedType::Type(parameter_type)),
                             generator: None,
                             ret_use: ValueUse::Store,
                             binds: None,
+                            constructs: false,
                         });
                     }
                     self.restore_flow(before_default);
@@ -322,10 +329,11 @@ impl WalkState<'_, '_> {
                         phase: BodyPhase::Main,
                         module: self.module,
                         body: BodyTarget::Node(pattern.into_any()),
-                        ret: Some(ExpectedType::Type(parameter_type.binding)),
+                        ret: Some(ExpectedType::Type(parameter_type)),
                         generator: None,
                         ret_use: ValueUse::Store,
                         binds: None,
+                        constructs: false,
                     });
                     result = Some(parameter_type);
                 }

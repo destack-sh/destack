@@ -1230,7 +1230,7 @@ impl WalkState<'_, '_> {
     /// Return one placed type expression.
     fn walk_placed_type(
         &mut self,
-        _id: dir::LocalNodeId<dir::TypeExpression>,
+        id: dir::LocalNodeId<dir::TypeExpression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
         space: dir::Space,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -1239,10 +1239,19 @@ impl WalkState<'_, '_> {
             dir::Place::Space(space),
         )))?;
 
-        self.intern_type(dir::Type::Form(dir::FormType {
+        let ty = self.intern_type(dir::Type::Form(dir::FormType {
             form: dir::Form::Placed { place },
             value,
-        }))
+        }))?;
+        self.check.push_obligation(
+            Obligation::WellFormedType(WellFormedTypeObligation {
+                source: id.into_global_any(self.module),
+                ty,
+            }),
+            self.flow().template_scope(),
+        );
+
+        Ok(ty)
     }
 
     /// Return one range type expression from its literal bounds.
@@ -1349,7 +1358,7 @@ impl WalkState<'_, '_> {
                     Some(constraint),
                     None,
                     dir::GenericParameterOrigin::Explicit,
-                    false,
+                    dir::GenericParameterKind::Type,
                     false,
                     false,
                 )?

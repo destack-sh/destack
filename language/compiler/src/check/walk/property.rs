@@ -3,8 +3,8 @@ use std::ptr::NonNull;
 
 use crate::check::{
     BodyOwner, BodyPhase, BodyTarget, CauseKind, ExpectedType, FlowBranch, FlowState,
-    GenericTemplateId, InducedLifetimeOwner, Origin, Receiver, ReceiverBinding, Relation, ValueUse,
-    WalkState, Widening,
+    GenericTemplateId, InducedParameterOwner, Origin, Receiver, ReceiverBinding, Relation,
+    ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -201,7 +201,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
         receiver_scope: Option<Receiver>,
-        induced_owner: Option<InducedLifetimeOwner>,
+        induced_owner: Option<InducedParameterOwner>,
         is_ambient_scope: bool,
     ) -> CompilerResult<MemberHeader> {
         if !self.decide_decorated_presence(id.into_any())? {
@@ -257,8 +257,8 @@ impl WalkState<'_, '_> {
 
                 // write the member symbol type
                 if let (Some(value), Some(symbol)) = (value, symbol) {
-                    let induction = InducedLifetimeOwner::new(source, parent, Some(symbol));
-                    self.push_induced_lifetime_site(induction, value);
+                    let induction = InducedParameterOwner::new(source, parent, Some(symbol));
+                    self.push_induced_parameter_site(induction, value);
                     self.bind_symbol_type(symbol, value)?;
                 }
 
@@ -412,7 +412,8 @@ impl WalkState<'_, '_> {
                                 ret: None,
                                 generator: None,
                                 ret_use: ValueUse::Store,
-                                binds: Some((symbol, Widening::Widen)),
+                                binds: Some((symbol, Widening::Widen, None)),
+                                constructs: false,
                             });
                             self.check.initializers.insert(symbol, index);
                         }
@@ -424,7 +425,7 @@ impl WalkState<'_, '_> {
                 // write the field symbol type
                 if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
                     if let Some(induction) = induced_owner {
-                        self.push_induced_lifetime_site(induction, field_type);
+                        self.push_induced_parameter_site(induction, field_type);
                     }
                     self.bind_symbol_type(symbol, field_type)?;
                 }
@@ -441,6 +442,7 @@ impl WalkState<'_, '_> {
                         generator: None,
                         ret_use: ValueUse::Store,
                         binds: None,
+                        constructs: false,
                     });
                     self.restore_flow(before_default);
                 }
@@ -518,7 +520,6 @@ impl WalkState<'_, '_> {
                 let source = id.into_global_any(self.module);
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
-
                 // open signature parameters under the signature's own scope
                 let _scope = self.enter_template_scope(template);
                 let header = self.walk_function_signature(template, signature)?;
@@ -552,26 +553,38 @@ impl WalkState<'_, '_> {
                     self.walk_method_result_type(id, signature, *body, receiver)?;
 
                 // write the method's function type
-                let receiver_type = receiver
-                    .filter(|_| !signature.is_constructor())
-                    .map(|receiver| receiver.receiver.ty);
+                let receiver_type = match (receiver, signature.is_constructor()) {
+                    (Some(_), false) => Some(self.intern_type(dir::Type::This)?),
+                    _ => None,
+                };
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
                     header,
-                    Some(InducedLifetimeOwner::new(source, parent, Some(symbol))),
+                    Some(InducedParameterOwner::new(source, parent, Some(symbol))),
                     receiver_type,
                     result,
                     tracked,
                     body.is_some(),
                 )?;
-                let induction = InducedLifetimeOwner::new(source, parent, Some(symbol));
-                self.push_induced_lifetime_site(induction, method);
+                let induction = InducedParameterOwner::new(source, parent, Some(symbol));
+                self.push_induced_parameter_site(induction, method);
 
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
 
-                let body = match (*body, result) {
+                // check the body against the completed stored signature
+                let result = self
+                    .check
+                    .signature_head(method)?
+                    .and_then(|signature| signature.return_type);
+                let body_result = match (receiver, result) {
+                    (Some(receiver), Some(result)) => {
+                        Some(self.apply_receiver_scope(Some(receiver.receiver), result)?)
+                    }
+                    (_, result) => result,
+                };
+                let body = match (*body, body_result) {
                     (Some(_), Some(result))
                         if !is_ambient_scope && !*is_ambient && !abstraction.is_abstract() =>
                     {
@@ -699,7 +712,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeMember>,
         member: &dir::TypeMember,
         receiver_scope: Option<Receiver>,
-        induced_owner: Option<InducedLifetimeOwner>,
+        induced_owner: Option<InducedParameterOwner>,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
@@ -789,7 +802,7 @@ impl WalkState<'_, '_> {
                 let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
-                let induction = InducedLifetimeOwner::new(source, parent, Some(symbol));
+                let induction = InducedParameterOwner::new(source, parent, Some(symbol));
 
                 // interface members assume this satisfies their interface
                 if let Some(template) = template
@@ -802,14 +815,11 @@ impl WalkState<'_, '_> {
 
                 let (header, result, tracked) =
                     self.walk_signature_header(id.into_any(), template, signature, body)?;
-                let receiver_type = match receiver_scope.filter(|_| !is_static) {
-                    // written receivers canonicalize this to the receiver type
-                    Some(receiver) => Some(match header.this_parameter {
-                        Some(written) => self.apply_receiver_scope(Some(receiver), written)?,
-                        None => receiver.ty,
-                    }),
-                    None => None,
-                };
+                let receiver_type =
+                    match (receiver_scope.filter(|_| !is_static), header.this_parameter) {
+                        (Some(_), None) => Some(self.intern_type(dir::Type::This)?),
+                        _ => None,
+                    };
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
@@ -820,7 +830,7 @@ impl WalkState<'_, '_> {
                     tracked,
                     body.is_some(),
                 )?;
-                self.push_induced_lifetime_site(induction, method);
+                self.push_induced_parameter_site(induction, method);
 
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
@@ -1086,21 +1096,13 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
         // use the receiver as the constructor result
         if signature.is_constructor() {
-            return Ok((receiver.map(|receiver| receiver.receiver.ty), Vec::new()));
+            let result = receiver
+                .map(|_| self.intern_type(dir::Type::This))
+                .transpose()?;
+
+            return Ok((result, Vec::new()));
         }
 
-        // walk regular method result
-        let (result, tracked) = self.walk_function_result_type(id.into_any(), signature, body)?;
-        let Some(result) = result else {
-            return Ok((None, tracked));
-        };
-
-        // apply the implicit receiver to `this` in result position
-        let result = match receiver {
-            Some(receiver) => self.apply_receiver_scope(Some(receiver.receiver), result)?,
-            None => result,
-        };
-
-        Ok((Some(result), tracked))
+        self.walk_function_result_type(id.into_any(), signature, body)
     }
 }

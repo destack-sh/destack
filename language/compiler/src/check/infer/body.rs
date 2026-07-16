@@ -3,11 +3,11 @@ use std::ops::{Deref, DerefMut};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     Answer, Cause, CauseKind, CheckState, Checked, Expectation, ExpectedType, PlaceUse, TaskScope,
     ValueUse, Widening,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Yield targets for one generator body.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,8 +61,10 @@ pub(in crate::check) struct BodyOwner {
     pub(in crate::check) ret_use: ValueUse,
     /// The yield targets when the body is a generator.
     pub(in crate::check) generator: Option<GeneratorTargets>,
-    /// The symbol bound from the body's value, with its widening.
-    pub(in crate::check) binds: Option<(dir::GlobalSymbolId, Widening)>,
+    /// The symbol bound from the body's value, its widening, and its written place.
+    pub(in crate::check) binds: Option<(dir::GlobalSymbolId, Widening, Option<dir::GlobalTypeId>)>,
+    /// Whether the body constructs its own receiver.
+    pub(in crate::check) constructs: bool,
 }
 
 /// Checking state for one function body.
@@ -77,6 +79,8 @@ pub(in crate::check) struct BodyState<'check, 'state> {
     pub(in crate::check) ret_use: ValueUse,
     /// The yield targets, when the body is a generator.
     pub(in crate::check) generator: Option<GeneratorTargets>,
+    /// Whether the body constructs its own receiver.
+    pub(in crate::check) constructs: bool,
 }
 
 impl<'state> Deref for BodyState<'_, 'state> {
@@ -102,6 +106,7 @@ impl<'state> CheckState<'state> {
             ret: None,
             ret_use: ValueUse::Output,
             generator: None,
+            constructs: false,
         }
     }
 }
@@ -130,23 +135,37 @@ impl<'check, 'state> BodyState<'check, 'state> {
             ret,
             ret_use: owner.ret_use,
             generator: owner.generator,
+            constructs: owner.constructs,
         };
         let checked = match owner.body {
             BodyTarget::Node(body) => state.check_body(body)?,
             BodyTarget::Module => state.check_module_body()?,
         };
 
+        // settle the body's obligations before committing its inferred type
+        state.check.drain(TaskScope::Inference)?;
+
         // bind the produced symbol from the body's value
-        if let Some((symbol, widening)) = owner.binds {
+        if let Some((symbol, widening, place)) = owner.binds {
             let ty = match widening {
                 Widening::Preserve => checked.ty,
                 Widening::Widen | Widening::WidenWrites => state.check.widen_type(checked.ty)?,
             };
+            let origin = match owner.body {
+                BodyTarget::Node(body) => state.node_site(body.into_global(owner.module))?.origin(),
+                BodyTarget::Module => {
+                    return Err(CompilerError::Internal {
+                        message: "module body cannot initialize one binding".to_string(),
+                    });
+                }
+            };
+            // a written binding place qualifies the inferred value type
+            let ty = match place {
+                Some(place) => state.check.placed_type(origin, ty, place)?,
+                None => ty,
+            };
             state.check.bind_symbol_type(symbol, ty)?;
         }
-
-        // settle the body's obligations before the next body begins
-        state.check.drain(TaskScope::Inference)?;
 
         Ok(checked.holds)
     }

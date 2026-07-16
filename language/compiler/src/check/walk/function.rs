@@ -4,18 +4,9 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     BodyOwner, BodyPhase, BodyTarget, CauseKind, ExpectedType, FlowBranch, GeneratorTargets,
-    GenericTemplateId, InducedLifetimeOwner, Origin, ReceiverBinding, Relation, ValueUse,
+    GenericTemplateId, InducedParameterOwner, Origin, ReceiverBinding, Relation, ValueUse,
     VariableRole, WalkState, Widening,
 };
-
-/// Types produced by one parameter header.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct ParameterType {
-    /// The type accepted by calls and defaults.
-    pub(in crate::check) argument: dir::GlobalTypeId,
-    /// The type bound inside the function body.
-    pub(in crate::check) binding: dir::GlobalTypeId,
-}
 
 /// Runtime parameter types produced by one function signature header.
 #[derive(Debug, Clone, PartialEq)]
@@ -40,7 +31,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         header: FunctionHeader,
-        owner: Option<InducedLifetimeOwner>,
+        owner: Option<InducedParameterOwner>,
         receiver_type: Option<dir::GlobalTypeId>,
         return_type: Option<dir::GlobalTypeId>,
         tracked: Vec<dir::TypeVariableId>,
@@ -58,7 +49,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             tracked,
             has_body,
         )?;
-        let this_parameter = synthesized_this.or(receiver_type).or(header.this_parameter);
+        let this_parameter = header.this_parameter.or(synthesized_this).or(receiver_type);
         let template = self.signature_template(
             header.template,
             owner,
@@ -138,7 +129,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             // bodyless returns cannot infer their lifetimes from anywhere
             if !tracked.is_empty() && !has_body {
                 self.check
-                    .report_ambient_lifetime_elided(self.module, source);
+                    .report_bodyless_lifetime_elided(self.module, source);
                 for variable in tracked {
                     let error = self.intern_type(dir::Type::Error)?;
                     self.check.commit_solution(variable, error)?;
@@ -148,10 +139,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
             else if has_body {
                 let return_lifetimes = self.induced_lifetime_types(return_type)?;
                 for (variable, _) in return_lifetimes {
-                    self.check.body_lifetimes.insert(variable);
+                    self.check.body_inferred_parameters.insert(variable);
                 }
                 for variable in tracked {
-                    self.check.body_lifetimes.insert(variable);
+                    self.check.body_inferred_parameters.insert(variable);
                 }
             }
 
@@ -184,13 +175,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let mut lifetimes = Vec::new();
 
         // collect open lifetime variables from the type graph
-        for variable in self.check.type_variables(ty)? {
-            if !matches!(
-                self.check.variable_role(variable)?,
-                VariableRole::Lifetime { .. }
-            ) {
+        for (variable, role) in self.check.induced_memory_variables(ty)? {
+            let VariableRole::Memory {
+                kind: dir::MemoryParameter::Lifetime,
+                ..
+            } = role
+            else {
                 continue;
-            }
+            };
 
             let ty = self.check.variable_type(variable)?;
             lifetimes.push((variable, ty));
@@ -203,7 +195,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     fn signature_template(
         &mut self,
         template: Option<GenericTemplateId>,
-        owner: Option<InducedLifetimeOwner>,
+        owner: Option<InducedParameterOwner>,
         this_parameter: Option<dir::GlobalTypeId>,
         parameters: &[dir::FunctionParameterType],
         return_type: Option<dir::GlobalTypeId>,
@@ -215,8 +207,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(None);
         };
 
-        // open the enclosing template only when this signature has induced lifetime holes
-        if !self.signature_contains_induced_lifetime(this_parameter, parameters, return_type)? {
+        // open the enclosing template only when this signature has induced parameters
+        if !self.signature_contains_induced_parameter(this_parameter, parameters, return_type)? {
             return Ok(None);
         }
 
@@ -225,8 +217,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .map(Some)
     }
 
-    /// Return whether one signature contains an induced lifetime hole.
-    fn signature_contains_induced_lifetime(
+    /// Return whether one signature contains an induced memory parameter.
+    fn signature_contains_induced_parameter(
         &mut self,
         this_parameter: Option<dir::GlobalTypeId>,
         parameters: &[dir::FunctionParameterType],
@@ -238,10 +230,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         types.extend(return_type);
 
         for ty in types {
-            for variable in self.check.type_variables(ty)? {
-                if !self.check.variable_role(variable)?.is_inference() {
-                    return Ok(true);
-                }
+            if !self.check.induced_memory_variables(ty)?.is_empty() {
+                return Ok(true);
             }
         }
 
@@ -280,7 +270,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
             self.walk_parameter_type(parameter, false)?
-                .map(|ty| ty.argument)
         } else {
             None
         };
@@ -546,6 +535,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             generator,
             ret_use: ValueUse::Output,
             binds: None,
+            constructs: signature.is_constructor(),
         });
 
         Ok(self.leave_function_frame())
@@ -555,7 +545,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::check) fn function_parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
-        ty: ParameterType,
+        ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::FunctionParameterType>> {
         let parameter = self.tree.get(id);
         let is_rest = matches!(
@@ -566,7 +556,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let is_optional = parameter.is_optional() || parameter.default_value().is_some();
 
         Ok(Some(dir::FunctionParameterType {
-            ty: ty.argument,
+            ty,
             is_optional,
             is_rest,
         }))
@@ -587,12 +577,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
             dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
         );
         let is_optional = parameter.is_optional();
-        let Some(parameter_type) = self.walk_parameter_type(id, false)? else {
+        let Some(ty) = self.walk_parameter_type(id, false)? else {
             return Ok(None);
         };
 
         Ok(Some(dir::FunctionParameterType {
-            ty: parameter_type.argument,
+            ty,
             is_optional,
             is_rest,
         }))
@@ -611,7 +601,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
         represents_open_type: bool,
-    ) -> CompilerResult<Option<ParameterType>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let declared_type = match self.tree.get(id) {
             dir::Parameter::Error => return Ok(None),
             parameter => parameter.declared_type(),
@@ -621,30 +611,34 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 self.open_type_hole(id.into_any(), Widening::Preserve, VariableRole::Regular)?;
             self.commit_node_type(id, ty)?;
 
-            return Ok(Some(ParameterType {
-                argument: ty,
-                binding: ty,
-            }));
+            return Ok(Some(ty));
         };
 
         let is_optional = self.tree.get(id).is_optional();
-        let argument = self.walk_type_expression(declared_type)?;
-        let argument = if represents_open_type {
-            self.check.storage_type(self.module, argument)?
+        let ty = self.walk_type_expression(declared_type)?;
+        let ty = if represents_open_type {
+            self.check.storage_type(self.module, ty)?
         } else {
-            argument
+            ty
         };
-        let binding = if is_optional {
-            self.optional_value_type(argument)?
-        } else {
-            argument
-        };
-        self.commit_node_type(id, binding)?;
-
         // optional parameters accept explicit undefined at call sites
-        Ok(Some(ParameterType {
-            argument: binding,
-            binding,
-        }))
+        let ty = if is_optional {
+            self.optional_value_type(ty)?
+        } else {
+            ty
+        };
+        self.commit_node_type(id, ty)?;
+
+        Ok(Some(ty))
+    }
+
+    /// Return the canonical place type for one concrete space.
+    pub(in crate::check) fn place_type(
+        &mut self,
+        space: dir::Space,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
+            dir::Place::Space(space),
+        )))
     }
 }

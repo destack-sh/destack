@@ -249,8 +249,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // open one hidden lifetime parameter
-        let constraint = self.lifetime_constraint()?;
-        let role = VariableRole::Lifetime { constraint };
+        let constraint = self.memory_parameter_constraint(dir::MemoryParameter::Lifetime)?;
+        let role = VariableRole::Memory {
+            kind: dir::MemoryParameter::Lifetime,
+            constraint,
+        };
         let lifetime = self.open_type_hole(source, Widening::Preserve, role)?;
         let Some(variable) = self.check.root_variable(lifetime)? else {
             return Ok(lifetime);
@@ -261,13 +264,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(lifetime)
     }
 
-    /// Return the lifetime-kind constraint type.
-    fn lifetime_constraint(&mut self) -> CompilerResult<Option<dir::GlobalTypeId>> {
+    /// Return one memory-domain constraint type.
+    fn memory_parameter_constraint(
+        &mut self,
+        kind: dir::MemoryParameter,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(symbol) = self
             .check
             .environment
             .language
-            .symbol(dir::LanguageItem::Lifetime)
+            .symbol(kind.language_item())
         else {
             return Ok(None);
         };

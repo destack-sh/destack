@@ -22,10 +22,10 @@ pub(in crate::check) struct GenericScope {
     pub(in crate::check) predicates: SmallVec<[dir::WherePredicate; 4]>,
 }
 
-/// One declaration type scanned for elided lifetime variables.
+/// One declaration type scanned for induced memory variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct InducedLifetimeSite {
-    /// The declaration node that receives induced lifetime parameters.
+pub(in crate::check) struct InducedParameterSite {
+    /// The declaration node that receives induced parameters.
     pub(in crate::check) declaration: dir::GlobalNodeIdAny,
     /// The enclosing generic template.
     pub(in crate::check) parent: Option<GenericTemplateId>,
@@ -44,8 +44,8 @@ pub(in crate::check) struct GenericIndex {
     templates_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericTemplateId>,
     /// Parameter ids keyed by parameter symbol.
     parameters_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericParameterId>,
-    /// Declaration types scanned for elided lifetime variables.
-    induced_lifetime_sites: Vec<InducedLifetimeSite>,
+    /// Declaration types scanned for induced memory variables.
+    induced_parameter_sites: Vec<InducedParameterSite>,
 }
 
 impl GenericIndex {
@@ -55,7 +55,7 @@ impl GenericIndex {
             templates_by_source: FxIndexMap::default(),
             templates_by_symbol: FxIndexMap::default(),
             parameters_by_symbol: FxIndexMap::default(),
-            induced_lifetime_sites: Vec::new(),
+            induced_parameter_sites: Vec::new(),
         }
     }
 
@@ -83,16 +83,16 @@ impl GenericIndex {
         self.parameters_by_symbol.get(&symbol).copied()
     }
 
-    /// Push one induced lifetime site.
-    pub(in crate::check) fn push_induced_lifetime_site(&mut self, site: InducedLifetimeSite) {
-        self.induced_lifetime_sites.push(site);
+    /// Push one induced parameter site.
+    pub(in crate::check) fn push_induced_parameter_site(&mut self, site: InducedParameterSite) {
+        self.induced_parameter_sites.push(site);
     }
 
-    /// Iterate induced lifetime sites in component order.
-    pub(in crate::check) fn induced_lifetime_sites(
+    /// Iterate induced parameter sites in component order.
+    pub(in crate::check) fn induced_parameter_sites(
         &self,
-    ) -> impl Iterator<Item = &InducedLifetimeSite> + '_ {
-        self.induced_lifetime_sites.iter()
+    ) -> impl Iterator<Item = &InducedParameterSite> + '_ {
+        self.induced_parameter_sites.iter()
     }
 }
 
@@ -279,7 +279,15 @@ impl CheckState<'_> {
 
         let mut bindings = Vec::with_capacity(parameters.len());
         for (parameter, argument) in parameters.iter().copied().zip(arguments.iter().copied()) {
+            // lifetimes are proof-only and erase from instance identity,
+            //  though their arguments still settle like every other slot
             let argument = self.generic_argument(parameter, argument)?;
+            let is_lifetime = self.generic_parameter(parameter).is_some_and(|binding| {
+                binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            });
+            if is_lifetime {
+                continue;
+            }
             bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
         }
 
@@ -326,7 +334,7 @@ impl CheckState<'_> {
             let Some(binding) = self.generic_parameter(parameter) else {
                 return Ok(argument);
             };
-            if !matches!(binding.origin, dir::GenericParameterOrigin::InducedLifetime) {
+            if binding.induced_memory_parameter().is_none() {
                 return Ok(argument);
             }
         }
@@ -387,9 +395,9 @@ impl CheckState<'_> {
         constraint: Option<dir::GlobalTypeId>,
         default: Option<dir::GlobalTypeId>,
         origin: dir::GenericParameterOrigin,
+        kind: dir::GenericParameterKind,
         is_variadic: bool,
         is_const: bool,
-        is_comptime: bool,
     ) -> CompilerResult<GenericParameterId> {
         // precompute the parameter id before allocating its canonical type
         let module = template.module_id;
@@ -413,9 +421,9 @@ impl CheckState<'_> {
             constraint,
             default,
             origin,
+            kind,
             is_variadic,
             is_const,
-            is_comptime,
         };
 
         // allocate the parameter in its template's working segment
@@ -436,23 +444,46 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Push one induced lifetime parameter.
-    pub(in crate::check) fn push_induced_lifetime_parameter(
+    /// Return the induced memory variables inside one type, in graph order.
+    pub(in crate::check) fn induced_memory_variables(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<(dir::TypeVariableId, VariableRole)>> {
+        let mut variables = Vec::new();
+        for variable in self.type_variables(ty)? {
+            let role = self.variable_role(variable)?;
+            if matches!(role, VariableRole::Memory { .. }) {
+                variables.push((variable, role));
+            }
+        }
+
+        Ok(variables)
+    }
+
+    /// Push one induced memory parameter.
+    pub(in crate::check) fn push_induced_memory_parameter(
         &mut self,
         template: GenericTemplateId,
         role: VariableRole,
     ) -> CompilerResult<GenericParameterId> {
-        let VariableRole::Lifetime { constraint } = role else {
+        let VariableRole::Memory { kind, constraint } = role else {
             return Err(CompilerError::Internal {
-                message: "ordinary inference variable cannot become a lifetime parameter".into(),
+                message: "ordinary inference variable cannot become a memory parameter".into(),
             });
         };
 
-        // generate the parameter name from its template position
+        // generate a kind-shaped name from the template position
         let number = self
             .generic_template(template)
             .map_or(0, |template| template.parameters.len());
-        let name = self.strings().intern(&format!("L{number}"));
+        let prefix = match kind {
+            dir::MemoryParameter::Access => "A",
+            dir::MemoryParameter::Ownership => "O",
+            dir::MemoryParameter::Place => "P",
+            dir::MemoryParameter::Space => "S",
+            dir::MemoryParameter::Lifetime => "L",
+        };
+        let name = self.strings().intern(&format!("{prefix}{number}"));
 
         self.push_generic_parameter(
             template,
@@ -461,10 +492,10 @@ impl CheckState<'_> {
             None,
             constraint,
             None,
-            dir::GenericParameterOrigin::InducedLifetime,
+            dir::GenericParameterOrigin::Induced,
+            dir::GenericParameterKind::Memory(kind),
             false,
             false,
-            true,
         )
     }
 }
@@ -477,6 +508,27 @@ impl CheckState<'_> {
         constraint: Option<dir::GlobalTypeId>,
         default: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
+        let current =
+            self.generic_parameter(parameter)
+                .copied()
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("generic parameter {parameter:?} is not bound"),
+                })?;
+        let domain = if current.kind == dir::GenericParameterKind::Value {
+            let item = match constraint
+                .map(|constraint| self.ty(constraint))
+                .transpose()?
+            {
+                Some(dir::Type::Instance(instance)) => self.language_item(instance.symbol)?,
+                _ => None,
+            };
+
+            item.and_then(dir::MemoryParameter::from_language_item)
+        } else {
+            None
+        };
+
+        // commit the completed binding after classification
         let module = parameter.module_id;
         let working = self
             .modules
@@ -491,6 +543,9 @@ impl CheckState<'_> {
         };
         binding.constraint = constraint;
         binding.default = default;
+        if let Some(domain) = domain {
+            binding.kind = dir::GenericParameterKind::Memory(domain);
+        }
 
         Ok(())
     }

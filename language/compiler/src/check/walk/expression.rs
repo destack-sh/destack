@@ -92,6 +92,7 @@ impl WalkState<'_, '_> {
                 kind,
                 declarators,
                 is_ambient,
+                place,
                 ..
             } => {
                 for declarator in declarators {
@@ -99,6 +100,7 @@ impl WalkState<'_, '_> {
                         *declarator,
                         self.tree.get(*declarator),
                         Some(*kind),
+                        *place,
                         Some(id.into_any()),
                         *is_ambient,
                     )?;
@@ -113,6 +115,7 @@ impl WalkState<'_, '_> {
                     self.walk_declarator(
                         *declarator,
                         self.tree.get(*declarator),
+                        None,
                         None,
                         Some(id.into_any()),
                         false,
@@ -401,7 +404,7 @@ impl WalkState<'_, '_> {
                 }
                 // the checker relates the cast; the walk only records shapes
                 else {
-                    self.walk_frame_type_expression(target_type)?;
+                    self.walk_type_expression(target_type)?;
                     self.walk_expression(child, self.tree.get(child))?;
                 }
             }
@@ -691,6 +694,7 @@ impl WalkState<'_, '_> {
             declarator,
             self.tree.get(declarator),
             Some(kind),
+            None,
             Some(id.into_any()),
             false,
         )?;
@@ -809,6 +813,7 @@ impl WalkState<'_, '_> {
                     declarator,
                     self.tree.get(declarator),
                     Some(*kind),
+                    None,
                     None,
                     false,
                 )?;
@@ -1173,6 +1178,7 @@ impl WalkState<'_, '_> {
                     generator: None,
                     ret_use: ValueUse::Store,
                     binds: None,
+                    constructs: false,
                 });
 
                 self.check.push_obligation(
@@ -1204,6 +1210,7 @@ impl WalkState<'_, '_> {
             generator: None,
             ret_use: ValueUse::Output,
             binds: None,
+            constructs: false,
         });
 
         // catch (...) { ... }

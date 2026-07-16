@@ -143,7 +143,7 @@ function update(state: &State): void {
 
     state.user = state.user;
     /// @resolution.name source=state target=update.state
-    /// @resolution.pattern.assign source=state.user kind=place place=field(State.user) type=User
+    /// @resolution.pattern.assign source=state.user kind=place place=field(State.user) type=Placed<User, "shared">
     /// @resolution.name source=state target=update.state
     /// @resolution.member source=state.user receiver=Borrowed<State, update.L0, "mutable"> kind=symbol target=State.user
 
@@ -694,7 +694,7 @@ shared class Cell<T> {
     /// @resolution.name source=T target=Cell.T
 
         this.value = value;
-        /// @resolution.receiver source=this kind=this declaration=Cell type=Placed<Cell<T>, "shared">
+        /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T>
         /// @resolution.pattern.assign source=this.value kind=place place=field(Cell.value) type=T
         /// @resolution.name source=value target=Cell.constructor.value
 

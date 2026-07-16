@@ -1,13 +1,13 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 
-use crate::check::{CheckState, GenericTemplateId, InducedLifetimeSite, Receiver, WalkState};
+use crate::check::{CheckState, GenericTemplateId, InducedParameterSite, Receiver, WalkState};
 use crate::{CompilerError, CompilerResult};
 
-/// One declaration that receives induced lifetime parameters.
+/// One declaration that receives induced parameters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct InducedLifetimeOwner {
-    /// The declaration node that receives induced lifetime parameters.
+pub(in crate::check) struct InducedParameterOwner {
+    /// The declaration node that receives induced parameters.
     pub(in crate::check) declaration: dir::GlobalNodeIdAny,
     /// The enclosing generic template.
     pub(in crate::check) parent: Option<GenericTemplateId>,
@@ -15,8 +15,8 @@ pub(in crate::check) struct InducedLifetimeOwner {
     pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
 }
 
-impl InducedLifetimeOwner {
-    /// Create one induced lifetime owner.
+impl InducedParameterOwner {
+    /// Create one induced parameter owner.
     pub(in crate::check) fn new(
         declaration: dir::GlobalNodeIdAny,
         parent: Option<GenericTemplateId>,
@@ -35,7 +35,7 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn enclosing_generic_template(
         &self,
         receiver: Option<Receiver>,
-        declaration: Option<InducedLifetimeOwner>,
+        declaration: Option<InducedParameterOwner>,
     ) -> Option<GenericTemplateId> {
         // prefer the declaration that owns the member
         if let Some(symbol) = declaration.and_then(|declaration| declaration.symbol)
@@ -106,15 +106,15 @@ impl WalkState<'_, '_> {
         Ok(Some(template))
     }
 
-    /// Push one declaration type that can contain induced lifetime holes.
-    pub(in crate::check) fn push_induced_lifetime_site(
+    /// Push one declaration type that can contain induced memory holes.
+    pub(in crate::check) fn push_induced_parameter_site(
         &mut self,
-        declaration: InducedLifetimeOwner,
+        declaration: InducedParameterOwner,
         ty: dir::GlobalTypeId,
     ) {
         self.check
             .generics
-            .push_induced_lifetime_site(InducedLifetimeSite {
+            .push_induced_parameter_site(InducedParameterSite {
                 declaration: declaration.declaration,
                 parent: declaration.parent,
                 symbol: declaration.symbol,
@@ -124,28 +124,24 @@ impl WalkState<'_, '_> {
 }
 
 impl CheckState<'_> {
-    /// Propagate elided lifetime variables into declaration templates.
-    pub(in crate::check) fn propagate_induced_lifetimes(&mut self) -> CompilerResult<()> {
+    /// Propagate induced memory variables into declaration templates.
+    pub(in crate::check) fn propagate_induced_parameters(&mut self) -> CompilerResult<()> {
         let sites = self
             .generics
-            .induced_lifetime_sites()
+            .induced_parameter_sites()
             .cloned()
             .collect::<Vec<_>>();
 
-        // collect induced lifetimes before mutating generic tables
-        let mut lifetimes = FxIndexMap::default();
+        // collect induced parameters before mutating generic tables
+        let mut parameters = FxIndexMap::default();
         for site in sites {
-            for variable in self.type_variables(site.ty)? {
-                let role = self.variable_role(variable)?;
-                if role.is_inference() {
-                    continue;
-                }
-                // body-inferred result lifetimes solve from returns, not induction
-                if self.body_lifetimes.contains(&variable) {
+            for (variable, role) in self.induced_memory_variables(site.ty)? {
+                // body-inferred results solve from returns, not induction
+                if self.body_inferred_parameters.contains(&variable) {
                     continue;
                 }
 
-                lifetimes.entry(variable).or_insert((
+                parameters.entry(variable).or_insert((
                     site.declaration,
                     site.parent,
                     site.symbol,
@@ -154,13 +150,13 @@ impl CheckState<'_> {
             }
         }
 
-        // insert lifetime parameters in allocation order
-        let mut lifetimes = lifetimes.into_iter().collect::<Vec<_>>();
-        lifetimes.sort_by_key(|(variable, _)| variable.0);
+        // insert parameters in allocation order
+        let mut parameters = parameters.into_iter().collect::<Vec<_>>();
+        parameters.sort_by_key(|(variable, _)| variable.0);
 
-        for (variable, (declaration, parent, symbol, role)) in lifetimes {
+        for (variable, (declaration, parent, symbol, role)) in parameters {
             let template = self.open_generic_template(declaration, parent, symbol)?;
-            let parameter = self.push_induced_lifetime_parameter(template, role)?;
+            let parameter = self.push_induced_memory_parameter(template, role)?;
             let solution =
                 self.intern_type(declaration.module_id, dir::Type::Parameter(parameter))?;
             self.commit_solution(variable, solution)?;

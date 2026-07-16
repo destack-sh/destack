@@ -783,7 +783,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let owner = answer!(self.value_beneath_forms(origin, member.owner)?);
+        let owner = self.value_beneath_forms(origin, member.owner)?;
         let dir::Type::Parameter(parameter) = self.ty(owner)? else {
             return Ok(Answer::Ready(None));
         };
@@ -896,23 +896,20 @@ impl BodyState<'_, '_> {
         let Some(place) = answer!(self.receiver_projected_place(origin, receiver)?) else {
             return Ok(Answer::Ready(ty));
         };
-        if answer!(self.type_has_place(origin, ty)?) {
+
+        // bare members of local receivers stay bare
+        let place_root = self.settled_root(place)?;
+        if self.check.is_memory_component(place_root, "local")? {
             return Ok(Answer::Ready(ty));
         }
 
-        let projected = self.intern_type(
-            origin.module(),
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Placed { place },
-                value: ty,
-            }),
-        )?;
+        let ty = self.resolve_relative_place(origin, ty, place)?;
 
-        self.reduce_type_head(origin, projected)
+        self.reduce_type_head(origin, ty)
     }
 
     /// Return the place projected by one receiver type.
-    fn receiver_projected_place(
+    pub(in crate::check) fn receiver_projected_place(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
@@ -921,6 +918,18 @@ impl BodyState<'_, '_> {
         loop {
             current = answer!(self.reduce_type_head(origin, current)?);
             let dir::Type::Form(form) = self.ty(current)? else {
+                // bare nominal instances live in their declared or inherited space
+                if let dir::Type::Instance(instance) = self.ty(current)?
+                    && let Some(space) = self.check.nominal_space(instance.symbol)?
+                {
+                    let place = self.intern_type(
+                        current.module_id,
+                        dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))),
+                    )?;
+
+                    return Ok(Answer::Ready(Some(place)));
+                }
+
                 return Ok(Answer::Ready(None));
             };
 
@@ -928,27 +937,6 @@ impl BodyState<'_, '_> {
                 dir::Form::Placed { place } => return Ok(Answer::Ready(Some(place))),
                 _ => current = form.value,
             }
-        }
-    }
-
-    /// Return whether one field type already carries an explicit place.
-    fn type_has_place(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let mut current = ty;
-        loop {
-            current = self.settled_root(current)?;
-            current = answer!(self.reduce_type_head(origin, current)?);
-            let dir::Type::Form(form) = self.ty(current)? else {
-                return Ok(Answer::Ready(false));
-            };
-            if matches!(form.form, dir::Form::Placed { .. }) {
-                return Ok(Answer::Ready(true));
-            }
-
-            current = form.value;
         }
     }
 

@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowPath, FlowPredicate, Obligation,
+    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowPath, FlowPredicate, Obligation, Origin,
     PatternCoverage, PatternCoverageObligation, ValueUse, WalkState, Widening,
 };
 
@@ -18,6 +18,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
+        place: Option<dir::PlaceModifier>,
         decorated: Option<dir::LocalNodeIdAny>,
         is_ambient: bool,
     ) -> CompilerResult<()> {
@@ -31,6 +32,7 @@ impl WalkState<'_, '_> {
                 symbol,
                 declarator,
                 binding_kind,
+                place,
                 decorated,
                 is_ambient,
             )?;
@@ -39,6 +41,22 @@ impl WalkState<'_, '_> {
         }
 
         Ok(())
+    }
+
+    /// Qualify one binding type with its written place modifier.
+    fn place_written_binding(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        ty: dir::GlobalTypeId,
+        place: dir::PlaceModifier,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
+        let place = self.place_type(place.space())?;
+
+        self.check.placed_type(origin, ty, place)
     }
 
     /// Walk one declarator that binds one symbol directly.
@@ -53,6 +71,7 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
+        place: Option<dir::PlaceModifier>,
         decorated: Option<dir::LocalNodeIdAny>,
         is_ambient: bool,
     ) -> CompilerResult<()> {
@@ -61,6 +80,10 @@ impl WalkState<'_, '_> {
             let written = match is_ambient {
                 true => self.walk_static_type_expression(ty)?,
                 false => self.walk_type_expression(ty)?,
+            };
+            let written = match place {
+                Some(place) => self.place_written_binding(id.into_any(), written, place)?,
+                None => written,
             };
             self.bind_symbol_type(symbol, written)?;
 
@@ -90,6 +113,7 @@ impl WalkState<'_, '_> {
                     generator: None,
                     ret_use: ValueUse::Store,
                     binds: None,
+                    constructs: false,
                 });
             }
 
@@ -106,6 +130,9 @@ impl WalkState<'_, '_> {
 
         // bind inferred declarations from their initializer
         if let Some(value) = declarator.value {
+            let place = place
+                .map(|place| self.place_type(place.space()))
+                .transpose()?;
             let index = self.check.bodies.len();
             self.check.bodies.push(BodyOwner {
                 phase: BodyPhase::Main,
@@ -114,7 +141,8 @@ impl WalkState<'_, '_> {
                 ret: None,
                 generator: None,
                 ret_use: ValueUse::Store,
-                binds: Some((symbol, widening)),
+                binds: Some((symbol, widening, place)),
+                constructs: false,
             });
             self.check.initializers.insert(symbol, index);
 
@@ -177,6 +205,7 @@ impl WalkState<'_, '_> {
                 generator: None,
                 ret_use: ValueUse::Store,
                 binds: None,
+                constructs: false,
             });
             self.check.bodies.push(BodyOwner {
                 phase: BodyPhase::Main,
@@ -186,6 +215,7 @@ impl WalkState<'_, '_> {
                 generator: None,
                 ret_use: ValueUse::Store,
                 binds: None,
+                constructs: false,
             });
 
             // non-matching positions must always succeed
@@ -211,6 +241,7 @@ impl WalkState<'_, '_> {
                 generator: None,
                 ret_use: ValueUse::Store,
                 binds: None,
+                constructs: false,
             });
 
             // non-matching positions must always succeed

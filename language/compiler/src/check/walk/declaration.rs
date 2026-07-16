@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use crate::check::{
     CauseKind, CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
     ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericTemplateId,
-    ImplementationCoherenceObligation, InducedLifetimeOwner, Obligation, Origin,
+    ImplementationCoherenceObligation, InducedParameterOwner, Obligation, Origin,
     ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
     TypeSubstitution, VariableRole, WalkState, Widening,
 };
@@ -376,7 +376,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
+        let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
@@ -398,13 +398,14 @@ impl WalkState<'_, '_> {
 
         // walk the written value
         let value = self.walk_type_expression(declaration.value)?;
-        self.push_induced_lifetime_site(induction, value);
+        self.push_induced_parameter_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
         let definition = if let Some(receiver) = receiver {
             let members = self.walk_tagged_variant_members(source, symbol, receiver.ty, value)?;
 
             dir::Definition::Newtype(dir::NewtypeDefinition {
+                space: declaration.place.map(dir::PlaceModifier::space),
                 template: template.map(|template| template.local_id),
                 value,
                 members,
@@ -442,6 +443,7 @@ impl WalkState<'_, '_> {
         // intrinsic newtypes stay opaque
         if declaration.is_nominal {
             let definition = dir::Definition::Newtype(dir::NewtypeDefinition {
+                space: declaration.place.map(dir::PlaceModifier::space),
                 template: template.map(|template| template.local_id),
                 value,
                 members: Vec::new(),
@@ -490,7 +492,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
+        let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -523,6 +525,7 @@ impl WalkState<'_, '_> {
         }
 
         let definition = dir::Definition::Struct(dir::StructDefinition {
+            space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
             implements,
             members,
@@ -571,7 +574,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
+        let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -582,7 +585,7 @@ impl WalkState<'_, '_> {
         let mut super_ty = None;
         if let Some(extends_type) = declaration.extends_type {
             let ty = self.walk_type_expression(extends_type)?;
-            self.push_induced_lifetime_site(induction, ty);
+            self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
                     self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty);
@@ -643,6 +646,7 @@ impl WalkState<'_, '_> {
             self.class_construct_candidates(receiver.ty, extends.is_some(), &members)?;
 
         let definition = dir::Definition::Class(dir::ClassDefinition {
+            space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
             is_abstract: declaration.is_abstract,
             is_final: declaration.is_final,
@@ -701,13 +705,13 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         receiver: Receiver,
         template: Option<GenericTemplateId>,
-        induction: InducedLifetimeOwner,
+        induction: InducedParameterOwner,
         implements_types: &[dir::LocalNodeId<dir::TypeExpression>],
     ) -> CompilerResult<Vec<dir::NominalHeritage>> {
         let mut implements = Vec::new();
         for implemented_type in implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
-            self.push_induced_lifetime_site(induction, ty);
+            self.push_induced_parameter_site(induction, ty);
 
             // require a written interface instance
             let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? else {
@@ -833,7 +837,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
+        let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -869,6 +873,7 @@ impl WalkState<'_, '_> {
         }
 
         let definition = dir::Definition::Enum(dir::EnumDefinition {
+            space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
             implements,
             members,
@@ -917,7 +922,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
+        let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -927,7 +932,7 @@ impl WalkState<'_, '_> {
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
             let ty = self.walk_type_expression(*extends_type)?;
-            self.push_induced_lifetime_site(induction, ty);
+            self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     extends.push(dir::NominalHeritage {
@@ -966,6 +971,7 @@ impl WalkState<'_, '_> {
         }
 
         let definition = dir::Definition::Interface(dir::InterfaceDefinition {
+            space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
             is_nominal: declaration.is_nominal,
             extends,
@@ -1001,13 +1007,13 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
+        let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
         // expose members under the extended receiver
         let target_type = self.walk_type_expression(declaration.target_type)?;
-        self.push_induced_lifetime_site(induction, target_type);
+        self.push_induced_parameter_site(induction, target_type);
         let target = self.walk_extension_target(target_type)?;
         let target_name = match &target {
             dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
@@ -1024,7 +1030,7 @@ impl WalkState<'_, '_> {
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
-            self.push_induced_lifetime_site(induction, ty);
+            self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     implements.push(dir::NominalHeritage {
@@ -1219,7 +1225,7 @@ impl WalkState<'_, '_> {
 
         // open signature parameters before building the function type
         let source = id.into_global_any(self.module);
-        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
+        let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template =
             self.open_signature_template(source, None, Some(symbol), &declaration.signature)?;
 
@@ -1256,8 +1262,14 @@ impl WalkState<'_, '_> {
         } else {
             signature
         };
-        self.push_induced_lifetime_site(induction, function);
+        self.push_induced_parameter_site(induction, function);
         self.bind_symbol_type(symbol, function)?;
+
+        // check the body against the completed stored signature
+        let result = self
+            .check
+            .signature_head(signature)?
+            .and_then(|signature| signature.return_type);
 
         // walk body after its result exists
         if let (Some(body), Some(result)) = (declaration.body, result) {
@@ -1546,7 +1558,6 @@ impl WalkState<'_, '_> {
                 is_annotation_required,
                 is_annotation_required,
             )?
-            .map(|ty| ty.argument)
         } else {
             None
         };

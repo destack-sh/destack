@@ -79,6 +79,7 @@ impl CheckState<'_> {
             generator: None,
             ret_use: ValueUse::Store,
             binds: None,
+            constructs: false,
         });
         walk.commit();
 
