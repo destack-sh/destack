@@ -72,6 +72,19 @@ impl Block {
             .or(self.tail_expression)
     }
 
+    /// Return the expression when this block contains exactly one.
+    pub fn only_expression(&self) -> Option<LocalNodeId<Expression>> {
+        if self.leading_expressions.is_empty() {
+            return self.tail_expression;
+        }
+
+        if self.leading_expressions.len() == 1 && self.tail_expression.is_none() {
+            return self.leading_expressions.first().copied();
+        }
+
+        None
+    }
+
     /// Return the last expression in source order.
     pub fn last_expression(&self) -> Option<LocalNodeId<Expression>> {
         self.tail_expression
