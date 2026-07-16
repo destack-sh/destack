@@ -1,4 +1,5 @@
 use clap::Args;
+use destack_linter as linter;
 
 use super::check::{self, Format, Progress};
 use crate::common::{
@@ -76,7 +77,7 @@ pub fn run(args: &LintArgs) -> i32 {
         return list_rules(args);
     }
 
-    // convert to CheckArgs and delegate
+    // run the check command with linting enabled
     let check_args = check::CheckArgs {
         input: args.input.clone(),
         program: args.program.clone(),
@@ -84,7 +85,7 @@ pub fn run(args: &LintArgs) -> i32 {
         fix: args.fix,
         unsafe_fixes: args.unsafe_fixes,
         diff: args.diff,
-        no_lint: false, // lint always includes linting
+        no_lint: false,
         timings: false,
         format: args.format,
         quiet: args.quiet,
@@ -99,44 +100,43 @@ pub fn run(args: &LintArgs) -> i32 {
 
 /// Lint rule metadata for list output.
 #[derive(serde::Serialize)]
-struct RuleEntry {
-    /// Fully qualified rule identifier.
+struct LintListEntry {
+    /// Stable rule selector.
     id: String,
     /// Diagnostic code for the rule.
-    code: &'static str,
+    code: String,
     /// Display name for the rule.
-    name: &'static str,
+    name: String,
     /// Rule category name.
     category: &'static str,
+    /// Standard level before configuration overrides.
+    level: &'static str,
     /// Human-readable description.
-    description: &'static str,
+    description: String,
     /// Whether the rule provides a fix.
     fixable: bool,
-    /// Whether the rule is enabled by default.
-    recommended: bool,
-    /// Stability label for the rule.
-    stability: &'static str,
+    /// Compiler representation inspected by the rule.
+    tier: &'static str,
+    /// Compilation scope inspected by the rule.
+    scope: &'static str,
 }
 
 /// List lint rules in text or JSON output.
 fn list_rules(args: &LintArgs) -> i32 {
-    let mut entries: Vec<RuleEntry> = destack_linter::all_rules()
+    let mut entries: Vec<LintListEntry> = linter::builtin_inventory()
         .into_iter()
         .map(|rule| {
-            let meta = rule.meta();
-            RuleEntry {
-                id: meta.full_id(),
-                code: meta.code,
-                name: meta.name,
+            let meta = rule.meta;
+            LintListEntry {
+                id: meta.id.clone(),
+                code: meta.code.clone(),
+                name: meta.name.clone(),
                 category: meta.category.name(),
-                description: meta.description,
+                description: meta.description.clone(),
                 fixable: meta.is_fixable(),
-                recommended: meta.is_recommended(),
-                stability: if meta.is_stable() {
-                    "stable"
-                } else {
-                    "experimental"
-                },
+                level: meta.default_level.name(),
+                tier: rule.tier.name(),
+                scope: rule.scope.name(),
             }
         })
         .collect();
@@ -154,15 +154,10 @@ fn list_rules(args: &LintArgs) -> i32 {
         .into_iter()
         .map(|entry| {
             let summary = format!("{} ({})", entry.id, entry.code);
+            let fixability = if entry.fixable { "fixable" } else { "no-fix" };
             let details = format!(
-                "{} · {} · {}",
-                entry.category,
-                if entry.fixable { "fixable" } else { "no-fix" },
-                if entry.recommended {
-                    "recommended"
-                } else {
-                    "optional"
-                },
+                "{} · {} · {} {} · {fixability}",
+                entry.category, entry.level, entry.tier, entry.scope
             );
             ListEntry::new(summary)
                 .line(details)

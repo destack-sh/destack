@@ -37,6 +37,15 @@ pub enum LintLevel {
 }
 
 impl LintLevel {
+    /// Return the configuration spelling.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Warning => "warning",
+            Self::Error => "error",
+        }
+    }
+
     /// Return whether this level enables the rule.
     pub const fn is_enabled(self) -> bool {
         !matches!(self, Self::Off)
@@ -64,6 +73,10 @@ mod tests {
     /// Round trip every supported lint level with its canonical spelling.
     #[test]
     fn test_roundtrip_lint_levels() {
+        assert_eq!(LintLevel::Off.name(), "off");
+        assert_eq!(LintLevel::Warning.name(), "warning");
+        assert_eq!(LintLevel::Error.name(), "error");
+
         let expected = json!({
             "enabled": true,
             "rules": {

@@ -9,6 +9,7 @@ use destack_compiler::{
     LinkWarning, LowerError, LowerWarning, MaterializeError, MaterializeWarning, OptimizeError,
     OptimizeWarning, VerifyError, VerifyWarning,
 };
+use destack_linter as linter;
 
 use crate::common::{
     CommandReport, ListEntry, ListGroup, ListPrinter, ListSpacing, ReportArgs,
@@ -137,23 +138,23 @@ enum CompilerPhase {
 #[derive(Serialize)]
 struct LintExplainEntry {
     /// Diagnostic code for the rule.
-    code: &'static str,
-    /// Rule identifier without category prefix.
-    id: &'static str,
+    code: String,
+    /// Stable rule selector.
+    id: String,
     /// Display name for the rule.
-    name: &'static str,
+    name: String,
     /// Rule category name.
     category: &'static str,
     /// Human-readable description.
-    description: &'static str,
+    description: String,
     /// Whether the rule provides a fix.
     fixable: bool,
-    /// Whether the rule is enabled by default.
-    recommended: bool,
-    /// Stability label for the rule.
-    stability: &'static str,
-    /// Documentation URL when available.
-    docs_url: Option<&'static str>,
+    /// Standard level before configuration overrides.
+    level: &'static str,
+    /// Compiler representation inspected by the rule.
+    tier: &'static str,
+    /// Compilation scope inspected by the rule.
+    scope: &'static str,
 }
 
 /// Compiler diagnostic metadata returned by the explain command.
@@ -189,22 +190,24 @@ struct CompilerListEntry {
 /// Lint rule listing entry.
 #[derive(Serialize)]
 struct LintListEntry {
-    /// Fully qualified rule identifier.
+    /// Stable rule selector.
     id: String,
     /// Diagnostic code for the rule.
-    code: &'static str,
+    code: String,
     /// Display name for the rule.
-    name: &'static str,
+    name: String,
     /// Rule category name.
     category: &'static str,
     /// Human-readable description.
-    description: &'static str,
+    description: String,
     /// Whether the rule provides a fix.
     fixable: bool,
-    /// Whether the rule is enabled by default.
-    recommended: bool,
-    /// Stability label for the rule.
-    stability: &'static str,
+    /// Standard level before configuration overrides.
+    level: &'static str,
+    /// Compiler representation inspected by the rule.
+    tier: &'static str,
+    /// Compilation scope inspected by the rule.
+    scope: &'static str,
 }
 
 /// Categorized diagnostics for JSON output.
@@ -486,23 +489,20 @@ fn collect_compiler_list_entries(filter: DiagnosticSeverityFilter) -> Vec<Compil
 /// Collect lint rule list entries.
 fn collect_lint_list_entries() -> Vec<LintListEntry> {
     // gather lint rule metadata
-    destack_linter::all_rules()
+    linter::builtin_inventory()
         .into_iter()
         .map(|rule| {
-            let meta = rule.meta();
+            let meta = rule.meta;
             LintListEntry {
-                id: meta.full_id(),
-                code: meta.code,
-                name: meta.name,
+                id: meta.id.clone(),
+                code: meta.code.clone(),
+                name: meta.name.clone(),
                 category: meta.category.name(),
-                description: meta.description,
+                description: meta.description.clone(),
                 fixable: meta.is_fixable(),
-                recommended: meta.is_recommended(),
-                stability: if meta.is_stable() {
-                    "stable"
-                } else {
-                    "experimental"
-                },
+                level: meta.default_level.name(),
+                tier: rule.tier.name(),
+                scope: rule.scope.name(),
             }
         })
         .collect()
@@ -604,17 +604,12 @@ fn print_lint_listing(entries: Vec<LintListEntry>) {
             .iter()
             .map(|entry| {
                 let id = format_rule_id(&entry.id, color_enabled);
-                let code = format_rule_code(entry.code, color_enabled);
+                let code = format_rule_code(&entry.code, color_enabled);
                 let summary = format!("  {id} ({code}) - {}", entry.description);
+                let fixability = if entry.fixable { "fixable" } else { "no-fix" };
                 let details = format!(
-                    "{} · {} · {}",
-                    if entry.fixable { "fixable" } else { "no-fix" },
-                    if entry.recommended {
-                        "recommended"
-                    } else {
-                        "optional"
-                    },
-                    entry.stability,
+                    "{} · {} {} · {fixability}",
+                    entry.level, entry.tier, entry.scope
                 );
                 let details = format!("  {}", format_details_line(&details, color_enabled));
                 ListEntry::new(summary).line(details)
@@ -629,29 +624,21 @@ fn print_lint_listing(entries: Vec<LintListEntry>) {
 /// Find a lint rule entry matching the given identifier.
 fn find_lint_entry(needle: &str) -> Option<LintExplainEntry> {
     // search the lint rule registry
-    destack_linter::all_rules()
-        .iter()
-        .map(|rule| rule.meta())
-        .find(|meta| {
-            let full_id = meta.full_id();
-            meta.code.eq_ignore_ascii_case(needle)
-                || meta.id.eq_ignore_ascii_case(needle)
-                || full_id.eq_ignore_ascii_case(needle)
+    linter::builtin_inventory()
+        .into_iter()
+        .find(|rule| {
+            rule.meta.code.eq_ignore_ascii_case(needle) || rule.meta.id.eq_ignore_ascii_case(needle)
         })
-        .map(|meta| LintExplainEntry {
-            code: meta.code,
-            id: meta.id,
-            name: meta.name,
-            category: meta.category.name(),
-            description: meta.description,
-            fixable: meta.is_fixable(),
-            recommended: meta.is_recommended(),
-            stability: if meta.is_stable() {
-                "stable"
-            } else {
-                "experimental"
-            },
-            docs_url: meta.docs_url,
+        .map(|rule| LintExplainEntry {
+            code: rule.meta.code.clone(),
+            id: rule.meta.id.clone(),
+            name: rule.meta.name.clone(),
+            category: rule.meta.category.name(),
+            description: rule.meta.description.clone(),
+            fixable: rule.meta.is_fixable(),
+            level: rule.meta.default_level.name(),
+            tier: rule.tier.name(),
+            scope: rule.scope.name(),
         })
 }
 
@@ -711,13 +698,11 @@ fn output_lint_entry(args: &ExplainArgs, entry: LintExplainEntry) -> i32 {
     console::info(&format!("{} ({})", entry.id, entry.code));
     console::info(&format!("name: {}", entry.name));
     console::info(&format!("category: {}", entry.category));
+    console::info(&format!("level: {}", entry.level));
+    console::info(&format!("tier: {}", entry.tier));
+    console::info(&format!("scope: {}", entry.scope));
     console::info(&format!("fixable: {}", entry.fixable));
-    console::info(&format!("recommended: {}", entry.recommended));
-    console::info(&format!("stability: {}", entry.stability));
     console::info(&format!("description: {}", entry.description));
-    if let Some(url) = entry.docs_url {
-        console::info(&format!("docs: {url}"));
-    }
 
     0
 }
