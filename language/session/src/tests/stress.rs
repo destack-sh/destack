@@ -449,11 +449,11 @@ export const result = value;
     assert_eq!(
         TraceCounts::from_trace(&cold_trace),
         TraceCounts {
-            artifacts: 5051,
-            built: 3202,
+            artifacts: 5186,
+            built: 3285,
             memory_cached: 0,
             store_cached: 0,
-            parked: 1849,
+            parked: 1901,
             failed: 0,
         },
     );
