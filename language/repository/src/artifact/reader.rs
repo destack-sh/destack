@@ -5,8 +5,8 @@ use destack_artifact::{
     ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
     DirCheckedComponent, DirCheckedModule, DirExpanded, DirExported, DirImported, DirMaterialized,
     DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered,
-    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex, PackageLinted,
-    Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
+    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex, Product,
+    ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -414,26 +414,23 @@ impl<'a> ArtifactReader<'a> {
         &self,
         module: ModuleId,
         profile: ProfileId,
+        target: TargetId,
     ) -> Result<Arc<ModuleLinted>, ProviderError> {
         self.read(
-            ArtifactKey::module_linted(module, profile),
+            ArtifactKey::module_linted(module, profile, target),
             ArtifactTable::module_linted,
         )
     }
 
-    /// Read one package lint marker artifact.
-    pub fn package_linted(&self, package: PackageId) -> Result<Arc<PackageLinted>, ProviderError> {
+    /// Read one program lint marker artifact.
+    pub fn program_linted(
+        &self,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<Arc<ProgramLinted>, ProviderError> {
         self.read(
-            ArtifactKey::package_linted(package),
-            ArtifactTable::package_linted,
-        )
-    }
-
-    /// Read the workspace lint marker artifact.
-    pub fn workspace_linted(&self) -> Result<Arc<WorkspaceLinted>, ProviderError> {
-        self.read(
-            ArtifactKey::workspace_linted(),
-            ArtifactTable::workspace_linted,
+            ArtifactKey::program_linted(profile, target),
+            ArtifactTable::program_linted,
         )
     }
 }
