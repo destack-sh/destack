@@ -26,11 +26,9 @@ impl CheckState<'_> {
                 self.satisfies_scalar_marker(origin, ty, dir::ScalarDomain::Float)
             }
             dir::AutoInterface::Copy => self.satisfies_copy(origin, ty, &mut active),
+            dir::AutoInterface::SharedSafe => self.satisfies_shared_safe(origin, ty),
             // TODO #Incomplete: the remaining auto interfaces never hold
-            dir::AutoInterface::Send
-            | dir::AutoInterface::Sync
-            | dir::AutoInterface::Unpin
-            | dir::AutoInterface::Zeroable => Ok(Answer::Ready(false)),
+            dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(Answer::Ready(false)),
             // concreteness checks through the representation obligation
             dir::AutoInterface::Concrete => Ok(Answer::Ready(false)),
             // derivable interfaces hold only through their generated extensions

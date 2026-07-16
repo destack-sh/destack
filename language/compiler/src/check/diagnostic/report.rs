@@ -1894,8 +1894,7 @@ impl CheckState<'_> {
             | dir::AutoInterface::PartialCompare
             | dir::AutoInterface::Serialize
             | dir::AutoInterface::Deserialize
-            | dir::AutoInterface::Send
-            | dir::AutoInterface::Sync
+            | dir::AutoInterface::SharedSafe
             | dir::AutoInterface::Unpin
             | dir::AutoInterface::Zeroable => {
                 let error = CheckError::ConstraintNotSatisfied {

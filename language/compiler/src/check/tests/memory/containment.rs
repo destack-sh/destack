@@ -646,3 +646,168 @@ const box: shared Box = new Box(user);
 "#,
     );
 }
+
+#[test]
+fn test_satisfy_shared_safe_bound_by_containment() {
+    let session = TestSession::single(
+        r#"
+import { SharedSafe } from "destack:memory";
+
+class Message {}
+local class Handle {}
+
+struct CleanEnvelope {
+    message: shared Message;
+    count: int32;
+}
+
+struct LocalEnvelope {
+    handle: Handle;
+}
+
+declare function publish<T: SharedSafe>(value: T): void;
+
+declare const cleanEnvelope: CleanEnvelope;
+declare const localEnvelope: LocalEnvelope;
+declare const handle: Handle;
+
+publish<CleanEnvelope>(cleanEnvelope);
+publish<LocalEnvelope>(localEnvelope);
+publish(cleanEnvelope);
+publish(handle);
+cleanEnvelope satisfies SharedSafe;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { SharedSafe } from "destack:memory";
+
+class Message {}
+local class Handle {}
+
+struct CleanEnvelope {
+    message: shared Message;
+    count: int32;
+}
+
+struct LocalEnvelope {
+    handle: Handle;
+}
+
+declare function publish<T: SharedSafe>(value: T): void;
+
+declare const cleanEnvelope: CleanEnvelope;
+declare const localEnvelope: LocalEnvelope;
+declare const handle: Handle;
+
+publish<CleanEnvelope>(cleanEnvelope);
+publish<LocalEnvelope>(localEnvelope);
+publish<CleanEnvelope>(cleanEnvelope);
+publish<Handle>(handle);
+cleanEnvelope satisfies SharedSafe;
+
+=== checked ===
+import { SharedSafe } from "destack:memory";
+
+class Message {}
+/// @type.symbol symbol=Message source="class Message {}" type=Message
+/// @definition.class symbol=Message source="class Message {}"
+
+local class Handle {}
+/// @type.symbol symbol=Handle source="local class Handle {}" type=Handle
+/// @definition.class symbol=Handle source="local class Handle {}"
+
+struct CleanEnvelope {
+/// @type.symbol symbol=CleanEnvelope type=CleanEnvelope
+/// @definition.struct symbol=CleanEnvelope
+/// @definition.field symbol=CleanEnvelope.count source="count: int32" key=count type=int32
+/// @definition.field symbol=CleanEnvelope.message source="message: shared Message" key=message type=Placed<Message, "shared">
+
+    message: shared Message;
+    /// @type.symbol symbol=CleanEnvelope.message source="message: shared Message" type=Placed<Message, "shared">
+    /// @resolution.name source=Message target=Message
+
+    count: int32;
+    /// @type.symbol symbol=CleanEnvelope.count source="count: int32" type=int32
+
+}
+
+struct LocalEnvelope {
+/// @type.symbol symbol=LocalEnvelope type=LocalEnvelope
+/// @definition.struct symbol=LocalEnvelope
+/// @definition.field symbol=LocalEnvelope.handle source="handle: Handle" key=handle type=Handle
+
+    handle: Handle;
+    /// @type.symbol symbol=LocalEnvelope.handle source="handle: Handle" type=Handle
+    /// @resolution.name source=Handle target=Handle
+
+}
+
+declare function publish<T: SharedSafe>(value: T): void;
+/// @generic.template symbol=publish parameters=(T: memory.capability.SharedSafe)
+/// @type.symbol symbol=publish source="declare function publish<T: SharedSafe>(value: T): void" type=<T: memory.capability.SharedSafe>(T) => void
+/// @type.symbol symbol=publish.T source="T: SharedSafe" type=T
+/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+/// @type.symbol symbol=publish.value source="value: T" type=T
+/// @resolution.name source=T target=publish.T
+
+declare const cleanEnvelope: CleanEnvelope;
+/// @type.symbol symbol=cleanEnvelope source=cleanEnvelope type=CleanEnvelope
+/// @resolution.name source=CleanEnvelope target=CleanEnvelope
+
+declare const localEnvelope: LocalEnvelope;
+/// @type.symbol symbol=localEnvelope source=localEnvelope type=LocalEnvelope
+/// @resolution.name source=LocalEnvelope target=LocalEnvelope
+
+declare const handle: Handle;
+/// @type.symbol symbol=handle source=handle type=Handle
+/// @resolution.name source=Handle target=Handle
+
+publish<CleanEnvelope>(cleanEnvelope);
+/// @resolution.name source=publish target=publish
+/// @resolution.call source=publish<CleanEnvelope>(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
+/// @generic.instance source=publish<CleanEnvelope>(cleanEnvelope) id=publish<CleanEnvelope>
+/// @resolution.name source=CleanEnvelope target=CleanEnvelope
+/// @resolution.name source=cleanEnvelope target=cleanEnvelope
+
+publish<LocalEnvelope>(localEnvelope);
+/// @resolution.name source=publish target=publish
+/// @resolution.call source=publish<LocalEnvelope>(localEnvelope) parameters=(LocalEnvelope) arguments=(provided(localEnvelope) as LocalEnvelope) return=void kind=symbol target=publish instance=publish<LocalEnvelope>
+/// @generic.instance source=publish<LocalEnvelope>(localEnvelope) id=publish<LocalEnvelope>
+/// @resolution.name source=LocalEnvelope target=LocalEnvelope
+/// @resolution.name source=localEnvelope target=localEnvelope
+
+publish(cleanEnvelope);
+/// @resolution.name source=publish target=publish
+/// @resolution.call source=publish(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
+/// @generic.instance source=publish(cleanEnvelope) id=publish<CleanEnvelope>
+/// @resolution.name source=cleanEnvelope target=cleanEnvelope
+
+publish(handle);
+/// @resolution.name source=publish target=publish
+/// @resolution.call source=publish(handle) parameters=(Handle) arguments=(provided(handle) as Handle) return=void kind=symbol target=publish instance=publish<Handle>
+/// @generic.instance source=publish(handle) id=publish<Handle>
+/// @resolution.name source=handle target=handle
+
+cleanEnvelope satisfies SharedSafe;
+/// @resolution.name source=cleanEnvelope target=cleanEnvelope
+/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+
+/// @generic.instance id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
+/// @generic.instance id=publish<Handle> template=publish arguments=(Handle)
+/// @generic.instance id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
+"#,
+        r#"
+/// @diagnostic.error code=EC201 message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
+/// @diagnostic.label line=23 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
+/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
+/// @diagnostic.error code=EC201 message="type 'Handle' does not satisfy 'SharedSafe'"
+/// @diagnostic.label line=25 column=1 span="publish(handle)" line_source="publish(handle);"
+/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
+"#,
+    );
+}

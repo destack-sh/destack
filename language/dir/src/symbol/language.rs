@@ -861,11 +861,8 @@ define_language_items! {
             /// Non-exclusive overwrite capability.
             OverwriteStable => (NewtypeInterface, "memory/capability", "OverwriteStable"),
 
-            /// Worker-send capability.
-            Send => (NewtypeInterface, "memory/capability", "Send"),
-
-            /// Shared-storage capability.
-            Sync => (NewtypeInterface, "memory/capability", "Sync"),
+            /// Shared-storage safety capability.
+            SharedSafe => (NewtypeInterface, "memory/capability", "SharedSafe"),
 
             /// Pin-move capability.
             Unpin => (NewtypeInterface, "memory/capability", "Unpin"),

@@ -29,6 +29,49 @@ enum RepresentationFailure {
 }
 
 impl CheckState<'_> {
+    /// Decide whether one type's values may live in shared space.
+    pub(in crate::check) fn satisfies_shared_safe(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        // intrinsically local declarations never store shared
+        let value = self.value_beneath_forms(origin, ty)?;
+        let value = answer!(self.reduce_type_head(origin, value)?);
+        let symbol = match self.ty(value)? {
+            dir::Type::Instance(instance) => Some(instance.symbol),
+            dir::Type::Reference(reference) => Some(reference.symbol),
+            _ => None,
+        };
+        if let Some(symbol) = symbol
+            && self.nominal_space(symbol)? == Some(dir::Space::Local)
+        {
+            return Ok(Answer::Ready(false));
+        }
+
+        // shared containment walks the stored representation
+        let source = self.origin_source(origin)?;
+        let place = self.intern_type(
+            origin.module(),
+            dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
+                dir::Space::Shared,
+            ))),
+        )?;
+        let mut visited = FxIndexSet::default();
+        let failure = answer!(self.representation_failure(
+            origin,
+            ty,
+            source,
+            RepresentationCheck::Shared {
+                place,
+                use_fields: false,
+            },
+            &mut visited,
+        )?);
+
+        Ok(Answer::Ready(failure.is_none()))
+    }
+
     /// Check the finite and shared-safety properties of one stored type.
     pub(in crate::check) fn check_representation(
         &mut self,

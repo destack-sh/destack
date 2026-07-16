@@ -41,10 +41,8 @@ pub enum AutoInterface {
     PartialEqual,
     /// Structured serialization interface.
     Serialize,
-    /// Worker-send capability.
-    Send,
-    /// Shared-storage capability.
-    Sync,
+    /// Shared-storage safety marker.
+    SharedSafe,
     /// Pin-move capability.
     Unpin,
     /// Zero-byte initialization capability.
@@ -71,8 +69,7 @@ impl AutoInterface {
             LanguageItem::PartialCompare => Some(Self::PartialCompare),
             LanguageItem::PartialEqual => Some(Self::PartialEqual),
             LanguageItem::Serialize => Some(Self::Serialize),
-            LanguageItem::Send => Some(Self::Send),
-            LanguageItem::Sync => Some(Self::Sync),
+            LanguageItem::SharedSafe => Some(Self::SharedSafe),
             LanguageItem::Unpin => Some(Self::Unpin),
             LanguageItem::Zeroable => Some(Self::Zeroable),
             _ => None,
@@ -98,8 +95,7 @@ impl AutoInterface {
             Self::PartialCompare => "PartialCompare",
             Self::PartialEqual => "PartialEqual",
             Self::Serialize => "Serialize",
-            Self::Send => "Send",
-            Self::Sync => "Sync",
+            Self::SharedSafe => "SharedSafe",
             Self::Unpin => "Unpin",
             Self::Zeroable => "Zeroable",
         }
@@ -112,8 +108,7 @@ impl AutoInterface {
             | Self::Copy
             | Self::DynamicSafe
             | Self::OverwriteStable
-            | Self::Send
-            | Self::Sync
+            | Self::SharedSafe
             | Self::Unpin
             | Self::Zeroable
             | Self::Integer
@@ -152,8 +147,7 @@ impl AutoInterface {
             Self::Copy
             | Self::DynamicSafe
             | Self::OverwriteStable
-            | Self::Send
-            | Self::Sync
+            | Self::SharedSafe
             | Self::Unpin
             | Self::Zeroable
             | Self::Integer
