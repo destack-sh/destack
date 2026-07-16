@@ -115,6 +115,7 @@ impl Compiler {
         check.propagate()?;
         check.solve_bodies()?;
         check.settle()?;
+        check.report_constant_conditions()?;
 
         // emit solver counters and optional trace sidecars
         let stats = check.stats();
