@@ -29,7 +29,6 @@ impl BodyState<'_, '_> {
         let module = site.node.module_id;
         let origin = site.origin();
         let source = ty.into_global_any(module);
-        let expected = answer!(self.expected_construct_target(origin, expected)?);
 
         // omitted heads are owned entirely by the expected target
         if matches!(
@@ -39,7 +38,7 @@ impl BodyState<'_, '_> {
                 ..
             }
         ) {
-            let Some(expected) = expected else {
+            let Some(expected) = answer!(self.expected_construct_target(origin, expected)?) else {
                 self.report_cannot_infer_node(site.node)?;
                 let error = self.intern_type(module, dir::Type::Error)?;
 
@@ -49,15 +48,16 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(expected));
         }
 
-        // expected same-head targets supply omitted generic arguments
+        // a uniquely matching contextual arm supplies omitted generic arguments
         if let dir::TypeExpression::Reference {
             generic_arguments, ..
         } = self.module(module).view().get(ty)
             && generic_arguments.is_empty()
             && let Some(expected) = expected
-            && let dir::Type::Instance(instance) = self.ty(expected)?
             && let Some(resolution) = self.resolutions(source.module_id).name_resolution(source)
-            && matches!(resolution.symbols(), [symbol] if *symbol == instance.symbol)
+            && let [symbol] = resolution.symbols()
+            && let Some(expected) =
+                answer!(self.expected_construct_instance(origin, expected, *symbol)?)
         {
             return Ok(Answer::Ready(expected));
         }
@@ -137,6 +137,39 @@ impl BodyState<'_, '_> {
         };
 
         Ok(Answer::Ready(Some(target)))
+    }
+
+    /// Return the unique contextual instance of one construct declaration.
+    fn expected_construct_instance(
+        &mut self,
+        origin: Origin,
+        expected: dir::GlobalTypeId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(&[expected]);
+        let mut matched = None;
+
+        // search direct, owned, and union targets for one matching nominal head
+        while let Some(candidate) = pending.pop() {
+            let candidate = answer!(self.reduce_type_head(origin, candidate)?);
+            match self.ty(candidate)? {
+                dir::Type::Instance(instance) if instance.symbol == symbol => {
+                    if matched.is_some() {
+                        return Ok(Answer::Ready(None));
+                    }
+                    matched = Some(candidate);
+                }
+                dir::Type::Form(form) if form.form == dir::Form::Owned => {
+                    pending.push(form.value);
+                }
+                dir::Type::Union(union) => {
+                    pending.extend_from_slice(self.type_ids(candidate.module_id, union.elements)?)
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Answer::Ready(matched))
     }
 
     /// Instantiate one construct head with its written generic arguments.
@@ -314,6 +347,26 @@ impl BodyState<'_, '_> {
             });
         }
 
+        // the destination place resolves relative constructor member types
+        let receiver = forms
+            .iter()
+            .find_map(|form| match form {
+                dir::Form::Placed { place } => Some(*place),
+                _ => None,
+            })
+            .map(|place| {
+                self.intern_type(
+                    module,
+                    dir::Type::Form(dir::FormType {
+                        form: dir::Form::Placed { place },
+                        value: target,
+                    }),
+                )
+            })
+            .transpose()?;
+        // signatures expect the constructed instance in its destination place
+        let expected_return = receiver.or(expected_return);
+
         // winnow constructors in declaration order, then confirm the winner
         let is_single_candidate = constructors.len() == 1;
         let mut winner = None;
@@ -337,6 +390,7 @@ impl BodyState<'_, '_> {
                         constructor.ty,
                         &arguments,
                         expected_return,
+                        receiver,
                     )
                 },
                 |state, rejection| {
@@ -369,6 +423,7 @@ impl BodyState<'_, '_> {
                 constructor.ty,
                 &arguments,
                 expected_return,
+                receiver,
             )?;
 
             if let CandidateOutcome::Accepted(signature) = answer!(attempt) {
@@ -496,6 +551,7 @@ impl BodyState<'_, '_> {
         function_type: dir::GlobalTypeId,
         arguments: &[CallableArgument],
         expected_return: Option<dir::GlobalTypeId>,
+        receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<CandidateOutcome<SignatureSelection, SignatureRejection>>> {
         let source = self.origin_source_node(origin)?;
 
@@ -526,7 +582,7 @@ impl BodyState<'_, '_> {
                 &[],
                 &function,
                 return_type,
-                None,
+                receiver,
                 arguments,
                 expected_return,
             );
@@ -559,7 +615,7 @@ impl BodyState<'_, '_> {
             &[],
             &function,
             return_type,
-            None,
+            receiver,
             arguments,
             expected_return,
         )

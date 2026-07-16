@@ -77,10 +77,11 @@ impl CheckState<'_> {
             Some(
                 item @ (dir::LanguageItem::Access
                 | dir::LanguageItem::Lifetime
+                | dir::LanguageItem::Ownership
                 | dir::LanguageItem::Place
                 | dir::LanguageItem::Space),
             ) => {
-                let argument = self.normalize_memory_domain_value(origin, argument, item)?;
+                let argument = self.normalize_memory_parameter_value(origin, argument, item)?;
 
                 self.solve_type_relation(cause, Relation::Satisfies, argument, constraint)
             }
@@ -230,6 +231,7 @@ impl CheckState<'_> {
         holds: bool,
     ) -> CompilerResult<CheckOutcome> {
         let origin = self.cause_origin(cause);
+
         let is_property_relation = matches!(
             relation,
             Relation::Assignable | Relation::Writable | Relation::Satisfies

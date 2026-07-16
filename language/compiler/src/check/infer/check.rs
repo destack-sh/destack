@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CauseId, CheckAttempt, CheckFailure, CheckOutcome, ConstructResult,
-    Dependency, FlowSite, PlaceUse, Relation, ValueUse, answer,
+    Dependency, FlowSite, InferMode, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -143,8 +143,17 @@ impl BodyState<'_, '_> {
             .view()
             .get(node.local_id)
             .clone();
+        let target_value = self.check.value_beneath_forms(origin, target_head)?;
 
         match expression {
+            dir::Expression::ScalarLiteral(_) | dir::Expression::TemplateExpression { .. } => {
+                answer!(self.infer_expression(site, PlaceUse::Read, InferMode::Exact)?);
+                let source = answer!(self.node_type_at(site)?);
+                let source = answer!(self.materialize_fresh_value(origin, source, Some(target))?);
+                let check = answer!(self.check_value_relation(cause, relation, source, target)?);
+
+                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+            }
             dir::Expression::Block(block) => {
                 let check = answer!(self.check_block(site, block, target, relation, cause, use_)?);
 
@@ -178,7 +187,7 @@ impl BodyState<'_, '_> {
                 site,
                 &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
                 target,
-                target_head,
+                target_value,
                 relation,
                 cause,
                 use_,
@@ -189,7 +198,7 @@ impl BodyState<'_, '_> {
                     value,
                     length,
                     target,
-                    target_head,
+                    target_value,
                     relation,
                     cause,
                     use_,
@@ -197,7 +206,8 @@ impl BodyState<'_, '_> {
             dir::Expression::TupleExpression { elements } => self.check_tuple_expression(
                 site,
                 &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
-                target_head,
+                target,
+                target_value,
                 relation,
                 use_,
             ),
@@ -205,14 +215,19 @@ impl BodyState<'_, '_> {
                 site,
                 &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                 target,
-                target_head,
+                target_value,
                 relation,
                 cause,
                 use_,
             ),
             dir::Expression::StructExpression { ty, properties } => {
                 let construct_target =
-                    answer!(self.select_construct_target(site, ty, Some(target))?);
+                    answer!(self.select_construct_target(site, ty, Some(target_value))?);
+                let construct_target = answer!(self.materialize_fresh_value(
+                    origin,
+                    construct_target,
+                    Some(target),
+                )?);
                 let field_check = answer!(self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
@@ -229,8 +244,8 @@ impl BodyState<'_, '_> {
                 arguments,
                 ..
             } => {
-                // fresh call results materialize at owned and placed targets
-                let target = answer!(self.fresh_value_target(origin, target)?);
+                // fresh call results materialize at owned expected forms
+                let target = answer!(self.owned_value_target(origin, target)?);
                 let selected = answer!(self.select_call(
                     site,
                     left,

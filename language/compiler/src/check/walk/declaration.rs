@@ -1706,7 +1706,7 @@ impl WalkState<'_, '_> {
 
         // open the inferred result
         Ok((
-            Some(self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?),
+            Some(self.open_type_hole(source, Widening::Never, VariableRole::Regular)?),
             Vec::new(),
         ))
     }

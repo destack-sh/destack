@@ -15,9 +15,11 @@ pub(in crate::check) enum VariableRole {
         /// The instantiated parameter.
         parameter: dir::GlobalGenericParameterId,
     },
-    /// Variable that ranges over lifetime terms.
-    Lifetime {
-        /// The lifetime-kind constraint.
+    /// Variable that ranges over one well-known memory parameter kind.
+    Memory {
+        /// The memory parameter kind.
+        kind: dir::MemoryParameter,
+        /// The kind's constraint.
         constraint: Option<dir::GlobalTypeId>,
     },
 }
@@ -32,7 +34,7 @@ impl VariableRole {
     pub(in crate::check) fn parameter(self) -> Option<dir::GlobalGenericParameterId> {
         match self {
             Self::Instantiation { parameter } => Some(parameter),
-            Self::Regular | Self::Lifetime { .. } => None,
+            Self::Regular | Self::Memory { .. } => None,
         }
     }
 }
@@ -41,11 +43,11 @@ impl VariableRole {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Widening {
     /// Keep literal solutions exact.
-    Preserve,
+    Never,
     /// Widen every fresh literal candidate to its base type.
-    Widen,
-    /// Widen only written literal candidates, preserving read candidates.
-    WidenWrites,
+    Always,
+    /// Widen written literal candidates, keeping read candidates exact.
+    WhenWritten,
 }
 
 /// One inference variable.

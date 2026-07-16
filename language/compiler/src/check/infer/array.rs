@@ -91,8 +91,7 @@ impl BodyState<'_, '_> {
         // use one element hole when spreads participate in array construction
         else {
             let origin = site.origin();
-            let variable =
-                self.allocate_variable(origin, Widening::Preserve, VariableRole::Regular);
+            let variable = self.allocate_variable(origin, Widening::Never, VariableRole::Regular);
             let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
@@ -290,13 +289,13 @@ impl BodyState<'_, '_> {
         } else {
             self.intern_type(node.module_id, dir::Type::Array(dir::ArrayType { element }))?
         };
+        let array = answer!(self.materialize_fresh_value(site.origin(), array, Some(target))?);
         self.commit_node_type(node.into_any(), array)?;
 
         // relate the result for empty arrays and non-owned targets
         should_relate_result |= elements.is_empty();
         if should_relate_result {
-            let (_, result_check) =
-                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+            let result_check = answer!(self.check_value_relation(cause, relation, array, target)?);
             check = check.and(result_check);
         }
 
@@ -345,11 +344,11 @@ impl BodyState<'_, '_> {
                 count,
             }),
         )?;
+        let ty = answer!(self.materialize_fresh_value(site.origin(), ty, Some(target))?);
         self.commit_node_type(node.into_any(), ty)?;
 
         // relate the result to bind the expected count
-        let (_, result_check) =
-            answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+        let result_check = answer!(self.check_value_relation(cause, relation, ty, target)?);
 
         Ok(Answer::Ready(CheckAttempt::Checked(
             check.and(result_check),
@@ -362,18 +361,19 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         elements: &[dir::LocalNodeId<dir::Argument>],
         target: dir::GlobalTypeId,
+        target_value: dir::GlobalTypeId,
         relation: Relation,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
-        let dir::Type::Tuple(tuple) = self.ty(target)? else {
+        let dir::Type::Tuple(tuple) = self.ty(target_value)? else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
         if tuple.elements.len() as usize != elements.len() {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         }
         let tuple_elements = self
-            .tuple_elements(target.module_id, tuple.elements)?
+            .tuple_elements(target_value.module_id, tuple.elements)?
             .to_vec();
         let mut check = CheckOutcome::Holds;
 
@@ -402,8 +402,7 @@ impl BodyState<'_, '_> {
             check = check.and(child_check);
         }
 
-        let source = answer!(self.infer_tuple_expression(site, elements, InferMode::Exact)?);
-        self.commit_node_type(node.into_any(), source)?;
+        self.commit_node_type(node.into_any(), target)?;
 
         Ok(Answer::Ready(CheckAttempt::Checked(check)))
     }

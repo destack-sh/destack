@@ -55,7 +55,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // infer the failure result variable
-        let failure = self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
+        let failure = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
         let target = TryTarget {
             failure,
             has_failure: false,

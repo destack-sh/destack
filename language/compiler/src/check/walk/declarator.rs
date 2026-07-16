@@ -283,28 +283,28 @@ impl WalkState<'_, '_> {
         value: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> Widening {
         let Some(value) = value else {
-            return Widening::Preserve;
+            return Widening::Never;
         };
         let bindings = self.check.module(symbol.module_id).binding_table();
         let binding = bindings.get_symbol(symbol.local_id);
 
         match self.tree.get(value) {
             // value satisfies T
-            dir::Expression::Satisfies { .. } => Widening::Preserve,
+            dir::Expression::Satisfies { .. } => Widening::Never,
             // value as const
             dir::Expression::As { target_type, .. }
                 if matches!(self.tree.get(*target_type), dir::TypeExpression::Const) =>
             {
-                Widening::Preserve
+                Widening::Never
             }
             // mutable bindings widen initializers
-            _ if binding.binding_mutability != Some(dir::Mutability::Immutable) => Widening::Widen,
+            _ if binding.binding_mutability != Some(dir::Mutability::Immutable) => Widening::Always,
             // immutable aggregate bindings keep mutable contents usable
             dir::Expression::ArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
-            | dir::Expression::ObjectExpression { .. } => Widening::Widen,
+            | dir::Expression::ObjectExpression { .. } => Widening::Always,
             // immutable scalar bindings stay literal
-            _ => Widening::Preserve,
+            _ => Widening::Never,
         }
     }
 

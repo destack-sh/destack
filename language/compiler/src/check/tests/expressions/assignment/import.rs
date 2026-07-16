@@ -133,7 +133,7 @@ counter = counter;
 /// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC204 message="assignment target is not a storage location"
+/// @diagnostic.error code=EC204 message="assignment target is not a writable place"
 /// @diagnostic.label line=4 column=1 span="counter" line_source="counter = counter;"
 "#,
     );

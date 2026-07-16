@@ -1,12 +1,10 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{CheckState, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
-
-/// Maximum recursive widening depth for self-referential solution graphs.
-const MAX_WIDENING_DEPTH: usize = 16;
 
 impl CheckState<'_> {
     /// Join multiple lower bounds into one best common solution.
@@ -33,9 +31,18 @@ impl CheckState<'_> {
             }
         }
 
-        // borrows over one payload join their lifetimes: relations
-        //  never judge lifetimes, so absorption would otherwise keep
-        //  one branch's lifetime arbitrarily
+        // lifetime variables join through the provenance meet, never through relations
+        if self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Lifetime) {
+            let survivors = self.meet_lifetime_survivors(resolved)?;
+
+            return match survivors.as_slice() {
+                [] => self.intern_type(origin.module(), dir::Type::Never),
+                [single] => Ok(*single),
+                _ => self.normalized_union_type(origin.module(), survivors.to_vec()),
+            };
+        }
+
+        // join borrow bounds over one payload before absorption picks a branch
         let resolved = self.join_borrow_bounds(origin, &resolved)?;
 
         // drop bounds absorbed by another bound
@@ -58,8 +65,7 @@ impl CheckState<'_> {
             }
         }
 
-        // join the surviving bounds; mutually equivalent bounds absorb
-        //  each other and collapse to one representative
+        // join the survivors, collapsing mutually absorbed bounds to their first
         match survivors.as_slice() {
             [single] => Ok(*single),
             [] => match resolved.first() {
@@ -71,21 +77,14 @@ impl CheckState<'_> {
                 }
             },
             _ => {
-                // lifetime joins meet: frame is always the minimum,
-                //  static never is beside another lifetime
-                let survivors = self.meet_lifetime_survivors(survivors)?;
-                if let [single] = survivors.as_slice() {
-                    return Ok(*single);
-                }
-
                 let module = origin.module();
+
                 self.normalized_union_type(module, survivors)
             }
         }
     }
 
-    /// Meet joined lifetime bounds: a frame bound absorbs the join, and
-    /// static drops beside any other lifetime.
+    /// Meet lifetime bounds, where frame absorbs the join and static drops beside others.
     fn meet_lifetime_survivors(
         &mut self,
         survivors: SmallVec<[dir::GlobalTypeId; 4]>,
@@ -119,8 +118,7 @@ impl CheckState<'_> {
         Ok(kept)
     }
 
-    /// Join borrow bounds sharing one payload into one borrow over the
-    /// union of their lifetimes.
+    /// Join borrow bounds sharing one payload into one borrow over the joined lifetimes.
     fn join_borrow_bounds(
         &mut self,
         origin: Origin,
@@ -166,8 +164,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // groups without a second lifetime keep their bound untouched,
-            //  absorbing consumed equal-lifetime duplicates
+            // keep single-lifetime groups untouched, absorbing consumed duplicates
             if lifetimes.len() < 2 {
                 continue;
             }
@@ -258,7 +255,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // widening rebuilds literal leaves through aggregates and unions
-        match self.widen_tree(ty.module_id, ty, 0)? {
+        let mut active = FxIndexSet::default();
+        match self.widen_tree(ty.module_id, ty, &mut active)? {
             Some(widened) => Ok(widened),
             None => Ok(ty),
         }
@@ -269,14 +267,26 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         id: dir::GlobalTypeId,
-        depth: usize,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // recursive solutions stop widening at a fixed depth
-        if depth > MAX_WIDENING_DEPTH {
+        // self-referential solutions keep their recursive leaves
+        let id = self.settled_root(id)?;
+        if !active.insert(id) {
             return Ok(None);
         }
-        let id = self.settled_root(id)?;
+        let widened = self.widen_tree_children(module, id, active);
+        active.swap_remove(&id);
 
+        widened
+    }
+
+    /// Rebuild one reduced composite root with widened children.
+    fn widen_tree_children(
+        &mut self,
+        module: ModuleId,
+        id: dir::GlobalTypeId,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match self.ty(id)? {
             // literal leaves widen to their base types
             dir::Type::Literal(literal) => {
@@ -288,7 +298,7 @@ impl CheckState<'_> {
             dir::Type::EnumMember(member) => Ok(Some(member.owner)),
             // managed forms rebuild around their payloads
             dir::Type::Form(form) if form.form == dir::Form::Managed => {
-                let Some(widened) = self.widen_tree(module, form.value, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, form.value, active)? else {
                     return Ok(None);
                 };
                 let managed = dir::Type::Form(dir::FormType {
@@ -300,7 +310,7 @@ impl CheckState<'_> {
             }
             // collections rebuild around widened elements
             dir::Type::Array(array) => {
-                let Some(widened) = self.widen_tree(module, array.element, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, array.element, active)? else {
                     return Ok(None);
                 };
 
@@ -310,7 +320,7 @@ impl CheckState<'_> {
                 )?))
             }
             dir::Type::Slice(slice) => {
-                let Some(widened) = self.widen_tree(module, slice.element, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, slice.element, active)? else {
                     return Ok(None);
                 };
 
@@ -320,7 +330,7 @@ impl CheckState<'_> {
                 )?))
             }
             dir::Type::FixedArray(array) => {
-                let Some(widened) = self.widen_tree(module, array.element, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, array.element, active)? else {
                     return Ok(None);
                 };
 
@@ -340,7 +350,7 @@ impl CheckState<'_> {
                 let mut changed = false;
                 for element in &mut elements {
                     let ty = self.settled_root(element.ty)?;
-                    if let Some(widened) = self.widen_tree(module, ty, depth + 1)? {
+                    if let Some(widened) = self.widen_tree(module, ty, active)? {
                         element.ty = widened;
                         changed = true;
                     } else {
@@ -366,7 +376,7 @@ impl CheckState<'_> {
                 let mut changed = false;
                 for element in elements {
                     let element = self.settled_root(element)?;
-                    match self.widen_tree(module, element, depth + 1)? {
+                    match self.widen_tree(module, element, active)? {
                         Some(wide) => {
                             widened.push(wide);
                             changed = true;
@@ -399,7 +409,7 @@ impl CheckState<'_> {
                 let mut changed = false;
                 for field in &mut fields {
                     let ty = self.settled_root(field.ty)?;
-                    match self.widen_tree(module, ty, depth + 1)? {
+                    match self.widen_tree(module, ty, active)? {
                         Some(widened) => {
                             field.ty = widened;
                             changed = true;

@@ -254,7 +254,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             kind: dir::MemoryParameter::Lifetime,
             constraint,
         };
-        let lifetime = self.open_type_hole(source, Widening::Preserve, role)?;
+        let lifetime = self.open_type_hole(source, Widening::Never, role)?;
         let Some(variable) = self.check.root_variable(lifetime)? else {
             return Ok(lifetime);
         };
@@ -269,12 +269,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(symbol) = self
-            .check
-            .environment
-            .language
-            .symbol(kind.language_item())
-        else {
+        let Some(symbol) = self.check.environment.language.symbol(kind.language_item()) else {
             return Ok(None);
         };
         let arguments = self.intern_type_ids(&[])?;
@@ -406,11 +401,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
         // local variables use body-owned binding types
         else if self.check.symbol_kind(symbol) == dir::SymbolKind::Variable {
-            self.binding_type_slot(symbol, Widening::Preserve)?
+            self.binding_type_slot(symbol, Widening::Never)?
         }
         // local declarations use stable declaration types
         else {
-            self.declaration_type_slot(symbol, Widening::Preserve)?
+            self.declaration_type_slot(symbol, Widening::Never)?
         };
 
         Ok(ty)

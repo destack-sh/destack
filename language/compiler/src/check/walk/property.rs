@@ -412,7 +412,7 @@ impl WalkState<'_, '_> {
                                 ret: None,
                                 generator: None,
                                 ret_use: ValueUse::Store,
-                                binds: Some((symbol, Widening::Widen, None)),
+                                binds: Some((symbol, Widening::Always, None)),
                                 constructs: false,
                             });
                             self.check.initializers.insert(symbol, index);

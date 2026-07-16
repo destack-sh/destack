@@ -299,7 +299,7 @@ impl CheckState<'_> {
             if binding.is_const {
                 label = format!("const {label}");
             }
-            if binding.is_comptime {
+            if binding.is_comptime() {
                 label = format!("comptime {label}");
             }
             if let Some(variance) = binding.variance {
@@ -439,11 +439,9 @@ impl CheckState<'_> {
                         match space {
                             dir::Space::Local => "local ",
                             dir::Space::Shared => "shared ",
-                            dir::Space::Static => "static ",
-                            dir::Space::Frame => "frame ",
                         }
                     }
-                    _ => "",
+                    _ => return Ok(format!("Placed<{value}, {}>", self.format_type(*place))),
                 };
 
                 format!("{place}{value}")

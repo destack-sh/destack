@@ -652,7 +652,7 @@ impl WalkState<'_, '_> {
             _ => {
                 let before = self.fork_flow();
                 let result =
-                    self.open_type_hole(id.into_any(), Widening::Preserve, VariableRole::Regular)?;
+                    self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
                 self.enter_control_target(Some(label), ControlTargetForm::Block { result });
                 self.walk_expression(body, self.tree.get(body))?;
 
@@ -1005,8 +1005,7 @@ impl WalkState<'_, '_> {
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
         // open the loop output joined by break values
-        let result =
-            self.open_type_hole(id.into_any(), Widening::Preserve, VariableRole::Regular)?;
+        let result = self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
         self.enter_control_target(label, ControlTargetForm::Loop { result });
 
         // walk body with isolated flow
@@ -1197,8 +1196,7 @@ impl WalkState<'_, '_> {
         }
 
         // defer the handler body until the caught bindings are typed
-        let result =
-            self.open_type_hole(id.into_any(), Widening::Preserve, VariableRole::Regular)?;
+        let result = self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
         self.check
             .catch_results
             .insert(id.into_global_any(self.module), result);

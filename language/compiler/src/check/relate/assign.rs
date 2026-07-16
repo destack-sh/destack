@@ -23,14 +23,17 @@ impl CheckState<'_> {
 
         let source_signature = self.callable_signature(source)?;
         let target_signature = self.callable_signature(target)?;
+
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // top and error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => Answer::Ready(true),
-            // collect lifetime components, Verify checks outlives on MIR
-            (
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
-            ) => Answer::Ready(true),
+            // collect lifetimes without judgment, leaving outlives to Verify on MIR
+            (source_head, target_head)
+                if self.is_lifetime_slot(&source_head)?
+                    && self.is_lifetime_slot(&target_head)? =>
+            {
+                Answer::Ready(true)
+            }
             // existential carriers box their values and never widen
             (_, dir::Type::Any) | (_, dir::Type::Unknown) => Answer::Ready(!widens),
             (dir::Type::Any, _) => Answer::Ready(!widens),
@@ -312,9 +315,12 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        let target_chain = self.form_chain(origin, target)?;
+        let target_value = target_chain.base();
+
         // shape literals construct structs member-wise
         if let (dir::Type::Shape(_), dir::Type::Instance(instance)) =
-            (self.ty(source)?, self.ty(target)?)
+            (self.ty(source)?, self.ty(target_value)?)
         {
             let is_struct = matches!(
                 self.definition(instance.symbol)?,
@@ -331,26 +337,38 @@ impl CheckState<'_> {
         }
 
         // fresh values keep their freshness through target arms
-        if let dir::Type::Union(union) = self.ty(target)? {
-            let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
-
-            return self.decide_any_target(origin, Relation::Writable, source, &elements);
-        }
-        if let dir::Type::Intersection(intersection) = self.ty(target)? {
+        if let dir::Type::Union(union) = self.ty(target_value)? {
             let elements = self
-                .type_ids(target.module_id, intersection.elements)?
+                .type_ids(target_value.module_id, union.elements)?
                 .to_vec();
+            let mut targets = Vec::with_capacity(elements.len());
+            for element in elements {
+                targets.push(self.replace_beneath_forms(origin, target, element)?);
+            }
 
-            return self.decide_all_targets(origin, Relation::Writable, source, &elements);
+            return self.decide_any_target(origin, Relation::Writable, source, &targets);
+        }
+        if let dir::Type::Intersection(intersection) = self.ty(target_value)? {
+            let elements = self
+                .type_ids(target_value.module_id, intersection.elements)?
+                .to_vec();
+            let mut targets = Vec::with_capacity(elements.len());
+            for element in elements {
+                targets.push(self.replace_beneath_forms(origin, target, element)?);
+            }
+
+            return self.decide_all_targets(origin, Relation::Writable, source, &targets);
         }
 
         // fresh shapes conform covariantly with strict excess keys
-        if let (dir::Type::Shape(_), dir::Type::Shape(_)) = (self.ty(source)?, self.ty(target)?) {
-            return self.decide_fresh_shape_writable(origin, source, target);
+        if let (dir::Type::Shape(_), dir::Type::Shape(_)) =
+            (self.ty(source)?, self.ty(target_value)?)
+        {
+            return self.decide_fresh_shape_writable(origin, source, target_value);
         }
 
         // fresh collections write their elements covariantly
-        match (self.ty(source)?, self.ty(target)?) {
+        match (self.ty(source)?, self.ty(target_value)?) {
             (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
                 return self.decide_relation(
                     origin,
@@ -380,7 +398,7 @@ impl CheckState<'_> {
                     .tuple_elements(source.module_id, source_tuple.elements)?
                     .to_vec();
                 let target_elements = self
-                    .tuple_elements(target.module_id, target_tuple.elements)?
+                    .tuple_elements(target_value.module_id, target_tuple.elements)?
                     .to_vec();
                 if source_elements.len() == target_elements.len() {
                     let mut decision = Answer::Ready(true);

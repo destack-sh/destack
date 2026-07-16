@@ -105,9 +105,18 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
+        // memory forms decide like closed form assignability
+        if (matches!(self.ty(source)?, dir::Type::Form(_))
+            || matches!(self.ty(target)?, dir::Type::Form(_)))
+            && let Some(decision) =
+                self.constrain_form_assignable_rooted(origin, relation, source, target)?
+        {
+            return Ok(decision);
+        }
+
         // memory singletons inhabit their stdlib singleton kind
         let memory_kind = match self.ty(source)? {
-            dir::Type::Memory(source) => Some(source.domain_language_item()),
+            dir::Type::Memory(source) => Some(source.kind_language_item()),
             _ => None,
         };
         let target_item = self
@@ -720,12 +729,14 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<SmallVec<[dir::TypeField; 8]>>> {
-        let target = answer!(self.reduce_type_head(origin, target)?);
+        let receiver = answer!(self.reduce_type_head(origin, target)?);
+        let chain = self.form_chain(origin, receiver)?;
+        let target = chain.base();
         let dir::Type::Instance(instance) = self.ty(target)? else {
             return Ok(Answer::Ready(SmallVec::new()));
         };
 
-        self.struct_instance_field_types(origin, target, target.module_id, &instance)
+        self.struct_instance_field_types(origin, receiver, target.module_id, &instance)
     }
 
     /// Return substituted direct fields for one struct instance.

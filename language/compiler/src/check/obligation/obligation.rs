@@ -206,6 +206,17 @@ pub(in crate::check) enum ObligationFailure {
         /// The supplied key type.
         key: dir::GlobalTypeId,
     },
+    /// A written placement conflicts with a nominal declaration's concrete space.
+    ConflictingDeclarationPlacement {
+        /// The written placed type expression.
+        source: dir::GlobalNodeIdAny,
+        /// The nominal declaration with intrinsic placement.
+        symbol: dir::GlobalSymbolId,
+        /// The written space.
+        written: dir::Space,
+        /// The declaration's effective space.
+        declared: dir::Space,
+    },
     /// A value cannot be assigned to an imported binding.
     CannotAssignImportedBinding {
         /// The assignment target expression.
@@ -237,6 +248,11 @@ pub(in crate::check) enum ObligationFailure {
     /// A type does not have finite by-value storage.
     CircularType {
         /// The source exposing the cycle.
+        source: dir::GlobalNodeIdAny,
+    },
+    /// Shared storage contains a safe reference into local storage.
+    LocalReferenceInSharedStorage {
+        /// The stored type or field retaining the local reference.
         source: dir::GlobalNodeIdAny,
     },
     /// A type does not satisfy a compiler-known interface.
@@ -306,6 +322,17 @@ pub(in crate::check) enum ObligationFailure {
         source: dir::GlobalNodeIdAny,
         /// The declaration whose heritage is circular.
         symbol: dir::GlobalSymbolId,
+    },
+    /// Heritage declarations impose incompatible concrete spaces.
+    ConflictingHeritagePlacement {
+        /// The first placement requirement clause.
+        source: dir::GlobalNodeIdAny,
+        /// The declaration imposing the first placement.
+        symbol: dir::GlobalSymbolId,
+        /// The conflicting placement requirement clause.
+        conflict_source: dir::GlobalNodeIdAny,
+        /// The declaration imposing the conflicting placement.
+        conflict: dir::GlobalSymbolId,
     },
     /// Override modifier appears without an inherited member.
     InvalidOverride {

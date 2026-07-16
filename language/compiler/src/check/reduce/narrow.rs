@@ -25,8 +25,8 @@ impl CheckState<'_> {
 
         // narrow the payload beneath memory forms, then rebuild the forms
         if matches!(self.ty(source)?, dir::Type::Form(_)) {
-            let value = answer!(self.value_beneath_forms(origin, source)?);
-            let target_value = answer!(self.value_beneath_forms(origin, target)?);
+            let value = self.value_beneath_forms(origin, source)?;
+            let target_value = self.value_beneath_forms(origin, target)?;
             let operation = self.intern_operation(
                 origin.module(),
                 dir::TypeOperation::Narrow(dir::NarrowType {
@@ -42,7 +42,7 @@ impl CheckState<'_> {
             if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 return Ok(Answer::Ready(Some(narrowed)));
             }
-            let rebuilt = answer!(self.replace_beneath_forms(origin, source, narrowed)?);
+            let rebuilt = self.replace_beneath_forms(origin, source, narrowed)?;
 
             return Ok(Answer::Ready(Some(rebuilt)));
         }

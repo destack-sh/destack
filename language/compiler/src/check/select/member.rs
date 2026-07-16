@@ -896,16 +896,25 @@ impl BodyState<'_, '_> {
         let Some(place) = answer!(self.receiver_projected_place(origin, receiver)?) else {
             return Ok(Answer::Ready(ty));
         };
-
-        // bare members of local receivers stay bare
-        let place_root = self.settled_root(place)?;
-        if self.check.is_memory_component(place_root, "local")? {
-            return Ok(Answer::Ready(ty));
-        }
-
-        let ty = self.resolve_relative_place(origin, ty, place)?;
+        let ty = self.place_relative_type(origin, place, ty)?;
 
         self.reduce_type_head(origin, ty)
+    }
+
+    /// Resolve one relative member type in a projected receiver place.
+    pub(in crate::check) fn place_relative_type(
+        &mut self,
+        origin: Origin,
+        place: dir::GlobalTypeId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // bare members of local receivers stay bare
+        let root = self.settled_root(place)?;
+        if self.check.place_space(root)? == Some(dir::Space::Local) {
+            return Ok(ty);
+        }
+
+        self.resolve_relative_place(origin, ty, place)
     }
 
     /// Return the place projected by one receiver type.

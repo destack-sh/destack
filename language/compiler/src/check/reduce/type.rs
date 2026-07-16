@@ -260,7 +260,7 @@ impl CheckState<'_> {
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
                 // members live beneath memory forms, so owners shed them
-                let owner = answer!(self.value_beneath_forms(origin, member.owner)?);
+                let owner = self.value_beneath_forms(origin, member.owner)?;
                 // parameter owners qualify through their unique bound
                 let mut qualifier = member.qualifier;
                 if qualifier.is_none()
@@ -366,29 +366,13 @@ impl CheckState<'_> {
                     return self.reduce_type_chain(origin, value, expanding);
                 }
 
+                // placement does not qualify types without runtime values
+                if matches!(form.form, dir::Form::Placed { .. }) && !self.ty(value)?.is_placeable()
+                {
+                    return self.reduce_type_chain(origin, value, expanding);
+                }
+
                 if form.form == dir::Form::Readonly {
-                    // readonly views distribute over their payload's arms
-                    if let dir::Type::Union(union) = self.ty(value)? {
-                        let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
-                        let mut viewed = Vec::with_capacity(elements.len());
-                        for element in elements {
-                            let arm = self.intern_type(
-                                origin.module(),
-                                dir::Type::Form(dir::FormType {
-                                    form: dir::Form::Readonly,
-                                    value: element,
-                                }),
-                            )?;
-                            match self.reduce_type_head(origin, arm)? {
-                                Answer::Ready(arm) => viewed.push(arm),
-                                Answer::Pending(_) => viewed.push(arm),
-                            }
-                        }
-                        let rebuilt = self.normalized_union_type(origin.module(), viewed)?;
-
-                        return self.reduce_type_chain(origin, rebuilt, expanding);
-                    }
-
                     // readonly views over immutable payloads grant nothing less
                     let mut active = SmallVec::new();
                     if answer!(self.type_is_immutable(origin, value, &mut active)?) {
@@ -431,9 +415,13 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::GlobalTypeId, dir::GlobalTypeId)> {
-        match self.ty(value)? {
+        let dir::Type::Form(inner) = self.ty(value)? else {
+            return Ok((value, access));
+        };
+
+        match inner.form {
             // readonly payloads clamp the borrow access
-            dir::Type::Form(inner) if matches!(inner.form, dir::Form::Readonly) => {
+            dir::Form::Readonly => {
                 let access = self.intern_type(
                     origin.module(),
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
@@ -442,18 +430,28 @@ impl CheckState<'_> {
                 Ok((inner.value, access))
             }
 
-            // value placement forms disappear under a borrow
-            dir::Type::Form(inner)
-                if matches!(
-                    inner.form,
-                    dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. }
-                ) =>
-            {
+            // borrowed payloads reborrow at the clamped access
+            dir::Form::Borrowed(inner_borrow) => {
+                let inner_access = self.type_borrow(value.module_id, inner_borrow)?.access;
+                let inner_access = self.settled_root(inner_access)?;
+                let access = match self.ty(inner_access)? {
+                    // readonly loans never re-grant write access
+                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
+                        inner_access
+                    }
+                    _ => access,
+                };
+
                 Ok((inner.value, access))
             }
 
-            // other payloads keep their written form
-            _ => Ok((value, access)),
+            // value placement forms disappear under a borrow
+            dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. } => {
+                Ok((inner.value, access))
+            }
+
+            // raw payloads keep their written form
+            dir::Form::Raw => Ok((value, access)),
         }
     }
 

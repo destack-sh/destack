@@ -6,139 +6,227 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, ObligationCheck, ObligationFailure, Origin, answer};
 
+/// The representation property being checked.
+#[derive(Debug, Clone, Copy)]
+enum RepresentationCheck {
+    /// Inline storage must terminate.
+    Finite,
+    /// Safe references reachable from shared storage must remain shared.
+    Shared {
+        /// The containing carrier's concrete place.
+        place: dir::GlobalTypeId,
+        /// Report fields when checking their own declaration.
+        use_fields: bool,
+    },
+}
+
+/// One invalid representation found while walking stored children.
+enum RepresentationFailure {
+    /// Inline storage contains itself.
+    Circular(dir::GlobalNodeIdAny),
+    /// Shared storage retains a safe local reference.
+    LocalReference(dir::GlobalNodeIdAny),
+}
+
 impl CheckState<'_> {
-    /// Check that one stored type does not contain itself by value.
+    /// Check the finite and shared-safety properties of one stored type.
     pub(in crate::check) fn check_representation(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
-        let mut active = FxIndexSet::default();
-        let mut circular = None;
+        let mut visited = FxIndexSet::default();
+        let failure = answer!(self.representation_failure(
+            origin,
+            ty,
+            source,
+            RepresentationCheck::Finite,
+            &mut visited,
+        )?);
 
-        if answer!(self.decide_finite_storage(origin, ty, source, &mut active, &mut circular)?) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
-        }
-        let source = circular.unwrap_or(source);
-        let failure = ObligationFailure::CircularType { source };
+        // shared reachability applies only to concretely shared roots
+        let failure = match failure {
+            Some(failure) => Some(failure),
+            None => {
+                let chain = self.form_chain(origin, ty)?;
+                let Some(place) = chain.place() else {
+                    return Ok(Answer::Ready(ObligationCheck::holds()));
+                };
+                if self.place_space(place)? != Some(dir::Space::Shared) {
+                    return Ok(Answer::Ready(ObligationCheck::holds()));
+                }
+                let use_fields = match self.ty(chain.base())? {
+                    dir::Type::Instance(instance) => {
+                        let declaration = self
+                            .module(instance.symbol.module_id)
+                            .symbol_declaration_node(instance.symbol.local_id)?
+                            .into_global(instance.symbol.module_id);
+
+                        declaration == source
+                    }
+                    _ => false,
+                };
+                visited.clear();
+
+                answer!(self.representation_failure(
+                    origin,
+                    ty,
+                    source,
+                    RepresentationCheck::Shared { place, use_fields },
+                    &mut visited,
+                )?)
+            }
+        };
+        let failure = match failure {
+            Some(RepresentationFailure::Circular(source)) => {
+                ObligationFailure::CircularType { source }
+            }
+            Some(RepresentationFailure::LocalReference(source)) => {
+                ObligationFailure::LocalReferenceInSharedStorage { source }
+            }
+            None => return Ok(Answer::Ready(ObligationCheck::holds())),
+        };
 
         Ok(Answer::Ready(ObligationCheck::fail(failure)))
     }
 
-    /// Decide whether one type's by-value storage is finite.
-    fn decide_finite_storage(
+    /// Return the first invalid stored representation beneath one type.
+    fn representation_failure(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         source: dir::GlobalNodeIdAny,
-        active: &mut FxIndexSet<dir::GlobalTypeId>,
-        circular: &mut Option<dir::GlobalNodeIdAny>,
-    ) -> CompilerResult<Answer<bool>> {
-        let ty = answer!(self.reduce_type_head(origin, ty)?);
+        check: RepresentationCheck,
+        visited: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
+        let mut ty = answer!(self.reduce_type_head(origin, ty)?);
+        let check = match check {
+            RepresentationCheck::Finite => RepresentationCheck::Finite,
+            RepresentationCheck::Shared { place, use_fields } => {
+                ty = self.resolve_relative_place(origin, ty, place)?;
+                let chain = self.form_chain(origin, ty)?;
+                let place = chain.place().unwrap_or(place);
+                let ownership = answer!(self.form_ownership(origin, &chain)?);
 
-        // by-value cycles have no finite representation
-        if !active.insert(ty) {
-            circular.get_or_insert(source);
+                // raw pointers are an explicit unchecked escape hatch
+                if ownership == Some(dir::Ownership::Raw) {
+                    return Ok(Answer::Ready(None));
+                }
+                let is_local = self.place_space(place)? == Some(dir::Space::Local);
+                if is_local && answer!(self.form_is_reference(origin, &chain)?) {
+                    return Ok(Answer::Ready(Some(RepresentationFailure::LocalReference(
+                        source,
+                    ))));
+                }
+                ty = chain.base();
 
-            return Ok(Answer::Ready(false));
+                RepresentationCheck::Shared { place, use_fields }
+            }
+        };
+
+        // cycles fail inline storage and terminate shared graph traversal
+        if !visited.insert(ty) {
+            let failure = match check {
+                RepresentationCheck::Finite => Some(RepresentationFailure::Circular(source)),
+                RepresentationCheck::Shared { .. } => None,
+            };
+
+            return Ok(Answer::Ready(failure));
         }
-        let finite = ensure_sufficient_stack(|| {
-            self.decide_finite_storage_children(origin, ty, source, active, circular)
+        let failure = ensure_sufficient_stack(|| {
+            self.representation_child_failure(origin, ty, source, check, visited)
         });
-        active.swap_remove(&ty);
+        visited.swap_remove(&ty);
 
-        finite
+        failure
     }
 
-    /// Decide every by-value child of one reduced type.
-    fn decide_finite_storage_children(
+    /// Check every stored child of one reduced type.
+    fn representation_child_failure(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         source: dir::GlobalNodeIdAny,
-        active: &mut FxIndexSet<dir::GlobalTypeId>,
-        circular: &mut Option<dir::GlobalNodeIdAny>,
-    ) -> CompilerResult<Answer<bool>> {
+        check: RepresentationCheck,
+        visited: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
         let owner = ty.module_id;
-
-        match self.ty(ty)? {
-            // direct forms keep their payload inline, indirect forms break cycles
+        let slots: SmallVec<[(dir::GlobalTypeId, dir::GlobalNodeIdAny); 4]> = match self.ty(ty)? {
+            // follow direct forms, which shared checking already stripped
             dir::Type::Form(form) => match form.form {
                 dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
-                    self.decide_finite_storage(origin, form.value, source, active, circular)
+                    SmallVec::from_slice(&[(form.value, source)])
                 }
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
-                    Ok(Answer::Ready(true))
+                    return Ok(Answer::Ready(None));
                 }
             },
-            dir::Type::FixedArray(array) => {
-                self.decide_finite_storage(origin, array.element, source, active, circular)
+            dir::Type::Array(array) if matches!(check, RepresentationCheck::Shared { .. }) => {
+                SmallVec::from_slice(&[(array.element, source)])
             }
-            dir::Type::Tuple(tuple) => {
-                let elements = self
-                    .tuple_elements(owner, tuple.elements)?
-                    .iter()
-                    .map(|element| (element.ty, source))
-                    .collect::<SmallVec<[_; 4]>>();
+            dir::Type::Slice(slice) if matches!(check, RepresentationCheck::Shared { .. }) => {
+                SmallVec::from_slice(&[(slice.element, source)])
+            }
+            dir::Type::FixedArray(array) => SmallVec::from_slice(&[(array.element, source)]),
+            dir::Type::Tuple(tuple) => self
+                .tuple_elements(owner, tuple.elements)?
+                .iter()
+                .map(|element| (element.ty, source))
+                .collect(),
+            dir::Type::Shape(shape) => self
+                .shape_fields(owner, shape.fields)?
+                .iter()
+                .map(|field| (field.ty, source))
+                .collect(),
+            dir::Type::Union(union) => self
+                .type_ids(owner, union.elements)?
+                .iter()
+                .map(|element| (*element, source))
+                .collect(),
+            dir::Type::EnumMember(member) => SmallVec::from_slice(&[(member.owner, source)]),
+            dir::Type::Instance(instance) => {
+                return self.representation_instance_failure(
+                    origin, owner, &instance, source, check, visited,
+                );
+            }
+            _ => return Ok(Answer::Ready(None)),
+        };
 
-                self.decide_each_finite_storage(origin, &elements, active, circular)
-            }
-            dir::Type::Shape(shape) => {
-                let fields = self
-                    .shape_fields(owner, shape.fields)?
-                    .iter()
-                    .map(|field| (field.ty, source))
-                    .collect::<SmallVec<[_; 4]>>();
-
-                self.decide_each_finite_storage(origin, &fields, active, circular)
-            }
-            dir::Type::Union(union) => {
-                let elements = self
-                    .type_ids(owner, union.elements)?
-                    .iter()
-                    .map(|element| (*element, source))
-                    .collect::<SmallVec<[_; 4]>>();
-
-                self.decide_each_finite_storage(origin, &elements, active, circular)
-            }
-            dir::Type::EnumMember(member) => {
-                self.decide_finite_storage(origin, member.owner, source, active, circular)
-            }
-            dir::Type::Instance(instance) => self
-                .decide_finite_instance_storage(origin, owner, &instance, source, active, circular),
-            _ => Ok(Answer::Ready(true)),
-        }
+        self.representation_slot_failure(origin, &slots, check, visited)
     }
 
-    /// Decide the substituted by-value storage of one applied declaration.
-    fn decide_finite_instance_storage(
+    /// Check the substituted storage of one applied declaration.
+    fn representation_instance_failure(
         &mut self,
         origin: Origin,
         owner: ModuleId,
         instance: &dir::GenericInstance,
         source: dir::GlobalNodeIdAny,
-        active: &mut FxIndexSet<dir::GlobalTypeId>,
-        circular: &mut Option<dir::GlobalNodeIdAny>,
-    ) -> CompilerResult<Answer<bool>> {
-        // vectors store their element inline, other intrinsics store handles
+        check: RepresentationCheck,
+        visited: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
+        // vectors store their element inline, other opaque intrinsics store no visible children
         if let Some(item) = self.language_item(instance.symbol)? {
             if item == dir::LanguageItem::Vector
                 && let Some(element) = self.type_ids(owner, instance.arguments)?.first().copied()
             {
-                return self.decide_finite_storage(origin, element, source, active, circular);
+                return self.representation_failure(origin, element, source, check, visited);
             }
 
-            return Ok(Answer::Ready(true));
+            return Ok(Answer::Ready(None));
         }
 
         let storage = match self.definition(instance.symbol)?.cloned() {
-            // newtypes are transparent over their backing
             Some(dir::Definition::Newtype(definition)) => {
                 SmallVec::<[_; 4]>::from_slice(&[(definition.value, source)])
             }
-            // structs store their instance fields inline
-            Some(definition @ dir::Definition::Struct(_)) => {
+            // collect struct fields always and class fields only for reachability
+            Some(definition @ (dir::Definition::Struct(_) | dir::Definition::Class(_)))
+                if matches!(definition, dir::Definition::Struct(_))
+                    || matches!(check, RepresentationCheck::Shared { .. }) =>
+            {
+                let use_source = !instance.arguments.is_empty();
                 let mut fields = SmallVec::new();
                 for member in definition.members() {
                     let dir::DefinitionMember::Field(field) = member else {
@@ -150,42 +238,50 @@ impl CheckState<'_> {
                     let Some(ty) = answer!(self.definition_member_type(member)?) else {
                         continue;
                     };
-                    fields.push((ty, field.source));
+                    let field_source = match check {
+                        RepresentationCheck::Finite if !use_source => field.source,
+                        RepresentationCheck::Shared {
+                            use_fields: true, ..
+                        } => field.source,
+                        _ => source,
+                    };
+                    fields.push((ty, field_source));
                 }
 
                 fields
             }
-            // classes store references, enums store a scalar tag
-            _ => return Ok(Answer::Ready(true)),
+            _ => return Ok(Answer::Ready(None)),
         };
 
-        // substitute applied arguments through the declared storage
+        // substitute the applied arguments once before checking stored children
         let substitution = self.instance_substitution(owner, instance)?;
-        let mut substituted = SmallVec::<[_; 4]>::new();
+        let mut slots = SmallVec::<[_; 4]>::new();
         for (ty, source) in storage {
-            substituted.push((
+            slots.push((
                 self.substitute_type(origin.module(), ty, &substitution)?,
                 source,
             ));
         }
 
-        self.decide_each_finite_storage(origin, &substituted, active, circular)
+        self.representation_slot_failure(origin, &slots, check, visited)
     }
 
-    /// Decide finite storage for every listed slot.
-    fn decide_each_finite_storage(
+    /// Return the first invalid representation in a list of stored slots.
+    fn representation_slot_failure(
         &mut self,
         origin: Origin,
         slots: &[(dir::GlobalTypeId, dir::GlobalNodeIdAny)],
-        active: &mut FxIndexSet<dir::GlobalTypeId>,
-        circular: &mut Option<dir::GlobalNodeIdAny>,
-    ) -> CompilerResult<Answer<bool>> {
+        check: RepresentationCheck,
+        visited: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
         for (ty, source) in slots {
-            if !answer!(self.decide_finite_storage(origin, *ty, *source, active, circular)?) {
-                return Ok(Answer::Ready(false));
+            let failure =
+                answer!(self.representation_failure(origin, *ty, *source, check, visited)?);
+            if failure.is_some() {
+                return Ok(Answer::Ready(failure));
             }
         }
 
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(None))
     }
 }

@@ -95,7 +95,7 @@ impl CheckState<'_> {
             };
             if binding.variance.is_some()
                 || binding.origin != dir::GenericParameterOrigin::Explicit
-                || binding.is_comptime
+                || binding.is_comptime()
                 || binding.is_const
             {
                 continue;
@@ -167,6 +167,14 @@ impl CheckState<'_> {
             self.seal_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).statics = statics;
+
+        // seal implicit coercions
+        let empty = dir::CoercionSegment::new(module);
+        let mut coercions = std::mem::replace(&mut self.module_mut(module).coercions, empty);
+        coercions.map_type_ids(&mut |id| {
+            self.seal_or_record(id, failed_applications, sealed, &mut result)
+        });
+        self.module_mut(module).coercions = coercions;
 
         result
     }

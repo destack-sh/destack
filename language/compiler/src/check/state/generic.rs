@@ -514,7 +514,7 @@ impl CheckState<'_> {
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("generic parameter {parameter:?} is not bound"),
                 })?;
-        let domain = if current.kind == dir::GenericParameterKind::Value {
+        let kind = if current.kind == dir::GenericParameterKind::Value {
             let item = match constraint
                 .map(|constraint| self.ty(constraint))
                 .transpose()?
@@ -543,8 +543,8 @@ impl CheckState<'_> {
         };
         binding.constraint = constraint;
         binding.default = default;
-        if let Some(domain) = domain {
-            binding.kind = dir::GenericParameterKind::Memory(domain);
+        if let Some(kind) = kind {
+            binding.kind = dir::GenericParameterKind::Memory(kind);
         }
 
         Ok(())

@@ -207,22 +207,22 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(CheckOutcome::Holds));
         }
 
-        // winnow candidates in declaration order: the first viable one
-        //  wins, and an ambiguous one wins only when nothing is viable,
-        //  so decisive later overloads beat undecidable earlier ones
+        // winnow candidates by adjustment rank, breaking ties in declaration order
         let is_single_candidate = candidates.len() == 1;
-        let mut winner = None;
+        let mut winner: Option<(u8, &CallableCandidate)> = None;
         let mut ambiguous = None;
         let mut rejections = Vec::new();
         for candidate in candidates {
             if is_single_candidate {
-                winner = Some(candidate);
+                winner = Some((0, candidate));
                 break;
             }
+            // rank inside the probe, where argument inference is complete
+            let mut probed_rank = 0u8;
             let (verdict, rejection) = self.probe_candidate_noted(
                 ProbeReason::Signature,
                 |state| {
-                    state.attempt_call(
+                    let outcome = state.attempt_call(
                         CandidatePass::Winnow,
                         origin,
                         module,
@@ -230,7 +230,17 @@ impl BodyState<'_, '_> {
                         argument_nodes,
                         &argument_types,
                         expected_return,
-                    )
+                    )?;
+                    if matches!(outcome, Answer::Ready(CandidateOutcome::Accepted(_))) {
+                        probed_rank = state.candidate_adjustment_rank(
+                            origin,
+                            module,
+                            candidate.ty,
+                            argument_nodes,
+                        )?;
+                    }
+
+                    Ok(outcome)
                 },
                 |state, rejection| {
                     Ok(state
@@ -241,14 +251,21 @@ impl BodyState<'_, '_> {
             match verdict {
                 CandidateVerdict::Rejected => rejections.extend(rejection),
                 CandidateVerdict::Viable => {
-                    winner = Some(candidate);
-                    break;
+                    let rank = probed_rank;
+                    if rank == 0 {
+                        winner = Some((0, candidate));
+                        break;
+                    }
+                    if winner.is_none_or(|(best, _)| rank < best) {
+                        winner = Some((rank, candidate));
+                    }
                 }
                 CandidateVerdict::Ambiguous => {
                     ambiguous.get_or_insert(candidate);
                 }
             }
         }
+        let winner = winner.map(|(_, candidate)| candidate);
 
         // confirm the winner outside any probe
         if let Some(candidate) = winner.or(ambiguous) {
@@ -295,6 +312,43 @@ impl BodyState<'_, '_> {
         self.commit_error_node(node)?;
 
         Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)))
+    }
+
+    /// Rank one candidate's memory adjustments, where undecided arguments rank exact.
+    fn candidate_adjustment_rank(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        callee: dir::GlobalTypeId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<u8> {
+        let Some(signature) = self.check.signature_head(callee)? else {
+            return Ok(0);
+        };
+        let parameters = self
+            .check
+            .signature_parameters(callee.module_id, signature.parameters)?
+            .to_vec();
+
+        let mut rank = 0;
+        for (index, argument) in argument_nodes.iter().enumerate() {
+            let Some(value) = self.argument_expression(module, *argument) else {
+                continue;
+            };
+            let Some(argument) = self.node_type_maybe(value) else {
+                continue;
+            };
+            // rest parameters absorb the remaining arguments
+            let Some(parameter) = parameters.get(index).or(parameters.last()) else {
+                break;
+            };
+            rank = rank.max(
+                self.check
+                    .memory_adjustment_rank(origin, argument, parameter.ty)?,
+            );
+        }
+
+        Ok(rank)
     }
 
     /// Return whether one call head is an inference hole.
@@ -526,7 +580,7 @@ impl BodyState<'_, '_> {
         callee: FlowSite,
     ) -> CompilerResult<Answer<Option<CallCandidates>>> {
         let ty = answer!(self.infer_node_type(callee, PlaceUse::Read)?);
-        let reduced = answer!(self.reduce_type_head(origin, ty)?);
+        let reduced = self.value_beneath_forms(origin, ty)?;
 
         let mut candidates = SmallVec::new();
         match self.ty(reduced)? {

@@ -64,7 +64,7 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) variances:
         FxIndexMap<(dir::GlobalGenericParameterId, VarianceContext), VarianceState>,
     /// Elided result lifetimes inferred from their bodies, never induced.
-    pub(in crate::check) body_lifetimes: FxIndexSet<dir::TypeVariableId>,
+    pub(in crate::check) body_inferred_parameters: FxIndexSet<dir::TypeVariableId>,
 
     // reduction state
     /// Memoized closed reduced types keyed by source type.
@@ -132,7 +132,7 @@ impl<'a> CheckState<'a> {
             generics: GenericIndex::new(),
             scopes: FxIndexMap::default(),
             variances: FxIndexMap::default(),
-            body_lifetimes: FxIndexSet::default(),
+            body_inferred_parameters: FxIndexSet::default(),
             reduced_types: FxIndexMap::default(),
             solver: Solver::new(),
             solve_steps: 0,
@@ -185,7 +185,7 @@ impl<'a> CheckState<'a> {
 
     /// Complete walk-time state before solving.
     pub(in crate::check) fn propagate(&mut self) -> CompilerResult<()> {
-        self.propagate_induced_lifetimes()
+        self.propagate_induced_parameters()
     }
 
     /// Load one module into component state.
@@ -889,6 +889,34 @@ impl CheckState<'_> {
         working
             .definitions
             .insert_definition(symbol, source, definition);
+
+        Ok(())
+    }
+
+    /// Commit one nominal declaration's solved space.
+    pub(in crate::check) fn commit_nominal_space(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        space: dir::Space,
+    ) -> CompilerResult<()> {
+        let module =
+            self.modules
+                .get_mut(&symbol.module_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("nominal declaration {symbol:?} is not in a working module"),
+                })?;
+        let definition =
+            module
+                .definitions
+                .definition_mut(symbol)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("nominal declaration {symbol:?} has no definition"),
+                })?;
+        if !definition.set_space(space) {
+            return Err(CompilerError::Internal {
+                message: format!("definition {symbol:?} cannot carry nominal placement"),
+            });
+        }
 
         Ok(())
     }

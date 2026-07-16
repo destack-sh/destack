@@ -148,8 +148,8 @@ impl<'check, 'state> BodyState<'check, 'state> {
         // bind the produced symbol from the body's value
         if let Some((symbol, widening, place)) = owner.binds {
             let ty = match widening {
-                Widening::Preserve => checked.ty,
-                Widening::Widen | Widening::WidenWrites => state.check.widen_type(checked.ty)?,
+                Widening::Never => checked.ty,
+                Widening::Always | Widening::WhenWritten => state.check.widen_type(checked.ty)?,
             };
             let origin = match owner.body {
                 BodyTarget::Node(body) => state.node_site(body.into_global(owner.module))?.origin(),

@@ -5,6 +5,7 @@ use smallvec::SmallVec;
 use crate::check::{
     Answer, BodyPhase, BodyState, CheckEvent, CheckOutcome, CheckState, Constraint,
     ConstraintFailure, ConstraintId, Dependency, Origin, Task, TaskFailure, TaskFailures,
+    VariableRole,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -64,7 +65,7 @@ impl CheckState<'_> {
             // skip bodies demanded out of order by symbol reads
             let already_bound = owner
                 .binds
-                .is_some_and(|(symbol, _)| self.symbol_type_maybe(symbol).is_some());
+                .is_some_and(|(symbol, _, _)| self.symbol_type_maybe(symbol).is_some());
             if !already_bound {
                 BodyState::run(self, owner)?;
             }
@@ -124,6 +125,7 @@ impl CheckState<'_> {
         }
 
         self.drain(TaskScope::All)?;
+        self.close_memory_holes()?;
         self.report_parked_obligations()?;
 
         self.record_event(CheckEvent::SolveFinished {
@@ -132,6 +134,40 @@ impl CheckState<'_> {
         });
 
         Ok(())
+    }
+
+    /// Close un-evidenced lifetime holes to frame and access holes to readonly, then re-drain.
+    fn close_memory_holes(&mut self) -> CompilerResult<()> {
+        loop {
+            let mut closed = false;
+            for dependency in self.solver.waiting_dependencies() {
+                let Dependency::Variable(variable) = dependency else {
+                    continue;
+                };
+                let state = *self.solver.variable(variable)?;
+                if state.solution.is_some() {
+                    continue;
+                }
+                let default = match self.variable_memory_parameter(variable)? {
+                    Some(dir::MemoryParameter::Lifetime) => {
+                        dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)
+                    }
+                    Some(dir::MemoryParameter::Access) => {
+                        dir::MemoryLiteral::Access(dir::Access::Readonly)
+                    }
+                    _ => continue,
+                };
+                let origin = self.solver.origin(state.origin);
+                let default = self.intern_type(origin.module(), dir::Type::Memory(default))?;
+                self.commit_solution(variable, default)?;
+                closed = true;
+            }
+            if !closed {
+                return Ok(());
+            }
+
+            self.drain(TaskScope::All)?;
+        }
     }
 
     /// Report every dependency still parked on after the drain.
@@ -157,6 +193,22 @@ impl CheckState<'_> {
         }
 
         self.report_cannot_infer_origins(origins)
+    }
+
+    /// Return the memory parameter kind one variable ranges over, however it arose.
+    pub(in crate::check) fn variable_memory_parameter(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Option<dir::MemoryParameter>> {
+        let kind = match self.solver.variable_role(variable)? {
+            VariableRole::Memory { kind, .. } => Some(kind),
+            VariableRole::Instantiation { parameter } => self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.memory_parameter()),
+            _ => None,
+        };
+
+        Ok(kind)
     }
 
     /// Report unresolved inference origins in deterministic source order.

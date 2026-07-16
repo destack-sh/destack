@@ -1,72 +1,71 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     Answer, BoundMode, Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceContext,
     answer,
 };
+use crate::{CompilerError, CompilerResult};
 
-/// The payload relation one matched handle pair runs under.
+/// The variance one matched memory form grants its payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FormPayloadPolicy {
+enum PayloadVariance {
     /// The payload must match exactly.
     Exact,
     /// The payload relates as a bare value under its own defaults.
     Plain,
-    /// The payload relates under one handle context.
+    /// The payload relates under one form context.
     Context(VarianceContext),
 }
 
 impl CheckState<'_> {
-    /// Return the payload policy one target handle admits.
-    fn form_payload_policy(
+    /// Return the payload variance one target form admits.
+    fn form_payload_variance(
         &mut self,
         origin: Origin,
         module: destack_source::ModuleId,
         form: dir::Form,
-    ) -> CompilerResult<Answer<FormPayloadPolicy>> {
-        let policy = match form {
+    ) -> CompilerResult<Answer<PayloadVariance>> {
+        let variance = match form {
             // raw pointers match their payload exactly
-            dir::Form::Raw => FormPayloadPolicy::Exact,
-            // borrows view readonly payloads and match exclusive ones exactly
+            dir::Form::Raw => PayloadVariance::Exact,
+            // borrows view readonly payloads and match writable or open ones exactly
             dir::Form::Borrowed(borrow) => {
                 let access = self.type_borrow(module, borrow)?.access;
                 match self
                     .body(origin.module())
                     .access_is_readonly(origin, access)?
                 {
-                    Answer::Ready(true) => FormPayloadPolicy::Context(VarianceContext::View),
-                    Answer::Ready(false) => FormPayloadPolicy::Exact,
-                    Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
+                    Answer::Ready(true) => PayloadVariance::Context(VarianceContext::View),
+                    Answer::Ready(false) | Answer::Pending(_) => PayloadVariance::Exact,
                 }
             }
             // managed handles alias their payload writably
-            dir::Form::Managed => FormPayloadPolicy::Context(VarianceContext::Aliased),
+            dir::Form::Managed => PayloadVariance::Context(VarianceContext::Aliased),
             // owned payloads move without a surviving alias
-            dir::Form::Owned => FormPayloadPolicy::Context(VarianceContext::Owned),
+            dir::Form::Owned => PayloadVariance::Context(VarianceContext::Owned),
             // readonly views strip the write path
-            dir::Form::Readonly => FormPayloadPolicy::Context(VarianceContext::View),
+            dir::Form::Readonly => PayloadVariance::Context(VarianceContext::View),
             // placement is orthogonal to ownership
-            dir::Form::Placed { .. } => FormPayloadPolicy::Plain,
+            dir::Form::Placed { .. } => PayloadVariance::Plain,
         };
 
-        Ok(Answer::Ready(policy))
+        Ok(Answer::Ready(variance))
     }
 
-    /// Constrain one matched handle pair's payloads under a policy.
+    /// Constrain one matched handle pair's payloads under a variance.
     fn constrain_form_payload(
         &mut self,
         cause: CauseId,
         relation: Relation,
-        policy: FormPayloadPolicy,
+        variance: PayloadVariance,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        match policy {
-            FormPayloadPolicy::Exact => self.constrain_type(cause, Relation::Equal, source, target),
-            FormPayloadPolicy::Plain => self.constrain_type(cause, relation, source, target),
-            FormPayloadPolicy::Context(context) => {
+        match variance {
+            PayloadVariance::Exact => self.constrain_type(cause, Relation::Equal, source, target),
+            PayloadVariance::Plain => self.constrain_type(cause, relation, source, target),
+            PayloadVariance::Context(context) => {
                 self.relate_context_payload(cause, context, relation.payload_edge(), source, target)
             }
         }
@@ -162,10 +161,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Constrain assignability involving memory forms.
-    ///
-    /// Under `Widens`, arms that change the runtime carrier are skipped:
-    /// only transparent forms and matching constructors widen.
     /// Constrain form assignability from a decide-side entry.
     pub(in crate::check) fn constrain_form_assignable_rooted(
         &mut self,
@@ -179,6 +174,7 @@ impl CheckState<'_> {
         self.constrain_form_assignable(cause, relation, source, target)
     }
 
+    /// Constrain assignability involving memory forms.
     pub(in crate::check) fn constrain_form_assignable(
         &mut self,
         cause: CauseId,
@@ -196,6 +192,54 @@ impl CheckState<'_> {
             Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
         };
 
+        // acquire a borrow from one complete managed or owned value form
+        if let Some(acquisition) =
+            self.constrain_borrow_conversion(cause, relation, source, target)?
+        {
+            return Ok(Some(acquisition));
+        }
+
+        // classify explicit placement before structural dispatch
+        let source_place = self.form_place_space(source)?;
+        let target_place = self.form_place_space(target)?;
+
+        // bare values are local, so local placement on one side is transparent
+        if relation != Relation::Widens
+            && let dir::Type::Form(target_form) = self.ty(target)?
+            && target_place == Some(dir::Space::Local)
+            && source_place != Some(dir::Space::Local)
+        {
+            return Ok(Some(self.constrain_type(
+                cause,
+                relation,
+                source,
+                target_form.value,
+            )?));
+        }
+
+        // placement locates direct carriers without relocating references stored inside
+        if let dir::Type::Form(target_form) = self.ty(target)?
+            && matches!(target_form.form, dir::Form::Placed { .. })
+        {
+            let is_reference = match self.type_is_reference(origin, target)? {
+                Answer::Ready(is_reference) => is_reference,
+                Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+            };
+            if !is_reference {
+                return Ok(Some(self.constrain_type(
+                    cause,
+                    relation,
+                    source,
+                    target_form.value,
+                )?));
+            }
+        }
+
+        // let union targets select their arm, re-entering form logic per arm
+        if matches!(self.ty(target)?, dir::Type::Union(_)) {
+            return Ok(None);
+        }
+
         match (self.ty(source)?, self.ty(target)?) {
             // readonly forms view their payloads covariantly
             (dir::Type::Form(source_form), dir::Type::Form(target_form))
@@ -211,13 +255,6 @@ impl CheckState<'_> {
                     source_form.value,
                     target_form.value,
                 )?))
-            }
-
-            // union targets distribute before views read out
-            (dir::Type::Form(source_form), dir::Type::Union(_))
-                if source_form.form == dir::Form::Readonly =>
-            {
-                Ok(None)
             }
 
             // copyable readonly views read out as their payload value
@@ -254,6 +291,15 @@ impl CheckState<'_> {
                     value: target_value,
                 }),
             ) => {
+                // the resulting handle's access decides the payload variance
+                let variance = match self.form_payload_variance(
+                    origin,
+                    target.module_id,
+                    dir::Form::Borrowed(target_borrow),
+                )? {
+                    Answer::Ready(variance) => variance,
+                    Answer::Pending(pending) => return Ok(Some(Answer::Pending(pending))),
+                };
                 let source_borrow = self.type_borrow(source.module_id, source_borrow)?;
                 let target_borrow = self.type_borrow(target.module_id, target_borrow)?;
                 self.link_open_lifetimes(origin, source_borrow.lifetime, target_borrow.lifetime)?;
@@ -266,20 +312,10 @@ impl CheckState<'_> {
                     return Ok(Some(access));
                 }
 
-                // the resulting handle's access decides the payload policy
-                let policy = match self
-                    .body(origin.module())
-                    .access_is_readonly(origin, target_borrow.access)?
-                {
-                    Answer::Ready(true) => FormPayloadPolicy::Context(VarianceContext::View),
-                    Answer::Ready(false) => FormPayloadPolicy::Exact,
-                    Answer::Pending(pending) => return Ok(Some(Answer::Pending(pending))),
-                };
-
                 Ok(Some(self.constrain_form_payload(
                     cause,
                     relation,
-                    policy,
+                    variance,
                     source_value,
                     target_value,
                 )?))
@@ -287,16 +323,15 @@ impl CheckState<'_> {
 
             // memory forms check constructor then payload
             (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
-                let constructor = self.decide_form_assignable(
-                    origin,
+                let constructor = self.constrain_form_constructor(
+                    cause,
                     source.module_id,
                     source_form.form,
                     target.module_id,
                     target_form.form,
                 )?;
                 if !constructor.is_ready_true() {
-                    // borrows still read copyable payloads out by value,
-                    //  though the carrier change never widens
+                    // read copyable payloads out of unmatched borrows, never widening
                     if relation != Relation::Widens
                         && matches!(source_form.form, dir::Form::Borrowed(_))
                     {
@@ -312,46 +347,22 @@ impl CheckState<'_> {
                 }
 
                 // the target handle's write capability decides the payload
-                let policy =
-                    match self.form_payload_policy(origin, target.module_id, target_form.form)? {
-                        Answer::Ready(policy) => policy,
+                let variance =
+                    match self.form_payload_variance(origin, target.module_id, target_form.form)? {
+                        Answer::Ready(variance) => variance,
                         Answer::Pending(pending) => return Ok(Some(Answer::Pending(pending))),
                     };
 
                 Ok(Some(self.constrain_form_payload(
                     cause,
                     relation,
-                    policy,
+                    variance,
                     source_form.value,
                     target_form.value,
                 )?))
             }
 
-            // class references weaken into readonly borrows
-            (
-                dir::Type::Instance(instance),
-                dir::Type::Form(dir::FormType {
-                    form: dir::Form::Borrowed(target_borrow),
-                    value: target_value,
-                }),
-            ) if relation != Relation::Widens
-                && matches!(self.symbol_kind(instance.symbol), dir::SymbolKind::Class) =>
-            {
-                let access = self.type_borrow(target.module_id, target_borrow)?.access;
-                let readonly = self.decide_readonly_access(origin, access)?;
-                if !readonly.is_ready_true() {
-                    return Ok(Some(readonly));
-                }
-
-                Ok(Some(self.constrain_type(
-                    cause,
-                    Relation::Assignable,
-                    source,
-                    target_value,
-                )?))
-            }
-
-            // copyable values copy into concrete storage; moves need fresh values
+            // copy values into concrete storage, never relabeling references
             (_, dir::Type::Form(target_form))
                 if relation != Relation::Widens
                     && matches!(
@@ -359,6 +370,35 @@ impl CheckState<'_> {
                         dir::Form::Owned | dir::Form::Placed { .. }
                     ) =>
             {
+                if matches!(target_form.form, dir::Form::Placed { .. }) {
+                    // defer open places to the payload for the concrete recheck
+                    if target_place != Some(dir::Space::Shared) {
+                        return Ok(Some(self.constrain_type(
+                            cause,
+                            relation,
+                            source,
+                            target_form.value,
+                        )?));
+                    }
+
+                    if self.is_space_bound_reference(origin, source)? {
+                        // intrinsically placed nominals satisfy their own space
+                        let nominal = match self.ty(source)? {
+                            dir::Type::Instance(instance) => self.nominal_space(instance.symbol)?,
+                            _ => None,
+                        };
+                        if nominal != Some(dir::Space::Shared) {
+                            return Ok(Some(Answer::Ready(false)));
+                        }
+
+                        return Ok(Some(self.constrain_type(
+                            cause,
+                            relation,
+                            source,
+                            target_form.value,
+                        )?));
+                    }
+                }
                 let copyable =
                     self.satisfies_auto_interface(origin, source, dir::AutoInterface::Copy)?;
                 if !copyable.is_ready_true() {
@@ -373,15 +413,38 @@ impl CheckState<'_> {
                 )?))
             }
 
-            // transparent storage reads back as its payload
+            // managed and local storage reads back as its payload
             (dir::Type::Form(source_form), _)
-                if matches!(
-                    source_form.form,
-                    dir::Form::Managed | dir::Form::Placed { .. }
-                ) =>
+                if matches!(source_form.form, dir::Form::Managed)
+                    || source_place == Some(dir::Space::Local) =>
             {
                 Ok(Some(self.constrain_type(
                     cause,
+                    relation,
+                    source_form.value,
+                    target,
+                )?))
+            }
+
+            // other placements keep their references; values copy out
+            (dir::Type::Form(source_form), _)
+                if matches!(source_form.form, dir::Form::Placed { .. }) =>
+            {
+                // defer open places to the payload for the concrete recheck
+                if source_place != Some(dir::Space::Shared) {
+                    return Ok(Some(self.constrain_type(
+                        cause,
+                        relation,
+                        source_form.value,
+                        target,
+                    )?));
+                }
+                if self.is_space_bound_reference(origin, source)? {
+                    return Ok(Some(Answer::Ready(false)));
+                }
+
+                Ok(Some(self.constrain_copyable_read_out(
+                    origin,
                     relation,
                     source_form.value,
                     target,
@@ -414,6 +477,117 @@ impl CheckState<'_> {
 
             _ => Ok(None),
         }
+    }
+
+    /// Return the concrete space of one type's outer placement.
+    fn form_place_space(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<Option<dir::Space>> {
+        let dir::Type::Form(form) = self.ty(ty)? else {
+            return Ok(None);
+        };
+        let dir::Form::Placed { place } = form.form else {
+            return Ok(None);
+        };
+        let place = self.settled_root(place)?;
+
+        self.place_space(place)
+    }
+
+    /// Return whether one type is a reference bound to its space.
+    fn is_space_bound_reference(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        match self.type_is_reference(origin, ty)? {
+            Answer::Ready(is_reference) => Ok(is_reference),
+            Answer::Pending(_) => Ok(false),
+        }
+    }
+
+    /// Constrain one representation-changing borrow acquisition.
+    fn constrain_borrow_conversion(
+        &mut self,
+        cause: CauseId,
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Answer<bool>>> {
+        if relation == Relation::Widens {
+            return Ok(None);
+        }
+        let origin = self.cause_origin(cause);
+        let Some(conversion) = self.borrow_conversion(origin, source, target)? else {
+            return Ok(None);
+        };
+        let dir::Form::Borrowed(target_borrow) = conversion.borrow.form else {
+            return Err(CompilerError::Internal {
+                message: "borrow conversion has no borrow constructor".into(),
+            });
+        };
+
+        // borrow values retain their source placement
+        if let (Some(source_place), Some(target_place)) =
+            (conversion.source.place(), conversion.target.place())
+        {
+            let place = self.constrain_type(cause, Relation::Equal, source_place, target_place)?;
+            if !place.is_ready_true() {
+                return Ok(Some(place));
+            }
+        }
+
+        let borrow = self.type_borrow(origin.module(), target_borrow)?;
+
+        // readonly sources can only acquire readonly borrows
+        if conversion.source.is_readonly() {
+            let readonly = self.intern_type(
+                origin.module(),
+                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
+            )?;
+            let access = self.constrain_access_assignable(origin, readonly, borrow.access)?;
+            if !access.is_ready_true() {
+                return Ok(Some(access));
+            }
+        }
+
+        // managed exclusivity is available only in a proven local space
+        let access = self.access_literal(origin, borrow.access)?;
+        if conversion.ownership == dir::Ownership::Managed
+            && !self.managed_acquisition_granted(access, conversion.source.place())?
+        {
+            return Ok(Some(Answer::Ready(false)));
+        }
+
+        // infer borrow provenance from the related source expression
+        if let Some(expression) = origin.expression() {
+            let lifetime = match self
+                .body(origin.module())
+                .expression_lifetime(expression, source)?
+            {
+                Answer::Ready(lifetime) => lifetime,
+                Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+            };
+            self.push_lifetime_lower_bound_if_open(origin, lifetime, borrow.lifetime)?;
+        }
+
+        // the acquired borrow's access determines payload variance
+        let source_value = conversion
+            .source
+            .ownership_form()
+            .map_or(conversion.source.base(), |form| form.value);
+        let variance =
+            match self.form_payload_variance(origin, origin.module(), conversion.borrow.form)? {
+                Answer::Ready(variance) => variance,
+                Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+            };
+        let payload = self.constrain_form_payload(
+            cause,
+            relation,
+            variance,
+            source_value,
+            conversion.borrow.value,
+        )?;
+
+        Ok(Some(payload))
     }
 
     /// Constrain one copyable payload read out of a view or borrow.
@@ -462,48 +636,30 @@ impl CheckState<'_> {
         }
     }
 
-    /// Decide assignability of two memory form constructors.
-    pub(in crate::check) fn decide_form_assignable(
+    /// Constrain assignability of two memory form constructors.
+    fn constrain_form_constructor(
         &mut self,
-        origin: Origin,
+        cause: CauseId,
         source_module: ModuleId,
         source: dir::Form,
         target_module: ModuleId,
         target: dir::Form,
     ) -> CompilerResult<Answer<bool>> {
-        // exact constructors assign, readonly accepts any borrowed form
+        let origin = self.cause_origin(cause);
         match (source, target) {
             (dir::Form::Borrowed(_), dir::Form::Readonly) => Ok(Answer::Ready(true)),
-            // managed references weaken into readonly borrows
-            (dir::Form::Managed, dir::Form::Borrowed(target_borrow)) => {
-                let access = self.type_borrow(target_module, target_borrow)?.access;
+            (dir::Form::Borrowed(source), dir::Form::Borrowed(target)) => {
+                let source = self.type_borrow(source_module, source)?;
+                let target = self.type_borrow(target_module, target)?;
+                self.link_open_lifetimes(origin, source.lifetime, target.lifetime)?;
 
-                self.decide_readonly_access(origin, access)
+                self.constrain_access_assignable(origin, source.access, target.access)
             }
-            // borrows widen their provenance and downgrade their access
-            (dir::Form::Borrowed(source_borrow), dir::Form::Borrowed(target_borrow)) => {
-                let source_borrow = self.type_borrow(source_module, source_borrow)?;
-                let target_borrow = self.type_borrow(target_module, target_borrow)?;
-                self.link_open_lifetimes(origin, source_borrow.lifetime, target_borrow.lifetime)?;
-
-                self.decide_access_assignable(origin, source_borrow.access, target_borrow.access)
+            (dir::Form::Placed { place: source }, dir::Form::Placed { place: target }) => {
+                self.constrain_type(cause, Relation::Equal, source, target)
             }
-            _ => self.decide_form_equal(origin, source_module, source, target_module, target),
+            _ => Ok(Answer::Ready(source.same_constructor(&target))),
         }
-    }
-
-    /// Decide whether one borrow access reduces to readonly.
-    fn decide_readonly_access(
-        &mut self,
-        origin: Origin,
-        access: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let access = answer!(self.reduce_type_head(origin, access)?);
-
-        Ok(Answer::Ready(matches!(
-            self.ty(access)?,
-            dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
-        )))
     }
 
     /// Collect open lifetime annotation bounds on either side.

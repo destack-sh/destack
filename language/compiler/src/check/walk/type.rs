@@ -383,7 +383,7 @@ impl WalkState<'_, '_> {
         match form {
             // open anonymous holes for ordinary inference
             dir::InferForm::Hole => {
-                self.open_type_hole(source, Widening::Widen, VariableRole::Regular)
+                self.open_type_hole(source, Widening::Always, VariableRole::Regular)
             }
 
             // preserve named infer bindings for conditional matching

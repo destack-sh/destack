@@ -198,10 +198,7 @@ pub enum CheckError {
     ///
     /// (value + 1) = 2;
     /// ```
-    #[diagnostic(
-        code = "EC204",
-        message = "assignment target is not a storage location"
-    )]
+    #[diagnostic(code = "EC204", message = "assignment target is not a writable place")]
     InvalidAssignmentTarget {
         /// Report the assignment target.
         anchor: DiagnosticAnchor,
@@ -434,6 +431,28 @@ pub enum CheckError {
         key: String,
         /// The required index value type.
         value: String,
+    },
+
+    /// Borrow expression requests access its source never grants.
+    ///
+    /// ```ds
+    /// declare const user: shared User;
+    ///
+    /// const view = &exclusive user;
+    /// ```
+    #[diagnostic(
+        code = "EC217",
+        message = "'{access}' access is not granted by a value of type '{source}'"
+    )]
+    BorrowAccessNotGranted {
+        /// Report the borrow expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The requested access.
+        access: String,
+        /// The borrowed source type.
+        source: String,
     },
 
     // -------------------------------------------------------------------------
@@ -1776,6 +1795,22 @@ pub enum CheckError {
         ty: String,
     },
 
+    /// Shared storage retains a safe reference into local storage.
+    ///
+    /// ```ds
+    /// shared struct State { user: local User }
+    /// ```
+    #[diagnostic(
+        code = "EC506",
+        message = "shared space cannot hold references into local space"
+    )]
+    LocalReferenceInSharedStorage {
+        /// Report the stored local reference.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 6xx: declarations
     // -------------------------------------------------------------------------
@@ -2068,17 +2103,17 @@ pub enum CheckError {
         field: String,
     },
 
-    /// Ambient signature elides a result lifetime.
+    /// Bodyless signature elides a result lifetime.
     ///
     /// ```ds
     /// declare function only(value: &Node): &Node;
     /// ```
     #[diagnostic(
         code = "EC614",
-        message = "ambient signatures must name result lifetimes explicitly"
+        message = "bodyless signatures must name result lifetimes explicitly"
     )]
-    AmbientLifetimeElided {
-        /// Report the ambient declaration.
+    BodylessLifetimeElided {
+        /// Report the bodyless declaration.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -2181,5 +2216,45 @@ pub enum CheckError {
         module: ModuleId,
         /// The nonlocal extension target.
         target: String,
+    },
+
+    /// A written placement conflicts with the type's declared placement.
+    ///
+    /// ```ds
+    /// shared class Registry {}
+    ///
+    /// declare const registry: local Registry;
+    /// ```
+    #[diagnostic(
+        code = "EC620",
+        message = "placement '{written}' conflicts with the declaration placement '{declared}'"
+    )]
+    PlacementConflict {
+        /// Report the conflicting placement requirement.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written placement.
+        written: String,
+        /// The declared placement.
+        declared: String,
+    },
+
+    /// A declaration's heritage requires inconsistent placements.
+    ///
+    /// ```ds
+    /// local class Base {}
+    /// shared interface Service {}
+    /// class Invalid extends Base implements Service {}
+    /// ```
+    #[diagnostic(
+        code = "EC621",
+        message = "heritage declarations require one consistent placement"
+    )]
+    HeritagePlacementConflict {
+        /// Report the conflicting heritage placement.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
     },
 }

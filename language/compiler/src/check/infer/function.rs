@@ -10,6 +10,27 @@ impl BodyState<'_, '_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        self.peel_value_target(origin, target, |form| {
+            matches!(form, dir::Form::Owned | dir::Form::Placed { .. })
+        })
+    }
+
+    /// Return the value beneath owned expected forms, which a fresh call result takes directly.
+    pub(in crate::check) fn owned_value_target(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        self.peel_value_target(origin, target, |form| matches!(form, dir::Form::Owned))
+    }
+
+    /// Return the value beneath the expected forms a fresh value takes directly.
+    fn peel_value_target(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+        peels: impl Fn(&dir::Form) -> bool,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let mut target = target;
         loop {
             // peel settled form heads without waiting on open payloads
@@ -22,9 +43,7 @@ impl BodyState<'_, '_> {
                 },
             };
             match self.ty(head)? {
-                dir::Type::Form(form)
-                    if matches!(form.form, dir::Form::Owned | dir::Form::Placed { .. }) =>
-                {
+                dir::Type::Form(form) if peels(&form.form) => {
                     target = form.value;
                 }
                 _ => return Ok(Answer::Ready(target)),

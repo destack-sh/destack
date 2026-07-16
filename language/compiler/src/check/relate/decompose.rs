@@ -596,12 +596,12 @@ impl CheckState<'_> {
     }
 
     /// Return whether one matched slot is lifetime-shaped.
-    fn is_lifetime_slot(&self, ty: &dir::Type) -> CompilerResult<bool> {
+    pub(in crate::check) fn is_lifetime_slot(&self, ty: &dir::Type) -> CompilerResult<bool> {
         match ty {
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => Ok(true),
             dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
                 Ok(self.generic_parameter(*parameter).is_some_and(|binding| {
-                    binding.origin == dir::GenericParameterOrigin::InducedLifetime
+                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
                 }))
             }
             _ => Ok(false),

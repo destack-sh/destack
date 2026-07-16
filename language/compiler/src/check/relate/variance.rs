@@ -699,6 +699,14 @@ impl CheckState<'_> {
         let edge = self.instance_argument_edge(symbol, edge);
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
+            // skip closed lifetime slots for Verify, still linking open ones
+            if !self.type_flags(*source)?.has_variable()
+                && !self.type_flags(*target)?.has_variable()
+                && self.is_lifetime_slot(&self.ty(*source)?)?
+                && self.is_lifetime_slot(&self.ty(*target)?)?
+            {
+                continue;
+            }
             let variance = self.argument_variance(symbol, index, context)?;
             let slot = CauseKind::TypeArgument {
                 symbol,

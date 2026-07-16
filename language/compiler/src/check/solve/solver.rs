@@ -357,6 +357,11 @@ impl Solver {
         self.waiters.drain(..).collect()
     }
 
+    /// Return the dependencies parked tasks currently wait on.
+    pub(in crate::check) fn waiting_dependencies(&self) -> Vec<Dependency> {
+        self.waiters.keys().copied().collect()
+    }
+
     /// Pop one solver task.
     pub(in crate::check) fn pop_task(&mut self) -> Option<Task> {
         self.queue.pop()

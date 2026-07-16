@@ -218,6 +218,16 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // borrowing retains placement even though representation judging strips it
+        if self.borrow_conversion(origin, source, target)?.is_some() {
+            return Ok(Some(dir::Coercion::new(
+                source,
+                target,
+                dir::CoercionKind::Borrow,
+                dir::CastOrigin::Implicit,
+            )));
+        }
+
         // classify the settled heads at the DIR level
         let source_head = self.ty(judged_source)?;
         let target_head = self.ty(judged_target)?;
@@ -287,9 +297,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut ty = self.reduce_type_ready(origin, ty, "coercion representation")?;
         while let dir::Type::Form(form) = self.ty(ty)?
-            && form.form == dir::Form::Readonly
+            && matches!(
+                form.form,
+                dir::Form::Readonly | dir::Form::Placed { .. } | dir::Form::Managed
+            )
         {
-            ty = self.reduce_type_ready(origin, form.value, "coercion readonly payload")?;
+            ty = self.reduce_type_ready(origin, form.value, "coercion payload")?;
         }
 
         Ok(ty)

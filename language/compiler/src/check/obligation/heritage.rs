@@ -110,6 +110,43 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ObligationCheck::from_failures(failures)));
         }
 
+        // require one concrete space across the declaration and its heritage
+        let mut placement = self
+            .definition(symbol)?
+            .and_then(dir::Definition::space)
+            .map(|space| (source, symbol, space));
+        for application in &closure.applications {
+            let Some(space) = self
+                .definition(application.instance.symbol)?
+                .and_then(dir::Definition::space)
+            else {
+                continue;
+            };
+            match placement {
+                None => placement = Some((application.source, application.instance.symbol, space)),
+                Some((_, _, current)) if current == space => {}
+                Some((placement_source, placement_symbol, _)) => {
+                    let failure = ObligationFailure::ConflictingHeritagePlacement {
+                        source: placement_source,
+                        symbol: placement_symbol,
+                        conflict_source: application.source,
+                        conflict: application.instance.symbol,
+                    };
+
+                    return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+                }
+            }
+        }
+        // extensions and aliases agree with their closure without carrying it
+        if let Some((_, _, space)) = placement
+            && !matches!(
+                self.definition(symbol)?,
+                Some(dir::Definition::TypeAlias(_) | dir::Definition::Extension(_))
+            )
+        {
+            self.commit_nominal_space(symbol, space)?;
+        }
+
         self.check_class_member_heritage(origin, symbol)
     }
 

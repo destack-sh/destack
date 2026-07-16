@@ -483,13 +483,13 @@ impl CheckState<'_> {
     }
 
     /// Report an invalid writable place at one source node.
-    pub(in crate::check) fn report_ambient_lifetime_elided(
+    pub(in crate::check) fn report_bodyless_lifetime_elided(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::AmbientLifetimeElided { anchor, module };
+        let diagnostic = CheckError::BodylessLifetimeElided { anchor, module };
 
         self.report(module, diagnostic);
     }
@@ -517,7 +517,6 @@ impl CheckState<'_> {
         if !self.modules.contains_key(&module) || !reported.insert((module, anchor.clone())) {
             return Ok(());
         }
-
         let error = CheckError::CannotInferType {
             anchor: anchor.clone(),
             module,
@@ -574,6 +573,32 @@ impl CheckState<'_> {
         let (module, anchor) = self.source_anchor(source);
         let error = CheckError::CannotInferType { anchor, module };
         self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one borrow expression whose access the source never grants.
+    pub(in crate::check) fn report_borrow_access_not_granted(
+        &mut self,
+        origin: Origin,
+        access: dir::Access,
+        granted: dir::Access,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::BorrowAccessNotGranted {
+            anchor,
+            module,
+            access: access.text().to_string(),
+            source: self.format_type_at(module, source),
+        };
+        let diagnostic = DiagnosticBuilder::new(error)
+            .note(format!(
+                "the source grants at most '{}' access",
+                granted.text()
+            ))
+            .help("request the granted access or use a source that grants more");
+        self.report(module, diagnostic);
 
         Ok(())
     }
@@ -1353,6 +1378,8 @@ impl CheckState<'_> {
             CheckFailure::Relation => self.blame_relation(origin, relation, source, target)?,
             _ => None,
         };
+        let is_place_relabel = matches!(failure, CheckFailure::Relation)
+            && self.is_place_relabel(origin, source, target)?;
         let source = self.format_type_at(module, source);
         let target = self.format_type_at(module, target);
 
@@ -1368,8 +1395,16 @@ impl CheckState<'_> {
                     source,
                     target,
                 );
+                let diagnostic = DiagnosticBuilder::new(error);
 
-                DiagnosticBuilder::new(error)
+                // relabeling storage placement is impossible by rule
+                if is_place_relabel {
+                    diagnostic.note("a value never changes its space").help(
+                        "use a value in the destination placement or create a new value there",
+                    )
+                } else {
+                    diagnostic
+                }
             }
             CheckFailure::MissingRequiredProperty { key } => {
                 let error = CheckError::MissingRequiredProperty {
@@ -1408,6 +1443,19 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
 
         Ok(())
+    }
+
+    /// Build the diagnostic for one unstable overwrite.
+    fn overwrite_stability_diagnostic(
+        anchor: DiagnosticAnchor,
+        module: ModuleId,
+        ty: String,
+    ) -> DiagnosticBuilder<CheckError> {
+        let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
+
+        DiagnosticBuilder::new(error)
+            .note("overwriting may invalidate live borrows of the old value")
+            .help("write through an exclusive or owned path or store an overwrite-stable type")
     }
 
     /// Report one failed obligation.
@@ -1535,12 +1583,22 @@ impl CheckState<'_> {
             ObligationFailure::OverwriteStabilityNotSatisfied { source, ty } => {
                 let (module, anchor) = self.source_anchor(source);
                 let ty = self.format_type(ty);
-                let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
-                self.report(module, error);
+                let diagnostic = Self::overwrite_stability_diagnostic(anchor, module, ty);
+                self.report(module, diagnostic);
             }
             ObligationFailure::CircularType { source } => {
                 let error = self.circular_type_error(Origin::Node(source, None))?;
                 self.report(source.module_id, error);
+            }
+            ObligationFailure::LocalReferenceInSharedStorage { source } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::LocalReferenceInSharedStorage { anchor, module };
+                let diagnostic = DiagnosticBuilder::new(error)
+                    .note("managed, owned, and borrowed references retain their referent")
+                    .help(
+                        "place the referenced value in shared space or keep the destination local",
+                    );
+                self.report(module, diagnostic);
             }
             ObligationFailure::InvalidIndexReceiver { source, receiver } => {
                 let (module, anchor) = self.source_anchor(source);
@@ -1567,6 +1625,32 @@ impl CheckState<'_> {
                     key,
                 };
                 self.report(module, error);
+            }
+            ObligationFailure::ConflictingDeclarationPlacement {
+                source,
+                symbol,
+                written,
+                declared,
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let (_, declaration_anchor) = self.source_anchor(self.symbol_source(symbol)?);
+                let error = CheckError::PlacementConflict {
+                    anchor,
+                    module,
+                    written: written.text().to_string(),
+                    declared: declared.text().to_string(),
+                };
+                let help = match written {
+                    dir::Space::Local => "remove 'local' or use a local type",
+                    dir::Space::Shared => "remove 'shared' or use a shared type",
+                };
+                let diagnostic = DiagnosticBuilder::new(error)
+                    .label(
+                        declaration_anchor,
+                        format!("'{}' is {}", self.format_symbol(symbol), declared.text()),
+                    )
+                    .help(help);
+                self.report(module, diagnostic);
             }
             ObligationFailure::AutoInterfaceNotSatisfied {
                 source,
@@ -1632,6 +1716,31 @@ impl CheckState<'_> {
                     source: self.format_symbol(symbol),
                 };
                 self.report(module, error);
+            }
+            ObligationFailure::ConflictingHeritagePlacement {
+                source,
+                symbol,
+                conflict_source,
+                conflict,
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let (_, conflict_anchor) = self.source_anchor(conflict_source);
+                let (_, declaration_anchor) = self.source_anchor(self.symbol_source(symbol)?);
+                let (_, conflict_declaration_anchor) =
+                    self.source_anchor(self.symbol_source(conflict)?);
+                let error = CheckError::HeritagePlacementConflict { anchor, module };
+                let diagnostic = DiagnosticBuilder::new(error)
+                    .label(conflict_anchor, "conflicting placement")
+                    .label(
+                        declaration_anchor,
+                        format!("'{}' is declared here", self.format_symbol(symbol)),
+                    )
+                    .label(
+                        conflict_declaration_anchor,
+                        format!("'{}' is declared here", self.format_symbol(conflict)),
+                    )
+                    .help("make every base and implemented interface use the same placement");
+                self.report(module, diagnostic);
             }
             ObligationFailure::InvalidOverride { source, member } => {
                 let (module, anchor) = self.source_anchor(source);
@@ -1769,9 +1878,7 @@ impl CheckState<'_> {
             }
             dir::AutoInterface::OverwriteStable => {
                 let ty = self.format_type(ty);
-                let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
-
-                error.into()
+                Self::overwrite_stability_diagnostic(anchor, module, ty)
             }
             dir::AutoInterface::Integer
             | dir::AutoInterface::Float

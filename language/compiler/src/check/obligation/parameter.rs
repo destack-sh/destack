@@ -39,8 +39,8 @@ impl CheckState<'_> {
             };
 
             // value parameters have no variance role to protect
-            if binding.origin == dir::GenericParameterOrigin::InducedLifetime
-                || binding.is_comptime
+            if binding.induced_memory_parameter().is_some()
+                || binding.is_comptime()
                 || binding.is_const
             {
                 continue;

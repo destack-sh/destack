@@ -115,7 +115,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let Some(name) = self.generic_parameter_name(binding) else {
             return Ok(None);
         };
-        let parameter = if binding.is_comptime {
+        let parameter = if binding.is_comptime() {
             self.reify_value_parameter(binding, name)?
         } else {
             self.reify_type_parameter(binding, name)?
@@ -524,17 +524,34 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         }
                     }
                     dir::Form::Placed { place } => {
-                        let place = match self.check.ty(self.check.settled_root(*place)?)? {
+                        let place = self.check.settled_root(*place)?;
+                        let concrete = match self.check.ty(place)? {
                             dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
                                 space,
-                            ))) => space,
-                            _ => return Ok(None),
+                            ))) => Some(space),
+                            _ => None,
                         };
 
-                        match place {
-                            dir::Space::Local => dir::TypeExpression::Local { target_type },
-                            dir::Space::Shared => dir::TypeExpression::Shared { target_type },
-                            dir::Space::Static | dir::Space::Frame => return Ok(None),
+                        match concrete {
+                            Some(dir::Space::Local) => dir::TypeExpression::Local { target_type },
+                            Some(dir::Space::Shared) => dir::TypeExpression::Shared { target_type },
+                            None => {
+                                let Some(place) = self.reify_static_depth(place, next)? else {
+                                    return Ok(None);
+                                };
+                                let target =
+                                    self.insert(dir::GenericArgument::Type { value: target_type });
+                                let place =
+                                    self.insert(dir::GenericArgument::Value { value: place });
+                                let name = self.language_item_name(dir::LanguageItem::Placed);
+
+                                dir::TypeExpression::Reference {
+                                    path: dir::Path {
+                                        segments: [name].into_iter().collect(),
+                                    },
+                                    generic_arguments: vec![target, place],
+                                }
+                            }
                         }
                     }
                 }
@@ -893,7 +910,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             let parameter = parameters
                 .get(index)
                 .and_then(|parameter| self.check.generic_parameter(*parameter));
-            let argument = if parameter.is_some_and(|parameter| parameter.is_comptime) {
+            let argument = if parameter.is_some_and(|parameter| parameter.is_comptime()) {
                 let Some(value) = self.reify_static_depth(id, depth)? else {
                     return Ok(None);
                 };
@@ -924,7 +941,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             let Some(parameter) = self.check.generic_parameter(binding.parameter) else {
                 return Ok(None);
             };
-            let argument = if parameter.is_comptime {
+            let argument = if parameter.is_comptime() {
                 let Some(value) = self.reify_static_depth(binding.argument, depth)? else {
                     return Ok(None);
                 };

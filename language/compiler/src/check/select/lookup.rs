@@ -232,7 +232,7 @@ impl BodyState<'_, '_> {
                         answer!(self.newtype_backing_projection(origin, subject)?)
                 {
                     let value = projection.ty();
-                    let receiver = answer!(self.replace_beneath_forms(origin, receiver, value)?);
+                    let receiver = self.replace_beneath_forms(origin, receiver, value)?;
                     let mut lookup = answer!(self.lookup_subject_member(
                         origin, module, receiver, value, space, key, extensions, active,
                     )?);
@@ -287,7 +287,7 @@ impl BodyState<'_, '_> {
             // erased values expose members through their dynamic payload
             dir::Type::Dynamic(dynamic) => {
                 let constraint = dynamic.constraint;
-                let receiver = answer!(self.replace_beneath_forms(origin, receiver, constraint)?);
+                let receiver = self.replace_beneath_forms(origin, receiver, constraint)?;
                 let mut lookup = answer!(self.lookup_bound_member(
                     origin,
                     module,
@@ -487,6 +487,9 @@ impl BodyState<'_, '_> {
         // apply the instance arguments to the declared backing
         let substitution = self.instance_substitution(instance_module, &instance)?;
         let value = self.substitute_type(origin.module(), value, &substitution)?;
+        if value == lookup_type {
+            return Ok(Answer::Ready(None));
+        }
 
         let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
         Ok(Answer::Ready(Some(dir::Projection::NewtypePayload {
@@ -667,7 +670,7 @@ impl BodyState<'_, '_> {
         match extensions {
             ExtensionFilter::All => {
                 // extension targets name values, so receivers shed memory forms
-                let receiver = answer!(self.value_beneath_forms(origin, receiver)?);
+                let receiver = self.value_beneath_forms(origin, receiver)?;
                 let lookup = answer!(
                     self.lookup_extension_member(origin, module, receiver, &instance, space, key)?
                 );

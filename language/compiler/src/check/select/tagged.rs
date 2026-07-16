@@ -96,7 +96,6 @@ impl BodyState<'_, '_> {
         let written_owner = head.owner;
         let input = answer!(self.node_type(node.into_any())?);
         let heads = answer!(self.tagged_heads_from_input(origin, input, &head)?);
-
         // otherwise let the written generic owner bind against the input
         let heads = if heads.is_empty() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
@@ -167,7 +166,7 @@ impl BodyState<'_, '_> {
         input: dir::GlobalTypeId,
         written: &TaggedPatternHead,
     ) -> CompilerResult<Answer<Vec<TaggedPatternHead>>> {
-        let input = answer!(self.reduce_type_head(origin, input)?);
+        let input = self.value_beneath_forms(origin, input)?;
         let mut heads = Vec::new();
 
         // collect every visible owner instance from the input

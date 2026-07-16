@@ -1,9 +1,64 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, FlowSite, PlaceUse, answer};
+use crate::check::{Answer, BodyState, FlowSite, Origin, PlaceUse, answer};
 
 impl BodyState<'_, '_> {
+    /// Materialize one fresh value in its contextual place.
+    pub(in crate::check) fn materialize_fresh_value(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+        target: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        // take one common explicit contextual place, leaving bare values bare
+        let place = match target {
+            Some(target) => answer!(self.fresh_value_place(origin, target)?),
+            None => None,
+        };
+        let Some(place) = place else {
+            return Ok(Answer::Ready(value));
+        };
+        let value = self.check.resolve_relative_place(origin, value, place)?;
+
+        Ok(Answer::Ready(value))
+    }
+
+    /// Return the common concrete place offered by one contextual type.
+    fn fresh_value_place(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let Answer::Ready(target) = self.check.reduce_type_head(origin, target)? else {
+            return Ok(Answer::Ready(None));
+        };
+        let chain = self.check.form_chain(origin, target)?;
+        if let Some(place) = chain.place() {
+            return Ok(Answer::Ready(Some(place)));
+        }
+
+        // optional and other unions contribute the place of located members
+        let base = chain.base();
+        let dir::Type::Union(union) = self.ty(base)? else {
+            return Ok(Answer::Ready(None));
+        };
+        let elements = self.type_ids(base.module_id, union.elements)?.to_vec();
+        let mut common = None;
+        for element in elements {
+            let Some(place) = answer!(self.fresh_value_place(origin, element)?) else {
+                continue;
+            };
+            match common {
+                None => common = Some(place),
+                Some(current) if current == place => {}
+                Some(_) => return Ok(Answer::Ready(None)),
+            }
+        }
+
+        Ok(Answer::Ready(common))
+    }
+
     /// Infer one move expression from its moved value.
     pub(in crate::check) fn infer_move_expression(
         &mut self,
@@ -54,15 +109,43 @@ impl BodyState<'_, '_> {
         let value = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
 
         // derive borrow form parameters from the place and written mutability
-        let lifetime = answer!(self.borrowed_expression_lifetime(node, right, value)?);
-        let access = match mutability {
+        let expression = right.into_global(node.module_id);
+        let lifetime = answer!(self.expression_lifetime(expression, value)?);
+        let requested = match mutability {
             Some(mutability) => mutability.access(),
             None => dir::Access::Mutable,
         };
         let access = self.intern_type(
             node.module_id,
-            dir::Type::Memory(dir::MemoryLiteral::Access(access)),
+            dir::Type::Memory(dir::MemoryLiteral::Access(requested)),
         )?;
+
+        // the borrow site grants only what the source's form allows
+        let origin = site.origin();
+        let chain = self.check.form_chain(origin, value)?;
+        if !chain.is_open() {
+            let ownership = match self.check.form_ownership(origin, &chain)? {
+                Answer::Ready(ownership) => ownership,
+                Answer::Pending(_) => None,
+            };
+            let granted = if chain.is_readonly() {
+                requested == dir::Access::Readonly
+            } else if ownership == Some(dir::Ownership::Managed) {
+                self.check
+                    .managed_acquisition_granted(Some(requested), chain.place())?
+            } else {
+                true
+            };
+            if !granted {
+                // the two ungranted cases cap at readonly and mutable
+                let ceiling = match chain.is_readonly() {
+                    true => dir::Access::Readonly,
+                    false => dir::Access::Mutable,
+                };
+                self.check
+                    .report_borrow_access_not_granted(origin, requested, ceiling, value)?;
+            }
+        }
 
         // wrap the borrowed value and reduce redundant memory forms
         let form = self.intern_borrow(node.module_id, lifetime, access)?;

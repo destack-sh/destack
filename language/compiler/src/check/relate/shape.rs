@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Origin, Relation, TypeSubstitution, answer};
 
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
@@ -776,7 +776,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::TypeReference,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
-        let signatures = match self.definition(source.symbol)? {
+        let constructors: SmallVec<[dir::GlobalTypeId; 2]> = match self.definition(source.symbol)? {
             Some(dir::Definition::Class(class)) => class
                 .constructors
                 .iter()
@@ -784,6 +784,19 @@ impl CheckState<'_> {
                 .collect(),
             _ => SmallVec::new(),
         };
+
+        // constructors return the declared instance in place of `this`
+        let instance = self.declaration_instance(source.symbol.module_id, source.symbol)?;
+        let instance = self.intern_type(source.symbol.module_id, dir::Type::Instance(instance))?;
+        let substitution = TypeSubstitution::default().with_receiver(instance);
+        let mut signatures = SmallVec::new();
+        for constructor in constructors {
+            signatures.push(self.substitute_type(
+                source.symbol.module_id,
+                constructor,
+                &substitution,
+            )?);
+        }
 
         Ok(signatures)
     }

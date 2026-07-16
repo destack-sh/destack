@@ -65,7 +65,7 @@ impl BodyState<'_, '_> {
         if !self.check.type_variables(target)?.is_empty()
             && self.node_type_maybe(value_site.node).is_none()
         {
-            let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
+            let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
             answer!(self.check_expression(
                 value_site,
                 target,
@@ -94,7 +94,7 @@ impl BodyState<'_, '_> {
             );
         }
 
-        let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
+        let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
         self.push_constraint(Constraint::r#type(
             Relation::Castable,
             value_type,
@@ -131,7 +131,7 @@ impl BodyState<'_, '_> {
             bounds => {
                 let origin = site.origin();
                 let variable =
-                    self.allocate_variable(origin, Widening::Widen, VariableRole::Regular);
+                    self.allocate_variable(origin, Widening::Always, VariableRole::Regular);
                 let element = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {

@@ -21,10 +21,22 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<DereferenceSelection>>> {
         let input = answer!(self.reduce_type_head(origin, input)?);
 
-        // direct dereference projects physical pointer forms
+        // direct dereference projects physical pointer forms the access grants
         if let dir::Type::Form(form) = self.ty(input)?
             && matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw)
         {
+            if let dir::Form::Borrowed(borrow) = form.form {
+                // an open access defers to the instantiation's concrete recheck
+                let held = self.check.type_borrow(input.module_id, borrow)?.access;
+                let granted = self
+                    .check
+                    .access_literal(origin, held)?
+                    .is_none_or(|held| held.grants(access));
+                if !granted {
+                    return Ok(Answer::Ready(None));
+                }
+            }
+
             return Ok(Answer::Ready(Some(DereferenceSelection {
                 operation: dir::DereferenceOperation::Direct,
                 ty: form.value,

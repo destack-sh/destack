@@ -337,12 +337,17 @@ impl BodyState<'_, '_> {
 
         let ty = match self.static_value(*symbol) {
             Some(value) => value,
-            // alias names type as their written reference, matching the
-            //  static lookup that dispatches on them before reduction
-            None if self.symbol_kind(*symbol) == dir::SymbolKind::TypeAlias => self.intern_type(
-                site.node.module_id,
-                dir::Type::Reference(dir::TypeReference { symbol: *symbol }),
-            )?,
+            // alias and class names type as their written declaration reference
+            None if matches!(
+                self.symbol_kind(*symbol),
+                dir::SymbolKind::TypeAlias | dir::SymbolKind::Class
+            ) =>
+            {
+                self.intern_type(
+                    site.node.module_id,
+                    dir::Type::Reference(dir::TypeReference { symbol: *symbol }),
+                )?
+            }
             None => answer!(self.symbol_type(*symbol)?),
         };
         let ty = answer!(self.flow_type_at(site, ty)?);

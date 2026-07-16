@@ -678,7 +678,7 @@ class Invalid extends LocalBase implements SharedService {}
 /// @resolution.name source=SharedService target=SharedService
 "#,
         r#"
-/// @diagnostic.error code=EC620 message="heritage declarations require one consistent placement"
+/// @diagnostic.error code=EC621 message="heritage declarations require one consistent placement"
 /// @diagnostic.label line=5 column=23 span="LocalBase" line_source="class Invalid extends LocalBase implements SharedService {}"
 /// @diagnostic.related line=5 column=44 span="SharedService" line_source="class Invalid extends LocalBase implements SharedService {}" message="conflicting placement"
 /// @diagnostic.related line=2 column=13 span="LocalBase" line_source="local class LocalBase {}" message="'LocalBase' is declared here"

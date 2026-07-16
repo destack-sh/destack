@@ -1048,16 +1048,14 @@ impl ModuleLowerer<'_> {
             dir::Type::Memory(memory) => {
                 let value = match memory {
                     dir::MemoryLiteral::Access(access) => format!("{access:?}").to_lowercase(),
+                    dir::MemoryLiteral::Ownership(ownership) => ownership.text().to_string(),
                     dir::MemoryLiteral::Space(space) => format!("{space:?}").to_lowercase(),
-                    dir::MemoryLiteral::Place(dir::Place::Ambient) => "ambient".to_string(),
+                    dir::MemoryLiteral::Place(dir::Place::Relative) => "relative".to_string(),
                     dir::MemoryLiteral::Place(dir::Place::Space(space)) => {
                         format!("{space:?}").to_lowercase()
                     }
                     dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => "static".to_string(),
                     dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => "frame".to_string(),
-                    dir::MemoryLiteral::Lifetime(dir::Lifetime::Symbol(symbol)) => {
-                        return self.lower_reference_type_from_symbol(source_id, *symbol, None);
-                    }
                 };
 
                 self.lower_static_string_type(source_id, &value)?

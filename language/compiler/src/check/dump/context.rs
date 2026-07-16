@@ -103,9 +103,9 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     /// Return a compact widening policy label.
     pub(in crate::check) fn widening_label(&self, widening: Widening) -> &'static str {
         match widening {
-            Widening::Preserve => "preserve",
-            Widening::Widen => "widen",
-            Widening::WidenWrites => "widen-writes",
+            Widening::Never => "never",
+            Widening::Always => "always",
+            Widening::WhenWritten => "when-written",
         }
     }
 

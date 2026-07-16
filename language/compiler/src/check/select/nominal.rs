@@ -104,7 +104,7 @@ impl BodyState<'_, '_> {
 
         // bind the pattern instantiation from the matched input
         let input = answer!(self.node_type(node.into_any())?);
-        let input = answer!(self.value_beneath_forms(origin, input)?);
+        let input = self.value_beneath_forms(origin, input)?;
         let mut matched = input;
         if let Some(backing) = answer!(self.newtype_backing(origin, input)?) {
             matched = answer!(self.reduce_type_head(origin, backing)?);

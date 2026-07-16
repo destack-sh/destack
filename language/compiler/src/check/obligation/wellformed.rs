@@ -13,6 +13,39 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &WellFormedTypeObligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // explicit placement must agree with an intrinsically placed nominal base
+        if let Some(written) = self.type_place(obligation.ty)? {
+            let written = answer!(self.reduce_type_head(origin, written)?);
+            let value = self.value_beneath_forms(origin, obligation.ty)?;
+            let value = answer!(self.reduce_type_head(origin, value)?);
+            let symbol = match self.ty(value)? {
+                dir::Type::Instance(instance) => Some(instance.symbol),
+                dir::Type::Reference(reference) => Some(reference.symbol),
+                _ => None,
+            };
+            let written = self.place_space(written)?;
+            if let (Some(symbol), Some(written)) = (symbol, written)
+                && let Some(declared) = self.nominal_space(symbol)?
+                && written != declared
+            {
+                let failure = ObligationFailure::ConflictingDeclarationPlacement {
+                    source: obligation.source,
+                    symbol,
+                    written,
+                    declared,
+                };
+
+                return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+            }
+        }
+
+        // placed types must have a finite representation valid for their storage space
+        let representation = answer!(self.check_representation(origin, obligation.ty)?);
+        if let ObligationCheck::Fails(_) = representation {
+            return Ok(Answer::Ready(representation));
+        }
+
+        // operation types validate through their reducer
         let Some(operation) = self.operation_head(obligation.ty)? else {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         };

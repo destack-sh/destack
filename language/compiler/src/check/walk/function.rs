@@ -442,8 +442,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let completed =
-                self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
+            let completed = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
             let promised =
                 self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
             self.relate_type(
@@ -459,10 +458,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
-            let yielded = self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
-            let completed =
-                self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
-            let resumed = self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
+            let yielded = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
+            let completed = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
+            let resumed = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -607,8 +605,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            let ty =
-                self.open_type_hole(id.into_any(), Widening::Preserve, VariableRole::Regular)?;
+            let ty = self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
             self.commit_node_type(id, ty)?;
 
             return Ok(Some(ty));

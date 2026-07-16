@@ -146,49 +146,32 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // use declared defaults for non-inference parameters
-            let default = binding
-                .default
-                .map(|default| self.substitute_type(origin.module(), default, &substitution))
-                .transpose()?;
-            if let Some(default) = default
-                && !is_explicit
+            // open every omitted parameter while only explicit parameters consume source arguments
+            let primitive_constraint = match binding.constraint {
+                Some(constraint) => matches!(
+                    self.ty(self.settled_root(constraint)?)?,
+                    dir::Type::Primitive(_)
+                ),
+                None => false,
+            };
+            let widening = match binding.is_const
+                || primitive_constraint
+                || binding.memory_parameter().is_some()
             {
-                substitution.parameters.push(parameter);
-                substitution.arguments.push(default);
+                true => Widening::Never,
+                false => Widening::WhenWritten,
+            };
+            let variable =
+                self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
 
-                continue;
+            // declared defaults complete the parameter when inference stays dry
+            if let Some(default) = binding.default {
+                let default = self.substitute_type(origin.module(), default, &substitution)?;
+                self.set_variable_default(variable, default)?;
             }
-
-            // omitted explicit parameters are ordinary inference variables;
-            //  plain parameters widen fresh literals, const parameters keep
-            //  them, and primitive constraints keep literals inside the family
-            if is_explicit {
-                let primitive_constraint = match binding.constraint {
-                    Some(constraint) => matches!(
-                        self.ty(self.settled_root(constraint)?)?,
-                        dir::Type::Primitive(_)
-                    ),
-                    None => false,
-                };
-                let widening = match binding.is_const || primitive_constraint {
-                    true => Widening::Preserve,
-                    false => Widening::WidenWrites,
-                };
-                let variable = self.allocate_variable(
-                    origin,
-                    widening,
-                    VariableRole::Instantiation { parameter },
-                );
-                // declared defaults complete the parameter when inference stays dry
-                if let Some(default) = binding.default {
-                    let default = self.substitute_type(origin.module(), default, &substitution)?;
-                    self.set_variable_default(variable, default)?;
-                }
-                let argument = self.variable_type(variable)?;
-                substitution.parameters.push(parameter);
-                substitution.arguments.push(argument);
-            }
+            let argument = self.variable_type(variable)?;
+            substitution.parameters.push(parameter);
+            substitution.arguments.push(argument);
         }
 
         Ok(Some(substitution))

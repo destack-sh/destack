@@ -56,6 +56,7 @@ impl BodyState<'_, '_> {
         let mut steps = ReceiverSteps::new();
         let mut receiver = receiver;
         let mut readonly_path = false;
+        let mut peeled_place = None;
         loop {
             // try the current step speculatively
             let related = self.confirm_candidate(ProbeReason::Receiver, |state| {
@@ -65,6 +66,7 @@ impl BodyState<'_, '_> {
                     receiver,
                     this_parameter,
                     readonly_path,
+                    peeled_place,
                 )?;
                 let Some(adjusted) = answer!(adjusted) else {
                     return Ok(Answer::Ready(CandidateOutcome::Rejected(())));
@@ -112,11 +114,14 @@ impl BodyState<'_, '_> {
                     }
                     _ => false,
                 };
+                // remember the outermost storage place across the peel
+                if let dir::Form::Placed { place } = form.form {
+                    peeled_place.get_or_insert(place);
+                }
             }
             let Some(step) = answer!(self.receiver_step(origin, receiver)?) else {
                 return Ok(Answer::Ready(None));
             };
-
             // record the next projected receiver
             receiver = step.ty();
             steps.push(step);
@@ -155,29 +160,43 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         this_parameter: dir::GlobalTypeId,
         readonly_path: bool,
+        peeled_place: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<Option<ReceiverAdjustment>>> {
-        // borrowed receivers relate to the declared this directly
-        let receiver_head = answer!(self.reduce_type_head(origin, receiver)?);
-        if matches!(
-            self.ty(receiver_head)?,
-            dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed(_))
-        ) {
-            return Ok(Answer::Ready(Some(ReceiverAdjustment::direct(
-                receiver,
-                this_parameter,
-            ))));
-        }
-
-        // read borrow requirements from a direct borrowed `this`
-        let this_parameter = answer!(self.reduce_type_head(origin, this_parameter)?);
-        if let dir::Type::Form(form) = self.ty(this_parameter)?
+        // read borrow requirements from the canonical target form
+        let this_chain = self.check.form_chain(origin, this_parameter)?;
+        if let Some(form) = this_chain.ownership_form()
             && let dir::Form::Borrowed(borrow) = form.form
         {
+            let receiver_chain = self.check.form_chain(origin, receiver)?;
+            if receiver_chain
+                .ownership_form()
+                .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)))
+            {
+                return Ok(Answer::Ready(Some(ReceiverAdjustment::direct(
+                    receiver,
+                    this_parameter,
+                ))));
+            }
+
             let borrow = self.check.type_borrow(this_parameter.module_id, borrow)?;
             // places behind readonly forms never re-borrow writable
             if readonly_path && !answer!(self.access_is_readonly(origin, borrow.access)?) {
                 return Ok(Answer::Ready(None));
             }
+
+            // managed receivers grant exclusivity only in local space
+            let is_managed = receiver_chain
+                .ownership_form()
+                .is_none_or(|form| matches!(form.form, dir::Form::Managed));
+            let access = self.check.access_literal(origin, borrow.access)?;
+            if is_managed
+                && !self
+                    .check
+                    .managed_acquisition_granted(access, receiver_chain.place().or(peeled_place))?
+            {
+                return Ok(Answer::Ready(None));
+            }
+
             let form = self
                 .check
                 .intern_borrow(module, borrow.lifetime, borrow.access)?;
@@ -194,7 +213,7 @@ impl BodyState<'_, '_> {
             };
 
             return Ok(Answer::Ready(Some(ReceiverAdjustment::projected(
-                borrowed,
+                receiver,
                 this_parameter,
                 projection,
             ))));

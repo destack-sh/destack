@@ -70,8 +70,8 @@ impl BodyState<'_, '_> {
             // strict identity always produces a boolean; equality
             //  reads values, so views compare their pointees
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
-                let left_value = answer!(self.value_beneath_forms(origin, left)?);
-                let right_value = answer!(self.value_beneath_forms(origin, right)?);
+                let left_value = self.value_beneath_forms(origin, left)?;
+                let right_value = self.value_beneath_forms(origin, right)?;
                 if !answer!(self.types_may_overlap(origin, left_value, right_value)?) {
                     self.report_invalid_strict_equality(origin, left, right)?;
                 }

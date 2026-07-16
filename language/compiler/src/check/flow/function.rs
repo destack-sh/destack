@@ -70,7 +70,7 @@ impl WalkState<'_, '_> {
 
         // the delegate return becomes the yield expression's own output
         let output =
-            self.open_type_hole(source.into_any(), Widening::Preserve, VariableRole::Regular)?;
+            self.open_type_hole(source.into_any(), Widening::Never, VariableRole::Regular)?;
 
         // the delegate value must implement the generator protocol
         let item = match asynchrony {

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use super::InferMode;
 use crate::check::{
     Answer, BodyState, BoundMode, Cause, CauseId, CheckFailure, CheckOutcome, Constraint,
-    DecisionKind, FlowSite, Origin, Relation, ValueUse, answer,
+    DecisionKind, Dependency, FlowSite, Origin, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -75,7 +75,29 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Checked> {
         match self.attempt_node(site, use_, expectation)? {
             Answer::Ready(checked) => return Ok(checked),
-            Answer::Pending(_) => {}
+            Answer::Pending(blockers) => {
+                // defer judgments blocked on open inference to a fulfillment constraint
+                if !self.check.solver.is_probing()
+                    && blockers
+                        .iter()
+                        .all(|blocker| matches!(blocker, Dependency::Variable(_)))
+                    && let Some(expectation) = expectation
+                    && let Some(ty) = self.node_type_maybe(site.node)
+                    && let Answer::Ready(target) = self.expected_type(expectation.expected)?
+                {
+                    let value_origin = self.check.intern_origin(site.origin());
+                    self.check.push_constraint(Constraint::value(
+                        expectation.relation,
+                        ty,
+                        target,
+                        value_origin,
+                        expectation.cause,
+                        Some(expectation.use_),
+                    ));
+
+                    return Ok(Checked { ty, holds: true });
+                }
+            }
         }
 
         // the node's judgment has no further inference to wait for

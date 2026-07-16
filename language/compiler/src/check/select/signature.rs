@@ -6,7 +6,7 @@ use crate::CompilerResult;
 use crate::check::infer::InferMode;
 use crate::check::{
     Answer, BodyState, BoundMode, CandidateOutcome, Cause, CauseKind, Constraint, Origin, PlaceUse,
-    ReceiverSteps, Relation, TypeSubstitution, ValueUse, answer,
+    ReceiverSteps, Relation, TypeConstraint, TypeSubstitution, ValueUse, answer,
 };
 
 /// Callable signature accepted for an invocation.
@@ -125,6 +125,7 @@ impl SignatureRejection {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl BodyState<'_, '_> {
     /// Return the reduced signature type carried by one callable type.
     pub(in crate::check) fn callable_signature_type(
@@ -412,6 +413,9 @@ impl BodyState<'_, '_> {
             };
             let parameter_type =
                 self.substitute_type(origin.module(), parameter.ty, &substitution)?;
+            // receiver placement resolves relative member parameters
+            let parameter_type =
+                answer!(self.receiver_relative_type(origin, receiver, parameter_type)?);
             argument_parameters.push((index, argument, parameter_type));
         }
 
@@ -447,20 +451,26 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // collect the obligations probes judge now and confirmation queues
+        let (bounds, ret) = answer!(self.signature_bounds(
+            origin,
+            module,
+            source,
+            generic_parameters,
+            type_arguments,
+            function,
+            function_return,
+            expected_return,
+            receiver,
+            &substitution,
+        )?);
+
         // confirmed candidates queue undecided work and accept; expression
         //  arguments are checked by the caller's commit path
         if pass == CandidatePass::Confirm {
-            self.queue_signature_bounds(
-                origin,
-                module,
-                source,
-                generic_parameters,
-                type_arguments,
-                function,
-                function_return,
-                expected_return,
-                &substitution,
-            )?;
+            for bound in bounds.into_iter().chain(ret) {
+                self.push_constraint(Constraint::Type(bound));
+            }
 
             for (_, argument, parameter_type) in plain_arguments {
                 let CallableArgument::Typed { source, ty } = argument else {
@@ -495,77 +505,38 @@ impl BodyState<'_, '_> {
                 function,
                 function_return,
                 &substitution,
+                receiver,
                 receiver_steps,
             );
         }
 
-        // check written generic arguments against their declared bounds
-        if !generic_parameters.is_empty() {
-            for (parameter, argument) in generic_parameters
-                .iter()
-                .copied()
-                .zip(substitution.arguments.iter().copied())
-                .take(type_arguments.len())
-            {
-                let bound = self
-                    .generic_parameter(parameter)
-                    .and_then(|binding| binding.constraint);
-                let Some(bound) = bound else {
-                    continue;
-                };
-                let bound = self.substitute_type(origin.module(), bound, &substitution)?;
-
+        // probing candidates prove their obligations before the arguments
+        for bound in bounds {
+            if !answer!(self.constrain_type(
+                bound.cause,
+                bound.relation,
+                bound.source,
+                bound.target
+            )?) {
                 let source_node = source.into_global(module);
-                let bound_origin = self.origin_at(origin, source_node)?;
-                let bound_cause = self
-                    .check
-                    .intern_cause(Cause::root(bound_origin, CauseKind::Bound { parameter }));
-                if !answer!(self.constrain_type(
-                    bound_cause,
-                    Relation::Satisfies,
-                    argument,
-                    bound
-                )?) {
-                    let rejection =
-                        self.signature_bound_rejection(origin, source_node, argument, bound)?;
-
-                    return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
-                }
-            }
-        }
-
-        // prove template predicates with the completed substitution
-        for predicate in self.template_predicates(function.template) {
-            let left = self.substitute_type(origin.module(), predicate.left, &substitution)?;
-            let right = self.substitute_type(origin.module(), predicate.right, &substitution)?;
-
-            let predicate_cause = self
-                .check
-                .intern_cause(Cause::root(origin, CauseKind::Expression));
-            if !answer!(self.constrain_type(predicate_cause, Relation::Satisfies, left, right)?) {
-                let source_node = source.into_global(module);
-                let rejection = self.signature_bound_rejection(origin, source_node, left, right)?;
+                let rejection = self.signature_bound_rejection(
+                    origin,
+                    source_node,
+                    bound.source,
+                    bound.target,
+                )?;
 
                 return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
             }
         }
 
-        // relate expected returns in the same candidate context
-        if let (Some(return_type), Some(expected_return)) = (function_return, expected_return) {
-            let return_type = self.substitute_type(origin.module(), return_type, &substitution)?;
-            let return_cause = self
-                .check
-                .intern_cause(Cause::root(origin, CauseKind::Return { annotation: None }));
-            if !answer!(self.constrain_type(
-                return_cause,
-                Relation::Assignable,
-                return_type,
-                expected_return
-            )?) {
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(
-                    SignatureRejection::Inapplicable,
-                )));
-            }
+        // an unmet expected return rejects quietly
+        if let Some(ret) = ret
+            && !answer!(self.constrain_type(ret.cause, ret.relation, ret.source, ret.target)?)
+        {
+            return Ok(Answer::Ready(CandidateOutcome::Rejected(
+                SignatureRejection::Inapplicable,
+            )));
         }
 
         // match arguments against substituted parameter types
@@ -622,12 +593,13 @@ impl BodyState<'_, '_> {
             function,
             function_return,
             &substitution,
+            receiver,
             receiver_steps,
         )
     }
 
-    /// Queue one confirmed candidate's bound and return relations.
-    fn queue_signature_bounds(
+    /// Collect the bound and predicate obligations plus the expected-return flow.
+    fn signature_bounds(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -637,8 +609,11 @@ impl BodyState<'_, '_> {
         function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
         expected_return: Option<dir::GlobalTypeId>,
+        receiver: Option<dir::GlobalTypeId>,
         substitution: &TypeSubstitution,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<(SmallVec<[TypeConstraint; 4]>, Option<TypeConstraint>)>> {
+        let mut bounds = SmallVec::new();
+
         // written generic arguments verify against their declared bounds
         for (parameter, argument) in generic_parameters
             .iter()
@@ -653,18 +628,18 @@ impl BodyState<'_, '_> {
                 continue;
             };
             let bound = self.substitute_type(origin.module(), bound, substitution)?;
-
             let source_node = source.into_global(module);
             let bound_origin = self.origin_at(origin, source_node)?;
-            let bound_cause = self
+            let cause = self
                 .check
                 .intern_cause(Cause::root(bound_origin, CauseKind::Bound { parameter }));
-            self.push_constraint(Constraint::r#type(
-                Relation::Satisfies,
-                argument,
-                bound,
-                bound_cause,
-            ));
+            bounds.push(TypeConstraint {
+                relation: Relation::Satisfies,
+                source: argument,
+                target: bound,
+                cause,
+                invalidated_application: None,
+            });
         }
 
         // template predicates verify with the completed substitution
@@ -674,24 +649,52 @@ impl BodyState<'_, '_> {
             let cause = self
                 .check
                 .intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_constraint(Constraint::r#type(Relation::Satisfies, left, right, cause));
+            bounds.push(TypeConstraint {
+                relation: Relation::Satisfies,
+                source: left,
+                target: right,
+                cause,
+                invalidated_application: None,
+            });
         }
 
         // the substituted return flows into the expected return
+        let mut ret = None;
         if let (Some(return_type), Some(expected_return)) = (function_return, expected_return) {
             let return_type = self.substitute_type(origin.module(), return_type, substitution)?;
+            // receiver placement resolves relative member returns
+            let return_type =
+                answer!(self.receiver_relative_type(origin, receiver, return_type)?);
             let cause = self
                 .check
                 .intern_cause(Cause::root(origin, CauseKind::Return { annotation: None }));
-            self.push_constraint(Constraint::r#type(
-                Relation::Assignable,
-                return_type,
-                expected_return,
+            ret = Some(TypeConstraint {
+                relation: Relation::Assignable,
+                source: return_type,
+                target: expected_return,
                 cause,
-            ));
+                invalidated_application: None,
+            });
         }
 
-        Ok(())
+        Ok(Answer::Ready((bounds, ret)))
+    }
+
+    /// Resolve one relative member type in the receiver's concrete place.
+    fn receiver_relative_type(
+        &mut self,
+        origin: Origin,
+        receiver: Option<dir::GlobalTypeId>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let Some(receiver) = receiver else {
+            return Ok(Answer::Ready(ty));
+        };
+        let Some(place) = answer!(self.receiver_projected_place(origin, receiver)?) else {
+            return Ok(Answer::Ready(ty));
+        };
+
+        Ok(Answer::Ready(self.place_relative_type(origin, place, ty)?))
     }
 
     /// Build the accepted payload for one matched signature.
@@ -703,6 +706,7 @@ impl BodyState<'_, '_> {
         function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
         substitution: &TypeSubstitution,
+        receiver: Option<dir::GlobalTypeId>,
         receiver_steps: Option<ReceiverSteps>,
     ) -> CompilerResult<Answer<CandidateOutcome<SignatureSelection, SignatureRejection>>> {
         // resolve the substituted return type
@@ -712,12 +716,21 @@ impl BodyState<'_, '_> {
             }
             None => self.intern_type(module, dir::Type::Void)?,
         };
+        let return_type = match self.receiver_relative_type(origin, receiver, return_type)? {
+            Answer::Ready(return_type) => return_type,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
         let parameters = self
             .signature_parameters(signature_module, function.parameters)?
             .to_vec()
             .iter()
             .map(|parameter| {
                 let ty = self.substitute_type(origin.module(), parameter.ty, substitution)?;
+                let ty = match self.receiver_relative_type(origin, receiver, ty)? {
+                    Answer::Ready(ty) => ty,
+                    // undecided placement settles before selection accepts
+                    Answer::Pending(_) => ty,
+                };
                 let ty = self.settled_root(ty)?;
 
                 Ok(dir::FunctionParameterType {

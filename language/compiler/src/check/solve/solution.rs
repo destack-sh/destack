@@ -288,9 +288,9 @@ impl CheckState<'_> {
                 .iter()
                 .any(|bound| bound.ty == *candidate && bound.relation == Relation::Equal);
             let widens = match widening {
-                Widening::Widen => flowed && !pinned,
-                Widening::WidenWrites => written,
-                Widening::Preserve => false,
+                Widening::Always => flowed && !pinned,
+                Widening::WhenWritten => written,
+                Widening::Never => false,
             };
             if widens {
                 *candidate = self.widen_type(*candidate)?;
@@ -598,8 +598,8 @@ impl CheckState<'_> {
             if target_role == VariableRole::Regular {
                 self.solver.set_variable_role(target, role)?;
             }
-            // lifetime roles must agree; differing instantiations keep the representative's
-            else if matches!(role, VariableRole::Lifetime { .. }) && target_role != role {
+            // require specialized roles to agree, keeping the representative's instantiation
+            else if matches!(role, VariableRole::Memory { .. }) && target_role != role {
                 return Err(CompilerError::Internal {
                     message: format!(
                         "check variables {variable:?} and {target:?} have conflicting roles: \
