@@ -207,7 +207,7 @@ impl DirSnapshotBuilder<'_> {
         if parameter.is_const {
             label = format!("const {label}");
         }
-        if parameter.is_comptime {
+        if parameter.is_comptime() {
             label = format!("comptime {label}");
         }
         if let Some(variance) = parameter.variance {

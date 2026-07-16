@@ -403,15 +403,13 @@ impl DirSnapshotBuilder<'_> {
         let value = match literal {
             dir::MemoryLiteral::Access(access) => DirSnapshotBuilder::variant_label(access),
             dir::MemoryLiteral::Space(space) => DirSnapshotBuilder::variant_label(space),
-            dir::MemoryLiteral::Place(dir::Place::Ambient) => "ambient".to_string(),
+            dir::MemoryLiteral::Place(dir::Place::Relative) => "relative".to_string(),
             dir::MemoryLiteral::Place(dir::Place::Space(space)) => {
                 DirSnapshotBuilder::variant_label(space)
             }
+            dir::MemoryLiteral::Ownership(ownership) => ownership.text().to_string(),
             dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => "static".to_string(),
             dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => "frame".to_string(),
-            dir::MemoryLiteral::Lifetime(dir::Lifetime::Symbol(symbol)) => {
-                return format!("lifetime#{}", self.symbol_path_label(*symbol));
-            }
         };
 
         format!("{value:?}")
