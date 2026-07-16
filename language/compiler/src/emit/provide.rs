@@ -48,7 +48,7 @@ impl Compiler {
     pub(crate) fn collect_object(
         &self,
         module: ModuleId,
-        profile: ProfileId,
+        _profile: ProfileId,
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
@@ -62,16 +62,9 @@ impl Compiler {
                 })?;
         let mut dependencies = ArtifactDependencySet::default();
 
-        // declare the MIR tables used by native emit
-        if target_config.uses_native_emit_pipeline() {
-            dependencies.require(ArtifactKey::mir_optimized(module, profile, target));
-            dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
-        }
-        // reject unsupported object pipelines
-        else {
-            let input = self.object_input(module, profile, &target, &target_config)?;
-            dependencies.require(input);
-        }
+        // resolve the object input
+        let input = self.object_input(module, &target, &target_config)?;
+        dependencies.require(input);
 
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
@@ -176,16 +169,7 @@ impl Compiler {
         }
 
         // emit object from the declared input
-        let artifacts = self.artifact_reader(context.revision());
-        let output = self.emit_target_object(
-            module,
-            profile,
-            &target,
-            &target_config,
-            &target_name,
-            context,
-            &artifacts,
-        )?;
+        let output = self.emit_target_object(module, &target_config, &target_name)?;
 
         Ok(ArtifactPayload::Object(Arc::new(output)))
     }

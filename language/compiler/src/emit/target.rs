@@ -34,32 +34,16 @@ impl Compiler {
     pub(super) fn object_input(
         &self,
         module_id: ModuleId,
-        _profile: ProfileId,
         target_id: &TargetId,
         target: &Target,
     ) -> CompilerResult<ArtifactKey> {
-        // native emit reads optimized MIR
-        #[cfg(feature = "native")]
-        {
-            if target.uses_native_emit_pipeline() {
-                return Ok(ArtifactKey::mir_optimized(module_id, _profile, *target_id));
+        // reject unavailable native emit
+        if target.uses_native_emit_pipeline() {
+            return Err(EmitError::NativeEmitUnavailable {
+                anchor: module_id.into(),
+                module: module_id,
             }
-        }
-
-        // disabled native emit
-        #[cfg(not(feature = "native"))]
-        {
-            if target.uses_native_emit_pipeline() {
-                return Err(EmitError::Internal {
-                    anchor: (module_id).into(),
-                    module: module_id,
-                    message: format!(
-                        "native emit is disabled: cannot emit object '{:?}' for target '{target_id}'",
-                        target.emit
-                    ),
-                }
-                .into());
-            }
+            .into());
         }
 
         Err(EmitError::Internal {
@@ -114,37 +98,16 @@ impl Compiler {
     pub(super) fn emit_target_object(
         &self,
         module_id: ModuleId,
-        _profile: ProfileId,
-        _target_id: &TargetId,
         target: &Target,
         target_name: &str,
-        _context: &dyn ProviderContext,
-        _artifacts: &ArtifactReader<'_>,
     ) -> CompilerResult<Object> {
         // native emit
-        #[cfg(feature = "native")]
-        {
-            if target.uses_native_emit_pipeline() {
-                return self.emit_object(
-                    module_id, target, _target_id, _profile, _context, _artifacts,
-                );
+        if target.uses_native_emit_pipeline() {
+            return Err(EmitError::NativeEmitUnavailable {
+                anchor: module_id.into(),
+                module: module_id,
             }
-        }
-
-        // disabled native emit
-        #[cfg(not(feature = "native"))]
-        {
-            if target.uses_native_emit_pipeline() {
-                return Err(EmitError::Internal {
-                    anchor: (module_id).into(),
-                    module: module_id,
-                    message: format!(
-                        "native emit is disabled: cannot emit object '{:?}' for target '{}'",
-                        target.emit, target_name
-                    ),
-                }
-                .into());
-            }
+            .into());
         }
 
         Err(EmitError::Internal {

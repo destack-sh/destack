@@ -15,7 +15,6 @@ doctest = false
 # language
 destack_artifact = { workspace = true }
 destack_artifact_macros = { workspace = true }
-destack_codegen_native = { workspace = true, optional = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_program = { workspace = true }
@@ -59,7 +58,7 @@ tracing-subscriber = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["dep:destack_codegen_native"]
+native = []
 deadlock-detection = ["parking_lot/deadlock_detection"]
 
 [[bench]]

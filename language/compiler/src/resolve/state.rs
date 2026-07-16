@@ -299,7 +299,7 @@ impl<'a> ResolveState<'a> {
         let exported = self
             .exports
             .exported_module(&self.artifacts, target_module)?;
-        if exported.locals.iter().any(|local| *local == name) {
+        if exported.locals.contains(&name) {
             let error = ResolveError::NotExported {
                 anchor,
                 name: name.clone(),

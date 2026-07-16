@@ -25,6 +25,13 @@ pub enum EmitError {
         name: String,
     },
 
+    /// Native code generation is unavailable.
+    #[diagnostic(code = "EG102", message = "native code generation is unavailable")]
+    NativeEmitUnavailable {
+        anchor: DiagnosticAnchor,
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 2xx: Type issues
     // -------------------------------------------------------------------------

@@ -346,18 +346,17 @@ impl ResolveState<'_> {
         tree: &dir::Tree,
         expression: dir::LocalNodeId<dir::Expression>,
     ) {
-        match tree.get(expression) {
-            dir::Expression::Call { arguments, .. } => {
-                for argument in arguments {
-                    let Some(value) = tree.get(*argument).value() else {
-                        continue;
-                    };
-                    let expression = tree.get(value);
+        let dir::Expression::Call { arguments, .. } = tree.get(expression) else {
+            return;
+        };
 
-                    self.visit_expression(tree, value, expression);
-                }
-            }
-            _ => {}
+        for argument in arguments {
+            let Some(value) = tree.get(*argument).value() else {
+                continue;
+            };
+            let expression = tree.get(value);
+
+            self.visit_expression(tree, value, expression);
         }
     }
 }
