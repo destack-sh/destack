@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ExportKind, Expression, FunctionSignature, GenericParameter, Keyword, LocalNodeId, Member,
-    Mutability, Name, Node, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression,
+    Mutability, Name, Node, NodeType, ScopeKind, Space, SymbolKind, SymbolRole, TypeExpression,
     TypeMember, WhereClause,
 };
 
@@ -22,6 +22,14 @@ impl PlaceModifier {
         match self {
             Self::Local => Keyword::Local,
             Self::Shared => Keyword::Shared,
+        }
+    }
+
+    /// Return the concrete memory space selected by this modifier.
+    pub const fn space(self) -> Space {
+        match self {
+            Self::Local => Space::Local,
+            Self::Shared => Space::Shared,
         }
     }
 }

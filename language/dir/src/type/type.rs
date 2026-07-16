@@ -8,7 +8,7 @@ use crate::{
     ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
 };
 
-use super::{FloatType, PrimitiveType};
+use super::{FloatType, MemoryParameter, PrimitiveType};
 
 /// A canonical solved type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -194,6 +194,33 @@ impl Type {
         matches!(
             self,
             Self::Undefined | Self::Literal(ScalarLiteral::Undefined)
+        )
+    }
+
+    /// Return whether runtime values of this type can carry memory placement.
+    pub fn is_placeable(&self) -> bool {
+        !matches!(
+            self,
+            Self::Error
+                | Self::Never
+                | Self::Void
+                | Self::Null
+                | Self::Undefined
+                | Self::Static(_)
+                | Self::Intrinsic
+                | Self::FunctionSignature(_)
+        )
+    }
+
+    /// Return whether this type can change shape after solving or substitution.
+    pub fn is_open(&self) -> bool {
+        matches!(
+            self,
+            Self::Parameter(_)
+                | Self::Variable(_)
+                | Self::This
+                | Self::Member(_)
+                | Self::Operation(_)
         )
     }
 
@@ -565,19 +592,43 @@ impl TypeListId {
 pub enum MemoryLiteral {
     /// Memory access singleton, like `"readonly"` or `"exclusive"`.
     Access(Access),
+    /// Ownership singleton, like `"managed"` or `"owned"`.
+    Ownership(Ownership),
     /// Storage space singleton, like `"local"` or `"shared"`.
     Space(Space),
-    /// Placement singleton, like `"ambient"` or a concrete space.
+    /// Placement singleton, like `"relative"` or a concrete space.
     Place(Place),
     /// Lifetime singleton, like `"static"` or a lifetime parameter.
     Lifetime(Lifetime),
 }
 
 impl MemoryLiteral {
-    /// Return the language item naming this literal's singleton domain.
-    pub fn domain_language_item(&self) -> LanguageItem {
+    /// Parse one canonical singleton in the requested memory domain.
+    pub fn from_text(kind: MemoryParameter, text: &str) -> Option<Self> {
+        match (kind, text) {
+            (MemoryParameter::Access, "readonly") => Some(Self::Access(Access::Readonly)),
+            (MemoryParameter::Access, "mutable") => Some(Self::Access(Access::Mutable)),
+            (MemoryParameter::Access, "exclusive") => Some(Self::Access(Access::Exclusive)),
+            (MemoryParameter::Ownership, "managed") => Some(Self::Ownership(Ownership::Managed)),
+            (MemoryParameter::Ownership, "owned") => Some(Self::Ownership(Ownership::Owned)),
+            (MemoryParameter::Ownership, "borrowed") => Some(Self::Ownership(Ownership::Borrowed)),
+            (MemoryParameter::Ownership, "raw") => Some(Self::Ownership(Ownership::Raw)),
+            (MemoryParameter::Place, "relative") => Some(Self::Place(Place::Relative)),
+            (MemoryParameter::Place, "local") => Some(Self::Place(Place::Space(Space::Local))),
+            (MemoryParameter::Place, "shared") => Some(Self::Place(Place::Space(Space::Shared))),
+            (MemoryParameter::Space, "local") => Some(Self::Space(Space::Local)),
+            (MemoryParameter::Space, "shared") => Some(Self::Space(Space::Shared)),
+            (MemoryParameter::Lifetime, "static") => Some(Self::Lifetime(Lifetime::Static)),
+            (MemoryParameter::Lifetime, "frame") => Some(Self::Lifetime(Lifetime::Frame)),
+            _ => None,
+        }
+    }
+
+    /// Return the language item naming this literal's singleton kind.
+    pub fn kind_language_item(&self) -> LanguageItem {
         match self {
             Self::Access(_) => LanguageItem::Access,
+            Self::Ownership(_) => LanguageItem::Ownership,
             Self::Space(_) => LanguageItem::Space,
             Self::Place(_) => LanguageItem::Place,
             Self::Lifetime(_) => LanguageItem::Lifetime,
@@ -590,11 +641,10 @@ impl MemoryLiteral {
             Self::Access(Access::Readonly) => "readonly",
             Self::Access(Access::Mutable) => "mutable",
             Self::Access(Access::Exclusive) => "exclusive",
+            Self::Ownership(ownership) => ownership.text(),
             Self::Space(Space::Local) | Self::Place(Place::Space(Space::Local)) => "local",
             Self::Space(Space::Shared) | Self::Place(Place::Space(Space::Shared)) => "shared",
-            Self::Space(Space::Static) | Self::Place(Place::Space(Space::Static)) => "static",
-            Self::Space(Space::Frame) | Self::Place(Place::Space(Space::Frame)) => "frame",
-            Self::Place(Place::Ambient) => "ambient",
+            Self::Place(Place::Relative) => "relative",
             Self::Lifetime(Lifetime::Frame) => "frame",
             Self::Lifetime(_) => "static",
         }
@@ -612,6 +662,24 @@ pub enum Access {
     Exclusive,
 }
 
+impl Access {
+    /// Return whether this access grants one requested access mode.
+    pub fn grants(self, requested: Self) -> bool {
+        self == requested
+            || self == Self::Exclusive
+            || (self == Self::Mutable && requested == Self::Readonly)
+    }
+
+    /// Return the source spelling of this access.
+    pub const fn text(self) -> &'static str {
+        match self {
+            Self::Readonly => "readonly",
+            Self::Mutable => "mutable",
+            Self::Exclusive => "exclusive",
+        }
+    }
+}
+
 /// Normalized storage space value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Space {
@@ -619,17 +687,23 @@ pub enum Space {
     Local,
     /// Shared storage.
     Shared,
-    /// Static storage.
-    Static,
-    /// Frame storage.
-    Frame,
+}
+
+impl Space {
+    /// Return the source spelling of this space.
+    pub const fn text(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Shared => "shared",
+        }
+    }
 }
 
 /// Normalized memory placement value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Place {
-    /// Ambient placement.
-    Ambient,
+    /// Placement relative to the containing runtime value.
+    Relative,
     /// Concrete storage space.
     Space(Space),
 }
@@ -641,8 +715,6 @@ pub enum Lifetime {
     Static,
     /// The enclosing frame's lifetime.
     Frame,
-    /// Symbolic lifetime parameter or associated constant.
-    Symbol(GlobalSymbolId),
 }
 
 /// One written reference to a type declaration before application.
@@ -737,6 +809,31 @@ pub struct FormType {
 
 /// Canonical memory or access form constructor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Ownership {
+    /// Automatically managed reference ownership.
+    Managed,
+    /// Owned value ownership.
+    Owned,
+    /// Borrowed view ownership.
+    Borrowed,
+    /// Raw pointer ownership.
+    Raw,
+}
+
+impl Ownership {
+    /// Return the canonical singleton spelling.
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::Managed => "managed",
+            Self::Owned => "owned",
+            Self::Borrowed => "borrowed",
+            Self::Raw => "raw",
+        }
+    }
+}
+
+/// Canonical memory or access form constructor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Form {
     /// Automatically managed runtime value, the unqualified `User`.
     Managed,
@@ -757,6 +854,17 @@ pub enum Form {
 }
 
 impl Form {
+    /// Return this form's ownership constructor, when it carries one.
+    pub fn ownership(self) -> Option<Ownership> {
+        match self {
+            Self::Managed => Some(Ownership::Managed),
+            Self::Owned => Some(Ownership::Owned),
+            Self::Borrowed(_) => Some(Ownership::Borrowed),
+            Self::Raw => Some(Ownership::Raw),
+            Self::Placed { .. } | Self::Readonly => None,
+        }
+    }
+
     /// Return whether two forms share one constructor.
     pub fn same_constructor(&self, other: &Form) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)

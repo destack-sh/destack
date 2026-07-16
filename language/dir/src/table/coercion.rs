@@ -296,6 +296,14 @@ impl CoercionSegment {
             .map(|(node_id, coercion)| (*node_id, *coercion))
     }
 
+    /// Map every type id embedded in this segment.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        for coercion in self.coercions.values_mut() {
+            coercion.source = map(coercion.source);
+            coercion.target = map(coercion.target);
+        }
+    }
+
     /// Return whether this segment has no coercions.
     pub fn is_empty(&self) -> bool {
         self.coercions.is_empty()

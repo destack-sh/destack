@@ -3,7 +3,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StringId, VarianceModifier, WhereRelation,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, StringId, VarianceModifier,
+    WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -119,8 +120,59 @@ impl From<GlobalGenericParameterId> for LocalGenericParameterId {
 pub enum GenericParameterOrigin {
     /// The parameter was written in source, like the `T` in `<T extends Clone>`.
     Explicit,
-    /// The parameter was induced from an elided lifetime, like `L0`.
-    InducedLifetime,
+    /// The parameter was induced from an elided type component, like `L0` or `S0`.
+    Induced,
+}
+
+/// Representation used to solve one generic parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum GenericParameterKind {
+    /// A regular type parameter.
+    Type,
+    /// A regular static value parameter.
+    Value,
+    /// A static value parameter of one well-known memory kind.
+    Memory(MemoryParameter),
+}
+
+/// Well-known memory kind quantified by a comptime parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum MemoryParameter {
+    /// Borrow access.
+    Access,
+    /// Ownership form.
+    Ownership,
+    /// Relative or concrete placement.
+    Place,
+    /// Concrete storage space.
+    Space,
+    /// Borrow lifetime.
+    Lifetime,
+}
+
+impl MemoryParameter {
+    /// Return the language item declaring this memory parameter kind.
+    pub const fn language_item(self) -> LanguageItem {
+        match self {
+            Self::Access => LanguageItem::Access,
+            Self::Ownership => LanguageItem::Ownership,
+            Self::Place => LanguageItem::Place,
+            Self::Space => LanguageItem::Space,
+            Self::Lifetime => LanguageItem::Lifetime,
+        }
+    }
+
+    /// Return the memory parameter kind named by one language item.
+    pub fn from_language_item(item: LanguageItem) -> Option<Self> {
+        match item {
+            LanguageItem::Access => Some(Self::Access),
+            LanguageItem::Ownership => Some(Self::Ownership),
+            LanguageItem::Place => Some(Self::Place),
+            LanguageItem::Space => Some(Self::Space),
+            LanguageItem::Lifetime => Some(Self::Lifetime),
+            _ => None,
+        }
+    }
 }
 
 /// User-visible key of one generic parameter.
@@ -222,18 +274,41 @@ pub struct GenericParameterBinding {
     pub default: Option<GlobalTypeId>,
     /// The parameter origin.
     pub origin: GenericParameterOrigin,
+    /// The representation used to solve the parameter.
+    pub kind: GenericParameterKind,
     /// Whether the parameter captures remaining arguments.
     pub is_variadic: bool,
     /// Whether type inference preserves fresh argument precision.
     pub is_const: bool,
-    /// Whether arguments must solve to singleton types.
-    pub is_comptime: bool,
 }
 
 impl GenericParameterBinding {
-    /// Return whether this hidden parameter should print in annotated generic headers.
+    /// Return whether arguments must solve to singleton values.
+    pub fn is_comptime(&self) -> bool {
+        !matches!(self.kind, GenericParameterKind::Type)
+    }
+
+    /// Return the parameter's well-known memory kind.
+    pub fn memory_parameter(&self) -> Option<MemoryParameter> {
+        match self.kind {
+            GenericParameterKind::Memory(parameter) => Some(parameter),
+            GenericParameterKind::Type | GenericParameterKind::Value => None,
+        }
+    }
+
+    /// Return the kind of an induced memory parameter.
+    pub fn induced_memory_parameter(&self) -> Option<MemoryParameter> {
+        match (self.origin, self.kind) {
+            (GenericParameterOrigin::Induced, GenericParameterKind::Memory(parameter)) => {
+                Some(parameter)
+            }
+            _ => None,
+        }
+    }
+
+    /// Return whether this parameter is an induced elided lifetime.
     pub fn is_induced_lifetime_parameter(&self) -> bool {
-        matches!(self.origin, GenericParameterOrigin::InducedLifetime)
+        self.induced_memory_parameter() == Some(MemoryParameter::Lifetime)
     }
 }
 

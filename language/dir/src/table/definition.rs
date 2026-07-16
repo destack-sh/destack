@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 
 use crate::{
     FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
-    LocalGenericTemplateId, MemberSlot, MethodAbstraction, SegmentView, StaticKey,
+    LocalGenericTemplateId, MemberSlot, MethodAbstraction, SegmentView, Space, StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -310,6 +310,32 @@ pub enum Definition {
 }
 
 impl Definition {
+    /// Return this nominal declaration's concrete space.
+    pub fn space(&self) -> Option<Space> {
+        match self {
+            Self::Struct(definition) => definition.space,
+            Self::Class(definition) => definition.space,
+            Self::Interface(definition) => definition.space,
+            Self::Enum(definition) => definition.space,
+            Self::Newtype(definition) => definition.space,
+            Self::TypeAlias(_) | Self::Extension(_) => None,
+        }
+    }
+
+    /// Set the effective space of this nominal declaration.
+    pub fn set_space(&mut self, space: Space) -> bool {
+        match self {
+            Self::Struct(definition) => definition.space = Some(space),
+            Self::Class(definition) => definition.space = Some(space),
+            Self::Interface(definition) => definition.space = Some(space),
+            Self::Enum(definition) => definition.space = Some(space),
+            Self::Newtype(definition) => definition.space = Some(space),
+            Self::TypeAlias(_) | Self::Extension(_) => return false,
+        }
+
+        true
+    }
+
     /// Return whether this definition has nominal identity.
     pub fn is_nominal(&self) -> bool {
         match self {
@@ -407,6 +433,8 @@ pub struct TypeAliasDefinition {
 /// Checked declaration data for one nominal struct.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StructDefinition {
+    /// The intrinsic instance space, or relative when absent.
+    pub space: Option<Space>,
     /// The generic template declared by the struct.
     pub template: Option<LocalGenericTemplateId>,
     /// The implemented interfaces.
@@ -418,6 +446,8 @@ pub struct StructDefinition {
 /// Checked declaration data for one nominal class.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ClassDefinition {
+    /// The intrinsic instance space, or relative when absent.
+    pub space: Option<Space>,
     /// The generic template declared by the class.
     pub template: Option<LocalGenericTemplateId>,
     /// Whether the class is abstract.
@@ -526,6 +556,8 @@ impl ClassConstructor {
 /// Checked declaration data for one nominal interface.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct InterfaceDefinition {
+    /// The intrinsic instance space, or relative when absent.
+    pub space: Option<Space>,
     /// The generic template declared by the interface.
     pub template: Option<LocalGenericTemplateId>,
     /// Whether the interface has nominal identity.
@@ -539,6 +571,8 @@ pub struct InterfaceDefinition {
 /// Checked declaration data for one nominal enum.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EnumDefinition {
+    /// The intrinsic instance space, or relative when absent.
+    pub space: Option<Space>,
     /// The generic template declared by the enum.
     pub template: Option<LocalGenericTemplateId>,
     /// The implemented interfaces.
@@ -550,6 +584,8 @@ pub struct EnumDefinition {
 /// Checked declaration data for one nominal type alias.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct NewtypeDefinition {
+    /// The intrinsic instance space, or relative when absent.
+    pub space: Option<Space>,
     /// The generic template declared by the newtype.
     pub template: Option<LocalGenericTemplateId>,
     /// The nominal backing type.
