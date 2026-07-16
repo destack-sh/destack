@@ -614,7 +614,8 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<(SmallVec<[TypeConstraint; 4]>, Option<TypeConstraint>)>> {
         let mut bounds = SmallVec::new();
 
-        // written generic arguments verify against their declared bounds
+        // written generic arguments verify against their declared bounds,
+        //  while inferred arguments discharge theirs when their variable solves
         for (parameter, argument) in generic_parameters
             .iter()
             .copied()
@@ -720,26 +721,23 @@ impl BodyState<'_, '_> {
             Answer::Ready(return_type) => return_type,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
-        let parameters = self
+        let mut parameters = SmallVec::<[_; 4]>::new();
+        for parameter in self
             .signature_parameters(signature_module, function.parameters)?
             .to_vec()
-            .iter()
-            .map(|parameter| {
-                let ty = self.substitute_type(origin.module(), parameter.ty, substitution)?;
-                let ty = match self.receiver_relative_type(origin, receiver, ty)? {
-                    Answer::Ready(ty) => ty,
-                    // undecided placement settles before selection accepts
-                    Answer::Pending(_) => ty,
-                };
-                let ty = self.settled_root(ty)?;
-
-                Ok(dir::FunctionParameterType {
-                    ty,
-                    is_optional: parameter.is_optional,
-                    is_rest: parameter.is_rest,
-                })
-            })
-            .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
+        {
+            let ty = self.substitute_type(origin.module(), parameter.ty, substitution)?;
+            let ty = match self.receiver_relative_type(origin, receiver, ty)? {
+                Answer::Ready(ty) => ty,
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            };
+            let ty = self.settled_root(ty)?;
+            parameters.push(dir::FunctionParameterType {
+                ty,
+                is_optional: parameter.is_optional,
+                is_rest: parameter.is_rest,
+            });
+        }
         let arguments =
             self.generic_argument_bindings(&substitution.parameters, &substitution.arguments)?;
         let function_type = self.instantiate_signature_type(

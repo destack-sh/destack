@@ -39,19 +39,12 @@ impl CheckState<'_> {
         &self,
         origin: Origin,
     ) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
-        let module = origin.module();
-        let anchor = match origin {
-            Origin::Node(node, _) => self.diagnostic_anchor(module, node.local_id),
-            Origin::Symbol(symbol) => {
-                let source = self
-                    .module(symbol.module_id)
-                    .symbol_declaration_node(symbol.local_id)?;
-
-                self.diagnostic_anchor(module, source)
-            }
+        let source = match origin {
+            Origin::Node(node, _) => node,
+            Origin::Symbol(symbol) => self.symbol_source(symbol)?,
         };
 
-        Ok((module, anchor))
+        Ok(self.source_anchor(source))
     }
 
     /// Return one check origin's whole authored node anchor.
