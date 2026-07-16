@@ -76,6 +76,13 @@ enum Undo {
         /// The previous default.
         previous: Option<dir::GlobalTypeId>,
     },
+    /// Undo one declared parameter bound.
+    ParameterBound {
+        /// The bounded variable.
+        id: dir::TypeVariableId,
+        /// The previous parameter bound.
+        previous: Option<(dir::GlobalTypeId, CauseId)>,
+    },
     /// Undo one constraint entry mutation.
     Constraint {
         /// The changed constraint.
@@ -229,6 +236,20 @@ impl Solver {
             previous: self.variables.variable_default(id),
         });
         self.variables.set_default(id, default);
+    }
+
+    /// Record the declared parameter bound one variable discharges when solved.
+    pub(in crate::check) fn set_variable_parameter_bound(
+        &mut self,
+        id: dir::TypeVariableId,
+        bound: dir::GlobalTypeId,
+        cause: CauseId,
+    ) {
+        self.record_undo(Undo::ParameterBound {
+            id,
+            previous: self.variables.parameter_bound(id),
+        });
+        self.variables.set_parameter_bound(id, bound, cause);
     }
 
     /// Return one variable.
@@ -432,6 +453,10 @@ impl Solver {
             Undo::Default { id, previous } => match previous {
                 Some(previous) => self.variables.set_default(id, previous),
                 None => self.variables.remove_default(id),
+            },
+            Undo::ParameterBound { id, previous } => match previous {
+                Some((bound, cause)) => self.variables.set_parameter_bound(id, bound, cause),
+                None => self.variables.remove_parameter_bound(id),
             },
             Undo::Constraint { id, previous } => {
                 self.constraints.set_state(id, previous);

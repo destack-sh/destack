@@ -5,7 +5,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, GenericParameterId, GenericTemplateId, Origin, VariableRole, Widening,
+    Cause, CauseKind, CheckState, GenericParameterId, GenericTemplateId, Origin, VariableRole,
+    Widening,
 };
 
 /// One positional generic substitution.
@@ -169,9 +170,19 @@ impl CheckState<'_> {
                 let default = self.substitute_type(origin.module(), default, &substitution)?;
                 self.set_variable_default(variable, default)?;
             }
+
             let argument = self.variable_type(variable)?;
             substitution.parameters.push(parameter);
             substitution.arguments.push(argument);
+
+            // declared bounds substitute self-references and discharge on solutions
+            if binding.memory_parameter().is_none()
+                && let Some(bound) = binding.constraint
+            {
+                let bound = self.substitute_type(origin.module(), bound, &substitution)?;
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
+                self.set_variable_parameter_bound(variable, bound, cause)?;
+            }
         }
 
         Ok(Some(substitution))

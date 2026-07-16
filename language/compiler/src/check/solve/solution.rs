@@ -22,6 +22,20 @@ impl CheckState<'_> {
         variable
     }
 
+    /// Record the declared parameter bound one variable discharges when solved.
+    pub(in crate::check) fn set_variable_parameter_bound(
+        &mut self,
+        variable: dir::TypeVariableId,
+        bound: dir::GlobalTypeId,
+        cause: CauseId,
+    ) -> CompilerResult<()> {
+        let representative = self.solver.representative(variable)?;
+        self.solver
+            .set_variable_parameter_bound(representative, bound, cause);
+
+        Ok(())
+    }
+
     /// Record the declared default completing one variable when inference stays dry.
     pub(in crate::check) fn set_variable_default(
         &mut self,
@@ -497,6 +511,21 @@ impl CheckState<'_> {
         }
         for bound in &bounds.upper {
             self.discharge_bound(BoundSide::Upper, bound, solution)?;
+        }
+
+        // the declared parameter bound discharges against the committed solution
+        if let Some((bound, cause)) = self.solver.variables.parameter_bound(representative) {
+            match self.constrain_type(cause, Relation::Satisfies, solution, bound)? {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) | Answer::Pending(_) => {
+                    self.push_constraint(Constraint::r#type(
+                        Relation::Satisfies,
+                        solution,
+                        bound,
+                        cause,
+                    ));
+                }
+            }
         }
 
         Ok(())

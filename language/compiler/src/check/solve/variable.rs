@@ -2,7 +2,9 @@ use destack_core::FxIndexMap;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{BoundEntry, BoundIter, BoundList, BoundSide, EMPTY, OriginId, TypeBound};
+use crate::check::{
+    BoundEntry, BoundIter, BoundList, BoundSide, CauseId, EMPTY, OriginId, TypeBound,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// Special behavior attached to one inference variable.
@@ -78,6 +80,8 @@ pub(in crate::check) struct VariableTable {
     bounds: Vec<BoundEntry>,
     /// Declared defaults completing dry variables, present on few variables.
     defaults: FxIndexMap<dir::TypeVariableId, dir::GlobalTypeId>,
+    /// Declared parameter bounds discharged on solutions, present on few variables.
+    parameter_bounds: FxIndexMap<dir::TypeVariableId, (dir::GlobalTypeId, CauseId)>,
 }
 
 impl VariableTable {
@@ -292,6 +296,29 @@ impl VariableTable {
     /// Remove the declared default of one variable, for probe rollback.
     pub(in crate::check) fn remove_default(&mut self, id: dir::TypeVariableId) {
         self.defaults.swap_remove(&id);
+    }
+
+    /// Record the declared parameter bound one variable discharges when solved.
+    pub(in crate::check) fn set_parameter_bound(
+        &mut self,
+        id: dir::TypeVariableId,
+        bound: dir::GlobalTypeId,
+        cause: CauseId,
+    ) {
+        self.parameter_bounds.insert(id, (bound, cause));
+    }
+
+    /// Return the declared parameter bound of one variable.
+    pub(in crate::check) fn parameter_bound(
+        &self,
+        id: dir::TypeVariableId,
+    ) -> Option<(dir::GlobalTypeId, CauseId)> {
+        self.parameter_bounds.get(&id).copied()
+    }
+
+    /// Remove the declared parameter bound of one variable, for probe rollback.
+    pub(in crate::check) fn remove_parameter_bound(&mut self, id: dir::TypeVariableId) {
+        self.parameter_bounds.swap_remove(&id);
     }
 
     /// Return the total number of allocated variables.

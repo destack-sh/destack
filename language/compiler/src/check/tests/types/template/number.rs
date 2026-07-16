@@ -238,7 +238,9 @@ parse("128");
 /// @generic.instance id=parse<128> template=parse arguments=(128)
 "#,
         r#"
-
+/// @diagnostic.error code=EC201 message="type '128' does not satisfy 'int8'"
+/// @diagnostic.label line=4 column=1 span="parse(\"128\")" line_source="parse(\"128\");"
+/// @diagnostic.related line=2 column=24 span="T" line_source="declare function parse<T: int8>(value: `${T}`): T;" message="required by this bound on 'T'"
 "#,
     );
 }

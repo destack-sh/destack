@@ -420,8 +420,12 @@ impl CheckState<'_> {
                 Answer::Pending(blockers) if self.solver.is_probing() => {
                     return Ok(Answer::Pending(blockers));
                 }
-                // park undecidable bounds for fulfillment outside probes
+                // park composite undecidable arguments, as bare variables
+                //  discharge their bound at solution
                 Answer::Pending(_) => {
+                    if matches!(self.ty(argument)?, dir::Type::Variable(_)) {
+                        continue;
+                    }
                     let cause =
                         self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
                     self.push_constraint(Constraint::r#type(

@@ -1760,3 +1760,76 @@ function duplicate<T: Copy>(value: T): ^T {
 "#,
     );
 }
+
+#[test]
+fn test_reject_inferred_argument_violating_copy_bound() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+class Session {}
+
+declare function duplicate<T: Copy>(value: T): ^T;
+declare const session: ^Session;
+
+duplicate(32);
+duplicate(session);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Copy } from "destack:memory";
+
+class Session {}
+
+declare function duplicate<T: Copy>(value: T): ^T;
+declare const session: ^Session;
+
+duplicate<32>(32);
+duplicate<^Session>(session);
+
+=== checked ===
+import { Copy } from "destack:memory";
+
+class Session {}
+/// @type.symbol symbol=Session source="class Session {}" type=Session
+/// @definition.class symbol=Session source="class Session {}"
+
+declare function duplicate<T: Copy>(value: T): ^T;
+/// @generic.template symbol=duplicate parameters=(T: memory.capability.Copy)
+/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): ^T" type=<T: memory.capability.Copy>(T) => Owned<T>
+/// @type.symbol symbol=duplicate.T source="T: Copy" type=T
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @type.symbol symbol=duplicate.value source="value: T" type=T
+/// @resolution.name source=T target=duplicate.T
+/// @resolution.name source=T target=duplicate.T
+
+declare const session: ^Session;
+/// @type.symbol symbol=session source=session type=Owned<Session>
+/// @resolution.name source=Session target=Session
+
+duplicate(32);
+/// @resolution.name source=duplicate target=duplicate
+/// @resolution.call source=duplicate(32) parameters=(32) arguments=(provided(32) as 32) return=Owned<32> kind=symbol target=duplicate instance=duplicate<32>
+/// @generic.instance source=duplicate(32) id=duplicate<32>
+
+duplicate(session);
+/// @resolution.name source=duplicate target=duplicate
+/// @resolution.call source=duplicate(session) parameters=(Owned<Session>) arguments=(provided(session) as Owned<Session>) return=Owned<Owned<Session>> kind=symbol target=duplicate instance=duplicate<Owned<Session>>
+/// @generic.instance source=duplicate(session) id=duplicate<Owned<Session>>
+/// @resolution.name source=session target=session
+
+/// @generic.instance id=duplicate<32> template=duplicate arguments=(32)
+/// @generic.instance id=duplicate<Owned<Session>> template=duplicate arguments=(Owned<Session>)
+"#,
+        r#"
+/// @diagnostic.error code=EC201 message="type '^Session' does not satisfy 'Copy'"
+/// @diagnostic.label line=10 column=1 span="duplicate(session)" line_source="duplicate(session);"
+/// @diagnostic.related line=6 column=28 span="T" line_source="declare function duplicate<T: Copy>(value: T): ^T;" message="required by this bound on 'T'"
+"#,
+    );
+}
