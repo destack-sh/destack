@@ -14,6 +14,10 @@ export newtype interface DynamicSafe {}
 @languageItem("memory.OverwriteStable")
 export newtype interface OverwriteStable {}
 
+/// Mark a type as safe to store in shared space.
+@languageItem("memory.SharedSafe")
+export newtype interface SharedSafe {}
+
 /// Mark a type as explicitly cloneable.
 @languageItem("memory.Clone")
 export newtype interface Clone {
@@ -43,10 +47,3 @@ export newtype interface Default {
     static default(): this;
 }
 
-/// Mark a type as safe to send across Workers.
-@languageItem("memory.Send")
-export newtype interface Send {}
-
-/// Mark a type as safe to share through shared storage.
-@languageItem("memory.Sync")
-export newtype interface Sync {}

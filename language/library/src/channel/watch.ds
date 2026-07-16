@@ -1,5 +1,5 @@
 import { AsyncResult, Result, todo } from "destack:error";
-import { Dispose, Send, WithAccess } from "destack:memory";
+import { Dispose, SharedSafe, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { ReceiveError, SendError } from "./channel.ds";
@@ -64,6 +64,8 @@ export function channel<T>(value: ^T): (WatchSender<T>, WatchReceiver<T>) {
 }
 
 /// Create a shared watch channel.
-export function sharedChannel<T: Send>(value: ^T): (WatchSender<T>, WatchReceiver<T>) {
+export function sharedChannel<T: SharedSafe>(
+    value: shared ^T,
+): (WatchSender<shared T>, WatchReceiver<shared T>) {
     todo("watch.sharedChannel")
 }

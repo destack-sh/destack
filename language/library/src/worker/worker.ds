@@ -1,7 +1,7 @@
 import { Promise } from "destack:async";
 import { todo } from "destack:error";
 import { AsyncResult, Panic } from "destack:error";
-import { Send } from "destack:memory";
+import { SharedSafe } from "destack:memory";
 import { WorkerHandle, WorkerId } from "destack:runtime/world";
 
 /// Isolated worker.
@@ -79,10 +79,10 @@ export interface WorkerOptions {
 }
 
 /// Spawn one worker.
-export function spawn<T: Send, R: Send>(
-    entry: WorkerEntry<T, R>,
+export function spawn<T: SharedSafe, R: SharedSafe>(
+    entry: WorkerEntry<shared T, shared R>,
     options?: WorkerOptions,
-): Worker<T, R> {
+): Worker<shared T, shared R> {
     todo("worker.spawn")
 }
 

@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Send } from "destack:memory";
+import { SharedSafe } from "destack:memory";
 
 import { AsyncReceiver, AsyncSender, ChannelOptions, Receiver, Sender } from "./channel.ds";
 
@@ -9,7 +9,9 @@ export function channel<T>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {
 }
 
 /// Create a shared blocking broadcast channel.
-export function sharedChannel<T: Send>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {
+export function sharedChannel<T: SharedSafe>(
+    options?: ChannelOptions,
+): (Sender<shared T>, Receiver<shared T>) {
     todo("broadcast.sharedChannel")
 }
 
@@ -19,8 +21,8 @@ export function asyncChannel<T>(options?: ChannelOptions): (AsyncSender<T>, Asyn
 }
 
 /// Create a shared suspending broadcast channel.
-export function sharedAsyncChannel<T: Send>(
+export function sharedAsyncChannel<T: SharedSafe>(
     options?: ChannelOptions,
-): (AsyncSender<T>, AsyncReceiver<T>) {
+): (AsyncSender<shared T>, AsyncReceiver<shared T>) {
     todo("broadcast.sharedAsyncChannel")
 }

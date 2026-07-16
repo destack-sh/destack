@@ -61,8 +61,7 @@ export {
     Default,
     DynamicSafe,
     OverwriteStable,
-    Send,
-    Sync,
+    SharedSafe,
     Unpin,
     Zeroable,
 } from "./capability.ds";
