@@ -3,9 +3,8 @@ pub use destack_artifact::{DiagnosticAnchor, DiagnosticDefinition, DiagnosticFor
 use crate::{
     AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, ElaborateError,
     ElaborateWarning, EmitError, EmitWarning, ExpandError, ExpandWarning, ExportError,
-    ExportWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError,
-    MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
-    VerifyWarning,
+    ExportWarning, ImportError, LinkError, LinkWarning, LowerError, MaterializeError,
+    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError, VerifyWarning,
 };
 use destack_core::{NameMatch, NameMatchTier};
 use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, Patch, PatchSet};
@@ -38,7 +37,6 @@ impl DiagnosticRegistry {
     /// All warning definitions from all phases.
     pub const ALL_WARNINGS: &'static [&'static [DiagnosticDefinition]] = &[
         BindWarning::ALL,
-        ImportWarning::ALL,
         ExpandWarning::ALL,
         ExportWarning::ALL,
         CheckWarning::ALL,
@@ -71,7 +69,6 @@ impl DiagnosticRegistry {
     /// Check if a warning code is valid.
     pub fn is_valid_warning_code(code: &str) -> bool {
         BindWarning::is_valid_code(code)
-            || ImportWarning::is_valid_code(code)
             || ExpandWarning::is_valid_code(code)
             || ExportWarning::is_valid_code(code)
             || CheckWarning::is_valid_code(code)
@@ -106,7 +103,6 @@ impl DiagnosticRegistry {
             .or_else(|| EmitError::definition(code))
             .or_else(|| LinkError::definition(code))
             .or_else(|| BindWarning::definition(code))
-            .or_else(|| ImportWarning::definition(code))
             .or_else(|| ExpandWarning::definition(code))
             .or_else(|| ExportWarning::definition(code))
             .or_else(|| CheckWarning::definition(code))
@@ -159,7 +155,7 @@ impl DiagnosticRegistry {
     pub fn phase_warning_codes(letter: char) -> &'static [&'static str] {
         match letter {
             'B' => BindWarning::ALL_CODES,
-            'I' => ImportWarning::ALL_CODES,
+            'I' => &[],
             'X' => ExpandWarning::ALL_CODES,
             'T' => ExportWarning::ALL_CODES,
             'C' => CheckWarning::ALL_CODES,
