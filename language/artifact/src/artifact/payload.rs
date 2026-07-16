@@ -9,7 +9,7 @@ use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageIndex, PackageLinted, Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
+    PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 
@@ -72,12 +72,10 @@ pub enum ArtifactPayload {
     Program(Arc<Program>),
     /// Linked product assembled from configured target artifacts.
     Product(Arc<Product>),
-    /// Realized lint diagnostics for one module profile.
+    /// Completed lint analysis for one module in one target.
     ModuleLinted(Arc<ModuleLinted>),
-    /// Realized lint diagnostics for one package.
-    PackageLinted(Arc<PackageLinted>),
-    /// Realized lint diagnostics for the workspace.
-    WorkspaceLinted(Arc<WorkspaceLinted>),
+    /// Completed lint analysis for one target program.
+    ProgramLinted(Arc<ProgramLinted>),
 }
 
 /// Borrowed artifact payload used for transport serialization.
@@ -139,12 +137,10 @@ pub enum ArtifactPayloadRef<'a> {
     Program(&'a Program),
     /// Linked product assembled from configured target artifacts.
     Product(&'a Product),
-    /// Realized lint diagnostics for one module profile.
+    /// Completed lint analysis for one module in one target.
     ModuleLinted(&'a ModuleLinted),
-    /// Realized lint diagnostics for one package.
-    PackageLinted(&'a PackageLinted),
-    /// Realized lint diagnostics for the workspace.
-    WorkspaceLinted(&'a WorkspaceLinted),
+    /// Completed lint analysis for one target program.
+    ProgramLinted(&'a ProgramLinted),
 }
 
 impl ArtifactPayload {
@@ -235,12 +231,8 @@ impl ArtifactPayload {
                     ArtifactPayload::ModuleLinted(_)
                 )
                 | (
-                    ArtifactKey::PackageLinted { .. },
-                    ArtifactPayload::PackageLinted(_)
-                )
-                | (
-                    ArtifactKey::WorkspaceLinted,
-                    ArtifactPayload::WorkspaceLinted(_)
+                    ArtifactKey::ProgramLinted { .. },
+                    ArtifactPayload::ProgramLinted(_)
                 )
         )
     }
@@ -281,8 +273,7 @@ impl ArtifactPayload {
             Self::Program(payload) => ArtifactPayloadRef::Program(payload.as_ref()),
             Self::Product(payload) => ArtifactPayloadRef::Product(payload.as_ref()),
             Self::ModuleLinted(payload) => ArtifactPayloadRef::ModuleLinted(payload.as_ref()),
-            Self::PackageLinted(payload) => ArtifactPayloadRef::PackageLinted(payload.as_ref()),
-            Self::WorkspaceLinted(payload) => ArtifactPayloadRef::WorkspaceLinted(payload.as_ref()),
+            Self::ProgramLinted(payload) => ArtifactPayloadRef::ProgramLinted(payload.as_ref()),
         }
     }
 
@@ -337,8 +328,7 @@ impl ArtifactPayload {
             Self::Program(_) => "program",
             Self::Product(_) => "product",
             Self::ModuleLinted(_) => "module_linted",
-            Self::PackageLinted(_) => "package_linted",
-            Self::WorkspaceLinted(_) => "workspace_linted",
+            Self::ProgramLinted(_) => "program_linted",
         }
     }
 
@@ -559,16 +549,9 @@ impl From<ModuleLinted> for ArtifactPayload {
     }
 }
 
-impl From<PackageLinted> for ArtifactPayload {
+impl From<ProgramLinted> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: PackageLinted) -> Self {
-        Self::PackageLinted(Arc::new(payload))
-    }
-}
-
-impl From<WorkspaceLinted> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: WorkspaceLinted) -> Self {
-        Self::WorkspaceLinted(Arc::new(payload))
+    fn from(payload: ProgramLinted) -> Self {
+        Self::ProgramLinted(Arc::new(payload))
     }
 }

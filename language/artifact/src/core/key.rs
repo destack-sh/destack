@@ -147,15 +147,17 @@ pub enum ArtifactKey {
         product: ProductId,
     },
 
-    /// Realized lint diagnostics for one module profile.
+    /// Completed lint analysis for one module in one target.
     ModuleLinted {
         module: ModuleId,
         profile: ProfileId,
+        target: TargetId,
     },
-    /// Realized lint diagnostics for one package.
-    PackageLinted { package: PackageId },
-    /// Realized lint diagnostics for the workspace.
-    WorkspaceLinted,
+    /// Completed lint analysis for one target program.
+    ProgramLinted {
+        profile: ProfileId,
+        target: TargetId,
+    },
 }
 
 /// High-level toolchain stage that owns one artifact kind.
@@ -181,7 +183,7 @@ pub enum ArtifactStage {
     Emit,
     /// Final program assembly across modules.
     Link,
-    /// Lint analysis over modules, packages, and the workspace.
+    /// Lint analysis over modules and target programs.
     Lint,
     /// Indexes serving editors and tooling.
     Index,
@@ -252,9 +254,7 @@ impl ArtifactKey {
             | Self::Bundle { .. }
             | Self::Program { .. }
             | Self::Product { .. } => ArtifactProvider::Compiler,
-            Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
-                ArtifactProvider::Linter
-            }
+            Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactProvider::Linter,
             Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactProvider::Index,
         }
     }
@@ -262,11 +262,12 @@ impl ArtifactKey {
     /// Return the package referenced by this artifact key when one exists.
     pub fn package_id(&self) -> Option<PackageId> {
         match self {
-            Self::Build { target } => Some(target.package_id()),
+            Self::Build { target }
+            | Self::ProgramAnalysis { target, .. }
+            | Self::ProgramLinted { target, .. } => Some(target.package_id()),
             Self::Bundle { package, .. }
             | Self::Program { package, .. }
-            | Self::Product { package, .. }
-            | Self::PackageLinted { package } => Some(*package),
+            | Self::Product { package, .. } => Some(*package),
             _ => None,
         }
     }
@@ -440,18 +441,17 @@ impl ArtifactKey {
     }
 
     /// Build one module lint artifact key.
-    pub fn module_linted(module: ModuleId, profile: ProfileId) -> Self {
-        Self::ModuleLinted { module, profile }
+    pub fn module_linted(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::ModuleLinted {
+            module,
+            profile,
+            target,
+        }
     }
 
-    /// Build one package lint artifact key.
-    pub fn package_linted(package: PackageId) -> Self {
-        Self::PackageLinted { package }
-    }
-
-    /// Build one workspace lint artifact key.
-    pub fn workspace_linted() -> Self {
-        Self::WorkspaceLinted
+    /// Build one program lint artifact key.
+    pub fn program_linted(profile: ProfileId, target: TargetId) -> Self {
+        Self::ProgramLinted { profile, target }
     }
 
     /// Return the toolchain stage that owns this artifact kind.
@@ -476,9 +476,7 @@ impl ArtifactKey {
             Self::Bundle { .. } | Self::Program { .. } | Self::Product { .. } => {
                 ArtifactStage::Link
             }
-            Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
-                ArtifactStage::Lint
-            }
+            Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactStage::Lint,
             Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
             Self::GlobalEnvironment { .. } | Self::PackageIndex { .. } => ArtifactStage::Init,
         }
@@ -516,8 +514,7 @@ impl ArtifactKey {
             Self::Program { .. } => "program.link",
             Self::Product { .. } => "product.link",
             Self::ModuleLinted { .. } => "module.lint",
-            Self::PackageLinted { .. } => "package.lint",
-            Self::WorkspaceLinted => "workspace.lint",
+            Self::ProgramLinted { .. } => "program.lint",
         }
     }
 
@@ -553,8 +550,7 @@ impl ArtifactKey {
             Self::Program { .. } => "program",
             Self::Product { .. } => "product",
             Self::ModuleLinted { .. } => "module_linted",
-            Self::PackageLinted { .. } => "package_linted",
-            Self::WorkspaceLinted => "workspace_linted",
+            Self::ProgramLinted { .. } => "program_linted",
         }
     }
 
@@ -590,8 +586,7 @@ impl ArtifactKey {
             | Self::Bundle { .. }
             | Self::Program { .. }
             | Self::Product { .. }
-            | Self::PackageLinted { .. }
-            | Self::WorkspaceLinted => None,
+            | Self::ProgramLinted { .. } => None,
         }
     }
 }
@@ -600,12 +595,19 @@ impl ArtifactKey {
     /// Return the target id encoded in this key when one exists.
     pub fn target_id(&self) -> Option<TargetId> {
         match self {
-            Self::Script { target, .. }
+            Self::ProgramAnalysis { target, .. }
+            | Self::MirLowered { target, .. }
+            | Self::MirVerified { target, .. }
+            | Self::MirAnalyzed { target, .. }
+            | Self::MirOptimized { target, .. }
+            | Self::Script { target, .. }
             | Self::Object { target, .. }
             | Self::Asset { target, .. }
             | Self::Build { target }
             | Self::Bundle { target, .. }
-            | Self::Program { target, .. } => Some(*target),
+            | Self::Program { target, .. }
+            | Self::ModuleLinted { target, .. }
+            | Self::ProgramLinted { target, .. } => Some(*target),
             _ => None,
         }
     }
@@ -640,7 +642,8 @@ impl ArtifactKey {
             | Self::MirOptimized { profile, .. }
             | Self::ModuleIndex { profile, .. }
             | Self::ProgramIndex { profile }
-            | Self::ModuleLinted { profile, .. } => Some(*profile),
+            | Self::ModuleLinted { profile, .. }
+            | Self::ProgramLinted { profile, .. } => Some(*profile),
             Self::DirParsed { .. }
             | Self::Data { .. }
             | Self::Script { .. }
@@ -649,9 +652,7 @@ impl ArtifactKey {
             | Self::Build { .. }
             | Self::Bundle { .. }
             | Self::Program { .. }
-            | Self::Product { .. }
-            | Self::PackageLinted { .. }
-            | Self::WorkspaceLinted => None,
+            | Self::Product { .. } => None,
         }
     }
 }

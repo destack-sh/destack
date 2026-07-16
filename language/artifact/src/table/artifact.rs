@@ -15,7 +15,7 @@ use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageIndex, PackageLinted, Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
+    PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 
 macro_rules! artifact_getter {
@@ -329,8 +329,7 @@ impl ArtifactTable {
     artifact_getter!(program, Program, Program);
     artifact_getter!(product, Product, Product);
     artifact_getter!(module_linted, ModuleLinted, ModuleLinted);
-    artifact_getter!(package_linted, PackageLinted, PackageLinted);
-    artifact_getter!(workspace_linted, WorkspaceLinted, WorkspaceLinted);
+    artifact_getter!(program_linted, ProgramLinted, ProgramLinted);
 
     /// Return content ids referenced by one exact artifact payload.
     pub fn content_ids(&self, version: &ArtifactVersion) -> Vec<ContentId> {
