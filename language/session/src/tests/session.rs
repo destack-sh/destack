@@ -2,9 +2,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, ArtifactVersion, MemoryBlobStore};
-use destack_compiler::Compiler;
-use destack_linter::Linter;
-use destack_query::Indexer;
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
     TraceSnapshot, TraceView, open_repository,
@@ -85,17 +82,11 @@ impl TestSession {
         let repository = Arc::new(repository);
         let root = repository.path().to_path_buf();
         let head = Ref::for_root(&root);
-        let compiler = Arc::new(Compiler::new(repository.clone()));
-        let linter = Arc::new(Linter::new(repository.clone()));
-        let indexer = Arc::new(Indexer::new(repository.clone()));
         let session = Session::new(
             root.clone(),
             root.clone(),
             repository.clone(),
             head,
-            compiler,
-            linter,
-            indexer,
             worker_count,
             None,
         )?;

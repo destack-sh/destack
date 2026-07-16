@@ -43,7 +43,7 @@ impl Executor {
             for worker_index in 0..worker_count {
                 let worker = Worker {
                     index: worker_index,
-                    session: state.clone(),
+                    state: state.clone(),
                     scheduler: scheduler.clone(),
                 };
                 let worker = Builder::new()
@@ -150,7 +150,7 @@ impl Executor {
     fn run_inline(&self, run: &ArtifactRun) -> Result<(), SessionError> {
         let worker = Worker {
             index: 0,
-            session: self.state.clone(),
+            state: self.state.clone(),
             scheduler: self.scheduler.clone(),
         };
 

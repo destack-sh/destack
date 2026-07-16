@@ -2,9 +2,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 
-use destack_compiler::Compiler;
-use destack_linter::Linter;
-use destack_query::Indexer;
 use destack_repository::{FileSystemSource, Ref, Repository, Revision, Trace};
 use destack_source::{FileId, ModuleId};
 
@@ -59,9 +56,6 @@ impl Session {
         repository: Arc<Repository>,
         head: Ref,
         revision: Revision,
-        compiler: Arc<Compiler>,
-        linter: Arc<Linter>,
-        indexer: Arc<Indexer>,
         worker_count: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
@@ -70,17 +64,7 @@ impl Session {
             .set_ref(&head, revision)
             .map_err(SessionError::from)?;
 
-        Self::new(
-            root,
-            cwd,
-            repository,
-            head,
-            compiler,
-            linter,
-            indexer,
-            worker_count,
-            event_handler,
-        )
+        Self::new(root, cwd, repository, head, worker_count, event_handler)
     }
 
     /// Create a new live session for one source root.
@@ -89,19 +73,10 @@ impl Session {
         cwd: PathBuf,
         repository: Arc<Repository>,
         head: Ref,
-        compiler: Arc<Compiler>,
-        linter: Arc<Linter>,
-        indexer: Arc<Indexer>,
         worker_count: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
-        let state = Arc::new(SessionState::new(
-            repository,
-            compiler,
-            linter,
-            indexer,
-            event_handler,
-        ));
+        let state = Arc::new(SessionState::new(repository, event_handler));
 
         Ok(Self {
             root,
@@ -190,21 +165,6 @@ impl Session {
         }
 
         Ok(())
-    }
-
-    /// Return the compiler for this session.
-    pub fn compiler(&self) -> Arc<Compiler> {
-        self.state.compiler()
-    }
-
-    /// Return the linter for this session.
-    pub fn linter(&self) -> Arc<Linter> {
-        self.state.linter()
-    }
-
-    /// Return the indexer for this session.
-    pub fn indexer(&self) -> Arc<Indexer> {
-        self.state.indexer()
     }
 
     /// Load one filesystem module path into one ref when needed.

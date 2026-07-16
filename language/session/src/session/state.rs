@@ -18,11 +18,11 @@ pub(crate) struct SessionState {
     /// Repository backing this source root.
     repository: Arc<Repository>,
     /// Compiler for this root.
-    compiler: Arc<Compiler>,
+    compiler: Compiler,
     /// Linter for this root.
-    linter: Arc<Linter>,
+    linter: Linter,
     /// Indexer for this root.
-    indexer: Arc<Indexer>,
+    indexer: Indexer,
     /// Optional outer session event handler.
     event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
@@ -49,11 +49,12 @@ impl SessionState {
     /// Create shared state for one session.
     pub(crate) fn new(
         repository: Arc<Repository>,
-        compiler: Arc<Compiler>,
-        linter: Arc<Linter>,
-        indexer: Arc<Indexer>,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
+        let compiler = Compiler::new(repository.clone());
+        let linter = Linter::new(repository.clone());
+        let indexer = Indexer::new(repository.clone());
+
         Self {
             repository,
             compiler,
@@ -81,18 +82,18 @@ impl SessionState {
     }
 
     /// Return the compiler for this session.
-    pub(crate) fn compiler(&self) -> Arc<Compiler> {
-        self.compiler.clone()
+    pub(crate) fn compiler(&self) -> &Compiler {
+        &self.compiler
     }
 
     /// Return the linter for this session.
-    pub(crate) fn linter(&self) -> Arc<Linter> {
-        self.linter.clone()
+    pub(crate) fn linter(&self) -> &Linter {
+        &self.linter
     }
 
     /// Return the indexer for this session.
-    pub(crate) fn indexer(&self) -> Arc<Indexer> {
-        self.indexer.clone()
+    pub(crate) fn indexer(&self) -> &Indexer {
+        &self.indexer
     }
 
     /// Emit one outer session event when a handler is installed.

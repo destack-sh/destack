@@ -6,9 +6,6 @@ use std::time::Duration;
 use std::{io, thread};
 
 use destack_artifact::{EmitFormat, MemoryBlobStore, Platform, Runtime};
-use destack_compiler::Compiler;
-use destack_linter::Linter;
-use destack_query::Indexer;
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Host, Mode, Profile, Ref, Repository,
     Revision, Settings,
@@ -265,17 +262,11 @@ pub fn setup_test_environment_with_repository(
     // choose the main file and create the repository root
     let main_path = main_path.expect("test should have at least one file");
     let head = Ref::for_root(repository.path());
-    let compiler = Arc::new(Compiler::new(repository.clone()));
-    let linter = Arc::new(Linter::new(repository.clone()));
-    let indexer = Arc::new(Indexer::new(repository.clone()));
     let session = Session::new(
         repository.path().to_path_buf(),
         root.clone(),
         repository.clone(),
         head,
-        compiler,
-        linter,
-        indexer,
         1,
         None,
     )

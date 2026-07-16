@@ -3,9 +3,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_artifact::{ArtifactKey, MemoryBlobStore};
-use destack_compiler::Compiler;
-use destack_linter::Linter;
-use destack_query::Indexer;
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, Host, LinterOptions,
     Ref, Repository, Revision, Settings,
@@ -299,25 +296,12 @@ pub fn module_target_artifact_diagnostics(
 /// Provide one root artifact slice through a workspace-root session.
 pub fn provide_workspace_artifacts(
     repository: Arc<Repository>,
-    compiler: Arc<Compiler>,
     artifact_keys: &[ArtifactKey],
 ) -> Revision {
     let root = repository.path().to_path_buf();
     let head = Ref::for_root(&root);
-    let linter = Arc::new(Linter::new(repository.clone()));
-    let indexer = Arc::new(Indexer::new(repository.clone()));
-    let session = Session::new(
-        root.clone(),
-        root,
-        repository,
-        head,
-        compiler,
-        linter,
-        indexer,
-        1,
-        None,
-    )
-    .expect("failed to create workspace session");
+    let session = Session::new(root.clone(), root, repository, head, 1, None)
+        .expect("failed to create workspace session");
 
     let revision = session
         .revision(session.head())
@@ -334,17 +318,11 @@ pub fn provide_workspace_artifacts(
 /// Materialize one workspace root through one session driven reload.
 fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
     let head = Ref::for_root(root);
-    let compiler = Arc::new(Compiler::new(repository.clone()));
-    let linter = Arc::new(Linter::new(repository.clone()));
-    let indexer = Arc::new(Indexer::new(repository.clone()));
     let session = Session::new(
         root.to_path_buf(),
         root.to_path_buf(),
         repository,
         head,
-        compiler,
-        linter,
-        indexer,
         1,
         None,
     )

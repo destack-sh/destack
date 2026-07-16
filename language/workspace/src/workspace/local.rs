@@ -22,9 +22,6 @@ use dashmap::DashMap;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
-use destack_compiler::Compiler;
-use destack_linter::Linter;
-use destack_query::Indexer;
 use destack_repository::{Ref, Repository, Revision};
 use destack_session::{Session, SessionEvent, SessionEventHandler};
 use destack_source::{
@@ -42,13 +39,6 @@ use crate::{ExportRequest, ExportResult, ExportedFile};
 pub struct LocalWorkspace {
     /// Repository for workspace resolution.
     pub(crate) repository: Arc<Repository>,
-    /// Compiler used by opened sessions.
-    pub(crate) compiler: Arc<Compiler>,
-    /// Linter used by opened sessions.
-    pub(super) linter: Arc<Linter>,
-    /// Indexer used by opened sessions.
-    pub(super) indexer: Arc<Indexer>,
-
     /// Sessions keyed by root path.
     pub(super) roots: DashMap<PathBuf, Arc<Session>>,
     /// Open files keyed by source path.
@@ -75,9 +65,6 @@ impl std::fmt::Debug for LocalWorkspace {
         formatter
             .debug_struct("LocalWorkspace")
             .field("repository", &self.repository)
-            .field("compiler", &self.compiler)
-            .field("linter", &self.linter)
-            .field("indexer", &self.indexer)
             .field("sessions_by_root", &self.roots)
             .field("open_file_by_path", &self.open_file_by_path.len())
             .field("overlay_file_system", &self.overlay_file_system.is_some())
@@ -105,15 +92,8 @@ impl LocalWorkspace {
         worker_limit: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, Error> {
-        let compiler = Arc::new(Compiler::new(repository.clone()));
-        let linter = Arc::new(Linter::new(repository.clone()));
-        let indexer = Arc::new(Indexer::new(repository.clone()));
-
         let workspace = Self {
             repository,
-            compiler,
-            linter,
-            indexer,
             roots: dashmap::DashMap::new(),
             open_file_by_path: dashmap::DashMap::new(),
             overlay_file_system,
@@ -185,15 +165,12 @@ impl LocalWorkspace {
         O: From<Output<T>>,
     {
         let repository = Arc::clone(&self.repository);
-        let compiler = Arc::clone(&self.compiler);
-
         // gather shared context
         let mut output = OutputBuffer::default();
         let mut context = CommandContext::new(
             self,
             root.to_path_buf(),
             repository,
-            compiler,
             common,
             revision,
             &mut output,

@@ -4,9 +4,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::Compiler;
-use destack_linter::Linter;
-use destack_query::Indexer;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_repository::OptimizeLevel;
 use destack_repository::{
@@ -59,7 +56,6 @@ impl<'a> CommandContext<'a> {
         workspace: &'a LocalWorkspace,
         root: PathBuf,
         repository: Arc<Repository>,
-        compiler: Arc<Compiler>,
         common: &'a CommandOptions,
         revision: CommandRevision,
         output: &'a mut OutputBuffer,
@@ -69,8 +65,6 @@ impl<'a> CommandContext<'a> {
         let revision = Self::resolve_command_revision(repository.as_ref(), &root, revision)?;
 
         // private command session
-        let linter = Arc::new(Linter::new(repository.clone()));
-        let indexer = Arc::new(Indexer::new(repository.clone()));
         let cwd = common.cwd.clone().unwrap_or_else(|| root.clone());
         let head = workspace.next_command_session_ref(&root);
         let session = Session::fork(
@@ -79,9 +73,6 @@ impl<'a> CommandContext<'a> {
             repository.clone(),
             head,
             revision,
-            compiler.clone(),
-            linter,
-            indexer,
             workspace.worker_limit,
             event_handler,
         )

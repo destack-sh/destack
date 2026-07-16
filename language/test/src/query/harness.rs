@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::Compiler;
 use destack_query::{self as query, ModuleQueryContext, ProgramQueryContext};
 use destack_repository::{ProfileId, Ref, Repository, Revision};
 use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
@@ -249,9 +248,7 @@ impl QueryTestSession {
             return;
         }
 
-        let compiler = Arc::new(Compiler::new(self.repository.clone()));
-        let revision =
-            provide_workspace_artifacts(self.repository.clone(), compiler, &missing_keys);
+        let revision = provide_workspace_artifacts(self.repository.clone(), &missing_keys);
 
         assert_eq!(
             revision, self.revision,

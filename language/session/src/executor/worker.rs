@@ -21,7 +21,7 @@ pub(super) struct Worker {
     /// The index of this worker in the session pool.
     pub(super) index: usize,
     /// Shared session state for provider execution.
-    pub(super) session: Arc<SessionState>,
+    pub(super) state: Arc<SessionState>,
     /// Shared scheduler for artifact work.
     pub(super) scheduler: Arc<Scheduler>,
 }
@@ -57,7 +57,7 @@ impl Worker {
             };
 
             // artifact table truth wins over stale scheduler entries
-            match self.session.artifact_outcome(task) {
+            match self.state.artifact_outcome(task) {
                 Ok(Some(_)) => {
                     self.scheduler.mark_done(task);
 
@@ -90,12 +90,12 @@ impl Worker {
         let recorder = Arc::new(run.trace().begin(task.key, self.index));
 
         // expose the session task through events
-        self.session.emit_event(SessionEvent::TaskStarted {
+        self.state.emit_event(SessionEvent::TaskStarted {
             run_id: run.id(),
             artifact_key: task.key,
         });
 
-        let repository = self.session.repository();
+        let repository = self.state.repository();
         let base = recorder.span("base", || repository.artifact_base(task.revision, task.key));
         let base = match base {
             Ok(base) => base,
@@ -113,7 +113,7 @@ impl Worker {
             Ok(pending_set)
         } else {
             recorder.span("collect", || {
-                self.session
+                self.state
                     .collect_dependencies(task.revision, task.key, base)
             })
         };
@@ -148,7 +148,7 @@ impl Worker {
             match resolution {
                 DependencySetResolution::Incomplete => {
                     collected = recorder.span("collect", || {
-                        self.session
+                        self.state
                             .collect_dependencies(task.revision, task.key, base)
                     });
                 }
@@ -269,9 +269,8 @@ impl Worker {
 
                     return Err(error);
                 }
-                let result = recorder.span("store", || {
-                    self.session.repository().store_artifact(version)
-                });
+                let result =
+                    recorder.span("store", || self.state.repository().store_artifact(version));
                 if let Err(error) = result {
                     recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -308,7 +307,7 @@ impl Worker {
         frontier: Vec<Task>,
         pending_set: Option<ArtifactDependencySet>,
     ) -> Result<(), SessionError> {
-        let repository = self.session.repository();
+        let repository = self.state.repository();
         let result = self.scheduler.wait_on(task, run, frontier, pending_set);
 
         // a rejected wait records the artifact as failed so waiters cannot stall
@@ -344,7 +343,7 @@ impl Worker {
         payload: ArtifactPayload,
     ) -> Result<(), SessionError> {
         // record the ready payload and make its terminal state visible
-        self.session.repository().publish_artifact(
+        self.state.repository().publish_artifact(
             task.revision,
             version,
             base,
@@ -440,7 +439,7 @@ impl Worker {
     fn finish_ready(&self, run: ArtifactRunId, task: Task) -> Result<(), SessionError> {
         self.scheduler.mark_done(task);
 
-        self.session.emit_event(SessionEvent::TaskFinished {
+        self.state.emit_event(SessionEvent::TaskFinished {
             run_id: run,
             artifact_key: task.key,
         });
@@ -460,7 +459,7 @@ impl Worker {
         sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), SessionError> {
-        self.session.repository().fail_artifact(
+        self.state.repository().fail_artifact(
             task.revision,
             version,
             base,
@@ -471,7 +470,7 @@ impl Worker {
         )?;
         self.scheduler.mark_done(task);
 
-        self.session.emit_event(SessionEvent::TaskFailed {
+        self.state.emit_event(SessionEvent::TaskFailed {
             run_id: run,
             artifact_key: task.key,
         });
@@ -483,12 +482,12 @@ impl Worker {
     fn call_provider(&self, attempt: &ProviderAttempt) -> ProviderResult<ArtifactPayload> {
         match attempt.key().provider() {
             ArtifactProvider::Loader => self
-                .session
+                .state
                 .provide_loader(attempt)
                 .map_err(|error| ProviderError::internal(error.to_string()).into()),
-            ArtifactProvider::Compiler => self.session.compiler().provide(attempt),
-            ArtifactProvider::Linter => self.session.linter().provide(attempt),
-            ArtifactProvider::Index => self.session.indexer().provide(attempt),
+            ArtifactProvider::Compiler => self.state.compiler().provide(attempt),
+            ArtifactProvider::Linter => self.state.linter().provide(attempt),
+            ArtifactProvider::Index => self.state.indexer().provide(attempt),
         }
     }
 }
