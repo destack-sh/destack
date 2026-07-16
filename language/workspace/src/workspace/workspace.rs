@@ -15,8 +15,8 @@ use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
     DoctorInput, DoctorOutput, ExportRequest, ExportResult, FormatInput, FormatOutput, InfoInput,
-    InfoOutput, LintInput, LintOutput, RunInput, RunOutput, SettingsInput, SettingsOutput,
-    TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
+    InfoOutput, RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput,
+    TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
 };
 
 /// Workspace operations shared by local and remote workspace implementations.
@@ -73,14 +73,6 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
         input: CheckInput,
         progress: Option<CommandProgress<'_>>,
     ) -> Result<CheckOutput, CommandError>;
-
-    /// Lint source state for a root.
-    fn lint(
-        &self,
-        root: &Path,
-        input: LintInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<LintOutput, CommandError>;
 
     /// Format source files or content.
     fn format(

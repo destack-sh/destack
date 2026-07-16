@@ -11,8 +11,8 @@ use super::{
 };
 use crate::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, DocOutput, DoctorOutput,
-    ExportResult, FormatOutput, InfoOutput, LintOutput, RunOutput, SettingsOutput, TargetsOutput,
-    TaskOutput, TestOutput,
+    ExportResult, FormatOutput, InfoOutput, RunOutput, SettingsOutput, TargetsOutput, TaskOutput,
+    TestOutput,
 };
 
 /// Responses emitted by the workspace protocol.
@@ -45,8 +45,6 @@ pub enum WorkspaceResponse {
     WatchStopped(WatchStoppedResponse),
     /// Check response.
     Check(CheckOutput),
-    /// Lint response.
-    Lint(LintOutput),
     /// Format response.
     Format(FormatOutput),
     /// Build response.

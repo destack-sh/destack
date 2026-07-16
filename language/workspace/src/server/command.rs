@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, CommandError, CommandErrorKind,
-    CommandProgress, DocInput, DoctorInput, FormatInput, InfoInput, LintInput, ProgressEvent,
-    RunInput, SettingsInput, TargetsInput, TaskInput, TestInput, Transport, Workspace,
+    CommandProgress, DocInput, DoctorInput, FormatInput, InfoInput, ProgressEvent, RunInput,
+    SettingsInput, TargetsInput, TaskInput, TestInput, Transport, Workspace,
 };
 
 use super::Server;
@@ -25,21 +25,6 @@ impl Server {
             notify,
             |workspace, root, progress| workspace.check(root, input, progress),
             WorkspaceResponse::Check,
-        )
-    }
-
-    /// Handle a lint request.
-    pub(super) fn handle_lint(
-        &self,
-        handle: RootId,
-        input: LintInput,
-        notify: &(dyn Fn(ProgressEvent) + Sync),
-    ) -> Result<WorkspaceResponse, ProtocolError> {
-        self.handle_command(
-            handle,
-            notify,
-            |workspace, root, progress| workspace.lint(root, input, progress),
-            WorkspaceResponse::Lint,
         )
     }
 

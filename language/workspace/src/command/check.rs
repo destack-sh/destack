@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
+use destack_core::FxIndexSet;
 use destack_repository::{Revision, TraceSnapshot, TraceView};
 use destack_serde::Reflect;
 use destack_source::{
-    Applicability, DiagnosticCollection, DiffOptions, File, FileId, ModuleId, PatchSet,
-    apply_patch_set, format_diff,
+    Applicability, DiagnosticCollection, DiffOptions, File, FileId, PatchSet, apply_patch_set,
+    format_diff,
 };
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,7 @@ use super::common::{
 };
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
+
 /// Payload for check command output.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct CheckPayload {
@@ -25,31 +27,15 @@ pub struct CheckPayload {
     pub trace: TraceSnapshot,
 }
 
-/// Payload for lint command output.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
-pub struct LintPayload {}
-
-/// Lint/fix options for commands.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
-pub struct LintOptions {
+/// Diagnostic fix behavior for one check.
+#[derive(Debug, Clone, Copy)]
+struct FixOptions {
     /// Apply fixes.
-    pub fix: bool,
+    fix: bool,
     /// Include unsafe fixes.
-    pub unsafe_fixes: bool,
+    unsafe_fixes: bool,
     /// Show diff instead of applying fixes.
-    pub diff: bool,
-}
-
-/// Options for the check command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
-pub struct CheckOptions {
-    /// Whether linting should run when supported.
-    pub lint: bool,
-    /// Lint/fix options for the check command.
-    pub lint_options: LintOptions,
-    /// Trace detail returned in the response.
-    #[serde(default)]
-    pub trace: TraceView,
+    diff: bool,
 }
 
 /// Request to check source state.
@@ -92,56 +78,10 @@ pub struct CheckInput {
     pub trace: TraceView,
 }
 
-/// Request to lint source state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LintInput {
-    /// Revision selected for this lint run.
-    pub revision: CommandRevision,
-    /// Input sources for the command.
-    pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
-    pub config_inputs: bool,
-    /// Optional working directory for this command.
-    pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
-    pub manifest: Option<PathBuf>,
-    /// Optional target name override.
-    pub target: Option<String>,
-    /// Optional target overrides.
-    pub target_overrides: Option<CommandTargetOverrides>,
-    /// Optional profile name override.
-    pub profile: Option<String>,
-    /// Optional environment overrides.
-    pub env: Vec<CommandEnvVar>,
-    /// Optional manifest overrides.
-    pub overrides: Vec<ManifestOverride>,
-    /// Whether the command should watch for changes.
-    pub watch: bool,
-    /// Whether the command should skip writes.
-    pub dry_run: bool,
-    /// Apply fixes.
-    pub fix: bool,
-    /// Include unsafe fixes.
-    pub unsafe_fixes: bool,
-    /// Show diff instead of applying fixes.
-    pub diff: bool,
-}
-
 impl CheckInput {
-    /// Return lint options selected for this check.
-    pub fn lint_options(&self) -> LintOptions {
-        LintOptions {
-            fix: self.fix,
-            unsafe_fixes: self.unsafe_fixes,
-            diff: self.diff,
-        }
-    }
-}
-
-impl LintInput {
-    /// Return lint options selected for this lint run.
-    pub fn lint_options(&self) -> LintOptions {
-        LintOptions {
+    /// Return diagnostic fix behavior selected for this check.
+    fn fix_options(&self) -> FixOptions {
+        FixOptions {
             fix: self.fix,
             unsafe_fixes: self.unsafe_fixes,
             diff: self.diff,
@@ -156,12 +96,6 @@ impl_command_input_options!(CheckInput {
     diff: false,
     trace: TraceView::default(),
 });
-impl_command_input_options!(LintInput {
-    fix: false,
-    unsafe_fixes: false,
-    diff: false,
-});
-
 impl CommandContext<'_> {
     /// Execute a check command.
     pub(crate) fn run_check_command(
@@ -174,12 +108,25 @@ impl CommandContext<'_> {
         let revision = self.revision()?;
 
         // collect the requested roots
-        let lint_options = input.lint_options();
-        let lint_enabled = input.lint || lint_options.fix || lint_options.diff;
-        let mut artifact_keys = Vec::new();
-        for module_id in &modules {
-            artifact_keys.push(self.check_root_for_module(revision, *module_id, lint_enabled)?);
+        let fix_options = input.fix_options();
+        let mut artifact_keys = FxIndexSet::default();
+        for module_id in modules.iter().copied() {
+            // request lint completion at both supported scopes
+            if input.lint {
+                let target = self.resolve_target_for_module(revision, module_id, None)?;
+                let profile = self.target_profile_id(revision, module_id, target.id)?;
+
+                artifact_keys.insert(ArtifactKey::module_linted(module_id, profile, target.id));
+                artifact_keys.insert(ArtifactKey::program_linted(profile, target.id));
+            }
+            // otherwise stop after type checking
+            else {
+                let profile = self.selected_profile_id(revision, module_id)?;
+
+                artifact_keys.insert(ArtifactKey::dir_checked(module_id, profile));
+            }
         }
+        let artifact_keys = artifact_keys.into_iter().collect::<Vec<_>>();
 
         // provide the requested roots
         self.session
@@ -189,7 +136,7 @@ impl CommandContext<'_> {
         // report where the check spent its time
         let trace = self.command_trace(revision, input.trace)?;
         let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
-        self.apply_diagnostic_suggestions(revision, &diagnostics, &lint_options)?;
+        self.apply_diagnostic_suggestions(revision, &diagnostics, fix_options)?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self.selected_profile_count(revision, &modules)?;
 
@@ -201,59 +148,12 @@ impl CommandContext<'_> {
         )
     }
 
-    /// Execute a lint command.
-    pub(crate) fn run_lint_command(
-        &mut self,
-        input: &LintInput,
-    ) -> CommandResult<CommandOutcome<LintPayload>> {
-        // resolve inputs for the command
-        let inputs = self.resolve_command_inputs()?;
-        let modules = self.resolve_modules(&inputs)?;
-        let revision = self.revision()?;
-
-        // collect the requested roots
-        let mut artifact_keys = Vec::new();
-        for module_id in &modules {
-            artifact_keys.push(self.check_root_for_module(revision, *module_id, true)?);
-        }
-
-        // provide the requested roots
-        self.session
-            .provide(revision, &artifact_keys)
-            .map_err(|error| error.to_string())?;
-        let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
-        self.apply_diagnostic_suggestions(revision, &diagnostics, &input.lint_options())?;
-        let exit_code = diagnostics.get_status_code();
-        let profile_count = self.selected_profile_count(revision, &modules)?;
-
-        let outcome = CommandOutcome::new(diagnostics, exit_code, modules.len(), profile_count, 0)
-            .with_data(LintPayload::default());
-
-        Ok(outcome)
-    }
-
-    /// Build the requested check root for one module.
-    fn check_root_for_module(
-        &self,
-        revision: Revision,
-        module_id: ModuleId,
-        lint_enabled: bool,
-    ) -> CommandResult<ArtifactKey> {
-        let profile = self.selected_profile_id(revision, module_id)?;
-
-        if lint_enabled {
-            return Ok(ArtifactKey::module_linted(module_id, profile));
-        }
-
-        Ok(ArtifactKey::dir_checked(module_id, profile))
-    }
-
     /// Apply or print diagnostic suggestions requested by the command.
     fn apply_diagnostic_suggestions(
         &mut self,
         revision: Revision,
         diagnostics: &DiagnosticCollection,
-        options: &LintOptions,
+        options: FixOptions,
     ) -> CommandResult<usize> {
         if !options.fix && !options.diff {
             return Ok(0);

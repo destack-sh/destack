@@ -211,11 +211,6 @@ impl Server {
 
                 self.handle_check(handle, input, &notify)
             }
-            WorkspaceRequest::Lint { handle, input } => {
-                let notify = self.progress_notification(transport, handle);
-
-                self.handle_lint(handle, input, &notify)
-            }
             WorkspaceRequest::Format { handle, input } => {
                 let notify = self.progress_notification(transport, handle);
 

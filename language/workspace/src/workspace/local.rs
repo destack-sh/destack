@@ -13,10 +13,10 @@ use crate::{
     CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
     CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult, CommandRevision,
     DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, FormatInput,
-    FormatOutput, InfoInput, InfoOptions, InfoOutput, LintInput, LintOutput, Output, OutputBuffer,
-    ProgressEvent, RunInput, RunOutput, SettingsInput, SettingsOptions, SettingsOutput,
-    TargetsInput, TargetsOptions, TargetsOutput, TaskInput, TaskOptions, TaskOutput, TestInput,
-    TestOptions, TestOutput, Workspace, source_watch_options,
+    FormatOutput, InfoInput, InfoOptions, InfoOutput, Output, OutputBuffer, ProgressEvent,
+    RunInput, RunOutput, SettingsInput, SettingsOptions, SettingsOutput, TargetsInput,
+    TargetsOptions, TargetsOutput, TaskInput, TaskOptions, TaskOutput, TestInput, TestOptions,
+    TestOutput, Workspace, source_watch_options,
 };
 use dashmap::DashMap;
 use destack_artifact::{
@@ -360,19 +360,6 @@ impl Workspace for LocalWorkspace {
 
         self.run_command(root, &common, request.revision, progress, |context| {
             context.run_check_command(&request)
-        })
-    }
-
-    fn lint(
-        &self,
-        root: &Path,
-        request: LintInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<LintOutput, CommandError> {
-        let common = request.command_options();
-
-        self.run_command(root, &common, request.revision, progress, |context| {
-            context.run_lint_command(&request)
         })
     }
 

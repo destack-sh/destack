@@ -14,10 +14,9 @@ use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, Client, ClientError, CommandError, CommandProgress,
     DocInput, DocOutput, DoctorInput, DoctorOutput, ExportRequest, ExportResult, FormatInput,
-    FormatOutput, InfoInput, InfoOutput, LintInput, LintOutput, ProgressEvent, QueryResult,
-    RevisionPolicy, RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput,
-    TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch, WatchPolicy,
-    WatchUpdate, Workspace,
+    FormatOutput, InfoInput, InfoOutput, ProgressEvent, QueryResult, RevisionPolicy, RunInput,
+    RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput,
+    TestInput, TestOutput, UpdateBatch, WatchPolicy, WatchUpdate, Workspace,
 };
 
 /// Workspace backed by a protocol client.
@@ -282,22 +281,6 @@ impl Workspace for RemoteWorkspace {
 
         self.client
             .check(handle, request, RequestOptions::default(), &mut notify)
-            .map_err(Self::command_error)
-    }
-
-    fn lint(
-        &self,
-        root: &Path,
-        request: LintInput,
-        progress: Option<CommandProgress<'_>>,
-    ) -> Result<LintOutput, CommandError> {
-        let handle = self
-            .handle_for_root(root)
-            .map_err(Self::remote_command_error)?;
-        let mut notify = Self::client_progress(progress);
-
-        self.client
-            .lint(handle, request, RequestOptions::default(), &mut notify)
             .map_err(Self::command_error)
     }
 

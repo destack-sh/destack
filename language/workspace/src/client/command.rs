@@ -3,9 +3,9 @@ use crate::protocol::{RequestOptions, RootId, WorkspaceRequest, WorkspaceRespons
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, DocInput, DocOutput, DoctorInput, DoctorOutput,
-    FormatInput, FormatOutput, InfoInput, InfoOutput, LintInput, LintOutput, ProgressEvent,
-    RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput,
-    TaskOutput, TestInput, TestOutput,
+    FormatInput, FormatOutput, InfoInput, InfoOutput, ProgressEvent, RunInput, RunOutput,
+    SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput,
+    TestOutput,
 };
 
 impl Client {
@@ -27,27 +27,6 @@ impl Client {
             WorkspaceResponse::Check(response) => Ok(response),
             WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("check result", other)),
-        }
-    }
-
-    /// Lint source state for a workspace root handle.
-    pub fn lint(
-        &self,
-        handle: RootId,
-        input: LintInput,
-        options: RequestOptions,
-        on_progress: &mut dyn FnMut(ProgressEvent),
-    ) -> Result<LintOutput, ClientError> {
-        let response = self.send_request_with_progress(
-            WorkspaceRequest::Lint { handle, input },
-            options,
-            on_progress,
-        )?;
-
-        match response {
-            WorkspaceResponse::Lint(response) => Ok(response),
-            WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
-            other => Err(Self::unexpected_response("lint result", other)),
         }
     }
 

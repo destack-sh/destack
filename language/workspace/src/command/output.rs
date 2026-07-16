@@ -7,7 +7,7 @@ use crate::{CommandOutputChunk, CommandOutputFile, FileImage, Message, OutputStr
 
 use super::build::BuildPayload;
 use super::cache::CachePayload;
-use super::check::{CheckPayload, LintPayload};
+use super::check::CheckPayload;
 use super::clean::CleanPayload;
 use super::common::CommandMessagePayload;
 use super::doctor::DoctorPayload;
@@ -152,7 +152,6 @@ command_output!(DocOutput, CommandMessagePayload);
 command_output!(DoctorOutput, DoctorPayload);
 command_output!(FormatOutput, FormatPayload);
 command_output!(InfoOutput, InfoPayload);
-command_output!(LintOutput, LintPayload);
 command_output!(RunOutput, Option<RunPayload>);
 command_output!(SettingsOutput, SettingsPayload);
 command_output!(TargetsOutput, TargetsPayload);

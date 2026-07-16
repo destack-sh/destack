@@ -22,7 +22,7 @@ mod test;
 pub use bench::{BenchInput, BenchOptions};
 pub use build::{BuildInput, BuildOptions, BuildOutputs, BuildPayload};
 pub use cache::{CacheEntry, CacheInput, CacheOptions, CachePayload};
-pub use check::{CheckInput, CheckOptions, CheckPayload, LintInput, LintOptions, LintPayload};
+pub use check::{CheckInput, CheckPayload};
 pub use clean::{CleanInput, CleanOptions, CleanPayload};
 pub use common::*;
 pub use constants::*;
@@ -38,8 +38,8 @@ pub(crate) use outcome::CommandOutcome;
 pub(crate) use output::OutputBuffer;
 pub use output::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandOutput, DocOutput,
-    DoctorOutput, FormatOutput, InfoOutput, LintOutput, Output, RunOutput, SettingsOutput,
-    TargetsOutput, TaskOutput, TestOutput,
+    DoctorOutput, FormatOutput, InfoOutput, Output, RunOutput, SettingsOutput, TargetsOutput,
+    TaskOutput, TestOutput,
 };
 pub use run::{RunInput, RunMode, RunOptions, RunPayload};
 pub use settings::{

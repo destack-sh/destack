@@ -10,8 +10,8 @@ use super::{
 };
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput,
-    ExportRequest, FormatInput, InfoInput, LintInput, RunInput, SettingsInput, TargetsInput,
-    TaskInput, TestInput,
+    ExportRequest, FormatInput, InfoInput, RunInput, SettingsInput, TargetsInput, TaskInput,
+    TestInput,
 };
 
 /// Requests accepted by the workspace protocol.
@@ -47,13 +47,6 @@ pub enum WorkspaceRequest {
         handle: RootId,
         /// Check input.
         input: CheckInput,
-    },
-    /// Lint source state.
-    Lint {
-        /// Root handle.
-        handle: RootId,
-        /// Lint input.
-        input: LintInput,
     },
     /// Format source files or content.
     Format {
