@@ -550,7 +550,7 @@ fn kind_color(name: &str) -> &'static str {
         "mir.optimize" => "38;5;214",
         "module.emit" => "38;5;114",
         "package.link" => "38;5;84",
-        "module.lint" | "package.lint" | "workspace.lint" => "38;5;228",
+        "module.lint" | "program.lint" => "38;5;228",
         "workspace.index" => "38;5;147",
         "environment" | "dependency.index" => "38;5;245",
         _ => "38;5;250",
