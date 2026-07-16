@@ -191,6 +191,15 @@
     "./reflect": {
       "path": "./src/reflect/index.ds"
     },
+    "./reflect/dir": {
+      "path": "./src/reflect/dir/index.ds"
+    },
+    "./reflect/mir": {
+      "path": "./src/reflect/mir/index.ds"
+    },
+    "./reflect/program": {
+      "path": "./src/reflect/program/index.ds"
+    },
     "./regexp": {
       "path": "./src/regexp/index.ds"
     },

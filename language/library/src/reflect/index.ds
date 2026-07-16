@@ -1,3 +1,5 @@
 export * from "./type.ds";
 export * from "./reflect.ds";
 export * as dir from "./dir";
+export * as mir from "./mir";
+export * as program from "./program";
