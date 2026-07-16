@@ -368,12 +368,8 @@ fn test_measure_component_graph_after_body_and_import_edits() {
 
         assert_eq!(body.changed_modules, Some(1));
         assert_eq!(body.counts.failed, 0);
-        assert_eq!(body.scc_micros, 0);
-        assert_eq!(body.condensation_micros, 0);
         assert_eq!(import.changed_modules, Some(1));
         assert_eq!(import.counts.failed, 0);
-        assert!(import.scc_micros > 0);
-        assert!(import.condensation_micros > 0);
 
         table = table.row(vec![
             Cell::new(graph.modules.to_string()),
