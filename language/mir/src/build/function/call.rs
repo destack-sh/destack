@@ -1,5 +1,7 @@
 use crate::build::{BuildError, FunctionBuilder};
-use crate::{Call, Callee, Function, Instruction, LocalNodeId, Type, TypeId, Value};
+use crate::{
+    Call, Callee, Function, Instruction, LocalNodeId, SignatureParameter, Type, TypeId, Value,
+};
 
 impl<'a> FunctionBuilder<'a> {
     /// Call one callable target.
@@ -33,6 +35,36 @@ impl<'a> FunctionBuilder<'a> {
         }
 
         destination
+    }
+
+    /// Call one declared function directly, deriving its signature from the header.
+    pub fn call_function(
+        &mut self,
+        function: LocalNodeId<Function>,
+        arguments: Vec<Value>,
+    ) -> Option<Value> {
+        // rebuild the signature type from the declared parameters and result
+        let declared = self.tree.get(function);
+        let parameters = declared
+            .parameters
+            .iter()
+            .map(|parameter| SignatureParameter {
+                ty: parameter.ty,
+                obligations: parameter.obligations.clone(),
+            })
+            .collect();
+        let result = declared.return_type;
+        let signature = self.tree.insert_type(Type::FunctionSignature {
+            lifetimes: Vec::new(),
+            parameters,
+            result,
+        });
+
+        self.call(
+            Callee::Direct { function },
+            TypeId::from(signature),
+            arguments,
+        )
     }
 
     /// Load a function pointer value for a function.
