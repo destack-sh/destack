@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    CauseKind, ControlTarget, ControlTargetForm, FlowBranch, Origin, Relation, TryTarget, ValueUse,
+    CauseKind, ControlTarget, ControlTargetForm, FlowBranch, Origin, Relation, TryTarget,
     VariableRole, WalkState, Widening,
 };
 
@@ -135,10 +135,9 @@ impl WalkState<'_, '_> {
                 );
                 let void = self.intern_type(dir::Type::Void)?;
 
-                self.relate_value(
+                self.relate_type(
                     origin,
                     CauseKind::Return { annotation: None },
-                    ValueUse::Output,
                     Relation::Assignable,
                     void,
                     result,

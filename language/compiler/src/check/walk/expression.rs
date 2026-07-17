@@ -610,6 +610,7 @@ impl WalkState<'_, '_> {
         body: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // labeled loops keep their own continue targets
+        self.enter_node(body)?;
         match self.tree.get(body) {
             dir::Expression::While {
                 condition,
