@@ -110,13 +110,56 @@ pub enum EnumBackingType {
     String,
 }
 
+impl EnumBackingType {
+    /// Return whether this backing type contains one resolved enum value.
+    pub fn contains(self, value: EnumFieldValue) -> bool {
+        match (self, value) {
+            (Self::String, EnumFieldValue::String(_)) => true,
+            (Self::Integer(integer), EnumFieldValue::Integer(value)) => integer.fits_literal(value),
+            (Self::String, EnumFieldValue::Integer(_))
+            | (Self::Integer(_), EnumFieldValue::String(_)) => false,
+        }
+    }
+}
+
 /// A resolved enum field value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum EnumFieldValue {
     /// Integer enum value.
-    Int(i64),
+    Integer(i64),
     /// String enum value.
     String(StringId),
+}
+
+impl EnumFieldValue {
+    /// Return this value's default enum backing type.
+    pub fn default_backing(self) -> EnumBackingType {
+        match self {
+            Self::Integer(_) => EnumBackingType::Integer(IntegerType::Fixed {
+                width: 64,
+                is_signed: true,
+            }),
+            Self::String(_) => EnumBackingType::String,
+        }
+    }
+
+    /// Return the following implicit enum value when the domain permits one.
+    pub fn next(self) -> Option<Self> {
+        match self {
+            Self::Integer(value) => value.checked_add(1).map(Self::Integer),
+            Self::String(_) => None,
+        }
+    }
+}
+
+impl From<EnumFieldValue> for ScalarLiteral {
+    /// Convert one resolved enum field value into its scalar literal.
+    fn from(value: EnumFieldValue) -> Self {
+        match value {
+            EnumFieldValue::Integer(value) => Self::Integer(value),
+            EnumFieldValue::String(value) => Self::String(value),
+        }
+    }
 }
 
 /// An integer type.

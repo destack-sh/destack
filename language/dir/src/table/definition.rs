@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{
-    FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
-    LocalGenericTemplateId, MemberSlot, MethodAbstraction, SegmentView, Space, StaticKey,
+    EnumBackingType, EnumFieldValue, FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId,
+    GlobalTypeId, LocalGenericTemplateId, MemberSlot, MethodAbstraction, SegmentView, Space,
+    StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -400,10 +401,11 @@ impl Definition {
                     member.key_type = map(member.key_type);
                     member.value_type = map(member.value_type);
                 }
+                DefinitionMember::TaggedVariant(member) => member.backing = map(member.backing),
                 DefinitionMember::Field(_)
                 | DefinitionMember::Method(_)
                 | DefinitionMember::AssociatedConst(_)
-                | DefinitionMember::Variant(_) => {}
+                | DefinitionMember::EnumVariant(_) => {}
             }
         }
     }
@@ -575,6 +577,8 @@ pub struct EnumDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the enum.
     pub template: Option<LocalGenericTemplateId>,
+    /// The scalar type backing every enum variant.
+    pub backing: EnumBackingType,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
     /// The members in declaration order.
@@ -827,17 +831,32 @@ pub struct AssociatedConstDefinition {
     pub value: Option<GlobalStaticId>,
 }
 
-/// One enum variant.
+/// One declared enum variant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct VariantDefinition {
+pub struct EnumVariantDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
     /// The source enum field node.
     pub source: GlobalNodeIdAny,
     /// The variant key.
     pub key: StaticKey,
-    /// The checked variant value.
-    pub value: Option<GlobalStaticId>,
+    /// The resolved scalar value.
+    pub value: EnumFieldValue,
+}
+
+/// One case derived from a tagged newtype backing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct TaggedVariantDefinition {
+    /// The variant symbol.
+    pub symbol: GlobalSymbolId,
+    /// The source newtype declaration node.
+    pub source: GlobalNodeIdAny,
+    /// The derived variant key.
+    pub key: StaticKey,
+    /// The checked string discriminant.
+    pub discriminant: GlobalStaticId,
+    /// The checked backing leaf selected by this variant.
+    pub backing: GlobalTypeId,
 }
 
 /// One symbol-free signature member.
@@ -880,8 +899,10 @@ pub enum DefinitionMember {
     AssociatedType(AssociatedTypeDefinition),
     /// Associated constant member.
     AssociatedConst(AssociatedConstDefinition),
-    /// Enum variant member.
-    Variant(VariantDefinition),
+    /// Declared enum variant member.
+    EnumVariant(EnumVariantDefinition),
+    /// Derived tagged newtype variant member.
+    TaggedVariant(TaggedVariantDefinition),
     /// Structural call signature member.
     CallSignature(SignatureDefinition),
     /// Structural construct signature member.
@@ -907,7 +928,8 @@ impl DefinitionMember {
             Self::Method(method) => method.source,
             Self::AssociatedType(associated) => associated.source,
             Self::AssociatedConst(associated) => associated.source,
-            Self::Variant(variant) => variant.source,
+            Self::EnumVariant(variant) => variant.source,
+            Self::TaggedVariant(variant) => variant.source,
             Self::CallSignature(signature) | Self::ConstructSignature(signature) => {
                 signature.source
             }
@@ -926,9 +948,10 @@ impl DefinitionMember {
             Self::Field(field) => field.space,
             Self::Method(method) => method.space,
             // associated members and variants live on the declaration
-            Self::AssociatedType(_) | Self::AssociatedConst(_) | Self::Variant(_) => {
-                MemberSpace::Static
-            }
+            Self::AssociatedType(_)
+            | Self::AssociatedConst(_)
+            | Self::EnumVariant(_)
+            | Self::TaggedVariant(_) => MemberSpace::Static,
             // structural signatures describe instances
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => {
                 MemberSpace::Instance
@@ -943,7 +966,8 @@ impl DefinitionMember {
             Self::Method(method) => Some(method.symbol),
             Self::AssociatedType(associated) => Some(associated.symbol),
             Self::AssociatedConst(associated) => Some(associated.symbol),
-            Self::Variant(variant) => Some(variant.symbol),
+            Self::EnumVariant(variant) => Some(variant.symbol),
+            Self::TaggedVariant(variant) => Some(variant.symbol),
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
         }
     }
@@ -958,16 +982,17 @@ impl DefinitionMember {
             },
             Self::AssociatedType(associated) => Some(associated.key),
             Self::AssociatedConst(associated) => Some(associated.key),
-            Self::Variant(variant) => Some(variant.key),
+            Self::EnumVariant(variant) => Some(variant.key),
+            Self::TaggedVariant(variant) => Some(variant.key),
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
         }
     }
 
-    /// Return the committed member value when the member carries one.
-    pub fn value(&self) -> Option<GlobalStaticId> {
+    /// Return the committed static value when the member carries one.
+    pub fn static_value(&self) -> Option<GlobalStaticId> {
         match self {
             Self::AssociatedConst(associated) => associated.value,
-            Self::Variant(variant) => variant.value,
+            Self::TaggedVariant(variant) => Some(variant.discriminant),
             _ => None,
         }
     }
@@ -989,7 +1014,11 @@ impl DefinitionMember {
                 Some(signature.ty)
             }
             Self::IndexSignature(signature) => Some(signature.value_type),
-            Self::Field(_) | Self::Method(_) | Self::AssociatedConst(_) | Self::Variant(_) => None,
+            Self::Field(_)
+            | Self::Method(_)
+            | Self::AssociatedConst(_)
+            | Self::EnumVariant(_)
+            | Self::TaggedVariant(_) => None,
         }
     }
 }
