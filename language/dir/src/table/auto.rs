@@ -162,6 +162,15 @@ impl AutoInterface {
     }
 }
 
+/// One checked marker conformance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct AutoConformance {
+    /// The satisfied marker interface.
+    pub interface: AutoInterface,
+    /// The conforming type.
+    pub target: GlobalTypeId,
+}
+
 /// Generated implementation for one auto interface.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AutoDerivedImplementation {
@@ -253,6 +262,20 @@ impl<'a> AutoTable<'a> {
         AutoTable::from_view(self.segments.with_tail(tail))
     }
 
+    /// Return whether one type satisfies one marker interface.
+    pub fn conforms(&self, target: GlobalTypeId, interface: AutoInterface) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.conforms(target, interface))
+    }
+
+    /// Iterate visible checked marker conformances.
+    pub fn conformances(&self) -> impl Iterator<Item = &AutoConformance> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.conformances())
+    }
+
     /// Iterate visible auto-derived implementations.
     pub fn implementations(&self) -> impl Iterator<Item = &AutoDerivedImplementation> + '_ {
         self.segments
@@ -273,6 +296,8 @@ pub struct AutoSegment {
     pub module_id: ModuleId,
     /// Auto-derived implementations in emission order.
     implementations: Vec<AutoDerivedImplementation>,
+    /// Checked marker conformances in emission order.
+    conformances: Vec<AutoConformance>,
 }
 
 impl AutoSegment {
@@ -281,12 +306,30 @@ impl AutoSegment {
         Self {
             module_id,
             implementations: Vec::new(),
+            conformances: Vec::new(),
         }
     }
 
-    /// Append one auto-derived implementation.
+    /// Record one checked marker conformance.
+    pub fn push_conformance(&mut self, conformance: AutoConformance) {
+        self.conformances.push(conformance);
+    }
+
+    /// Record one generated implementation.
     pub fn push_implementation(&mut self, implementation: AutoDerivedImplementation) {
         self.implementations.push(implementation);
+    }
+
+    /// Return whether one type satisfies one marker interface in this segment.
+    pub fn conforms(&self, target: GlobalTypeId, interface: AutoInterface) -> bool {
+        self.conformances
+            .iter()
+            .any(|conformance| conformance.target == target && conformance.interface == interface)
+    }
+
+    /// Iterate checked marker conformances in insertion order.
+    pub fn conformances(&self) -> impl Iterator<Item = &AutoConformance> + '_ {
+        self.conformances.iter()
     }
 
     /// Iterate auto-derived implementations in insertion order.
@@ -294,13 +337,16 @@ impl AutoSegment {
         self.implementations.iter()
     }
 
-    /// Return whether this segment has no implementations.
+    /// Return whether this segment has no implementations or conformances.
     pub fn is_empty(&self) -> bool {
-        self.implementations.is_empty()
+        self.implementations.is_empty() && self.conformances.is_empty()
     }
 
     /// Map every type id embedded in this segment.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        for conformance in &mut self.conformances {
+            conformance.target = map(conformance.target);
+        }
         for implementation in &mut self.implementations {
             implementation.map_type_ids(map);
         }
