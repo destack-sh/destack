@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{CastOrigin, Form, GlobalNodeIdAny, GlobalTypeId, SegmentView, Type};
+use crate::{CastOrigin, Form, GlobalNodeIdAny, GlobalTypeId, ScalarLiteral, SegmentView, Type};
 
 /// Cumulative checked coercions for one DIR module.
 #[derive(Debug, Clone)]
@@ -106,6 +106,8 @@ pub enum CoercionKind {
     Existential,
     /// Convert between scalar carriers, like `int32` into `float64`.
     Scalar,
+    /// Materialize one comptime scalar at its selected carrier, like `42` into `int32`.
+    Widen,
     /// Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`.
     Carrier,
 }
@@ -118,6 +120,7 @@ impl CoercionKind {
             Self::Union => "union",
             Self::Existential => "existential",
             Self::Scalar => "scalar",
+            Self::Widen => "widen",
             Self::Carrier => "carrier",
         }
     }
@@ -216,7 +219,17 @@ impl Coercion {
 
         // scalar singletons widen naturally into their base scalars
         let stores_directly = match source {
-            Type::Literal(literal) => literal.widens_to(target),
+            // integer and float literals record their selected carrier
+            Type::Literal(literal) => {
+                if matches!(literal, ScalarLiteral::Integer(_) | ScalarLiteral::Float(_))
+                    && matches!(target, Type::Primitive(_))
+                    && literal.widens_to(target)
+                {
+                    return Some(CoercionKind::Widen);
+                }
+
+                literal.widens_to(target)
+            }
             Type::Range(range) => range.widens_to(target),
             // exact keys store as their key-domain carrier
             Type::Key(key) => {
