@@ -5,10 +5,15 @@ use destack_artifact_macros::Diagnostic;
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
 #[diagnostic(severity = Error, phase = Lower)]
 pub enum LowerError {
-    /// MIR lowering is unavailable.
-    #[diagnostic(code = "EL900", message = "MIR lowering is unavailable")]
-    Unavailable {
-        /// Anchor the error to the affected module.
+    /// Construct is not supported by native compilation.
+    #[diagnostic(
+        code = "EL900",
+        message = "native compilation does not support {construct}"
+    )]
+    Unsupported {
+        /// Anchor the error to the unsupported construct.
         anchor: DiagnosticAnchor,
+        /// The unsupported construct.
+        construct: String,
     },
 }
