@@ -784,7 +784,7 @@ pub enum ConstructTarget {
     /// newtype UserId = string;
     /// UserId("u-1")      // wraps the raw value in the newtype
     /// ```
-    Newtype(NewtypeConstructCandidate),
+    Newtype(NewtypeSelection),
     /// Tagged union variant constructor selected at compile time.
     ///
     /// Examples:
@@ -840,23 +840,26 @@ impl ClassConstructCandidate {
     }
 }
 
-/// One newtype construction candidate after overload selection.
+/// One newtype backing selected for a nominal value.
 ///
 /// Examples:
 /// ```ds
 /// UserId(raw)
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct NewtypeConstructCandidate {
+pub struct NewtypeSelection {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
+    /// The selected instantiated backing alternative.
+    pub backing: GlobalTypeId,
     /// The selected generic argument bindings for the newtype symbol.
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
-impl NewtypeConstructCandidate {
-    /// Apply one mapping to every type id stored in this candidate.
+impl NewtypeSelection {
+    /// Apply one mapping to every type id stored in this selection.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.backing = map(self.backing);
         for argument in &mut self.generic_arguments {
             argument.map_type_ids(map);
         }
