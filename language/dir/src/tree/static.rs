@@ -23,6 +23,13 @@ pub enum StaticTerm {
     },
     /// Tuple value.
     Tuple { elements: Vec<StaticTerm> },
+    /// Nominal newtype value.
+    Newtype {
+        /// The instantiated newtype.
+        ty: GlobalTypeId,
+        /// The wrapped value.
+        value: Box<StaticTerm>,
+    },
     /// Structural object value.
     Object {
         /// The object properties.
@@ -55,6 +62,10 @@ impl StaticTerm {
                 }
             }
             Self::FixedArray { value, .. } => value.map_type_ids(map),
+            Self::Newtype { ty, value } => {
+                *ty = map(*ty);
+                value.map_type_ids(map);
+            }
             Self::Object { properties } => {
                 for property in properties {
                     property.map_type_ids(map);
