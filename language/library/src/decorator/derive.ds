@@ -1,8 +1,6 @@
-import { ExpansionContext, Macro, MaterializationContext } from "destack:macro";
-
 import { intrinsic } from "./intrinsic.ds";
 
-/// Derive macro dispatcher.
+/// Derive provider dispatcher.
 @languageItem("decorator.derive")
 export newtype derive = intrinsic;
 
@@ -19,7 +17,7 @@ export type TaggedNames = {
     readonly [discriminant: string]: string;
 };
 
-/// Derive constructor helpers for tagged newtype unions.
+/// Derive named cases for newtype unions with explicit `kind` discriminants.
 ///
 /// ```ds
 /// @derive(Tagged({ case: "UpperCamelCase" }))
@@ -34,17 +32,3 @@ export newtype Tagged =
           case?: TaggedCase;
           names?: TaggedNames;
       };
-
-/// Implement `Tagged` as a macro provider.
-export extension<Target> of Tagged implements Macro<Target> {
-    @intrinsic
-    static expand(target: Target, context: ExpansionContext, config: this): void;
-
-    @intrinsic
-    static materialize(
-        target: Target,
-        context: MaterializationContext,
-        config: this,
-        state: void,
-    ): void;
-}
