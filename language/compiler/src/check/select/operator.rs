@@ -31,9 +31,18 @@ impl BodyState<'_, '_> {
         let right_site = self.node_site(right_node.into_global_any(module))?;
         let left = answer!(self.operand_type(origin, left_site)?);
         let right = answer!(self.operand_type(origin, right_site)?);
+        let left_source = left_node.into_global_any(module);
         let right_source = right_node.into_global_any(module);
 
-        self.select_binary_operation(site, operator, left, right, right_source, writeback)
+        self.select_binary_operation(
+            site,
+            operator,
+            left,
+            right,
+            Some(left_source),
+            right_source,
+            writeback,
+        )
     }
 
     /// Select one binary operation from known operand types.
@@ -43,6 +52,7 @@ impl BodyState<'_, '_> {
         operator: dir::BinaryOperator,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
+        left_source: Option<dir::GlobalNodeIdAny>,
         right_source: dir::GlobalNodeIdAny,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
@@ -104,9 +114,13 @@ impl BodyState<'_, '_> {
         }
 
         // check builtin numeric operands against their joined type
-        if let Some((result, _)) =
+        if let Some((result, operand)) =
             answer!(self.builtin_numeric_result(origin, operator, left, right)?)
         {
+            // operands check as arguments of the builtin operation
+            answer!(self.expect_operand(left_source, operand)?);
+            answer!(self.expect_operand(Some(right_source), operand)?);
+
             return self.commit_builtin_operator(origin, node, operator, result, writeback);
         }
 
@@ -410,6 +424,34 @@ impl BodyState<'_, '_> {
             }
             _ => Ok(Answer::Ready(None)),
         }
+    }
+
+    /// Check one operand as an argument of the selected builtin operation.
+    fn expect_operand(
+        &mut self,
+        source: Option<dir::GlobalNodeIdAny>,
+        operand: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let Some(source) = source else {
+            return Ok(Answer::Ready(()));
+        };
+
+        // comptime-folded operations have no runtime operands
+        if matches!(self.ty(operand)?, dir::Type::Literal(_)) {
+            return Ok(Answer::Ready(()));
+        }
+
+        let operand_site = self.node_site(source)?;
+        let cause = self.intern_cause(Cause::root(operand_site.origin(), CauseKind::Expression));
+        answer!(self.check_node_expected(
+            operand_site,
+            operand,
+            Relation::Assignable,
+            cause,
+            ValueUse::Argument,
+        )?);
+
+        Ok(Answer::Ready(()))
     }
 
     /// Return one builtin unary result.

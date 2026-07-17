@@ -678,6 +678,10 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             if node.local_id.ty != dir::NodeType::Expression {
                 continue;
             }
+            // carrier widening keeps the written literal (it would just be noisy)
+            if coercion.kind == dir::CoercionKind::Widen {
+                continue;
+            }
             if !self.state.source_tree().has_node_id(node.local_id.id) {
                 continue;
             }

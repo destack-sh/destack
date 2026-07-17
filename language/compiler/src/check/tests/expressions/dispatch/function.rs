@@ -48,7 +48,7 @@ const value = add(1, 2);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=6 constraints=4 obligations=0 solutions=0 bounds=0 decisions=5
+/// @check.stats.solve variables=0 types=6 constraints=6 obligations=0 solutions=0 bounds=0 decisions=5
 "#);
 }
 

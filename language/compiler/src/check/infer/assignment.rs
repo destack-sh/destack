@@ -146,6 +146,7 @@ impl BodyState<'_, '_> {
                 operator,
                 left_type,
                 right_type,
+                None,
                 right_node,
                 Some(target_type)
             )?);

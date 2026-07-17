@@ -68,7 +68,7 @@ value += 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"

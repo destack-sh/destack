@@ -865,6 +865,7 @@ inspect(state.users[0]);
 /// @resolution.call source=state.users[0] parameters=(usize) arguments=(provided(0) as usize) return=User kind=symbol target=collections.array.index#4 receiver=Array<User> instance=Array<User>.<extension#6>.index#4
 /// @generic.instance source=state.users[0] id=Array<User>.<extension#6>.index#4
 /// @coercion.node source=state.users[0] from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=0 from=0 to=usize origin=implicit
 
 /// @generic.instance id=Array<User>.<extension#6>.index#4 template=collections.array.index#4 arguments=(User, User)
 /// @generic.instance id=Box<User> template=Box arguments=(User)
@@ -1604,6 +1605,7 @@ let point = ^Point { x: 1 };
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 to=int32 origin=implicit
 
 let borrow = &point;
 /// @type.symbol symbol=borrow source=borrow type=Borrowed<Point, "static", "mutable">
