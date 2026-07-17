@@ -5,7 +5,7 @@ use destack_serde::Reflect;
 use destack_source::{ComponentId, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
-use crate::ArtifactProjectionFingerprint;
+use crate::{ArtifactProjectionFingerprint, DiagnosticControlTable};
 
 /// Parsed DIR for one source module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -223,6 +223,8 @@ pub struct DirCheckedModule {
     pub bindings: Arc<dir::BindingSegment>,
     /// New decorator applications.
     pub decorators: Arc<dir::DecoratorSegment>,
+    /// Checked diagnostic controls.
+    pub controls: Arc<DiagnosticControlTable>,
     /// Auto-derived implementations.
     pub auto: Arc<dir::AutoSegment>,
     /// New types.

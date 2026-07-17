@@ -53,6 +53,11 @@ impl<T> DiagnosticBuilder<T> {
         &self.diagnostic
     }
 
+    /// Return the wrapped provider diagnostic mutably.
+    pub fn diagnostic_mut(&mut self) -> &mut T {
+        &mut self.diagnostic
+    }
+
     /// Add one secondary source label.
     pub fn label(
         mut self,

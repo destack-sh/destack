@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, LanguageItem, SegmentView};
+use crate::{Arena, GlobalNodeIdAny, GlobalSymbolId, LanguageItem, SegmentView};
 
 /// Cumulative decorator applications for one DIR module.
 #[derive(Debug, Clone)]
@@ -227,8 +227,6 @@ pub struct DecoratorApplication {
 pub struct DecoratorArgument {
     /// The argument node.
     pub source: GlobalNodeIdAny,
-    /// The committed static value when one exists.
-    pub value: Option<GlobalStaticId>,
 }
 
 /// Resolved decorator target.

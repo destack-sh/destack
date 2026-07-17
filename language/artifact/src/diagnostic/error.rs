@@ -9,6 +9,11 @@ pub enum DiagnosticError {
         /// The error message.
         message: String,
     },
+    /// A provider diagnostic cannot be finalized.
+    InvalidDiagnostic {
+        /// The error message.
+        message: String,
+    },
 }
 
 impl Display for DiagnosticError {
@@ -16,6 +21,9 @@ impl Display for DiagnosticError {
         match self {
             Self::InvalidAnchor { message } => {
                 write!(formatter, "invalid diagnostic anchor: {message}")
+            }
+            Self::InvalidDiagnostic { message } => {
+                write!(formatter, "invalid diagnostic: {message}")
             }
         }
     }
