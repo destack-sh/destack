@@ -181,9 +181,6 @@ async function refresh(cache: Cache): Promise<void> {
 }
 ```
 
-Because a scope guarantees a join before the parent frame dies, borrows of owned or static data _may also cross into scoped child tasks_ (subject to `Send`) - fork-join parallelism over borrowed data without ceremony (!).
-And because the runtime owns continuation scheduling, our DST mode can intercept every suspension point and replay or explore schedules deterministically.
-
 ## Patterns
 
 TypeScript has pattern based destructuring for arguments and assignment-like expressions, and Destack extends that idea into `match`, `if (let ...)`, `let ... else`, and `catch match` with a full suite of patterns for every type family:

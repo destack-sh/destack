@@ -213,7 +213,7 @@ newtype interface Add<T = this> {
 ```
 
 Nominal interfaces require **explicit `implements`** clauses, so structural compatibility alone doesn't satisfy the constraint (unlike with regular `interface`).
-Newtype interfaces are used for explicit behavioral traits like [operator interfaces](./expressions.md#operators) (e.g., `Add`, `Compare`), and for [capability traits](./memory.md#capabilities) (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
+Newtype interfaces are used for explicit behavioral traits like [operator interfaces](./expressions.md#operators) (e.g., `Add`, `Compare`), and for [capability traits](./memory.md#capabilities) (e.g., `Copy`, `Clone`, and `SharedSafe`).
 A `newtype interface` is nominal as a constraint, but it is still not a concrete value representation.
 
 ## Extensions

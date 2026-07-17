@@ -527,7 +527,7 @@ class Connection implements Drop {
 
 #### Inference
 
-Lifetimes are ordinary `comptime` value parameters (`<comptime L: Lifetime>` on `Borrowed<T, L>`), and they are inferred everywhere, including from function bodies.
+Lifetimes are (conceptually) ordinary `comptime` value parameters (`<comptime L: Lifetime>` on `Borrowed<T, L>`), and they are inferred everywhere, including from function bodies.
 
 ```rust
 fn first<'a>(items: &'a [String]) -> &'a str {
@@ -702,19 +702,17 @@ panic("invariant broken"); // unwinds the Worker; the parent sees WorkerExit "pa
 
 ### Concurrency
 
-#### Send and Sync
+#### Crossing Workers
 
-`Send` and `Sync` exist with the same meaning and the same structural derivation, applied per memory form:
+Rust gates crossing threads with the `Send` and `Sync` traits, while Destack extends the Worker-local default of TypeScript with an explicit "placement" model across `local` and `shared`..
+Types describe placement requirements in their signature, so `shared T` in a position plays the role of a `T: Send` bound, and the structural `SharedSafe` capability plays the role of the trait itself:
 
-| Form | Crosses Workers when |
+| Form | Reaches another Worker |
 | --- | --- |
 | local managed `T` | never |
-| `^T` | `T: Send` |
-| `&readonly T` | `T: Sync`, owned or static source |
-| `&exclusive T` | `T: Send`, owned or static source |
-| `&T` | never |
-
-The `&T` row is the cost of aliased mutability: it is only sound within one Worker, so it never crosses.
+| `shared T` | always |
+| `shared ^T` | always, constructed at its shared destination |
+| `shared &T` | always, borrowed from a shared referent |
 
 #### Tasks
 
@@ -732,7 +730,7 @@ const task = scope.spawn(() => fetch()); // owned: cancelled or joined before th
 #### Workers
 
 Threads map to Workers: isolated heaps, explicit `shared` memory, and message passing.
-Borrows of owned data may cross into scoped child tasks (subject to `Send`), which gives fork-join parallelism over borrowed data without `Arc` ceremony.
+Borrows of owned data may cross into scoped child tasks when the borrowed place is shared, which gives fork-join parallelism over borrowed data without `Arc` ceremony.
 
 ### Generics
 
