@@ -133,6 +133,8 @@ pub struct Coercion {
     pub source: GlobalTypeId,
     /// The target type after coercion.
     pub target: GlobalTypeId,
+    /// The target member selected for the stored value, when the target composes members.
+    pub member: Option<GlobalTypeId>,
     /// The representation change performed.
     pub kind: CoercionKind,
     /// How the coercion entered DIR.
@@ -150,10 +152,12 @@ impl Coercion {
         Self {
             source,
             target,
+            member: None,
             kind,
             origin,
         }
     }
+
     /// Classify the representation change between two settled, distinct type
     /// heads, or nothing when the value stores directly.
     pub fn classify(source: &Type, target: &Type) -> Option<CoercionKind> {
@@ -314,6 +318,9 @@ impl CoercionSegment {
         for coercion in self.coercions.values_mut() {
             coercion.source = map(coercion.source);
             coercion.target = map(coercion.target);
+            if let Some(member) = &mut coercion.member {
+                *member = map(*member);
+            }
         }
     }
 
