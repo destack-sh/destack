@@ -368,7 +368,7 @@ extension of Shape {
 }
 ```
 
-Except that `Tagged` enums also work in pattern position, and - thanks to some compiler magic that wouldn't work in pure userland - the variant head behaves like a real variant pattern:
+Explicitly `derive(Tagged)` enums also work in pattern position, and - thanks to some compiler magic that wouldn't work in pure userland - the variant head behaves like a real variant pattern:
 
 ```ds
 match (shape) {
@@ -990,7 +990,7 @@ The exact layout of a type can be configured via decorators that constrain its r
 | `@repr("destack")` | Use the native Destack representation. |
 | `@repr("C")` | Use the active target's C ABI layout. |
 | `@repr("transparent")` | Give a single-field declaration the same ABI representation as its field. |
-| `@repr(T)` | Use primitive scalar `T` as an enum backing representation. |
+| `@repr("uint8")` | Use the named integer representation as an enum backing. |
 | `@repr({ align: N })` | Raise the minimum aggregate alignment to `N`. |
 | `@repr({ packed: true })` / `@repr({ packed: N })` | Lower the maximum field alignment, with `true` equivalent to `1`. |
 

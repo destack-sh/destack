@@ -641,7 +641,7 @@ function sum(values: Iterator<uint8>): uint32 { ... } // sugar for Iterator<type
 
 #### Enums
 
-Rust enums map to `newtype` unions over object variants, with `@derive(Tagged)` supplying constructors and discriminants:
+Rust enums map to `newtype` unions over explicitly discriminated object variants, with `@derive(Tagged)` supplying constructors and variant patterns:
 
 ```rust
 enum Shape {
@@ -816,7 +816,6 @@ struct User {
 ```
 
 Generated code comes from `comptime eval` over reflected declarations, so macros compose with ordinary functions and expansion runs to a fixed point.
-In this example the `derive` can usually even be emitted since Destack additionally supports auto-derive for builtin derive macros.
 
 #### Const Functions
 

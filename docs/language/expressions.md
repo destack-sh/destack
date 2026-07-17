@@ -990,8 +990,7 @@ function get<T>(items: Slice<T>, index: usize): T {
 
 ### Derive
 
-Similar to Rust, Destack supports `@derive` providers for extending annotated declarations at compile time during the macro expansion phase.
-Unlike in Rust, a derive provider is just a nominal decorator that happens to implement the `Macro<Target>` interface, and `derive`-like macros do not need to be implemented in a different package.
+Similar to Rust, Destack supports `@derive` providers for extending annotated declarations at compile time.
 
 ```ds
 @derive(Clone, Debug)
