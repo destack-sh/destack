@@ -517,6 +517,46 @@ impl Parser {
                         }
                     }
 
+                    // variant construction and projection
+                    "variant.new" => {
+                        let case = self.parse_int_segment(&mut segment_spans)?;
+                        let case = u32::try_from(case)
+                            .map_err(|_| ParseError::invalid("case index", self.pos()))?;
+                        let payload = match self.peek_token(TokenType::Comma) {
+                            true => {
+                                self.eat_token(TokenType::Comma)?;
+
+                                Some(self.parse_value_segment(&mut segment_spans)?)
+                            }
+                            false => None,
+                        };
+                        Instruction::VariantNew {
+                            destination,
+                            case,
+                            payload,
+                            result_type: destination_type,
+                        }
+                    }
+                    "variant.tag" => {
+                        let variant = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::VariantTag {
+                            destination,
+                            variant,
+                        }
+                    }
+                    "variant.payload" => {
+                        let variant = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let case = self.parse_int_segment(&mut segment_spans)?;
+                        let case = u32::try_from(case)
+                            .map_err(|_| ParseError::invalid("case index", self.pos()))?;
+                        Instruction::VariantPayload {
+                            destination,
+                            variant,
+                            case,
+                        }
+                    }
+
                     // slice descriptors
                     "slice.view" => {
                         let source = self.parse_value_segment(&mut segment_spans)?;

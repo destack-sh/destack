@@ -49,6 +49,18 @@ pub enum BuildError {
         /// The type being accessed.
         ty: LocalNodeId<Type>,
     },
+    /// A case index does not exist on a variant type.
+    InvalidCaseIndex {
+        /// The variant type being selected.
+        variant: LocalNodeId<Type>,
+        /// The requested case index.
+        case: u32,
+    },
+    /// A variant operation was applied to a non-variant type.
+    InvalidVariantOwner {
+        /// The type being accessed.
+        ty: LocalNodeId<Type>,
+    },
     /// An element index does not exist on a fixed-array type.
     InvalidElementIndex {
         /// The fixed-array type being indexed.
@@ -171,6 +183,18 @@ impl std::fmt::Display for BuildError {
                 write!(
                     formatter,
                     "field access expects an aggregate type, got {ty:?}"
+                )
+            }
+            Self::InvalidCaseIndex { variant, case } => {
+                write!(
+                    formatter,
+                    "case index {case} is out of bounds for variant type {variant:?}"
+                )
+            }
+            Self::InvalidVariantOwner { ty } => {
+                write!(
+                    formatter,
+                    "variant access expects a variant type, got {ty:?}"
                 )
             }
             Self::InvalidElementIndex { array, index } => {

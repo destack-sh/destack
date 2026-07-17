@@ -32,6 +32,9 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementGet { .. }
         | mir::Instruction::ElementSet { .. }
+        | mir::Instruction::VariantNew { .. }
+        | mir::Instruction::VariantTag { .. }
+        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
         | mir::Instruction::DynamicBind { .. }
@@ -207,6 +210,9 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementGet { .. }
         | mir::Instruction::ElementSet { .. }
+        | mir::Instruction::VariantNew { .. }
+        | mir::Instruction::VariantTag { .. }
+        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::SliceView { .. }
@@ -675,6 +681,33 @@ pub fn instruction_substitute_uses(
             aggregate: substitute(aggregate),
             index: *index,
             value: substitute(value),
+        },
+        mir::Instruction::VariantNew {
+            destination,
+            case,
+            payload,
+            result_type,
+        } => mir::Instruction::VariantNew {
+            destination: *destination,
+            case: *case,
+            payload: payload.as_ref().map(substitute),
+            result_type: *result_type,
+        },
+        mir::Instruction::VariantTag {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTag {
+            destination: *destination,
+            variant: substitute(variant),
+        },
+        mir::Instruction::VariantPayload {
+            destination,
+            variant,
+            case,
+        } => mir::Instruction::VariantPayload {
+            destination: *destination,
+            variant: substitute(variant),
+            case: *case,
         },
         mir::Instruction::FieldAddr {
             destination,
@@ -2020,6 +2053,33 @@ pub fn instruction_map(
             index: *index,
             value: remap(*value),
         },
+        mir::Instruction::VariantNew {
+            destination,
+            case,
+            payload,
+            result_type,
+        } => mir::Instruction::VariantNew {
+            destination: remap(*destination),
+            case: *case,
+            payload: payload.map(remap),
+            result_type: *result_type,
+        },
+        mir::Instruction::VariantTag {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTag {
+            destination: remap(*destination),
+            variant: remap(*variant),
+        },
+        mir::Instruction::VariantPayload {
+            destination,
+            variant,
+            case,
+        } => mir::Instruction::VariantPayload {
+            destination: remap(*destination),
+            variant: remap(*variant),
+            case: *case,
+        },
         mir::Instruction::FieldAddr {
             destination,
             aggregate,
@@ -3127,6 +3187,33 @@ pub fn instruction_map_with_locals(
             aggregate: remap(*aggregate),
             index: *index,
             value: remap(*value),
+        },
+        mir::Instruction::VariantNew {
+            destination,
+            case,
+            payload,
+            result_type,
+        } => mir::Instruction::VariantNew {
+            destination: remap(*destination),
+            case: *case,
+            payload: payload.map(remap),
+            result_type: *result_type,
+        },
+        mir::Instruction::VariantTag {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTag {
+            destination: remap(*destination),
+            variant: remap(*variant),
+        },
+        mir::Instruction::VariantPayload {
+            destination,
+            variant,
+            case,
+        } => mir::Instruction::VariantPayload {
+            destination: remap(*destination),
+            variant: remap(*variant),
+            case: *case,
         },
         mir::Instruction::FieldAddr {
             destination,

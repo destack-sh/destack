@@ -171,6 +171,35 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
+    /// Resolve the discriminant type of a variant type.
+    pub(super) fn discriminant_type_for_variant(
+        &self,
+        variant_type: LocalNodeId<Type>,
+    ) -> BuildResult<LocalNodeId<Type>> {
+        match self.tree.get(variant_type) {
+            Type::Variant { discriminant, .. } => Ok(*discriminant),
+            _ => Err(BuildError::InvalidVariantOwner { ty: variant_type }),
+        }
+    }
+
+    /// Resolve one statically selected variant case payload type.
+    pub(super) fn case_type_for_variant(
+        &self,
+        variant_type: LocalNodeId<Type>,
+        case: u32,
+    ) -> BuildResult<LocalNodeId<Type>> {
+        match self.tree.get(variant_type) {
+            Type::Variant { cases, .. } => match cases.get(case as usize) {
+                Some(entry) => Ok(entry.ty),
+                None => Err(BuildError::InvalidCaseIndex {
+                    variant: variant_type,
+                    case,
+                }),
+            },
+            _ => Err(BuildError::InvalidVariantOwner { ty: variant_type }),
+        }
+    }
+
     /// Resolve one statically selected fixed-array element type.
     pub(super) fn element_type_for_array(
         &self,

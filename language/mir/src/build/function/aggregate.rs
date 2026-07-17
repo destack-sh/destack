@@ -52,6 +52,54 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Construct a variant value from one case payload.
+    pub fn variant_new(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        case: u32,
+        payload: Option<Value>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::VariantNew {
+            destination,
+            case,
+            payload,
+            result_type: ty,
+        });
+        self.define_value(destination, ty);
+
+        destination
+    }
+
+    /// Read the discriminant of a variant value.
+    pub fn variant_tag(&mut self, variant: Value) -> Value {
+        let destination = self.allocate_value();
+        let variant_type = self.expect_value_type(variant, "variant.tag variant");
+        let tag_type = self.expect_build(self.discriminant_type_for_variant(variant_type));
+        self.insert_instruction(Instruction::VariantTag {
+            destination,
+            variant,
+        });
+        self.define_value(destination, tag_type);
+
+        destination
+    }
+
+    /// Extract the payload of one statically selected variant case.
+    pub fn variant_payload(&mut self, variant: Value, case: u32) -> Value {
+        let destination = self.allocate_value();
+        let variant_type = self.expect_value_type(variant, "variant.payload variant");
+        let payload_type = self.expect_build(self.case_type_for_variant(variant_type, case));
+        self.insert_instruction(Instruction::VariantPayload {
+            destination,
+            variant,
+            case,
+        });
+        self.define_value(destination, payload_type);
+
+        destination
+    }
+
     /// Get the address of one structural field in an aggregate.
     pub fn field_addr(
         &mut self,

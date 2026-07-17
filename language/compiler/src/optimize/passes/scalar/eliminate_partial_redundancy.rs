@@ -452,6 +452,8 @@ fn expression_operands(key: &PureExpression) -> Vec<mir::Value> {
         } => vec![*condition, *then_value, *else_value],
         PureExpression::FieldGet { aggregate, .. } => vec![*aggregate],
         PureExpression::ElementGet { aggregate, .. } => vec![*aggregate],
+        PureExpression::VariantTag { variant } => vec![*variant],
+        PureExpression::VariantPayload { variant, .. } => vec![*variant],
     }
 }
 

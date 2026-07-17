@@ -1045,6 +1045,9 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::ElementSet { .. }
             | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::ElementAddr { .. }
+            | mir::Instruction::VariantNew { .. }
+            | mir::Instruction::VariantTag { .. }
+            | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::SliceView { .. }
             | mir::Instruction::SliceLength { .. }
             | mir::Instruction::DynamicBind { .. }

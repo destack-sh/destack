@@ -247,6 +247,35 @@ pub enum Instruction {
         result_type: TypeId,
     },
 
+    // variant construction and projection
+    /// Construct a variant value from one case payload.
+    VariantNew {
+        /// The SSA value to define with the constructed variant.
+        destination: Value,
+        /// The zero-based case index.
+        case: u32,
+        /// The case payload, or None for payloadless cases.
+        payload: Option<Value>,
+        /// The result variant type.
+        result_type: TypeId,
+    },
+    /// Read the discriminant of a variant value.
+    VariantTag {
+        /// The SSA value to define with the discriminant.
+        destination: Value,
+        /// The variant value whose discriminant is read.
+        variant: Value,
+    },
+    /// Extract the payload of one statically selected variant case.
+    VariantPayload {
+        /// The SSA value to define with the extracted payload.
+        destination: Value,
+        /// The variant value to extract from.
+        variant: Value,
+        /// The zero-based case index.
+        case: u32,
+    },
+
     // slice descriptors
     /// Form a non-owning slice view over a contiguous source region.
     SliceView {
@@ -885,6 +914,9 @@ impl Instruction {
             Instruction::ElementGet { destination, .. } => Some(*destination),
             Instruction::ElementSet { destination, .. } => Some(*destination),
             Instruction::ElementAddr { destination, .. } => Some(*destination),
+            Instruction::VariantNew { destination, .. } => Some(*destination),
+            Instruction::VariantTag { destination, .. } => Some(*destination),
+            Instruction::VariantPayload { destination, .. } => Some(*destination),
             Instruction::SliceView { destination, .. } => Some(*destination),
             Instruction::SliceLength { destination, .. } => Some(*destination),
             Instruction::DynamicBind { destination, .. } => Some(*destination),
@@ -986,6 +1018,11 @@ impl Instruction {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
             Instruction::ElementAddr { base, index, .. } => smallvec![*base, *index],
+            Instruction::VariantNew { payload, .. } => {
+                payload.iter().copied().collect::<SmallVec<[Value; 4]>>()
+            }
+            Instruction::VariantTag { variant, .. } => smallvec![*variant],
+            Instruction::VariantPayload { variant, .. } => smallvec![*variant],
             Instruction::SliceView {
                 source,
                 start,
@@ -1124,6 +1161,9 @@ impl Instruction {
             | Instruction::ElementSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
+            Instruction::VariantNew { payload, .. } => {
+                payload.iter().copied().collect::<SmallVec<[Value; 8]>>()
+            }
             Instruction::FunctionBind { environment, .. }
             | Instruction::VectorSplat {
                 value: environment, ..

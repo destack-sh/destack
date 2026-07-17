@@ -362,6 +362,71 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::VariantNew {
+                destination,
+                case,
+                payload,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("variant.new"),
+                        space(),
+                        copied_text(&case.to_string())
+                    ]
+                )?;
+                if let Some(payload) = payload {
+                    write!(f, [token(","), space(), payload])?;
+                }
+
+                Ok(())
+            }
+
+            Instruction::VariantTag {
+                destination,
+                variant,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("variant.tag"),
+                        space(),
+                        variant
+                    ]
+                )
+            }
+
+            Instruction::VariantPayload {
+                destination,
+                variant,
+                case,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("variant.payload"),
+                        space(),
+                        variant,
+                        token(","),
+                        space(),
+                        copied_text(&case.to_string())
+                    ]
+                )
+            }
+
             Instruction::FieldAddr {
                 destination,
                 aggregate,

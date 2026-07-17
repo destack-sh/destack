@@ -330,6 +330,9 @@ impl CostModel {
             | mir::Instruction::FieldSet { .. }
             | mir::Instruction::ElementGet { .. }
             | mir::Instruction::ElementSet { .. }
+            | mir::Instruction::VariantNew { .. }
+            | mir::Instruction::VariantTag { .. }
+            | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::SliceView { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }

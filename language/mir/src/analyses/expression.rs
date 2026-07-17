@@ -47,6 +47,10 @@ pub enum PureExpression {
     FieldGet { aggregate: mir::Value, field: u32 },
     /// Static element access from a fixed array.
     ElementGet { aggregate: mir::Value, index: u32 },
+    /// Discriminant read from a variant value.
+    VariantTag { variant: mir::Value },
+    /// Static payload access from a variant value.
+    VariantPayload { variant: mir::Value, case: u32 },
 }
 
 impl PureExpression {
@@ -152,6 +156,18 @@ impl PureExpression {
                 aggregate: *aggregate,
                 index: *index,
             }),
+
+            // pure variant projection
+            mir::Instruction::VariantTag { variant, .. } => {
+                Some(Self::VariantTag { variant: *variant })
+            }
+            mir::Instruction::VariantPayload { variant, case, .. } => Some(Self::VariantPayload {
+                variant: *variant,
+                case: *case,
+            }),
+
+            // construction is not deduplicated
+            mir::Instruction::VariantNew { .. } => None,
 
             // side effects and unstable reads are not pure expressions
             mir::Instruction::Const { .. }
@@ -290,6 +306,16 @@ impl PureExpression {
                 let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
 
                 Self::FieldGet { aggregate, field }
+            }
+            Self::VariantTag { variant } => {
+                let variant = *substitutions.get(&variant).unwrap_or(&variant);
+
+                Self::VariantTag { variant }
+            }
+            Self::VariantPayload { variant, case } => {
+                let variant = *substitutions.get(&variant).unwrap_or(&variant);
+
+                Self::VariantPayload { variant, case }
             }
             Self::ElementGet { aggregate, index } => {
                 let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);

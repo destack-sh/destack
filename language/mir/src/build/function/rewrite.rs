@@ -290,6 +290,15 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::FieldAddr { aggregate, .. } => {
                     Self::replace_value_in_slot(aggregate, from, to);
                 }
+                Instruction::VariantNew { payload, .. } => {
+                    if let Some(payload) = payload {
+                        Self::replace_value_in_slot(payload, from, to);
+                    }
+                }
+                Instruction::VariantTag { variant, .. }
+                | Instruction::VariantPayload { variant, .. } => {
+                    Self::replace_value_in_slot(variant, from, to);
+                }
                 Instruction::ElementAddr { base, index, .. } => {
                     Self::replace_value_in_slot(base, from, to);
                     Self::replace_value_in_slot(index, from, to);
