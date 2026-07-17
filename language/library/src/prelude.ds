@@ -460,7 +460,6 @@ global {
         capture,
         cold,
         DiagnosticControlOptions,
-        DiagnosticFallback,
         DiagnosticSelector,
         deny,
         deprecated,
