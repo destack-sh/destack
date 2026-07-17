@@ -9,6 +9,7 @@ use destack_artifact::{
     MemoryBlobStore, NullArtifactStore,
 };
 use destack_dir as dir;
+use destack_mir::{MirFormatOptions, format_mir};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Host, ProviderError, Ref, Repository,
     Revision, Settings, TraceSnapshot,
@@ -208,6 +209,14 @@ impl TestSession {
         ArtifactKey::dir_checked(entry.module.id, entry.profile)
     }
 
+    /// Return the lowered MIR key for one module on the native target.
+    pub(crate) fn mir_lowered_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+        let target = TargetId::new(entry.module.package_id, "native");
+
+        ArtifactKey::mir_lowered(entry.module.id, entry.profile, target)
+    }
+
     /// Return the checked component key for one module.
     pub(crate) fn dir_checked_component_key(&self, path: &str) -> ArtifactKey {
         let entry = self.module_entry(path);
@@ -312,6 +321,51 @@ impl TestSession {
     #[track_caller]
     pub(crate) fn assert_dir_checked(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_checked_key, true);
+    }
+
+    /// Assert lowered MIR for one module.
+    #[track_caller]
+    pub(crate) fn assert_mir_lowered(&self, path: &str, expected: &str) {
+        self.assert_mir(path, expected, Self::mir_lowered_key);
+    }
+
+    /// Assert one rendered MIR snapshot.
+    #[track_caller]
+    fn assert_mir(&self, path: &str, expected: &str, artifact_key: fn(&Self, &str) -> ArtifactKey) {
+        let key = artifact_key(self, path);
+        let mir = self.render_mir_snapshot(key);
+
+        assert_snapshot(mir, expected);
+    }
+
+    /// Render one MIR artifact as formatted MIR.
+    #[track_caller]
+    fn render_mir_snapshot(&self, key: ArtifactKey) -> String {
+        // build through the provider, failing loudly with rendered diagnostics
+        let version = match self.require_artifact_result(key) {
+            Ok(version) => version,
+            Err(error) => panic!(
+                "test MIR artifact failed: {error}\n{}",
+                self.diagnostic_snapshot(key)
+            ),
+        };
+        let Some(lowered) = self.artifacts().mir_lowered(&version) else {
+            panic!(
+                "test MIR artifact should exist\n{}",
+                self.diagnostic_snapshot(key)
+            )
+        };
+
+        // format the MIR tree against the repository names
+        let strings = self.repository.string_pool();
+
+        format_mir(
+            &lowered.tree,
+            lowered.target,
+            strings.as_ref(),
+            MirFormatOptions::default(),
+        )
+        .expect("test MIR should format")
     }
 
     /// Assert checked DIR rows and diagnostics for one module.
