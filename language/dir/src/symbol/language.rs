@@ -1315,7 +1315,7 @@ define_language_items! {
             StrideOf => (Function, "reflect/type", "strideOf"),
 
             /// Reflected type.
-            Type => (Type, "reflect/type", "Type"),
+            Type => (Newtype, "reflect/type", "Type"),
 
             /// Stable type identifier.
             TypeId => (Newtype, "reflect/type", "TypeId"),
@@ -1433,6 +1433,15 @@ define_language_items! {
         view {
             /// Tensor view type.
             TensorView => (Newtype, "tensor/view", "TensorView"),
+        }
+    }
+
+    /// Telemetry types.
+    telemetry {
+        /// `destack:telemetry/binding`.
+        binding {
+            /// Telemetry binding family.
+            TelemetryBinding => (Interface, "telemetry/binding/telemetry", "TelemetryBinding"),
         }
     }
 
