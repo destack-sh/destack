@@ -54,26 +54,11 @@ impl CheckState<'_> {
             | dir::Type::Key(_)
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
-            | dir::Type::FunctionPointer(_) => Ok(Answer::Ready(true)),
-            dir::Type::Primitive(primitive) => Ok(Answer::Ready(matches!(
-                primitive,
-                dir::PrimitiveType::Boolean
-                    | dir::PrimitiveType::Character
-                    | dir::PrimitiveType::Integer(_)
-                    | dir::PrimitiveType::Float(_)
-            ))),
-            dir::Type::Literal(literal) => Ok(Answer::Ready(matches!(
-                literal.scalar_domain(),
-                Some(
-                    dir::ScalarDomain::Integer
-                        | dir::ScalarDomain::Float
-                        | dir::ScalarDomain::Character
-                        | dir::ScalarDomain::Boolean
-                        | dir::ScalarDomain::Null
-                        | dir::ScalarDomain::Undefined
-                )
-            ))),
-            dir::Type::Range(_) => Ok(Answer::Ready(true)),
+            | dir::Type::FunctionPointer(_)
+            // primitives copy as values or as immutable managed references
+            | dir::Type::Primitive(_)
+            | dir::Type::Literal(_)
+            | dir::Type::Range(_) => Ok(Answer::Ready(true)),
             dir::Type::EnumMember(member) => self.satisfies_copy(origin, member.owner, active),
             dir::Type::Any
             | dir::Type::Unknown

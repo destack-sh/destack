@@ -253,7 +253,7 @@ let user: ^readonly User = ^readonly User {
 user.profile.name = "Grace";
 /// @type.node source="user.profile.name = \"Grace\"" type="Grace"
 /// @type.node source=user type=Owned<Readonly<User>> reduced=Readonly<User>
-/// @type.node source=user.profile type=Readonly<Profile>
+/// @type.node source=user.profile type=Profile
 /// @type.node source=user.profile.name type=string
 /// @resolution.name source=user target=user
 /// @resolution.member source=user.profile receiver=Readonly<User> kind=symbol target=User.profile

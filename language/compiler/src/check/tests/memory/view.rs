@@ -301,3 +301,71 @@ function label(name: string): void {}
 "#,
     );
 }
+
+#[test]
+fn test_reject_scalar_field_write_through_readonly_view() {
+    let session = TestSession::single(
+        r#"
+struct Profile {
+    count: int32;
+}
+
+declare class Person {
+    profile: Profile;
+}
+
+declare const person: readonly Person;
+
+person.profile.count = 5;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Profile {
+    count: int32;
+}
+
+declare class Person {
+    profile: Profile;
+}
+
+declare const person: readonly Person;
+
+person.profile.count = 5;
+
+=== checked ===
+struct Profile {
+/// @type.symbol symbol=Profile type=Profile
+/// @definition.struct symbol=Profile
+/// @definition.field symbol=Profile.count source="count: int32" key=count type=int32
+
+    count: int32;
+    /// @type.symbol symbol=Profile.count source="count: int32" type=int32
+
+}
+
+declare class Person {
+/// @type.symbol symbol=Person type=Person
+/// @definition.class symbol=Person
+/// @definition.field symbol=Person.profile source="profile: Profile" key=profile type=Profile
+
+    profile: Profile;
+    /// @type.symbol symbol=Person.profile source="profile: Profile" type=Profile
+    /// @resolution.name source=Profile target=Profile
+
+}
+
+declare const person: readonly Person;
+/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @resolution.name source=Person target=Person
+
+person.profile.count = 5;
+/// @resolution.name source=person target=person
+/// @resolution.member source=person.profile receiver=Readonly<Person> kind=symbol target=Person.profile
+/// @resolution.pattern.assign source=person.profile.count kind=place place=field(Profile.count) type=int32
+"#, r#"
+/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'count'"
+/// @diagnostic.label line=12 column=16 span="count" line_source="person.profile.count = 5;"
+"#);
+}

@@ -205,6 +205,10 @@ impl BodyState<'_, '_> {
                     receiver = split.value;
                 }
                 let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+
+                // a place projected through a readonly view stays readonly for writes
+                let receiver =
+                    answer!(self.readonly_write_receiver(origin, module, use_, left, receiver)?);
                 let space = self.member_receiver_space(receiver_node, receiver)?;
                 let key = dir::StaticKey::Name(name);
                 let lookup = answer!(self.lookup_member(origin, module, receiver, space, key)?);
@@ -220,6 +224,10 @@ impl BodyState<'_, '_> {
                 let receiver_node = left.into_global_any(module);
                 let receiver_site = self.node_site(receiver_node)?;
                 let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
+
+                // a place projected through a readonly view stays readonly for writes
+                let receiver =
+                    answer!(self.readonly_write_receiver(origin, module, use_, left, receiver)?);
                 let index_node = index.into_global_any(module);
                 let index_site = self.node_site(index_node)?;
                 let index = answer!(self.infer_node_type(index_site, PlaceUse::Read)?);
@@ -499,6 +507,56 @@ impl BodyState<'_, '_> {
                     .managed_acquisition_granted(Some(dir::Access::Exclusive), chain.place())?;
 
                 Ok((!granted).then_some(receiver))
+            }
+        }
+    }
+
+    /// Return one write receiver, keeping the readonly view its place projects through.
+    fn readonly_write_receiver(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        use_: PlaceUse,
+        left: dir::LocalNodeId<dir::Expression>,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        if use_ == PlaceUse::Read || !answer!(self.place_projects_readonly(origin, module, left)?) {
+            return Ok(Answer::Ready(receiver));
+        }
+
+        let readonly = self.intern_type(
+            origin.module(),
+            dir::Type::Form(dir::FormType {
+                form: dir::Form::Readonly,
+                value: receiver,
+            }),
+        )?;
+
+        Ok(Answer::Ready(readonly))
+    }
+
+    /// Return whether one place expression projects through a readonly view.
+    fn place_projects_readonly(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<bool>> {
+        let mut current = expression;
+
+        // walk projections to the root, checking each step's view
+        loop {
+            let site = self.node_site(current.into_global_any(module))?;
+            let ty = answer!(self.node_type_at(site)?);
+            if answer!(self.receiver_projects_readonly(origin, ty)?) {
+                return Ok(Answer::Ready(true));
+            }
+
+            match self.module(module).view().get(current).clone() {
+                dir::Expression::Member { left, .. } | dir::Expression::Index { left, .. } => {
+                    current = left;
+                }
+                _ => return Ok(Answer::Ready(false)),
             }
         }
     }
