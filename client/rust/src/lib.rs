@@ -7,7 +7,6 @@ pub use destack_heap as heap;
 pub use destack_js as js;
 pub use destack_mir as mir;
 pub use destack_program as program;
-pub use destack_qir as qir;
 pub use destack_query as query;
 pub use destack_repository as repository;
 pub use destack_source as source;
