@@ -1,7 +1,14 @@
-import { Type } from "destack:reflect/type";
-
 /// Representation policy for a declaration.
-export type Representation = "destack" | "C" | "transparent";
+export type Representation =
+    | "destack"
+    | "C"
+    | "transparent"
+    | "int"
+    | "uint"
+    | "isize"
+    | "usize"
+    | `int${uint16}`
+    | `uint${uint16}`;
 
 /// Representation options for a declaration.
 export type RepresentationOptions = {
@@ -14,7 +21,7 @@ export type RepresentationOptions = {
 /// `@repr("destack")` is the default language representation.
 ///
 /// ```
-/// @repr(uint8)
+/// @repr("uint8")
 /// enum Color {
 ///     Red = 1,
 ///     Green = 2,
@@ -42,6 +49,4 @@ export type RepresentationOptions = {
 export newtype repr =
     | (Representation,)
     | (Representation, RepresentationOptions)
-    | (Type,)
-    | (Type, RepresentationOptions)
     | (RepresentationOptions,);
