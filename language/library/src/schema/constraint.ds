@@ -29,6 +29,9 @@ export newtype interface Refinement<T> {
 
 /// Length constraint for strings and indexed collections.
 export struct LengthConstraint {
+    /// The constraint discriminator.
+    kind: "length";
+
     /// Minimum length.
     min?: usize;
 
@@ -38,18 +41,27 @@ export struct LengthConstraint {
 
 /// Range constraint for ordered scalar values.
 export struct RangeConstraint<T> {
+    /// The constraint discriminator.
+    kind: "range";
+
     /// Accepted value range.
     bounds: RangeBounds<T>;
 }
 
 /// Pattern constraint for strings.
 export struct PatternConstraint {
+    /// The constraint discriminator.
+    kind: "pattern";
+
     /// Required string pattern.
     pattern: string;
 }
 
 /// User-defined refinement constraint.
 export struct RefinementConstraint<T> {
+    /// The constraint discriminator.
+    kind: "refinement";
+
     /// Refinement implementation.
     refinement: Refinement<T>;
 }

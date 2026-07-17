@@ -29,7 +29,6 @@ export newtype EntityRef = EntityId;
 export newtype EdgeRef = EdgeId;
 
 /// Entity or edge topology record.
-@derive(Tagged)
 export newtype Record = EntityRecord | EdgeRecord;
 
 /// Runtime topology graph.

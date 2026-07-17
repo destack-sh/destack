@@ -5,12 +5,18 @@ import { BaseOf } from "../type.ds";
 
 /// Borrowed copy-on-write value.
 export struct CowBorrowed<T> {
+    /// The copy-on-write discriminator.
+    kind: "borrowed";
+
     /// The borrowed value.
     value: T;
 }
 
 /// Owned copy-on-write value.
 export struct CowOwned<T> {
+    /// The copy-on-write discriminator.
+    kind: "owned";
+
     /// The owned value.
     value: T;
 }
