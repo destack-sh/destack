@@ -8,6 +8,8 @@ use crate::FloatType;
 pub enum Constant {
     /// Null reference constant.
     Null,
+    /// Undefined reference constant.
+    Undefined,
     /// Boolean constant.
     Boolean {
         /// The boolean value.

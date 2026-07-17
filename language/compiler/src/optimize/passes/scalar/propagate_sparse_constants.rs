@@ -486,6 +486,20 @@ impl<'a> PropagateSparseConstantsState<'a> {
                     .or_default()
                     .insert(block_id);
             }
+            mir::Terminator::VariantSwitch { default, cases, .. } => {
+                // variant tags stay unfolded: every edge may execute
+                if let Some(default) = default {
+                    let arguments = default.arguments(self.tree);
+                    self.mark_edge_executable(block_id, default.block, arguments);
+                }
+                let cases = self.tree.get_switch_cases(*cases);
+                for case in cases {
+                    let case_block = case.target.block;
+                    let arguments = case.target.arguments(self.tree);
+
+                    self.mark_edge_executable(block_id, case_block, arguments);
+                }
+            }
             mir::Terminator::Switch {
                 value,
                 default,

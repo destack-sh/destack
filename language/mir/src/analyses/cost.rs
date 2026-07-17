@@ -417,6 +417,7 @@ impl CostModel {
             mir::Terminator::Branch { .. }
             | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }
+            | mir::Terminator::VariantSwitch { .. }
             | mir::Terminator::Yield { .. } => cost.branch += 1,
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
                 cost.add_call(call);

@@ -1334,6 +1334,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Terminator::Branch { .. }
             | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }
+            | mir::Terminator::VariantSwitch { .. }
             | mir::Terminator::Yield { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume

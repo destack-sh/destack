@@ -23,6 +23,10 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Null)
             }
+            TokenType::Identifier if token_text == "undefined" => {
+                self.bump();
+                Ok(Constant::Undefined)
+            }
             TokenType::BooleanLiteral => {
                 let value = token_text == "true";
                 self.bump();
@@ -89,6 +93,16 @@ impl Parser {
                 }
                 self.bump();
                 Ok(Constant::Null)
+            }
+            TokenType::Identifier if token_text == "undefined" => {
+                let Type::Reference { nullability, .. } = expected else {
+                    return Err(ParseError::invalid("undefined constant type", token_start));
+                };
+                if !nullability.allows_undefined() {
+                    return Err(ParseError::invalid("undefined constant type", token_start));
+                }
+                self.bump();
+                Ok(Constant::Undefined)
             }
             TokenType::BooleanLiteral => {
                 if !matches!(expected, Type::Boolean) {

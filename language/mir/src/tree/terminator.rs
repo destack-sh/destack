@@ -240,6 +240,15 @@ pub enum Terminator {
         /// The cases to match against.
         cases: SwitchCaseSlice,
     },
+    /// Switch on the logical case of a variant value.
+    VariantSwitch {
+        /// The variant value to switch on.
+        value: Value,
+        /// The block to jump to if no case matches, absent when exhaustive.
+        default: Option<BlockTarget>,
+        /// The cases to match against, keyed by logical case index.
+        cases: SwitchCaseSlice,
+    },
 
     /// Yield from a coroutine to its current owner.
     Yield {
@@ -401,6 +410,25 @@ impl Terminator {
 
                 edges
             }
+            Terminator::VariantSwitch { default, cases, .. } => {
+                let mut edges = Vec::with_capacity(cases.len() + 1);
+
+                // add the optional default edge first
+                if let Some(default) = default {
+                    edges.extend(block_edge(source, Successor::SwitchDefault, default));
+                }
+
+                // add case edges in source order
+                for case in tree.get_switch_cases(*cases) {
+                    edges.extend(block_edge(
+                        source,
+                        Successor::SwitchCase { value: case.value },
+                        &case.target,
+                    ));
+                }
+
+                edges
+            }
             Terminator::Yield { resume, unwind, .. } => {
                 let mut edges = Vec::with_capacity(2);
 
@@ -450,6 +478,19 @@ impl Terminator {
             } => smallvec![success.block, failure.block],
             Terminator::Switch { default, cases, .. } => {
                 let mut successors = smallvec![default.block];
+                successors.extend(
+                    tree.get_switch_cases(*cases)
+                        .iter()
+                        .map(|case| case.target.block),
+                );
+
+                successors
+            }
+            Terminator::VariantSwitch { default, cases, .. } => {
+                let mut successors = SmallVec::new();
+                if let Some(default) = default {
+                    successors.push(default.block);
+                }
                 successors.extend(
                     tree.get_switch_cases(*cases)
                         .iter()
@@ -529,6 +570,22 @@ impl Terminator {
             } => {
                 let mut uses = smallvec![*value];
                 uses.extend(default.arguments(tree).iter().copied());
+                for case in tree.get_switch_cases(*cases) {
+                    uses.extend(case.target.arguments(tree).iter().copied());
+                }
+
+                uses
+            }
+            Terminator::VariantSwitch {
+                value,
+                default,
+                cases,
+                ..
+            } => {
+                let mut uses = smallvec![*value];
+                if let Some(default) = default {
+                    uses.extend(default.arguments(tree).iter().copied());
+                }
                 for case in tree.get_switch_cases(*cases) {
                     uses.extend(case.target.arguments(tree).iter().copied());
                 }
@@ -677,6 +734,21 @@ impl Terminator {
 
                 &[]
             }
+            Terminator::VariantSwitch { default, cases, .. } => {
+                if let Some(default) = default
+                    && Some(default.block) == Some(successor)
+                {
+                    return default.arguments(tree);
+                }
+
+                for case in tree.get_switch_cases(*cases) {
+                    if Some(case.target.block) == Some(successor) {
+                        return case.target.arguments(tree);
+                    }
+                }
+
+                &[]
+            }
 
             Terminator::Yield { resume, unwind, .. } => {
                 if Some(resume.block) == Some(successor) {
@@ -747,6 +819,14 @@ impl Terminator {
             }
             Terminator::Switch { default, cases, .. } => {
                 arguments.merge_target(default, successor, tree);
+                for case in tree.get_switch_cases(*cases) {
+                    arguments.merge_target(&case.target, successor, tree);
+                }
+            }
+            Terminator::VariantSwitch { default, cases, .. } => {
+                if let Some(default) = default {
+                    arguments.merge_target(default, successor, tree);
+                }
                 for case in tree.get_switch_cases(*cases) {
                     arguments.merge_target(&case.target, successor, tree);
                 }

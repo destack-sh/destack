@@ -241,7 +241,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Get the type of an existing SSA value.
-    pub(super) fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
         self.value_types.get(value.0 as usize).copied().flatten()
     }
 

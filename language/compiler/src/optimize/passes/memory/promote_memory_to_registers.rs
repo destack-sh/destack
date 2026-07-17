@@ -804,6 +804,34 @@ fn update_terminator_arguments(
                 cases: tree.add_switch_cases(&new_cases),
             }
         }
+        mir::Terminator::VariantSwitch {
+            value,
+            default,
+            cases,
+        } => {
+            let default = default.as_ref().map(|default| {
+                extend_target(tree, default, block_params, value_stacks, substitutions)
+            });
+            let cases = tree.get_switch_cases(*cases).to_vec();
+            let new_cases: Vec<_> = cases
+                .iter()
+                .map(|case| mir::SwitchCase {
+                    value: case.value,
+                    target: extend_target(
+                        tree,
+                        &case.target,
+                        block_params,
+                        value_stacks,
+                        substitutions,
+                    ),
+                })
+                .collect();
+            mir::Terminator::VariantSwitch {
+                value: remap_value_reference(*value, substitutions),
+                default,
+                cases: tree.add_switch_cases(&new_cases),
+            }
+        }
         mir::Terminator::Yield {
             value,
             resume,

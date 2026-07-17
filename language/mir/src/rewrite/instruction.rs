@@ -3586,6 +3586,24 @@ pub fn terminator_remap(
             }
             *cases = tree.add_switch_cases(&new_cases);
         }
+        mir::Terminator::VariantSwitch {
+            value,
+            default,
+            cases,
+        } => {
+            remap_value(value);
+            if let Some(default) = default {
+                remap_target(default);
+                default.arguments = remap_value_slice(tree, default.arguments, value_map);
+            }
+
+            let mut new_cases = tree.get_switch_cases(*cases).to_vec();
+            for case in &mut new_cases {
+                remap_target(&mut case.target);
+                case.target.arguments = remap_value_slice(tree, case.target.arguments, value_map);
+            }
+            *cases = tree.add_switch_cases(&new_cases);
+        }
         mir::Terminator::Return { value } => {
             if let Some(v) = value {
                 remap_value(v);

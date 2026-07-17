@@ -146,6 +146,15 @@ fn run_propagate_copies(
                     record_predecessor(&case.target);
                 }
             }
+            mir::Terminator::VariantSwitch { default, cases, .. } => {
+                if let Some(default) = default {
+                    record_predecessor(default);
+                }
+
+                for case in tree.get_switch_cases(*cases) {
+                    record_predecessor(&case.target);
+                }
+            }
             mir::Terminator::Yield { resume, unwind, .. } => {
                 record_predecessor(resume);
                 if let Some(unwind) = unwind {
@@ -405,6 +414,42 @@ fn remove_arguments_at_indices(
             mir::Terminator::Switch {
                 value: *value,
                 default: mir::BlockTarget::new(default.block, new_default_args),
+                cases: new_cases,
+            }
+        }
+        mir::Terminator::VariantSwitch {
+            value,
+            default,
+            cases,
+        } => {
+            let new_default = default.as_ref().map(|default| {
+                let (arguments, changed) = filter_target_arguments(tree, default, removed_indices);
+
+                (mir::BlockTarget::new(default.block, arguments), changed)
+            });
+            let cases = tree.get_switch_cases(*cases).to_vec();
+            let mut changed_cases = false;
+            let new_cases: Vec<_> = cases
+                .iter()
+                .map(|case| {
+                    let (new_args, changed_case) =
+                        filter_target_arguments(tree, &case.target, removed_indices);
+                    changed_cases |= changed_case;
+                    mir::SwitchCase {
+                        value: case.value,
+                        target: mir::BlockTarget::new(case.target.block, new_args),
+                    }
+                })
+                .collect();
+            let changed_default = new_default.as_ref().is_some_and(|(_, changed)| *changed);
+            if !changed_default && !changed_cases {
+                return terminator.clone();
+            }
+            let new_cases = tree.add_switch_cases(&new_cases);
+
+            mir::Terminator::VariantSwitch {
+                value: *value,
+                default: new_default.map(|(target, _)| target),
                 cases: new_cases,
             }
         }

@@ -88,6 +88,44 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
+    /// Switch on the logical case of a variant value.
+    pub fn variant_switch(
+        &mut self,
+        value: Value,
+        default_block: Option<LocalNodeId<Block>>,
+        cases: Vec<(u32, LocalNodeId<Block>)>,
+    ) {
+        let block = self.current_block();
+        let default = default_block.map(|default_block| {
+            self.add_predecessor(block, default_block);
+            let default_arguments = self.tree.add_values(&[]);
+
+            BlockTarget::new(default_block, default_arguments)
+        });
+        let cases = cases
+            .into_iter()
+            .map(|(case, target_block)| {
+                self.add_predecessor(block, target_block);
+                let target_arguments = self.tree.add_values(&[]);
+
+                SwitchCase {
+                    value: case as i128,
+                    target: BlockTarget::new(target_block, target_arguments),
+                }
+            })
+            .collect::<Vec<_>>();
+        let cases = self.tree.add_switch_cases(&cases);
+
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::VariantSwitch {
+            value,
+            default,
+            cases,
+        };
+    }
+
     /// Conditional check with explicit success and failure edges.
     pub fn check(
         &mut self,

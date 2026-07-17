@@ -183,6 +183,18 @@ impl ValueDefinitions {
                         }
                     }
                 }
+                mir::Terminator::VariantSwitch { cases, default, .. } => {
+                    if let Some(default) = default {
+                        for arg in default.arguments(tree).iter().copied() {
+                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
+                        }
+                    }
+                    for case in tree.get_switch_cases(*cases) {
+                        for arg in case.target.arguments(tree).iter().copied() {
+                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
+                        }
+                    }
+                }
                 mir::Terminator::Yield {
                     value,
                     resume,

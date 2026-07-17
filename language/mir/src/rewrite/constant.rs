@@ -13,6 +13,8 @@ use super::{
 pub enum ConstantType {
     /// Null reference constant type.
     Null,
+    /// Undefined reference constant type.
+    Undefined,
     /// Boolean constant type.
     Boolean,
     /// Integer constant type.
@@ -40,6 +42,7 @@ impl ConstantLookup for HashMap<mir::Value, mir::Constant> {
 pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
     match constant {
         mir::Constant::Null => ConstantType::Null,
+        mir::Constant::Undefined => ConstantType::Undefined,
         mir::Constant::Boolean { .. } => ConstantType::Boolean,
         mir::Constant::Int {
             width, is_signed, ..
@@ -69,6 +72,10 @@ pub fn constant_matches_type(
         (ConstantType::Null, mir::Type::Reference { nullability, .. })
         | (ConstantType::Null, mir::Type::TensorView { nullability, .. }) => {
             nullability.allows_null()
+        }
+        (ConstantType::Undefined, mir::Type::Reference { nullability, .. })
+        | (ConstantType::Undefined, mir::Type::TensorView { nullability, .. }) => {
+            nullability.allows_undefined()
         }
         (ConstantType::Boolean, mir::Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {

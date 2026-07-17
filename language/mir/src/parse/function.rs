@@ -1076,6 +1076,9 @@ impl Parser {
 
                 Ok(Terminator::TailCall { call })
             }
+            TokenType::Identifier if self.tree.source_text(token.span) == "variant.switch" => {
+                self.parse_variant_switch_terminator()
+            }
             TokenType::Identifier => self.parse_allocation_try_terminator(&token),
             _ => Err(ParseError::unexpected(
                 "terminator",
@@ -1137,6 +1140,41 @@ impl Parser {
         Ok(Call::new(callee, arguments, signature))
     }
 
+    /// Parse a variant switch terminator.
+    fn parse_variant_switch_terminator(&mut self) -> ParseResult<Terminator> {
+        self.bump();
+        let value = self.parse_value()?;
+
+        // parse indexed cases and one optional trailing else target
+        let mut cases = Vec::new();
+        let mut default = None;
+        while self.eat_token_maybe(TokenType::Comma) {
+            // one trailing else target names the non-exhaustive default
+            let is_else = self
+                .peek()
+                .is_some_and(|token| self.tree.source_text(token.span) == "else");
+            if is_else {
+                self.bump();
+                default = Some(self.parse_block_target()?);
+                break;
+            }
+            let case_value = self.parse_int_literal()?;
+            self.eat_token(TokenType::FatArrow)?;
+            let target = self.parse_block_target()?;
+            cases.push(SwitchCase {
+                value: case_value,
+                target,
+            });
+        }
+        let cases = self.tree.add_switch_cases(&cases);
+
+        Ok(Terminator::VariantSwitch {
+            value,
+            default,
+            cases,
+        })
+    }
+
     /// Return whether the current line starts a fallible allocation terminator.
     fn is_allocation_try_terminator_line(&self) -> bool {
         let Some(token) = self.peek() else {
@@ -1148,7 +1186,11 @@ impl Parser {
 
         matches!(
             self.tree.source_text(token.span),
-            "new.zeroed.try" | "new.uninit.try" | "new.slice.zeroed.try" | "new.slice.uninit.try"
+            "new.zeroed.try"
+                | "new.uninit.try"
+                | "new.slice.zeroed.try"
+                | "new.slice.uninit.try"
+                | "variant.switch"
         )
     }
 

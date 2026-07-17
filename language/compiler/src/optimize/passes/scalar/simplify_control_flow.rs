@@ -4338,6 +4338,18 @@ entry:
                         );
                     }
                 }
+                mir::Terminator::VariantSwitch { default, cases, .. } => {
+                    if let Some(default) = default {
+                        check_edge(default.block, default.arguments(tree), &mut mismatches);
+                    }
+                    for case in tree.get_switch_cases(*cases) {
+                        check_edge(
+                            case.target.block,
+                            case.target.arguments(tree),
+                            &mut mismatches,
+                        );
+                    }
+                }
                 mir::Terminator::Yield { resume, unwind, .. } => {
                     check_edge(resume.block, resume.arguments(tree), &mut mismatches);
                     if let Some(unwind) = unwind {

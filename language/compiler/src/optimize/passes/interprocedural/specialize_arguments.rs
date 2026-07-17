@@ -137,6 +137,8 @@ struct SpecializationKey {
 enum ConstantKey {
     /// Null reference constant.
     Null,
+    /// Undefined reference constant.
+    Undefined,
     /// Boolean constant.
     Boolean(bool),
     /// Signed integer constant.
@@ -406,6 +408,7 @@ fn specialization_key(
 fn constant_key(constant: &mir::Constant) -> ConstantKey {
     match constant {
         mir::Constant::Null => ConstantKey::Null,
+        mir::Constant::Undefined => ConstantKey::Undefined,
         mir::Constant::Boolean { value } => ConstantKey::Boolean(*value),
         mir::Constant::Int {
             value,

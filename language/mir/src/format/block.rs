@@ -173,6 +173,34 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
+        Terminator::VariantSwitch {
+            value,
+            default,
+            cases,
+        } => {
+            write!(f, [token("variant.switch"), space(), value])?;
+            let cases = f.context().tree.get_switch_cases(*cases);
+            for case in cases {
+                write!(
+                    f,
+                    [
+                        token(","),
+                        space(),
+                        copied_text(&case.value.to_string()),
+                        space(),
+                        token("=>"),
+                        space()
+                    ]
+                )?;
+                format_block_target(&case.target, f)?;
+            }
+            if let Some(default) = default {
+                write!(f, [token(","), space(), token("else"), space()])?;
+                format_block_target(default, f)?;
+            }
+            Ok(())
+        }
+
         Terminator::Unreachable => {
             write!(f, [token("unreachable")])
         }

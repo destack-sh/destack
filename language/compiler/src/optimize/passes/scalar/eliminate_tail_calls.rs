@@ -521,6 +521,27 @@ fn remap_terminator_blocks(
                 cases,
             }
         }
+        mir::Terminator::VariantSwitch {
+            value,
+            default,
+            cases,
+        } => {
+            let cases = tree
+                .get_switch_cases(*cases)
+                .iter()
+                .map(|case| mir::SwitchCase {
+                    value: case.value,
+                    target: clone_target(&case.target),
+                })
+                .collect::<Vec<_>>();
+            let cases = tree.add_switch_cases(&cases);
+
+            mir::Terminator::VariantSwitch {
+                value: *value,
+                default: default.as_ref().map(clone_target),
+                cases,
+            }
+        }
         mir::Terminator::Invoke {
             call,
             target,
