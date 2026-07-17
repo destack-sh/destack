@@ -456,8 +456,7 @@ global {
     export {
         allow,
         CaptureDirective,
-        CaptureKind,
-        CapturePolicy,
+        CaptureMode,
         capture,
         cold,
         DiagnosticControlOptions,
