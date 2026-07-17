@@ -255,7 +255,8 @@ interface Fulfilled {
 
 type State = Pending | Fulfilled;
 
-function read(state: State, next: State): int32 {
+function read(initial: State, next: State): int32 {
+    let state = initial;
     if (state.kind == "pending") {
         state = next;
 
@@ -284,7 +285,8 @@ interface Fulfilled {
 
 type State = Pending | Fulfilled;
 
-function read(state: State, next: State): int32 {
+function read(initial: State, next: State): int32 {
+    let state: State = initial;
     if (state.kind == "pending") {
         state = next;
 
@@ -329,12 +331,17 @@ type State = Pending | Fulfilled;
 /// @resolution.name source=Pending target=Pending
 /// @resolution.name source=Fulfilled target=Fulfilled
 
-function read(state: State, next: State): int32 {
+function read(initial: State, next: State): int32 {
 /// @type.symbol symbol=read type=(State, State) => int32
-/// @type.symbol symbol=read.state source="state: State" type=State reduced=Pending | Fulfilled
+/// @type.symbol symbol=read.initial source="initial: State" type=State reduced=Pending | Fulfilled
 /// @resolution.name source=State target=State
 /// @type.symbol symbol=read.next source="next: State" type=State reduced=Pending | Fulfilled
 /// @resolution.name source=State target=State
+
+    let state = initial;
+    /// @type.symbol symbol=read.state source=state type=State reduced=Pending | Fulfilled
+    /// @type.node source=initial type=State reduced=Pending | Fulfilled
+    /// @resolution.name source=initial target=read.initial
 
     if (state.kind == "pending") {
     /// @type.node source="state.kind == \"pending\"" type=boolean
@@ -369,7 +376,7 @@ function read(state: State, next: State): int32 {
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="member 'reactions' does not exist on type 'State'"
-/// @diagnostic.label line=18 column=22 span="reactions" line_source="return state.reactions;"
+/// @diagnostic.label line=19 column=22 span="reactions" line_source="return state.reactions;"
 "#,
     );
 }

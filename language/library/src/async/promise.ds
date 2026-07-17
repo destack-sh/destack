@@ -156,8 +156,9 @@ export local class Promise<T> {
     }
 
     /// Schedule all waiters after fulfillment.
-    private queueWaiters(waiter: PromiseWaiter<T> | undefined, value: T): void {
+    private queueWaiters(head: PromiseWaiter<T> | undefined, value: T): void {
         // detach before queueing each waiter
+        let waiter = head;
         while (waiter != undefined) {
             let next = waiter.next;
             waiter.next = undefined;

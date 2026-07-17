@@ -181,14 +181,6 @@ impl CheckState<'_> {
         let bindings = input.binding_table();
         let local_symbol = bindings.get_symbol(symbol.local_id);
 
-        // parameters are writable local bindings
-        if local_symbol
-            .declaration
-            .is_some_and(|declaration| declaration.local_id.ty == dir::NodeType::Parameter)
-        {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
-        }
-
         // imported aliases never accept writes
         if input
             .resolved
