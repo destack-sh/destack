@@ -145,7 +145,7 @@ interface Person {
     age: int32;
 }
 
-const bad: Partial<Person> = { name: "Ada" as string | undefined, extra: true };
+const bad: Partial<Person> = { name: "Ada", extra: true };
 
 === checked ===
 interface Person {
@@ -200,7 +200,7 @@ interface Person {
     age: int32;
 }
 
-const bad: Partial<Person> = { name: "Ada" as string | undefined, age: "no" };
+const bad: Partial<Person> = { name: "Ada", age: "no" };
 
 === checked ===
 interface Person {
@@ -225,7 +225,7 @@ const bad: Partial<Person> = { name: "Ada", age: "no" };
 /// @generic.instance id=Partial<Person> template=types.object.Partial arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'int32 | undefined'"
+/// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=7 column=50 span="\"no\"" line_source="const bad: Partial<Person> = { name: \"Ada\", age: \"no\" };"
 /// @diagnostic.note message="the mismatch is in field 'age'"
 "#,
@@ -256,7 +256,7 @@ interface Person {
     age: int32;
 }
 
-const person: Partial<Person> = { name: "Ada" as string | undefined };
+const person: Partial<Person> = { name: "Ada" };
 person.name = "Grace" as string | undefined;
 
 === checked ===

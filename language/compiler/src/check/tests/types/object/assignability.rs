@@ -50,3 +50,106 @@ person.name satisfies string;
 "#,
     );
 }
+
+#[test]
+fn test_reject_undefined_union_at_exact_optional_property() {
+    let session = TestSession::single(
+        r#"
+type Options = { retries?: int32 };
+
+declare const maybe: int32 | undefined;
+
+const explicit: Options = { retries: 3 };
+const omitted: Options = {};
+const undecided: Options = { retries: maybe };
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Options = { retries?: int32 };
+
+declare const maybe: int32 | undefined;
+
+const explicit: Options = { retries: 3 };
+const omitted: Options = {};
+const undecided: Options = { retries: maybe };
+
+=== checked ===
+type Options = { retries?: int32 };
+/// @type.symbol symbol=Options source="type Options = { retries?: int32 }" type={ retries?: int32 }
+/// @definition.type symbol=Options source="type Options = { retries?: int32 }" value={ retries?: int32 }
+
+declare const maybe: int32 | undefined;
+/// @type.symbol symbol=maybe source=maybe type=int32 | undefined
+
+const explicit: Options = { retries: 3 };
+/// @type.symbol symbol=explicit source=explicit type=Options reduced={ retries?: int32 }
+/// @resolution.name source=Options target=Options
+
+const omitted: Options = {};
+/// @type.symbol symbol=omitted source=omitted type=Options reduced={ retries?: int32 }
+/// @resolution.name source=Options target=Options
+
+const undecided: Options = { retries: maybe };
+/// @type.symbol symbol=undecided source=undecided type=Options reduced={ retries?: int32 }
+/// @resolution.name source=Options target=Options
+/// @resolution.name source=maybe target=maybe
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type 'int32 | undefined' is not assignable to type 'int32'"
+/// @diagnostic.label line=8 column=39 span="maybe" line_source="const undecided: Options = { retries: maybe };"
+/// @diagnostic.note message="the mismatch is in field 'retries': expected 'int32', found 'undefined'"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_undefined_union_at_spelled_optional_property() {
+    let session = TestSession::single(
+        r#"
+type Options = { retries?: int32 | undefined };
+
+declare const maybe: int32 | undefined;
+
+const undecided: Options = { retries: maybe };
+const cleared: Options = { retries: undefined };
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Options = { retries?: int32 | undefined };
+
+declare const maybe: int32 | undefined;
+
+const undecided: Options = { retries: maybe };
+const cleared: Options = { retries: undefined as int32 | undefined };
+
+=== checked ===
+type Options = { retries?: int32 | undefined };
+/// @type.symbol symbol=Options source="type Options = { retries?: int32 | undefined }" type={ retries?: int32 | undefined }
+/// @definition.type symbol=Options source="type Options = { retries?: int32 | undefined }" value={ retries?: int32 | undefined }
+
+declare const maybe: int32 | undefined;
+/// @type.symbol symbol=maybe source=maybe type=int32 | undefined
+
+const undecided: Options = { retries: maybe };
+/// @type.symbol symbol=undecided source=undecided type=Options reduced={ retries?: int32 | undefined }
+/// @resolution.name source=Options target=Options
+/// @resolution.name source=maybe target=maybe
+
+const cleared: Options = { retries: undefined };
+/// @type.symbol symbol=cleared source=cleared type=Options reduced={ retries?: int32 | undefined }
+/// @resolution.name source=Options target=Options
+"#,
+        r#"
+"#,
+    );
+}

@@ -203,16 +203,6 @@ impl BodyState<'_, '_> {
                     };
                     let child = value.into_global_any(node.module_id);
                     let child_site = self.node_site(child)?;
-                    // optional fields accept their value or undefined
-                    let expected = match field.is_optional {
-                        true => {
-                            let module = origin.module();
-                            let undefined = self.intern_type(module, dir::Type::Undefined)?;
-
-                            self.normalized_union_type(module, [field.ty, undefined])?
-                        }
-                        false => field.ty,
-                    };
                     let field_cause = self.check.intern_cause(Cause::slot(
                         Origin::Node(child, site.scope),
                         CauseKind::Field { key },
@@ -220,7 +210,7 @@ impl BodyState<'_, '_> {
                     ));
                     let child_check = answer!(self.check_node_expected(
                         child_site,
-                        expected,
+                        field.ty,
                         relation,
                         field_cause,
                         use_

@@ -90,7 +90,7 @@ interface Person {
 }
 
 const empty: MutableFields<Person> = {};
-const named: MutableFields<Person> = { name: "Ada" as string | undefined };
+const named: MutableFields<Person> = { name: "Ada" };
 
 empty satisfies MutableFields<Person>;
 named satisfies MutableFields<Person>;

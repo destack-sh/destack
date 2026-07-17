@@ -6,7 +6,7 @@ import { Level, LogEntry, SpanContext } from "./record.ds";
 /// Structured log options.
 export type LogOptions = {
     /// Structured fields attached to this event.
-    fields?: Fields;
+    fields?: Fields | undefined;
 
     /// Human-readable event message.
     message?: &readonly string;

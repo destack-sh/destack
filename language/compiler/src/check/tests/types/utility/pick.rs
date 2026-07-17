@@ -168,7 +168,7 @@ interface Person {
 type AgeOnly = Pick<Person, "age">;
 
 const empty: AgeOnly = {};
-const aged: AgeOnly = { age: 42 as int32 | undefined };
+const aged: AgeOnly = { age: 42 };
 
 empty satisfies AgeOnly;
 aged satisfies AgeOnly;
