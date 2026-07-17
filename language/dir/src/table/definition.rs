@@ -372,7 +372,7 @@ impl Definition {
             }
             Self::Interface(definition) => map_heritages(&mut definition.extends, map),
             Self::Enum(definition) => map_heritages(&mut definition.implements, map),
-            Self::Newtype(definition) => definition.value = map(definition.value),
+            Self::Newtype(definition) => definition.backing = map(definition.backing),
             Self::Extension(definition) => {
                 match &mut definition.target {
                     ExtensionTarget::Rooted { ty, .. } | ExtensionTarget::Blanket { ty } => {
@@ -589,7 +589,7 @@ pub struct NewtypeDefinition {
     /// The generic template declared by the newtype.
     pub template: Option<LocalGenericTemplateId>,
     /// The nominal backing type.
-    pub value: GlobalTypeId,
+    pub backing: GlobalTypeId,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
