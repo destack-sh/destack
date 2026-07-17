@@ -2,8 +2,8 @@ use destack_core::{StringId, StringPool};
 
 use crate::build::FunctionHeaderBuilder;
 use crate::{
-    DispatchTable, DropTable, EffectTable, LayoutTable, MemoryTable, ProfileTable, TargetLayout,
-    Tree, TypeTable,
+    DispatchTable, DropTable, EffectTable, LayoutTable, LocalNodeId, MemoryTable, ProfileTable,
+    TargetLayout, Tree, Type, TypeTable,
 };
 
 /// Builder for constructing a MIR module (collection of functions and types).
@@ -146,6 +146,11 @@ impl ModuleBuilder {
     /// Intern a string and return its id.
     pub fn intern(&mut self, s: &str) -> StringId {
         self.strings.intern(s)
+    }
+
+    /// Insert one type node directly.
+    pub fn insert_type(&mut self, ty: Type) -> LocalNodeId<Type> {
+        self.tree.insert_type(ty)
     }
 
     /// Start a function header.
