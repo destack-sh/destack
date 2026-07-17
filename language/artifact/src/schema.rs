@@ -6,10 +6,10 @@ use crate::{
     BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, DirBound,
     DirChecked, DirCheckedComponent, DirExpanded, DirExported, DirImported, DirMaterialized,
     DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host, LanguageEnvironment,
-    LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized,
-    MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex,
-    PackageLinted, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, Runtime,
-    Script, ScriptBody, ScriptLanguage, SourceMap, WorkspaceLinted,
+    LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
+    ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex, PackageLinted,
+    Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, Runtime, Script, ScriptBody,
+    ScriptLanguage, SourceMap, WorkspaceLinted,
 };
 
 /// Include public artifact schema roots.
