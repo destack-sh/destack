@@ -148,10 +148,10 @@ pub fn select_profile_for_mdtest(
         key.emit = emit;
     }
     if let Some(runtime) = overrides.runtime {
-        key.conditions.runtime = Some(runtime);
+        key.conditions.runtime = runtime;
     }
     if let Some(platform) = overrides.platform {
-        key.conditions.platform = Some(platform);
+        key.conditions.platform = platform;
     }
     if let Some(debug) = overrides.debug {
         set_mode(&mut key.conditions.modes, Mode::DEBUG.name, debug);

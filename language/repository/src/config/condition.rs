@@ -658,18 +658,12 @@ impl ConditionGate {
             && self.matches_set(&self.tag, &conditions.tags);
 
         // profile selectors
-        let profile_matches = self.matches_optional(&self.target, conditions.target.as_deref())
-            && self.matches_optional(&self.product, conditions.product.as_deref())
-            && self.matches_optional(&self.stage, conditions.stage.as_deref())
-            && self.matches_optional(
-                &self.platform,
-                conditions.platform.map(|platform| platform.canonical_tag()),
-            )
-            && self.matches_optional(&self.host, conditions.host.map(|host| host.canonical_tag()))
-            && self.matches_optional(
-                &self.runtime,
-                conditions.runtime.map(|runtime| runtime.canonical_tag()),
-            );
+        let profile_matches = self.matches_scalar(&self.target, conditions.target.as_deref())
+            && self.matches_scalar(&self.product, conditions.product.as_deref())
+            && self.matches_scalar(&self.stage, conditions.stage.as_deref())
+            && self.matches_scalar(&self.platform, Some(conditions.platform.canonical_tag()))
+            && self.matches_scalar(&self.host, Some(conditions.host.canonical_tag()))
+            && self.matches_scalar(&self.runtime, Some(conditions.runtime.canonical_tag()));
 
         let all_matches = self
             .all
@@ -697,7 +691,7 @@ impl ConditionGate {
     }
 
     /// Return true when an optional selector matches one scalar axis.
-    fn matches_optional(&self, selector: &Option<ConditionSelector>, name: Option<&str>) -> bool {
+    fn matches_scalar(&self, selector: &Option<ConditionSelector>, name: Option<&str>) -> bool {
         let Some(selector) = selector else {
             return true;
         };
@@ -870,6 +864,10 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
+    use destack_artifact::{Host, Platform, Runtime};
+
     use super::*;
 
     fn condition_ref(json: &str) -> ConditionRef {
@@ -877,17 +875,20 @@ mod tests {
     }
 
     fn conditions(modes: &[&str], roles: &[&str]) -> ConditionSet {
-        let mut conditions = ConditionSet::default();
-
-        for mode in modes {
-            conditions.modes.insert((*mode).to_string());
+        ConditionSet {
+            modes: modes.iter().map(|name| (*name).to_string()).collect(),
+            roles: roles.iter().map(|name| (*name).to_string()).collect(),
+            features: IndexSet::new(),
+            tags: IndexSet::new(),
+            target: None,
+            product: None,
+            role: None,
+            labels: BTreeMap::new(),
+            stage: None,
+            platform: Platform::Unknown,
+            host: Host::Native,
+            runtime: Runtime::Destack,
         }
-
-        for role in roles {
-            conditions.roles.insert((*role).to_string());
-        }
-
-        conditions
     }
 
     #[test]

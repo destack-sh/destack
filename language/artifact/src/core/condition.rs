@@ -8,9 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::{Host, Platform, Runtime};
 
 /// Active source graph and runtime selection conditions.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionSet {
     /// Active source graph modes.
@@ -32,11 +31,11 @@ pub struct ConditionSet {
     /// Active package release stage.
     pub stage: Option<String>,
     /// Active target platform.
-    pub platform: Option<Platform>,
+    pub platform: Platform,
     /// Active host environment.
-    pub host: Option<Host>,
+    pub host: Host,
     /// Active runtime.
-    pub runtime: Option<Runtime>,
+    pub runtime: Runtime,
 }
 
 impl Hash for ConditionSet {

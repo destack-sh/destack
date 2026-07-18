@@ -206,9 +206,12 @@ impl ModuleIndex {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::path::{Path, PathBuf};
 
+    use destack_artifact::{Host, Platform, Runtime};
     use destack_source::{FileType, PackageId, Uri};
+    use indexmap::IndexSet;
 
     use super::*;
 
@@ -237,13 +240,25 @@ mod tests {
         module.push_condition_file(test_file);
 
         // select the base file without active modes
-        let conditions = ConditionSet::default();
+        let mut conditions = ConditionSet {
+            modes: IndexSet::new(),
+            roles: IndexSet::new(),
+            features: IndexSet::new(),
+            tags: IndexSet::new(),
+            target: None,
+            product: None,
+            role: None,
+            labels: BTreeMap::new(),
+            stage: None,
+            platform: Platform::Unknown,
+            host: Host::Native,
+            runtime: Runtime::Destack,
+        };
         let files = module.files_for_conditions(&conditions);
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].file_id, FileId::new(1));
 
         // select base and conditional files with matching modes
-        let mut conditions = ConditionSet::default();
         conditions.modes.insert("test".to_string());
         let files = module.files_for_conditions(&conditions);
         let file_ids = files.iter().map(|file| file.file_id).collect::<Vec<_>>();

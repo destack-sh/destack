@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use destack_artifact::ProfileKey;
+use destack_artifact::{Host, Platform, ProfileKey, Runtime};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
@@ -23,6 +23,16 @@ pub(crate) fn profile_key_for_target(
     product_config: Option<&Product>,
     product_role: Option<&str>,
 ) -> Result<ProfileKey, RepositoryError> {
+    // resolve runtime axes
+    let runtime = target.runtime();
+    let platform = profile_config
+        .and_then(|profile| profile.platform)
+        .unwrap_or(target.platform);
+    let host = profile_config
+        .and_then(|profile| profile.host)
+        .unwrap_or(target.host);
+
+    // resolve compiler options and conditions
     let compiler_options = profile_compiler_options_for_target(
         target,
         compiler_options,
@@ -30,7 +40,7 @@ pub(crate) fn profile_key_for_target(
         product_config,
         product_role,
     );
-    let conditions = condition_set_from_compiler_options(
+    let conditions = build_profile_conditions(
         target_name,
         target,
         &compiler_options,
@@ -40,23 +50,11 @@ pub(crate) fn profile_key_for_target(
         &environment.selection,
         product,
         product_role,
+        platform,
+        host,
+        runtime,
     )?;
     let emit = target.emit;
-
-    // runtime surface
-    let runtime = target.runtime();
-    let platform = profile_config
-        .and_then(|profile| profile.platform)
-        .unwrap_or(target.platform);
-    let host = profile_config
-        .and_then(|profile| profile.host)
-        .unwrap_or(target.host);
-    let conditions = ConditionSet {
-        platform: Some(platform),
-        host: Some(host),
-        runtime: Some(runtime),
-        ..conditions
-    };
 
     // comptime environment
     let env = profile_config
@@ -111,8 +109,8 @@ pub(crate) fn profile_key_for_target(
     })
 }
 
-/// Build one condition set from already resolved compiler options.
-fn condition_set_from_compiler_options(
+/// Build the active conditions for one compiler profile.
+fn build_profile_conditions(
     target_name: &str,
     target: &Target,
     compiler_options: &CompilerOptions,
@@ -122,6 +120,9 @@ fn condition_set_from_compiler_options(
     selection: &ConditionSelection,
     product: Option<&str>,
     product_role: Option<&str>,
+    platform: Platform,
+    host: Host,
+    runtime: Runtime,
 ) -> Result<ConditionSet, RepositoryError> {
     let modes = expand_conditions(
         config,
@@ -165,9 +166,9 @@ fn condition_set_from_compiler_options(
         labels,
         stage: resolved_stage(config, profile_config, product_config, target)
             .map(|stage| stage.name().to_string()),
-        platform: None,
-        host: None,
-        runtime: None,
+        platform,
+        host,
+        runtime,
     })
 }
 
