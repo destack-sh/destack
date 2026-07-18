@@ -131,6 +131,16 @@ impl DiagnosticControlTable {
         })
     }
 
+    /// Return the enclosing forbid that rejects one control override.
+    pub fn enclosing_forbid(&self, control: &DiagnosticControl) -> Option<&DiagnosticControl> {
+        self.controls.iter().rev().find(|previous| {
+            matches!(previous.level, DiagnosticControlLevel::Forbid)
+                && !matches!(control.level, DiagnosticControlLevel::Forbid)
+                && previous.selector == control.selector
+                && previous.scope.contains(control.scope)
+        })
+    }
+
     /// Return the effective control and index for one diagnostic.
     pub fn effective(
         &self,
