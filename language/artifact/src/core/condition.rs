@@ -1,6 +1,7 @@
-use destack_serde::Reflect;
+use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
+use destack_serde::Reflect;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +25,10 @@ pub struct ConditionSet {
     pub target: Option<String>,
     /// Active product.
     pub product: Option<String>,
+    /// Active product role.
+    pub role: Option<String>,
+    /// Labels contributed by active source graph conditions.
+    pub labels: BTreeMap<String, Vec<String>>,
     /// Active package release stage.
     pub stage: Option<String>,
     /// Active target platform.
@@ -43,6 +48,8 @@ impl Hash for ConditionSet {
         hash_condition_names(&self.tags, state);
         self.target.hash(state);
         self.product.hash(state);
+        self.role.hash(state);
+        self.labels.hash(state);
         self.stage.hash(state);
         self.platform.hash(state);
         self.host.hash(state);
