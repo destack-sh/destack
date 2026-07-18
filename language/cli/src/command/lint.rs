@@ -121,24 +121,21 @@ struct LintListEntry {
 
 /// List lint rules in text or JSON output.
 fn list_rules(args: &LintArgs) -> i32 {
-    let mut entries: Vec<LintListEntry> = linter::builtin_inventory()
-        .into_iter()
-        .map(|rule| {
-            let meta = rule.meta;
-            LintListEntry {
-                id: meta.id,
-                code: meta.code,
-                category: meta.category.name(),
-                description: meta.description,
-                fixable: meta.is_fixable(),
-                level: meta.default_level.name(),
-                tier: rule.tier().name(),
-                scope: rule.scope().name(),
-            }
+    let mut entries: Vec<LintListEntry> = linter::LINTS
+        .iter()
+        .map(|rule| LintListEntry {
+            id: rule.id.as_ref(),
+            code: rule.code.as_ref(),
+            category: rule.category.name(),
+            description: rule.description.as_ref(),
+            fixable: rule.is_fixable(),
+            level: rule.default_level.name(),
+            tier: rule.tier().name(),
+            scope: rule.scope().name(),
         })
         .collect();
 
-    entries.sort_by(|a, b| a.id.cmp(&b.id));
+    entries.sort_by(|a, b| a.id.cmp(b.id));
 
     if args.report.is_json() {
         let mut report = CommandReport::success("lint", 0);

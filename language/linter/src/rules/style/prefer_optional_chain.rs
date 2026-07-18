@@ -1,5 +1,7 @@
+use destack_repository::ProviderError;
+
 use crate::rules::declare_lint;
-use crate::{DirModuleContext, LinterError};
+use crate::{DirModule, Lint, LintResult};
 
 declare_lint! {
     /// Prefer optional chaining to equivalent guarded property access.
@@ -15,8 +17,9 @@ declare_lint! {
 }
 
 /// Check prefer-optional-chain.
-fn check(context: DirModuleContext<'_>) -> Result<(), LinterError> {
-    Err(LinterError::Unimplemented {
-        lint: context.lint.definition.id.to_string(),
-    })
+fn check(_module: &DirModule, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} is not implemented",
+        lint.id
+    )))
 }

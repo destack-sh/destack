@@ -1,5 +1,7 @@
+use destack_repository::ProviderError;
+
 use crate::rules::declare_lint;
-use crate::{DirProgramContext, LinterError};
+use crate::{DirProgram, Lint, LintResult};
 
 declare_lint! {
     /// Disallow substantial alpha-equivalent checked code.
@@ -15,8 +17,9 @@ declare_lint! {
 }
 
 /// Check no-duplicate-code.
-fn check(context: DirProgramContext<'_>) -> Result<(), LinterError> {
-    Err(LinterError::Unimplemented {
-        lint: context.lint.definition.id.to_string(),
-    })
+fn check(_program: &DirProgram, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} is not implemented",
+        lint.id
+    )))
 }

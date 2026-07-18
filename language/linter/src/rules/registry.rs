@@ -1,40 +1,11 @@
-use crate::LintDefinition;
+use crate::Lint;
 
 use super::{correctness, performance, security, style, suspicious};
 
-macro_rules! declare_lint {
-    (
-        $(#[$attribute:meta])*
-        $visibility:vis $name:ident {
-            id: $id:literal,
-            code: $code:literal,
-            description: $description:literal,
-            category: $category:ident,
-            level: $level:ident,
-            fixable: $fixable:ident,
-            check: $check:ident($function:path),
-        }
-    ) => {
-        $(#[$attribute])*
-        $visibility static $name: $crate::LintDefinition = $crate::LintDefinition {
-            id: std::borrow::Cow::Borrowed($id),
-            code: std::borrow::Cow::Borrowed($code),
-            description: std::borrow::Cow::Borrowed($description),
-            category: $crate::LintCategory::$category,
-            default_level: destack_repository::LintLevel::$level,
-            fixability: $crate::Fixability::$fixable,
-            check: $crate::LintCheck::$check($crate::LintImplementation::Builtin($function)),
-        };
-    };
-}
-
-pub(crate) use declare_lint;
-
-/// The complete accepted built-in lint inventory.
+/// The lints.
 #[rustfmt::skip]
-pub static BUILTIN_LINTS: &[&LintDefinition] = &[
+pub static LINTS: &[&Lint] = &[
     // correctness
-    &correctness::AWAIT_THENABLE,
     &correctness::BLOCKING_CALL_IN_ASYNC,
     &correctness::CYCLIC_INITIALIZATION,
     &correctness::DEAD_STORE,
@@ -161,53 +132,3 @@ pub static BUILTIN_LINTS: &[&LintDefinition] = &[
     &suspicious::UNREACHABLE_EXPORT,
     &suspicious::UNUSED_DEPENDENCY,
 ];
-
-/// Return the complete accepted built-in lint inventory.
-pub const fn builtin_inventory() -> &'static [&'static LintDefinition] {
-    BUILTIN_LINTS
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashSet;
-
-    use destack_repository::LintLevel;
-
-    use super::*;
-    use crate::LintCategory;
-
-    /// Keep the accepted inventory canonical and unambiguous.
-    #[test]
-    fn test_validate_builtin_inventory() {
-        let categories = [
-            (LintCategory::Correctness, "LC"),
-            (LintCategory::Performance, "LP"),
-            (LintCategory::Security, "LS"),
-            (LintCategory::Style, "LY"),
-            (LintCategory::Suspicious, "LU"),
-        ];
-        let mut ids = HashSet::new();
-        let mut codes = HashSet::new();
-        let mut index = 0;
-
-        // validate each category as one alphabetic inventory block
-        for (category, prefix) in categories {
-            let start = index;
-            while index < BUILTIN_LINTS.len() && BUILTIN_LINTS[index].category == category {
-                let definition = BUILTIN_LINTS[index];
-                assert!(ids.insert(definition.id.as_ref()));
-                assert!(codes.insert(definition.code.as_ref()));
-                assert!(definition.code.starts_with(prefix));
-                assert_ne!(definition.default_level, LintLevel::Off);
-                index += 1;
-            }
-            assert!(index > start);
-
-            for pair in BUILTIN_LINTS[start..index].windows(2) {
-                assert!(pair[0].id < pair[1].id);
-            }
-        }
-
-        assert_eq!(index, BUILTIN_LINTS.len());
-    }
-}

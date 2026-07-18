@@ -1,5 +1,7 @@
+use destack_repository::ProviderError;
+
 use crate::rules::declare_lint;
-use crate::{LinterError, MirModuleContext};
+use crate::{Lint, LintResult, MirProgram};
 
 declare_lint! {
     /// Disallow functions that recurse before every possible return.
@@ -10,13 +12,14 @@ declare_lint! {
         category: Correctness,
         level: Error,
         fixable: Never,
-        check: MirModule(check),
+        check: MirProgram(check),
     }
 }
 
 /// Check unconditional-recursion.
-fn check(context: MirModuleContext<'_>) -> Result<(), LinterError> {
-    Err(LinterError::Unimplemented {
-        lint: context.lint.definition.id.to_string(),
-    })
+fn check(_program: &MirProgram, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} is not implemented",
+        lint.id
+    )))
 }

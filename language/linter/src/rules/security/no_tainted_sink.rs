@@ -1,5 +1,7 @@
+use destack_repository::ProviderError;
+
 use crate::rules::declare_lint;
-use crate::{LinterError, MirProgramContext};
+use crate::{Lint, LintResult, MirProgram};
 
 declare_lint! {
     /// Disallow values carrying a source taint from reaching matching sinks.
@@ -15,8 +17,9 @@ declare_lint! {
 }
 
 /// Check no-tainted-sink.
-fn check(context: MirProgramContext<'_>) -> Result<(), LinterError> {
-    Err(LinterError::Unimplemented {
-        lint: context.lint.definition.id.to_string(),
-    })
+fn check(_program: &MirProgram, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} is not implemented",
+        lint.id
+    )))
 }

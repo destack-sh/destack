@@ -480,20 +480,17 @@ fn collect_compiler_list_entries(filter: DiagnosticSeverityFilter) -> Vec<Compil
 /// Collect lint rule list entries.
 fn collect_lint_list_entries() -> Vec<LintListEntry> {
     // gather lint rule metadata
-    linter::builtin_inventory()
-        .into_iter()
-        .map(|rule| {
-            let meta = rule.meta;
-            LintListEntry {
-                id: meta.id,
-                code: meta.code,
-                category: meta.category.name(),
-                description: meta.description,
-                fixable: meta.is_fixable(),
-                level: meta.default_level.name(),
-                tier: rule.tier().name(),
-                scope: rule.scope().name(),
-            }
+    linter::LINTS
+        .iter()
+        .map(|rule| LintListEntry {
+            id: rule.id.as_ref(),
+            code: rule.code.as_ref(),
+            category: rule.category.name(),
+            description: rule.description.as_ref(),
+            fixable: rule.is_fixable(),
+            level: rule.default_level.name(),
+            tier: rule.tier().name(),
+            scope: rule.scope().name(),
         })
         .collect()
 }
@@ -534,7 +531,7 @@ fn category_lint_entries(entries: Vec<LintListEntry>) -> Vec<CategoryListing<Lin
     categories
         .into_iter()
         .map(|(category, mut entries)| {
-            entries.sort_by(|a, b| a.id.cmp(&b.id));
+            entries.sort_by(|a, b| a.id.cmp(b.id));
             CategoryListing { category, entries }
         })
         .collect()
@@ -588,13 +585,13 @@ fn print_lint_listing(entries: Vec<LintListEntry>) {
     // render category groupings
     let mut groups = Vec::new();
     for (category, mut entries) in categories {
-        entries.sort_by(|a, b| a.id.cmp(&b.id));
+        entries.sort_by(|a, b| a.id.cmp(b.id));
         let heading = format_category_heading(&category, color_enabled);
         let list_entries = entries
             .iter()
             .map(|entry| {
-                let id = format_rule_id(&entry.id, color_enabled);
-                let code = format_rule_code(&entry.code, color_enabled);
+                let id = format_rule_id(entry.id, color_enabled);
+                let code = format_rule_code(entry.code, color_enabled);
                 let summary = format!("  {id} ({code}) - {}", entry.description);
                 let fixability = if entry.fixable { "fixable" } else { "no-fix" };
                 let details = format!(
@@ -614,18 +611,16 @@ fn print_lint_listing(entries: Vec<LintListEntry>) {
 /// Find a lint rule entry matching the given identifier.
 fn find_lint_entry(needle: &str) -> Option<LintExplainEntry> {
     // search the lint rule registry
-    linter::builtin_inventory()
-        .into_iter()
-        .find(|rule| {
-            rule.meta.code.eq_ignore_ascii_case(needle) || rule.meta.id.eq_ignore_ascii_case(needle)
-        })
+    linter::LINTS
+        .iter()
+        .find(|rule| rule.code.eq_ignore_ascii_case(needle) || rule.id.eq_ignore_ascii_case(needle))
         .map(|rule| LintExplainEntry {
-            code: rule.meta.code,
-            id: rule.meta.id,
-            category: rule.meta.category.name(),
-            description: rule.meta.description,
-            fixable: rule.meta.is_fixable(),
-            level: rule.meta.default_level.name(),
+            code: rule.code.as_ref(),
+            id: rule.id.as_ref(),
+            category: rule.category.name(),
+            description: rule.description.as_ref(),
+            fixable: rule.is_fixable(),
+            level: rule.default_level.name(),
             tier: rule.tier().name(),
             scope: rule.scope().name(),
         })

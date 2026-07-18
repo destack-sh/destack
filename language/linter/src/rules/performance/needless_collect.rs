@@ -1,5 +1,7 @@
+use destack_repository::ProviderError;
+
 use crate::rules::declare_lint;
-use crate::{LinterError, MirModuleContext};
+use crate::{Lint, LintResult, MirModule};
 
 declare_lint! {
     /// Disallow materializing a collection consumed by one streaming operation.
@@ -15,8 +17,9 @@ declare_lint! {
 }
 
 /// Check needless-collect.
-fn check(context: MirModuleContext<'_>) -> Result<(), LinterError> {
-    Err(LinterError::Unimplemented {
-        lint: context.lint.definition.id.to_string(),
-    })
+fn check(_module: &MirModule, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} is not implemented",
+        lint.id
+    )))
 }

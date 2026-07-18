@@ -1,5 +1,7 @@
+use destack_repository::ProviderError;
+
 use crate::rules::declare_lint;
-use crate::{LinterError, MirModuleContext};
+use crate::{Lint, LintResult, MirModule};
 
 declare_lint! {
     /// Disallow borrows that add no required lifetime or capability.
@@ -15,8 +17,9 @@ declare_lint! {
 }
 
 /// Check needless-borrow.
-fn check(context: MirModuleContext<'_>) -> Result<(), LinterError> {
-    Err(LinterError::Unimplemented {
-        lint: context.lint.definition.id.to_string(),
-    })
+fn check(_module: &MirModule, lint: &Lint) -> LintResult {
+    Err(ProviderError::internal(format!(
+        "lint {} is not implemented",
+        lint.id
+    )))
 }

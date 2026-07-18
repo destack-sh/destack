@@ -1,4 +1,3 @@
-mod await_thenable;
 mod blocking_call_in_async;
 mod cyclic_initialization;
 mod dead_store;
@@ -18,7 +17,6 @@ mod unconditional_recursion;
 mod unmodified_loop_condition;
 mod use_isnan;
 
-pub use await_thenable::*;
 pub use blocking_call_in_async::*;
 pub use cyclic_initialization::*;
 pub use dead_store::*;
