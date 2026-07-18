@@ -50,6 +50,16 @@ pub enum AutoInterface {
 }
 
 impl AutoInterface {
+    /// The representation markers sealed on every concrete nominal.
+    pub const REPRESENTATION: [Self; 4] = [
+        Self::Copy,
+        Self::SharedSafe,
+        Self::OverwriteStable,
+        Self::DynamicSafe,
+    ];
+}
+
+impl AutoInterface {
     /// Return the auto interface named by one language item.
     pub fn from_language_item(item: LanguageItem) -> Option<Self> {
         match item {
