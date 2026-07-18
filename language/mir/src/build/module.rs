@@ -153,6 +153,11 @@ impl ModuleBuilder {
         self.tree.insert_type(ty)
     }
 
+    /// Split this builder into its tree and layout table.
+    pub fn tree_and_layouts_mut(&mut self) -> (&mut Tree, &mut LayoutTable) {
+        (&mut self.tree, &mut self.layouts)
+    }
+
     /// Record one computed layout for a type.
     pub fn insert_layout(&mut self, ty: LocalNodeId<Type>, layout: Layout) -> LayoutId {
         let id = self.layouts.insert(layout);
