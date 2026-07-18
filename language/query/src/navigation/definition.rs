@@ -242,11 +242,11 @@ impl ModuleQueryContext<'_> {
         Vec::new()
     }
 
-    /// Return whether a declaration has matching parameter type ids.
-    fn declaration_parameter_type_ids_match(
+    /// Return whether a declaration has the selected parameter bindings.
+    fn declaration_parameter_bindings_match(
         &self,
         declaration_id: dir::LocalNodeIdAny,
-        parameter_types: &[dir::GlobalTypeId],
+        bindings: &[dir::ArgumentBinding],
     ) -> Option<bool> {
         let view = self.view();
         let types = self.types();
@@ -273,14 +273,14 @@ impl ModuleQueryContext<'_> {
             _ => return None,
         };
 
-        if parameters.len() != parameter_types.len() {
+        if parameters.len() != bindings.len() {
             return Some(false);
         }
 
-        for (parameter_id, expected_type_id) in parameters.iter().zip(parameter_types.iter()) {
+        for (parameter_id, binding) in parameters.iter().zip(bindings) {
             let global_parameter_id = parameter_id.into_global_any(self.module_id());
             let type_id = types.get_node_type_id(global_parameter_id)?;
-            if type_id != *expected_type_id {
+            if type_id != binding.ty {
                 return Some(false);
             }
         }
@@ -380,14 +380,13 @@ impl ModuleQueryContext<'_> {
             match &resolution.target {
                 dir::CallTarget::Symbol(candidate) => {
                     let target_symbol = self.canonical_symbol(candidate.symbol);
-                    let parameters = resolution.parameters.as_slice();
 
                     // only match declaration signatures within the target symbol module
                     if target_symbol.module_id != self.module_id() {
                         return None;
                     }
 
-                    self.signature_overload_declaration_span(target_symbol, parameters)
+                    self.signature_overload_declaration_span(target_symbol, &resolution.arguments)
                 }
                 _ => None,
             }
@@ -398,7 +397,7 @@ impl ModuleQueryContext<'_> {
     fn signature_overload_declaration_span(
         &self,
         symbol_id: dir::GlobalSymbolId,
-        parameter_types: &[dir::GlobalTypeId],
+        bindings: &[dir::ArgumentBinding],
     ) -> Option<Span> {
         // read the symbol declaration
         let declaration = {
@@ -410,8 +409,7 @@ impl ModuleQueryContext<'_> {
         let declaration = declaration?;
 
         // find the declaration whose parameter type ids match the resolved signature
-        let is_match =
-            self.declaration_parameter_type_ids_match(declaration.local_id, parameter_types)?;
+        let is_match = self.declaration_parameter_bindings_match(declaration.local_id, bindings)?;
         if is_match {
             return Some(self.get_main_span(self.view(), declaration.local_id));
         }
