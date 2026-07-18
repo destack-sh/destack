@@ -12,30 +12,49 @@ impl ModuleLowerer<'_> {
         symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
     ) -> CompilerResult<Nominal> {
-        // gather the variant cases in declaration order
-        let mut cases = Vec::new();
-        for member in &definition.members {
-            let dir::DefinitionMember::Variant(variant) = member else {
-                continue;
+        // require an integer representation supported by MIR variants
+        let dir::EnumBackingType::Integer(integer) = definition.backing else {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "a string-backed enum".to_string(),
+            }
+            .into());
+        };
+        let discriminant =
+            self.lower_type(&dir::Type::Primitive(dir::PrimitiveType::Integer(integer)))?;
+        let discriminant = builder.tree_mut().insert(discriminant);
+        let width = integer
+            .width()
+            .unwrap_or_else(|| u16::from(builder.pointer_bytes()) * 8);
+
+        // build the variant cases in declaration order
+        let storage = builder.tree_mut().insert(mir::Type::Void);
+        let mut fields = Vec::new();
+        let mut variants = Vec::new();
+        for variant in definition.variants() {
+            let dir::EnumVariantValue::Integer(value) = variant.value else {
+                return Err(CompilerError::Internal {
+                    message: "integer-backed enum carries a non-integer variant".to_string(),
+                });
             };
 
-            cases.push(NominalField {
+            fields.push(NominalField {
                 key: variant.key,
                 symbol: variant.symbol.local_id,
             });
-        }
-
-        // build each case over the checked discriminant value
-        let discriminant = builder.tree_mut().insert(mir::Type::Int {
-            width: 32,
-            is_signed: true,
-        });
-        let storage = builder.tree_mut().insert(mir::Type::Void);
-        let mut case_nodes = Vec::with_capacity(cases.len());
-        for field in &cases {
-            let member = field.symbol.into_global(symbol.module_id);
-            case_nodes.push(mir::VariantCase {
-                discriminant: self.enum_discriminant(member)?,
+            let discriminant = match integer.is_signed() {
+                true => mir::Constant::Int {
+                    value: i128::from(value),
+                    width,
+                    is_signed: true,
+                },
+                false => mir::Constant::UInt {
+                    value: value as u128,
+                    width,
+                },
+            };
+            variants.push(mir::VariantCase {
+                discriminant,
                 ty: storage,
             });
         }
@@ -48,42 +67,14 @@ impl ModuleLowerer<'_> {
         let ty = builder.tree_mut().insert(mir::Type::Variant {
             discriminant,
             storage,
-            cases: case_nodes,
+            cases: variants,
             copy,
         });
 
         Ok(Nominal {
             ty,
             value: ty,
-            fields: cases,
-        })
-    }
-
-    /// Return the checked discriminant constant of one enum case.
-    pub(in crate::lower) fn enum_discriminant(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<mir::Constant> {
-        let statics = &self.state(symbol.module_id)?.statics;
-        let Some(value) = statics.get_symbol_static_id(symbol) else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR is missing a variant discriminant value".to_string(),
-            });
-        };
-
-        // value enums discriminate over checked integer values
-        let dir::StaticTerm::ScalarLiteral {
-            value: dir::ScalarLiteral::Integer(value),
-        } = self.static_term(value)?
-        else {
-            return Err(LowerError::Unsupported {
-                anchor: self.module.into(),
-                construct: "a non-integer enum discriminant".to_string(),
-            }
-            .into());
-        };
-
-        Ok(mir::Constant::Int {
-            value: value as i128,
-            width: 32,
-            is_signed: true,
+            fields,
         })
     }
 }

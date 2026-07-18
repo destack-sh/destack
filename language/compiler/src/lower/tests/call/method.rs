@@ -135,14 +135,14 @@ function probe(status: Status): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Status = variant<int32, void> { 1int32 = void; 2int32 = void; };
+type Status = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
 function main.Status.isActive<L0: lifetime>(v0: ref<Status, borrowed, lifetime(L0), exclusive>): boolean {
 entry(v0: ref<Status, borrowed, lifetime(L0), exclusive>):
     v1: Status = load v0
-    v2: int32 = variant.tag v1
+    v2: int64 = variant.tag v1
     v3: Status = variant.new 0
-    v4: int32 = variant.tag v3
+    v4: int64 = variant.tag v3
     v5: boolean = int.eq v2, v4
     return v5
 }
@@ -156,7 +156,7 @@ entry(v0: Status):
     v2: boolean = call main.Status.isActive(v1)
     return v2
 }
-/// @layout.variant name=Status size=4 align=4 encoding=direct(tag@0+4) cases=(1@4, 2@4)
+/// @layout.variant name=Status size=8 align=8 encoding=direct(tag@0+8) cases=(1@8, 2@8)
 "#,
     );
 }

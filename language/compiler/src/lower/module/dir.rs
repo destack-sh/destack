@@ -258,20 +258,6 @@ impl ModuleLowerer<'_> {
             })
     }
 
-    /// Return one checked static term by id.
-    pub(in crate::lower) fn static_term(
-        &self,
-        id: dir::GlobalStaticId,
-    ) -> CompilerResult<dir::StaticTerm> {
-        self.state(id.module_id)?
-            .statics
-            .get_static_maybe(id.local_id)
-            .cloned()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("checked DIR is missing static {:?}", id.local_id),
-            })
-    }
-
     /// Return the checked resolution of one pattern node.
     pub(in crate::lower) fn pattern_resolution(
         &self,

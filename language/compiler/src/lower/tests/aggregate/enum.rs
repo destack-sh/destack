@@ -22,7 +22,7 @@ function pick(flag: boolean): Mode {
         "main.ds",
         r#"
 @copy
-type Mode = variant<int32, void> { 1int32 = void; 2int32 = void; };
+type Mode = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
 function main.pick(v0: boolean): Mode {
 entry(v0: boolean):
@@ -36,7 +36,7 @@ b2:
     v2: Mode = variant.new 1
     return v2
 }
-/// @layout.variant name=Mode size=4 align=4 encoding=direct(tag@0+4) cases=(1@4, 2@4)
+/// @layout.variant name=Mode size=8 align=8 encoding=direct(tag@0+8) cases=(1@8, 2@8)
 "#,
     );
 }
@@ -71,7 +71,7 @@ function fallback(mode: Mode): int32 {
         "main.ds",
         r#"
 @copy
-type Mode = variant<int32, void> { 1int32 = void; 2int32 = void; };
+type Mode = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
 function main.describe(v0: Mode): int32 {
     local l0: int32
@@ -114,7 +114,7 @@ b3:
     v3: int32 = local.get l0
     return v3
 }
-/// @layout.variant name=Mode size=4 align=4 encoding=direct(tag@0+4) cases=(1@4, 2@4)
+/// @layout.variant name=Mode size=8 align=8 encoding=direct(tag@0+8) cases=(1@8, 2@8)
 "#,
     );
 }
