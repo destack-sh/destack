@@ -390,6 +390,18 @@ impl FromStr for Intrinsic {
             "memory.ptr.asReference" => Ok(Intrinsic::Transmute),
             "memory.ptr.asReadonlyReference" => Ok(Intrinsic::Transmute),
             "memory.ptr.asExclusive" => Ok(Intrinsic::Transmute),
+            "memory.init.new" => Ok(Intrinsic::Transmute),
+            "memory.init.assumeInit" => Ok(Intrinsic::Transmute),
+            "memory.init.asPointer" => Ok(Intrinsic::Transmute),
+            "memory.init.asExclusivePointer" => Ok(Intrinsic::Transmute),
+            "memory.init.assumeInitReference" => Ok(Intrinsic::Transmute),
+            "memory.init.assumeInitReadonlyReference" => Ok(Intrinsic::Transmute),
+            "memory.init.assumeInitExclusiveReference" => Ok(Intrinsic::Transmute),
+            "memory.manuallyDrop.new" => Ok(Intrinsic::Transmute),
+            "memory.manuallyDrop.intoInner" => Ok(Intrinsic::Transmute),
+            "memory.manuallyDrop.asReference" => Ok(Intrinsic::Transmute),
+            "memory.manuallyDrop.asReadonlyReference" => Ok(Intrinsic::Transmute),
+            "memory.manuallyDrop.asExclusive" => Ok(Intrinsic::Transmute),
             "memory.raw.eq" => Ok(Intrinsic::RawEq),
             "math.float.sqrt" => Ok(Intrinsic::Sqrt),
             "math.float.abs" => Ok(Intrinsic::Abs),
@@ -760,6 +772,14 @@ pub enum IntrinsicInstruction {
     PointerSwap,
     /// A drop of the pointed-to value.
     PointerDropInPlace,
+    /// A drop of one owned value.
+    Drop,
+    /// An uninitialized storage value.
+    InitUninit,
+    /// A zeroed storage value.
+    InitZeroed,
+    /// A store initializing one storage through its borrow.
+    InitWrite,
     /// A slice element read.
     SliceGet,
     /// A slice element write.
@@ -793,6 +813,12 @@ impl IntrinsicInstruction {
             "memory.ptr.read" => Self::PointerLoad,
             "memory.ptr.write" => Self::PointerStore,
             "memory.ptr.replace" => Self::PointerReplace,
+            "memory.init.uninit" => Self::InitUninit,
+            "memory.init.zeroed" => Self::InitZeroed,
+            "memory.init.write" => Self::InitWrite,
+            "memory.init.assumeInitRead" => Self::PointerLoad,
+            "memory.manuallyDrop.take" => Self::PointerLoad,
+            "memory.drop" => Self::Drop,
             "memory.ptr.swap" => Self::PointerSwap,
             "memory.ptr.dropInPlace" => Self::PointerDropInPlace,
             "sync.atomic.fence" => Self::AtomicFence,

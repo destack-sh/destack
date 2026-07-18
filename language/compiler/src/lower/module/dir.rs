@@ -182,36 +182,8 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
-            // read the first argument from the sealed nominal decorator value
-            let value = self
-                .state(application.value.module_id)?
-                .statics
-                .get_static_maybe(application.value.local_id)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: "checked DIR is missing one decorator static value".to_string(),
-                })?;
-            let Some((_, value)) = value.as_newtype() else {
-                return Err(CompilerError::Internal {
-                    message: "checked callable decorator value is not a newtype".to_string(),
-                });
-            };
-            let Some(arguments) = value.as_tuple() else {
-                return Err(CompilerError::Internal {
-                    message: "checked callable decorator backing is not a tuple".to_string(),
-                });
-            };
-            let name = match arguments.first() {
-                Some(value) => {
-                    let Some(name) = value.as_string() else {
-                        return Err(CompilerError::Internal {
-                            message: "checked callable decorator name is not a string".to_string(),
-                        });
-                    };
-
-                    Some(self.strings.get(name).to_string())
-                }
-                None => None,
-            };
+            // the first sealed argument names the operation
+            let name = self.decorator_name(application)?;
 
             return Ok(Some(match item {
                 dir::LanguageItem::Binding => AmbientCallable::Binding { name },
@@ -220,6 +192,68 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(None)
+    }
+
+    /// Return the language item sealed on one symbol's declaration, when named.
+    pub(in crate::lower) fn language_item(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::LanguageItem>> {
+        let state = self.state(symbol.module_id)?;
+        let Some(node) = state.bindings.get_symbol(symbol.local_id).declaration else {
+            return Ok(None);
+        };
+
+        for application in state.decorators.applications_for_owner(node) {
+            let dir::DecoratorTarget::LanguageItem {
+                item: dir::LanguageItem::LanguageItem,
+                ..
+            } = application.resolution.target
+            else {
+                continue;
+            };
+            let Some(name) = self.decorator_name(application)? else {
+                continue;
+            };
+
+            return Ok(dir::LanguageItem::from_key(&name));
+        }
+
+        Ok(None)
+    }
+
+    /// Return the sealed string named by one application's first argument.
+    fn decorator_name(
+        &self,
+        application: &dir::DecoratorApplication,
+    ) -> CompilerResult<Option<String>> {
+        let value = self
+            .state(application.value.module_id)?
+            .statics
+            .get_static_maybe(application.value.local_id)
+            .ok_or_else(|| CompilerError::Internal {
+                message: "checked DIR is missing one decorator static value".to_string(),
+            })?;
+        let Some((_, value)) = value.as_newtype() else {
+            return Err(CompilerError::Internal {
+                message: "checked decorator value is not a newtype".to_string(),
+            });
+        };
+        let Some(arguments) = value.as_tuple() else {
+            return Err(CompilerError::Internal {
+                message: "checked decorator backing is not a tuple".to_string(),
+            });
+        };
+        let Some(value) = arguments.first() else {
+            return Ok(None);
+        };
+        let Some(name) = value.as_string() else {
+            return Err(CompilerError::Internal {
+                message: "checked decorator name is not a string".to_string(),
+            });
+        };
+
+        Ok(Some(self.strings.get(name).to_string()))
     }
 
     /// Return whether one definition declares non-lifetime generic parameters.

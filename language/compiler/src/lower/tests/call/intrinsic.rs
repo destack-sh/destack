@@ -539,3 +539,72 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
 "#,
     );
 }
+
+#[test]
+fn test_lower_storage_initialization_to_carrier_constants() {
+    let session = TestSession::single(
+        r#"
+@languageItem("memory.MaybeUninit")
+newtype MaybeUninit<out T> = intrinsic;
+
+@intrinsic("memory.init.uninit")
+declare function initUninit<T>(): MaybeUninit<T>;
+
+@intrinsic("memory.init.zeroed")
+declare function initZeroed<T>(): MaybeUninit<T>;
+
+@intrinsic("memory.init.assumeInit")
+declare function assumeInit<T>(storage: MaybeUninit<T>): T;
+
+function build(): int64 {
+    initUninit<int64>();
+    return assumeInit<int64>(initZeroed<int64>());
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function main.build(): int64 {
+entry:
+    v0: uninit<int64> = uninit
+    v1: uninit<int64> = zeroed
+    v2: int64 = intrinsic.memory.raw.transmute(v1)
+    return v2
+}
+"#,
+    );
+}
+
+#[test]
+fn test_lower_manually_drop_wrapping_to_transmutes() {
+    let session = TestSession::single(
+        r#"
+@languageItem("memory.ManuallyDrop")
+newtype ManuallyDrop<out T> = intrinsic;
+
+@intrinsic("memory.manuallyDrop.new")
+declare function newManuallyDrop<T>(value: T): ManuallyDrop<T>;
+
+@intrinsic("memory.manuallyDrop.intoInner")
+declare function intoManuallyDropInner<T>(wrapped: ManuallyDrop<T>): T;
+
+function wrap(value: int64): int64 {
+    return intoManuallyDropInner<int64>(newManuallyDrop<int64>(value));
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function main.wrap(v0: int64): int64 {
+entry(v0: int64):
+    v1: manual<int64> = intrinsic.memory.raw.transmute(v0)
+    v2: int64 = intrinsic.memory.raw.transmute(v1)
+    return v2
+}
+"#,
+    );
+}

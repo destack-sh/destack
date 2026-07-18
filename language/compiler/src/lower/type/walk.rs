@@ -16,7 +16,16 @@ impl ModuleLowerer<'_> {
 
         match self.ty(id)? {
             // nominal instances share their declared MIR type
-            dir::Type::Instance(instance) => self.ensure_nominal(tree, instance.symbol),
+            dir::Type::Instance(instance) => {
+                // storage carriers wrap their value type directly
+                if let Some(argument) = self.storage_carrier_argument(id, &instance)? {
+                    let value = self.lower_type_id(tree, argument)?;
+
+                    return self.storage_carrier(tree, &instance, value);
+                }
+
+                self.ensure_nominal(tree, instance.symbol)
+            }
             // enum members carry their owning enum
             dir::Type::EnumMember(member) => self.lower_type_id(tree, member.owner),
             // instance substitutions resolve generic parameters
@@ -177,4 +186,49 @@ impl ModuleLowerer<'_> {
             copy,
         })
     }
+
+    /// Return the wrapped argument when one instance is a storage carrier.
+    fn storage_carrier_argument(
+        &self,
+        id: dir::GlobalTypeId,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let item = self.language_item(instance.symbol)?;
+        if !matches!(
+            item,
+            Some(dir::LanguageItem::MaybeUninit | dir::LanguageItem::ManuallyDrop)
+        ) {
+            return Ok(None);
+        }
+
+        let arguments = self.types(id.module_id)?.type_ids(instance.arguments);
+        let Some(argument) = arguments.first().copied() else {
+            return Err(crate::CompilerError::Internal {
+                message: "checked DIR instantiated a storage carrier without its value".to_string(),
+            });
+        };
+
+        Ok(Some(argument))
+    }
+
+    /// Wrap one lowered value type in its storage carrier.
+    fn storage_carrier(
+        &self,
+        tree: &mut mir::Tree,
+        instance: &dir::GenericInstance,
+        value: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let ty = match self.language_item(instance.symbol)? {
+            Some(dir::LanguageItem::MaybeUninit) => mir::Type::Uninit { value },
+            Some(dir::LanguageItem::ManuallyDrop) => mir::Type::ManuallyDrop { value },
+            _ => {
+                return Err(crate::CompilerError::Internal {
+                    message: "lowered a storage carrier without its language item".to_string(),
+                });
+            }
+        };
+
+        Ok(tree.insert(ty))
+    }
 }
+
