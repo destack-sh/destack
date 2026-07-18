@@ -7,7 +7,7 @@ use destack_artifact::{
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
-use destack_source::{File, FileId, ModuleId, Span, TargetId};
+use destack_source::{File, FileId, ModuleId, NodeSpanBoundary, NodeSpanType, Span, TargetId};
 
 /// One module's checked DIR.
 #[derive(Debug)]
@@ -63,21 +63,36 @@ pub struct DirModule {
 }
 
 impl DirModule {
-    /// Return a source span for one DIR node.
-    pub fn source_span(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
-        self.view().get_span_by_id(node.id)
+    /// Return the required source span for one DIR node.
+    pub fn span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
+        self.view()
+            .get_span_by_id(node.id)
+            .ok_or_else(|| ProviderError::Internal {
+                message: format!(
+                    "DIR node {} in module {:?} has no source span",
+                    node.id, self.id
+                ),
+            })
+    }
+
+    /// Return the source span and trailing boundary for one DIR statement.
+    pub fn statement_span(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Span, ProviderError> {
+        let view = self.view();
+        let span = self.span(expression.into_any())?;
+        let trailing = view.get_side_span(
+            expression,
+            NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
+        );
+
+        Ok(trailing.map_or(span, |trailing| span.merge(trailing)))
     }
 
     /// Return a source anchor for one DIR node.
     pub fn anchor(&self, node: dir::LocalNodeIdAny) -> Result<DiagnosticAnchor, ProviderError> {
-        let span = self
-            .source_span(node)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!(
-                    "authored DIR node {} in module {:?} has no source span",
-                    node.id, self.id
-                ),
-            })?;
+        let span = self.span(node)?;
 
         Ok(DiagnosticAnchor::Span(span))
     }

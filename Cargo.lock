@@ -1112,7 +1112,9 @@ dependencies = [
  "destack_dir",
  "destack_mir",
  "destack_repository",
+ "destack_session",
  "destack_source",
+ "serde_json",
 ]
 
 [[package]]

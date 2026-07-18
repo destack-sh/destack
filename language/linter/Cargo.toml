@@ -20,5 +20,9 @@ destack_mir = { workspace = true }
 destack_source = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 
+[dev-dependencies]
+destack_session = { workspace = true, features = ["native"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+
 [lints]
 workspace = true

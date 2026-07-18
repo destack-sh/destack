@@ -43,21 +43,22 @@ impl MirModule {
         })
     }
 
-    /// Return a source span for one MIR node.
-    pub fn source_span(&self, node: mir::LocalNodeIdAny) -> Option<Span> {
-        self.mir.tree.source_span_by_id(node.id)
+    /// Return the required source span for one MIR node.
+    pub fn span(&self, node: mir::LocalNodeIdAny) -> Result<Span, ProviderError> {
+        self.mir
+            .tree
+            .source_span_by_id(node.id)
+            .ok_or_else(|| ProviderError::Internal {
+                message: format!(
+                    "MIR node {} in module {:?} has no source span",
+                    node.id, self.id
+                ),
+            })
     }
 
     /// Return a source anchor for one MIR node.
     pub fn anchor(&self, node: mir::LocalNodeIdAny) -> Result<DiagnosticAnchor, ProviderError> {
-        let span = self
-            .source_span(node)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!(
-                    "authored MIR node {} in module {:?} has no source span",
-                    node.id, self.id
-                ),
-            })?;
+        let span = self.span(node)?;
 
         Ok(DiagnosticAnchor::Span(span))
     }
