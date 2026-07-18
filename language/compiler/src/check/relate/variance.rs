@@ -272,7 +272,7 @@ impl CheckState<'_> {
         let Some(dir::Definition::Newtype(newtype)) = self.definition(symbol)? else {
             return Ok(false);
         };
-        let value = newtype.value;
+        let value = newtype.backing;
 
         Ok(matches!(self.ty(value)?, dir::Type::Intrinsic))
     }
@@ -363,7 +363,9 @@ impl CheckState<'_> {
 
                     Some((signature.value_type, context.storage_position()))
                 }
-                dir::DefinitionMember::Variant(_) => None,
+                dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
+                    None
+                }
             };
             if let Some(measured) = measured {
                 members.push(measured);
@@ -372,7 +374,7 @@ impl CheckState<'_> {
 
         // newtype backings measure like stored values
         if let dir::Definition::Newtype(newtype) = &definition {
-            members.push((newtype.value, context.storage_position()));
+            members.push((newtype.backing, context.storage_position()));
         }
 
         let heritages = definition

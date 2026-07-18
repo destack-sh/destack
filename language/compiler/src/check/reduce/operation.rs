@@ -81,7 +81,7 @@ impl CheckState<'_> {
 
             // template literals concatenate once every span closes
             dir::TypeOperation::TemplateLiteral(template) => {
-                self.reduce_template_literal(origin, template)
+                self.reduce_template_literal(origin, id, template)
             }
 
             // mapped types project their closed key sources field by field

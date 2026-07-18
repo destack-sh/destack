@@ -561,7 +561,7 @@ impl BodyState<'_, '_> {
 
         let resolution = call.resolution;
         let projected = call.return_type;
-        let key_parameter = resolution.parameters.first().copied();
+        let key_parameter = resolution.arguments.first().map(|argument| argument.ty);
 
         Ok(Answer::Ready(Some(SubscriptSelection::call_read(
             resolution,
@@ -664,7 +664,6 @@ impl BodyState<'_, '_> {
         let resolution = dir::CallResolution::new(
             target,
             Some(callable),
-            Self::parameter_types(&signature_parameters),
             Self::source_argument_bindings(&sources, &signature_parameters),
             signature
                 .return_type

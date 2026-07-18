@@ -203,7 +203,7 @@ impl CheckState<'_> {
                 origin,
                 instance_module,
                 &instance,
-                [definition.value],
+                [definition.backing],
                 active,
             ),
             dir::Definition::Class(_)

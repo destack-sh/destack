@@ -51,7 +51,6 @@ impl BodyState<'_, '_> {
             },
             Some(signature),
             Vec::new(),
-            Vec::new(),
             result,
         );
         self.commit_decision(node, Decision::Call(resolution))?;

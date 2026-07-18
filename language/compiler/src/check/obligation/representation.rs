@@ -262,7 +262,7 @@ impl CheckState<'_> {
 
         let storage = match self.definition(instance.symbol)?.cloned() {
             Some(dir::Definition::Newtype(definition)) => {
-                SmallVec::<[_; 4]>::from_slice(&[(definition.value, source)])
+                SmallVec::<[_; 4]>::from_slice(&[(definition.backing, source)])
             }
             // collect struct fields always and class fields only for reachability
             Some(definition @ (dir::Definition::Struct(_) | dir::Definition::Class(_)))

@@ -219,7 +219,7 @@ parse("128");
 === annotated ===
 declare function parse<T: int8>(value: `${T}`): T;
 
-parse<128>("128");
+parse("128");
 
 === checked ===
 declare function parse<T: int8>(value: `${T}`): T;
@@ -232,15 +232,15 @@ declare function parse<T: int8>(value: `${T}`): T;
 
 parse("128");
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"128\")" parameters=(`${128}`) arguments=(provided("128") as `${128}`) return=128 kind=symbol target=parse instance=parse<128>
-/// @generic.instance source="parse(\"128\")" id=parse<128>
+/// @resolution.call source="parse(\"128\")" parameters=(`${<error>}`) arguments=(provided("128") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @generic.instance source="parse(\"128\")" id=parse<<error>>
 
-/// @generic.instance id=parse<128> template=parse arguments=(128)
+/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type '128' does not satisfy 'int8'"
-/// @diagnostic.label line=4 column=1 span="parse(\"128\")" line_source="parse(\"128\");"
-/// @diagnostic.related line=2 column=24 span="T" line_source="declare function parse<T: int8>(value: `${T}`): T;" message="required by this bound on 'T'"
+/// @diagnostic.error code=EC209 message="argument of type '\"128\"' is not assignable to parameter of type '`${_}`'"
+/// @diagnostic.label line=4 column=7 span="\"128\"" line_source="parse(\"128\");"
+/// @diagnostic.related line=4 column=1 span="parse(\"128\")" line_source="parse(\"128\");" message="in this call"
 "#,
     );
 }

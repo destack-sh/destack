@@ -22,7 +22,7 @@ const id: UserId = 42;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 const id: UserId = 42;
 /// @type.symbol symbol=id source=id type=UserId
@@ -57,12 +57,12 @@ const raw: int64 = UserId(42);
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 const raw: int64 = UserId(42);
 /// @type.symbol symbol=raw source=raw type=int64
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'UserId' is not assignable to type 'int64'"
@@ -97,12 +97,12 @@ raw satisfies int64;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 const id = UserId(42);
 /// @type.symbol symbol=id source=id type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 
 const raw = id as int64;
 /// @type.symbol symbol=raw source=raw type=int64
@@ -140,12 +140,12 @@ target satisfies UserId;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 const source = UserId(42);
 /// @type.symbol symbol=source source=source type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 
 const target: UserId = source;
 /// @type.symbol symbol=target source=target type=UserId
@@ -185,16 +185,16 @@ const order: OrderId = user;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 newtype OrderId = int64;
 /// @type.symbol symbol=OrderId source="newtype OrderId = int64" type=OrderId
-/// @definition.newtype symbol=OrderId source="newtype OrderId = int64" value=int64
+/// @definition.newtype symbol=OrderId source="newtype OrderId = int64" backing=int64
 
 const user = UserId(42);
 /// @type.symbol symbol=user source=user type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 
 const order: OrderId = user;
 /// @type.symbol symbol=order source=order type=OrderId
@@ -252,7 +252,7 @@ const id: LeftUserId = RightUserId(42);
 /// @type.symbol symbol=id source=id type=left.UserId
 /// @resolution.name source=LeftUserId target=left.UserId
 /// @resolution.name source=RightUserId target=right.UserId
-/// @resolution.construct source=RightUserId(42) parameters=(int64) arguments=(provided(42) as int64) return=right.UserId kind=newtype target=right.UserId
+/// @resolution.construct source=RightUserId(42) parameters=(int64) arguments=(provided(42) as int64) return=right.UserId kind=newtype target=right.UserId backing=int64
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'right.UserId' is not assignable to type 'left.UserId'"
@@ -283,7 +283,7 @@ const config: Config = { debug: true };
 === checked ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
-/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" value={ debug: boolean }
+/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean }
 
 const config: Config = { debug: true };
 /// @type.symbol symbol=config source=config type=Config

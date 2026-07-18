@@ -402,6 +402,9 @@ impl CheckState<'_> {
         let target_fields = self
             .shape_fields(target.module_id, target_shape.fields)?
             .to_vec();
+        let target_indexes = self
+            .shape_index_signatures(target.module_id, target_shape.index_signatures)?
+            .to_vec();
 
         // require each target field, filling omissions from optionality
         let mut decision = Answer::Ready(true);
@@ -422,7 +425,7 @@ impl CheckState<'_> {
                     }
                     decision = decision.and(self.decide_relation(
                         origin,
-                        Relation::Assignable,
+                        Relation::Writable,
                         source_field.ty,
                         target_field.ty,
                     )?);
@@ -433,13 +436,44 @@ impl CheckState<'_> {
             }
         }
 
-        // reject written keys the place does not declare
+        // require every extra field through a declared index signature
         for source_field in &source_fields {
             let declared = target_fields
                 .iter()
                 .any(|target| target.key == source_field.key);
-            if !declared {
-                return Ok(Answer::Ready(false));
+            if declared {
+                continue;
+            }
+
+            let indexed = self.decide_indexed_field_write(origin, source_field, &target_indexes)?;
+            decision = decision.and(indexed);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Decide whether one field writes through any target index signature.
+    fn decide_indexed_field_write(
+        &mut self,
+        origin: Origin,
+        field: &dir::TypeField,
+        indexes: &[dir::TypeIndexSignature],
+    ) -> CompilerResult<Answer<bool>> {
+        let key = self.static_key_type(origin.module(), field.key)?;
+        let mut decision = Answer::Ready(false);
+
+        // accept the field through the first compatible index signature
+        for index in indexes {
+            let key_matches =
+                self.decide_relation(origin, Relation::Assignable, key, index.key_type)?;
+            let value_matches =
+                self.decide_relation(origin, Relation::Writable, field.ty, index.value_type)?;
+            decision = decision.or(key_matches.and(value_matches));
+            if decision.is_ready_true() {
+                break;
             }
         }
 

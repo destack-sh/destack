@@ -63,7 +63,7 @@ impl CheckState<'_> {
         let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
             return Ok(None);
         };
-        let backing = definition.value;
+        let backing = definition.backing;
         let substitution = self.instance_substitution(instance_module, instance)?;
         let backing = self.substitute_type(origin.module(), backing, &substitution)?;
 
@@ -163,14 +163,10 @@ impl CheckState<'_> {
         {
             let members = definition.members.clone();
             for member in &members {
-                let dir::DefinitionMember::Variant(variant) = member else {
+                let dir::DefinitionMember::EnumVariant(variant) = member else {
                     continue;
                 };
-                let value = self.static_value(variant.symbol);
-                let Some(value) = value else {
-                    continue;
-                };
-                if self.ty(value)? == dir::Type::Literal(literal) {
+                if dir::ScalarLiteral::from(variant.value) == literal {
                     return Ok(Answer::Ready(true));
                 }
             }

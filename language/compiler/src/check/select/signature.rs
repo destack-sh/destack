@@ -770,6 +770,7 @@ impl BodyState<'_, '_> {
         let source = argument.source();
         let call = self.origin_source(origin)?;
         let origin = self.origin_at(origin, source)?;
+        let relation = self.argument_relation(argument);
         let cause = self
             .check
             .intern_cause(Cause::root(origin, CauseKind::Argument { call, index: 0 }));
@@ -786,19 +787,19 @@ impl BodyState<'_, '_> {
             let ty = answer!(self.node_type_at(site)?);
             let ty = answer!(self.const_literal_expression_type(source, ty)?);
 
-            return self.constrain_type(cause, Relation::Assignable, ty, parameter_type);
+            return self.constrain_type(cause, relation, ty, parameter_type);
         }
 
         // check source expressions with the parameter as their expected type
         match argument {
             CallableArgument::Expression(_) => self.check_expression_relation(
                 cause,
-                Relation::Assignable,
+                relation,
                 parameter_type,
                 Some(ValueUse::Argument),
             ),
             CallableArgument::Typed { ty, .. } => {
-                self.constrain_type(cause, Relation::Assignable, ty, parameter_type)
+                self.constrain_type(cause, relation, ty, parameter_type)
             }
         }
     }

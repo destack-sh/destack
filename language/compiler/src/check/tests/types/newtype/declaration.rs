@@ -53,7 +53,7 @@ interface Writer {
 
 newtype NamedWriter = Writer;
 /// @type.symbol symbol=NamedWriter source="newtype NamedWriter = Writer" type=NamedWriter
-/// @definition.newtype symbol=NamedWriter source="newtype NamedWriter = Writer" value=Writer
+/// @definition.newtype symbol=NamedWriter source="newtype NamedWriter = Writer" backing=Writer
 /// @resolution.name source=Writer target=Writer
 
 struct Buffer {

@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateOutcome, CandidatePass, CandidateVerdict, Cause,
-    CauseKind, Decision, DecisionKind, FlowSite, Origin, ProbeReason, Relation, SignatureRejection,
-    SignatureSelection, TypeSubstitution, answer,
+    CauseKind, Decision, DecisionKind, FlowSite, NewtypeMatch, NewtypeRejection, Origin,
+    ProbeReason, Relation, SignatureRejection, SignatureSelection, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -621,7 +621,7 @@ impl BodyState<'_, '_> {
         )
     }
 
-    /// Select one newtype construction through call expression form.
+    /// Select one newtype construction.
     ///
     /// Example:
     /// ```ds
@@ -638,128 +638,51 @@ impl BodyState<'_, '_> {
         type_arguments: &[dir::GlobalTypeId],
         expected_return: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let arguments = self.callable_arguments(module, argument_nodes)?;
-
-        // read the wrapped backing type
-        let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
-            return self.reject_construct(site, node, origin, argument_nodes, &[]);
-        };
-        let backing = definition.value;
-
-        // model the backing as a callable signature
-        let generic_parameters = self
-            .symbol_template(symbol)?
-            .map(|template| self.generic_template_parameters(template))
-            .unwrap_or_default();
-        let type_arguments = if type_arguments.is_empty() {
-            answer!(self.expected_newtype_arguments(origin, symbol, expected_return)?)
-        } else {
-            type_arguments.to_vec()
-        };
-        let return_arguments = generic_parameters
-            .iter()
-            .copied()
-            .map(|parameter| self.intern_type(module, dir::Type::Parameter(parameter)))
-            .collect::<CompilerResult<Vec<_>>>()?;
-        let return_arguments = self.intern_type_ids(module, &return_arguments)?;
-        let return_type = self.intern_type(
-            module,
-            dir::Type::Instance(dir::GenericInstance {
-                symbol,
-                arguments: return_arguments,
-            }),
-        )?;
-        let backing = answer!(self.reduce_type_head(origin, backing)?);
-        let parameters = match self.ty(backing)? {
-            dir::Type::Tuple(tuple) => self
-                .tuple_elements(backing.module_id, tuple.elements)?
-                .iter()
-                .map(|element| dir::FunctionParameterType {
-                    ty: element.ty,
-                    is_optional: false,
-                    is_rest: false,
-                })
-                .collect::<Vec<_>>(),
-            _ => vec![dir::FunctionParameterType {
-                ty: backing,
-                is_optional: false,
-                is_rest: false,
-            }],
-        };
-        let parameters = self.intern_parameters(module, &parameters)?;
-        let function = dir::FunctionSignatureType {
-            asynchrony: dir::Asynchrony::Sync,
-            template: None,
-            this_parameter: None,
-            parameters,
-            return_type: Some(return_type),
-            is_generator: false,
-        };
-        let attempt = self.match_signature(
-            CandidatePass::Confirm,
+        let matched = answer!(self.match_newtype(
             origin,
-            module,
-            module,
-            source,
-            &generic_parameters,
-            None,
-            &[],
-            &type_arguments,
-            &function,
-            function.return_type,
-            None,
-            &arguments,
+            symbol,
+            argument_nodes,
+            type_arguments,
             expected_return,
-        )?;
-        let signature = match answer!(attempt) {
-            CandidateOutcome::Accepted(signature) => signature,
-            CandidateOutcome::Rejected(_) => {
-                return self.reject_construct(site, node, origin, argument_nodes, &[]);
-            }
+        )?);
+        let (selection, parameters, return_type) = match matched {
+            NewtypeMatch::Selected {
+                selection,
+                parameters,
+                return_type,
+            } => (selection, parameters, return_type),
+            NewtypeMatch::Rejected(rejection) => match rejection {
+                NewtypeRejection::Signature(rejection) => {
+                    self.report_signature_rejection(
+                        origin,
+                        origin.module(),
+                        argument_nodes,
+                        rejection,
+                    )?;
+                    self.commit_decision(node, Decision::Rejected)?;
+                    self.commit_error_node(node)?;
+
+                    return Ok(Answer::Ready(()));
+                }
+                NewtypeRejection::Candidates(notes) => {
+                    return self.reject_construct(site, node, origin, argument_nodes, &notes);
+                }
+            },
         };
 
         // commit the selected newtype construction
-        let target = dir::ConstructTarget::Newtype(dir::NewtypeConstructCandidate {
-            symbol,
-            generic_arguments: signature.generic_arguments.clone(),
-        });
+        let module = origin.module();
+        let target = dir::ConstructTarget::Newtype(selection);
         let resolution = dir::ConstructResolution::new(
             target,
-            Self::parameter_types(&signature.parameters),
-            self.argument_bindings(module, argument_nodes, &signature.parameters),
-            signature.return_type,
+            self.argument_bindings(module, argument_nodes, &parameters),
+            return_type,
         );
         self.check_arguments(site, argument_nodes, &resolution.arguments)?;
         self.commit_decision(node, Decision::Construct(resolution))?;
-        self.commit_node_type(node, signature.return_type)?;
+        self.commit_node_type(node, return_type)?;
 
         Ok(Answer::Ready(()))
-    }
-
-    /// Return implicit newtype arguments from a same-symbol expected result.
-    fn expected_newtype_arguments(
-        &mut self,
-        origin: Origin,
-        symbol: dir::GlobalSymbolId,
-        expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<Vec<dir::GlobalTypeId>>> {
-        let Some(expected_return) = expected_return else {
-            return Ok(Answer::Ready(Vec::new()));
-        };
-        let expected_return = answer!(self.reduce_type_head(origin, expected_return)?);
-        let dir::Type::Instance(instance) = self.ty(expected_return)? else {
-            return Ok(Answer::Ready(Vec::new()));
-        };
-        if instance.symbol != symbol {
-            return Ok(Answer::Ready(Vec::new()));
-        }
-
-        Ok(Answer::Ready(
-            self.type_ids(expected_return.module_id, instance.arguments)?
-                .to_vec(),
-        ))
     }
 
     /// Commit one accepted construction selection.
@@ -805,7 +728,6 @@ impl BodyState<'_, '_> {
         }
         let resolution = dir::ConstructResolution::new(
             target,
-            Self::parameter_types(&signature.parameters),
             self.argument_bindings(module, argument_nodes, &signature.parameters),
             produced,
         );

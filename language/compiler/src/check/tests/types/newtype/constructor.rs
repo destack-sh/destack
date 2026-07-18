@@ -22,14 +22,14 @@ const id: UserId = UserId(42);
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 const id = UserId(42);
 /// @type.symbol symbol=id source=id type=UserId
 /// @type.node source=UserId type=UserId
 /// @type.node source=UserId(42) type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 /// @type.node source=42 type=42
 "#,
     );
@@ -57,14 +57,14 @@ const pair: Pair = Pair(1, "x");
 === checked ===
 newtype Pair = (int32, string);
 /// @type.symbol symbol=Pair source="newtype Pair = (int32, string)" type=Pair
-/// @definition.newtype symbol=Pair source="newtype Pair = (int32, string)" value=(int32, string)
+/// @definition.newtype symbol=Pair source="newtype Pair = (int32, string)" backing=(int32, string)
 
 const pair = Pair(1, "x");
 /// @type.symbol symbol=pair source=pair type=Pair
 /// @type.node source="Pair(1, \"x\")" type=Pair
 /// @type.node source=Pair type=Pair
 /// @resolution.name source=Pair target=Pair
-/// @resolution.construct source="Pair(1, \"x\")" parameters=(int32, string) arguments=(provided(1) as int32, provided("x") as string) return=Pair kind=newtype target=Pair
+/// @resolution.construct source="Pair(1, \"x\")" parameters=(int32, string) arguments=(provided(1) as int32, provided("x") as string) return=Pair kind=newtype target=Pair backing=(int32, string)
 /// @type.node source=1 type=1
 /// @type.node source="\"x\"" type="x"
 "#,
@@ -93,16 +93,53 @@ const config: Config = Config({ debug: true });
 === checked ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
-/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" value={ debug: boolean }
+/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean }
 
 const config = Config({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
 /// @type.node source="Config({ debug: true })" type=Config
 /// @type.node source=Config type=Config
 /// @resolution.name source=Config target=Config
-/// @resolution.construct source="Config({ debug: true })" parameters=({ debug: boolean }) arguments=(provided({ debug: true }) as { debug: boolean }) return=Config kind=newtype target=Config
+/// @resolution.construct source="Config({ debug: true })" parameters=({ debug: boolean }) arguments=(provided({ debug: true }) as { debug: boolean }) return=Config kind=newtype target=Config backing={ debug: boolean }
 /// @type.node source={ debug: true } type={ debug: true }
 /// @type.node source=true type=true
+"#,
+    );
+}
+
+#[test]
+fn test_union_newtype_constructor_accepts_fresh_optional_object() {
+    let session = TestSession::single(
+        r#"
+newtype Annotation = () | (string, { reason?: string });
+
+const annotation = Annotation("lint", { reason: "intentional" });
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+newtype Annotation = () | (string, { reason?: string });
+
+const annotation: Annotation = Annotation("lint", { reason: "intentional" });
+
+=== checked ===
+newtype Annotation = () | (string, { reason?: string });
+/// @type.symbol symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" type=Annotation
+/// @definition.newtype symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" backing=() | (string, { reason?: string })
+
+const annotation = Annotation("lint", { reason: "intentional" });
+/// @type.symbol symbol=annotation source=annotation type=Annotation
+/// @type.node source="Annotation(\"lint\", { reason: \"intentional\" })" type=Annotation
+/// @type.node source=Annotation type=Annotation
+/// @resolution.name source=Annotation target=Annotation
+/// @resolution.construct source="Annotation(\"lint\", { reason: \"intentional\" })" parameters=(string, { reason?: string }) arguments=(provided("lint") as string, provided({ reason: "intentional" }) as { reason?: string }) return=Annotation kind=newtype target=Annotation backing=(string, { reason?: string })
+/// @type.node source="\"lint\"" type="lint"
+/// @type.node source={ reason: "intentional" } type={ reason: "intentional" }
+/// @type.node source="\"intentional\"" type="intentional"
 "#,
     );
 }
@@ -129,13 +166,13 @@ const id: UserId = UserId(42);
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 const id: UserId = _(42);
 /// @type.symbol symbol=id source=id type=UserId
 /// @resolution.name source=UserId target=UserId
 /// @type.node source=_(42) type=UserId
-/// @resolution.construct source=_(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=_(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 /// @type.node source=42 type=42
 "#,
     );
@@ -163,13 +200,13 @@ const point: Point = Point(1, 2);
 === checked ===
 newtype Point = (int32, int32);
 /// @type.symbol symbol=Point source="newtype Point = (int32, int32)" type=Point
-/// @definition.newtype symbol=Point source="newtype Point = (int32, int32)" value=(int32, int32)
+/// @definition.newtype symbol=Point source="newtype Point = (int32, int32)" backing=(int32, int32)
 
 const point: Point = _(1, 2);
 /// @type.symbol symbol=point source=point type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source="_(1, 2)" type=Point
-/// @resolution.construct source="_(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=Point kind=newtype target=Point
+/// @resolution.construct source="_(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=Point kind=newtype target=Point backing=(int32, int32)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -198,13 +235,13 @@ const config: Config = Config({ debug: true });
 === checked ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
-/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" value={ debug: boolean }
+/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean }
 
 const config: Config = _({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
 /// @resolution.name source=Config target=Config
 /// @type.node source="_({ debug: true })" type=Config
-/// @resolution.construct source="_({ debug: true })" parameters=({ debug: boolean }) arguments=(provided({ debug: true }) as { debug: boolean }) return=Config kind=newtype target=Config
+/// @resolution.construct source="_({ debug: true })" parameters=({ debug: boolean }) arguments=(provided({ debug: true }) as { debug: boolean }) return=Config kind=newtype target=Config backing={ debug: boolean }
 /// @type.node source={ debug: true } type={ debug: true }
 /// @type.node source=true type=true
 "#,
@@ -234,7 +271,7 @@ const value: Box<int32> = Box(1);
 newtype Box<T> = T;
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box source="newtype Box<T> = T" type=Box
-/// @definition.newtype symbol=Box source="newtype Box<T> = T" template=(out T) value=T
+/// @definition.newtype symbol=Box source="newtype Box<T> = T" template=(out T) backing=T
 /// @type.symbol symbol=Box.T source=T type=T
 /// @resolution.name source=T target=Box.T
 
@@ -242,7 +279,7 @@ const value: Box<int32> = _(1);
 /// @type.symbol symbol=value source=value type=Box<int32>
 /// @resolution.name source=Box target=Box
 /// @type.node source=_(1) type=Box<int32>
-/// @resolution.construct source=_(1) parameters=(int32) arguments=(provided(1) as int32) return=Box<int32> kind=newtype target=Box instance=Box<int32>
+/// @resolution.construct source=_(1) parameters=(int32) arguments=(provided(1) as int32) return=Box<int32> kind=newtype target=Box backing=int32 instance=Box<int32>
 /// @generic.instance source=_(1) id=Box<int32>
 /// @type.node source=1 type=1
 
@@ -271,14 +308,14 @@ function from<T, E>(value: E): Result<T, E> {
 newtype Result<out T, out E> = T | E;
 
 function from<T, E>(value: E): Result<T, E> {
-    Result(value as T | E)
+    Result(value)
 }
 
 === checked ===
 newtype Result<T, E> = T | E;
 /// @generic.template symbol=Result parameters=(out T#1, out E#1)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#1, out E#1) value=T#1 | E#1
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#1, out E#1) backing=T#1 | E#1
 /// @type.symbol symbol=Result.T source=T type=T#1
 /// @type.symbol symbol=Result.E source=E type=E#1
 /// @resolution.name source=T target=Result.T
@@ -299,7 +336,7 @@ function from<T, E>(value: E): Result<T, E> {
     /// @type.node source=Result type=Result
     /// @type.node source=Result(value) type=Result<T#2, E#2>
     /// @resolution.name source=Result target=Result
-    /// @resolution.construct source=Result(value) parameters=(T#2 | E#2) arguments=(provided(value) as T#2 | E#2) return=Result<T#2, E#2> kind=newtype target=Result instance="Result<T#2, E#2>"
+    /// @resolution.construct source=Result(value) parameters=(E#2) arguments=(provided(value) as E#2) return=Result<T#2, E#2> kind=newtype target=Result backing=E#2 instance="Result<T#2, E#2>"
     /// @generic.instance source=Result(value) id="Result<T#2, E#2>"
     /// @type.node source=value type=E#2
     /// @resolution.name source=value target=from.value

@@ -482,7 +482,7 @@ impl BodyState<'_, '_> {
         let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
             return Ok(Answer::Ready(None));
         };
-        let value = definition.value;
+        let value = definition.backing;
 
         // apply the instance arguments to the declared backing
         let substitution = self.instance_substitution(instance_module, &instance)?;

@@ -97,9 +97,8 @@ impl BodyState<'_, '_> {
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         expected_return: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<CheckOutcome>> {
-        let node = site.node.into_typed::<dir::Expression>();
+        let node = site.node;
         let module = node.module_id;
-        let node = node.into_any();
         let origin = site.origin();
 
         // collect explicit type arguments from the call node
@@ -145,7 +144,7 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)));
         }
 
-        // newtype targets construct through call expression form
+        // newtype targets select their nominal constructor
         if let [
             CallableCandidate {
                 symbol: Some(symbol),
@@ -738,7 +737,6 @@ impl BodyState<'_, '_> {
         let resolution = dir::CallResolution::new(
             target,
             Some(signature.callable),
-            Self::parameter_types(&signature.parameters),
             self.argument_bindings(module, argument_nodes, &signature.parameters),
             signature.return_type,
         );
@@ -818,7 +816,6 @@ impl BodyState<'_, '_> {
         let resolution = dir::CallResolution::new(
             dir::CallTarget::Universal(targets),
             None,
-            Self::parameter_types(&parameters),
             self.argument_bindings(origin.module(), argument_nodes, &parameters),
             return_type,
         );

@@ -39,8 +39,10 @@ impl BodyState<'_, '_> {
         }
 
         // check with the target when the relation can shape the expression
-        let can_check = matches!(relation, Relation::Assignable | Relation::Satisfies)
-            && use_ != Some(ValueUse::Condition);
+        let can_check = matches!(
+            relation,
+            Relation::Assignable | Relation::Writable | Relation::Satisfies
+        ) && use_ != Some(ValueUse::Condition);
         if can_check
             && let Some(use_) = use_
             && self.node_type_maybe(site.node).is_none()

@@ -108,7 +108,9 @@ impl MemberRole {
             dir::DefinitionMember::Method(_) => Some(Self::Method),
             dir::DefinitionMember::AssociatedType(_)
             | dir::DefinitionMember::AssociatedConst(_) => Some(Self::Associated),
-            dir::DefinitionMember::Variant(_) => Some(Self::Variant),
+            dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
+                Some(Self::Variant)
+            }
             dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_)
             | dir::DefinitionMember::IndexSignature(_) => None,
@@ -279,7 +281,7 @@ impl BodyState<'_, '_> {
             space: member.space(),
             key: member.key(),
             ty,
-            value: member.value(),
+            value: member.static_value(),
             role,
         })))
     }

@@ -61,11 +61,14 @@ impl CheckState<'_> {
     pub(super) fn reduce_template_literal(
         &mut self,
         origin: Origin,
+        id: dir::GlobalTypeId,
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let strings = self
+            .template_strings(id.module_id, template.strings)?
+            .to_vec();
+        let spans = self.type_ids(id.module_id, template.spans)?.to_vec();
         let module = origin.module();
-        let strings = self.template_strings(module, template.strings)?.to_vec();
-        let spans = self.type_ids(module, template.spans)?.to_vec();
 
         // close every interpolated span to its printable choices
         let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());

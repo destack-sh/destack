@@ -156,7 +156,7 @@ segment satisfies "users" | "posts";
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -191,6 +191,10 @@ segment satisfies "users" | "posts";
 /// @resolution.name source=segment target=segment
 
 /// @generic.instance id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
+"#,
+        r#"
+/// @diagnostic.warning code=WC402 message="condition is always true"
+/// @diagnostic.label line=4 column=15 span="true" line_source="const input = true ? \"id:users\" : \"id:posts\";"
 "#,
     );
 }

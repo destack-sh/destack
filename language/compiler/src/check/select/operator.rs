@@ -644,7 +644,7 @@ impl BodyState<'_, '_> {
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
         let target = dir::CallTarget::Builtin(dir::BuiltinCall::BinaryOperator { operator });
-        let resolution = dir::CallResolution::new(target, None, Vec::new(), Vec::new(), result);
+        let resolution = dir::CallResolution::new(target, None, Vec::new(), result);
         self.commit_node_type(node, result)?;
         self.commit_decision(node, Decision::Call(resolution))?;
         self.push_operator_writeback(origin, result, writeback);
@@ -660,7 +660,7 @@ impl BodyState<'_, '_> {
         result: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         let target = dir::CallTarget::Builtin(dir::BuiltinCall::UnaryOperator { operator });
-        let resolution = dir::CallResolution::new(target, None, Vec::new(), Vec::new(), result);
+        let resolution = dir::CallResolution::new(target, None, Vec::new(), result);
         self.commit_node_type(node, result)?;
         self.commit_decision(node, Decision::Call(resolution))?;
 

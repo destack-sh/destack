@@ -215,27 +215,42 @@ impl CheckState<'_> {
         constraint: &dir::Type,
         text: &str,
     ) -> CompilerResult<NumericCapture> {
+        let text = TemplateText(text);
         let literal = match constraint {
-            dir::Type::Primitive(dir::PrimitiveType::Float(_) | dir::PrimitiveType::Integer(_)) => {
-                let Some(value) = template_number_value(text) else {
+            dir::Type::Primitive(dir::PrimitiveType::Float(_)) => {
+                let Some(value) = text.number() else {
                     return Ok(NumericCapture::OutOfDomain);
                 };
 
                 // integral captures stay comptime integers and adapt
-                match value.fract() == 0.0 {
-                    true => dir::ScalarLiteral::Integer(value as i64),
-                    false => dir::ScalarLiteral::Float(value),
+                match text.integer() {
+                    Some(value) => dir::ScalarLiteral::Integer(value),
+                    None => dir::ScalarLiteral::Float(value),
                 }
             }
-            dir::Type::Primitive(dir::PrimitiveType::Bigint) => {
-                let Some(value) = template_number_value(text) else {
+            dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => {
+                let Some(value) = text.integer() else {
                     return Ok(NumericCapture::OutOfDomain);
                 };
-                if value.fract() != 0.0 {
+                if !integer.fits_literal(value) {
                     return Ok(NumericCapture::OutOfDomain);
                 }
 
-                dir::ScalarLiteral::Bigint(value as i64)
+                dir::ScalarLiteral::Integer(value)
+            }
+            dir::Type::Primitive(dir::PrimitiveType::Bigint) => {
+                let Some(value) = text.integer() else {
+                    return Ok(NumericCapture::OutOfDomain);
+                };
+
+                dir::ScalarLiteral::Bigint(value)
+            }
+            dir::Type::Range(range) => {
+                let Some(literal) = text.range(range) else {
+                    return Ok(NumericCapture::OutOfDomain);
+                };
+
+                literal
             }
             _ => return Ok(NumericCapture::NotNumeric),
         };
@@ -252,15 +267,17 @@ impl CheckState<'_> {
         span: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let span = answer!(self.template_span_head(origin, span)?);
+        let template = TemplateText(text);
 
         let matched = match self.ty(span)? {
             dir::Type::Primitive(dir::PrimitiveType::String) => true,
-            dir::Type::Primitive(dir::PrimitiveType::Float(_)) => template_number_text(text),
+            dir::Type::Primitive(dir::PrimitiveType::Float(_)) => template.number().is_some(),
             dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => {
-                template_sized_integer_text(text, integer)
+                template.fits_integer(integer)
             }
-            dir::Type::Primitive(dir::PrimitiveType::Bigint) => template_integer_text(text),
+            dir::Type::Primitive(dir::PrimitiveType::Bigint) => template.integer().is_some(),
             dir::Type::Primitive(dir::PrimitiveType::Boolean) => text == "true" || text == "false",
+            dir::Type::Range(range) => template.range(&range).is_some(),
             dir::Type::Literal(literal) => {
                 literal.template_text(self.strings()).as_deref() == Some(text)
             }
@@ -618,66 +635,116 @@ impl CheckState<'_> {
     }
 }
 
-/// Return whether one template span text parses as a number.
-fn template_number_text(text: &str) -> bool {
-    template_number_value(text).is_some()
-}
+/// One captured template span text.
+#[derive(Debug, Clone, Copy)]
+struct TemplateText<'a>(&'a str);
 
-/// Parse one template span text with number-literal semantics.
-fn template_number_value(text: &str) -> Option<f64> {
-    if text.is_empty() || text.trim() != text {
-        return None;
-    }
-    let (sign, magnitude) = match text.strip_prefix('-') {
-        Some(rest) => (-1.0, rest),
-        None => (1.0, text),
-    };
-
-    // radix-prefixed integer forms
-    for (prefix, radix) in [("0x", 16), ("0X", 16), ("0o", 8), ("0b", 2)] {
-        if let Some(digits) = magnitude.strip_prefix(prefix) {
-            let value = i128::from_str_radix(digits, radix).ok()?;
-
-            return Some(sign * value as f64);
+impl TemplateText<'_> {
+    /// Parse this text with number-literal semantics.
+    fn number(self) -> Option<f64> {
+        let text = self.0;
+        if text.is_empty() || text.trim() != text {
+            return None;
         }
+        let (sign, magnitude) = match text.strip_prefix('-') {
+            Some(rest) => (-1.0, rest),
+            None => (1.0, text),
+        };
+
+        // parse radix-prefixed integer forms
+        for (prefix, radix) in [
+            ("0x", 16),
+            ("0X", 16),
+            ("0o", 8),
+            ("0O", 8),
+            ("0b", 2),
+            ("0B", 2),
+        ] {
+            if let Some(digits) = magnitude.strip_prefix(prefix) {
+                let value = i128::from_str_radix(digits, radix).ok()?;
+
+                return Some(sign * value as f64);
+            }
+        }
+
+        // exclude named non-finite values from decimal forms
+        let value: f64 = magnitude.parse().ok()?;
+        if !value.is_finite() || magnitude.chars().next()?.is_ascii_alphabetic() {
+            return None;
+        }
+
+        Some(sign * value)
     }
 
-    // decimal forms, excluding Infinity and NaN names
-    let value: f64 = magnitude.parse().ok()?;
-    if !value.is_finite() || magnitude.chars().next()?.is_ascii_alphabetic() {
-        return None;
+    /// Parse this text as an exact integer literal.
+    fn integer(self) -> Option<i64> {
+        let text = self.0;
+        if text.is_empty() || text.trim() != text {
+            return None;
+        }
+        let (sign, magnitude) = if let Some(magnitude) = text.strip_prefix('-') {
+            (-1i128, magnitude)
+        } else {
+            (1i128, text)
+        };
+        let (digits, radix) = if let Some(digits) = magnitude
+            .strip_prefix("0x")
+            .or_else(|| magnitude.strip_prefix("0X"))
+        {
+            (digits, 16)
+        } else if let Some(digits) = magnitude
+            .strip_prefix("0o")
+            .or_else(|| magnitude.strip_prefix("0O"))
+        {
+            (digits, 8)
+        } else if let Some(digits) = magnitude
+            .strip_prefix("0b")
+            .or_else(|| magnitude.strip_prefix("0B"))
+        {
+            (digits, 2)
+        } else {
+            (magnitude, 10)
+        };
+        if digits.is_empty() {
+            return None;
+        }
+        let magnitude = i128::from_str_radix(digits, radix).ok()?;
+        let value = magnitude.checked_mul(sign)?;
+
+        i64::try_from(value).ok()
     }
 
-    Some(sign * value)
-}
+    /// Parse this text in one interval's scalar domain.
+    fn range(self, range: &dir::RangeType) -> Option<dir::ScalarLiteral> {
+        let literal = match range.scalar_domain()? {
+            dir::ScalarDomain::Integer => dir::ScalarLiteral::Integer(self.integer()?),
+            dir::ScalarDomain::Bigint => dir::ScalarLiteral::Bigint(self.integer()?),
+            dir::ScalarDomain::Character => {
+                let mut characters = self.0.chars();
+                let character = characters.next()?;
+                if characters.next().is_some() {
+                    return None;
+                }
 
-/// Return whether one template span text parses as an integer.
-fn template_integer_text(text: &str) -> bool {
-    match template_number_value(text) {
-        Some(value) => value.fract() == 0.0,
-        None => false,
+                dir::ScalarLiteral::Character(character)
+            }
+            dir::ScalarDomain::Float
+            | dir::ScalarDomain::String
+            | dir::ScalarDomain::Symbol
+            | dir::ScalarDomain::Boolean
+            | dir::ScalarDomain::Null
+            | dir::ScalarDomain::Undefined => return None,
+        };
+
+        range.contains_literal(literal).then_some(literal)
     }
-}
 
-/// Return whether one template span text fits a sized integer width.
-fn template_sized_integer_text(text: &str, integer: dir::IntegerType) -> bool {
-    let Some(value) = template_number_value(text) else {
-        return false;
-    };
-    if value.fract() != 0.0 {
-        return false;
+    /// Return whether this text fits one integer type.
+    fn fits_integer(self, integer: dir::IntegerType) -> bool {
+        let Some(value) = self.integer() else {
+            return false;
+        };
+
+        integer.fits_literal(value)
     }
-    let (width, is_signed) = match integer {
-        dir::IntegerType::Fixed { width, is_signed } => (u32::from(width), is_signed),
-        dir::IntegerType::Pointer { is_signed } => (64, is_signed),
-    };
-    let (low, high) = match is_signed {
-        true => (
-            -(2f64.powi(width as i32 - 1)),
-            2f64.powi(width as i32 - 1) - 1.0,
-        ),
-        false => (0.0, 2f64.powi(width as i32) - 1.0),
-    };
-
-    value >= low && value <= high
 }

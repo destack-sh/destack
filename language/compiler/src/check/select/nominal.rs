@@ -18,6 +18,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         self.check_pattern_bindings(module, fields)?;
 
+        // reject invalid rest fields
         if !self.check_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
@@ -37,7 +38,7 @@ impl BodyState<'_, '_> {
 
         // unwrap the substituted newtype backing
         let backing = match self.definition(instance.symbol)? {
-            Some(dir::Definition::Newtype(definition)) => definition.value,
+            Some(dir::Definition::Newtype(definition)) => definition.backing,
             _ => return self.reject_pattern(node, origin, tag),
         };
         let substitution = self

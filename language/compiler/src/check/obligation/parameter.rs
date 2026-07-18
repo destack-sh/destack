@@ -20,7 +20,7 @@ impl CheckState<'_> {
 
         // intrinsic newtype backings use their parameters as compiler storage
         let backing = match self.definition(symbol)? {
-            Some(dir::Definition::Newtype(newtype)) => Some(newtype.value),
+            Some(dir::Definition::Newtype(newtype)) => Some(newtype.backing),
             Some(_) => None,
             None => return Ok(Answer::Ready(ObligationCheck::holds())),
         };
@@ -139,7 +139,8 @@ impl CheckState<'_> {
                     surface.push(signature.value_type);
                 }
                 // variant singletons restate the receiver instance
-                dir::DefinitionMember::Variant(_) => {}
+                dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
+                }
                 dir::DefinitionMember::Field(_)
                 | dir::DefinitionMember::AssociatedConst(_)
                 | dir::DefinitionMember::CallSignature(_)
@@ -151,7 +152,7 @@ impl CheckState<'_> {
 
         // newtype backings and heritage arguments are declaration usage
         if let dir::Definition::Newtype(newtype) = &definition {
-            surface.push(newtype.value);
+            surface.push(newtype.backing);
         }
         let bases = definition.bases();
         let heritages = definition.heritages();

@@ -349,6 +349,50 @@ const value = read(point);
 }
 
 #[test]
+fn test_record_string_key_constraint_accepts_fresh_object() {
+    let session = TestSession::single(
+        r#"
+type Bag = Record<string, int32>;
+
+declare function read(bag: Bag): int32 | undefined;
+
+const value = read({ x: 1, y: 2 });
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Bag = Record<string, int32>;
+
+declare function read(bag: Bag): int32 | undefined;
+
+const value: int32 | undefined = read({ x: 1, y: 2 });
+
+=== checked ===
+type Bag = Record<string, int32>;
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32> reduced={ [P: string]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32> reduced={ [P: string]: int32 }
+/// @resolution.name source=Record target=types.object.Record
+
+declare function read(bag: Bag): int32 | undefined;
+/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ [P: string]: int32 }
+/// @resolution.name source=Bag target=Bag
+
+const value = read({ x: 1, y: 2 });
+/// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.name source=read target=read
+/// @resolution.call source="read({ x: 1, y: 2 })" parameters=(Bag) arguments=(provided({ x: 1, y: 2 }) as Bag) return=int32 | undefined kind=symbol target=read
+
+/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
+"#,
+    );
+}
+
+#[test]
 fn test_record_string_key_constraint_is_indexed() {
     let session = TestSession::single(
         r#"

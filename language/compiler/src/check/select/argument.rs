@@ -9,13 +9,6 @@ use crate::check::{
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
-    /// Return parameter types.
-    pub(in crate::check) fn parameter_types(
-        parameters: &[dir::FunctionParameterType],
-    ) -> Vec<dir::GlobalTypeId> {
-        parameters.iter().map(|parameter| parameter.ty).collect()
-    }
-
     /// Return runtime argument bindings for parameters.
     pub(in crate::check) fn argument_bindings(
         &self,
@@ -112,11 +105,9 @@ impl BodyState<'_, '_> {
                 }
                 expected = self.erase_inference_barriers(module, expected)?;
             }
-            // fresh literal arguments write into their parameter places
-            let relation = match self.argument_is_fresh_literal(module, value) {
-                true => Relation::Writable,
-                false => Relation::Assignable,
-            };
+            // use the same relation selected during candidate matching
+            let argument = CallableArgument::Expression(value);
+            let relation = self.argument_relation(argument);
 
             let cause = self.check.intern_cause(Cause::root(
                 origin,
@@ -279,20 +270,27 @@ impl BodyState<'_, '_> {
         Ok(values)
     }
 
-    /// Return whether one argument expression is a fresh literal.
-    fn argument_is_fresh_literal(&self, module: ModuleId, value: dir::GlobalNodeIdAny) -> bool {
-        let mut current = value.local_id;
+    /// Return the relation used to match and check one argument.
+    pub(in crate::check) fn argument_relation(&self, argument: CallableArgument) -> Relation {
+        let CallableArgument::Expression(mut value) = argument else {
+            return Relation::Assignable;
+        };
+        let module = value.module_id;
+
+        // follow satisfies expressions that preserve the literal value
         loop {
             match self
                 .module(module)
                 .view()
-                .get(current.into_typed::<dir::Expression>())
+                .get(value.local_id.into_typed::<dir::Expression>())
             {
                 dir::Expression::ObjectExpression { .. }
                 | dir::Expression::ArrayExpression { .. }
-                | dir::Expression::TupleExpression { .. } => return true,
-                dir::Expression::Satisfies { expression, .. } => current = expression.into_any(),
-                _ => return false,
+                | dir::Expression::TupleExpression { .. } => return Relation::Writable,
+                dir::Expression::Satisfies { expression, .. } => {
+                    value = expression.into_global_any(module);
+                }
+                _ => return Relation::Assignable,
             }
         }
     }

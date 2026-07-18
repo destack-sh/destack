@@ -8,6 +8,7 @@ mod instantiation;
 mod lookup;
 mod member;
 mod memory;
+mod newtype;
 mod nominal;
 mod object;
 mod operator;
@@ -26,6 +27,7 @@ mod tuple;
 
 pub(in crate::check) use construct::ConstructResult;
 pub(in crate::check) use member::*;
+pub(in crate::check) use newtype::{NewtypeMatch, NewtypeRejection};
 pub(in crate::check) use operator::OperatorOperands;
 pub(in crate::check) use protocol::*;
 pub(in crate::check) use receiver::ReceiverSteps;

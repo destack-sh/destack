@@ -878,7 +878,6 @@ impl BodyState<'_, '_> {
         dir::CallResolution::new(
             target,
             Some(signature.callable),
-            Self::parameter_types(&signature.parameters),
             Self::source_argument_bindings(argument_sources, &signature.parameters),
             signature.return_type,
         )

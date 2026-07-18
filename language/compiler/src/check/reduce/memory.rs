@@ -913,7 +913,7 @@ impl CheckState<'_> {
                         Some(dir::Ownership::Owned)
                     }
                     Some(dir::Definition::Newtype(definition)) => {
-                        let backing = answer!(self.reduce_type_head(origin, definition.value)?);
+                        let backing = answer!(self.reduce_type_head(origin, definition.backing)?);
 
                         return self.default_ownership(origin, backing);
                     }
