@@ -537,6 +537,111 @@ pub enum CheckError {
         arguments: String,
     },
 
+    /// A derive argument is not a registered derive provider.
+    ///
+    /// ```ds
+    /// @derive(ordinaryValue)
+    /// newtype Shape = { kind: "shape" };
+    /// ```
+    #[diagnostic(code = "EC326", message = "type '{provider}' is not a derive provider")]
+    InvalidDeriveProvider {
+        /// Report the derive provider argument.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The rejected provider type.
+        provider: String,
+    },
+
+    /// A derive provider does not support the annotated declaration.
+    ///
+    /// ```ds
+    /// @derive(Tagged)
+    /// struct Shape {}
+    /// ```
+    #[diagnostic(
+        code = "EC327",
+        message = "'{provider}' cannot be derived for this declaration"
+    )]
+    InvalidDeriveTarget {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The rejected derive provider.
+        provider: String,
+    },
+
+    /// A declaration selects the same derive provider more than once.
+    ///
+    /// ```ds
+    /// @derive(Tagged, Tagged)
+    /// newtype Shape = { kind: "shape" };
+    /// ```
+    #[diagnostic(code = "EC328", message = "duplicate derive provider '{provider}'")]
+    DuplicateDeriveProvider {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The duplicated derive provider.
+        provider: String,
+    },
+
+    /// One Tagged backing arm has no string literal discriminant.
+    ///
+    /// ```ds
+    /// @derive(Tagged)
+    /// newtype Shape = { kind: string };
+    /// ```
+    #[diagnostic(
+        code = "EC329",
+        message = "Tagged backing arm must declare a string literal '{discriminant}' field"
+    )]
+    InvalidTaggedVariant {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The configured discriminant field.
+        discriminant: String,
+    },
+
+    /// A Tagged discriminant cannot produce a declaration member name.
+    ///
+    /// ```ds
+    /// @derive(Tagged)
+    /// newtype Shape = { kind: "---" };
+    /// ```
+    #[diagnostic(
+        code = "EC330",
+        message = "Tagged discriminant '{discriminant}' does not produce a valid case name"
+    )]
+    InvalidTaggedCase {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The rejected discriminant value.
+        discriminant: String,
+    },
+
+    /// Two Tagged backing arms select the same case name.
+    ///
+    /// ```ds
+    /// @derive(Tagged)
+    /// newtype Shape = { kind: "shape" } | { kind: "Shape" };
+    /// ```
+    #[diagnostic(code = "EC331", message = "duplicate Tagged case '{key}'")]
+    DuplicateTaggedCase {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The duplicated case name.
+        key: String,
+    },
+
     /// Member selection has multiple valid targets.
     ///
     /// ```ds
@@ -667,15 +772,47 @@ pub enum CheckError {
         name: String,
     },
 
-    /// Decorator target is not a static declaration name.
+    /// Decorator target does not name one newtype declaration.
     ///
     /// ```ds
     /// @value.field
     /// const decorated = 1;
     /// ```
-    #[diagnostic(code = "EC310", message = "decorator must name a declaration")]
+    #[diagnostic(code = "EC310", message = "decorator must name a newtype declaration")]
     InvalidDecoratorTarget {
         /// Report the decorator target expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A closure has more than one capture directive.
+    ///
+    /// ```ds
+    /// @capture("copy")
+    /// @capture("move")
+    /// const closure = () => value;
+    /// ```
+    #[diagnostic(code = "EC325", message = "duplicate capture decorator")]
+    DuplicateCaptureDecorator {
+        /// Report the duplicate capture decorator.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A capture decorator does not annotate a declared function value.
+    ///
+    /// ```ds
+    /// @capture("copy")
+    /// const value = 1;
+    /// ```
+    #[diagnostic(
+        code = "EC324",
+        message = "capture decorator requires a declared function value"
+    )]
+    InvalidCaptureTarget {
+        /// Report the capture decorator.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -998,6 +1135,20 @@ pub enum CheckError {
     #[diagnostic(code = "EC440", message = "static value must be statically decidable")]
     UndecidableStaticValue {
         /// Report the static value expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Static guard is not invoked in its intrinsic form.
+    ///
+    /// ```ds
+    /// @if<boolean>(true)
+    /// const value = 1;
+    /// ```
+    #[diagnostic(code = "EC444", message = "`@if` must be invoked as `@if(condition)`")]
+    InvalidStaticIfInvocation {
+        /// Report the malformed `@if` decorator.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -1717,20 +1868,18 @@ pub enum CheckError {
         ty: String,
     },
 
-    /// Representation decorator is not valid for the declaration.
-    ///
-    /// ```ds
-    /// @repr("packed")
-    /// interface Shape {}
-    /// ```
-    #[diagnostic(code = "EC501", message = "invalid representation: {message}")]
-    InvalidRepresentation {
+    /// A declaration does not support the selected representation family.
+    #[diagnostic(
+        code = "EC501",
+        message = "representation '{representation}' is not supported by this declaration"
+    )]
+    UnsupportedRepresentation {
         /// Report the representation decorator.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// Describe why the representation is invalid.
-        message: String,
+        /// The selected representation.
+        representation: String,
     },
 
     /// Interval type has no finite bounds.
@@ -1806,6 +1955,43 @@ pub enum CheckError {
     )]
     LocalReferenceInSharedStorage {
         /// Report the stored local reference.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A C enum has string variant values.
+    #[diagnostic(
+        code = "EC507",
+        message = "C enum representation requires integer variant values"
+    )]
+    NonIntegerCEnum {
+        /// Report the representation decorator.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// An enum variant value does not fit the selected integer representation.
+    #[diagnostic(
+        code = "EC508",
+        message = "enum value {value} does not fit representation '{representation}'"
+    )]
+    EnumValueOutsideRepresentation {
+        /// Report the representation decorator.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The rejected enum value.
+        value: String,
+        /// The selected integer representation.
+        representation: String,
+    },
+
+    /// A declaration carries more than one representation decorator.
+    #[diagnostic(code = "EC509", message = "duplicate representation decorator")]
+    DuplicateRepresentationDecorator {
+        /// Report the duplicate representation decorator.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -2256,5 +2442,96 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+    },
+
+    /// Enum variant value does not resolve to an integer or string constant.
+    ///
+    /// ```ds
+    /// enum Status { Ready = true }
+    /// ```
+    #[diagnostic(
+        code = "EC622",
+        message = "enum variant value must be an integer or string constant, received '{ty}'"
+    )]
+    InvalidEnumVariantType {
+        /// Report the invalid enum field.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The rejected value type.
+        ty: String,
+    },
+
+    /// Enum variants mix integer and string scalar domains.
+    #[diagnostic(
+        code = "EC623",
+        message = "enum variants must all use the same scalar domain"
+    )]
+    MixedEnumVariantDomain {
+        /// Report the conflicting enum variant.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// An implicit enum variant follows a string value.
+    #[diagnostic(
+        code = "EC624",
+        message = "string backed enum variants require explicit values"
+    )]
+    ImplicitStringEnumVariant {
+        /// Report the implicit enum variant.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Incrementing the preceding enum value overflows the integer domain.
+    #[diagnostic(
+        code = "EC625",
+        message = "implicit enum variant value overflows int64"
+    )]
+    EnumVariantValueOverflow {
+        /// Report the implicit enum variant.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    // -------------------------------------------------------------------------
+    // 7xx: diagnostics
+    // -------------------------------------------------------------------------
+    /// An expected compiler diagnostic did not occur.
+    #[diagnostic(
+        code = "EC700",
+        message = "expected diagnostic '{selector}' did not occur"
+    )]
+    UnmetDiagnosticExpectation {
+        /// Report the expectation selector.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The expected diagnostic selector.
+        selector: String,
+    },
+
+    /// A diagnostic control overrides an enclosing forbid.
+    ///
+    /// ```ds
+    /// @forbid("WC402")
+    /// @allow("WC402")
+    /// if (true) {}
+    /// ```
+    #[diagnostic(
+        code = "EC701",
+        message = "diagnostic '{selector}' is forbidden by an enclosing control"
+    )]
+    ForbiddenDiagnosticOverride {
+        /// Report the rejected diagnostic selector.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The forbidden diagnostic selector.
+        selector: String,
     },
 }

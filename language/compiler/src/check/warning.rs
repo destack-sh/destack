@@ -1,6 +1,7 @@
-use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
+
+use crate::DiagnosticAnchor;
 
 /// Warnings during the check phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
@@ -97,15 +98,6 @@ pub enum CheckWarning {
     #[diagnostic(code = "WC302", message = "unnecessary qualifier")]
     UnnecessaryQualifier {
         /// Report the unnecessary qualifier.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
-    /// Diagnostic decorator references no accepted compiler or linter diagnostic.
-    #[diagnostic(code = "WC303", message = "unknown diagnostic selector")]
-    UnknownDiagnosticSelector {
-        /// Report the unknown decorator argument.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,

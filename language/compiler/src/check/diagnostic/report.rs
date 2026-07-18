@@ -1,4 +1,4 @@
-use destack_artifact::DiagnosticBuilder;
+use destack_artifact::{DiagnosticBuilder, DiagnosticControl};
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::{
@@ -167,8 +167,8 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report an invalid static guard at one source node.
-    pub(in crate::check) fn report_invalid_static_guard(
+    /// Report a non-boolean static guard at one source node.
+    pub(in crate::check) fn report_non_boolean_static_guard(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -177,6 +177,20 @@ impl CheckState<'_> {
         let diagnostic = CheckError::InvalidStaticCondition { anchor, module };
 
         self.report(module, diagnostic);
+    }
+
+    /// Report a malformed static guard invocation at one source node.
+    pub(in crate::check) fn report_invalid_static_if_invocation(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<()> {
+        let anchor = self.node_anchor(module, source)?;
+        let diagnostic = CheckError::InvalidStaticIfInvocation { anchor, module };
+
+        self.report(module, diagnostic);
+
+        Ok(())
     }
 
     /// Report a static guard that cannot decide statically.
@@ -303,7 +317,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a decorator target that is not a static declaration name.
+    /// Report a decorator target that does not name one newtype declaration.
     pub(in crate::check) fn report_invalid_decorator_target(
         &mut self,
         module: ModuleId,
@@ -798,6 +812,157 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
 
         Ok(())
+    }
+
+    /// Report one value that is not a registered derive provider.
+    pub(in crate::check) fn report_invalid_derive_provider(
+        &mut self,
+        origin: Origin,
+        provider: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidDeriveProvider {
+            anchor,
+            module,
+            provider: self.format_type(provider),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one derive provider applied to an unsupported declaration.
+    pub(in crate::check) fn report_invalid_derive_target(
+        &mut self,
+        origin: Origin,
+        provider: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidDeriveTarget {
+            anchor,
+            module,
+            provider: self.format_symbol(provider),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one derive provider selected more than once for a declaration.
+    pub(in crate::check) fn report_duplicate_derive_provider(
+        &mut self,
+        origin: Origin,
+        provider: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::DuplicateDeriveProvider {
+            anchor,
+            module,
+            provider: self.format_symbol(provider),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one Tagged backing arm without a string literal discriminant.
+    pub(in crate::check) fn report_invalid_tagged_variant(
+        &mut self,
+        origin: Origin,
+        discriminant: dir::StringId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidTaggedVariant {
+            anchor,
+            module,
+            discriminant: self.strings().get(discriminant).to_string(),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one Tagged discriminant that cannot produce a case name.
+    pub(in crate::check) fn report_invalid_tagged_case(
+        &mut self,
+        origin: Origin,
+        discriminant: dir::StringId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidTaggedCase {
+            anchor,
+            module,
+            discriminant: self.strings().get(discriminant).to_string(),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report two Tagged backing arms that select the same case key.
+    pub(in crate::check) fn report_duplicate_tagged_case(
+        &mut self,
+        origin: Origin,
+        key: dir::StringId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::DuplicateTaggedCase {
+            anchor,
+            module,
+            key: self.strings().get(key).to_string(),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report a capture decorator without a declared function value.
+    pub(in crate::check) fn report_invalid_capture_target(
+        &mut self,
+        source: dir::GlobalNodeId<dir::Decorator>,
+    ) -> CompilerResult<()> {
+        let module = source.module_id;
+        let anchor = self.node_anchor(module, source.local_id.into_any())?;
+        let error = CheckError::InvalidCaptureTarget { anchor, module };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report more than one capture decorator for one function value.
+    pub(in crate::check) fn report_duplicate_capture_decorator(
+        &mut self,
+        source: dir::GlobalNodeId<dir::Decorator>,
+        previous: dir::GlobalNodeId<dir::Decorator>,
+    ) -> CompilerResult<()> {
+        let module = source.module_id;
+        let anchor = self.node_anchor(module, source.local_id.into_any())?;
+        let error = CheckError::DuplicateCaptureDecorator { anchor, module };
+        let previous = self.node_anchor(module, previous.local_id.into_any())?;
+        let diagnostic =
+            DiagnosticBuilder::new(error).label(previous, "first capture directive here");
+        self.report(module, diagnostic);
+
+        Ok(())
+    }
+
+    /// Report a diagnostic control that overrides an enclosing forbid.
+    pub(in crate::check) fn report_forbidden_diagnostic_override(
+        &mut self,
+        module: ModuleId,
+        control: &DiagnosticControl,
+        forbidden: &DiagnosticControl,
+    ) {
+        let selector = self.strings().get(control.selector).to_string();
+        let error = CheckError::ForbiddenDiagnosticOverride {
+            anchor: DiagnosticAnchor::Span(control.source),
+            module,
+            selector,
+        };
+        let forbidden = DiagnosticAnchor::Span(forbidden.source);
+        let diagnostic = DiagnosticBuilder::new(error).label(forbidden, "forbidden here");
+
+        self.report(module, diagnostic);
     }
 
     /// Report one call with the wrong argument count.

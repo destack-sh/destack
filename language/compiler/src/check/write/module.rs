@@ -1,3 +1,5 @@
+use std::mem::replace;
+
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -176,7 +178,7 @@ impl CheckState<'_> {
 
         // seal declaration definitions
         let empty = dir::DefinitionSegment::new(module);
-        let mut definitions = std::mem::replace(&mut self.module_mut(module).definitions, empty);
+        let mut definitions = replace(&mut self.module_mut(module).definitions, empty);
         definitions.map_type_ids(&mut |id| {
             self.seal_or_record(id, failed_applications, sealed, &mut result)
         });
@@ -184,15 +186,23 @@ impl CheckState<'_> {
 
         // seal auto implementations
         let empty = dir::AutoSegment::new(module);
-        let mut auto = std::mem::replace(&mut self.module_mut(module).auto, empty);
+        let mut auto = replace(&mut self.module_mut(module).auto, empty);
         auto.map_type_ids(&mut |id| {
             self.seal_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).auto = auto;
 
+        // seal checked decorator selections
+        let empty = dir::DecoratorSegment::new(module);
+        let mut decorators = replace(&mut self.module_mut(module).decorators, empty);
+        decorators.map_type_ids(&mut |id| {
+            self.seal_or_record(id, failed_applications, sealed, &mut result)
+        });
+        self.module_mut(module).decorators = decorators;
+
         // seal decided node resolutions
         let empty = dir::ResolutionSegment::new(module);
-        let mut resolutions = std::mem::replace(&mut self.module_mut(module).resolutions, empty);
+        let mut resolutions = replace(&mut self.module_mut(module).resolutions, empty);
         resolutions.map_type_ids(&mut |id| {
             self.seal_or_record(id, failed_applications, sealed, &mut result)
         });
@@ -200,7 +210,7 @@ impl CheckState<'_> {
 
         // seal closure capture frames
         let empty = dir::CaptureSegment::new(module);
-        let mut captures = std::mem::replace(&mut self.module_mut(module).capture_segment, empty);
+        let mut captures = replace(&mut self.module_mut(module).capture_segment, empty);
         captures.map_type_ids(&mut |id| {
             self.seal_or_record(id, failed_applications, sealed, &mut result)
         });
@@ -208,7 +218,7 @@ impl CheckState<'_> {
 
         // seal static terms
         let empty = dir::StaticSegment::new(module);
-        let mut statics = std::mem::replace(&mut self.module_mut(module).statics, empty);
+        let mut statics = replace(&mut self.module_mut(module).statics, empty);
         statics.map_type_ids(&mut |id| {
             self.seal_or_record(id, failed_applications, sealed, &mut result)
         });
@@ -216,7 +226,7 @@ impl CheckState<'_> {
 
         // seal implicit coercions
         let empty = dir::CoercionSegment::new(module);
-        let mut coercions = std::mem::replace(&mut self.module_mut(module).coercions, empty);
+        let mut coercions = replace(&mut self.module_mut(module).coercions, empty);
         coercions.map_type_ids(&mut |id| {
             self.seal_or_record(id, failed_applications, sealed, &mut result)
         });

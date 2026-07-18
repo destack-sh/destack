@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::DirCheckedModule;
+use destack_artifact::{DiagnosticControlTable, DirCheckedModule};
 use destack_dir as dir;
 
 use crate::check::CheckModuleState;
@@ -11,6 +11,8 @@ pub(in crate::check) struct CheckedModuleSegments {
     pub(super) bindings: dir::BindingSegment,
     /// Checked decorator segment.
     pub(super) decorators: dir::DecoratorSegment,
+    /// Checked diagnostic controls.
+    pub(super) controls: DiagnosticControlTable,
     /// Checked auto implementation segment.
     pub(super) auto: dir::AutoSegment,
     /// Checked type segment.
@@ -35,6 +37,7 @@ impl CheckedModuleSegments {
         Self {
             bindings: state.bindings_tail,
             decorators: state.decorators,
+            controls: state.controls,
             auto: state.auto,
             types: state.types_tail,
             statics: state.statics,
@@ -53,6 +56,7 @@ impl From<CheckedModuleSegments> for DirCheckedModule {
         DirCheckedModule {
             bindings: Arc::new(segments.bindings),
             decorators: Arc::new(segments.decorators),
+            controls: Arc::new(segments.controls),
             auto: Arc::new(segments.auto),
             types: Arc::new(segments.types),
             statics: Arc::new(segments.statics),

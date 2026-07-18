@@ -34,6 +34,23 @@ impl CheckState<'_> {
         DiagnosticAnchor::from(span)
     }
 
+    /// Return one source node's full anchor.
+    pub(in crate::check) fn node_anchor(
+        &self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<DiagnosticAnchor> {
+        let span = match self.modules.get(&module) {
+            Some(state) => state.source_span(source),
+            None => self.external_module(module).diagnostic_span(source),
+        };
+        let span = span.ok_or_else(|| CompilerError::Internal {
+            message: format!("check node {} has no source span", source.id),
+        })?;
+
+        Ok(DiagnosticAnchor::from(span))
+    }
+
     /// Return one check origin's diagnostic anchor.
     pub(in crate::check) fn origin_diagnostic_anchor(
         &self,
@@ -59,24 +76,9 @@ impl CheckState<'_> {
                 .module(symbol.module_id)
                 .symbol_declaration_node(symbol.local_id)?,
         };
-        let span = match self.modules.get(&module) {
-            Some(state) => {
-                let view = state.view();
-                let authored = view.get_source_any(source);
+        let anchor = self.node_anchor(module, source)?;
 
-                state
-                    .parsed
-                    .tree
-                    .get_span_by_id(authored)
-                    .or_else(|| view.get_span_by_id(source.id))
-            }
-            None => self.external_module(module).diagnostic_span(source),
-        };
-        let span = span.ok_or_else(|| CompilerError::Internal {
-            message: format!("check node {} has no source span", source.id),
-        })?;
-
-        Ok((module, DiagnosticAnchor::from(span)))
+        Ok((module, anchor))
     }
 
     /// Return one symbol's declaration node.
