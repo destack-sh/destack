@@ -41,6 +41,8 @@ while (true) {
         r#"
 /// @diagnostic.error code=EC402 message="break statement has no target"
 /// @diagnostic.label line=4 column=9 span="break" line_source="break;"
+/// @diagnostic.warning code=WC402 message="condition is always true"
+/// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
 "#,
     );
 }
@@ -167,6 +169,8 @@ while (true) {
         r#"
 /// @diagnostic.error code=EC441 message="break with a value can only target a `loop` or labeled block"
 /// @diagnostic.label line=3 column=5 span="break 1" line_source="break 1;"
+/// @diagnostic.warning code=WC402 message="condition is always true"
+/// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
 "#,
     );
 }

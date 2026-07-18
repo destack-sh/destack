@@ -1170,7 +1170,7 @@ declare function todo(message: string): never;
 newtype Inner<T> = intrinsic;
 /// @generic.template symbol=Inner parameters=(in out T#1)
 /// @type.symbol symbol=Inner source="newtype Inner<T> = intrinsic" type=Inner
-/// @definition.newtype symbol=Inner source="newtype Inner<T> = intrinsic" template=(in out T#1) value=intrinsic
+/// @definition.newtype symbol=Inner source="newtype Inner<T> = intrinsic" template=(in out T#1) backing=intrinsic
 /// @type.symbol symbol=Inner.T source=T type=T#1
 
 extension<T> of Inner<T> {

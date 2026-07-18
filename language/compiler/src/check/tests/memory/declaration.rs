@@ -32,11 +32,11 @@ sharedCount satisfies shared SharedCount;
 === checked ===
 local newtype LocalCount = int32;
 /// @type.symbol symbol=LocalCount source="local newtype LocalCount = int32" type=LocalCount
-/// @definition.newtype symbol=LocalCount source="local newtype LocalCount = int32" value=int32
+/// @definition.newtype symbol=LocalCount source="local newtype LocalCount = int32" backing=int32
 
 shared newtype SharedCount = int32;
 /// @type.symbol symbol=SharedCount source="shared newtype SharedCount = int32" type=SharedCount
-/// @definition.newtype symbol=SharedCount source="shared newtype SharedCount = int32" value=int32
+/// @definition.newtype symbol=SharedCount source="shared newtype SharedCount = int32" backing=int32
 
 declare const localCount: LocalCount;
 /// @type.symbol symbol=localCount source=localCount type=LocalCount
@@ -93,14 +93,14 @@ sharedBox satisfies shared SharedBox<int32>;
 local newtype LocalBox<T> = { value: T };
 /// @generic.template symbol=LocalBox parameters=(in out T#1)
 /// @type.symbol symbol=LocalBox source="local newtype LocalBox<T> = { value: T }" type=LocalBox
-/// @definition.newtype symbol=LocalBox source="local newtype LocalBox<T> = { value: T }" template=(in out T#1) value={ value: T#1 }
+/// @definition.newtype symbol=LocalBox source="local newtype LocalBox<T> = { value: T }" template=(in out T#1) backing={ value: T#1 }
 /// @type.symbol symbol=LocalBox.T source=T type=T#1
 /// @resolution.name source=T target=LocalBox.T
 
 shared newtype SharedBox<T> = { value: T };
 /// @generic.template symbol=SharedBox parameters=(in out T#2)
 /// @type.symbol symbol=SharedBox source="shared newtype SharedBox<T> = { value: T }" type=SharedBox
-/// @definition.newtype symbol=SharedBox source="shared newtype SharedBox<T> = { value: T }" template=(in out T#2) value={ value: T#2 }
+/// @definition.newtype symbol=SharedBox source="shared newtype SharedBox<T> = { value: T }" template=(in out T#2) backing={ value: T#2 }
 /// @type.symbol symbol=SharedBox.T source=T type=T#2
 /// @resolution.name source=T target=SharedBox.T
 
@@ -230,13 +230,13 @@ shared struct SharedPoint { x: int32; }
 local enum LocalStatus { Ready }
 /// @type.symbol symbol=LocalStatus source="local enum LocalStatus { Ready }" type=LocalStatus
 /// @definition.enum symbol=LocalStatus source="local enum LocalStatus { Ready }"
-/// @definition.variant symbol=LocalStatus.Ready source=Ready key=Ready
+/// @definition.variant symbol=LocalStatus.Ready source=Ready key=Ready value=0
 /// @type.symbol symbol=LocalStatus.Ready source=Ready type=LocalStatus.Ready
 
 shared enum SharedStatus { Ready }
 /// @type.symbol symbol=SharedStatus source="shared enum SharedStatus { Ready }" type=SharedStatus
 /// @definition.enum symbol=SharedStatus source="shared enum SharedStatus { Ready }"
-/// @definition.variant symbol=SharedStatus.Ready source=Ready key=Ready
+/// @definition.variant symbol=SharedStatus.Ready source=Ready key=Ready value=0
 /// @type.symbol symbol=SharedStatus.Ready source=Ready type=SharedStatus.Ready
 
 local newtype interface LocalReadable { read(): int32; }

@@ -188,8 +188,8 @@ function update<comptime L0: Lifetime>(state: Borrowed<State, L0, "mutable">): v
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
-/// @definition.variant symbol=Status.Busy source=Busy key=Busy
-/// @definition.variant symbol=Status.Idle source=Idle key=Idle
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
 /// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
@@ -259,8 +259,8 @@ function update<comptime L0: Lifetime>(state: Borrowed<State, L0, "exclusive">):
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
-/// @definition.variant symbol=Status.Busy source=Busy key=Busy
-/// @definition.variant symbol=Status.Idle source=Idle key=Idle
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
 /// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
@@ -352,8 +352,8 @@ function update<comptime L0: Lifetime>(value: Borrowed<Status, L0, "mutable">): 
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
-/// @definition.variant symbol=Status.Busy source=Busy key=Busy
-/// @definition.variant symbol=Status.Idle source=Idle key=Idle
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
 /// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
@@ -457,8 +457,8 @@ function updateStatuses<comptime L0: Lifetime>(values: Borrowed<[Status; 2], L0,
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
-/// @definition.variant symbol=Status.Busy source=Busy key=Busy
-/// @definition.variant symbol=Status.Idle source=Idle key=Idle
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
 /// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
@@ -538,8 +538,8 @@ sharedState.status = Status.Busy;
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
-/// @definition.variant symbol=Status.Busy source=Busy key=Busy
-/// @definition.variant symbol=Status.Idle source=Idle key=Idle
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
 /// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
@@ -621,8 +621,8 @@ state.status = Status.Busy;
 enum Status { Idle, Busy }
 /// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
 /// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
-/// @definition.variant symbol=Status.Busy source=Busy key=Busy
-/// @definition.variant symbol=Status.Idle source=Idle key=Idle
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
 /// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 

@@ -724,7 +724,7 @@ interface Carrier extends Source<this.Error> {
 newtype Result<T, E> = T | E;
 /// @generic.template symbol=Result parameters=(out T#2, out E#1)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#2, out E#1) value=T#2 | E#1
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#2, out E#1) backing=T#2 | E#1
 /// @type.symbol symbol=Result.T source=T type=T#2
 /// @type.symbol symbol=Result.E source=E type=E#1
 /// @resolution.name source=T target=Result.T

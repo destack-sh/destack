@@ -647,7 +647,7 @@ struct Cell {}
 
 newtype ManagedCellId = Managed<Cell>;
 /// @type.symbol symbol=ManagedCellId source="newtype ManagedCellId = Managed<Cell>" type=ManagedCellId
-/// @definition.newtype symbol=ManagedCellId source="newtype ManagedCellId = Managed<Cell>" value=Managed<Cell>
+/// @definition.newtype symbol=ManagedCellId source="newtype ManagedCellId = Managed<Cell>" backing=Managed<Cell>
 /// @resolution.name source=Managed target=memory.managed.Managed
 /// @resolution.name source=Cell target=Cell
 

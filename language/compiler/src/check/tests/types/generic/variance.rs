@@ -624,7 +624,7 @@ const target: Handle<string> = source;
 newtype Handle<T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(in out T)
 /// @type.symbol symbol=Handle source="newtype Handle<T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T) value=intrinsic
+/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T) backing=intrinsic
 /// @type.symbol symbol=Handle.T source=T type=T
 
 declare const source: Handle<int32>;
@@ -686,7 +686,7 @@ class Holder {
 newtype Handle<T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(in out T#1)
 /// @type.symbol symbol=Handle source="newtype Handle<T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T#1) value=intrinsic
+/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T#1) backing=intrinsic
 /// @type.symbol symbol=Handle.T source=T type=T#1
 
 extension<T> of Handle<[T]> {
@@ -698,7 +698,9 @@ extension<T> of Handle<[T]> {
 /// @resolution.name source=T target=T
 
     @intrinsic("memory.unique.empty")
+    /// @type.node source=intrinsic type=intrinsic
     /// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
+    /// @type.node source="\"memory.unique.empty\"" type="memory.unique.empty"
 
     static empty(): Handle<[T]>;
     /// @type.symbol symbol=empty source="static empty(): Handle<[T]>" type=() => Handle<Slice<T#2>>

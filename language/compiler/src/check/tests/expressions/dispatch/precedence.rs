@@ -166,8 +166,8 @@ export type ReadPort = Port<Mode.Write>;
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
-/// @definition.variant symbol=Mode.Read source=Read key=Read
-/// @definition.variant symbol=Mode.Write source=Write key=Write
+/// @definition.variant symbol=Mode.Read source=Read key=Read value=0
+/// @definition.variant symbol=Mode.Write source=Write key=Write value=1
 
     Read,
     /// @type.symbol symbol=Mode.Read source=Read type=Mode.Read
@@ -180,16 +180,16 @@ enum Mode {
 newtype Port<comptime M: Mode = Mode.Read> = int32;
 /// @generic.template symbol=Port parameters=(comptime M: Mode = Mode.Read)
 /// @type.symbol symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" type=Port
-/// @definition.newtype symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" template=(comptime M: Mode = Mode.Read) value=int32
+/// @definition.newtype symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" template=(comptime M: Mode = Mode.Read) backing=int32
 /// @type.symbol symbol=Port.M source="comptime M: Mode = Mode.Read" type=M
 /// @resolution.name source=Mode target=Mode
 /// @type.node source=Mode type=Mode
-/// @type.node source=Mode.Read type=Mode.Read
+/// @type.node source=Mode.Read type=Mode.Read reduced=0
 /// @resolution.name source=Mode target=Mode
 
 export type ReadPort = Port<Mode.Write>;
-/// @type.symbol symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" type=Port<Mode.Write>
-/// @definition.type symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" value=Port<Mode.Write>
+/// @type.symbol symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" type=Port<Mode.Write> reduced=Port<1>
+/// @definition.type symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" value=Port<Mode.Write> reduced=Port<1>
 /// @resolution.name source=Port target=Port
 /// @resolution.name source=Mode.Write target=Mode
 
@@ -249,11 +249,11 @@ newtype Outcome<out T, out E> = Ok<T> | Err<E>;
 
 export extension<T, E> of Outcome<T, E> {
     static ok(value: T): Outcome<T, E> {
-        Outcome(Ok<T> { value } as Ok<T> | Err<E>)
+        Outcome(Ok<T> { value })
     }
 
     static err(error: E): Outcome<T, E> {
-        Outcome(Err<E> { error } as Ok<T> | Err<E>)
+        Outcome(Err<E> { error })
     }
 
     map<U>(f: (arg0: T) => U): Outcome<U, E> {
@@ -294,7 +294,7 @@ struct Err<E> {
 newtype Outcome<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -326,7 +326,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source="Outcome(Ok { value })" type=Outcome<T#3, E#3>
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
-        /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3> | Err<E#3>) arguments=(provided(Ok { value }) as Ok<T#3> | Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome instance="Outcome<T#3, E#3>"
+        /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3>) arguments=(provided(Ok { value }) as Ok<T#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Ok<T#3> instance="Outcome<T#3, E#3>"
         /// @generic.instance source="Outcome(Ok { value })" id="Outcome<T#3, E#3>"
         /// @type.node source="Ok { value }" type=Ok<T#3>
         /// @resolution.name source=Ok target=Ok
@@ -348,7 +348,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node source="Outcome(Err { error })" type=Outcome<T#3, E#3>
         /// @type.node source=Outcome type=Outcome
         /// @resolution.name source=Outcome target=Outcome
-        /// @resolution.construct source="Outcome(Err { error })" parameters=(Ok<T#3> | Err<E#3>) arguments=(provided(Err { error }) as Ok<T#3> | Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome instance="Outcome<T#3, E#3>"
+        /// @resolution.construct source="Outcome(Err { error })" parameters=(Err<E#3>) arguments=(provided(Err { error }) as Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Err<E#3> instance="Outcome<T#3, E#3>"
         /// @generic.instance source="Outcome(Err { error })" id="Outcome<T#3, E#3>"
         /// @type.node source="Err { error }" type=Err<E#3>
         /// @resolution.name source=Err target=Err

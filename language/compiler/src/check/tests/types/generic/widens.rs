@@ -1187,7 +1187,7 @@ class Circle extends Shape {}
 newtype Handle<out T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(out T)
 /// @type.symbol symbol=Handle source="newtype Handle<out T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<out T> = intrinsic" template=(out T) value=intrinsic
+/// @definition.newtype symbol=Handle source="newtype Handle<out T> = intrinsic" template=(out T) backing=intrinsic
 /// @type.symbol symbol=Handle.T source="out T" type=T
 
 declare const handle: Handle<Circle>;
@@ -1256,7 +1256,7 @@ class Square extends Shape {}
 newtype Handle<out T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(out T)
 /// @type.symbol symbol=Handle source="newtype Handle<out T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<out T> = intrinsic" template=(out T) value=intrinsic
+/// @definition.newtype symbol=Handle source="newtype Handle<out T> = intrinsic" template=(out T) backing=intrinsic
 /// @type.symbol symbol=Handle.T source="out T" type=T
 
 declare const handle: Handle<Circle>;
@@ -1323,7 +1323,7 @@ class Circle extends Shape {}
 newtype Handle<out T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(out T)
 /// @type.symbol symbol=Handle source="newtype Handle<out T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<out T> = intrinsic" template=(out T) value=intrinsic
+/// @definition.newtype symbol=Handle source="newtype Handle<out T> = intrinsic" template=(out T) backing=intrinsic
 /// @type.symbol symbol=Handle.T source="out T" type=T
 
 declare const handle: Managed<Handle<Circle>>;

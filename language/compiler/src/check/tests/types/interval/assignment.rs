@@ -158,7 +158,7 @@ const port: Port = Port(443);
 === checked ===
 newtype Port = 1..=65535;
 /// @type.symbol symbol=Port source="newtype Port = 1..=65535" type=Port
-/// @definition.newtype symbol=Port source="newtype Port = 1..=65535" value=1..=65535
+/// @definition.newtype symbol=Port source="newtype Port = 1..=65535" backing=1..=65535
 
 const raw: Port = 443;
 /// @type.symbol symbol=raw source=raw type=Port
@@ -167,7 +167,7 @@ const raw: Port = 443;
 const port = Port(443);
 /// @type.symbol symbol=port source=port type=Port
 /// @resolution.name source=Port target=Port
-/// @resolution.construct source=Port(443) parameters=(1..=65535) arguments=(provided(443) as 1..=65535) return=Port kind=newtype target=Port
+/// @resolution.construct source=Port(443) parameters=(1..=65535) arguments=(provided(443) as 1..=65535) return=Port kind=newtype target=Port backing=1..=65535
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '443' is not assignable to type 'Port'"

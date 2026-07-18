@@ -292,16 +292,19 @@ struct Err<E> {
 }
 
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Result<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Result parameters=(out T#5, out E#2)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
 /// @type.symbol symbol=Result.Err type=Result.Err
 /// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) value=Ok<T#5> | Err<E#2>
-/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err
-/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) backing=Ok<T#5> | Err<E#2>
+/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2>
+/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#5>
 /// @type.symbol symbol=Result.T source=T type=T#5
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -348,7 +351,7 @@ extension<T, E> of Result<T, E> {
 newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 /// @generic.template symbol=AsyncResult parameters=(in out T#7, in out E#4)
 /// @type.symbol symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" type=AsyncResult
-/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(in out T#7, in out E#4) value=Promise<Result<T#7, E#4>>
+/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(in out T#7, in out E#4) backing=Promise<Result<T#7, E#4>>
 /// @type.symbol symbol=AsyncResult.T source=T type=T#7
 /// @type.symbol symbol=AsyncResult.E source=E type=E#4
 /// @resolution.name source=Promise target=Promise
@@ -371,7 +374,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
     /// @type.node source=AsyncResult type=AsyncResult
     /// @type.node source=AsyncResult(Promise.resolve(Result.ok(value))) type=AsyncResult<T#8, E#5>
     /// @resolution.name source=AsyncResult target=AsyncResult
-    /// @resolution.construct source=AsyncResult(Promise.resolve(Result.ok(value))) parameters=(Promise<Result<T#8, E#5>>) arguments=(provided(Promise.resolve(Result.ok(value))) as Promise<Result<T#8, E#5>>) return=AsyncResult<T#8, E#5> kind=newtype target=AsyncResult instance="AsyncResult<T#8, E#5>"
+    /// @resolution.construct source=AsyncResult(Promise.resolve(Result.ok(value))) parameters=(Promise<Result<T#8, E#5>>) arguments=(provided(Promise.resolve(Result.ok(value))) as Promise<Result<T#8, E#5>>) return=AsyncResult<T#8, E#5> kind=newtype target=AsyncResult backing=Promise<Result<T#8, E#5>> instance="AsyncResult<T#8, E#5>"
     /// @generic.instance source=AsyncResult(Promise.resolve(Result.ok(value))) id="AsyncResult<T#8, E#5>"
     /// @type.node source=Promise type=Promise
     /// @type.node source=Promise.resolve type=<T#2>(Promise<T#2>) => Promise<T#2> | <T#3>(T#3) => Promise<T#3>
@@ -408,7 +411,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 
-/// @check.stats.solve variables=7 types=67 constraints=12 obligations=11 solutions=7 bounds=5 decisions=44
+/// @check.stats.solve variables=7 types=72 constraints=12 obligations=11 solutions=7 bounds=5 decisions=45
 "#,
     );
 }
@@ -500,16 +503,19 @@ struct Err<E> {
 }
 
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Result<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Result parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
 /// @type.symbol symbol=Result.Err type=Result.Err
 /// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
-/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err
-/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
+/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2>
+/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#2>
 /// @type.symbol symbol=Result.T source=T type=T#2
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -554,7 +560,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=4 types=35 constraints=5 obligations=8 solutions=4 bounds=3 decisions=18
+/// @check.stats.solve variables=4 types=39 constraints=5 obligations=8 solutions=4 bounds=3 decisions=19
 "#,
     );
 }
