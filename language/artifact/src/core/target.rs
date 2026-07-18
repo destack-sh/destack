@@ -462,25 +462,25 @@ impl TargetArch {
         }
     }
 
-    /// Format this architecture as a target triple component.
-    pub fn triple_component(&self) -> String {
+    /// Return this architecture's target triple component.
+    pub fn triple_component(&self) -> &str {
         match self {
-            Self::X86_64 => "x86_64".to_string(),
-            Self::X86 => "i686".to_string(),
-            Self::Aarch64 => "aarch64".to_string(),
-            Self::Armv7 => "armv7".to_string(),
-            Self::Armv6 => "armv6".to_string(),
-            Self::Riscv64 => "riscv64".to_string(),
-            Self::Riscv32 => "riscv32".to_string(),
-            Self::PowerPc64 => "powerpc64".to_string(),
-            Self::PowerPc64le => "powerpc64le".to_string(),
-            Self::S390x => "s390x".to_string(),
-            Self::Mips64 => "mips64".to_string(),
-            Self::Mips64el => "mips64el".to_string(),
-            Self::LoongArch64 => "loongarch64".to_string(),
-            Self::Wasm32 => "wasm32".to_string(),
-            Self::Wasm64 => "wasm64".to_string(),
-            Self::Other(value) => value.clone(),
+            Self::X86_64 => "x86_64",
+            Self::X86 => "i686",
+            Self::Aarch64 => "aarch64",
+            Self::Armv7 => "armv7",
+            Self::Armv6 => "armv6",
+            Self::Riscv64 => "riscv64",
+            Self::Riscv32 => "riscv32",
+            Self::PowerPc64 => "powerpc64",
+            Self::PowerPc64le => "powerpc64le",
+            Self::S390x => "s390x",
+            Self::Mips64 => "mips64",
+            Self::Mips64el => "mips64el",
+            Self::LoongArch64 => "loongarch64",
+            Self::Wasm32 => "wasm32",
+            Self::Wasm64 => "wasm64",
+            Self::Other(value) => value,
         }
     }
 }
@@ -535,15 +535,15 @@ impl TargetVendor {
         }
     }
 
-    /// Format this vendor as a target triple component.
-    pub fn triple_component(&self) -> String {
+    /// Return this vendor's target triple component.
+    pub fn triple_component(&self) -> &str {
         match self {
-            Self::Unknown => "unknown".to_string(),
-            Self::Apple => "apple".to_string(),
-            Self::Pc => "pc".to_string(),
-            Self::Ibm => "ibm".to_string(),
-            Self::Nintendo => "nintendo".to_string(),
-            Self::Other(value) => value.clone(),
+            Self::Unknown => "unknown",
+            Self::Apple => "apple",
+            Self::Pc => "pc",
+            Self::Ibm => "ibm",
+            Self::Nintendo => "nintendo",
+            Self::Other(value) => value,
         }
     }
 }
@@ -607,18 +607,18 @@ impl TargetAbi {
         }
     }
 
-    /// Format this ABI as a target triple component.
-    pub fn triple_component(&self) -> String {
+    /// Return this ABI's target triple component.
+    pub fn triple_component(&self) -> &str {
         match self {
-            Self::Gnu => "gnu".to_string(),
-            Self::Musl => "musl".to_string(),
-            Self::Msvc => "msvc".to_string(),
-            Self::GnuLlvm => "gnullvm".to_string(),
-            Self::Eabi => "eabi".to_string(),
-            Self::Eabihf => "eabihf".to_string(),
-            Self::MuslEabi => "musleabi".to_string(),
-            Self::MuslEabihf => "musleabihf".to_string(),
-            Self::Other(value) => value.clone(),
+            Self::Gnu => "gnu",
+            Self::Musl => "musl",
+            Self::Msvc => "msvc",
+            Self::GnuLlvm => "gnullvm",
+            Self::Eabi => "eabi",
+            Self::Eabihf => "eabihf",
+            Self::MuslEabi => "musleabi",
+            Self::MuslEabihf => "musleabihf",
+            Self::Other(value) => value,
         }
     }
 }

@@ -325,16 +325,17 @@ impl Target {
             .clone()
             .or_else(|| TargetAbi::default_for_platform(self.platform));
 
-        let mut components = vec![
+        let mut triple = format!(
+            "{}-{}-{os}",
             target_arch.triple_component(),
-            vendor.triple_component(),
-            os.to_string(),
-        ];
+            vendor.triple_component()
+        );
         if let Some(env) = env {
-            components.push(env.triple_component());
+            triple.push('-');
+            triple.push_str(env.triple_component());
         }
 
-        Some(components.join("-"))
+        Some(triple)
     }
 
     /// Resolve the absolute output directory for this target.
