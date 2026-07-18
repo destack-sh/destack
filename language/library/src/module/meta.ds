@@ -21,6 +21,9 @@ export type Platform =
 /// The semantic runtime contract for the build.
 export type Runtime = "destack" | "js";
 
+/// The selected compiler output format.
+export type Output = "js" | "ts" | "wasm" | "native";
+
 /// The package release stage.
 export type Stage = "experimental" | "alpha" | "beta" | "stable";
 
@@ -71,6 +74,8 @@ export interface ImportMeta {
     readonly dir: string | undefined;
     /// Alias of `dir`.
     readonly dirname: string | undefined;
+    /// The selected compiler output format.
+    readonly output: Output;
     /// The target platform (OS) being compiled for.
     readonly platform: Platform;
     /// The semantic runtime contract for this build.
@@ -89,10 +94,10 @@ export interface ImportMeta {
     readonly tree: TreeTagBuilder | undefined;
     /// Auto-derives declared by the current module.
     readonly derive: readonly Derive[];
-    /// Active source graph role declared by the current module.
+    /// Active product role.
     readonly role: string | undefined;
-    /// Module metadata labels.
-    readonly labels: { readonly [key: string]: readonly string[] };
+    /// Labels contributed by active source graph conditions.
+    readonly labels: { readonly [key: string]: readonly string[] | undefined };
     /// Target host environment.
     readonly host: Host;
     /// Active source graph modes.

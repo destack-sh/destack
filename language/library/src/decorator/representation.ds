@@ -12,8 +12,8 @@ export type Representation =
 
 /// Representation options for a declaration.
 export type RepresentationOptions = {
-    align?: 1..=1024;
-    packed?: boolean | 1..=1024;
+    align?: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024;
+    packed?: boolean | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024;
 };
 
 /// Specify the representation for a declaration.
