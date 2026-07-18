@@ -127,7 +127,7 @@ struct Rectangle {
 
 newtype Shape = Circle | Rectangle;
 /// @type.symbol symbol=Shape source="newtype Shape = Circle | Rectangle" type=Shape
-/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" value=Circle | Rectangle
+/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" backing=Circle | Rectangle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Rectangle target=Rectangle
 
@@ -397,10 +397,10 @@ newtype Shape = Circle | Rectangle;
 
 function makeShape(flag: boolean): Shape {
     if (flag) {
-        return Shape(Circle { radius: 1.0 });
+        return Shape(Circle { radius: 1.0 } as Circle | Rectangle);
     }
 
-    return Shape(Rectangle { width: 1.0, height: 1.0 });
+    return Shape(Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle);
 }
 
 makeShape(true) satisfies Shape;
@@ -460,7 +460,7 @@ struct Rectangle {
 
 newtype Shape = Circle | Rectangle;
 /// @type.symbol symbol=Shape source="newtype Shape = Circle | Rectangle" type=Shape
-/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" value=Circle | Rectangle
+/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" backing=Circle | Rectangle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Rectangle target=Rectangle
 
@@ -473,26 +473,32 @@ function makeShape(flag: boolean): Shape {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=makeShape.flag
 
-        return Shape(Circle { radius: 1.0 });
-        /// @type.node source="Shape(Circle { radius: 1.0 })" type=Shape
+        return Shape(Circle { radius: 1.0 } as Circle | Rectangle);
+        /// @type.node source="Shape(Circle { radius: 1.0 } as Circle | Rectangle)" type=Shape
         /// @type.node source=Shape type=Shape
         /// @resolution.name source=Shape target=Shape
-        /// @resolution.construct source="Shape(Circle { radius: 1.0 })" parameters=(Circle | Rectangle) arguments=(provided(Circle { radius: 1.0 }) as Circle | Rectangle) return=Shape kind=newtype target=Shape
+        /// @resolution.construct source="Shape(Circle { radius: 1.0 } as Circle | Rectangle)" parameters=(Circle | Rectangle) arguments=(provided(Circle { radius: 1.0 } as Circle | Rectangle) as Circle | Rectangle) return=Shape kind=newtype target=Shape backing=Circle | Rectangle
+        /// @type.node source="Circle { radius: 1.0 } as Circle | Rectangle" type=Circle | Rectangle
         /// @type.node source="Circle { radius: 1.0 }" type=Circle
         /// @resolution.name source=Circle target=Circle
         /// @type.node source=1.0 type=1
+        /// @resolution.name source=Circle target=Circle
+        /// @resolution.name source=Rectangle target=Rectangle
 
     }
 
-    return Shape(Rectangle { width: 1.0, height: 1.0 });
-    /// @type.node source="Shape(Rectangle { width: 1.0, height: 1.0 })" type=Shape
+    return Shape(Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle);
+    /// @type.node source="Shape(Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle)" type=Shape
     /// @type.node source=Shape type=Shape
     /// @resolution.name source=Shape target=Shape
-    /// @resolution.construct source="Shape(Rectangle { width: 1.0, height: 1.0 })" parameters=(Circle | Rectangle) arguments=(provided(Rectangle { width: 1.0, height: 1.0 }) as Circle | Rectangle) return=Shape kind=newtype target=Shape
+    /// @resolution.construct source="Shape(Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle)" parameters=(Circle | Rectangle) arguments=(provided(Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle) as Circle | Rectangle) return=Shape kind=newtype target=Shape backing=Circle | Rectangle
+    /// @type.node source="Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle" type=Circle | Rectangle
     /// @type.node source="Rectangle { width: 1.0, height: 1.0 }" type=Rectangle
     /// @resolution.name source=Rectangle target=Rectangle
     /// @type.node source=1.0 type=1
     /// @type.node source=1.0 type=1
+    /// @resolution.name source=Circle target=Circle
+    /// @resolution.name source=Rectangle target=Rectangle
 
 }
 
