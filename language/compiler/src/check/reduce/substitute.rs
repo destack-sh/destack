@@ -342,7 +342,7 @@ impl CheckState<'_> {
             }
             if let dir::Type::Instance(instance) = ty
                 && self
-                    .environment
+                    .global
                     .language
                     .item(instance.symbol)
                     .is_some_and(|item| item == dir::LanguageItem::NoInfer)
@@ -433,7 +433,7 @@ impl CheckState<'_> {
             }
             (dir::Type::Instance(instance), SubstitutionRule::EraseNoInfer)
                 if self
-                    .environment
+                    .global
                     .language
                     .item(instance.symbol)
                     .is_some_and(|item| item == dir::LanguageItem::NoInfer) =>
@@ -538,7 +538,7 @@ impl CheckState<'_> {
                 }
                 dir::Type::Instance(instance)
                     if self
-                        .environment
+                        .global
                         .language
                         .item(instance.symbol)
                         .is_some_and(|item| item == dir::LanguageItem::NoInfer) =>

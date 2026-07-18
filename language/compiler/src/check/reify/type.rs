@@ -1121,7 +1121,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
     /// Spell one symbol name into the render pool.
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
-        if let Some(item) = self.check.environment.language.item(symbol) {
+        if let Some(item) = self.check.global.language.item(symbol) {
             return Some(self.language_item_name(item));
         }
 
