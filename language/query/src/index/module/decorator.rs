@@ -35,9 +35,9 @@ impl<'context, 'query> DecoratorIndexer<'context, 'query> {
                 name,
                 application: application_id,
                 decorator: application.source,
-                expression: application.target,
-                target: application.owner,
-                resolution: application.resolution,
+                expression: application.expression,
+                owner: application.owner,
+                target: application.resolution.target,
             });
         }
     }

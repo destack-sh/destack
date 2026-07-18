@@ -266,7 +266,7 @@ impl ModuleQueryContext<'_> {
     ) -> Option<CallItemKind> {
         if matches!(
             symbol.kind,
-            dir::SymbolKind::Class | dir::SymbolKind::EnumField | dir::SymbolKind::Newtype
+            dir::SymbolKind::Class | dir::SymbolKind::Variant | dir::SymbolKind::Newtype
         ) {
             return Some(CallItemKind::Constructor);
         }

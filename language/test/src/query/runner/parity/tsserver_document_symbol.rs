@@ -161,7 +161,7 @@ fn symbol_kind_name(kind: dir::SymbolKind) -> &'static str {
         dir::SymbolKind::AssociatedType => "associated_type",
         dir::SymbolKind::Class => "class",
         dir::SymbolKind::Enum => "enum",
-        dir::SymbolKind::EnumField => "enum_field",
+        dir::SymbolKind::Variant => "variant",
         dir::SymbolKind::Extension => "extension",
         dir::SymbolKind::Function => "function",
         dir::SymbolKind::GenericTypeParameter => "generic_type_parameter",

@@ -187,7 +187,8 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
             dir::DefinitionMember::Field(_)
             | dir::DefinitionMember::Method(_)
             | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::Variant(_) => None,
+            | dir::DefinitionMember::EnumVariant(_)
+            | dir::DefinitionMember::TaggedVariant(_) => None,
         }
     }
 
@@ -202,7 +203,9 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
             },
             dir::DefinitionMember::AssociatedType(_) => dir::MemberKind::AssociatedType,
             dir::DefinitionMember::AssociatedConst(_) => dir::MemberKind::AssociatedConst,
-            dir::DefinitionMember::Variant(_) => dir::MemberKind::Variant,
+            dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
+                dir::MemberKind::Variant
+            }
             dir::DefinitionMember::CallSignature(_) => dir::MemberKind::CallSignature,
             dir::DefinitionMember::ConstructSignature(_) => dir::MemberKind::ConstructSignature,
             dir::DefinitionMember::IndexSignature(_) => dir::MemberKind::IndexSignature,
@@ -216,7 +219,8 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
             dir::DefinitionMember::Method(method) => method.abstraction.is_abstract(),
             dir::DefinitionMember::AssociatedType(_)
             | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::Variant(_)
+            | dir::DefinitionMember::EnumVariant(_)
+            | dir::DefinitionMember::TaggedVariant(_)
             | dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_)
             | dir::DefinitionMember::IndexSignature(_) => false,
@@ -230,7 +234,8 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
             dir::DefinitionMember::Method(method) => method.is_override,
             dir::DefinitionMember::AssociatedType(_)
             | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::Variant(_)
+            | dir::DefinitionMember::EnumVariant(_)
+            | dir::DefinitionMember::TaggedVariant(_)
             | dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_)
             | dir::DefinitionMember::IndexSignature(_) => false,

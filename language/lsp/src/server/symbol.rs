@@ -8,7 +8,7 @@ pub(super) fn symbol_kind_to_lsp(kind: dir::SymbolKind) -> lsp::SymbolKind {
         dir::SymbolKind::AssociatedType => lsp::SymbolKind::TYPE_PARAMETER,
         dir::SymbolKind::Class => lsp::SymbolKind::CLASS,
         dir::SymbolKind::Enum => lsp::SymbolKind::ENUM,
-        dir::SymbolKind::EnumField => lsp::SymbolKind::ENUM_MEMBER,
+        dir::SymbolKind::Variant => lsp::SymbolKind::ENUM_MEMBER,
         dir::SymbolKind::Extension => lsp::SymbolKind::CLASS,
         dir::SymbolKind::Function => lsp::SymbolKind::FUNCTION,
         dir::SymbolKind::GenericTypeParameter => lsp::SymbolKind::TYPE_PARAMETER,

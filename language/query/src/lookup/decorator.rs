@@ -5,18 +5,17 @@ use crate::ModuleQueryContext;
 
 impl ModuleQueryContext<'_> {
     /// Resolve the syntactic name of one decorator node.
-    pub(crate) fn decorator_name(&self, decorator: dir::GlobalNodeIdAny) -> Option<String> {
+    pub(crate) fn decorator_name(
+        &self,
+        decorator: dir::GlobalNodeId<dir::Decorator>,
+    ) -> Option<String> {
         assert_eq!(
             decorator.module_id,
             self.module_id(),
             "decorator node belongs to another module"
         );
 
-        let decorator_id = decorator
-            .local_id
-            .try_into_typed::<dir::Decorator>()
-            .unwrap_or_else(|_| panic!("decorator source is not a decorator: {decorator:?}"));
-        let decorator = self.view().get(decorator_id);
+        let decorator = self.view().get(decorator.local_id);
         let name = self.decorator_leaf_name_id(decorator)?;
 
         Some(self.strings().get(name).to_string())

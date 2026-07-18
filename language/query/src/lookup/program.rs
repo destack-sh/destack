@@ -215,7 +215,7 @@ impl ProgramQueryContext<'_> {
                 *profile_id,
                 entry.name.clone(),
                 entry.decorator.module_id,
-                entry.target.local_id.id,
+                entry.owner.local_id.id,
                 entry.decorator.local_id.id,
                 entry.expression.local_id.id,
             )

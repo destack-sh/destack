@@ -200,7 +200,7 @@ impl ModuleQueryContext<'_> {
 
         Some(Symbol::new(
             name,
-            dir::SymbolKind::EnumField,
+            dir::SymbolKind::Variant,
             range,
             selection_range,
         ))

@@ -80,7 +80,7 @@ impl SemanticTokenType {
             dir::SymbolKind::Struct => Self::Struct,
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => Self::Interface,
             dir::SymbolKind::Enum => Self::Enum,
-            dir::SymbolKind::EnumField => Self::EnumMember,
+            dir::SymbolKind::Variant => Self::EnumMember,
             dir::SymbolKind::Function => Self::Function,
             dir::SymbolKind::Label => Self::Label,
             dir::SymbolKind::Import => Self::Variable,

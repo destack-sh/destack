@@ -84,7 +84,7 @@ impl From<dir::SymbolKind> for CompletionKind {
                 CompletionKind::Interface
             }
             dir::SymbolKind::Enum => CompletionKind::Enum,
-            dir::SymbolKind::EnumField => CompletionKind::EnumMember,
+            dir::SymbolKind::Variant => CompletionKind::EnumMember,
             dir::SymbolKind::Function => CompletionKind::Function,
             dir::SymbolKind::Label => CompletionKind::Reference,
             dir::SymbolKind::Import => CompletionKind::Reference,

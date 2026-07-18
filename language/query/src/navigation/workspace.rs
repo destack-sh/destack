@@ -86,7 +86,7 @@ impl SymbolMatch {
             dir::MemberKind::Field => dir::SymbolKind::Variable,
             dir::MemberKind::IndexSignature => dir::SymbolKind::Function,
             dir::MemberKind::Method => dir::SymbolKind::Function,
-            dir::MemberKind::Variant => dir::SymbolKind::EnumField,
+            dir::MemberKind::Variant => dir::SymbolKind::Variant,
         }
     }
 }
@@ -163,7 +163,7 @@ impl SymbolRelevance {
             | dir::SymbolKind::Newtype => 1,
             dir::SymbolKind::Function => 2,
             dir::SymbolKind::AssociatedConst
-            | dir::SymbolKind::EnumField
+            | dir::SymbolKind::Variant
             | dir::SymbolKind::GenericValueParameter
             | dir::SymbolKind::Variable => 3,
             dir::SymbolKind::AssociatedType

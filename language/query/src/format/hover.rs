@@ -52,7 +52,7 @@ pub fn format_simple_signature(symbol_kind: dir::SymbolKind, name: Option<&str>)
         dir::SymbolKind::Interface => format_named_signature("interface", name),
         dir::SymbolKind::NewtypeInterface => format_named_signature("newtype interface", name),
         dir::SymbolKind::Enum => format_named_signature("enum", name),
-        dir::SymbolKind::EnumField => format_named_signature("enum field", name),
+        dir::SymbolKind::Variant => format_named_signature("variant", name),
         dir::SymbolKind::Function => format_named_signature("function", name),
         dir::SymbolKind::Label => format_named_signature("label", name),
         dir::SymbolKind::Import => format_named_signature("import", name),

@@ -34,16 +34,13 @@ pub enum DecoratorRole {
     LanguageItem,
     /// User-defined decorator symbol.
     Symbol,
-    /// Unresolved or non-symbol decorator.
-    Unresolved,
 }
 
-impl From<dir::DecoratorResolution> for DecoratorRole {
-    fn from(resolution: dir::DecoratorResolution) -> Self {
-        match resolution {
-            dir::DecoratorResolution::LanguageItem(_) => Self::LanguageItem,
-            dir::DecoratorResolution::Symbol(_) => Self::Symbol,
-            dir::DecoratorResolution::Unresolved => Self::Unresolved,
+impl From<dir::DecoratorTarget> for DecoratorRole {
+    fn from(target: dir::DecoratorTarget) -> Self {
+        match target {
+            dir::DecoratorTarget::LanguageItem { .. } => Self::LanguageItem,
+            dir::DecoratorTarget::Symbol { .. } => Self::Symbol,
         }
     }
 }
@@ -93,15 +90,16 @@ impl ProgramQueryContext<'_> {
 
                 let source_module = self.module_context(entry.decorator.module_id, profile_id);
                 let view = source_module.view();
-                let decorator_span = source_module.get_main_span(view, entry.decorator.local_id);
-                let target_span = source_module.get_main_span(view, entry.target.local_id);
+                let decorator_span =
+                    source_module.get_main_span(view, entry.decorator.local_id.into_any());
+                let target_span = source_module.get_main_span(view, entry.owner.local_id);
 
                 Some(DecoratorItem {
                     name: entry.name,
                     decorator: Target::new(query_module, decorator_span)
-                        .with_node_id(entry.decorator),
-                    target: Target::new(query_module, target_span).with_node_id(entry.target),
-                    role: entry.resolution.into(),
+                        .with_node_id(entry.decorator.into_any()),
+                    target: Target::new(query_module, target_span).with_node_id(entry.owner),
+                    role: entry.target.into(),
                 })
             })
             .collect()
