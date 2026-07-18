@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::ModuleId;
 
-use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey};
+use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey, StringId};
 
 /// Concrete static value produced by checked static evaluation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -51,6 +51,62 @@ impl From<ScalarLiteral> for StaticTerm {
 }
 
 impl StaticTerm {
+    /// Return this value's scalar literal.
+    pub fn as_scalar(&self) -> Option<ScalarLiteral> {
+        match self {
+            Self::ScalarLiteral { value } => Some(*value),
+            _ => None,
+        }
+    }
+
+    /// Return this value's string literal.
+    pub fn as_string(&self) -> Option<StringId> {
+        match self.as_scalar()? {
+            ScalarLiteral::String(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Return this value's boolean literal.
+    pub fn as_boolean(&self) -> Option<bool> {
+        match self.as_scalar()? {
+            ScalarLiteral::Boolean(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Return this value's integer literal.
+    pub fn as_integer(&self) -> Option<i64> {
+        match self.as_scalar()? {
+            ScalarLiteral::Integer(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Return this nominal newtype's wrapped value.
+    pub fn as_newtype(&self) -> Option<(GlobalTypeId, &StaticTerm)> {
+        match self {
+            Self::Newtype { ty, value } => Some((*ty, value)),
+            _ => None,
+        }
+    }
+
+    /// Return this value's tuple elements.
+    pub fn as_tuple(&self) -> Option<&[StaticTerm]> {
+        match self {
+            Self::Tuple { elements } => Some(elements),
+            _ => None,
+        }
+    }
+
+    /// Return this value's object properties.
+    pub fn as_object(&self) -> Option<&[StaticProperty]> {
+        match self {
+            Self::Object { properties } => Some(properties),
+            _ => None,
+        }
+    }
+
     /// Apply one mapping to every type id stored in this static value.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
