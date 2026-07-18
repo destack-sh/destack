@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use destack_artifact::ArtifactOutcome;
-use destack_compiler::Compiler;
+use destack_compiler::{CheckWarning, Compiler};
 use destack_linter::Linter;
 use destack_query::Indexer;
 use destack_repository::{Repository, Trace};
@@ -52,7 +52,7 @@ impl SessionState {
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
         let compiler = Compiler::new(repository.clone());
-        let linter = Linter::new(repository.clone());
+        let linter = Linter::new(repository.clone(), CheckWarning::ALL);
         let indexer = Indexer::new(repository.clone());
 
         Self {
