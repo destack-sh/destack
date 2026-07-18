@@ -1,6 +1,6 @@
 use destack_core::StringId;
 use destack_serde::Reflect;
-use destack_source::{FileId, ModuleId, Span};
+use destack_source::{DiagnosticSeverity, FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::DiagnosticAnchor;
@@ -55,6 +55,33 @@ pub enum DiagnosticControlLevel {
     Expect,
 }
 
+impl<'a> TryFrom<&'a str> for DiagnosticControlLevel {
+    type Error = &'a str;
+
+    /// Convert one standard name into a diagnostic control level.
+    fn try_from(name: &'a str) -> Result<Self, Self::Error> {
+        match name {
+            "allow" => Ok(Self::Allow),
+            "warn" => Ok(Self::Warn),
+            "deny" => Ok(Self::Deny),
+            "forbid" => Ok(Self::Forbid),
+            "expect" => Ok(Self::Expect),
+            _ => Err(name),
+        }
+    }
+}
+
+impl DiagnosticControlLevel {
+    /// Return the diagnostic severity selected by this level.
+    pub fn severity(self) -> Option<DiagnosticSeverity> {
+        match self {
+            Self::Allow | Self::Expect => None,
+            Self::Warn => Some(DiagnosticSeverity::Warning),
+            Self::Deny | Self::Forbid => Some(DiagnosticSeverity::Error),
+        }
+    }
+}
+
 impl DiagnosticControlTable {
     /// Create an empty checked control table for one module.
     pub fn new(module: ModuleId, files: Vec<FileId>) -> Self {
@@ -102,7 +129,7 @@ impl DiagnosticControlTable {
         let mut effective: Option<(usize, &DiagnosticControl)> = None;
         for (index, control) in self.controls.iter().enumerate() {
             // ignore controls that do not select or contain this diagnostic
-            if !control.selects(selectors) || !control.scope.applies(anchor) {
+            if !control.selects(selectors) || !control.scope.contains_anchor(anchor) {
                 continue;
             }
 
@@ -157,8 +184,17 @@ impl DiagnosticControl {
 }
 
 impl DiagnosticControlScope {
+    /// Return whether this scope contains another lexical scope.
+    pub fn contains(self, other: Self) -> bool {
+        match (self, other) {
+            (Self::Module, _) => true,
+            (Self::Span(_), Self::Module) => false,
+            (Self::Span(scope), Self::Span(other)) => scope.contains_span(other),
+        }
+    }
+
     /// Return whether this scope contains one table-owned diagnostic anchor.
-    fn applies(self, anchor: &DiagnosticAnchor) -> bool {
+    fn contains_anchor(self, anchor: &DiagnosticAnchor) -> bool {
         match self {
             Self::Module => true,
             Self::Span(scope) => match anchor {
@@ -172,11 +208,6 @@ impl DiagnosticControlScope {
 
     /// Return whether this scope overrides one previously selected scope.
     fn overrides(self, previous: Self) -> bool {
-        match (self, previous) {
-            (Self::Module, Self::Module) => true,
-            (Self::Module, Self::Span(_)) => false,
-            (Self::Span(_), Self::Module) => true,
-            (Self::Span(scope), Self::Span(previous)) => previous.contains_span(scope),
-        }
+        previous.contains(self)
     }
 }
