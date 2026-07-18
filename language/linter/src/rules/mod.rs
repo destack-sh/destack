@@ -1,41 +1,13 @@
-use crate::BoxedLintRule;
+mod builtin;
+mod correctness;
+mod performance;
+mod security;
+mod style;
+mod suspicious;
 
-pub mod common;
-pub mod complexity;
-pub mod correctness;
-pub mod performance;
-pub mod restriction;
-pub mod security;
-pub mod style;
-pub mod suspicious;
-
-pub use common::*;
-
-/// Get all built-in lint rules.
-pub fn all_rules() -> Vec<BoxedLintRule> {
-    let mut rules = Vec::new();
-    rules.extend(complexity::rules());
-    rules.extend(correctness::rules());
-    rules.extend(performance::rules());
-    rules.extend(restriction::rules());
-    rules.extend(security::rules());
-    rules.extend(style::rules());
-    rules.extend(suspicious::rules());
-    rules
-}
-
-/// Get all recommended lint rules.
-pub fn recommended_rules() -> Vec<BoxedLintRule> {
-    all_rules()
-        .into_iter()
-        .filter(|rule| rule.meta().is_recommended())
-        .collect()
-}
-
-/// Get all strict lint rules.
-pub fn strict_rules() -> Vec<BoxedLintRule> {
-    all_rules()
-        .into_iter()
-        .filter(|rule| rule.meta().is_strict())
-        .collect()
-}
+pub use builtin::*;
+pub use correctness::*;
+pub use performance::*;
+pub use security::*;
+pub use style::*;
+pub use suspicious::*;
