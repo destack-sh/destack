@@ -69,7 +69,7 @@ impl CheckState<'_> {
 
         // untagged newtypes match through their backing, like the
         //  narrowing family they belong to
-        if answer!(self.tagged_discriminant_domain(origin, value)?).is_none()
+        if answer!(self.variant_discriminant_domain(origin, value)?).is_none()
             && let Some(backing) =
                 answer!(self.body(origin.module()).newtype_backing(origin, value)?)
         {
@@ -91,12 +91,12 @@ impl CheckState<'_> {
             return Ok(decision);
         }
 
-        // cover tagged domains case by case
-        if let Some(domain) = answer!(self.tagged_discriminant_domain(origin, value)?) {
+        // cover variant domains case by case
+        if let Some(domain) = answer!(self.variant_discriminant_domain(origin, value)?) {
             let mut decision = Answer::Ready(true);
             for discriminant in domain {
                 decision =
-                    decision.and(self.decide_patterns_cover_tagged_case(patterns, discriminant)?);
+                    decision.and(self.decide_patterns_cover_variant_case(patterns, discriminant)?);
                 if decision.is_ready_false() {
                     return Ok(decision);
                 }
@@ -150,7 +150,7 @@ impl CheckState<'_> {
         };
 
         // untagged newtypes witness through their backing
-        if let Answer::Ready(None) = self.tagged_discriminant_domain(origin, value)?
+        if let Answer::Ready(None) = self.variant_discriminant_domain(origin, value)?
             && let Answer::Ready(Some(backing)) =
                 self.body(origin.module()).newtype_backing(origin, value)?
         {
@@ -173,19 +173,22 @@ impl CheckState<'_> {
             return Ok(UncoveredValue::Type(value));
         }
 
-        // name the first uncovered tagged case
-        let tagged_domain = match self.tagged_discriminant_domain(origin, value)? {
+        // name the first uncovered variant case
+        let variant_domain = match self.variant_discriminant_domain(origin, value)? {
             Answer::Ready(domain) => domain,
             Answer::Pending(_) => None,
         };
-        if let Some(domain) = tagged_domain {
+        if let Some(domain) = variant_domain {
             for discriminant in domain {
                 if self
-                    .decide_patterns_cover_tagged_case(patterns, discriminant)?
+                    .decide_patterns_cover_variant_case(patterns, discriminant)?
                     .is_ready_false()
                 {
+                    if let Some(key) = self.enum_case_key_from_discriminant(value, discriminant)? {
+                        return Ok(UncoveredValue::VariantCase { ty: value, key });
+                    }
                     if let Some(key) = self.tagged_case_key_from_discriminant(discriminant) {
-                        return Ok(UncoveredValue::TaggedCase { ty: value, key });
+                        return Ok(UncoveredValue::VariantCase { ty: value, key });
                     }
 
                     let literal =
@@ -239,14 +242,14 @@ impl CheckState<'_> {
     }
 
     /// Decide whether any pattern alternative covers one tagged discriminant.
-    fn decide_patterns_cover_tagged_case(
+    fn decide_patterns_cover_variant_case(
         &mut self,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Answer<bool>> {
         let mut decision = Answer::Ready(false);
         for pattern in patterns {
-            decision = decision.or(self.decide_pattern_covers_tagged_case(*pattern, discriminant)?);
+            decision = decision.or(self.decide_pattern_covers_variant_case(*pattern, discriminant)?);
             if decision.is_ready_true() {
                 return Ok(decision);
             }
@@ -255,8 +258,8 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Decide whether one pattern covers one tagged discriminant.
-    fn decide_pattern_covers_tagged_case(
+    /// Decide whether one pattern covers one variant discriminant.
+    fn decide_pattern_covers_variant_case(
         &mut self,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         discriminant: dir::ScalarLiteral,
@@ -291,11 +294,24 @@ impl CheckState<'_> {
                 _ => false,
             },
 
+            // discriminant tests cover their tested literal
+            Some(dir::PatternResolution::Test(resolution)) => match &resolution.predicate.test {
+                dir::PredicateTest::Unary(dir::PredicateUnaryTest {
+                    input:
+                        dir::PredicateOperand {
+                            projection: Some(dir::Projection::VariantTag { .. }),
+                            ..
+                        },
+                    condition: dir::PredicateCondition::Literal(selected),
+                }) => *selected == discriminant,
+                _ => false,
+            },
+
             // defaulted patterns cover through their inner pattern
             Some(dir::PatternResolution::Default(resolution)) => {
                 let inner = resolution.pattern.into_typed();
 
-                answer!(self.decide_pattern_covers_tagged_case(inner, discriminant)?)
+                answer!(self.decide_pattern_covers_variant_case(inner, discriminant)?)
             }
 
             // or patterns cover when any branch covers
@@ -303,7 +319,7 @@ impl CheckState<'_> {
                 let mut covered = false;
                 for branch in &or.patterns {
                     let branch = branch.into_typed();
-                    if answer!(self.decide_pattern_covers_tagged_case(branch, discriminant)?) {
+                    if answer!(self.decide_pattern_covers_variant_case(branch, discriminant)?) {
                         covered = true;
 
                         break;

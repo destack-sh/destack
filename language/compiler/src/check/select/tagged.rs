@@ -88,6 +88,12 @@ impl BodyState<'_, '_> {
         head: TaggedPatternHead,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
+        // enum owners select their member by discriminant instead
+        if let Some(dir::Definition::Enum(_)) = self.definition(head.instance.symbol)? {
+            let (owner, instance, key) = (head.owner, head.instance.clone(), head.key);
+
+            return self.select_enum_member_pattern(node, origin, owner, &instance, key, fields);
+        }
         if !self.symbol_has_tagged_derive(head.instance.symbol) {
             return self.reject_pattern(node, origin, head.owner);
         }

@@ -3,8 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, Expectation, ExpectedType,
-    FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Expectation,
+    ExpectedType, FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation,
+    ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -217,6 +218,71 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node.into_any(), result)?;
 
         Ok(Answer::Ready(()))
+    }
+
+    /// Check one match expression under an expected result type.
+    pub(in crate::check) fn check_match_expression(
+        &mut self,
+        site: FlowSite,
+        value: dir::LocalNodeId<dir::Expression>,
+        cases: &[dir::LocalNodeId<dir::MatchCase>],
+        target: dir::GlobalTypeId,
+        relation: Relation,
+        cause: CauseId,
+        use_: ValueUse,
+    ) -> CompilerResult<Answer<CheckAttempt>> {
+        let module = site.node.module_id;
+
+        // type the matched value and its patterns like the inferred form
+        let value_site = self.check.node_site(value.into_global_any(module))?;
+        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+        for case in cases {
+            let dir::MatchSelector::Pattern { pattern, guard } =
+                *self.module(module).view().get(*case).selector()
+            else {
+                continue;
+            };
+            let pattern_site = self.check.node_site(pattern.into_global_any(module))?;
+            answer!(self.check_pattern(
+                pattern.into_global(module),
+                pattern_site.flow,
+                pattern_site.scope,
+                scrutinee,
+            )?);
+            if let Some(guard) = guard {
+                self.check_match_guard(module, guard)?;
+            }
+        }
+
+        // empty matches produce never and relate it directly
+        if cases.is_empty() {
+            let never = self.intern_type(module, dir::Type::Never)?;
+            self.commit_node_type(site.node, never)?;
+            let (_, check) =
+                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+
+            return Ok(Answer::Ready(CheckAttempt::Checked(check)));
+        }
+
+        // check every arm body against the incoming expectation
+        let mut values = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let mut check = CheckOutcome::Holds;
+        for case in cases {
+            let body = match self.module(module).view().get(*case) {
+                dir::MatchCase::Expression { body, .. } => body.into_global_any(module),
+                dir::MatchCase::Block { body, .. } => body.into_global_any(module),
+            };
+            let body_site = self.node_site(body)?;
+            check = answer!(self.check_node_expected(body_site, target, relation, cause, use_)?)
+                .and(check);
+            values.push(answer!(self.node_type_at(body_site)?));
+        }
+
+        // join the arm results like the inferred form
+        let result = self.normalized_union_type(module, values)?;
+        self.commit_node_type(site.node, result)?;
+
+        Ok(Answer::Ready(CheckAttempt::Checked(check)))
     }
 
     /// Check one match guard against boolean.

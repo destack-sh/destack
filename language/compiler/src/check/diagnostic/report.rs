@@ -1923,7 +1923,7 @@ impl CheckState<'_> {
     fn format_uncovered_value(&self, value: UncoveredValue) -> String {
         match value {
             UncoveredValue::Type(ty) => self.format_type(ty),
-            UncoveredValue::TaggedCase { ty, key } => self.format_variant_case(ty, key),
+            UncoveredValue::VariantCase { ty, key } => self.format_variant_case(ty, key),
         }
     }
 

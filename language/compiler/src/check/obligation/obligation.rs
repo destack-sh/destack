@@ -420,7 +420,7 @@ pub(in crate::check) enum UncoveredValue {
     /// A type-shaped uncovered value.
     Type(dir::GlobalTypeId),
     /// A tagged case uncovered value.
-    TaggedCase {
+    VariantCase {
         /// The matched tagged type.
         ty: dir::GlobalTypeId,
         /// The uncovered case key.

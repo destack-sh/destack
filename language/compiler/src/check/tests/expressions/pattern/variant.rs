@@ -466,3 +466,152 @@ const label = match (status) {
 "#,
     );
 }
+
+#[test]
+fn test_enum_member_patterns_match_exhaustively() {
+    let session = TestSession::single(
+        r#"
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+function describe(mode: Mode): int32 {
+    match (mode) {
+        Mode.Read => 10
+        Mode.Write => 20
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+function describe(mode: Mode): int32 {
+    match (mode) {
+        Mode.Read => 10
+        Mode.Write => 20
+    } as int32
+}
+
+=== checked ===
+enum Mode {
+/// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
+
+    Read = 1,
+    /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
+
+    Write = 2,
+    /// @type.symbol symbol=Mode.Write source="Write = 2" type=Mode.Write
+
+}
+
+function describe(mode: Mode): int32 {
+/// @type.symbol symbol=describe type=(Mode) => int32
+/// @type.symbol symbol=describe.mode source="mode: Mode" type=Mode
+/// @resolution.name source=Mode target=Mode
+
+    match (mode) {
+    /// @resolution.name source=mode target=describe.mode
+
+        Mode.Read => 10
+        /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+        /// @resolution.pattern source=Mode.Read kind=literal value=1
+
+        Mode.Write => 20
+        /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Write receiver=Mode kind=symbol target=Mode.Write
+        /// @resolution.pattern source=Mode.Write kind=literal value=2
+
+    }
+}
+"#,
+        r#"
+
+"#,
+    );
+}
+
+#[test]
+fn test_enum_member_match_reports_the_uncovered_member() {
+    let session = TestSession::single(
+        r#"
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+function describe(mode: Mode): int32 {
+    match (mode) {
+        Mode.Read => 10
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+function describe(mode: Mode): int32 {
+    match (mode) {
+        Mode.Read => 10
+    }
+}
+
+=== checked ===
+enum Mode {
+/// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
+
+    Read = 1,
+    /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
+
+    Write = 2,
+    /// @type.symbol symbol=Mode.Write source="Write = 2" type=Mode.Write
+
+}
+
+function describe(mode: Mode): int32 {
+/// @type.symbol symbol=describe type=(Mode) => int32
+/// @type.symbol symbol=describe.mode source="mode: Mode" type=Mode
+/// @resolution.name source=Mode target=Mode
+
+    match (mode) {
+    /// @resolution.name source=mode target=describe.mode
+
+        Mode.Read => 10
+        /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+        /// @resolution.pattern source=Mode.Read kind=literal value=1
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC403 message="match is not exhaustive: 'Mode.Write' is not covered"
+/// @diagnostic.label line=8 column=5 span="match (mode) {\n        Mode.Read => 10\n    }" line_source="match (mode) {"
+/// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
+"#,
+    );
+}

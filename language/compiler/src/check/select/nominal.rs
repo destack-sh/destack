@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
+use crate::{CompilerError, CompilerResult};
 use crate::check::{Answer, BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, answer};
 
 impl BodyState<'_, '_> {
@@ -69,6 +69,54 @@ impl BodyState<'_, '_> {
                 },
                 pattern: value.map(|value| value.into_global_any(module)),
             }),
+        )
+    }
+
+    /// Select one enum member pattern as a discriminant test.
+    pub(in crate::check) fn select_enum_member_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        instance: &dir::GenericInstance,
+        key: dir::StaticKey,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<Answer<()>> {
+        // enum members carry no payload to destructure
+        if !fields.is_empty() {
+            return self.reject_pattern(node, origin, owner);
+        }
+
+        // the written key selects the declared member
+        if self.definition(instance.symbol)?.is_none() {
+            return Err(CompilerError::Internal {
+                message: "enum member pattern selected a non-enum owner".to_string(),
+            });
+        }
+        let Some(member) = self.enum_member_with_key(instance.symbol, key)? else {
+            let key = self.format_static_key(&key);
+            self.report_pattern_variant_missing(origin, key, owner)?;
+
+            return self.commit_rejected_pattern(node);
+        };
+
+        // test the discriminant and narrow to the member's own type
+        let discriminant = self.enum_member_discriminant(member)?;
+        let module = origin.module();
+        let narrowed = self.intern_type(
+            module,
+            dir::Type::EnumMember(dir::EnumMemberType { owner, member }),
+        )?;
+        let tag_type = self.intern_type(module, dir::Type::from(&discriminant))?;
+        let predicate = dir::Predicate::unary(
+            dir::PredicateOperand::projected(dir::Projection::VariantTag { ty: tag_type }),
+            dir::PredicateCondition::Literal(discriminant),
+        )
+        .with_narrowed(narrowed);
+
+        self.commit_pattern(
+            node,
+            dir::PatternResolution::Test(dir::PatternPredicateResolution { predicate }),
         )
     }
 

@@ -960,8 +960,8 @@ declare const first: User;
 declare const second: User;
 
 const selected: Borrowed<User, "static", "readonly"> = match (choice) {
-    "first" => first
-    _ => second
+    "first" => first as Borrowed<User, "static", "readonly">
+    _ => second as Borrowed<User, "static", "readonly">
 } as Borrowed<User, "static", "readonly">;
 
 === checked ===
@@ -989,10 +989,12 @@ const selected: &readonly User = match (choice) {
     "first" => first
     /// @resolution.pattern source="\"first\"" kind=literal value="first"
     /// @resolution.name source=first target=first
+    /// @coercion.node source=first from=User to=Borrowed<User, "static", "readonly"> origin=implicit
 
     _ => second
     /// @resolution.pattern source=_ kind=wildcard
     /// @resolution.name source=second target=second
+    /// @coercion.node source=second from=User to=Borrowed<User, "static", "readonly"> origin=implicit
 
 };
 "#,

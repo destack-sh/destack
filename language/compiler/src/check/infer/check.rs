@@ -183,6 +183,15 @@ impl BodyState<'_, '_> {
                     use_,
                 )
             }
+            dir::Expression::Match { value, cases, .. } => self.check_match_expression(
+                site,
+                value,
+                &cases.into_iter().collect::<SmallVec<[_; 4]>>(),
+                target,
+                relation,
+                cause,
+                use_,
+            ),
             dir::Expression::ArrayExpression { elements } => self.check_array_expression(
                 site,
                 &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
