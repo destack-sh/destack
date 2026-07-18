@@ -7,13 +7,13 @@ export type Representation =
     | "uint"
     | "isize"
     | "usize"
-    | `int${uint16}`
-    | `uint${uint16}`;
+    | `int${1..=128}`
+    | `uint${1..=128}`;
 
 /// Representation options for a declaration.
 export type RepresentationOptions = {
-    align?: int;
-    packed?: boolean | int;
+    align?: 1..=1024;
+    packed?: boolean | 1..=1024;
 };
 
 /// Specify the representation for a declaration.
