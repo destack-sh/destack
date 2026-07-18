@@ -1,820 +1,162 @@
-use std::sync::Arc;
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, ModuleLinted};
+use destack_repository::{ProfileId, ProviderContext, ProviderError};
+use destack_source::{ModuleId, TargetId};
 
-use destack_artifact::{DirExpanded, DirParsed};
-use destack_dir as dir;
-use destack_dir::{LanguageItem, StringId, StringPool};
-use destack_repository::{LintSeverity, LinterOptions, Module, Profile};
-use destack_source::{File, FileId, ModuleId, PatchBuilder, Span};
+use super::{DirModule, LintSet, Linter, MirModule};
+use crate::{DiagnosticControls, DiagnosticIndex};
 
-use crate::linter::library::is_library_module;
-use crate::rules::common::expression_path_segments;
-use crate::{
-    ConstValue, LintDirAnalysisCache, LintMeta, LintRegexParse, LintReport, LintRequirement,
-    LintSession, find_control_character, find_control_characters, find_misleading_character_class,
-    find_useless_backreference,
-};
-
-/// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
-#[derive(Debug, Clone, Copy)]
-struct LintSeverityOverride {
-    severity: LintSeverity,
-    /// `@forbid` prevents inner scopes from overriding.
-    is_forbidden: bool,
-}
-
-/// A compiler-recognized lint control directive.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum LintDirective {
-    /// Disable the lint.
-    Allow,
-    /// Report the lint as a warning.
-    Warn,
-    /// Report the lint as an error.
-    Deny,
-    /// Report the lint as an error and prevent inner overrides.
-    Forbid,
-}
-
-impl LintDirective {
-    /// Return the effective severity declared by this directive.
-    fn severity(self) -> LintSeverity {
-        match self {
-            Self::Allow => LintSeverity::Off,
-            Self::Warn => LintSeverity::Warning,
-            Self::Deny | Self::Forbid => LintSeverity::Error,
-        }
-    }
-
-    /// Return whether this directive prevents inner overrides.
-    fn is_forbidden(self) -> bool {
-        matches!(self, Self::Forbid)
-    }
-}
-
-/// Unwrap transparent expression nodes.
-/// The source shape of a decorator expression in the DIR.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct DecoratorCall<'a> {
-    /// The decorator callee expression.
-    pub(crate) callee: dir::LocalNodeId<dir::Expression>,
-    /// The decorator arguments when the expression is a call.
-    pub(crate) arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
-}
-
-/// Context for DIR-level linting of a single module.
-pub struct LintModuleContext<'a> {
-    /// Shared lint pass state.
-    pub session: LintSession,
-    /// The module being linted.
-    pub module: &'a Module,
-    /// The semantic profile for this module.
-    pub profile: Profile,
-    /// The source file.
-    pub file: Arc<File>,
-
-    /// The active DIR view.
-    pub dir: dir::View<'a>,
-    /// The retained source comments.
-    comments: &'a [dir::Comment],
-    /// The DIR string pool.
-    pub strings: &'a StringPool,
-    /// The symbol table.
-    pub symbols: dir::BindingTable<'static>,
-    /// The module table.
-    pub modules: dir::ModuleTable<'static>,
-    /// The type table.
-    pub types: &'a dir::TypeTable<'static>,
-    /// The static table.
-    pub statics: &'a dir::StaticTable<'static>,
-    /// The resolution table.
-    pub resolutions: &'a dir::ResolutionTable<'static>,
-    /// The top-level expressions of the Module.
-    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-
-    /// The scope of the Module.
-    pub namespace_scope: dir::LocalScopeId,
-
-    /// Whether to compute fixes for diagnostics.
-    pub compute_fixes: bool,
-
-    /// Cached DIR analysis results.
-    dir_analysis: LintDirAnalysisCache,
-
-    /// Collected diagnostics.
-    diagnostics: Vec<LintReport>,
-}
-
-impl<'a> std::fmt::Debug for LintModuleContext<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LintModuleContext")
-            .field("module_id", &self.module.id)
-            .finish()
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-impl<'a> LintModuleContext<'a> {
-    /// Create a new DIR lint context for a module.
-    pub fn new(
-        session: LintSession,
-        module: &'a Module,
-        profile: Profile,
-        file: Arc<File>,
-        parsed: &'a DirParsed,
-        expanded: &'a DirExpanded,
-        strings: &'a StringPool,
-        symbols: dir::BindingTable<'static>,
-        modules: dir::ModuleTable<'static>,
-        types: &'a dir::TypeTable<'static>,
-        statics: &'a dir::StaticTable<'static>,
-        resolutions: &'a dir::ResolutionTable<'static>,
-        namespace_scope: dir::LocalScopeId,
-        compute_fixes: bool,
-    ) -> Self {
-        let comments = parsed
-            .file(file.id)
-            .map(|file| file.comments.as_slice())
-            .unwrap_or_else(|| panic!("missing parsed file for {:?}", file.id));
-
-        Self {
-            session,
-            module,
-            profile,
-            file,
-            dir: dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch)),
-            comments,
-            strings,
-            symbols,
-            modules,
-            types,
-            statics,
-            resolutions,
-            roots: expanded.roots.clone(),
-            namespace_scope,
-            compute_fixes,
-            dir_analysis: LintDirAnalysisCache::default(),
-            diagnostics: Vec::new(),
-        }
-    }
-
-    /// Return the file id.
-    pub fn file_id(&self) -> FileId {
-        self.module.file_id
-    }
-
-    /// Return retained source comments.
-    pub fn comments(&self) -> &[dir::Comment] {
-        self.comments
-    }
-
-    /// Return the module id.
-    pub fn module_id(&self) -> ModuleId {
-        self.module.id
-    }
-
-    /// Return the stable string id for one static text.
-    pub fn string_id(&self, text: &str) -> StringId {
-        StringId::for_text(text)
-    }
-
-    /// Return the active linter options.
-    pub fn options(&self) -> &LinterOptions {
-        &self.session.options
-    }
-
-    /// Return the local symbol declared by one DIR node.
-    pub fn local_symbol_for_node<T: dir::Node>(
+impl Linter {
+    /// Collect dependencies for one module lint artifact.
+    pub(super) fn collect_module(
         &self,
-        node_id: dir::LocalNodeId<T>,
-    ) -> Option<dir::LocalSymbolId> {
-        self.symbols
-            .declaration_symbol(node_id.into_global_any(self.module.id))
-    }
-
-    /// Return the global symbol declared by one DIR node.
-    pub fn symbol_for_node<T: dir::Node>(
-        &self,
-        node_id: dir::LocalNodeId<T>,
-    ) -> Option<dir::GlobalSymbolId> {
-        self.local_symbol_for_node(node_id)
-            .map(|symbol_id| symbol_id.into_global(self.module.id))
-    }
-
-    /// Return the scope attached to one DIR node.
-    pub fn scope_for_node<T: dir::Node>(
-        &self,
-        node_id: dir::LocalNodeId<T>,
-    ) -> Option<dir::LocalScope> {
-        self.symbols
-            .scope_for_node(node_id.into_global_any(self.module.id))
-    }
-
-    /// Return all visible module ids for the active revision.
-    pub fn workspace_module_ids(&self) -> Vec<ModuleId> {
-        self.session
-            .repository
-            .module_ids(self.session.revision)
-            .unwrap_or_default()
-    }
-
-    /// Read one checked DIR type through its owning module.
-    pub fn checked_type(&self, type_id: dir::GlobalTypeId) -> Option<dir::Type> {
-        if type_id.module_id == self.module.id {
-            return self.types.get_type_maybe(type_id.local_id);
-        }
-
-        self.session.with_type(type_id, |ty, _| *ty)
-    }
-
-    /// Read one function signature payload through its owning module.
-    pub fn checked_signature(
-        &self,
+        context: &dyn ProviderContext,
         module: ModuleId,
-        id: dir::FunctionSignatureId,
-    ) -> Option<dir::FunctionSignatureType> {
-        if module == self.module.id {
-            return Some(*self.types.signature(id));
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<ArtifactDependencySet, ProviderError> {
+        let revision = context.revision();
+        let lints = self.resolve_lints(context, target.package_id())?;
+        let mut dependencies = ArtifactDependencySet::default();
+        self.observe_configuration(context, target.package_id(), &mut dependencies)?;
+        let repository_module = self.module(revision, module)?;
+        if !repository_module.is_code() {
+            return Ok(dependencies);
         }
 
-        self.session
-            .checked_module(module)
-            .map(|checked| *checked.types.signature(id))
-    }
+        // require checking for control validation
+        dependencies.require(ArtifactKey::dir_checked(module, profile));
 
-    /// Read one type operation payload through its owning module.
-    pub fn checked_operation(
-        &self,
-        module: ModuleId,
-        id: dir::TypeOperationId,
-    ) -> Option<dir::TypeOperation> {
-        if module == self.module.id {
-            return Some(*self.types.operation(id));
-        }
-
-        self.session
-            .checked_module(module)
-            .map(|checked| *checked.types.operation(id))
-    }
-
-    /// Read one type id list through its owning module.
-    pub fn checked_type_ids(
-        &self,
-        module: ModuleId,
-        range: dir::TypeListId,
-    ) -> Vec<dir::GlobalTypeId> {
-        if module == self.module.id {
-            return self.types.type_ids(range).to_vec();
-        }
-
-        self.session
-            .checked_module(module)
-            .map(|checked| checked.types.type_ids(range).to_vec())
-            .unwrap_or_default()
-    }
-
-    /// Read one tuple element row list through its owning module.
-    pub fn checked_elements(
-        &self,
-        module: ModuleId,
-        range: dir::TypeListId,
-    ) -> Vec<dir::TypeElement> {
-        if module == self.module.id {
-            return self.types.elements(range).to_vec();
-        }
-
-        self.session
-            .checked_module(module)
-            .map(|checked| checked.types.elements(range).to_vec())
-            .unwrap_or_default()
-    }
-
-    /// Read one shape field row list through its owning module.
-    pub fn checked_fields(&self, module: ModuleId, range: dir::TypeListId) -> Vec<dir::TypeField> {
-        if module == self.module.id {
-            return self.types.fields(range).to_vec();
-        }
-
-        self.session
-            .checked_module(module)
-            .map(|checked| checked.types.fields(range).to_vec())
-            .unwrap_or_default()
-    }
-
-    /// Read one function parameter row list through its owning module.
-    pub fn checked_parameters(
-        &self,
-        module: ModuleId,
-        range: dir::TypeListId,
-    ) -> Vec<dir::FunctionParameterType> {
-        if module == self.module.id {
-            return self.types.parameters(range).to_vec();
-        }
-
-        self.session
-            .checked_module(module)
-            .map(|checked| checked.types.parameters(range).to_vec())
-            .unwrap_or_default()
-    }
-
-    /// Read one index signature row list through its owning module.
-    pub fn checked_index_signatures(
-        &self,
-        module: ModuleId,
-        range: dir::TypeListId,
-    ) -> Vec<dir::TypeIndexSignature> {
-        if module == self.module.id {
-            return self.types.index_signatures(range).to_vec();
-        }
-
-        self.session
-            .checked_module(module)
-            .map(|checked| checked.types.index_signatures(range).to_vec())
-            .unwrap_or_default()
-    }
-
-    /// Read one checked DIR static through its owning module.
-    pub fn checked_static(&self, static_id: dir::GlobalStaticId) -> Option<dir::StaticTerm> {
-        if static_id.module_id == self.module.id {
-            return self.statics.get_static_maybe(static_id.local_id).cloned();
-        }
-
-        self.session.with_static(static_id, |term, _| term.clone())
-    }
-
-    /// Resolve the checked type id for one symbol.
-    pub fn symbol_type_id(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
-        if symbol_id.module_id == self.module.id {
-            return self.types.get_symbol_type_id(symbol_id);
-        }
-
-        self.session.symbol_type_id(symbol_id)
-    }
-
-    /// Resolve the checked type id for a DIR expression.
-    pub fn expression_type_id(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalTypeId> {
-        // build a global id for the expression
-        let global_id = dir::GlobalNodeIdAny::new(self.module.id, expression_id.into_any());
-
-        // read the expression node type
-        if let Some(type_id) = self.types.get_node_type_id(global_id) {
-            return Some(type_id);
-        }
-
-        // then use symbol types for direct references
-        self.expression_target_symbol(expression_id)
-            .and_then(|symbol| self.symbol_type_id(symbol))
-    }
-
-    /// Resolve the lexical target symbol for one expression.
-    pub fn expression_target_symbol(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        if !self.dir.is_visible(expression_id.into_any()) {
-            return None;
-        }
-
-        let global_id = expression_id.into_global_any(self.module.id);
-        let symbol = self.resolutions.symbol_resolution(global_id)?;
-        if !self.symbol_is_active(symbol.local_id) {
-            return None;
-        }
-
-        Some(symbol)
-    }
-
-    /// Resolve the lexical target symbol for one type expression.
-    pub fn type_expression_target_symbol(
-        &self,
-        type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        if !self.dir.is_visible(type_expression_id.into_any()) {
-            return None;
-        }
-
-        let global_id = type_expression_id.into_global_any(self.module.id);
-        let symbol = self.resolutions.symbol_resolution(global_id)?;
-        if !self.symbol_is_active(symbol.local_id) {
-            return None;
-        }
-
-        Some(symbol)
-    }
-
-    /// Return whether one local DIR symbol is visible in this lint view.
-    fn symbol_is_active(&self, symbol_id: dir::LocalSymbolId) -> bool {
-        let symbol = self.symbols.get_symbol(symbol_id);
-        let Some(declaration) = symbol.declaration else {
-            return true;
-        };
-
-        self.dir.is_visible(declaration.local_id)
-    }
-
-    /// Return the source DIR node id for one DIR node.
-    pub fn source_node_id<T: dir::Node>(
-        &self,
-        node_id: dir::LocalNodeIdAny,
-    ) -> Option<dir::LocalNodeId<T>> {
-        let source_id = self.dir.get_source_any(node_id);
-        if self.dir.tree().get_node_type(source_id) != T::TYPE {
-            return None;
-        }
-
-        Some(dir::LocalNodeId::<T>::new(source_id))
-    }
-
-    /// Get a language item from the cache, returning None if not found.
-    pub fn get_language_item(&self, item: LanguageItem) -> Option<dir::GlobalSymbolId> {
-        let environment = self.session.global_environment()?;
-        environment.language.symbol(item)
-    }
-
-    /// Get a language item from the cache, panicking if not found.
-    pub fn language_item(&self, item: LanguageItem) -> dir::GlobalSymbolId {
-        self.get_language_item(item)
-            .unwrap_or_else(|| panic!("language item {item:?} not available"))
-    }
-
-    /// Get a cached declared library symbol for the module profile and name.
-    pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.session.global_environment()?;
-
-        environment.language.symbols.get(&name).copied()
-    }
-
-    /// Get a declared library symbol from the cache, panicking if not found.
-    pub fn declared_library_symbol(&self, name: StringId) -> dir::GlobalSymbolId {
-        self.get_declared_library_symbol(name)
-            .unwrap_or_else(|| panic!("declared library symbol {name} not available"))
-    }
-
-    /// Resolve severity for a rule.
-    pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
-        self.session.options.resolve_severity(
-            meta.id,
-            meta.category,
-            meta.category.default_severity(),
-            meta.is_recommended(),
-            meta.is_strict(),
-        )
-    }
-
-    /// Check if a requirement is met.
-    pub fn is_requirement_met(&self, requirement: &LintRequirement) -> bool {
-        match requirement {
-            LintRequirement::RequireLibSymbol(name, libs) => {
-                if !self.is_lib_available(libs) {
-                    return false;
-                }
-                let name = self.string_id(name);
-                self.get_declared_library_symbol(name).is_some()
-            }
-            LintRequirement::RequireLanguageItem(symbol) => {
-                self.get_language_item(*symbol).is_some()
-            }
-        }
-    }
-
-    /// Return true when at least one of the required libs is available.
-    fn is_lib_available(&self, libs: &[&str]) -> bool {
-        if libs.is_empty() {
-            return true;
-        }
-        let Some(environment) = self.session.global_environment() else {
-            return false;
-        };
-
-        environment
-            .globals
-            .iter()
-            .filter_map(|module_id| self.session.repository_module(*module_id))
-            .any(|module| is_library_module(module.as_ref(), libs))
-    }
-
-    /// Check if a rule is supported.
-    pub fn is_rule_supported(&self, meta: &LintMeta) -> bool {
-        if !self.session.options.include_declaration_files && !meta.supports_file_type(self.file.ty)
-        {
-            return false;
-        }
-
-        // requires all
-        if !meta.requires_all.is_empty() {
-            for requirement in meta.requires_all {
-                if !self.is_requirement_met(requirement) {
-                    return false;
-                }
-            }
-        }
-        // requires any
-        if !meta.requires_any.is_empty() {
-            for requirement in meta.requires_any {
-                if self.is_requirement_met(requirement) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        true
-    }
-
-    /// Check if a rule is enabled.
-    pub fn is_rule_enabled(&self, meta: &LintMeta) -> bool {
-        self.get_severity(meta).is_enabled()
-    }
-
-    /// Get effective severity for a rule at a specific active DIR node.
-    ///
-    /// Checks for `@allow`/`@deny`/`@warn`/`@forbid` source directives on the
-    /// node and its ancestors, returning the effective severity at that location.
-    /// Rules should call this before reporting to respect per-node suppressions.
-    pub fn get_effective_severity<T: dir::Node>(
-        &self,
-        meta: &LintMeta,
-        node_id: dir::LocalNodeId<T>,
-    ) -> LintSeverity {
-        let source_id = self.dir.get_source_any(node_id.into_any());
-
-        self.get_effective_severity_at_source_node(meta, source_id)
-    }
-
-    /// Get effective severity for one source node id.
-    fn get_effective_severity_at_source_node(&self, meta: &LintMeta, node_id: u32) -> LintSeverity {
-        // walk up source parent chain
-        let mut overrides: Vec<LintSeverityOverride> = Vec::new();
-        let mut current = Some(node_id);
-
-        while let Some(id) = current {
-            let Some(node_id) = self.dir.get_node_id_by_source_id(id) else {
-                break;
+        // require this module's checked DIR
+        if lints.has_dir_modules() {
+            let Some(_) = self.collect_global_environment(context, profile, &mut dependencies)?
+            else {
+                return Ok(dependencies);
             };
-            for decorator_id in self.dir.get_decorators_any(node_id) {
-                if let Some(item) = self.lint_directive_severity_override(decorator_id, meta) {
-                    overrides.push(item);
-                }
-            }
-            current = self.dir.get_parent_id(id);
+            self.require_dir_modules(revision, &[module], profile, &mut dependencies)?;
         }
 
-        // apply outer decorators before inner decorators
-        let mut effective = self.get_severity(meta);
-        let mut is_forbidden = false;
+        // require this module's verified MIR
+        if lints.has_mir_modules() {
+            dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
+            dependencies.require(ArtifactKey::mir_verified(module, profile, target));
+        }
 
-        for item in overrides.into_iter().rev() {
-            if is_forbidden {
+        Ok(dependencies)
+    }
+
+    /// Provide one module lint artifact.
+    pub(super) fn provide_module(
+        &self,
+        context: &dyn ProviderContext,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<ArtifactPayload, ProviderError> {
+        let revision = context.revision();
+        let lints = self.resolve_lints(context, target.package_id())?;
+        let repository_module = self.module(revision, module)?;
+        if !repository_module.is_code() {
+            return Ok(ModuleLinted.into());
+        }
+
+        // resolve controls before deciding whether any lint executes
+        let artifacts = self.repository.artifact_reader(revision);
+        let checked = artifacts.dir_checked(module, profile)?;
+        let strings = self.repository.string_pool();
+        let diagnostics = DiagnosticIndex::new(&self.check_warnings, lints.lints())?;
+        let controls =
+            DiagnosticControls::resolve([checked.controls.clone()], &diagnostics, strings.as_ref());
+        let controls = match controls {
+            Ok(controls) => controls,
+            Err(error) => return self.reject(context, error),
+        };
+
+        // run DIR and MIR module lints
+        self.lint_dir_module(context, &lints, &controls, module, profile, target)?;
+        self.lint_mir_module(context, &lints, &controls, module, profile, target)?;
+
+        Ok(ModuleLinted.into())
+    }
+
+    /// Execute checked DIR module lints.
+    fn lint_dir_module(
+        &self,
+        context: &dyn ProviderContext,
+        lints: &LintSet,
+        controls: &DiagnosticControls,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<(), ProviderError> {
+        if !lints.has_dir_modules() {
+            return Ok(());
+        }
+
+        // load this module's checked DIR
+        let revision = context.revision();
+        let artifacts = self.repository.artifact_reader(revision);
+        let environment = artifacts.global_environment(profile)?;
+        let repository_module = self.module(revision, module)?;
+        let module = DirModule::load(
+            self.repository.as_ref(),
+            revision,
+            profile,
+            target,
+            environment,
+            repository_module,
+            &artifacts,
+        )?;
+        let strings = self.repository.string_pool();
+
+        // execute enabled DIR lints
+        for (lint, severity, check) in lints.dir_modules() {
+            if !controls.enables(lint, severity) {
                 continue;
             }
-            effective = item.severity;
-            is_forbidden = item.is_forbidden;
+
+            let output = check(&module, lint)?;
+            let (diagnostics, errors) =
+                controls.apply(lint, severity, strings.as_ref(), output.into_diagnostics());
+            self.emit(context, diagnostics)?;
+            self.emit(context, errors)?;
         }
 
-        effective
+        Ok(())
     }
 
-    /// Resolve source decorator call information for a decorator node.
-    pub(crate) fn decorator_call(
+    /// Execute verified MIR module lints.
+    fn lint_mir_module(
         &self,
-        decorator_id: dir::LocalNodeId<dir::Decorator>,
-    ) -> DecoratorCall<'_> {
-        let decorator = self.dir.get(decorator_id);
-        let expression_id = decorator.expression;
-        match self.dir.get(expression_id) {
-            dir::Expression::Call {
-                left, arguments, ..
-            } => DecoratorCall {
-                callee: *left,
-                arguments: Some(arguments.as_slice()),
-            },
-            _ => DecoratorCall {
-                callee: expression_id,
-                arguments: None,
-            },
-        }
-    }
-
-    /// Resolve the source decorator path when the decorator is reference-like.
-    pub(crate) fn decorator_path(
-        &self,
-        decorator_id: dir::LocalNodeId<dir::Decorator>,
-    ) -> Option<Vec<dir::StringId>> {
-        let call = self.decorator_call(decorator_id);
-        expression_path_segments(self.dir.tree(), call.callee)
-    }
-
-    /// Resolve the source decorator name as a dot separated string.
-    pub(crate) fn decorator_name(
-        &self,
-        decorator_id: dir::LocalNodeId<dir::Decorator>,
-    ) -> Option<String> {
-        let path = self.decorator_path(decorator_id)?;
-        if path.is_empty() {
-            return None;
+        context: &dyn ProviderContext,
+        lints: &LintSet,
+        controls: &DiagnosticControls,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<(), ProviderError> {
+        if !lints.has_mir_modules() {
+            return Ok(());
         }
 
-        let mut segments = Vec::new();
-        for segment in path {
-            segments.push(self.strings.get(segment).to_string());
+        // load this module's verified MIR and analyses
+        let revision = context.revision();
+        let artifacts = self.repository.artifact_reader(revision);
+        let module = MirModule::load(&artifacts, profile, target, module)?;
+        let strings = self.repository.string_pool();
+
+        // execute enabled MIR lints
+        for (lint, severity, check) in lints.mir_modules() {
+            if !controls.enables(lint, severity) {
+                continue;
+            }
+
+            let output = check(&module, lint)?;
+            let (diagnostics, errors) =
+                controls.apply(lint, severity, strings.as_ref(), output.into_diagnostics());
+            self.emit(context, diagnostics)?;
+            self.emit(context, errors)?;
         }
 
-        Some(segments.join("."))
-    }
-
-    /// Return the compiler-recognized lint directive represented by one decorator.
-    pub(crate) fn lint_directive_for_decorator(
-        &self,
-        decorator_id: dir::LocalNodeId<dir::Decorator>,
-    ) -> Option<LintDirective> {
-        let call = self.decorator_call(decorator_id);
-
-        self.lint_directive_for_callee(call.callee)
-    }
-
-    /// Return the severity override declared by one lint directive.
-    fn lint_directive_severity_override(
-        &self,
-        decorator_id: dir::LocalNodeId<dir::Decorator>,
-        meta: &LintMeta,
-    ) -> Option<LintSeverityOverride> {
-        // resolve the decorator directive
-        let directive = self.lint_directive_for_decorator(decorator_id)?;
-
-        // read the lint id or code argument
-        let call = self.decorator_call(decorator_id);
-        let arguments = call.arguments?;
-        let first_argument = self.dir.get(*arguments.first()?);
-        let dir::Argument::Positional { value, .. } = first_argument else {
-            return None;
-        };
-
-        let argument_expression = self.dir.get(*value);
-        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) =
-            argument_expression
-        else {
-            return None;
-        };
-
-        let specifier = self.strings.get(*string_id);
-        Self::severity_override_for_lint_specifier(directive, specifier, meta)
-    }
-
-    /// Return the lint directive resolved by one decorator callee.
-    fn lint_directive_for_callee(
-        &self,
-        callee_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<LintDirective> {
-        let global_callee_id = callee_id.into_global_any(self.module.id);
-        let symbol_id = self.resolutions.symbol_resolution(global_callee_id)?;
-
-        self.lint_directive_for_symbol(symbol_id)
-    }
-
-    /// Return the lint directive represented by one language item symbol.
-    fn lint_directive_for_symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<LintDirective> {
-        let environment = self.session.global_environment()?;
-
-        if environment.language.symbol(LanguageItem::Allow) == Some(symbol_id) {
-            return Some(LintDirective::Allow);
-        }
-
-        if environment.language.symbol(LanguageItem::Warn) == Some(symbol_id) {
-            return Some(LintDirective::Warn);
-        }
-
-        if environment.language.symbol(LanguageItem::Deny) == Some(symbol_id) {
-            return Some(LintDirective::Deny);
-        }
-
-        if environment.language.symbol(LanguageItem::Forbid) == Some(symbol_id) {
-            return Some(LintDirective::Forbid);
-        }
-
-        None
-    }
-
-    /// Return the severity override for one lint specifier.
-    fn severity_override_for_lint_specifier(
-        directive: LintDirective,
-        specifier: &str,
-        meta: &LintMeta,
-    ) -> Option<LintSeverityOverride> {
-        if specifier == meta.id || specifier == meta.code {
-            Some(LintSeverityOverride {
-                severity: directive.severity(),
-                is_forbidden: directive.is_forbidden(),
-            })
-        } else {
-            None
-        }
-    }
-
-    /// Report a lint diagnostic.
-    pub fn report(&mut self, diagnostic: LintReport) {
-        if diagnostic.is_enabled() {
-            self.diagnostics.push(diagnostic);
-        }
-    }
-
-    /// Take the collected diagnostics.
-    pub fn take_diagnostics(&mut self) -> Vec<LintReport> {
-        std::mem::take(&mut self.diagnostics)
-    }
-
-    /// Return a reference to collected diagnostics.
-    pub fn diagnostics(&self) -> &[LintReport] {
-        &self.diagnostics
-    }
-
-    /// Return the source span for one DIR node.
-    pub fn get_span<T: dir::Node>(&self, id: dir::LocalNodeId<T>) -> Span {
-        let source_node_id = self.dir.get_source(id);
-        self.dir
-            .get_span_by_id(source_node_id)
-            .expect("lint DIR source view requires source span")
-    }
-
-    /// Get the full source text.
-    pub fn source_text(&self) -> &str {
-        self.file.text()
-    }
-
-    /// Get the source text for a span.
-    pub fn get_span_text(&self, span: Span) -> &str {
-        &self.file.text()[span.start as usize..span.end as usize]
-    }
-
-    /// Create a PatchBuilder with source text for text-aware operations.
-    pub fn edit_builder(&self) -> PatchBuilder<'_> {
-        PatchBuilder::from_file(self.module.file_id, self.file.text())
-    }
-
-    /// Return a constant value if the expression can be evaluated.
-    pub fn const_value(&mut self, id: dir::LocalNodeId<dir::Expression>) -> Option<ConstValue> {
-        self.dir_analysis.const_value(self.dir.tree(), id)
-    }
-
-    /// Return a constant boolean value if the expression can be evaluated.
-    pub fn const_bool(&mut self, id: dir::LocalNodeId<dir::Expression>) -> Option<bool> {
-        self.const_value(id).map(ConstValue::to_bool)
-    }
-
-    /// Return cached regex parse info for a pattern string.
-    pub fn regex_parse(&mut self, id: dir::StringId) -> LintRegexParse {
-        self.dir_analysis.regex_parse(self.strings, id)
-    }
-
-    /// Return cached regex parse info for a pattern and optional flags.
-    pub fn regex_parse_with_flags(
-        &mut self,
-        pattern_id: dir::StringId,
-        flags_id: Option<dir::StringId>,
-    ) -> LintRegexParse {
-        self.dir_analysis
-            .regex_parse_with_flags(self.strings, pattern_id, flags_id)
-    }
-
-    /// Return a control character found in the pattern string.
-    pub fn regex_control_character(&self, id: dir::StringId) -> Option<char> {
-        let pattern = self.strings.get(id);
-
-        find_control_character(pattern)
-    }
-
-    /// Return control characters found in the pattern string.
-    pub fn regex_control_characters(
-        &self,
-        pattern_id: dir::StringId,
-        flags_id: Option<dir::StringId>,
-    ) -> Vec<String> {
-        let pattern = self.strings.get(pattern_id);
-        let flags = flags_id.map(|id| self.strings.get(id));
-
-        find_control_characters(pattern, flags)
-    }
-
-    /// Return a misleading character class description for the pattern string.
-    pub fn regex_misleading_character_class(&self, id: dir::StringId) -> Option<&'static str> {
-        let pattern = self.strings.get(id);
-
-        find_misleading_character_class(pattern)
-    }
-
-    /// Return a useless backreference description for the pattern string.
-    pub fn regex_useless_backreference(
-        &mut self,
-        pattern_id: dir::StringId,
-        flags_id: Option<dir::StringId>,
-    ) -> Option<String> {
-        let parse = self.regex_parse_with_flags(pattern_id, flags_id);
-        let error_kind = parse.error.as_ref().map(|error| &error.kind);
-        let pattern = self.strings.get(pattern_id);
-        let flags = flags_id.map(|id| self.strings.get(id));
-
-        find_useless_backreference(pattern, flags, error_kind)
+        Ok(())
     }
 }
