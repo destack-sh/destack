@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Origin, answer};
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Return the declared member domain of one value enum type.
@@ -13,40 +13,17 @@ impl CheckState<'_> {
         let dir::Type::Instance(instance) = self.ty(value)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)?.cloned()
-        else {
+        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
             return Ok(None);
         };
 
-        // every member contributes its sealed discriminant value
-        let mut domain = Vec::new();
-        for member in &definition.members {
-            let dir::DefinitionMember::Variant(variant) = member else {
-                continue;
-            };
-            domain.push(self.enum_member_discriminant(variant.symbol)?);
-        }
+        // every variant contributes its checked discriminant value
+        let domain = definition
+            .variants()
+            .map(|variant| dir::ScalarLiteral::from(variant.value))
+            .collect();
 
         Ok(Some(domain))
-    }
-
-    /// Return the sealed discriminant value of one enum member symbol.
-    pub(in crate::check) fn enum_member_discriminant(
-        &mut self,
-        member: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::ScalarLiteral> {
-        let Some(value) = self.static_value(member) else {
-            return Err(CompilerError::Internal {
-                message: format!("enum member {member:?} is missing its discriminant value"),
-            });
-        };
-        let dir::Type::Literal(literal) = self.ty(value)? else {
-            return Err(CompilerError::Internal {
-                message: format!("enum member {member:?} sealed a non-literal discriminant"),
-            });
-        };
-
-        Ok(literal)
     }
 
     /// Return the discriminant domain of one variant-shaped type: enum or tagged.
@@ -65,22 +42,6 @@ impl CheckState<'_> {
         self.tagged_discriminant_domain(origin, value)
     }
 
-    /// Return the declared member selected by one static key.
-    pub(in crate::check) fn enum_member_with_key(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let Some(dir::Definition::Enum(definition)) = self.definition(symbol)?.cloned() else {
-            return Ok(None);
-        };
-
-        Ok(definition.members.iter().find_map(|member| match member {
-            dir::DefinitionMember::Variant(variant) if variant.key == key => Some(variant.symbol),
-            _ => None,
-        }))
-    }
-
     /// Return the member key selected by one enum discriminant.
     pub(in crate::check) fn enum_case_key_from_discriminant(
         &mut self,
@@ -91,17 +52,13 @@ impl CheckState<'_> {
         let dir::Type::Instance(instance) = self.ty(value)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)?.cloned()
-        else {
+        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
             return Ok(None);
         };
 
-        // name the member sealing this discriminant
-        for member in &definition.members {
-            let dir::DefinitionMember::Variant(variant) = member else {
-                continue;
-            };
-            if self.enum_member_discriminant(variant.symbol)? == discriminant {
+        // name the variant carrying this discriminant
+        for variant in definition.variants() {
+            if dir::ScalarLiteral::from(variant.value) == discriminant {
                 return Ok(Some(variant.key));
             }
         }

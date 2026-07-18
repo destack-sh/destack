@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::{CompilerError, CompilerResult};
 use crate::check::{Answer, BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, answer};
+use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Select one newtype pattern, unwrapping the substituted backing.
@@ -88,21 +88,29 @@ impl BodyState<'_, '_> {
             return self.reject_pattern(node, origin, owner);
         }
 
-        // the written key selects the declared member
-        if self.definition(instance.symbol)?.is_none() {
-            return Err(CompilerError::Internal {
-                message: "enum member pattern selected a non-enum owner".to_string(),
-            });
-        }
-        let Some(member) = self.enum_member_with_key(instance.symbol, key)? else {
+        // the written key selects the declared variant
+        let variant = match self.definition(instance.symbol)? {
+            Some(dir::Definition::Enum(definition)) => definition
+                .variant_by_key(key)
+                .map(|variant| (variant.symbol, variant.value)),
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "enum member pattern received non-enum owner {:?}",
+                        instance.symbol
+                    ),
+                });
+            }
+        };
+        let Some((member, value)) = variant else {
             let key = self.format_static_key(&key);
             self.report_pattern_variant_missing(origin, key, owner)?;
 
             return self.commit_rejected_pattern(node);
         };
 
-        // test the discriminant and narrow to the member's own type
-        let discriminant = self.enum_member_discriminant(member)?;
+        // test the discriminant and narrow to the variant's own type
+        let discriminant = dir::ScalarLiteral::from(value);
         let module = origin.module();
         let narrowed = self.intern_type(
             module,
