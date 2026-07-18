@@ -282,8 +282,6 @@ pub enum DecoratorSelection {
     Newtype {
         /// The selected newtype backing.
         newtype: NewtypeSelection,
-        /// The parameter types after static substitutions.
-        parameters: Vec<GlobalTypeId>,
         /// The source arguments bound to the selected parameters.
         arguments: Vec<ArgumentBinding>,
     },
@@ -298,15 +296,8 @@ impl DecoratorSelection {
     /// Apply one mapping to every type id stored in this selection.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Newtype {
-                newtype,
-                parameters,
-                arguments,
-            } => {
+            Self::Newtype { newtype, arguments } => {
                 newtype.map_type_ids(map);
-                for parameter in parameters {
-                    *parameter = map(*parameter);
-                }
                 for argument in arguments {
                     argument.map_type_ids(map);
                 }

@@ -324,8 +324,6 @@ pub struct CallResolution {
     pub target: CallTarget,
     /// The callable type selected at the call site, when one exists.
     pub callable_type: Option<GlobalTypeId>,
-    /// The dynamic parameter types after static substitutions.
-    pub parameters: Vec<GlobalTypeId>,
     /// The source arguments bound to selected parameters.
     pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
@@ -337,14 +335,12 @@ impl CallResolution {
     pub fn new(
         target: CallTarget,
         callable_type: Option<GlobalTypeId>,
-        parameters: Vec<GlobalTypeId>,
         arguments: Vec<ArgumentBinding>,
         return_type: GlobalTypeId,
     ) -> Self {
         Self {
             target,
             callable_type,
-            parameters,
             arguments,
             return_type,
         }
@@ -355,9 +351,6 @@ impl CallResolution {
         self.target.map_type_ids(map);
         if let Some(callable_type) = &mut self.callable_type {
             *callable_type = map(*callable_type);
-        }
-        for parameter in &mut self.parameters {
-            *parameter = map(*parameter);
         }
         for argument in &mut self.arguments {
             argument.map_type_ids(map);
@@ -730,8 +723,6 @@ impl CallCandidate {
 pub struct ConstructResolution {
     /// The selected construct target.
     pub target: ConstructTarget,
-    /// The dynamic parameter types after static substitutions.
-    pub parameters: Vec<GlobalTypeId>,
     /// The source arguments bound to selected parameters.
     pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
@@ -742,13 +733,11 @@ impl ConstructResolution {
     /// Create a construct resolution.
     pub fn new(
         target: ConstructTarget,
-        parameters: Vec<GlobalTypeId>,
         arguments: Vec<ArgumentBinding>,
         return_type: GlobalTypeId,
     ) -> Self {
         Self {
             target,
-            parameters,
             arguments,
             return_type,
         }
@@ -757,9 +746,6 @@ impl ConstructResolution {
     /// Apply one mapping to every type id stored in this resolution.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.target.map_type_ids(map);
-        for parameter in &mut self.parameters {
-            *parameter = map(*parameter);
-        }
         for argument in &mut self.arguments {
             argument.map_type_ids(map);
         }
