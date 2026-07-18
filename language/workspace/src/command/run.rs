@@ -258,8 +258,8 @@ fn run_entry_module(
     // profile facts
     let target_id = target.id;
     let profile = target_profile(repository, revision, entry_module, target_id)?;
-    let mut runtime_options = target.target.execution.clone();
-    runtime_options.conditions = profile.conditions().clone();
+    let runtime_options = target.target.execution.clone();
+    let conditions = profile.conditions().clone();
 
     // program
     let program = create_program(
@@ -279,7 +279,13 @@ fn run_entry_module(
         World::new(&runtime_options, environment.clone()).map_err(|error| format!("{error}"))?;
     let execution = Execution::vm(MachineOptions::default());
     let runtime_id = world
-        .spawn_runtime(environment, &runtime_options, program, execution)
+        .spawn_runtime(
+            environment,
+            &runtime_options,
+            conditions,
+            program,
+            execution,
+        )
         .map_err(|error| format!("{error}"))?;
 
     let entry = Entry::new(entry_name);
