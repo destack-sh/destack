@@ -238,13 +238,13 @@ fn add_call_resolution_row(
         .type_tuple_field(
             "parameters",
             resolution
-                .parameters
+                .arguments
                 .iter()
-                .map(|type_id| builder.global_type_label(*type_id)),
+                .map(|argument| builder.global_type_label(argument.ty)),
         )
         .optional_field(
             "arguments",
-            argument_bindings_label(builder, &resolution.arguments),
+            builder.argument_bindings_label(&resolution.arguments),
         )
         .type_field("return", builder.global_type_label(resolution.return_type));
 
@@ -255,7 +255,7 @@ fn add_call_resolution_row(
         dir::CallTarget::Expression { generic_arguments } => {
             row.field("kind", "expression").optional_field(
                 "generic_arguments",
-                generic_arguments_label(builder, generic_arguments),
+                builder.generic_arguments_label(generic_arguments),
             )
         }
         dir::CallTarget::Symbol(candidate) => {
@@ -698,26 +698,10 @@ fn primitive_label(primitive: dir::PrimitiveType) -> String {
         dir::PrimitiveType::Character => "char".to_string(),
         dir::PrimitiveType::String => "string".to_string(),
         dir::PrimitiveType::Bigint => "bigint".to_string(),
-        dir::PrimitiveType::Integer(integer) => integer_label(integer),
+        dir::PrimitiveType::Integer(integer) => integer.as_str(),
         dir::PrimitiveType::Float(float) => float_label(float),
         dir::PrimitiveType::Symbol => "symbol".to_string(),
         dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
-    }
-}
-
-/// Return the canonical label for one integer predicate.
-fn integer_label(integer: dir::IntegerType) -> String {
-    match integer {
-        dir::IntegerType::Fixed {
-            width,
-            is_signed: true,
-        } => format!("int{width}"),
-        dir::IntegerType::Fixed {
-            width,
-            is_signed: false,
-        } => format!("uint{width}"),
-        dir::IntegerType::Pointer { is_signed: true } => "isize".to_string(),
-        dir::IntegerType::Pointer { is_signed: false } => "usize".to_string(),
     }
 }
 
@@ -742,13 +726,13 @@ fn add_construct_resolution_row(
         .type_tuple_field(
             "parameters",
             resolution
-                .parameters
+                .arguments
                 .iter()
-                .map(|type_id| builder.global_type_label(*type_id)),
+                .map(|argument| builder.global_type_label(argument.ty)),
         )
         .optional_field(
             "arguments",
-            argument_bindings_label(builder, &resolution.arguments),
+            builder.argument_bindings_label(&resolution.arguments),
         )
         .type_field("return", builder.global_type_label(resolution.return_type));
 
@@ -1149,9 +1133,10 @@ fn class_constructor_label(
 fn add_construct_candidate_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    candidate: &dir::NewtypeConstructCandidate,
+    candidate: &dir::NewtypeSelection,
 ) -> SnapshotRow {
     row.field("target", builder.symbol_path_label(candidate.symbol))
+        .type_field("backing", builder.global_type_label(candidate.backing))
         .optional_field(
             "instance",
             generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
@@ -1950,40 +1935,42 @@ fn assign_pattern_object_rest_label(
     format!("...{pattern}")
 }
 
-/// Render one applied generic argument list label.
-fn generic_arguments_label(
-    builder: &DirSnapshotBuilder<'_>,
-    arguments: &[dir::GenericArgumentBinding],
-) -> Option<String> {
-    if arguments.is_empty() {
-        return None;
+impl DirSnapshotBuilder<'_> {
+    /// Render one applied generic argument list label.
+    pub(super) fn generic_arguments_label(
+        &self,
+        arguments: &[dir::GenericArgumentBinding],
+    ) -> Option<String> {
+        if arguments.is_empty() {
+            return None;
+        }
+
+        let arguments = arguments
+            .iter()
+            .map(|argument| self.global_type_label(argument.argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        Some(format!("({arguments})"))
     }
 
-    let arguments = arguments
-        .iter()
-        .map(|argument| builder.global_type_label(argument.argument))
-        .collect::<Vec<_>>()
-        .join(", ");
+    /// Render one runtime argument binding list label.
+    pub(super) fn argument_bindings_label(
+        &self,
+        arguments: &[dir::ArgumentBinding],
+    ) -> Option<String> {
+        if arguments.is_empty() {
+            return None;
+        }
 
-    Some(format!("({arguments})"))
-}
+        let arguments = arguments
+            .iter()
+            .map(|argument| argument_binding_label(self, argument))
+            .collect::<Vec<_>>()
+            .join(", ");
 
-/// Render one runtime argument binding list label.
-fn argument_bindings_label(
-    builder: &DirSnapshotBuilder<'_>,
-    arguments: &[dir::ArgumentBinding],
-) -> Option<String> {
-    if arguments.is_empty() {
-        return None;
+        Some(format!("({arguments})"))
     }
-
-    let arguments = arguments
-        .iter()
-        .map(|argument| argument_binding_label(builder, argument))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    Some(format!("({arguments})"))
 }
 
 /// Render one runtime argument binding label.

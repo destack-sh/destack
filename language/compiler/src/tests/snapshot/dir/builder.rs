@@ -790,6 +790,19 @@ impl<'a> DirSnapshotBuilder<'a> {
 
                 format!("({elements})")
             }
+            dir::StaticTerm::Newtype { ty, value } => {
+                let name = self.global_type_label(*ty);
+                let arguments = match value.as_ref() {
+                    dir::StaticTerm::Tuple { elements } => elements
+                        .iter()
+                        .map(|element| self.static_term_label(element))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    value => self.static_term_label(value),
+                };
+
+                format!("{name}({arguments})")
+            }
             dir::StaticTerm::Object { properties } => {
                 // render object properties recursively
                 let properties = self.static_property_labels(properties);
