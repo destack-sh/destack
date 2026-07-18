@@ -120,10 +120,11 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.features` | active source graph features | `readonly Feature[]` | `["checkout"]`, `["renderer"]` |
 | `import.meta.tags` | active source graph tags | `readonly Tag[]` | `["preview"]`, `["internal"]` |
 | `import.meta.<mode>` | mode shorthands for `debug`, `dev`, `prod`, `test`, `bench`, `lint` | `boolean` | `import.meta.test`, `import.meta.prod` |
-| `import.meta.env` | configured build environment | `{ readonly [key: string]: string | boolean | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
+| `import.meta.env` | configured build environment | `{ readonly [key: string]: string | undefined }` | `{ NODE_ENV: "production" }` |
 | `import.meta.tree` | current module tree tag builder | `TreeTagBuilder | undefined` | `HtmlTree` |
 | `import.meta.derive` | current module auto derives | `readonly Derive[]` | `["Clone", "Debug"]` |
-| `import.meta.labels` | current module labels | `{ readonly [key: string]: unknown }` | `{ feature: ["checkout"] }` |
+| `import.meta.role` | active product role | `string | undefined` | `"server"`, `undefined` |
+| `import.meta.labels` | labels contributed by active source graph conditions | `{ readonly [key: string]: readonly string[] | undefined }` | `{ release: ["preview"] }` |
 
 ## Data Modules
 
