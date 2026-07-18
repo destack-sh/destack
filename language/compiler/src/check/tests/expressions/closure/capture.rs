@@ -181,10 +181,16 @@ let step = 2;
 /// @type.node source=2 type=2
 
 @capture({
+/// @type.node source=capture type=capture
 /// @resolution.name source=capture target=decorator.capture.capture
+/// @type.node type={ default: "manage"; step: "copy" }
 
     default: "manage",
+    /// @type.node source="\"manage\"" type="manage"
+
     step: "copy",
+    /// @type.node source="\"copy\"" type="copy"
+
 })
 const next = () => count + step;
 /// @type.symbol symbol=next source=next type=Function<(), float64>
@@ -273,10 +279,16 @@ let socket = Socket {};
 /// @resolution.name source=Socket target=Socket
 
 @capture({
+/// @type.node source=capture type=capture
 /// @resolution.name source=capture target=decorator.capture.capture
+/// @type.node type={ default: "manage"; socket: "move" }
 
     default: "manage",
+    /// @type.node source="\"manage\"" type="manage"
+
     socket: "move",
+    /// @type.node source="\"move\"" type="move"
+
 })
 const send: ^Function<(string,), void> = (message) => {
 /// @type.symbol symbol=send source=send type=Owned<Function<(string,), void>>
@@ -341,7 +353,7 @@ declare class Client {
 
 let client: Client = new Client();
 
-@capture("copy")
+@capture("copy" as CaptureDirective)
 const load = async () => await client.read();
 
 === checked ===
@@ -363,7 +375,9 @@ let client = new Client();
 /// @resolution.name source=Client target=Client
 
 @capture("copy")
+/// @type.node source=capture type=capture
 /// @resolution.name source=capture target=decorator.capture.capture
+/// @type.node source="\"copy\"" type="copy"
 
 const load = async () => await client.read();
 /// @type.symbol symbol=load source=load type=Function<(), Promise<string>>

@@ -19,7 +19,6 @@ impl WalkState<'_, '_> {
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
         place: Option<dir::PlaceModifier>,
-        decorated: Option<dir::LocalNodeIdAny>,
         is_ambient: bool,
     ) -> CompilerResult<()> {
         if !self.decide_decorated_presence(id.into_any())? {
@@ -27,15 +26,7 @@ impl WalkState<'_, '_> {
         }
 
         if let Some(symbol) = self.direct_declarator_symbol(declarator) {
-            self.walk_direct_declarator(
-                id,
-                symbol,
-                declarator,
-                binding_kind,
-                place,
-                decorated,
-                is_ambient,
-            )?;
+            self.walk_direct_declarator(id, symbol, declarator, binding_kind, place, is_ambient)?;
         } else {
             self.walk_pattern_declarator(id, declarator)?;
         }
@@ -72,7 +63,6 @@ impl WalkState<'_, '_> {
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
         place: Option<dir::PlaceModifier>,
-        decorated: Option<dir::LocalNodeIdAny>,
         is_ambient: bool,
     ) -> CompilerResult<()> {
         // bind annotated declarators before checking their initializers
@@ -104,7 +94,7 @@ impl WalkState<'_, '_> {
 
             // record annotated initializers against their written type
             if let Some(value) = declarator.value {
-                self.walk_declarator_initializer(id, decorated, value)?;
+                self.walk_expression(value, self.tree.get(value))?;
                 self.check.bodies.push(BodyOwner {
                     phase: BodyPhase::Main,
                     module: self.module,
@@ -125,7 +115,7 @@ impl WalkState<'_, '_> {
 
         // walk the initializer as its own expression
         if let Some(value) = declarator.value {
-            self.walk_declarator_initializer(id, decorated, value)?;
+            self.walk_expression(value, self.tree.get(value))?;
         }
 
         // bind inferred declarations from their initializer
@@ -153,22 +143,6 @@ impl WalkState<'_, '_> {
         self.binding_type_slot(symbol, widening)?;
 
         Ok(())
-    }
-
-    /// Walk one direct declarator initializer.
-    fn walk_declarator_initializer(
-        &mut self,
-        id: dir::LocalNodeId<dir::Declarator>,
-        decorated: Option<dir::LocalNodeIdAny>,
-        value: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        let decorated = decorated.unwrap_or_else(|| id.into_any());
-        let directive = self
-            .check
-            .capture_directive_for_source(self.module, decorated)?;
-        self.with_capture_directive(directive, |state| {
-            state.walk_expression(value, state.tree.get(value))
-        })
     }
 
     /// Walk one declarator that destructures or matches a value.

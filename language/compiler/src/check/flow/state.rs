@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 
@@ -266,7 +268,7 @@ impl FlowState {
             symbol: function.symbol,
             symbols,
             receiver: function.captured_receiver,
-            directive: function.capture_directive,
+            annotation: None,
         };
         let branch = self.branch(function.checkpoint);
 
@@ -430,7 +432,7 @@ impl FlowState {
             unreachable!("continue branch collection requires an active control target");
         };
 
-        std::mem::take(&mut target.continue_branches)
+        take(&mut target.continue_branches)
     }
 
     /// Capture one symbol in the current function body.

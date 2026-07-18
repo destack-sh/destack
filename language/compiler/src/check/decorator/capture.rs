@@ -1,132 +1,224 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
-use crate::check::CheckState;
+use crate::check::{
+    CaptureAnnotation, CheckModuleState, CheckState, DecoratorApplication, DecoratorObject,
+};
+use crate::{CompilerError, CompilerResult};
+
+/// Fields carried by one capture directive object.
+#[derive(Debug)]
+struct CaptureOptions {
+    /// The default capture mode.
+    default: dir::CaptureMode,
+    /// The capture modes selected for named bindings.
+    rules: Vec<dir::CaptureRule>,
+}
+
+impl Default for CaptureOptions {
+    /// Create capture options with managed captures by default.
+    fn default() -> Self {
+        Self {
+            default: dir::CaptureMode::Manage,
+            rules: Vec::new(),
+        }
+    }
+}
 
 impl CheckState<'_> {
-    /// Return the capture directive attached to one function symbol.
-    pub(in crate::check) fn capture_directive_for_symbol(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::CaptureDirective>> {
-        let module = symbol.module_id;
-        let source = self
+    /// Apply one capture decorator to its declared function value.
+    pub(in crate::check) fn apply_capture_decorator(
+        &mut self,
+        module: ModuleId,
+        application: &DecoratorApplication,
+        value: &dir::StaticTerm,
+    ) -> CompilerResult<()> {
+        let source = application.expression.decorator.into_global(module);
+        let function = self
             .module(module)
-            .symbol_declaration_node(symbol.local_id)?;
-        self.capture_directive_for_source(module, source)
+            .declared_function(application.owner.local_id);
+        let Some(function) = function else {
+            self.report_invalid_capture_target(source)?;
+
+            return Ok(());
+        };
+        let directive = self.decode_capture_directive(value)?;
+        let capture = self
+            .module_mut(module)
+            .captures
+            .iter_mut()
+            .find(|capture| capture.symbol == function)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("capture decorator target {function:?} has no walked function"),
+            })?;
+        let previous = capture
+            .annotation
+            .as_ref()
+            .map(|annotation| annotation.source);
+        if let Some(previous) = previous {
+            self.report_duplicate_capture_decorator(source, previous)?;
+
+            return Ok(());
+        }
+        capture.annotation = Some(CaptureAnnotation { source, directive });
+
+        Ok(())
     }
 
-    /// Return the capture directive attached to one decorated source node.
-    pub(in crate::check) fn capture_directive_for_source(
+    /// Read one capture directive from its annotation tuple.
+    fn decode_capture_directive(
         &self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-    ) -> CompilerResult<Option<dir::CaptureDirective>> {
-        let applications = self.decorator_applications(module, source);
-        let mut directive = None;
+        value: &dir::StaticTerm,
+    ) -> CompilerResult<dir::CaptureDirective> {
+        let Some((_, value)) = value.as_newtype() else {
+            return Err(CompilerError::Internal {
+                message: "capture decorator has a non-newtype value".to_string(),
+            });
+        };
+        let Some(elements) = value.as_tuple() else {
+            return Err(CompilerError::Internal {
+                message: "capture decorator has a non-tuple value".to_string(),
+            });
+        };
 
-        // use the last capture decorator in source order
-        for application in applications {
-            if self.decorator_language_item(module, &application)
-                != Some(dir::LanguageItem::Capture)
-            {
-                continue;
+        match elements {
+            [] => Ok(dir::CaptureDirective {
+                default: dir::CaptureMode::Manage,
+                rules: Vec::new(),
+            }),
+            [value] => {
+                if let Some(value) = value.as_string() {
+                    Ok(dir::CaptureDirective {
+                        default: self.decode_capture_mode(value)?,
+                        rules: Vec::new(),
+                    })
+                } else if matches!(value, dir::StaticTerm::Object { .. }) {
+                    let mut options = CaptureOptions::default();
+                    let object = DecoratorObject::try_from(value)?;
+
+                    // apply object fields in value order
+                    for (name, value) in object.fields {
+                        self.apply_capture_field(name, value, &mut options)?;
+                    }
+
+                    Ok(dir::CaptureDirective {
+                        default: options.default,
+                        rules: options.rules,
+                    })
+                } else {
+                    Err(CompilerError::Internal {
+                        message: "capture decorator has an invalid directive value".to_string(),
+                    })
+                }
             }
+            elements => Err(CompilerError::Internal {
+                message: format!(
+                    "capture decorator construction has {} arguments",
+                    elements.len()
+                ),
+            }),
+        }
+    }
 
-            directive = self.capture_directive_from_arguments(module, &application.arguments);
+    /// Apply one capture directive field.
+    fn apply_capture_field(
+        &self,
+        name: dir::StringId,
+        value: &dir::StaticTerm,
+        options: &mut CaptureOptions,
+    ) -> CompilerResult<()> {
+        let Some(value) = value.as_string() else {
+            return Err(CompilerError::Internal {
+                message: "capture directive field has a non-string value".to_string(),
+            });
+        };
+        let mode = self.decode_capture_mode(value)?;
+
+        // replace object fields according to ordinary last-write semantics
+        if self.strings().get(name) == "default" {
+            options.default = mode;
+        } else if let Some(rule) = options.rules.iter_mut().find(|rule| rule.name == name) {
+            rule.mode = mode;
+        } else {
+            options.rules.push(dir::CaptureRule { name, mode });
         }
 
-        Ok(directive)
+        Ok(())
     }
 
-    /// Return the capture directive represented by decorator application arguments.
-    fn capture_directive_from_arguments(
-        &self,
-        module: ModuleId,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> Option<dir::CaptureDirective> {
-        let [argument] = arguments else {
-            return None;
-        };
-        let value = self.module_view(module).get(*argument).value()?;
+    /// Return the capture mode named by one string.
+    fn decode_capture_mode(&self, value: dir::StringId) -> CompilerResult<dir::CaptureMode> {
+        let name = self.strings().get(value);
+        let mode = dir::CaptureMode::try_from(name).map_err(|_| CompilerError::Internal {
+            message: format!("capture decorator has invalid mode '{name}'"),
+        })?;
 
-        match self.module_view(module).get(value) {
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) => {
-                let default = self.capture_mode_from_string(*name)?;
+        Ok(mode)
+    }
+}
 
-                Some(dir::CaptureDirective {
-                    default,
-                    rules: Vec::new(),
-                })
+impl CheckModuleState {
+    /// Return the function value declared by one source node.
+    fn declared_function(&self, owner: dir::LocalNodeIdAny) -> Option<dir::GlobalSymbolId> {
+        let view = self.view();
+
+        match owner.ty {
+            dir::NodeType::Declaration => {
+                let declaration = dir::LocalNodeId::<dir::Declaration>::new(owner.id);
+                let dir::Declaration::Function(function) = view.get(declaration) else {
+                    return None;
+                };
+                function.body?;
+
+                self.declaration_symbol(owner)
             }
-            dir::Expression::ObjectExpression { properties } => {
-                self.capture_directive_from_properties(module, properties)
+            dir::NodeType::Member => {
+                let member = dir::LocalNodeId::<dir::Member>::new(owner.id);
+                let dir::Member::Method { body: Some(_), .. } = view.get(member) else {
+                    return None;
+                };
+
+                self.declaration_symbol(owner)
+            }
+            dir::NodeType::Declarator => {
+                let declarator = dir::LocalNodeId::<dir::Declarator>::new(owner.id);
+                let value = view.get(declarator).value?;
+
+                self.declared_function(value.into_any())
+            }
+            dir::NodeType::Expression => {
+                let expression = dir::LocalNodeId::<dir::Expression>::new(owner.id);
+                let expression = match view.get(expression) {
+                    dir::Expression::Declaration(declaration) => {
+                        return self.declared_function(declaration.into_any());
+                    }
+                    dir::Expression::Let { declarators, .. }
+                    | dir::Expression::Using { declarators, .. } => {
+                        let [declarator] = declarators.as_slice() else {
+                            return None;
+                        };
+
+                        return self.declared_function(declarator.into_any());
+                    }
+                    dir::Expression::LetElse { declarator, .. } => {
+                        return self.declared_function(declarator.into_any());
+                    }
+                    dir::Expression::Return { value: Some(value) }
+                    | dir::Expression::Yield {
+                        value: Some(value), ..
+                    }
+                    | dir::Expression::As {
+                        expression: value, ..
+                    }
+                    | dir::Expression::Satisfies {
+                        expression: value, ..
+                    } => *value,
+                    _ => return None,
+                };
+
+                self.declared_function(expression.into_any())
             }
             _ => None,
         }
-    }
-
-    /// Return the capture directive represented by an object literal.
-    fn capture_directive_from_properties(
-        &self,
-        module: ModuleId,
-        properties: &[dir::LocalNodeId<dir::Property>],
-    ) -> Option<dir::CaptureDirective> {
-        let mut default = None;
-        let mut rules = Vec::new();
-
-        // read default and binding mode fields
-        for property in properties {
-            let dir::Property::Field { key, value, .. } = self.module_view(module).get(*property)
-            else {
-                return None;
-            };
-            let view = self.module_view(module);
-            let key = key.static_key(&view)?;
-            let dir::StaticKey::Name(name) = key else {
-                return None;
-            };
-            let mode = self.capture_mode_from_expression(module, *value)?;
-
-            if self.strings().get(name) == "default" {
-                default = Some(mode);
-            } else {
-                rules.push(dir::CaptureRule { name, mode });
-            }
-        }
-
-        Some(dir::CaptureDirective {
-            default: default.unwrap_or(dir::CaptureMode::Manage),
-            rules,
-        })
-    }
-
-    /// Return the capture mode represented by one expression.
-    fn capture_mode_from_expression(
-        &self,
-        module: ModuleId,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::CaptureMode> {
-        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) =
-            self.module_view(module).get(expression)
-        else {
-            return None;
-        };
-
-        self.capture_mode_from_string(*name)
-    }
-
-    /// Return the capture mode represented by one string.
-    fn capture_mode_from_string(&self, name: dir::StringId) -> Option<dir::CaptureMode> {
-        let mode = match self.strings().get(name) {
-            "manage" => dir::CaptureMode::Manage,
-            "borrow" => dir::CaptureMode::Borrow,
-            "copy" => dir::CaptureMode::Copy,
-            "move" => dir::CaptureMode::Move,
-            _ => return None,
-        };
-
-        Some(mode)
     }
 }

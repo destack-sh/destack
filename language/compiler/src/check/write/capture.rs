@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -6,9 +8,9 @@ use crate::check::{Capture, CheckState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Write checked captures into their DIR segment.
+    /// Write captures into their DIR segment.
     pub(in crate::check) fn write_captures(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let captures = std::mem::take(&mut self.module_mut(module).captures);
+        let captures = take(&mut self.module_mut(module).captures);
         if captures.is_empty() {
             return Ok(());
         }
@@ -17,10 +19,12 @@ impl CheckState<'_> {
         let mut managed_symbols =
             FxIndexMap::<dir::LocalScopeId, FxIndexSet<dir::GlobalSymbolId>>::default();
         for capture in &captures {
+            let directive = capture
+                .annotation
+                .as_ref()
+                .map(|annotation| &annotation.directive);
             for symbol in &capture.symbols {
-                if self.capture_mode(module, capture.directive.as_ref(), *symbol)?
-                    != dir::CaptureMode::Manage
-                {
+                if self.capture_mode(module, directive, *symbol)? != dir::CaptureMode::Manage {
                     continue;
                 }
 
@@ -34,7 +38,7 @@ impl CheckState<'_> {
             }
         }
 
-        // materialize one shared frame for each managed scope
+        // write one shared frame for each managed scope
         let mut frames = FxIndexMap::default();
         for (scope, symbols) in managed_symbols {
             let frame = self.write_capture_frame(module, scope, &symbols)?;
@@ -42,9 +46,13 @@ impl CheckState<'_> {
             frames.insert(scope, frame);
         }
 
-        // materialize captures for each function
-        for capture in captures {
-            let capture = self.write_capture(module, capture, &frames)?;
+        // write captures for each function
+        for mut capture in captures {
+            let directive = capture
+                .annotation
+                .take()
+                .map(|annotation| annotation.directive);
+            let capture = self.write_capture(module, capture, directive, &frames)?;
 
             self.module_mut(module)
                 .capture_segment
@@ -121,7 +129,7 @@ impl CheckState<'_> {
             }),
         )?;
 
-        // store the frame in the checked capture segment
+        // store the frame in the capture segment
         let frame = dir::CaptureFrame {
             scope: scope.into_global(module),
             ty,
@@ -136,15 +144,16 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         capture: Capture,
+        directive: Option<dir::CaptureDirective>,
         frames: &FxIndexMap<dir::LocalScopeId, dir::LocalCaptureFrameId>,
     ) -> CompilerResult<(dir::GlobalSymbolId, dir::Capture)> {
         let function = capture.symbol;
         let mut used_frames = FxIndexSet::default();
         let mut captured = Vec::new();
 
-        // materialize captured lexical bindings
+        // write captured lexical bindings
         for symbol in &capture.symbols {
-            let mode = self.capture_mode(module, capture.directive.as_ref(), *symbol)?;
+            let mode = self.capture_mode(module, directive.as_ref(), *symbol)?;
             let ty = self.capture_symbol_type(*symbol)?;
             let binding = match mode {
                 dir::CaptureMode::Manage => {
@@ -186,11 +195,10 @@ impl CheckState<'_> {
             captured.push(binding);
         }
 
-        // materialize captured receiver when present
+        // write the captured receiver when present
         let this = match capture.receiver {
             Some(receiver) => {
-                let mode =
-                    self.capture_mode(module, capture.directive.as_ref(), receiver.symbol)?;
+                let mode = self.capture_mode(module, directive.as_ref(), receiver.symbol)?;
                 let ty = self.settled_root(receiver.receiver.ty)?;
 
                 Some(dir::CapturedReceiver {
@@ -206,7 +214,7 @@ impl CheckState<'_> {
             frames: used_frames.into_iter().collect(),
             captures: captured,
             this,
-            directive: capture.directive,
+            directive,
         };
 
         Ok((function, capture))
@@ -231,7 +239,7 @@ impl CheckState<'_> {
         Ok(directive.mode_for_name(name))
     }
 
-    /// Return one captured symbol's settled checked type.
+    /// Return one captured symbol's settled type.
     fn capture_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -246,7 +254,7 @@ impl CheckState<'_> {
 
             return Err(CompilerError::Internal {
                 message: format!(
-                    "captured symbol {symbol:?} named {name} has no checked type: kind={:?} role={:?} scope={:?}",
+                    "captured symbol {symbol:?} named {name} has no committed type: kind={:?} role={:?} scope={:?}",
                     binding.kind, binding.role, binding.scope
                 ),
             });

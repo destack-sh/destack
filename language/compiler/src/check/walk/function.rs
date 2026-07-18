@@ -481,12 +481,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             resume_target = Some(resumed);
         }
 
-        // choose the directive attached to this function value
-        let capture_directive = match self.take_capture_directive() {
-            Some(directive) => Some(directive),
-            None => self.check.capture_directive_for_symbol(symbol)?,
-        };
-
         // enter function flow
         self.enter_function_frame(
             symbol,
@@ -495,7 +489,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             resume_target,
             signature.asynchrony,
             receiver,
-            capture_directive,
         );
 
         // mark entry bindings as definitely assigned

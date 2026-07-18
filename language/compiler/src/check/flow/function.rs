@@ -14,7 +14,6 @@ impl WalkState<'_, '_> {
         resume_target: Option<dir::GlobalTypeId>,
         asynchrony: dir::Asynchrony,
         receiver: Option<ReceiverBinding>,
-        capture_directive: Option<dir::CaptureDirective>,
     ) {
         // capture enclosing flow stack boundaries
         let flow = self.flow();
@@ -33,7 +32,6 @@ impl WalkState<'_, '_> {
             asynchrony,
             captured_symbols: FxIndexSet::default(),
             captured_receiver: None,
-            capture_directive,
         };
 
         // expose function frame to nested flow checks

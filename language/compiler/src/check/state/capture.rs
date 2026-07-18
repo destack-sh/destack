@@ -1,5 +1,14 @@
 use destack_dir as dir;
 
+/// One capture directive and its decorator source.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::check) struct CaptureAnnotation {
+    /// The decorator source.
+    pub(in crate::check) source: dir::GlobalNodeId<dir::Decorator>,
+    /// The selected capture directive.
+    pub(in crate::check) directive: dir::CaptureDirective,
+}
+
 /// Captures discovered for one walked function body.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) struct Capture {
@@ -9,8 +18,8 @@ pub(in crate::check) struct Capture {
     pub(in crate::check) symbols: Vec<dir::GlobalSymbolId>,
     /// Outer receiver read by this function.
     pub(in crate::check) receiver: Option<ReceiverBinding>,
-    /// The explicit capture directive.
-    pub(in crate::check) directive: Option<dir::CaptureDirective>,
+    /// The optional capture annotation.
+    pub(in crate::check) annotation: Option<CaptureAnnotation>,
 }
 
 /// Receiver type visible in one lexical context.
