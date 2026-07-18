@@ -125,8 +125,9 @@ export extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F, U
 export extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of
     Tensor<T, Rank, F, Sharding<...Axes>> {
     /// Return the mesh that owns the tensor shards.
-    @intrinsic("tensor.mesh")
-    get mesh(): Mesh;
+    get mesh(): Mesh {
+        return tensorMesh<T, Rank, F, ...Axes>(this);
+    }
 }
 
 export extension<T: Numeric, comptime Rank: int, F: TensorFormat, P: Placement> of
@@ -318,3 +319,9 @@ export declare function tensorDevice<T, comptime Rank: int, F: TensorFormat>(
 export declare function tensorBuffer<T, comptime Rank: int, F: TensorFormat>(
     tensor: &readonly Tensor<T, Rank, F, Unsharded>,
 ): Buffer<T>;
+
+/// Return the mesh that owns one sharded tensor's shards.
+@intrinsic("tensor.mesh")
+export declare function tensorMesh<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis>(
+    tensor: &readonly Tensor<T, Rank, F, Sharding<...Axes>>,
+): Mesh;

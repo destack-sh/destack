@@ -1,16 +1,21 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
+/// Create a new unique symbol.
+@binding("destack.types.symbol.create", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+declare function createSymbol(description?: string | number): symbol;
+
 /// Global symbol operations.
 @languageItem("types.Symbol")
 export class Symbol {
     /// Create a new unique symbol.
-    @binding("destack.types.symbol.create", {
-        provider: "runtime",
-        effect: "deterministic",
-        requires: [],
-    })
-    static create(description?: string | number): symbol;
+    static create(description?: string | number): symbol {
+        return createSymbol(description);
+    }
 
     /// Return a symbol from the shared registry.
     static for(key: string): symbol {

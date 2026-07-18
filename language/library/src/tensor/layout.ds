@@ -53,8 +53,9 @@ export extension<comptime Order: MemoryOrder> of Dense<Order> {
     }
 
     /// Return the linear element offset for `indices`.
-    @intrinsic("tensor.format.dense.offset")
-    offset<comptime Rank: int>(indices: [usize; Rank], shape: Shape<Rank>): isize;
+    offset<comptime Rank: int>(indices: [usize; Rank], shape: Shape<Rank>): isize {
+        return denseOffset<Order, Rank>(indices, shape);
+    }
 }
 
 export extension of Strided {
@@ -64,13 +65,36 @@ export extension of Strided {
     }
 
     /// Return whether this format stores logical neighbors contiguously.
-    @intrinsic("tensor.format.strided.isContiguous")
-    isContiguous<comptime Rank: int>(shape: Shape<Rank>, strides: [Stride; Rank]): boolean;
+    isContiguous<comptime Rank: int>(shape: Shape<Rank>, strides: [Stride; Rank]): boolean {
+        return stridedIsContiguous<Rank>(shape, strides);
+    }
 
     /// Return the linear element offset for `indices`.
-    @intrinsic("tensor.format.strided.offset")
-    offset<comptime Rank: int>(indices: [usize; Rank], strides: [Stride; Rank]): isize;
+    offset<comptime Rank: int>(indices: [usize; Rank], strides: [Stride; Rank]): isize {
+        return stridedOffset<Rank>(indices, strides);
+    }
 }
+
+/// Return the linear dense element offset for `indices`.
+@intrinsic("tensor.format.dense.offset")
+export declare function denseOffset<comptime Order: MemoryOrder, comptime Rank: int>(
+    indices: [usize; Rank],
+    shape: Shape<Rank>,
+): isize;
+
+/// Return whether one strided format stores logical neighbors contiguously.
+@intrinsic("tensor.format.strided.isContiguous")
+export declare function stridedIsContiguous<comptime Rank: int>(
+    shape: Shape<Rank>,
+    strides: [Stride; Rank],
+): boolean;
+
+/// Return the linear strided element offset for `indices`.
+@intrinsic("tensor.format.strided.offset")
+export declare function stridedOffset<comptime Rank: int>(
+    indices: [usize; Rank],
+    strides: [Stride; Rank],
+): isize;
 
 /// Named axis metadata used by frontends and debugging tools.
 export struct NamedAxis {
