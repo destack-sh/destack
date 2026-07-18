@@ -223,8 +223,8 @@ pub enum SymbolKind {
     NewtypeInterface,
     /// Enum symbol.
     Enum,
-    /// Enum field constant symbol.
-    EnumField,
+    /// Enum or derived newtype variant symbol.
+    Variant,
     /// Function symbol.
     Function,
     /// Label symbol.
@@ -306,7 +306,7 @@ impl SymbolKind {
             | Self::AssociatedConst
             | Self::Class
             | Self::Enum
-            | Self::EnumField
+            | Self::Variant
             | Self::Extension
             | Self::Function
             | Self::GenericTypeParameter
@@ -328,7 +328,7 @@ impl SymbolKind {
             Self::AssociatedType
                 | Self::Class
                 | Self::Enum
-                | Self::EnumField
+                | Self::Variant
                 | Self::Extension
                 | Self::Import
                 | Self::Interface
@@ -347,7 +347,7 @@ impl SymbolKind {
             Self::AssociatedConst
                 | Self::Class
                 | Self::Enum
-                | Self::EnumField
+                | Self::Variant
                 | Self::Function
                 | Self::Import
                 | Self::Newtype

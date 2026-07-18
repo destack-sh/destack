@@ -1,15 +1,16 @@
-use destack_serde::Reflect;
 use std::sync::Arc;
 
+use destack_core::StringId;
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{
-    EnumBackingType, EnumFieldValue, FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId,
-    GlobalTypeId, LocalGenericTemplateId, MemberSlot, MethodAbstraction, SegmentView, Space,
-    StaticKey,
+    EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny, GlobalStaticId,
+    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberSlot,
+    MethodAbstraction, SegmentView, Space, StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -311,6 +312,48 @@ pub enum Definition {
 }
 
 impl Definition {
+    /// Return whether this declaration's own shape supports one representation family.
+    pub fn supports_representation(&self, kind: RepresentationKind) -> bool {
+        match (self, kind) {
+            (Self::Struct(_), RepresentationKind::Destack | RepresentationKind::C)
+            | (Self::Class(_), RepresentationKind::Destack) => true,
+            (Self::Class(definition), RepresentationKind::C) => {
+                !definition.declares_virtual_dispatch()
+            }
+            (Self::Struct(definition), RepresentationKind::Transparent) => {
+                definition
+                    .members
+                    .iter()
+                    .filter(|member| {
+                        matches!(
+                            member,
+                            DefinitionMember::Field(field)
+                                if field.space == MemberSpace::Instance
+                        )
+                    })
+                    .count()
+                    == 1
+            }
+            (
+                Self::Enum(_),
+                RepresentationKind::Destack
+                | RepresentationKind::C
+                | RepresentationKind::Integer(_),
+            ) => true,
+            (
+                Self::Newtype(_),
+                RepresentationKind::Destack
+                | RepresentationKind::C
+                | RepresentationKind::Transparent,
+            ) => true,
+            (Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_), _)
+            | (Self::Struct(_), RepresentationKind::Integer(_))
+            | (Self::Class(_), RepresentationKind::Transparent | RepresentationKind::Integer(_))
+            | (Self::Enum(_), RepresentationKind::Transparent)
+            | (Self::Newtype(_), RepresentationKind::Integer(_)) => false,
+        }
+    }
+
     /// Return this nominal declaration's concrete space.
     pub fn space(&self) -> Option<Space> {
         match self {
@@ -439,6 +482,8 @@ pub struct StructDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the struct.
     pub template: Option<LocalGenericTemplateId>,
+    /// The selected runtime representation.
+    pub representation: Representation,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
     /// The members in declaration order.
@@ -452,6 +497,8 @@ pub struct ClassDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the class.
     pub template: Option<LocalGenericTemplateId>,
+    /// The selected runtime representation.
+    pub representation: Representation,
     /// Whether the class is abstract.
     pub is_abstract: bool,
     /// Whether the class rejects subclasses.
@@ -464,6 +511,20 @@ pub struct ClassDefinition {
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
+}
+
+impl ClassDefinition {
+    /// Return whether this class declares virtual dispatch.
+    pub fn declares_virtual_dispatch(&self) -> bool {
+        self.members.iter().any(|member| {
+            matches!(
+                member,
+                DefinitionMember::Method(method)
+                    if method.space == MemberSpace::Instance
+                        && method.abstraction != MethodAbstraction::Concrete
+            )
+        })
+    }
 }
 
 /// One class construct candidate.
@@ -577,6 +638,8 @@ pub struct EnumDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the enum.
     pub template: Option<LocalGenericTemplateId>,
+    /// The selected runtime representation.
+    pub representation: Representation,
     /// The scalar type backing every enum variant.
     pub backing: EnumBackingType,
     /// The implemented interfaces.
@@ -592,8 +655,12 @@ pub struct NewtypeDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the newtype.
     pub template: Option<LocalGenericTemplateId>,
+    /// The selected runtime representation.
+    pub representation: Representation,
     /// The nominal backing type.
     pub backing: GlobalTypeId,
+    /// The property carrying each derived Tagged variant's discriminant.
+    pub discriminant: Option<StringId>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -841,7 +908,7 @@ pub struct EnumVariantDefinition {
     /// The variant key.
     pub key: StaticKey,
     /// The resolved scalar value.
-    pub value: EnumFieldValue,
+    pub value: EnumVariantValue,
 }
 
 /// One case derived from a tagged newtype backing.
@@ -854,7 +921,7 @@ pub struct TaggedVariantDefinition {
     /// The derived variant key.
     pub key: StaticKey,
     /// The checked string discriminant.
-    pub discriminant: GlobalStaticId,
+    pub discriminant: StringId,
     /// The checked backing leaf selected by this variant.
     pub backing: GlobalTypeId,
 }
@@ -992,8 +1059,14 @@ impl DefinitionMember {
     pub fn static_value(&self) -> Option<GlobalStaticId> {
         match self {
             Self::AssociatedConst(associated) => associated.value,
-            Self::TaggedVariant(variant) => Some(variant.discriminant),
-            _ => None,
+            Self::Field(_)
+            | Self::Method(_)
+            | Self::AssociatedType(_)
+            | Self::EnumVariant(_)
+            | Self::TaggedVariant(_)
+            | Self::CallSignature(_)
+            | Self::ConstructSignature(_)
+            | Self::IndexSignature(_) => None,
         }
     }
 
@@ -1115,5 +1188,113 @@ impl Definition {
             | Self::TypeAlias(_)
             | Self::Newtype(_) => SmallVec::new(),
         }
+    }
+}
+
+/// Runtime representation selected for one nominal declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+pub struct Representation {
+    /// The representation family.
+    pub kind: RepresentationKind,
+    /// The required byte alignment.
+    pub alignment: Option<u64>,
+    /// The maximum field alignment for packed layouts.
+    pub packing: Option<u64>,
+}
+
+/// Runtime representation family for one nominal declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+pub enum RepresentationKind {
+    /// The native Destack layout.
+    #[default]
+    Destack,
+    /// The target C ABI layout.
+    C,
+    /// The single-field backing layout without a wrapper.
+    Transparent,
+    /// An explicit integer scalar representation.
+    Integer(IntegerType),
+}
+
+impl<'a> TryFrom<&'a str> for RepresentationKind {
+    type Error = &'a str;
+
+    /// Convert one standard name into a representation family.
+    fn try_from(name: &'a str) -> Result<Self, Self::Error> {
+        let integer = match name {
+            "destack" => return Ok(Self::Destack),
+            "C" => return Ok(Self::C),
+            "transparent" => return Ok(Self::Transparent),
+            "int" => IntegerType::Fixed {
+                width: 64,
+                is_signed: true,
+            },
+            "uint" => IntegerType::Fixed {
+                width: 64,
+                is_signed: false,
+            },
+            "isize" => IntegerType::Pointer { is_signed: true },
+            "usize" => IntegerType::Pointer { is_signed: false },
+            _ => {
+                let (width, is_signed) = if let Some(width) = name.strip_prefix("int") {
+                    (width, true)
+                } else {
+                    let Some(width) = name.strip_prefix("uint") else {
+                        return Err(name);
+                    };
+
+                    (width, false)
+                };
+                let Ok(width) = width.parse::<u16>() else {
+                    return Err(name);
+                };
+                if width == 0 {
+                    return Err(name);
+                }
+
+                IntegerType::Fixed { width, is_signed }
+            }
+        };
+
+        Ok(Self::Integer(integer))
+    }
+}
+
+impl NewtypeDefinition {
+    /// Return whether this newtype has a checked Tagged derivation.
+    pub fn is_tagged(&self) -> bool {
+        self.discriminant.is_some()
+    }
+
+    /// Iterate the derived Tagged variants in declaration order.
+    pub fn tagged_variants(&self) -> impl Iterator<Item = &TaggedVariantDefinition> {
+        self.members.iter().filter_map(|member| match member {
+            DefinitionMember::TaggedVariant(variant) => Some(variant),
+            _ => None,
+        })
+    }
+
+    /// Return the derived Tagged variant with one symbol.
+    pub fn tagged_variant_by_symbol(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> Option<&TaggedVariantDefinition> {
+        self.tagged_variants()
+            .find(|variant| variant.symbol == symbol)
+    }
+
+    /// Return the derived Tagged variant with one member key.
+    pub fn tagged_variant_by_key(&self, key: StaticKey) -> Option<&TaggedVariantDefinition> {
+        self.tagged_variants()
+            .find(|variant| variant.key.matches(&key))
+    }
+
+    /// Return the derived Tagged variant with one discriminant.
+    pub fn tagged_variant_by_discriminant(
+        &self,
+        discriminant: StringId,
+    ) -> Option<&TaggedVariantDefinition> {
+        self.tagged_variants()
+            .find(|variant| variant.discriminant == discriminant)
     }
 }

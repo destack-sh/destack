@@ -111,53 +111,70 @@ pub enum EnumBackingType {
 }
 
 impl EnumBackingType {
+    /// The backing selected for an enum without an explicit scalar domain.
+    pub const DEFAULT: Self = Self::Integer(IntegerType::Fixed {
+        width: 64,
+        is_signed: true,
+    });
+
     /// Return whether this backing type contains one resolved enum value.
-    pub fn contains(self, value: EnumFieldValue) -> bool {
+    pub fn contains(self, value: EnumVariantValue) -> bool {
         match (self, value) {
-            (Self::String, EnumFieldValue::String(_)) => true,
-            (Self::Integer(integer), EnumFieldValue::Integer(value)) => integer.fits_literal(value),
-            (Self::String, EnumFieldValue::Integer(_))
-            | (Self::Integer(_), EnumFieldValue::String(_)) => false,
+            (Self::String, EnumVariantValue::String(_)) => true,
+            (Self::Integer(integer), EnumVariantValue::Integer(value)) => {
+                integer.fits_literal(value)
+            }
+            (Self::String, EnumVariantValue::Integer(_))
+            | (Self::Integer(_), EnumVariantValue::String(_)) => false,
         }
     }
 }
 
-/// A resolved enum field value.
+/// A resolved enum variant value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum EnumFieldValue {
+pub enum EnumVariantValue {
     /// Integer enum value.
     Integer(i64),
     /// String enum value.
     String(StringId),
 }
 
-impl EnumFieldValue {
+impl EnumVariantValue {
     /// Return this value's default enum backing type.
     pub fn default_backing(self) -> EnumBackingType {
         match self {
-            Self::Integer(_) => EnumBackingType::Integer(IntegerType::Fixed {
-                width: 64,
-                is_signed: true,
-            }),
+            Self::Integer(_) => EnumBackingType::DEFAULT,
             Self::String(_) => EnumBackingType::String,
         }
     }
 
-    /// Return the following implicit enum value when the domain permits one.
-    pub fn next(self) -> Option<Self> {
+    /// Increment this value for one implicit enum variant.
+    pub fn increment(self) -> Result<Self, EnumVariantIncrementError> {
         match self {
-            Self::Integer(value) => value.checked_add(1).map(Self::Integer),
-            Self::String(_) => None,
+            Self::Integer(value) => value
+                .checked_add(1)
+                .map(Self::Integer)
+                .ok_or(EnumVariantIncrementError::Overflow),
+            Self::String(_) => Err(EnumVariantIncrementError::ExplicitValueRequired),
         }
     }
 }
 
-impl From<EnumFieldValue> for ScalarLiteral {
-    /// Convert one resolved enum field value into its scalar literal.
-    fn from(value: EnumFieldValue) -> Self {
+/// Why an enum value cannot produce the next implicit value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnumVariantIncrementError {
+    /// String backed variants require explicit values.
+    ExplicitValueRequired,
+    /// The preceding integer is the largest supported enum value.
+    Overflow,
+}
+
+impl From<EnumVariantValue> for ScalarLiteral {
+    /// Convert one resolved enum variant value into its scalar literal.
+    fn from(value: EnumVariantValue) -> Self {
         match value {
-            EnumFieldValue::Integer(value) => Self::Integer(value),
-            EnumFieldValue::String(value) => Self::String(value),
+            EnumVariantValue::Integer(value) => Self::Integer(value),
+            EnumVariantValue::String(value) => Self::String(value),
         }
     }
 }
