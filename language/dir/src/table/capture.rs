@@ -301,6 +301,21 @@ pub enum CaptureMode {
     Move,
 }
 
+impl<'a> TryFrom<&'a str> for CaptureMode {
+    type Error = &'a str;
+
+    /// Convert one standard name into a capture mode.
+    fn try_from(name: &'a str) -> Result<Self, Self::Error> {
+        match name {
+            "manage" => Ok(Self::Manage),
+            "borrow" => Ok(Self::Borrow),
+            "copy" => Ok(Self::Copy),
+            "move" => Ok(Self::Move),
+            _ => Err(name),
+        }
+    }
+}
+
 /// A capture rule keyed by name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CaptureRule {
