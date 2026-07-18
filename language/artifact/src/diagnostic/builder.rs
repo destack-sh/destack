@@ -1,11 +1,13 @@
-use destack_source::{Diagnostic, DiagnosticHelp, DiagnosticNote, DiagnosticSuggestion};
+use destack_source::{
+    Diagnostic, DiagnosticHelp, DiagnosticNote, DiagnosticSuggestion, DiagnosticTag,
+};
 
 use crate::{DiagnosticAnchor, DiagnosticContext, DiagnosticError, ToDiagnostic};
 
-/// Secondary source label attached by a diagnostic builder.
+/// One secondary diagnostic label.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SecondaryLabel {
-    /// The provider-side source anchor.
+    /// The source anchor.
     anchor: DiagnosticAnchor,
     /// The label message.
     message: String,
@@ -21,11 +23,13 @@ impl SecondaryLabel {
     }
 }
 
-/// Builder for decorating one provider diagnostic before finalization.
+/// Additional diagnostic fields attached to one provider diagnostic.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DiagnosticBuilder<T> {
     /// The provider diagnostic value.
     diagnostic: T,
+    /// The optional primary label message.
+    primary: Option<String>,
     /// Secondary source labels to add.
     labels: Vec<SecondaryLabel>,
     /// Notes to add.
@@ -34,6 +38,8 @@ pub struct DiagnosticBuilder<T> {
     helps: Vec<DiagnosticHelp>,
     /// Source edit suggestions to add.
     suggestions: Vec<DiagnosticSuggestion>,
+    /// Diagnostic tags to add.
+    tags: Vec<DiagnosticTag>,
 }
 
 impl<T> DiagnosticBuilder<T> {
@@ -41,10 +47,12 @@ impl<T> DiagnosticBuilder<T> {
     pub fn new(diagnostic: T) -> Self {
         Self {
             diagnostic,
+            primary: None,
             labels: Vec::new(),
             notes: Vec::new(),
             helps: Vec::new(),
             suggestions: Vec::new(),
+            tags: Vec::new(),
         }
     }
 
@@ -56,6 +64,13 @@ impl<T> DiagnosticBuilder<T> {
     /// Return the wrapped provider diagnostic mutably.
     pub fn diagnostic_mut(&mut self) -> &mut T {
         &mut self.diagnostic
+    }
+
+    /// Set the primary label message.
+    pub fn primary(mut self, message: impl Into<String>) -> Self {
+        self.primary = Some(message.into());
+
+        self
     }
 
     /// Add one secondary source label.
@@ -86,6 +101,13 @@ impl<T> DiagnosticBuilder<T> {
         self
     }
 
+    /// Add one diagnostic tag.
+    pub fn tag(mut self, tag: DiagnosticTag) -> Self {
+        self.tags.push(tag);
+
+        self
+    }
+
     /// Return the wrapped provider diagnostic.
     pub fn into_inner(self) -> T {
         self.diagnostic
@@ -103,13 +125,18 @@ impl<T> ToDiagnostic for DiagnosticBuilder<T>
 where
     T: ToDiagnostic,
 {
-    /// Convert the decorated provider diagnostic into one final diagnostic.
+    /// Convert the provider diagnostic and its attached fields into a source diagnostic.
     fn to_diagnostic(
         &self,
         context: &dyn DiagnosticContext,
     ) -> Result<Diagnostic, DiagnosticError> {
         // base diagnostic
         let mut diagnostic = self.diagnostic.to_diagnostic(context)?;
+
+        // set the primary label
+        if let Some(message) = &self.primary {
+            diagnostic.primary.message = Some(message.clone());
+        }
 
         // secondary labels
         for label in &self.labels {
@@ -130,6 +157,11 @@ where
         // suggestions
         for suggestion in &self.suggestions {
             diagnostic = diagnostic.suggestion(suggestion.clone());
+        }
+
+        // tags
+        for tag in &self.tags {
+            diagnostic = diagnostic.tag(*tag);
         }
 
         Ok(diagnostic)
