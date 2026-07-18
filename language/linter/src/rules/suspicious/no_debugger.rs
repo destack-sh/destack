@@ -1,6 +1,9 @@
-use crate::rules::declare_lint;
-use crate::{DirModuleContext, LinterError};
 use destack_dir as dir;
+use destack_repository::ProviderError;
+use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, PatchSet};
+
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
     /// Disallow debugger statements.
@@ -10,27 +13,257 @@ declare_lint! {
         description: "Disallow debugger statements",
         category: Suspicious,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Always,
         check: DirModule(check),
     }
 }
 
-/// Check no-debugger.
-fn check(mut context: DirModuleContext<'_>) -> Result<(), LinterError> {
-    let view = context.module.view();
+/// Report debugger statements.
+fn check(module: &DirModule, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
 
-    // report every visible debugger expression in the checked DIR
-    for (node, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+    // report every visible debugger expression
+    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+        // skip other expressions
         if !matches!(expression, dir::Expression::Debugger) {
             continue;
         }
 
-        let anchor = context.module.anchor(node.into_any());
-        let diagnostic = context
-            .diagnostic("debugger statement is not allowed", anchor)
-            .label("remove this debugger statement");
-        context.report(diagnostic);
+        let span = module.span(expression_id.into_any())?;
+        let suggestion = suggest_removal(module, view, expression_id)?;
+        let diagnostic = lint
+            .diagnostic("`debugger` statement is not allowed", span)
+            .suggestion(suggestion);
+        output.report(diagnostic);
     }
 
-    Ok(())
+    Ok(output)
+}
+
+/// Build an automatic debugger removal.
+fn suggest_removal(
+    module: &DirModule,
+    view: dir::View<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Result<DiagnosticSuggestion, ProviderError> {
+    // root statements can disappear completely
+    let replacement = if module.roots.contains(&expression_id) {
+        ""
+    }
+    // classify the statement's structural position
+    else {
+        let parent = view.get_parent_for(expression_id).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "debugger statement {} in module {:?} has no DIR parent",
+                expression_id.id, module.id
+            ))
+        })?;
+
+        match parent.ty {
+            // preserve required implicit control bodies
+            dir::NodeType::Block => {
+                let block_id = dir::LocalNodeId::<dir::Block>::new(parent.id);
+                let block = view.get(block_id);
+                let is_implicit_body = block.form == dir::BlockForm::Implicit
+                    && block.only_expression() == Some(expression_id);
+
+                if is_implicit_body { "{}" } else { "" }
+            }
+            // preserve required match arm expressions
+            dir::NodeType::MatchCase => {
+                let case_id = dir::LocalNodeId::<dir::MatchCase>::new(parent.id);
+                let match_parent = view.get_parent_for(case_id).ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "debugger match case {} in module {:?} has no DIR parent",
+                        parent.id, module.id
+                    ))
+                })?;
+
+                // require the enclosing match expression
+                let match_expression = match_parent
+                    .try_into_typed::<dir::Expression>()
+                    .map_err(|message| {
+                        ProviderError::internal(format!(
+                            "debugger match case {} in module {:?} has invalid DIR parent: {message}",
+                            parent.id, module.id
+                        ))
+                    })?;
+                let dir::Expression::Match { form, .. } = view.get(match_expression) else {
+                    return Err(ProviderError::internal(format!(
+                        "debugger match case {} in module {:?} has non-match DIR parent {match_parent:?}",
+                        parent.id, module.id
+                    )));
+                };
+
+                // preserve match arm values but allow empty switch cases
+                match form {
+                    dir::MatchForm::Match => "{}",
+                    dir::MatchForm::Switch => "",
+                }
+            }
+            // catch and finally clauses require bodies
+            dir::NodeType::Catch => "{}",
+            dir::NodeType::Expression
+                if matches!(
+                    view.get(dir::LocalNodeId::<dir::Expression>::new(parent.id)),
+                    dir::Expression::Try {
+                        finally: Some(finally),
+                        ..
+                    } if *finally == expression_id
+                ) =>
+            {
+                "{}"
+            }
+            _ => {
+                return Err(ProviderError::internal(format!(
+                    "debugger statement {} in module {:?} has invalid DIR parent {parent:?}",
+                    expression_id.id, module.id
+                )));
+            }
+        }
+    };
+
+    // replace the complete statement
+    let span = module.statement_span(expression_id)?;
+    let mut file_patch = FilePatch::new(span.file);
+    file_patch.replace(span, replacement);
+    let patches = PatchSet::single(file_patch);
+    let suggestion = DiagnosticSuggestion::new(
+        "remove the debugger statement",
+        patches,
+        Applicability::Automatic,
+    );
+
+    Ok(suggestion)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Report the complete debugger diagnostic and source suggestion.
+    #[test]
+    fn test_reports_debugger_statement() {
+        let session = TestSession::new(&NO_DEBUGGER, r#"if (true) debugger;"#);
+
+        session.assert_diagnostics(
+            r#"
+warning LU008: `debugger` statement is not allowed
+ ──▶ main.ds:1:11
+  │
+1 │ if (true) debugger;
+  │           ^^^^^^^^
+  │
+
+ = help: remove the debugger statement (machine-applicable)
+--- a/main.ds
++++ b/main.ds
+
+-   1│ if (true) debugger;
++   1│ if (true) {}
+"#,
+        );
+    }
+
+    /// Remove the debugger statement without changing surrounding source.
+    #[test]
+    fn test_removes_debugger_statement() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"const before = 1;
+debugger;
+const after = 2;
+"#,
+        );
+
+        session.assert_fixes(
+            r#"const before = 1;
+
+const after = 2;
+"#,
+        );
+    }
+
+    /// Preserve the required body of a catch clause.
+    #[test]
+    fn test_replaces_catch_body() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"try {} catch (error) debugger;
+"#,
+        );
+
+        session.assert_fixes(
+            r#"try {} catch (error) {}
+"#,
+        );
+    }
+
+    /// Preserve the required body of a finally clause.
+    #[test]
+    fn test_replaces_finally_body() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"try {} finally debugger;
+"#,
+        );
+
+        session.assert_fixes(
+            r#"try {} finally {}
+"#,
+        );
+    }
+
+    /// Remove the debugger statement from a switch case.
+    #[test]
+    fn test_removes_switch_case_statement() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"switch (1) {
+    case 1: debugger;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"switch (1) {
+    case 1:
+}
+"#,
+        );
+    }
+
+    /// Preserve the required value of a direct match arm.
+    #[test]
+    fn test_replaces_match_arm() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"match (undefined) {
+    _ => debugger
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"match (undefined) {
+    _ => {}
+}
+"#,
+        );
+    }
+
+    /// Ignore property declarations and accesses named debugger.
+    #[test]
+    fn test_ignores_debugger_property() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"const value = { debugger: true };
+value.debugger;
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }
