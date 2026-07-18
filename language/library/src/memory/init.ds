@@ -1,4 +1,5 @@
 import { Default, Zeroable } from "./capability.ds";
+import { drop } from "./drop.ds";
 
 /// Storage for `T` whose lifetime may not have started.
 @languageItem("memory.MaybeUninit")
@@ -49,8 +50,9 @@ export declare function assumeInit<T>(storage: MaybeUninit<T>): T;
 export declare function assumeInitRead<T>(storage: &MaybeUninit<T>): T;
 
 /// Drop one initialized storage in place.
-@intrinsic("memory.init.assumeInitDrop")
-export declare function assumeInitDrop<T>(storage: &exclusive MaybeUninit<T>): void;
+export function assumeInitDrop<T>(storage: &exclusive MaybeUninit<T>): void {
+    drop(assumeInitRead<T>(storage));
+}
 
 export extension<T> of MaybeUninit<T> implements Default {
     /// Create initialized storage for `value`.

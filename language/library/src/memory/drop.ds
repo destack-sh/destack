@@ -44,7 +44,7 @@ export extension<T> of ManuallyDrop<T> {
 
     /// Drop the wrapped value.
     dropInner(this): void {
-        dropManuallyDropInner<T>(this);
+        drop(intoManuallyDropInner<T>(this));
     }
 }
 
@@ -72,10 +72,6 @@ export declare function manuallyDropReadonlyReference<T>(wrapped: &readonly Manu
 @intrinsic("memory.manuallyDrop.asExclusive")
 export declare function manuallyDropExclusive<T>(wrapped: &exclusive ManuallyDrop<T>): &exclusive T;
 
-/// Drop one wrapped value.
-@intrinsic("memory.manuallyDrop.dropInner")
-export declare function dropManuallyDropInner<T>(wrapped: ManuallyDrop<T>): void;
-
 export extension<T> of ManuallyDrop<T> implements Default where T: Default {
     /// Wrap the default value.
     static default(): ManuallyDrop<T> {
@@ -85,9 +81,10 @@ export extension<T> of ManuallyDrop<T> implements Default where T: Default {
 
 /// End ownership of `value` at this point.
 @intrinsic("memory.drop")
-export declare function drop<T>(value: ^T): void;
+export declare function drop<T>(value: T): void;
 
 /// End ownership of `value` without running its destructor.
 @languageItem("memory.forget")
-@intrinsic("memory.forget")
-export declare function forget<T>(value: ^T): void;
+export function forget<T>(value: T): void {
+    newManuallyDrop<T>(value);
+}
