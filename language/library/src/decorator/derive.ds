@@ -17,7 +17,7 @@ export type TaggedNames = {
     readonly [discriminant: string]: string;
 };
 
-/// Derive named cases for newtype unions with explicit `kind` discriminants.
+/// Derive named cases for newtype unions with string discriminants.
 ///
 /// ```ds
 /// @derive(Tagged({ case: "UpperCamelCase" }))
@@ -29,6 +29,10 @@ export type TaggedNames = {
 export newtype Tagged =
     | ()
     | {
+          /// The discriminant property, defaulting to `kind`.
+          discriminant?: string;
+          /// The constructor naming policy.
           case?: TaggedCase;
+          /// Explicit constructor names keyed by discriminant value.
           names?: TaggedNames;
       };
