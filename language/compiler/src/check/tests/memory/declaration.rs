@@ -763,12 +763,12 @@ fn test_fix_explicit_receiver_to_nominal_declaration_space() {
     let session = TestSession::single(
         r#"
 local struct Continuation<T> {
-    @intrinsic
-    resume(this, value: T): T;
+    resume(this, value: T): T {
+        return value;
+    }
 }
 
 shared newtype interface SharedQueue<T> {
-    @intrinsic
     push(this, value: T): void;
 }
 "#,
@@ -780,12 +780,12 @@ shared newtype interface SharedQueue<T> {
         r#"
 === annotated ===
 local struct Continuation<out T> {
-    @intrinsic
-    resume(this, value: T): T;
+    resume(this, value: T): T {
+        return value;
+    }
 }
 
 shared newtype interface SharedQueue<in T> {
-    @intrinsic
     push(this, value: T): void;
 }
 
@@ -794,19 +794,20 @@ local struct Continuation<T> {
 /// @generic.template symbol=Continuation parameters=(out T#1)
 /// @type.symbol symbol=Continuation type=Continuation
 /// @definition.struct symbol=Continuation template=(out T#1)
-/// @definition.method symbol=Continuation.resume source="resume(this, value: T): T" slot=resume type=(this: this, T#1) => T#1
+/// @definition.method symbol=Continuation.resume slot=resume type=(this: this, T#1) => T#1
 /// @type.symbol symbol=Continuation.T source=T type=T#1
 
-    @intrinsic
-    /// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
-
-    resume(this, value: T): T;
-    /// @type.symbol symbol=Continuation.resume source="resume(this, value: T): T" type=(this: this, T#1) => T#1
+    resume(this, value: T): T {
+    /// @type.symbol symbol=Continuation.resume type=(this: this, T#1) => T#1
     /// @type.symbol symbol=Continuation.resume.this source=this type=this
     /// @type.symbol symbol=Continuation.resume.value source="value: T" type=T#1
     /// @resolution.name source=T target=Continuation.T
     /// @resolution.name source=T target=Continuation.T
 
+        return value;
+        /// @resolution.name source=value target=Continuation.resume.value
+
+    }
 }
 
 shared newtype interface SharedQueue<T> {
@@ -816,9 +817,6 @@ shared newtype interface SharedQueue<T> {
 /// @definition.where symbol=SharedQueue relation=satisfies left=this right=SharedQueue<T#2>
 /// @definition.method symbol=SharedQueue.push source="push(this, value: T): void" slot=push type=(this: this, T#2) => void
 /// @type.symbol symbol=SharedQueue.T source=T type=T#2
-
-    @intrinsic
-    /// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
 
     push(this, value: T): void;
     /// @type.symbol symbol=SharedQueue.push source="push(this, value: T): void" type=(this: this, T#2) => void

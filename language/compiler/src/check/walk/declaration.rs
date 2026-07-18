@@ -1321,8 +1321,8 @@ impl WalkState<'_, '_> {
         )?;
         let this_parameter = header.this_parameter;
 
-        // require a body unless an intrinsic or ambience carries one
-        if declaration.body.is_none() && !declaration.is_ambient && !self.is_intrinsic(id)? {
+        // require a body unless ambience carries one
+        if declaration.body.is_none() && !declaration.is_ambient {
             let source = id.into_global_any(self.module);
             self.check
                 .report_missing_declaration_body(source, self.check.format_symbol(symbol));

@@ -866,8 +866,6 @@ pub enum MethodImplementation {
     Body,
     /// The declaring interface supplies a fallback body.
     Default,
-    /// The compiler supplies the body.
-    Intrinsic,
 }
 
 /// One associated type.
@@ -1134,6 +1132,14 @@ impl Definition {
             Self::Extension(extension) => &mut extension.members,
             Self::TypeAlias(_) => &mut [],
         }
+    }
+
+    /// Return the method member symbol declared at one source node.
+    pub fn method_declared_at(&self, source: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
+        self.members().iter().find_map(|member| match member {
+            DefinitionMember::Method(method) if method.source == source => Some(method.symbol),
+            _ => None,
+        })
     }
 
     /// Iterate the instance fields in declaration order.

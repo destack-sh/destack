@@ -234,7 +234,7 @@ function parse(value: string): int32;
 }
 
 #[test]
-fn test_intrinsic_declaration_carries_its_implementation() {
+fn test_require_bodies_on_extension_members_despite_decorators() {
     let session = TestSession::single(
         r#"
 struct Buffer {
@@ -295,6 +295,8 @@ extension of Buffer {
 }
 "#,
         r#"
+/// @diagnostic.error id=missing-declaration-body message="declaration 'get' requires a body"
+/// @diagnostic.label line=8 column=9 span="capacity" line_source="get capacity(): usize;"
 /// @diagnostic.error id=missing-declaration-body message="declaration 'trailing' requires a body"
 /// @diagnostic.label line=10 column=5 span="trailing" line_source="trailing(): usize;"
 "#,

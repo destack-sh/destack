@@ -502,8 +502,6 @@ impl WalkState<'_, '_> {
                 // classify how the method receives its implementation
                 let implementation = if body.is_some() {
                     dir::MethodImplementation::Body
-                } else if self.is_intrinsic(id)? {
-                    dir::MethodImplementation::Intrinsic
                 } else {
                     dir::MethodImplementation::Required
                 };
@@ -831,8 +829,6 @@ impl WalkState<'_, '_> {
                 // classify how the member receives its implementation
                 let implementation = if body.is_some() {
                     dir::MethodImplementation::Default
-                } else if self.is_intrinsic(id)? {
-                    dir::MethodImplementation::Intrinsic
                 } else {
                     dir::MethodImplementation::Required
                 };

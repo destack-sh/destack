@@ -688,9 +688,13 @@ fn test_intrinsic_newtype_infers_from_the_expected_instantiation() {
         r#"
 newtype Handle<T> = intrinsic;
 
+@intrinsic("memory.unique.empty")
+declare function emptyHandle<T>(): Handle<[T]>;
+
 extension<T> of Handle<[T]> {
-    @intrinsic("memory.unique.empty")
-    static empty(): Handle<[T]>;
+    static empty(): Handle<[T]> {
+        return emptyHandle<T>();
+    }
 }
 
 class Holder {
@@ -706,9 +710,13 @@ class Holder {
 === annotated ===
 newtype Handle<in out T> = intrinsic;
 
+@intrinsic("memory.unique.empty")
+declare function emptyHandle<T>(): Handle<[T]>;
+
 extension<T> of Handle<[T]> {
-    @intrinsic("memory.unique.empty")
-    static empty(): Handle<[T]>;
+    static empty(): Handle<[T]> {
+        return emptyHandle<T>();
+    }
 }
 
 class Holder {
@@ -722,24 +730,42 @@ newtype Handle<T> = intrinsic;
 /// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T#1) backing=intrinsic
 /// @type.symbol symbol=Handle.T source=T type=T#1
 
+@intrinsic("memory.unique.empty")
+/// @type.node source=intrinsic type=intrinsic
+/// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
+/// @type.node source="\"memory.unique.empty\"" type="memory.unique.empty"
+
+declare function emptyHandle<T>(): Handle<[T]>;
+/// @generic.template symbol=emptyHandle parameters=(T#2)
+/// @type.symbol symbol=emptyHandle source="declare function emptyHandle<T>(): Handle<[T]>" type=<T#2>() => Handle<Slice<T#2>>
+/// @type.symbol symbol=emptyHandle.T source=T type=T#2
+/// @resolution.name source=Handle target=Handle
+/// @resolution.name source=T target=emptyHandle.T
+
 extension<T> of Handle<[T]> {
-/// @generic.template symbol=<module>#2 parameters=(T#2)
-/// @definition.extension symbol=<module>#2 form=local target=Handle<Slice<T#2>>
-/// @definition.method symbol=empty source="static empty(): Handle<[T]>" slot=empty static=true type=() => Handle<Slice<T#2>>
-/// @type.symbol symbol=T source=T type=T#2
+/// @generic.template symbol=<module>#2 parameters=(T#3)
+/// @definition.extension symbol=<module>#2 form=local target=Handle<Slice<T#3>>
+/// @definition.method symbol=empty slot=empty static=true type=() => Handle<Slice<T#3>>
+/// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=T target=T
 
-    @intrinsic("memory.unique.empty")
-    /// @type.node source=intrinsic type=intrinsic
-    /// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
-    /// @type.node source="\"memory.unique.empty\"" type="memory.unique.empty"
-
-    static empty(): Handle<[T]>;
-    /// @type.symbol symbol=empty source="static empty(): Handle<[T]>" type=() => Handle<Slice<T#2>>
+    static empty(): Handle<[T]> {
+    /// @type.symbol symbol=empty type=() => Handle<Slice<T#3>>
     /// @resolution.name source=Handle target=Handle
     /// @resolution.name source=T target=T
 
+        return emptyHandle<T>();
+        /// @type.node source=emptyHandle type=() => Handle<Slice<T#3>>
+        /// @type.node source=emptyHandle<T>() type=Handle<Slice<T#3>>
+        /// @resolution.name source=emptyHandle target=emptyHandle
+        /// @resolution.call source=emptyHandle<T>() parameters=() return=Handle<Slice<T#3>> kind=symbol target=emptyHandle instance=emptyHandle<T#3>
+        /// @generic.instance source=emptyHandle id=Handle<Slice<T#3>>
+        /// @generic.instance source=emptyHandle<T>() id=Handle<Slice<T#3>>
+        /// @generic.instance source=emptyHandle<T>() id=emptyHandle<T#3>
+        /// @resolution.name source=T target=T
+
+    }
 }
 
 class Holder {
@@ -751,20 +777,22 @@ class Holder {
     /// @type.symbol symbol=Holder.storage source="storage: Handle<[uint8]> = Handle.empty()" type=Handle<Slice<uint8>>
     /// @resolution.name source=Handle target=Handle
     /// @type.node source=Handle type=Handle
-    /// @type.node source=Handle.empty type=() => Handle<Slice<T#2>>
+    /// @type.node source=Handle.empty type=() => Handle<Slice<T#3>>
     /// @type.node source=Handle.empty() type=Handle<Slice<uint8>>
     /// @resolution.name source=Handle target=Handle
     /// @resolution.member source=Handle.empty receiver=Handle kind=symbol target=empty
-    /// @resolution.call source=Handle.empty() parameters=() return=Handle<Slice<uint8>> kind=symbol target=empty receiver=Handle instance=Handle<Slice<T#2>>.<extension#1>.empty
-    /// @generic.instance source=Handle.empty id=Handle<Slice<T#2>>
-    /// @generic.instance source=Handle.empty() id=Handle<Slice<T#2>>.<extension#1>.empty
+    /// @resolution.call source=Handle.empty() parameters=() return=Handle<Slice<uint8>> kind=symbol target=empty receiver=Handle instance=Handle<Slice<T#3>>.<extension#1>.empty
+    /// @generic.instance source=Handle.empty id=Handle<Slice<T#3>>
+    /// @generic.instance source=Handle.empty() id=Handle<Slice<T#3>>.<extension#1>.empty
     /// @generic.instance source=Handle.empty() id=Handle<Slice<uint8>>
 
 }
 
 /// @generic.instance id=Handle<Slice<T#2>> template=Handle arguments=(Slice<T#2>)
-/// @generic.instance id=Handle<Slice<T#2>>.<extension#1>.empty template=empty arguments=(uint8)
+/// @generic.instance id=Handle<Slice<T#3>> template=Handle arguments=(Slice<T#3>)
+/// @generic.instance id=Handle<Slice<T#3>>.<extension#1>.empty template=empty arguments=(uint8)
 /// @generic.instance id=Handle<Slice<uint8>> template=Handle arguments=(Slice<uint8>)
+/// @generic.instance id=emptyHandle<T#3> template=emptyHandle arguments=(T#3)
 "#,
         r#"
 "#,

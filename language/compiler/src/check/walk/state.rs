@@ -90,39 +90,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         state.node_scopes = node_scopes;
     }
 
-    /// Return whether one declaration's implementation is a compiler intrinsic.
-    pub(in crate::check) fn is_intrinsic<T: dir::Node>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-    ) -> CompilerResult<bool> {
-        for decorator_id in self.tree.get_decorators(id) {
-            let decorator = self.tree.get(decorator_id);
-            // unwrap a decorator call to its callee
-            let expression = match self.tree.get(decorator.expression) {
-                dir::Expression::Call { left, .. } => *left,
-                _ => decorator.expression,
-            };
-            let source = expression.into_global_any(self.module);
-            let Some(dir::Reference::Bound(symbols)) = self
-                .check
-                .module(self.module)
-                .resolved
-                .references
-                .get(source)
-                .cloned()
-            else {
-                continue;
-            };
-            for symbol in symbols {
-                if self.check.language_item(symbol)? == Some(dir::LanguageItem::Intrinsic) {
-                    return Ok(true);
-                }
-            }
-        }
-
-        Ok(false)
-    }
-
     /// Enter one source node occurrence at the current flow point.
     pub(in crate::check) fn enter_node<T: dir::Node>(
         &mut self,
