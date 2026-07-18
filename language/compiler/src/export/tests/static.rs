@@ -176,3 +176,26 @@ export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 "#,
     );
 }
+
+#[test]
+fn test_export_reports_generic_static_if_invocation() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+const value = 1;
+
+@if<boolean>(true)
+export { value };
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_exported_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=ET108 message="`@if` export guard must be invoked as `@if(condition)`"
+/// @diagnostic.label line=4 column=1 span="@if<boolean>(true)" line_source="@if<boolean>(true)"
+"#,
+    );
+}

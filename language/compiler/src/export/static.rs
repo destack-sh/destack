@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::export::state::ExportState;
-use crate::r#static::{StaticContext, StaticError, StaticGuard, StaticGuardError, static_guard};
+use crate::r#static::{StaticError, StaticEvaluator, StaticGuard, StaticGuardError};
 use crate::{ExportError, ExportResult};
 
 impl ExportState<'_> {
@@ -21,7 +21,7 @@ impl ExportState<'_> {
         let decorators = self.view.get_decorators_any(owner);
 
         for decorator in decorators {
-            match static_guard(self.view, self.strings(), decorator) {
+            match StaticGuard::classify(self.view, self.strings(), decorator) {
                 StaticGuard::Ordinary => {}
                 StaticGuard::Rejected(error) => {
                     self.report_static_guard_error(error)?;
@@ -91,15 +91,16 @@ impl ExportState<'_> {
         &mut self,
         condition: dir::LocalNodeId<dir::Expression>,
     ) -> ExportResult<Option<bool>> {
-        let context = StaticContext::new(
+        let evaluator = StaticEvaluator::new(
             self.view,
             self.module,
+            self.package,
+            self.environment,
             self.profile,
-            self.conditions,
             self.strings(),
         );
 
-        match context.evaluate_boolean(condition) {
+        match evaluator.evaluate_boolean(condition) {
             Ok(value) => Ok(Some(value)),
             Err(StaticError::NotBoolean(expression)) => {
                 let anchor = self.anchor_node(expression.id)?;
@@ -119,6 +120,10 @@ impl ExportState<'_> {
     /// Report one malformed static guard.
     fn report_static_guard_error(&mut self, error: StaticGuardError) -> ExportResult<()> {
         match error {
+            StaticGuardError::InvalidInvocation { node } => {
+                let anchor = self.anchor_node(node.id)?;
+                self.report_diagnostic(ExportError::InvalidStaticIfInvocation { anchor });
+            }
             StaticGuardError::MissingCondition { node } => {
                 let anchor = self.anchor_node(node.id)?;
                 self.report_diagnostic(ExportError::StaticIfRequiresCondition { anchor });

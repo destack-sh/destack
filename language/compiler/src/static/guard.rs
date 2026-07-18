@@ -15,6 +15,8 @@ pub(crate) enum StaticGuard {
 /// A syntactically invalid static guard.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) enum StaticGuardError {
+    /// The intrinsic is not a direct, non-generic, non-optional call.
+    InvalidInvocation { node: dir::LocalNodeIdAny },
     /// The guard has no condition.
     MissingCondition { node: dir::LocalNodeIdAny },
     /// The guard has too many condition arguments.
@@ -23,79 +25,80 @@ pub(crate) enum StaticGuardError {
     InvalidCondition { node: dir::LocalNodeIdAny },
 }
 
-/// Return the static guard represented by one decorator.
-pub(crate) fn static_guard(
-    view: dir::View<'_>,
-    strings: &StringPool,
-    decorator: dir::LocalNodeId<dir::Decorator>,
-) -> StaticGuard {
-    let expression = view.get(decorator).expression;
-    let decorator = decorator.into_any();
+impl StaticGuard {
+    /// Classify one decorator as an ordinary decorator or static guard.
+    pub(crate) fn classify(
+        view: dir::View<'_>,
+        strings: &StringPool,
+        decorator: dir::LocalNodeId<dir::Decorator>,
+    ) -> Self {
+        let expression = view.get(decorator).expression;
+        let decorator = decorator.into_any();
+        let arguments = match view.get(expression) {
+            // accept only the exact direct intrinsic call
+            dir::Expression::Call {
+                position,
+                left,
+                generic_arguments,
+                arguments,
+                is_optional,
+            } if Self::is_intrinsic(view, strings, *left) => {
+                let is_direct = *position == dir::PostfixPosition::Direct;
+                if !is_direct || !generic_arguments.is_empty() || *is_optional {
+                    return Self::Rejected(StaticGuardError::InvalidInvocation { node: decorator });
+                }
 
-    static_guard_expression(view, strings, expression, decorator)
-}
+                arguments.as_slice()
+            }
 
-/// Return the static guard represented by one decorator expression.
-fn static_guard_expression(
-    view: dir::View<'_>,
-    strings: &StringPool,
-    expression: dir::LocalNodeId<dir::Expression>,
-    decorator: dir::LocalNodeIdAny,
-) -> StaticGuard {
-    match view.get(expression) {
-        // read decorator calls
-        dir::Expression::Call {
-            left, arguments, ..
-        } => static_guard_call(view, strings, *left, arguments, decorator),
+            // reject generic use of the reserved intrinsic
+            dir::Expression::Instantiation { left, .. }
+                if Self::is_intrinsic(view, strings, *left) =>
+            {
+                return Self::Rejected(StaticGuardError::InvalidInvocation { node: decorator });
+            }
 
-        // treat bare decorators as calls without arguments
-        _ => static_guard_call(view, strings, expression, &[], decorator),
+            // represent the bare intrinsic with no arguments
+            _ if Self::is_intrinsic(view, strings, expression) => &[],
+
+            // leave every other decorator to ordinary resolution
+            _ => return Self::Ordinary,
+        };
+
+        // validate the intrinsic argument shape
+        match arguments {
+            [] => Self::Rejected(StaticGuardError::MissingCondition { node: decorator }),
+            [argument] => match view.get(*argument) {
+                dir::Argument::Positional { value } => Self::Condition(*value),
+                _ => Self::Rejected(StaticGuardError::InvalidCondition {
+                    node: argument.into_any(),
+                }),
+            },
+            _ => Self::Rejected(StaticGuardError::MultipleConditions { node: decorator }),
+        }
+    }
+
+    /// Return whether one expression is the reserved `if` intrinsic name.
+    fn is_intrinsic(
+        view: dir::View<'_>,
+        strings: &StringPool,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        matches!(
+            view.get(expression),
+            dir::Expression::Identifier { name } if strings.get(*name) == "if"
+        )
     }
 }
 
-/// Return the static guard represented by one decorator call.
-fn static_guard_call(
-    view: dir::View<'_>,
-    strings: &StringPool,
-    callee: dir::LocalNodeId<dir::Expression>,
-    arguments: &[dir::LocalNodeId<dir::Argument>],
-    decorator: dir::LocalNodeIdAny,
-) -> StaticGuard {
-    // ignore user decorators
-    if !is_static_if_callee(view, strings, callee) {
-        StaticGuard::Ordinary
-    }
-    // reject @if
-    else if arguments.is_empty() {
-        StaticGuard::Rejected(StaticGuardError::MissingCondition { node: decorator })
-    }
-    // reject @if(a, b)
-    else if arguments.len() != 1 {
-        StaticGuard::Rejected(StaticGuardError::MultipleConditions { node: decorator })
-    }
-    // accept @if(condition)
-    else if let dir::Argument::Positional { value } = view.get(arguments[0]) {
-        StaticGuard::Condition(*value)
-    }
-    // reject @if(name: condition)
-    else {
-        StaticGuard::Rejected(StaticGuardError::InvalidCondition {
-            node: arguments[0].into_any(),
-        })
-    }
-}
-
-/// Return whether one decorator callee is the compiler builtin `@if`.
-fn is_static_if_callee(
-    view: dir::View<'_>,
-    strings: &StringPool,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    match view.get(expression) {
-        // match bare @if
-        dir::Expression::Identifier { name } => strings.get(*name) == "if",
-
-        // anything else is an ordinary decorator
-        _ => false,
+impl StaticGuardError {
+    /// Return the source node that anchors this invalid guard.
+    pub(crate) fn node(self) -> dir::LocalNodeIdAny {
+        match self {
+            Self::InvalidInvocation { node }
+            | Self::MissingCondition { node }
+            | Self::MultipleConditions { node }
+            | Self::InvalidCondition { node } => node,
+        }
     }
 }

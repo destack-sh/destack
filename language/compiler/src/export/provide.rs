@@ -48,6 +48,8 @@ impl Compiler {
             .dir_expanded(module, profile_id)
             .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
+        let package = self.package(context.revision(), module.package_id)?;
+        let environment = self.environment(context.revision())?;
 
         // build expanded export inputs
         let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
@@ -56,8 +58,9 @@ impl Compiler {
         let mut state = ExportState::new(
             view,
             module.as_ref(),
+            package.as_ref(),
+            environment.as_ref(),
             &profile_state.key,
-            profile_state.conditions(),
             bound.namespace_scope,
             bindings,
             modules,

@@ -134,15 +134,18 @@ impl Compiler {
             .package_index(profile_id)
             .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
+        let package = self.package(context.revision(), module.package_id)?;
+        let environment = self.environment(context.revision())?;
 
         // build local module table
         let view = dir::View::new(&parsed.tree);
         let mut state = ImportState::new(
             context.revision(),
             module.as_ref(),
+            package.as_ref(),
+            environment.as_ref(),
             package_index.as_ref(),
             &profile_state.key,
-            profile_state.conditions(),
             self.strings(),
             view,
         );

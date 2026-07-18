@@ -119,6 +119,21 @@ pub enum ExportError {
         anchor: DiagnosticAnchor,
     },
 
+    /// Static export guard is not invoked in its intrinsic form.
+    ///
+    /// ```ds
+    /// @if<boolean>(true)
+    /// export { debug };
+    /// ```
+    #[diagnostic(
+        code = "ET108",
+        message = "`@if` export guard must be invoked as `@if(condition)`"
+    )]
+    InvalidStaticIfInvocation {
+        /// The malformed `@if` decorator.
+        anchor: DiagnosticAnchor,
+    },
+
     /// Internal export failure.
     #[diagnostic(code = "ET900", message = "internal error: {message}")]
     Internal {

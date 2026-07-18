@@ -44,6 +44,13 @@ impl EnvironmentKey {
             Self::All { keys, .. } | Self::Whitelist { keys, .. } => keys,
         }
     }
+
+    /// Return whether this identity includes one environment variable.
+    pub fn contains(&self, name: &str) -> bool {
+        self.keys()
+            .binary_search_by(|key| key.as_str().cmp(name))
+            .is_ok()
+    }
 }
 
 /// Normalize profile keys by sorting and deduplicating them.

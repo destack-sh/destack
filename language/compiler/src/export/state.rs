@@ -1,9 +1,7 @@
-use destack_artifact::{
-    ConditionSet, DiagnosticAnchor, DiagnosticBuilder, DirExported, ProfileKey,
-};
+use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirExported, ProfileKey};
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_repository::Module;
+use destack_repository::{Environment, Module, Package};
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 
@@ -16,10 +14,12 @@ pub(crate) struct ExportState<'a> {
     pub(in crate::export) view: dir::View<'a>,
     /// The current module.
     pub(in crate::export) module: &'a Module,
+    /// The package containing the current module.
+    pub(in crate::export) package: &'a Package,
+    /// The ambient environment captured by the current revision.
+    pub(in crate::export) environment: &'a Environment,
     /// The active profile key.
     pub(in crate::export) profile: &'a ProfileKey,
-    /// The active profile conditions.
-    pub(in crate::export) conditions: &'a ConditionSet,
     /// The expanded binding table.
     pub(in crate::export) bindings: dir::BindingTable<'static>,
     /// The expanded module table.
@@ -49,8 +49,9 @@ impl<'a> ExportState<'a> {
     pub(crate) fn new(
         view: dir::View<'a>,
         module: &'a Module,
+        package: &'a Package,
+        environment: &'a Environment,
         profile: &'a ProfileKey,
-        conditions: &'a ConditionSet,
         namespace_scope: dir::LocalScopeId,
         bindings: dir::BindingTable<'static>,
         modules: dir::ModuleTable<'static>,
@@ -59,8 +60,9 @@ impl<'a> ExportState<'a> {
         Self {
             view,
             module,
+            package,
+            environment,
             profile,
-            conditions,
             bindings,
             modules,
             namespace_scope,

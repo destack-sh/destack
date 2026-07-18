@@ -4,6 +4,7 @@ use dir::NodeVisitor as _;
 
 use crate::CompilerResult;
 use crate::resolve::state::ResolveState;
+use crate::r#static::StaticGuard;
 
 impl ResolveState<'_> {
     /// Resolve every collected reference against required inputs.
@@ -302,61 +303,19 @@ impl dir::NodeVisitor for ResolveState<'_> {
         id: dir::LocalNodeId<dir::Decorator>,
         decorator: &dir::Decorator,
     ) {
-        if self.is_static_if_decorator_expression(tree, decorator.expression) {
-            self.walk_static_if_decorator_arguments(tree, decorator.expression);
+        let view = dir::View::new(tree);
+        match StaticGuard::classify(view, self.strings, id) {
+            // resolve ordinary decorator expressions
+            StaticGuard::Ordinary => dir::walk_decorator(self, tree, id, decorator),
 
-            return;
-        }
-
-        dir::walk_decorator(self, tree, id, decorator);
-    }
-}
-
-impl ResolveState<'_> {
-    /// Return whether one decorator expression is syntactic `@if`.
-    ///
-    /// Example:
-    /// ```ds
-    /// @if(import.meta.host == "native")
-    /// function f() {}
-    /// ```
-    fn is_static_if_decorator_expression(
-        &self,
-        tree: &dir::Tree,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
-        match tree.get(expression) {
-            dir::Expression::Call { left, .. } => {
-                self.is_static_if_decorator_expression(tree, *left)
+            // resolve the static condition without resolving the intrinsic name
+            StaticGuard::Condition(condition) => {
+                let condition_node = tree.get(condition);
+                self.visit_expression(tree, condition, condition_node);
             }
-            dir::Expression::Identifier { name } => self.strings.get(*name) == "if",
-            _ => false,
-        }
-    }
 
-    /// Walk condition arguments of syntactic `@if`.
-    ///
-    /// Example:
-    /// ```ds
-    /// @if(import.meta.host == "native")
-    /// function f() {}
-    /// ```
-    fn walk_static_if_decorator_arguments(
-        &mut self,
-        tree: &dir::Tree,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) {
-        let dir::Expression::Call { arguments, .. } = tree.get(expression) else {
-            return;
-        };
-
-        for argument in arguments {
-            let Some(value) = tree.get(*argument).value() else {
-                continue;
-            };
-            let expression = tree.get(value);
-
-            self.visit_expression(tree, value, expression);
+            // malformed guard
+            StaticGuard::Rejected(_) => {}
         }
     }
 }

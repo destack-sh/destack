@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 
 use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey, StringId};
 
-/// Concrete static value produced by checked static evaluation.
+/// A concrete static value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum StaticTerm {
     /// Scalar literal.

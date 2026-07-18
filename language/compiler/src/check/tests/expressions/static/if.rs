@@ -126,3 +126,32 @@ const value = 1;
 "#,
     );
 }
+
+#[test]
+fn test_static_if_rejects_generic_invocation() {
+    let session = TestSession::single(
+        r#"
+@if<boolean>(true)
+const value = 1;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+@if<boolean>(true)
+const value = 1;
+
+=== checked ===
+@if<boolean>(true)
+const value = 1;
+
+"#,
+        r#"
+/// @diagnostic.error code=EC444 message="`@if` must be invoked as `@if(condition)`"
+/// @diagnostic.label line=2 column=1 span="@if<boolean>(true)" line_source="@if<boolean>(true)"
+"#,
+    );
+}

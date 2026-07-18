@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactDependencySet;
 use destack_repository::{
-    CompilerOptions, DestackFile, Module, Package, Profile, ProviderContext, Revision, Target,
+    CompilerOptions, DestackFile, Environment, Module, Package, Profile, ProviderContext, Revision,
+    Target,
 };
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
@@ -76,6 +77,15 @@ impl Compiler {
             })?
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing package for {package_id:?}"),
+            })
+    }
+
+    /// Return the ambient environment captured by one repository revision.
+    pub(crate) fn environment(&self, revision: Revision) -> CompilerResult<Arc<Environment>> {
+        self.repository
+            .environment(revision)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load environment for {revision}: {error}"),
             })
     }
 

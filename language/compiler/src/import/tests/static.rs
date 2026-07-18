@@ -366,6 +366,57 @@ import { Foo } from "./dep.ds";
 }
 
 #[test]
+fn test_import_records_static_if_active_label_edge() {
+    let compiler = TestSession::builder()
+        .data(
+            "destack.json",
+            r#"
+{
+    "conditions": {
+        "modes": {
+            "preview": {
+                "labels": {
+                    "release": "preview"
+                }
+            }
+        }
+    },
+    "compiler": {
+        "modes": ["preview"]
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+@if(import.meta.labels["release"].includes("preview"))
+import { Foo } from "./dep.ds";
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export type Foo = string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::modules().with_summaries().with_import_stats(),
+        r#"
+@if(import.meta.labels["release"].includes("preview"))
+import { Foo } from "./dep.ds";
+/// @module.edge relation=import specifier=./dep.ds module=dep.ds
+
+/// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
+"#,
+    );
+}
+
+#[test]
 fn test_import_records_static_if_runtime_edge() {
     let compiler = TestSession::builder()
         .data(
@@ -402,6 +453,51 @@ export type Foo = string;
         DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.runtime == "js")
+import { Foo } from "./dep.ds";
+/// @module.edge relation=import specifier=./dep.ds module=dep.ds
+
+/// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
+"#,
+    );
+}
+
+#[test]
+fn test_import_records_static_if_output_edge() {
+    let compiler = TestSession::builder()
+        .data(
+            "destack.json",
+            r#"
+{
+    "targets": {
+        "default": {
+            "emit": "js"
+        }
+    },
+    "defaultTarget": "default"
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+@if(import.meta.output == "js")
+import { Foo } from "./dep.ds";
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export type Foo = string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::modules().with_summaries().with_import_stats(),
+        r#"
+@if(import.meta.output == "js")
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
@@ -767,6 +863,33 @@ export type Foo = string;
         r#"
 /// @diagnostic.error code=EI215 message="`@if` import guard condition is not static"
 /// @diagnostic.label line=4 column=5 span="enabled" line_source="@if(enabled)"
+"#,
+    );
+}
+
+#[test]
+fn test_import_reports_generic_static_if_invocation() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+@if<boolean>(true)
+import { Foo } from "./dep.ds";
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export type Foo = string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=EI216 message="`@if` import guard must be invoked as `@if(condition)`"
+/// @diagnostic.label line=2 column=1 span="@if<boolean>(true)" line_source="@if<boolean>(true)"
 "#,
     );
 }

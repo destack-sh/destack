@@ -231,6 +231,21 @@ pub enum ImportError {
         anchor: DiagnosticAnchor,
     },
 
+    /// Static import guard is not invoked in its intrinsic form.
+    ///
+    /// ```ds
+    /// @if<boolean>(true)
+    /// import { debug } from "./debug.ds";
+    /// ```
+    #[diagnostic(
+        code = "EI216",
+        message = "`@if` import guard must be invoked as `@if(condition)`"
+    )]
+    InvalidStaticIfInvocation {
+        /// The malformed `@if` decorator.
+        anchor: DiagnosticAnchor,
+    },
+
     /// Internal import failure.
     #[diagnostic(code = "EI900", message = "internal error: {message}")]
     Internal {

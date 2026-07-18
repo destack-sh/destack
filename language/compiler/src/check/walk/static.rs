@@ -1,10 +1,8 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{
-    Decision, DecoratorApplication, StaticIfCondition, VariableRole, WalkState, Widening,
-};
-use crate::r#static::{StaticContext, StaticError};
+use crate::check::{Decision, VariableRole, WalkState, Widening};
+use crate::r#static::{StaticError, StaticEvaluator, StaticGuard};
 
 /// Source presence decided by closed static gates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,22 +11,6 @@ pub(in crate::check) enum StaticGate {
     Absent,
     /// The node is present.
     Present,
-}
-
-impl StaticGate {
-    /// Return the gate for one presence decision.
-    fn from_presence(is_present: bool) -> Self {
-        if is_present {
-            Self::Present
-        } else {
-            Self::Absent
-        }
-    }
-
-    /// Return whether this gate keeps the source node.
-    fn is_present(self) -> bool {
-        matches!(self, Self::Present)
-    }
 }
 
 impl WalkState<'_, '_> {
@@ -57,56 +39,54 @@ impl WalkState<'_, '_> {
         decorated: dir::LocalNodeIdAny,
     ) -> CompilerResult<StaticGate> {
         let decorated_global = decorated.into_global(self.module);
-        if let Some(is_present) = self
+        if let Some(gate) = self
             .check
             .module(self.module)
             .static_presence
             .get(&decorated_global)
             .copied()
         {
-            return Ok(StaticGate::from_presence(is_present));
+            return Ok(gate);
         }
 
-        let applications = self.check.decorator_applications(self.module, decorated);
+        let decorators = self
+            .check
+            .decorator_expressions(self.module, decorated)
+            .into_iter()
+            .map(|expression| {
+                let view = self.check.module_view(self.module);
+                let guard = StaticGuard::classify(view, self.check.strings(), expression.decorator);
 
-        // record checked decorator applications before any static gate exits
-        for application in &applications {
-            self.commit_decorator_application(decorated_global, application);
-        }
+                (expression, guard)
+            })
+            .collect::<Vec<_>>();
 
         // decide static gates before walking ordinary decorators
-        for application in &applications {
-            if let Some(decorator) = self
-                .check
-                .static_if_decorator_from_application(self.module, application)
-            {
-                let StaticIfCondition::Present(condition_expression) = decorator.condition else {
+        for (_, guard) in &decorators {
+            match guard {
+                StaticGuard::Ordinary => {}
+                StaticGuard::Rejected(error) => {
                     self.check
-                        .report_invalid_static_guard(self.module, decorator.condition_anchor());
+                        .report_invalid_static_if_invocation(self.module, error.node())?;
                     self.commit_static_gate(decorated_global, StaticGate::Absent);
 
                     return Ok(StaticGate::Absent);
-                };
-
-                match self.evaluate_static_gate(condition_expression)? {
+                }
+                StaticGuard::Condition(condition) => match self.evaluate_static_gate(*condition)? {
                     StaticGate::Absent => {
                         self.commit_static_gate(decorated_global, StaticGate::Absent);
 
                         return Ok(StaticGate::Absent);
                     }
                     StaticGate::Present => {}
-                }
+                },
             }
         }
 
-        // walk ordinary decorators only when the node is present
-        for application in applications {
-            if self
-                .check
-                .static_if_decorator_from_application(self.module, &application)
-                .is_none()
-            {
-                self.walk_decorator(application.decorator)?;
+        // check ordinary decorators only when their owner is present
+        for (decorator, guard) in decorators {
+            if matches!(guard, StaticGuard::Ordinary) {
+                self.walk_decorator(decorator, decorated_global)?;
             }
         }
 
@@ -115,40 +95,12 @@ impl WalkState<'_, '_> {
         Ok(StaticGate::Present)
     }
 
-    /// Commit one checked decorator application.
-    fn commit_decorator_application(
-        &mut self,
-        decorated: dir::GlobalNodeIdAny,
-        application: &DecoratorApplication,
-    ) {
-        let arguments = application
-            .arguments
-            .iter()
-            .map(|argument| dir::DecoratorArgument {
-                source: (*argument).into_global_any(self.module),
-                value: None,
-            })
-            .collect();
-        let application = dir::DecoratorApplication {
-            source: application.decorator.into_global_any(self.module),
-            owner: decorated,
-            target: application.target.into_global_any(self.module),
-            resolution: self.check.decorator_target(self.module, application),
-            arguments,
-        };
-
-        self.check
-            .module_mut(self.module)
-            .decorators
-            .insert_application(application);
-    }
-
     /// Commit one static gate decision.
     fn commit_static_gate(&mut self, decorated: dir::GlobalNodeIdAny, gate: StaticGate) {
         self.check
             .module_mut(self.module)
             .static_presence
-            .insert(decorated, gate.is_present());
+            .insert(decorated, gate);
     }
 
     /// Decide whether one decorated node is present in checked source.
@@ -196,15 +148,16 @@ impl WalkState<'_, '_> {
         // decide profile-level conditions eagerly
         let evaluated = {
             let input = self.check.module(module);
-            let context = StaticContext::new(
+            let evaluator = StaticEvaluator::new(
                 input.view(),
                 input.module.as_ref(),
+                input.package.as_ref(),
+                self.check.environment.as_ref(),
                 &input.profile,
-                &input.profile.conditions,
                 self.check.strings(),
             );
 
-            context.evaluate_boolean(condition)
+            evaluator.evaluate_boolean(condition)
         };
 
         match evaluated {
@@ -212,7 +165,7 @@ impl WalkState<'_, '_> {
             Ok(false) => Ok(StaticGate::Absent),
             Err(StaticError::NotBoolean(expression)) => {
                 self.check
-                    .report_invalid_static_guard(module, expression.into_any());
+                    .report_non_boolean_static_guard(module, expression.into_any());
 
                 Ok(StaticGate::Absent)
             }
@@ -243,22 +196,26 @@ impl WalkState<'_, '_> {
         //  and module metadata like import.meta inside mixed guards
         let evaluated = {
             let input = self.check.module(self.module);
-            let context = StaticContext::new(
+            let evaluator = StaticEvaluator::new(
                 input.view(),
                 input.module.as_ref(),
+                input.package.as_ref(),
+                self.check.environment.as_ref(),
                 &input.profile,
-                &input.profile.conditions,
                 self.check.strings(),
             );
 
-            context.evaluate_expression(expression).ok()
+            evaluator.evaluate_expression(expression)
         };
-        if let Some(term) = evaluated
-            && let Some(literal) = self.static_term_literal(term)
-        {
-            let ty = self.intern_type(dir::Type::Literal(literal))?;
+        match evaluated {
+            Ok(term) => {
+                if let Some(literal) = self.static_term_literal(term) {
+                    let ty = self.intern_type(dir::Type::Literal(literal))?;
 
-            return self.bind_static_term(expression, ty);
+                    return self.bind_static_term(expression, ty);
+                }
+            }
+            Err(StaticError::NotStatic(_) | StaticError::NotBoolean(_)) => {}
         }
 
         match self.tree.get(expression) {

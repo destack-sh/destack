@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{ConditionSet, DiagnosticAnchor, DirImported, PackageIndex, ProfileKey};
+use destack_artifact::{DiagnosticAnchor, DirImported, PackageIndex, ProfileKey};
 use destack_core::{StringPool, closest_string};
 use destack_dir as dir;
-use destack_repository::{Module, Revision};
+use destack_repository::{Environment, Module, Package, Revision};
 use destack_source::Loader;
 
 use crate::import::stats::ImportStats;
@@ -18,12 +18,14 @@ pub(crate) struct ImportState<'a> {
     pub(in crate::import) revision: Revision,
     /// The current module.
     pub(in crate::import) module: &'a Module,
+    /// The package containing the current module.
+    pub(in crate::import) package: &'a Package,
+    /// The ambient environment captured by the current revision.
+    pub(in crate::import) environment: &'a Environment,
     /// The active package dependency index.
     pub(in crate::import) index: &'a PackageIndex,
     /// The active profile key.
     pub(in crate::import) profile: &'a ProfileKey,
-    /// The active profile conditions.
-    pub(in crate::import) conditions: &'a ConditionSet,
     /// The shared string pool.
     pub(in crate::import) strings: &'a StringPool,
     /// The DIR view being imported.
@@ -41,18 +43,20 @@ impl<'a> ImportState<'a> {
     pub(crate) fn new(
         revision: Revision,
         module: &'a Module,
+        package: &'a Package,
+        environment: &'a Environment,
         index: &'a PackageIndex,
         profile: &'a ProfileKey,
-        conditions: &'a ConditionSet,
         strings: &'a StringPool,
         view: dir::View<'a>,
     ) -> Self {
         Self {
             revision,
             module,
+            package,
+            environment,
             index,
             profile,
-            conditions,
             strings,
             view,
             modules: dir::ModuleSegment::new(module.id),
