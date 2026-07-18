@@ -1,23 +1,15 @@
-mod library;
+mod dir;
+mod lint;
 mod linter;
+mod mir;
 mod module;
-mod package;
-mod rule;
-mod runner;
-mod session;
-mod workspace;
+mod program;
+mod provide;
+mod set;
 
-pub use destack_repository::LintCategory;
+pub use dir::*;
+pub use lint::*;
 pub use linter::*;
-pub use module::*;
-pub use package::*;
-pub use rule::*;
-pub use runner::*;
-pub use session::*;
-pub use workspace::*;
-
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-#[allow(unused_imports)]
-pub(crate) use tests::*;
+pub use mir::*;
+pub use program::*;
+pub(crate) use set::*;

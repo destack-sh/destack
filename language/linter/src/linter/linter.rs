@@ -1,564 +1,151 @@
-use std::collections::HashSet;
 use std::fmt;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted,
-    WorkspaceLinted,
+    ArtifactDependencySet, ArtifactFailure, DiagnosticDefinition, DiagnosticLike,
 };
 use destack_repository::{
-    LintPreset, LinterOptions, Module, Profile, ProfileId, ProviderContext, ProviderError,
-    ProviderResult, Repository, Revision,
+    LinterOptions, Module, ProviderContext, ProviderError, Repository, Revision,
 };
-use destack_source::{FileId, ModuleId, PackageId};
+use destack_source::{ModuleId, PackageId};
 
-use crate::{LintLevel, LintReport, LintRunner};
+use super::LintSet;
+use crate::{LINTS, Lint};
 
-/// Key used to deduplicate lint diagnostics.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct LintReportKey {
-    /// The diagnostic code.
-    code: String,
-    /// The file id.
-    file_id: FileId,
-    /// Primary span start offset.
-    start: u32,
-    /// Primary span end offset.
-    end: u32,
-    /// The diagnostic message.
-    message: String,
-}
-
-/// Error while linting already-built compiler products.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LinterError {
-    /// The repository could not resolve revision-scoped lint inputs.
-    Repository { message: String },
-}
-
-impl fmt::Display for LinterError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Repository { message } => write!(f, "{message}"),
-        }
-    }
-}
-
-impl std::error::Error for LinterError {}
-
-/// Consumer that runs lint rules over already-built compiler products.
-#[derive(Debug, Clone)]
+/// Linter for one repository.
+#[derive(Clone)]
 pub struct Linter {
-    /// The repository being linted.
-    repository: Arc<Repository>,
+    /// The repository.
+    pub(super) repository: Arc<Repository>,
+    /// The check warnings.
+    pub(super) check_warnings: Arc<[&'static DiagnosticDefinition]>,
+    /// The lints.
+    pub(super) lints: Arc<[Lint]>,
+}
+
+impl fmt::Debug for Linter {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Linter")
+            .field("repository", &"...")
+            .field("check_warnings", &self.check_warnings.len())
+            .field("lints", &self.lints.len())
+            .finish()
+    }
 }
 
 impl Linter {
-    /// Create a linter for one repository.
-    pub fn new(repository: Arc<Repository>) -> Self {
-        Self { repository }
-    }
+    /// Create a linter.
+    pub fn new(
+        repository: Arc<Repository>,
+        check_warnings: impl IntoIterator<Item = &'static DiagnosticDefinition>,
+    ) -> Self {
+        let check_warnings = check_warnings.into_iter().collect::<Vec<_>>();
+        let lints = LINTS.iter().map(|lint| (*lint).clone()).collect::<Vec<_>>();
 
-    /// Reuse immutable lint runners by preset to avoid per-module rule allocation.
-    fn cached_runner(options: &LinterOptions) -> &'static LintRunner {
-        static NONE: LazyLock<LintRunner> =
-            LazyLock::new(|| LintRunner::from_preset(LintPreset::None).with_fixes(false));
-        static RECOMMENDED: LazyLock<LintRunner> =
-            LazyLock::new(|| LintRunner::from_preset(LintPreset::Recommended).with_fixes(false));
-        static STRICT: LazyLock<LintRunner> =
-            LazyLock::new(|| LintRunner::from_preset(LintPreset::Strict).with_fixes(false));
-        static ALL: LazyLock<LintRunner> =
-            LazyLock::new(|| LintRunner::from_preset(LintPreset::All).with_fixes(false));
-
-        // explicit category or rule overrides can enable any rule
-        if !options.categories.is_empty() || !options.overrides.is_empty() {
-            return &ALL;
-        }
-
-        match options.preset {
-            LintPreset::None => &NONE,
-            LintPreset::Recommended => &RECOMMENDED,
-            LintPreset::Strict => &STRICT,
-            LintPreset::All => &ALL,
+        Self {
+            repository,
+            check_warnings: check_warnings.into(),
+            lints: lints.into(),
         }
     }
 
-    /// Return one module for one revision when present.
-    fn repository_module(&self, revision: Revision, module_id: ModuleId) -> Option<Arc<Module>> {
-        self.repository.module(revision, module_id).ok().flatten()
-    }
-
-    /// Convert one lint diagnostic to a dedupe key.
-    fn lint_key_from_lint_report(diagnostic: &LintReport) -> LintReportKey {
-        let primary_span = diagnostic.primary;
-
-        LintReportKey {
-            code: diagnostic.code().to_string(),
-            file_id: primary_span.file,
-            start: primary_span.start,
-            end: primary_span.end,
-            message: diagnostic.message().to_string(),
-        }
-    }
-
-    /// Record lint diagnostics on one provider context.
-    fn record_lint_diagnostics(
+    /// Resolve one package's linter options.
+    pub(super) fn resolve_lints(
         &self,
         context: &dyn ProviderContext,
-        diagnostics: impl IntoIterator<Item = LintReport>,
-    ) -> Result<(), LinterError> {
-        let mut seen = HashSet::new();
-
-        // keep only the first copy of each lint diagnostic
-        for diagnostic in diagnostics {
-            let key = Self::lint_key_from_lint_report(&diagnostic);
-            if !seen.insert(key) || !diagnostic.is_enabled() {
-                continue;
-            }
-
-            context
-                .emit(&diagnostic)
-                .map_err(|error| LinterError::Repository {
-                    message: format!("failed to emit lint diagnostic: {error}"),
-                })?;
-        }
-
-        Ok(())
-    }
-
-    /// Return workspace scoped lint options for one revision.
-    fn workspace_linter_options(&self, revision: Revision) -> Result<LinterOptions, LinterError> {
-        let destack = self
-            .repository
-            .destack_for_workspace(revision)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
-
-        Ok(destack
-            .map(|options| options.linter.clone())
-            .unwrap_or_default())
-    }
-
-    /// Return package scoped lint options for one revision.
-    fn package_linter_options(
-        &self,
-        revision: Revision,
-        package_id: PackageId,
-    ) -> Result<LinterOptions, LinterError> {
+        package: PackageId,
+    ) -> Result<LintSet, ProviderError> {
+        let revision = context.revision();
         let config = self
             .repository
-            .destack_for_package_id(revision, package_id)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
+            .destack_for_package_id(revision, package)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let defaults = LinterOptions::default();
+        let options = config.as_ref().map_or(&defaults, |config| &config.linter);
+        let lints = LintSet::resolve(package, options, self.lints.clone());
 
-        if let Some(config) = config {
-            return Ok(config.linter.clone());
+        match lints {
+            Ok(lints) => Ok(lints),
+            Err(error) => self.reject(context, error),
         }
-
-        self.workspace_linter_options(revision)
     }
 
-    /// Return module scoped lint options for one revision.
-    fn module_linter_options(
+    /// Emit one source error and reject the current lint artifact.
+    pub(super) fn reject<T>(
+        &self,
+        context: &dyn ProviderContext,
+        diagnostic: impl DiagnosticLike,
+    ) -> Result<T, ProviderError> {
+        context
+            .emit(&diagnostic)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+        Err(ProviderError::failed(ArtifactFailure::diagnostics()))
+    }
+
+    /// Return one repository module.
+    pub(super) fn module(
         &self,
         revision: Revision,
         module_id: ModuleId,
-    ) -> Result<LinterOptions, LinterError> {
-        let Some(module) = self.repository_module(revision, module_id) else {
-            return Ok(LinterOptions::default());
-        };
-
-        self.package_linter_options(revision, module.package_id)
-    }
-
-    /// Lint one module and return fresh diagnostics.
-    pub fn lint_module(
-        &self,
-        context: &dyn ProviderContext,
-        revision: Revision,
-        module_id: ModuleId,
-        profile: Profile,
-    ) -> Result<(), LinterError> {
-        // skip non code modules
-        let Some(module) = self.repository_module(revision, module_id) else {
-            return Ok(());
-        };
-        if !module.is_code() {
-            return Ok(());
-        }
-
-        // skip disabled linter configurations
-        let options = self.module_linter_options(revision, module_id)?;
-        if !options.enabled {
-            return Ok(());
-        }
-
-        // run module scoped lint rules
-        let runner = Self::cached_runner(&options);
-        let diagnostics = runner.lint_module_by_id(
-            self.repository.clone(),
-            revision,
-            module_id,
-            profile,
-            &options,
-            LintLevel::Dir,
-        );
-
-        self.record_lint_diagnostics(context, diagnostics)
-    }
-
-    /// Lint one package and record package scoped diagnostics.
-    pub fn lint_package(
-        &self,
-        context: &dyn ProviderContext,
-        revision: Revision,
-        package_id: PackageId,
-    ) -> Result<(), LinterError> {
-        // collect package modules in a stable order
-        let mut module_ids: Vec<_> = self
+    ) -> Result<Arc<Module>, ProviderError> {
+        let module = self
             .repository
-            .package_module_ids(revision, package_id)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
-        module_ids.sort_unstable();
+            .module(revision, module_id)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
 
-        // skip package scoped rules when no code modules remain
-        let Some(_options_module_id) = module_ids.iter().copied().find(|module_id| {
-            self.repository
-                .module(revision, *module_id)
-                .ok()
-                .flatten()
-                .is_some_and(|module| module.is_code())
-        }) else {
-            return Ok(());
-        };
+        module.ok_or_else(|| ProviderError::internal(format!("missing lint module {module_id:?}")))
+    }
 
-        // skip disabled linter configurations
-        let options = self.package_linter_options(revision, package_id)?;
-        if !options.enabled {
-            return Ok(());
-        }
-
-        let runner = Self::cached_runner(&options);
-        // run package scoped rules once per addressable profile
-        for profile_id in self.profile_ids_for_targets(revision)? {
-            let dir_diagnostics = runner.lint_package_dir(
-                self.repository.clone(),
-                revision,
-                package_id,
-                profile_id,
-                &options,
-            );
-            self.record_lint_diagnostics(context, dir_diagnostics)?;
+    /// Emit lint diagnostics.
+    pub(super) fn emit<D>(
+        &self,
+        context: &dyn ProviderContext,
+        diagnostics: impl IntoIterator<Item = D>,
+    ) -> Result<(), ProviderError>
+    where
+        D: DiagnosticLike,
+    {
+        for diagnostic in diagnostics {
+            context
+                .emit(&diagnostic)
+                .map_err(|error| ProviderError::internal(error.to_string()))?;
         }
 
         Ok(())
     }
 
-    /// Lint one workspace and record workspace scoped diagnostics.
-    pub fn lint_workspace(
+    /// Observe the linter configuration files.
+    pub(super) fn observe_configuration(
         &self,
         context: &dyn ProviderContext,
-        revision: Revision,
-    ) -> Result<(), LinterError> {
-        // skip disabled linter configurations
-        let options = self.workspace_linter_options(revision)?;
-        if !options.enabled {
-            return Ok(());
-        }
-
-        let runner = Self::cached_runner(&options);
-        // run workspace scoped rules once per addressable profile
-        for profile_id in self.profile_ids_for_targets(revision)? {
-            let dir_diagnostics =
-                runner.lint_workspace_dir(self.repository.clone(), revision, profile_id, &options);
-            self.record_lint_diagnostics(context, dir_diagnostics)?;
-        }
-
-        Ok(())
-    }
-
-    /// Collect the dependency closure for one lint artifact key.
-    pub fn collect(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactDependencySet> {
-        match context.artifact_key() {
-            ArtifactKey::ModuleLinted { module, profile } => {
-                self.collect_module(context, module, profile)
-            }
-            ArtifactKey::PackageLinted { package } => self.collect_package(context, package),
-            ArtifactKey::WorkspaceLinted => self.collect_workspace(context),
-            artifact_key => Err(ProviderError::internal(format!(
-                "non linter artifact key reached linter provider: {artifact_key:?}"
-            ))
-            .into()),
-        }
-    }
-
-    /// Collect inputs for one module lint artifact.
-    fn collect_module(
-        &self,
-        context: &dyn ProviderContext,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> ProviderResult<ArtifactDependencySet> {
-        let revision = context.revision();
-        let mut dependencies = ArtifactDependencySet::default();
-
-        // skip modules that cannot run module lint rules
-        let Some(module) = self.repository_module(revision, module_id) else {
-            return Ok(dependencies);
-        };
-        let options = self
-            .module_linter_options(revision, module_id)
-            .map_err(provider_error)?;
-        if !module.is_code() || !options.enabled {
-            return Ok(dependencies);
-        }
-
-        // module rules can follow checked symbols through the active profile
-        dependencies.require(ArtifactKey::global_environment(profile_id));
-        for module_id in self
-            .profile_code_module_ids(revision, profile_id)
-            .map_err(provider_error)?
-        {
-            Self::require_module_lint_artifacts(module_id, profile_id, &mut dependencies);
-        }
-
-        Ok(dependencies)
-    }
-
-    /// Collect inputs for one package lint artifact.
-    fn collect_package(
-        &self,
-        context: &dyn ProviderContext,
-        package_id: PackageId,
-    ) -> ProviderResult<ArtifactDependencySet> {
-        let revision = context.revision();
-        let options = self
-            .package_linter_options(revision, package_id)
-            .map_err(provider_error)?;
-        let mut dependencies = ArtifactDependencySet::default();
-
-        // package rules inspect package modules directly
-        if options.enabled {
-            for profile_id in self
-                .profile_ids_for_targets(revision)
-                .map_err(provider_error)?
-            {
-                dependencies.require(ArtifactKey::global_environment(profile_id));
-                dependencies.require(ArtifactKey::component_graph(profile_id));
-
-                for module_id in self
-                    .package_code_module_ids(revision, package_id, profile_id)
-                    .map_err(provider_error)?
-                {
-                    Self::require_module_lint_artifacts(module_id, profile_id, &mut dependencies);
-                }
-            }
-        }
-
-        Ok(dependencies)
-    }
-
-    /// Collect inputs for the workspace lint artifact.
-    fn collect_workspace(
-        &self,
-        context: &dyn ProviderContext,
-    ) -> ProviderResult<ArtifactDependencySet> {
-        let revision = context.revision();
-        let options = self
-            .workspace_linter_options(revision)
-            .map_err(provider_error)?;
-        let mut dependencies = ArtifactDependencySet::default();
-
-        // workspace rules inspect workspace modules directly
-        if options.enabled {
-            for profile_id in self
-                .profile_ids_for_targets(revision)
-                .map_err(provider_error)?
-            {
-                dependencies.require(ArtifactKey::global_environment(profile_id));
-
-                for module_id in self
-                    .profile_code_module_ids(revision, profile_id)
-                    .map_err(provider_error)?
-                {
-                    Self::require_module_lint_artifacts(module_id, profile_id, &mut dependencies);
-                }
-            }
-        }
-
-        Ok(dependencies)
-    }
-
-    /// Provide one lint artifact key.
-    pub fn provide(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
-        match context.artifact_key() {
-            ArtifactKey::ModuleLinted { module, profile } => {
-                self.provide_module(context, module, profile)
-            }
-            ArtifactKey::PackageLinted { package } => self.provide_package(context, package),
-            ArtifactKey::WorkspaceLinted => self.provide_workspace(context),
-            artifact_key => Err(ProviderError::internal(format!(
-                "non linter artifact key reached linter provider: {artifact_key:?}"
-            ))
-            .into()),
-        }
-    }
-
-    /// Provide one module lint artifact.
-    fn provide_module(
-        &self,
-        context: &dyn ProviderContext,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> ProviderResult<ArtifactPayload> {
-        let revision = context.revision();
-
-        let profile = self
-            .repository
-            .module_profile_by_id(revision, module_id, profile_id)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })
-            .map_err(|error| ProviderError::internal(error.to_string()))?
-            .ok_or_else(|| LinterError::Repository {
-                message: format!(
-                    "missing profile {profile_id:?} for module {module_id:?} at revision {revision}"
-                ),
-            })
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-        self.lint_module(context, revision, module_id, profile.as_ref().clone())
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-
-        Ok(ArtifactPayload::ModuleLinted(Arc::new(ModuleLinted)))
-    }
-
-    /// Provide one package lint artifact.
-    fn provide_package(
-        &self,
-        context: &dyn ProviderContext,
-        package_id: PackageId,
-    ) -> ProviderResult<ArtifactPayload> {
-        let revision = context.revision();
-
-        self.lint_package(context, revision, package_id)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-
-        Ok(ArtifactPayload::PackageLinted(Arc::new(PackageLinted)))
-    }
-
-    /// Provide one workspace lint artifact.
-    fn provide_workspace(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
-        let revision = context.revision();
-
-        self.lint_workspace(context, revision)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-
-        Ok(ArtifactPayload::WorkspaceLinted(Arc::new(WorkspaceLinted)))
-    }
-
-    /// Return code modules in one package profile.
-    fn package_code_module_ids(
-        &self,
-        revision: Revision,
-        package_id: PackageId,
-        profile_id: ProfileId,
-    ) -> Result<Vec<ModuleId>, LinterError> {
-        let mut module_ids = self
-            .repository
-            .package_module_ids(revision, package_id)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
-        module_ids.sort_unstable();
-
-        let mut code_module_ids = Vec::new();
-        for module_id in module_ids {
-            let Some(module) = self.repository_module(revision, module_id) else {
-                continue;
-            };
-            if !module.is_code() {
-                continue;
-            }
-
-            let profile = self
-                .repository
-                .module_profile_by_id(revision, module_id, profile_id)
-                .map_err(|error| LinterError::Repository {
-                    message: error.to_string(),
-                })?;
-            if profile.is_some() {
-                code_module_ids.push(module_id);
-            }
-        }
-
-        Ok(code_module_ids)
-    }
-
-    /// Return code modules in one profile.
-    fn profile_code_module_ids(
-        &self,
-        revision: Revision,
-        profile_id: ProfileId,
-    ) -> Result<Vec<ModuleId>, LinterError> {
-        let mut module_ids =
-            self.repository
-                .module_ids(revision)
-                .map_err(|error| LinterError::Repository {
-                    message: error.to_string(),
-                })?;
-        module_ids.sort_unstable();
-        let mut code_module_ids = Vec::new();
-        for module_id in module_ids {
-            let Some(module) = self.repository_module(revision, module_id) else {
-                continue;
-            };
-            if !module.is_code() {
-                continue;
-            }
-
-            let profile = self
-                .repository
-                .module_profile_by_id(revision, module_id, profile_id)
-                .map_err(|error| LinterError::Repository {
-                    message: error.to_string(),
-                })?;
-            if profile.is_some() {
-                code_module_ids.push(module_id);
-            }
-        }
-
-        Ok(code_module_ids)
-    }
-
-    /// Return exact profile ids addressable in one revision.
-    fn profile_ids_for_targets(&self, revision: Revision) -> Result<Vec<ProfileId>, LinterError> {
-        self.repository
-            .profile_ids_for_targets(revision)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })
-    }
-
-    /// Require DIR artifacts read by lint rule contexts.
-    fn require_module_lint_artifacts(
-        module_id: ModuleId,
-        profile_id: ProfileId,
+        package: PackageId,
         dependencies: &mut ArtifactDependencySet,
-    ) {
-        dependencies.require(ArtifactKey::dir_parsed(module_id));
-        dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_imported(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
-    }
-}
+    ) -> Result<(), ProviderError> {
+        let revision = context.revision();
+        let config = self
+            .repository
+            .destack_for_package_id(revision, package)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let Some(config) = config else {
+            return Ok(());
+        };
 
-/// Convert one linter setup error to a provider error.
-fn provider_error(error: LinterError) -> Box<ProviderError> {
-    Box::new(ProviderError::internal(error.to_string()))
+        // observe configuration contents
+        for file in &config.file_ids {
+            let content = self
+                .repository
+                .file_content_id(revision, *file)
+                .map_err(|error| ProviderError::internal(error.to_string()))?
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "missing linter configuration content for file {file:?}"
+                    ))
+                })?;
+            dependencies.observe_file(*file, content);
+        }
+
+        Ok(())
+    }
 }
