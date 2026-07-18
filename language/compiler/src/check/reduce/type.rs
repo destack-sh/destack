@@ -150,9 +150,8 @@ impl CheckState<'_> {
         let mut expanding = FxIndexSet::default();
         let answer = self.reduce_type_chain(origin, id, &mut expanding)?;
 
-        // memoize changed closed reductions outside probes
+        // memoize closed reductions outside probes
         if let Answer::Ready(reduced) = answer
-            && reduced != id
             && !self.solver.is_probing()
             && self.type_variables(id)?.is_empty()
             && self.type_variables(reduced)?.is_empty()
