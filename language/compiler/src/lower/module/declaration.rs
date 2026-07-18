@@ -205,11 +205,11 @@ impl ModuleLowerer<'_> {
                 };
 
                 // generic nominal templates wait for their instances
-                if self
-                    .definition(owner)?
-                    .and_then(dir::Definition::template)
-                    .is_some()
-                {
+                let is_generic = match self.definition(owner)? {
+                    Some(definition) => self.definition_is_generic(owner.module_id, definition)?,
+                    None => false,
+                };
+                if is_generic {
                     return Ok(());
                 }
                 bodies.push(self.declare_method(builder, owner.local_id, member, body)?);

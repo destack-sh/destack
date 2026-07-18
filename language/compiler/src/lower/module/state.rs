@@ -27,6 +27,8 @@ pub(crate) struct LowerModuleState {
     pub(in crate::lower) generics: dir::GenericTable<'static>,
     /// The checked auto conformance table.
     pub(in crate::lower) autos: dir::AutoTable<'static>,
+    /// The checked decorator table.
+    pub(in crate::lower) decorators: dir::DecoratorTable<'static>,
     /// The canonical symbol path of the module.
     pub(in crate::lower) path: String,
 }
@@ -52,6 +54,7 @@ impl LowerModuleState {
             definitions: materialized.definition_table(checked),
             generics: materialized.generic_table(checked),
             autos: checked.auto_table(),
+            decorators: checked.decorator_table(),
             path,
             parsed,
         }

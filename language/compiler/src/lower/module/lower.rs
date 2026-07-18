@@ -1,10 +1,10 @@
 use destack_artifact::{DiagnosticLike, MirLowered};
-use destack_core::{FxIndexMap, FxIndexSet, StringPool};
+use destack_core::{FxIndexMap, StringPool};
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{FunctionLowerer, LowerModuleState, Nominal};
+use crate::lower::{CallDemands, FunctionLowerer, LowerModuleState, Nominal};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Lowering state for one module: the checked DIR read side.
@@ -90,21 +90,30 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         // materialize every generic instantiation the scanned bodies demand
-        let mut imports = FxIndexSet::default();
+        let mut demands = CallDemands::default();
         match self.materialize_instances(&mut builder, &bodies) {
             Ok((instances, demanded)) => {
                 bodies.extend(instances);
-                imports = demanded;
+                demands = demanded;
             }
             Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
             Err(error) => return Err(error),
         }
 
         // declare an import for every foreign callable the bodies call
-        match self.declare_imported_functions(&mut builder, imports) {
+        match self.declare_imported_functions(&mut builder, demands.imports) {
             Ok(()) => {}
             Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
             Err(error) => return Err(error),
+        }
+
+        // declare a dotted host extern for every sealed binding the bodies call
+        for symbol in demands.bindings {
+            match self.declare_binding_function(&mut builder, symbol) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
         }
 
         // lower every declared body, keeping failures isolated per function
