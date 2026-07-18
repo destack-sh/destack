@@ -116,6 +116,7 @@ impl<'a> OperandLowerer<'a> {
             mir::Type::Error => None,
             mir::Type::WithLifetimes { .. }
             | mir::Type::Uninit { .. }
+            | mir::Type::ManuallyDrop { .. }
             | mir::Type::Atomic { .. }
             | mir::Type::Newtype { .. } => {
                 unreachable!("storage_type must peel storage wrappers")

@@ -23,6 +23,8 @@ pub enum ConstantType {
     Float { format: mir::FloatType },
     /// Character constant type.
     Char,
+    /// Untyped storage constant type.
+    Storage,
 }
 
 /// Lookup interface for constant maps.
@@ -56,6 +58,7 @@ pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
         },
         mir::Constant::Float { format, .. } => ConstantType::Float { format: *format },
         mir::Constant::Char { .. } => ConstantType::Char,
+        mir::Constant::Uninit | mir::Constant::Zeroed => ConstantType::Storage,
     }
 }
 

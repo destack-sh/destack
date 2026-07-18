@@ -382,9 +382,14 @@ pub enum Type {
         /// The nullish values allowed by this slice descriptor.
         nullability: Nullability,
     },
-    /// Linear token for one uninitialized allocation.
+    /// Linear token for one possibly uninitialized storage.
     Uninit {
         /// The value under construction.
+        value: TypeId,
+    },
+    /// Owned storage whose automatic drop is suppressed.
+    ManuallyDrop {
+        /// The wrapped value.
         value: TypeId,
     },
 
@@ -786,7 +791,7 @@ impl Type {
             Type::Dynamic { .. } => Copy::No,
 
             // initialization tokens are linear capabilities
-            Type::Uninit { .. } => Copy::No,
+            Type::Uninit { .. } | Type::ManuallyDrop { .. } => Copy::No,
 
             // unique references carry ownership of typed heap storage
             Type::Reference { kind, .. } => match kind {

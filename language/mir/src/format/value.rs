@@ -40,6 +40,8 @@ impl<'a> Format<'a, MirFormatContext<'a>> for Constant {
         match self {
             Constant::Null => write!(f, [token("null")]),
             Constant::Undefined => write!(f, [token("undefined")]),
+            Constant::Uninit => write!(f, [token("uninit")]),
+            Constant::Zeroed => write!(f, [token("zeroed")]),
             Constant::Boolean { value } => {
                 write!(f, [token(if *value { "true" } else { "false" })])
             }

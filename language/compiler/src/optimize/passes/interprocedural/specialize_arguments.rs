@@ -139,6 +139,10 @@ enum ConstantKey {
     Null,
     /// Undefined reference constant.
     Undefined,
+    /// Uninitialized storage constant.
+    Uninit,
+    /// Zeroed storage constant.
+    Zeroed,
     /// Boolean constant.
     Boolean(bool),
     /// Signed integer constant.
@@ -409,6 +413,8 @@ fn constant_key(constant: &mir::Constant) -> ConstantKey {
     match constant {
         mir::Constant::Null => ConstantKey::Null,
         mir::Constant::Undefined => ConstantKey::Undefined,
+        mir::Constant::Uninit => ConstantKey::Uninit,
+        mir::Constant::Zeroed => ConstantKey::Zeroed,
         mir::Constant::Boolean { value } => ConstantKey::Boolean(*value),
         mir::Constant::Int {
             value,

@@ -264,9 +264,9 @@ impl<'a> LayoutLinker<'a> {
                 rank: u32::try_from(shape.len())
                     .map_err(|_| self.program.layout_overflow("tensor view rank"))?,
             })),
-            mir::Type::Atomic { value } | mir::Type::Uninit { value } => {
-                self.layout_shape(*value, layout)
-            }
+            mir::Type::Atomic { value }
+            | mir::Type::Uninit { value }
+            | mir::Type::ManuallyDrop { value } => self.layout_shape(*value, layout),
             mir::Type::Dynamic { .. } => Ok(mir::LayoutShape::Dynamic),
             mir::Type::Variant { .. } => Err(self.program.invalid_input("variant layout")),
             mir::Type::Newtype { .. } | mir::Type::WithLifetimes { .. } | mir::Type::Error => {

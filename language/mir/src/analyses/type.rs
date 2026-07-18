@@ -23,28 +23,42 @@ pub enum TypeKey {
     /// Boolean type.
     Boolean,
     /// Integer type with width and signedness.
-    Int { width: u16, signed: bool },
+    Int {
+        width: u16,
+        signed: bool,
+    },
     /// Pointer-sized signed integer type.
     Isize,
     /// Pointer-sized unsigned integer type.
     Usize,
     /// Floating-point type with format.
-    Float { format: mir::FloatType },
+    Float {
+        format: mir::FloatType,
+    },
     /// Type descriptor handle.
     TypeDescriptor,
     /// Compact runtime type id.
     TypeId,
     /// Atomic storage type.
-    Atomic { value: Box<TypeKey> },
+    Atomic {
+        value: Box<TypeKey>,
+    },
     /// Erased dynamic value type.
-    Dynamic { constraint: Box<TypeKey> },
+    Dynamic {
+        constraint: Box<TypeKey>,
+    },
     /// Type use with applied lifetime arguments.
     WithLifetimes {
         base: Box<TypeKey>,
         lifetimes: Vec<mir::Lifetime>,
     },
     /// Linear uninitialized allocation token type.
-    Uninit { value: Box<TypeKey> },
+    Uninit {
+        value: Box<TypeKey>,
+    },
+    ManuallyDrop {
+        value: Box<TypeKey>,
+    },
     /// Reference or reference type.
     Reference {
         kind: mir::ReferenceKind,
@@ -131,9 +145,13 @@ pub enum TypeKey {
         environment: Box<TypeKey>,
     },
     /// Function reference type.
-    FunctionPointer { signature: Box<TypeKey> },
+    FunctionPointer {
+        signature: Box<TypeKey>,
+    },
     /// Recursive reference to a previously visited type id.
-    Recursive { id: mir::LocalNodeId<mir::Type> },
+    Recursive {
+        id: mir::LocalNodeId<mir::Type>,
+    },
 }
 
 impl TypeKey {
@@ -191,6 +209,9 @@ impl TypeKey {
                 lifetimes: lifetimes.clone(),
             },
             mir::Type::Uninit { value } => TypeKey::Uninit {
+                value: Box::new(Self::from_type_id(value, tree)),
+            },
+            mir::Type::ManuallyDrop { value } => TypeKey::ManuallyDrop {
                 value: Box::new(Self::from_type_id(value, tree)),
             },
 
@@ -396,6 +417,7 @@ impl TypeKey {
             TypeKey::Isize | TypeKey::Usize => bytes_for_width(pointer_width_bits),
             TypeKey::Float { format } => bytes_for_width(format.width()),
             TypeKey::Uninit { value } => value.byte_size(pointer_width_bits),
+            TypeKey::ManuallyDrop { value } => value.byte_size(pointer_width_bits),
             TypeKey::Newtype { inner, .. } => inner.byte_size(pointer_width_bits),
             TypeKey::FixedArray {
                 element,

@@ -301,6 +301,8 @@ impl From<&Constant> for Cell {
     fn from(constant: &Constant) -> Self {
         match constant {
             Constant::Null => Cell::ZERO,
+            // storage constants materialize zeroed cells
+            Constant::Uninit | Constant::Zeroed => Cell::ZERO,
             // undefined occupies the second zero-page niche address
             Constant::Undefined => Cell::from_bits(1),
             Constant::Boolean { value } => Cell::bool(*value),

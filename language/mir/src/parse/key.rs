@@ -40,7 +40,10 @@ pub(super) enum TypeKey {
     /// Boolean type.
     Boolean,
     /// Fixed-width integer.
-    Int { width: u16, signed: bool },
+    Int {
+        width: u16,
+        signed: bool,
+    },
     /// Pointer-sized signed integer.
     Isize,
     /// Pointer-sized unsigned integer.
@@ -52,16 +55,25 @@ pub(super) enum TypeKey {
     /// Runtime type id.
     TypeId,
     /// Atomic storage cell type.
-    Atomic { value: TypeId },
+    Atomic {
+        value: TypeId,
+    },
     /// Runtime-erased dynamic value.
-    Dynamic { constraint: TypeId },
+    Dynamic {
+        constraint: TypeId,
+    },
     /// Type use with applied lifetime arguments.
     WithLifetimes {
         base: TypeId,
         lifetimes: Vec<Lifetime>,
     },
     /// Linear uninitialized allocation token.
-    Uninit { value: TypeId },
+    Uninit {
+        value: TypeId,
+    },
+    ManuallyDrop {
+        value: TypeId,
+    },
     /// Reference/pointer type.
     Reference {
         kind: ReferenceKind,
@@ -87,14 +99,20 @@ pub(super) enum TypeKey {
         nullability: Nullability,
     },
     /// Tuple of heterogeneous elements.
-    Tuple { elements: Vec<TypeId>, copy: Copy },
+    Tuple {
+        elements: Vec<TypeId>,
+        copy: Copy,
+    },
     /// Struct with named or positional fields.
     Struct {
         fields: Vec<LocalNodeId<Field>>,
         copy: Copy,
     },
     /// Nominal newtype wrapper.
-    Newtype { inner: TypeId, copy: Copy },
+    Newtype {
+        inner: TypeId,
+        copy: Copy,
+    },
     /// Sum value.
     Variant {
         discriminant: TypeId,
@@ -135,7 +153,9 @@ pub(super) enum TypeKey {
         result: TypeId,
     },
     /// Function pointer type.
-    FunctionPointer { signature: TypeId },
+    FunctionPointer {
+        signature: TypeId,
+    },
     /// Function value.
     Function {
         signature: TypeId,
@@ -168,6 +188,7 @@ impl TypeKey {
                 lifetimes: lifetimes.clone(),
             },
             Type::Uninit { value } => TypeKey::Uninit { value: *value },
+            Type::ManuallyDrop { value } => TypeKey::ManuallyDrop { value: *value },
 
             Type::Reference {
                 kind,

@@ -43,6 +43,10 @@ pub enum Constant {
         /// The character value.
         value: char,
     },
+    /// Uninitialized storage; reads are invalid until initialized.
+    Uninit,
+    /// Storage with every byte zeroed.
+    Zeroed,
 }
 
 impl Constant {

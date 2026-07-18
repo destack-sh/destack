@@ -327,7 +327,7 @@ impl StorageLayoutBuilder<'_> {
             | mir::Type::Reference { .. }
             | mir::Type::FunctionPointer { .. }
             | mir::Type::Float(_) => self.raw_scalar_layout(ty, layout_id),
-            mir::Type::Uninit { value } => {
+            mir::Type::ManuallyDrop { value } | mir::Type::Uninit { value } => {
                 let mut layout = self.layout(*value)?;
                 layout.layout_id = layout_id;
 

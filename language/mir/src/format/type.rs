@@ -275,6 +275,11 @@ fn format_type_inner<'a>(
             format_type_id(*value, f)?;
             write!(f, [token(">")])
         }
+        Type::ManuallyDrop { value } => {
+            write!(f, [token("manual"), token("<")])?;
+            format_type_id(*value, f)?;
+            write!(f, [token(">")])
+        }
         Type::Reference {
             kind,
             lifetime,

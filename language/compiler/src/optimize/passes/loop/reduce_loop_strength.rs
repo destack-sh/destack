@@ -1493,7 +1493,10 @@ impl<'a> ScevMaterializer<'a> {
 
         // resolve the constant type
         let type_id = match constant {
-            mir::Constant::Null | mir::Constant::Undefined => return None,
+            mir::Constant::Null
+            | mir::Constant::Undefined
+            | mir::Constant::Uninit
+            | mir::Constant::Zeroed => return None,
             mir::Constant::Boolean { .. } => self.tree.boolean_type(),
             mir::Constant::Int {
                 width, is_signed, ..
