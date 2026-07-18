@@ -23,12 +23,20 @@ export declare function panic(message: string): never;
 
 /// Install the runtime panic hook.
 @languageItem("error.setPanicHook")
-@intrinsic("error.setPanicHook")
+@binding("destack.error.panic.hook.set", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
 export declare function setPanicHook(hook: PanicHook): void;
 
 /// Remove the runtime panic hook and return the previous hook.
 @languageItem("error.takePanicHook")
-@intrinsic("error.takePanicHook")
+@binding("destack.error.panic.hook.take", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
 export declare function takePanicHook(): PanicHook;
 
 /// Stop execution with a low-level runtime trap.

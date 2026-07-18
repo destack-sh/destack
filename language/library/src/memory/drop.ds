@@ -13,33 +13,68 @@ export newtype ManuallyDrop<out T> = intrinsic;
 
 export extension<T> of ManuallyDrop<T> {
     /// Wrap `value` without scheduling its destructor.
-    @intrinsic("memory.manuallyDrop.new")
-    static new(value: T): ManuallyDrop<T>;
+    static new(value: T): ManuallyDrop<T> {
+        return newManuallyDrop<T>(value);
+    }
 
     /// Move the wrapped value out.
-    @intrinsic("memory.manuallyDrop.intoInner")
-    intoInner(this): T;
+    intoInner(this): T {
+        return intoManuallyDropInner<T>(this);
+    }
 
     /// Move the wrapped value out through an exclusive borrow.
-    @intrinsic("memory.manuallyDrop.take")
-    take(&exclusive this): T;
+    take(&exclusive this): T {
+        return takeManuallyDrop<T>(this);
+    }
 
     /// Borrow the wrapped value.
-    @intrinsic("memory.manuallyDrop.asReference")
-    asReference(&this): &T;
+    asReference(&this): &T {
+        return manuallyDropReference<T>(this);
+    }
 
     /// Borrow the wrapped value with readonly access.
-    @intrinsic("memory.manuallyDrop.asReadonlyReference")
-    asReadonlyReference(&readonly this): &readonly T;
+    asReadonlyReference(&readonly this): &readonly T {
+        return manuallyDropReadonlyReference<T>(this);
+    }
 
     /// Borrow the wrapped value with exclusive access.
-    @intrinsic("memory.manuallyDrop.asExclusive")
-    asExclusive(&exclusive this): &exclusive T;
+    asExclusive(&exclusive this): &exclusive T {
+        return manuallyDropExclusive<T>(this);
+    }
 
     /// Drop the wrapped value.
-    @intrinsic("memory.manuallyDrop.dropInner")
-    dropInner(this): void;
+    dropInner(this): void {
+        dropManuallyDropInner<T>(this);
+    }
 }
+
+/// Wrap one value without scheduling its destructor.
+@intrinsic("memory.manuallyDrop.new")
+export declare function newManuallyDrop<T>(value: T): ManuallyDrop<T>;
+
+/// Move one wrapped value out.
+@intrinsic("memory.manuallyDrop.intoInner")
+export declare function intoManuallyDropInner<T>(wrapped: ManuallyDrop<T>): T;
+
+/// Move one wrapped value out through an exclusive borrow.
+@intrinsic("memory.manuallyDrop.take")
+export declare function takeManuallyDrop<T>(wrapped: &exclusive ManuallyDrop<T>): T;
+
+/// Borrow one wrapped value.
+@intrinsic("memory.manuallyDrop.asReference")
+export declare function manuallyDropReference<T>(wrapped: &ManuallyDrop<T>): &T;
+
+/// Borrow one wrapped value with readonly access.
+@intrinsic("memory.manuallyDrop.asReadonlyReference")
+export declare function manuallyDropReadonlyReference<T>(wrapped: &readonly ManuallyDrop<T>): &readonly T;
+
+/// Borrow one wrapped value with exclusive access.
+@intrinsic("memory.manuallyDrop.asExclusive")
+export declare function manuallyDropExclusive<T>(wrapped: &exclusive ManuallyDrop<T>): &exclusive T;
+
+/// Drop one wrapped value.
+@intrinsic("memory.manuallyDrop.dropInner")
+export declare function dropManuallyDropInner<T>(wrapped: ManuallyDrop<T>): void;
 
 export extension<T> of ManuallyDrop<T> implements Default where T: Default {
     /// Wrap the default value.

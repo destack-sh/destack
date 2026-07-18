@@ -36,16 +36,19 @@ export newtype Tensor<
 
 export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> {
     /// Return the tensor shape.
-    @intrinsic("tensor.shape")
-    get shape(): Shape<Rank>;
+    get shape(): Shape<Rank> {
+        return tensorShape<T, Rank, F, P>(this);
+    }
 
     /// Return the tensor storage format.
-    @intrinsic("tensor.format")
-    get format(): F;
+    get format(): F {
+        return tensorFormat<T, Rank, F, P>(this);
+    }
 
     /// Return the tensor placement.
-    @intrinsic("tensor.placement")
-    get placement(): P;
+    get placement(): P {
+        return tensorPlacement<T, Rank, F, P>(this);
+    }
 
     /// Allocate an uninitialized tensor.
     static empty(
@@ -74,8 +77,9 @@ export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor
     }
 
     /// Return the total element count.
-    @intrinsic("tensor.size")
-    get size(): usize;
+    get size(): usize {
+        return tensorSize<T, Rank, F, P>(this);
+    }
 
     /// Return the number of axes.
     get rank(): int {
@@ -83,12 +87,14 @@ export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor
     }
 
     /// Return the byte length of one element.
-    @intrinsic("tensor.elementByteLength")
-    get elementByteLength(): usize;
+    get elementByteLength(): usize {
+        return tensorElementByteLength<T, Rank, F, P>(this);
+    }
 
     /// Return the tensor byte length.
-    @intrinsic("tensor.byteLength")
-    get byteLength(): usize;
+    get byteLength(): usize {
+        return tensorByteLength<T, Rank, F, P>(this);
+    }
 
     /// Return whether this tensor has no elements.
     get isEmpty(): boolean {
@@ -98,12 +104,14 @@ export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor
 
 export extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F, Unsharded> {
     /// Return the device that owns the tensor storage.
-    @intrinsic("tensor.device")
-    get device(): Device;
+    get device(): Device {
+        return tensorDevice<T, Rank, F>(this);
+    }
 
     /// Return the backing compute buffer.
-    @intrinsic("tensor.buffer")
-    get buffer(): Buffer<T>;
+    get buffer(): Buffer<T> {
+        return tensorBuffer<T, Rank, F>(this);
+    }
 
     /// Return a tensor copy on `device`.
     to(
@@ -262,3 +270,51 @@ export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor
         todo("Tensor.indexSet");
     }
 }
+
+/// Return one tensor's shape.
+@intrinsic("tensor.shape")
+export declare function tensorShape<T, comptime Rank: int, F: TensorFormat, P: Placement>(
+    tensor: &readonly Tensor<T, Rank, F, P>,
+): Shape<Rank>;
+
+/// Return one tensor's format.
+@intrinsic("tensor.format")
+export declare function tensorFormat<T, comptime Rank: int, F: TensorFormat, P: Placement>(
+    tensor: &readonly Tensor<T, Rank, F, P>,
+): F;
+
+/// Return one tensor's placement.
+@intrinsic("tensor.placement")
+export declare function tensorPlacement<T, comptime Rank: int, F: TensorFormat, P: Placement>(
+    tensor: &readonly Tensor<T, Rank, F, P>,
+): P;
+
+/// Return one tensor's size.
+@intrinsic("tensor.size")
+export declare function tensorSize<T, comptime Rank: int, F: TensorFormat, P: Placement>(
+    tensor: &readonly Tensor<T, Rank, F, P>,
+): usize;
+
+/// Return one tensor's elementByteLength.
+@intrinsic("tensor.elementByteLength")
+export declare function tensorElementByteLength<T, comptime Rank: int, F: TensorFormat, P: Placement>(
+    tensor: &readonly Tensor<T, Rank, F, P>,
+): usize;
+
+/// Return one tensor's byteLength.
+@intrinsic("tensor.byteLength")
+export declare function tensorByteLength<T, comptime Rank: int, F: TensorFormat, P: Placement>(
+    tensor: &readonly Tensor<T, Rank, F, P>,
+): usize;
+
+/// Return the device that owns one tensor's storage.
+@intrinsic("tensor.device")
+export declare function tensorDevice<T, comptime Rank: int, F: TensorFormat>(
+    tensor: &readonly Tensor<T, Rank, F, Unsharded>,
+): Device;
+
+/// Return the compute buffer backing one tensor.
+@intrinsic("tensor.buffer")
+export declare function tensorBuffer<T, comptime Rank: int, F: TensorFormat>(
+    tensor: &readonly Tensor<T, Rank, F, Unsharded>,
+): Buffer<T>;

@@ -6,8 +6,9 @@ export newtype Phantom<out T> = intrinsic;
 
 export extension<T> of Phantom<T> implements Copy, Clone, Default {
     /// Create a phantom marker.
-    @intrinsic("memory.phantom.new")
-    static new(): Phantom<T>;
+    static new(): Phantom<T> {
+        return newPhantom<T>();
+    }
 
     /// Clone this phantom marker.
     clone(): Phantom<T> {
@@ -19,3 +20,7 @@ export extension<T> of Phantom<T> implements Copy, Clone, Default {
         Phantom.new()
     }
 }
+
+/// Create one phantom marker.
+@intrinsic("memory.phantom.new")
+export declare function newPhantom<T>(): Phantom<T>;

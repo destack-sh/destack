@@ -42,12 +42,14 @@ export extension<T> of Slice<T>
 
     /// Build a raw slice descriptor from raw storage.
     @unsafe
-    @intrinsic("collections.slice.fromRaw")
-    static fromRaw(data: *T, length: usize): Raw<[T]>;
+    static fromRaw(data: *T, length: usize): Raw<[T]> {
+        return sliceFromRaw<T>(data, length);
+    }
 
     /// Return the number of elements.
-    @intrinsic("collections.slice.length")
-    get size(): usize;
+    get size(): usize {
+        return sliceLength<T>(this);
+    }
 
     /// Return whether this slice has no elements.
     get isEmpty(): boolean {
@@ -56,13 +58,15 @@ export extension<T> of Slice<T>
 
     /// Load one element without bounds checks.
     @unsafe
-    @intrinsic("collections.slice.get")
-    unsafeGet(&readonly this, index: usize): T;
+    unsafeGet(&readonly this, index: usize): T {
+        return sliceGet<T>(this, index);
+    }
 
     /// Store one element without bounds checks.
     @unsafe
-    @intrinsic("collections.slice.set")
-    unsafeSet(&exclusive this, index: usize, value: T): void;
+    unsafeSet(&exclusive this, index: usize, value: T): void {
+        sliceSet<T>(this, index, value);
+    }
 
     /// Return the first element by value.
     first(): T | undefined {
@@ -99,12 +103,13 @@ export extension<T> of Slice<T>
     }
 
     /// Borrow a contiguous range as a view.
-    @intrinsic("collections.slice.subslice")
     subslice<comptime A: Access = "readonly">(
         this: WithAccess<&[T], A>,
         start: usize,
         length: usize,
-    ): WithAccess<&[T], A>;
+    ): WithAccess<&[T], A> {
+        return sliceView<T, A>(this, start, length);
+    }
 
     /// Borrow a selected range as a view.
     slice<comptime A: Access = "readonly">(
@@ -265,3 +270,27 @@ export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &r
         target.copyFrom(source);
     }
 }
+
+/// Build a raw slice descriptor from raw parts.
+@intrinsic("collections.slice.fromRaw")
+export declare function sliceFromRaw<T>(data: *T, length: usize): Raw<[T]>;
+
+/// Return the element count of one slice view.
+@intrinsic("collections.slice.length")
+export declare function sliceLength<T>(slice: &readonly [T]): usize;
+
+/// Load one element without bounds checks.
+@intrinsic("collections.slice.get")
+export declare function sliceGet<T>(slice: &readonly [T], index: usize): T;
+
+/// Store one element without bounds checks.
+@intrinsic("collections.slice.set")
+export declare function sliceSet<T>(slice: &exclusive [T], index: usize, value: T): void;
+
+/// Borrow a contiguous range of one slice as a view.
+@intrinsic("collections.slice.subslice")
+export declare function sliceView<T, comptime A: Access = "readonly">(
+    slice: WithAccess<&[T], A>,
+    start: usize,
+    length: usize,
+): WithAccess<&[T], A>;

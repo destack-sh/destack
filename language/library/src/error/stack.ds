@@ -47,9 +47,17 @@ export type StackTraceOptions = {
 };
 
 /// Capture a structured stack trace for the current Worker.
-@intrinsic("error.stack.capture")
+@binding("destack.error.stack.capture", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
 export declare function captureStackTrace(options?: StackTraceOptions): StackTrace;
 
 /// Format a structured stack trace as diagnostic text.
-@intrinsic("error.stack.format")
+@binding("destack.error.stack.format", {
+    provider: "runtime",
+    effect: "pure",
+    requires: [],
+})
 export declare function formatStackTrace(trace: StackTrace): ^string;

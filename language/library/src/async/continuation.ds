@@ -11,23 +11,54 @@ export local struct Continuation<TResume = void, TYield = never, TReturn = void>
     /// Resume this continuation with one value.
     ///
     /// This returns the next yield, return, or park result immediately.
-    @intrinsic("async.continuation.resume")
-    resume(this, value: TResume): ContinuationResult<TResume, TYield, TReturn>;
+    resume(this, value: TResume): ContinuationResult<TResume, TYield, TReturn> {
+        return resumeContinuation<TResume, TYield, TReturn>(this, value);
+    }
 
     /// Queue this continuation on the current Worker.
     ///
     /// The next result is delivered through the async owner captured at suspension.
-    @intrinsic("async.continuation.queue")
-    queue(this, value: TResume): void;
+    queue(this, value: TResume): void {
+        queueContinuation<TResume, TYield, TReturn>(this, value);
+    }
 
     /// Resume this continuation through its completion path.
-    @intrinsic("async.continuation.complete")
-    complete(this, value: TReturn): ContinuationResult<TResume, TYield, TReturn>;
+    complete(this, value: TReturn): ContinuationResult<TResume, TYield, TReturn> {
+        return completeContinuation<TResume, TYield, TReturn>(this, value);
+    }
 
     /// Cancel this continuation without producing another user value.
-    @intrinsic("async.continuation.drop")
-    drop(): void;
+    drop(): void {
+        dropContinuation<TResume, TYield, TReturn>(this);
+    }
 }
+
+/// Resume one continuation with one value.
+@intrinsic("async.continuation.resume")
+export declare function resumeContinuation<TResume, TYield = never, TReturn = void>(
+    continuation: Continuation<TResume, TYield, TReturn>,
+    value: TResume,
+): ContinuationResult<TResume, TYield, TReturn>;
+
+/// Queue one continuation on the current Worker.
+@intrinsic("async.continuation.queue")
+export declare function queueContinuation<TResume, TYield = never, TReturn = void>(
+    continuation: Continuation<TResume, TYield, TReturn>,
+    value: TResume,
+): void;
+
+/// Resume one continuation through its completion path.
+@intrinsic("async.continuation.complete")
+export declare function completeContinuation<TResume, TYield = never, TReturn = void>(
+    continuation: Continuation<TResume, TYield, TReturn>,
+    value: TReturn,
+): ContinuationResult<TResume, TYield, TReturn>;
+
+/// Cancel one continuation without producing another user value.
+@intrinsic("async.continuation.drop")
+export declare function dropContinuation<TResume, TYield = never, TReturn = void>(
+    continuation: Continuation<TResume, TYield, TReturn>,
+): void;
 
 /// Resume command delivered into a parked continuation.
 @languageItem("async.ContinuationResume")
@@ -113,5 +144,9 @@ export declare function suspendContinuation<TResume, TYield = never, TReturn = v
 
 /// Queue one microtask on the current Worker.
 @languageItem("async.queueMicrotask")
-@intrinsic("async.microtask.queue")
+@binding("destack.async.microtask.queue", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
 export declare function queueMicrotask(task: () => void): void;

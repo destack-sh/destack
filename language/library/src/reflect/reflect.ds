@@ -1,17 +1,25 @@
-import { Type } from "./type.ds";
+import {
+    Type,
+    equalTypes as equalReflectedTypes,
+    type as reflectedType,
+    typeOf as reflectedTypeOf,
+} from "./type.ds";
 
 /// Static reflection namespace.
 @languageItem("reflect.Reflect")
 export class Reflect {
     /// Return the reflected type for a value.
-    @intrinsic("reflect.typeOf")
-    static typeOf<T>(value: T): Type<T>;
+    static typeOf<T>(value: T): Type<T> {
+        return reflectedTypeOf<T>(value);
+    }
 
     /// Return the reflected type for `T`.
-    @intrinsic("reflect.type")
-    static type<T>(): Type<T>;
+    static type<T>(): Type<T> {
+        return reflectedType<T>();
+    }
 
     /// Return true when two reflected types name the same normalized type.
-    @intrinsic("reflect.type.equals")
-    static equalTypes<A, B>(left: Type<A>, right: Type<B>): boolean;
+    static equalTypes<A, B>(left: Type<A>, right: Type<B>): boolean {
+        return equalReflectedTypes<A, B>(left, right);
+    }
 }

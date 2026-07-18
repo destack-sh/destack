@@ -5,7 +5,11 @@ import { MaybeOwned } from "destack:memory";
 @languageItem("types.Symbol")
 export class Symbol {
     /// Create a new unique symbol.
-    @intrinsic("types.symbol.create")
+    @binding("destack.types.symbol.create", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: [],
+    })
     static create(description?: string | number): symbol;
 
     /// Return a symbol from the shared registry.

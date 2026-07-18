@@ -25,20 +25,24 @@ export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, compt
     type Output = T;
 
     /// Return the tensor shape.
-    @intrinsic("tensor.view.shape")
-    get shape(): Shape<Rank>;
+    get shape(): Shape<Rank> {
+        return tensorViewShape<T, Rank, F, P, A>(this);
+    }
 
     /// Return the tensor view format.
-    @intrinsic("tensor.view.format")
-    get format(): F;
+    get format(): F {
+        return tensorViewFormat<T, Rank, F, P, A>(this);
+    }
 
     /// Return the tensor view placement.
-    @intrinsic("tensor.view.placement")
-    get placement(): P;
+    get placement(): P {
+        return tensorViewPlacement<T, Rank, F, P, A>(this);
+    }
 
     /// Return the total element count.
-    @intrinsic("tensor.view.size")
-    get size(): usize;
+    get size(): usize {
+        return tensorViewSize<T, Rank, F, P, A>(this);
+    }
 
     /// Return the number of axes.
     get rank(): int {
@@ -46,12 +50,14 @@ export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, compt
     }
 
     /// Return the byte length of one element.
-    @intrinsic("tensor.view.elementByteLength")
-    get elementByteLength(): usize;
+    get elementByteLength(): usize {
+        return tensorViewElementByteLength<T, Rank, F, P, A>(this);
+    }
 
     /// Return the tensor view byte length.
-    @intrinsic("tensor.view.byteLength")
-    get byteLength(): usize;
+    get byteLength(): usize {
+        return tensorViewByteLength<T, Rank, F, P, A>(this);
+    }
 
     /// Return the element at `coordinate` by value.
     index(coordinate: Coordinate<Rank>): T {
@@ -72,8 +78,9 @@ export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, compt
 export extension<T, comptime Rank: int, P: Placement, comptime A: Access> of
     TensorView<T, Rank, Strided, P, A> {
     /// Return the element stride for each axis.
-    @intrinsic("tensor.view.strides")
-    get strides(): [Stride; Rank];
+    get strides(): [Stride; Rank] {
+        return tensorViewStrides<T, Rank, P, A>(this);
+    }
 }
 
 export extension<
@@ -91,67 +98,73 @@ export extension<
 export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "mutable"> {
     /// Build a mutable strided tensor view from a slice.
     @unsafe
-    @intrinsic("tensor.view.fromStridedSlice")
     static fromSlice(
         slice: &[T],
         shape: Shape<Rank>,
         strides: [Stride; Rank],
-    ): TensorView<T, Rank, Strided, Unsharded, "mutable">;
+    ): TensorView<T, Rank, Strided, Unsharded, "mutable"> {
+        return tensorViewFromStridedSlice<T, Rank, "mutable">(slice, shape, strides);
+    }
 }
 
 export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "readonly"> {
     /// Build a readonly strided tensor view from a slice.
     @unsafe
-    @intrinsic("tensor.view.fromStridedSlice")
     static fromSlice(
         slice: &readonly [T],
         shape: Shape<Rank>,
         strides: [Stride; Rank],
-    ): TensorView<T, Rank, Strided, Unsharded, "readonly">;
+    ): TensorView<T, Rank, Strided, Unsharded, "readonly"> {
+        return tensorViewFromStridedSlice<T, Rank, "readonly">(slice, shape, strides);
+    }
 }
 
 export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharded, "exclusive"> {
     /// Build an exclusive strided tensor view from a slice.
     @unsafe
-    @intrinsic("tensor.view.fromStridedSlice")
     static fromSlice(
         slice: &exclusive [T],
         shape: Shape<Rank>,
         strides: [Stride; Rank],
-    ): TensorView<T, Rank, Strided, Unsharded, "exclusive">;
+    ): TensorView<T, Rank, Strided, Unsharded, "exclusive"> {
+        return tensorViewFromStridedSlice<T, Rank, "exclusive">(slice, shape, strides);
+    }
 }
 
 export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "mutable"> {
     /// Build a mutable tensor view from a contiguous slice.
     @unsafe
-    @intrinsic("tensor.view.fromSlice")
     static fromSlice(
         slice: &[T],
         shape: Shape<Rank>,
-    ): TensorView<T, Rank, Dense<Order>, Unsharded, "mutable">;
+    ): TensorView<T, Rank, Dense<Order>, Unsharded, "mutable"> {
+        return tensorViewFromSlice<T, Rank, Order, "mutable">(slice, shape);
+    }
 }
 
 export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "readonly"> {
     /// Build a readonly tensor view from a contiguous slice.
     @unsafe
-    @intrinsic("tensor.view.fromSlice")
     static fromSlice(
         slice: &readonly [T],
         shape: Shape<Rank>,
-    ): TensorView<T, Rank, Dense<Order>, Unsharded, "readonly">;
+    ): TensorView<T, Rank, Dense<Order>, Unsharded, "readonly"> {
+        return tensorViewFromSlice<T, Rank, Order, "readonly">(slice, shape);
+    }
 }
 
 export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     TensorView<T, Rank, Dense<Order>, Unsharded, "exclusive"> {
     /// Build an exclusive tensor view from a contiguous slice.
     @unsafe
-    @intrinsic("tensor.view.fromSlice")
     static fromSlice(
         slice: &exclusive [T],
         shape: Shape<Rank>,
-    ): TensorView<T, Rank, Dense<Order>, Unsharded, "exclusive">;
+    ): TensorView<T, Rank, Dense<Order>, Unsharded, "exclusive"> {
+        return tensorViewFromSlice<T, Rank, Order, "exclusive">(slice, shape);
+    }
 }
 
 export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement> of
@@ -162,3 +175,60 @@ export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement> of
         todo("TensorView.indexSet");
     }
 }
+
+/// Return one tensor view's shape.
+@intrinsic("tensor.view.shape")
+export declare function tensorViewShape<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
+    view: &readonly TensorView<T, Rank, F, P, A>,
+): Shape<Rank>;
+
+/// Return one tensor view's format.
+@intrinsic("tensor.view.format")
+export declare function tensorViewFormat<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
+    view: &readonly TensorView<T, Rank, F, P, A>,
+): F;
+
+/// Return one tensor view's placement.
+@intrinsic("tensor.view.placement")
+export declare function tensorViewPlacement<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
+    view: &readonly TensorView<T, Rank, F, P, A>,
+): P;
+
+/// Return one tensor view's size.
+@intrinsic("tensor.view.size")
+export declare function tensorViewSize<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
+    view: &readonly TensorView<T, Rank, F, P, A>,
+): usize;
+
+/// Return one tensor view's elementByteLength.
+@intrinsic("tensor.view.elementByteLength")
+export declare function tensorViewElementByteLength<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
+    view: &readonly TensorView<T, Rank, F, P, A>,
+): usize;
+
+/// Return one tensor view's byteLength.
+@intrinsic("tensor.view.byteLength")
+export declare function tensorViewByteLength<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
+    view: &readonly TensorView<T, Rank, F, P, A>,
+): usize;
+
+/// Return the element stride of each axis of one strided tensor view.
+@intrinsic("tensor.view.strides")
+export declare function tensorViewStrides<T, comptime Rank: int, P: Placement, comptime A: Access>(
+    view: &readonly TensorView<T, Rank, Strided, P, A>,
+): [Stride; Rank];
+
+/// Build one strided tensor view over a slice.
+@intrinsic("tensor.view.fromStridedSlice")
+export declare function tensorViewFromStridedSlice<T, comptime Rank: int, comptime A: Access>(
+    slice: WithAccess<&[T], A>,
+    shape: Shape<Rank>,
+    strides: [Stride; Rank],
+): TensorView<T, Rank, Strided, Unsharded, A>;
+
+/// Build one dense tensor view over a contiguous slice.
+@intrinsic("tensor.view.fromSlice")
+export declare function tensorViewFromSlice<T, comptime Rank: int, comptime Order: MemoryOrder, comptime A: Access>(
+    slice: WithAccess<&[T], A>,
+    shape: Shape<Rank>,
+): TensorView<T, Rank, Dense<Order>, Unsharded, A>;
