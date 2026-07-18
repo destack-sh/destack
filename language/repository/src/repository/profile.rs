@@ -67,11 +67,11 @@ impl Repository {
             &target_name,
             &target,
             &compiler_options,
-            config.as_deref().map(|config| &config.destack),
+            config.as_deref(),
             &revision_state.environment,
             product.as_deref(),
             product_role.as_deref(),
-        );
+        )?;
 
         Ok(profile)
     }
@@ -219,15 +219,16 @@ impl Repository {
         target_name: &str,
         target: &Target,
         compiler_options: &CompilerOptions,
-        config: Option<&Destack>,
+        config: Option<&DestackFile>,
         environment: &Environment,
         product: Option<&str>,
         product_role: Option<&str>,
-    ) -> Arc<Profile> {
+    ) -> Result<Arc<Profile>, RepositoryError> {
+        let destack = config.map(|config| &config.destack);
         let profile_config =
-            Self::profile_options_for_target(target, compiler_options, config, environment);
+            Self::profile_options_for_target(target, compiler_options, destack, environment);
         let product_config =
-            product.and_then(|product| config.and_then(|config| config.products.get(product)));
+            product.and_then(|product| destack.and_then(|config| config.products.get(product)));
         let key = profile_key_for_target(
             target_name,
             target,
@@ -238,9 +239,9 @@ impl Repository {
             product,
             product_config,
             product_role,
-        );
+        )?;
 
-        Arc::new(Profile::from_key(key))
+        Ok(Arc::new(Profile::from_key(key)))
     }
 
     /// Return the active product role when the target belongs to the selected product.

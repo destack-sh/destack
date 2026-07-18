@@ -1,8 +1,11 @@
+use std::collections::BTreeMap;
+
 use destack_artifact::ProfileKey;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    CompilerOptions, ConditionSelection, ConditionSet, Destack, Environment, Product,
-    ProfileOptions, Stage, Target,
+    CompilerOptions, Condition, ConditionAxis, ConditionCatalog, ConditionSelection, ConditionSet,
+    Destack, DestackFile, Environment, Product, ProfileOptions, RepositoryError, Stage, Target,
 };
 
 /// The builtin prelude global grounding every profile.
@@ -14,12 +17,12 @@ pub(crate) fn profile_key_for_target(
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
-    config: Option<&Destack>,
+    config: Option<&DestackFile>,
     environment: &Environment,
     product: Option<&str>,
     product_config: Option<&Product>,
     product_role: Option<&str>,
-) -> ProfileKey {
+) -> Result<ProfileKey, RepositoryError> {
     let compiler_options = profile_compiler_options_for_target(
         target,
         compiler_options,
@@ -36,7 +39,8 @@ pub(crate) fn profile_key_for_target(
         config,
         &environment.selection,
         product,
-    );
+        product_role,
+    )?;
     let emit = target.emit;
 
     // runtime surface
@@ -84,7 +88,7 @@ pub(crate) fn profile_key_for_target(
             .collect(),
     );
 
-    ProfileKey {
+    Ok(ProfileKey {
         emit,
         conditions,
         target_arch: target.native.arch.clone(),
@@ -104,7 +108,7 @@ pub(crate) fn profile_key_for_target(
         no_aliasing_mutable_borrows,
         no_implicit_receivers,
         emit_checked_types,
-    }
+    })
 }
 
 /// Build one condition set from already resolved compiler options.
@@ -114,67 +118,57 @@ fn condition_set_from_compiler_options(
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
     product_config: Option<&Product>,
-    config: Option<&Destack>,
+    config: Option<&DestackFile>,
     selection: &ConditionSelection,
     product: Option<&str>,
-) -> ConditionSet {
-    ConditionSet {
-        modes: inherited_conditions(
-            &compiler_options.modes,
-            &selection.modes,
-            |config, name| {
-                config
-                    .conditions
-                    .modes
-                    .get(name)
-                    .map(|options| options.extends.as_slice())
-            },
-            config,
-        ),
-        roles: inherited_conditions(
-            &compiler_options.roles,
-            &selection.roles,
-            |config, name| {
-                config
-                    .conditions
-                    .roles
-                    .get(name)
-                    .map(|options| options.extends.as_slice())
-            },
-            config,
-        ),
-        features: inherited_conditions(
-            &compiler_options.features,
-            &selection.features,
-            |config, name| {
-                config
-                    .conditions
-                    .features
-                    .get(name)
-                    .map(|options| options.extends.as_slice())
-            },
-            config,
-        ),
-        tags: inherited_conditions(
-            &compiler_options.tags,
-            &selection.tags,
-            |config, name| {
-                config
-                    .conditions
-                    .tags
-                    .get(name)
-                    .map(|options| options.extends.as_slice())
-            },
-            config,
-        ),
+    product_role: Option<&str>,
+) -> Result<ConditionSet, RepositoryError> {
+    let modes = expand_conditions(
+        config,
+        ConditionAxis::Mode,
+        &compiler_options.modes,
+        &selection.modes,
+    )?;
+    let roles = expand_conditions(
+        config,
+        ConditionAxis::Role,
+        &compiler_options.roles,
+        &selection.roles,
+    )?;
+    let features = expand_conditions(
+        config,
+        ConditionAxis::Feature,
+        &compiler_options.features,
+        &selection.features,
+    )?;
+    let tags = expand_conditions(
+        config,
+        ConditionAxis::Tag,
+        &compiler_options.tags,
+        &selection.tags,
+    )?;
+    let labels = if let Some(config) = config {
+        condition_labels(&config.conditions, &modes, &roles, &features, &tags)
+    } else {
+        BTreeMap::new()
+    };
+    let config = config.map(|config| &config.destack);
+
+    Ok(ConditionSet {
+        modes,
+        roles,
+        features,
+        tags,
         target: Some(target_name.to_string()),
         product: product.map(str::to_string),
+        role: product_role.map(str::to_string),
+        labels,
         stage: resolved_stage(config, profile_config, product_config, target)
             .map(|stage| stage.name().to_string()),
         platform: None,
         host: None,
         runtime: None,
-    }
+    })
 }
 
 /// Build one profile's global modules.
@@ -260,23 +254,65 @@ fn resolved_stage(
 }
 
 /// Expand selected source graph names through declared parents.
-fn inherited_conditions(
+fn expand_conditions(
+    config: Option<&DestackFile>,
+    axis: ConditionAxis,
     declared: &[String],
     environment: &[String],
-    parents_for: impl for<'a> Fn(&'a Destack, &str) -> Option<&'a [String]>,
-    config: Option<&Destack>,
-) -> indexmap::IndexSet<String> {
-    let mut conditions = indexmap::IndexSet::new();
+) -> Result<IndexSet<String>, RepositoryError> {
+    let selected = declared.iter().chain(environment).map(String::as_str);
+    let Some(config) = config else {
+        return Ok(selected.map(str::to_string).collect());
+    };
 
-    for name in declared.iter().chain(environment) {
-        // declared parent conditions
-        if let Some(parents) = config.and_then(|config| parents_for(config, name)) {
-            conditions.extend(parents.iter().cloned());
+    config
+        .conditions
+        .expand(axis, selected)
+        .map_err(|error| RepositoryError::InvalidConfig {
+            file: config.file_id,
+            message: error.to_string(),
+        })
+}
+
+/// Collect labels from every active source graph condition.
+fn condition_labels(
+    conditions: &ConditionCatalog,
+    modes: &IndexSet<String>,
+    roles: &IndexSet<String>,
+    features: &IndexSet<String>,
+    tags: &IndexSet<String>,
+) -> BTreeMap<String, Vec<String>> {
+    let mut labels = BTreeMap::<String, IndexSet<String>>::new();
+
+    // collect every label contributed by each active condition axis
+    extend_condition_labels(modes, &conditions.modes, &mut labels);
+    extend_condition_labels(roles, &conditions.roles, &mut labels);
+    extend_condition_labels(features, &conditions.features, &mut labels);
+    extend_condition_labels(tags, &conditions.tags, &mut labels);
+
+    labels
+        .into_iter()
+        .map(|(name, values)| (name, values.into_iter().collect()))
+        .collect()
+}
+
+/// Extend collected labels with one active condition axis.
+fn extend_condition_labels(
+    names: &IndexSet<String>,
+    declarations: &IndexMap<String, Condition>,
+    labels: &mut BTreeMap<String, IndexSet<String>>,
+) {
+    for name in names {
+        let Some(condition) = declarations.get(name) else {
+            continue;
+        };
+
+        // merge each label's values in active condition order
+        for (label, value) in &condition.labels {
+            labels
+                .entry(label.clone())
+                .or_default()
+                .insert(value.clone());
         }
-
-        // selected condition
-        conditions.insert(name.clone());
     }
-
-    conditions
 }
