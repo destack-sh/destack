@@ -314,7 +314,7 @@ impl TensorDimension {
 }
 
 /// Concrete type in MIR (post-monomorphization).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Type {
     /// Invalid type produced while recovering malformed MIR text.
     Error,
@@ -847,7 +847,7 @@ impl FloatType {
 }
 
 /// A field in a struct type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Field {
     /// Name (optional).
     pub name: Option<StringId>,
