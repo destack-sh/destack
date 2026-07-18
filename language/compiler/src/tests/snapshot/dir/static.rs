@@ -26,6 +26,10 @@ impl SnapshotTable for dir::StaticSegment {
                 continue;
             }
 
+            if builder.decorator_statics.contains(&global_static_id) {
+                continue;
+            }
+
             let term = self.get_static(static_id);
             let row = SnapshotRow::new(SnapshotAnchor::End, "static", "entry")
                 .field("value", builder.static_term_label(term));

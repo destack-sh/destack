@@ -56,7 +56,6 @@ newtype Shape =
     | { kind: "rectangleShape"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
 
-/// @static.entry value="derive(Tagged({ case: \"snake_case\"; names: { circle: \"Round\" } }))"
 "#,
     );
 }

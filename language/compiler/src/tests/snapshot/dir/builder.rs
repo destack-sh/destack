@@ -64,6 +64,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) type_labels: BTreeMap<dir::GlobalTypeId, String>,
     /// Semantic static labels keyed by global static id.
     pub(super) static_labels: BTreeMap<dir::GlobalStaticId, String>,
+    /// Static values rendered with their decorator applications.
+    pub(super) decorator_statics: BTreeSet<dir::GlobalStaticId>,
     /// Whether to render dense binding node rows.
     pub(super) binding_nodes: bool,
     /// Whether to render expression node type rows.
@@ -104,6 +106,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             language_item_by_symbol: BTreeMap::new(),
             type_labels: BTreeMap::new(),
             static_labels: BTreeMap::new(),
+            decorator_statics: BTreeSet::new(),
             binding_nodes: false,
             type_nodes: false,
             type_references: false,
@@ -288,6 +291,9 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.statics {
+            for (_, application) in checked.decorators.iter_applications() {
+                self.decorator_statics.insert(application.value);
+            }
             self.add_table(checked.statics.as_ref());
         }
 
