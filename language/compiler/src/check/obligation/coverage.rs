@@ -187,7 +187,9 @@ impl CheckState<'_> {
                     if let Some(key) = self.enum_case_key_from_discriminant(value, discriminant)? {
                         return Ok(UncoveredValue::VariantCase { ty: value, key });
                     }
-                    if let Some(key) = self.tagged_case_key_from_discriminant(discriminant) {
+                    if let Answer::Ready(Some(key)) =
+                        self.tagged_case_key_from_type(origin, value, discriminant)?
+                    {
                         return Ok(UncoveredValue::VariantCase { ty: value, key });
                     }
 
@@ -616,7 +618,7 @@ impl CheckState<'_> {
             _ => return Ok(Answer::Ready(value)),
         };
         let backing = match self.definition(instance.symbol)? {
-            Some(dir::Definition::Newtype(definition)) => definition.value,
+            Some(dir::Definition::Newtype(definition)) => definition.backing,
             _ => return Ok(Answer::Ready(value)),
         };
 

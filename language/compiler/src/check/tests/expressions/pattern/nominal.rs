@@ -30,7 +30,7 @@ if (let UserId(value) = id) {
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
 
 declare const id: UserId;
 /// @type.symbol symbol=id source=id type=UserId

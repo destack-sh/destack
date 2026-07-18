@@ -1,6 +1,67 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_variant_derivation_precedes_body_checking() {
+    let session = TestSession::single(
+        r#"
+const circle = Shape.Round({ radius: 5 });
+const rectangle = Shape.rectangle_shape({ width: 10, height: 20 });
+
+@derive(Tagged({
+    case: "snake_case",
+    names: { circle: "Round" },
+}))
+newtype Shape =
+    | { kind: "rectangleShape"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::none()
+            .with_definitions()
+            .with_decorators()
+            .with_statics(),
+        r#"
+=== annotated ===
+const circle: Shape = Shape.Round({ radius: 5 });
+const rectangle: Shape = Shape.rectangle_shape({ width: 10, height: 20 });
+
+@derive(
+    Tagged({
+        case: "snake_case",
+        names: { circle: "Round" },
+    }),
+)
+newtype Shape =
+    | { kind: "rectangleShape"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+
+=== checked ===
+const circle = Shape.Round({ radius: 5 });
+const rectangle = Shape.rectangle_shape({ width: 10, height: 20 });
+
+@derive(Tagged({
+/// @decorator.node expression=derive target=decorator.derive type=derive kind=derive providers=[decorator.derive.Tagged backing={ discriminant?: string; case?: decorator.derive.TaggedCase; names?: decorator.derive.TaggedNames } type=Tagged] value="derive(Tagged({ case: \"snake_case\"; names: { circle: \"Round\" } }))"
+
+    case: "snake_case",
+    names: { circle: "Round" },
+}))
+newtype Shape =
+/// @definition.newtype symbol=Shape backing={ kind: "rectangleShape"; width: int32; height: int32 } | { kind: "circle"; radius: int32 }
+/// @definition.variant symbol=Shape.Round key=Round discriminant=circle backing={ kind: "circle"; radius: int32 }
+/// @definition.variant symbol=Shape.rectangle_shape key=rectangle_shape discriminant=rectangleShape backing={ kind: "rectangleShape"; width: int32; height: int32 }
+
+    | { kind: "rectangleShape"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+
+/// @static.entry value="derive(Tagged({ case: \"snake_case\"; names: { circle: \"Round\" } }))"
+"#,
+    );
+}
+
+#[test]
 fn test_variant_pattern_binds_tuple_payload() {
     let session = TestSession::single(
         r#"
@@ -33,15 +94,18 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -110,15 +174,18 @@ match (event) {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Event = { kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string };
 /// @type.symbol symbol=Event type=Event
 /// @type.symbol symbol=Event.Click type=Event.Click
 /// @type.symbol symbol=Event.Key type=Event.Key
-/// @definition.newtype symbol=Event value={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
-/// @definition.variant symbol=Event.Click key=Click
-/// @definition.variant symbol=Event.Key key=Key
+/// @definition.newtype symbol=Event backing={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
+/// @definition.variant symbol=Event.Click key=Click discriminant=click backing={ kind: "click"; x: int32; y: int32 }
+/// @definition.variant symbol=Event.Key key=Key discriminant=key backing={ kind: "key"; key: string }
 
 declare const event: Event;
 /// @type.symbol symbol=event source=event type=Event
@@ -194,26 +261,32 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Other = Ok<string>;
 /// @type.symbol symbol=Other source="newtype Other = Ok<string>" type=Other
 /// @type.symbol symbol=Other.Ok type=Other.Ok
-/// @definition.newtype symbol=Other source="newtype Other = Ok<string>" value=Ok<string>
-/// @definition.variant symbol=Other.Ok source="newtype Other = Ok<string>" key=Ok
+/// @definition.newtype symbol=Other source="newtype Other = Ok<string>" backing=Ok<string>
+/// @definition.variant symbol=Other.Ok source="newtype Other = Ok<string>" key=Ok discriminant=Ok backing=Ok<string>
 /// @resolution.name source=Ok target=error.result.Ok
 
 declare const status: Status;
@@ -271,15 +344,18 @@ match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -340,15 +416,18 @@ const label: "ok" | "err" = match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -414,15 +493,18 @@ const label: "ok" | "err" = match (status) {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
 /// @type.symbol symbol=Status.Err type=Status.Err
 /// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" value=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -506,8 +588,8 @@ function describe(mode: Mode): int32 {
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
-/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
-/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
 
     Read = 1,
     /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
@@ -581,8 +663,8 @@ function describe(mode: Mode): int32 {
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
 /// @definition.enum symbol=Mode
-/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
-/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
 
     Read = 1,
     /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read

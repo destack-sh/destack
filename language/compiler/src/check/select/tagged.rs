@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidatePass, Cause, CauseKind, Decision, FlowPointId,
-    FlowSite, Origin, Relation, TypeSubstitution, answer,
+    Answer, BodyState, CandidateOutcome, CandidatePass, Cause, CauseKind, CheckState, Decision,
+    FlowPointId, FlowSite, Origin, Relation, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -41,6 +41,10 @@ struct TaggedPayloadField {
     key: dir::StaticKey,
     /// The projected field type.
     ty: dir::GlobalTypeId,
+    /// Whether the source field is optional.
+    is_optional: bool,
+    /// Whether the source field is readonly.
+    is_readonly: bool,
 }
 
 impl BodyState<'_, '_> {
@@ -88,14 +92,25 @@ impl BodyState<'_, '_> {
         head: TaggedPatternHead,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
-        // enum owners select their member by discriminant instead
-        if let Some(dir::Definition::Enum(_)) = self.definition(head.instance.symbol)? {
-            let (owner, instance, key) = (head.owner, head.instance.clone(), head.key);
+        let definition = self.definition(head.instance.symbol)?;
+        match definition {
+            // enum owners select their member by discriminant
+            Some(dir::Definition::Enum(_)) => {
+                return self.select_enum_member_pattern(
+                    node,
+                    origin,
+                    head.owner,
+                    &head.instance,
+                    head.key,
+                    fields,
+                );
+            }
 
-            return self.select_enum_member_pattern(node, origin, owner, &instance, key, fields);
-        }
-        if !self.symbol_has_tagged_derive(head.instance.symbol) {
-            return self.reject_pattern(node, origin, head.owner);
+            // derived newtypes carry their checked tagged definition
+            Some(dir::Definition::Newtype(value)) if value.is_tagged() => {}
+
+            // every other owner has no variant cases
+            _ => return self.reject_pattern(node, origin, head.owner),
         }
 
         // select the requested owner from the matched input when it is visible
@@ -400,7 +415,6 @@ impl BodyState<'_, '_> {
         });
         let resolution = dir::ConstructResolution::new(
             target,
-            Self::parameter_types(&signature.parameters),
             self.argument_bindings(module, argument_nodes, &signature.parameters),
             signature.return_type,
         );
@@ -499,158 +513,95 @@ impl BodyState<'_, '_> {
         })))
     }
 
-    /// Select one tagged case from a newtype backing.
+    /// Select one tagged variant.
     fn tagged_case_selection(
         &mut self,
         origin: Origin,
         head: &TaggedPatternHead,
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(head.instance.symbol)?
-        else {
+        let Some(variant) = self.tagged_variant(head.instance.symbol, head.key)? else {
             return Ok(Answer::Ready(None));
         };
-        let declared = definition.value;
-
-        // reduce the owner backing under its matched arguments
+        // instantiate the backing leaf under the selected owner
         let substitution = self
             .instance_substitution(head.owner.module_id, &head.instance)?
             .with_receiver(head.owner);
-        let backing = self.substitute_type(origin.module(), declared, &substitution)?;
-        let backing = answer!(self.reduce_type_head(origin, backing)?);
+        let leaf = self.substitute_type(origin.module(), variant.backing, &substitution)?;
+        let leaf = answer!(self.reduce_type_head(origin, leaf)?);
 
-        // search every union arm, or the backing itself for one-case newtypes
-        let mut arms = SmallVec::<[_; 4]>::new();
-        match self.ty(backing)? {
-            dir::Type::Union(union) => arms.extend(
-                self.type_ids(backing.module_id, union.elements)?
-                    .iter()
-                    .copied(),
-            ),
-            _ => arms.push(backing),
-        }
-        for arm in arms {
-            let arm = answer!(self.reduce_type_head(origin, arm)?);
-            let Some(case) = answer!(self.tagged_case_from_arm(origin, head, arm)?) else {
-                continue;
-            };
+        // project the runtime payload from the selected leaf
+        let definition =
+            self.definition(head.instance.symbol)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("tagged owner {:?} has no definition", head.instance.symbol),
+                })?;
+        let dir::Definition::Newtype(definition) = definition else {
+            return Err(CompilerError::Internal {
+                message: format!("tagged owner {:?} is not a newtype", head.instance.symbol),
+            });
+        };
+        let discriminant = definition
+            .discriminant
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "tagged owner {:?} has no discriminant",
+                    head.instance.symbol
+                ),
+            })?;
+        let discriminant_key = dir::StaticKey::Name(discriminant);
+        let fields = answer!(self.tagged_payload_fields(origin, leaf, discriminant_key)?);
+        let payload = self.tagged_payload_type(origin, &fields)?;
+        let discriminant = dir::ScalarLiteral::String(variant.discriminant);
+        let case = dir::VariantCase {
+            owner: head.instance.symbol,
+            key: variant.key,
+            member: variant.symbol,
+        };
+        let head_arguments = self
+            .type_ids(head.owner.module_id, head.instance.arguments)?
+            .to_vec();
+        let generic_arguments =
+            self.symbol_generic_argument_bindings(head.instance.symbol, &head_arguments)?;
 
-            return Ok(Answer::Ready(Some(case)));
-        }
-
-        Ok(Answer::Ready(None))
+        Ok(Answer::Ready(Some(TaggedCaseSelection {
+            case,
+            generic_arguments: Some(generic_arguments),
+            discriminant,
+            payload,
+            fields,
+        })))
     }
 
-    /// Select one tagged case from one reduced backing arm.
-    fn tagged_case_from_arm(
+    /// Return the compact payload fields declared by one tagged leaf.
+    fn tagged_payload_fields(
         &mut self,
         origin: Origin,
-        head: &TaggedPatternHead,
-        arm: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        match self.ty(arm)? {
-            dir::Type::Instance(instance) => {
-                self.tagged_case_from_instance(origin, head, arm, &instance)
+        leaf: dir::GlobalTypeId,
+        discriminant: dir::StaticKey,
+    ) -> CompilerResult<Answer<Vec<TaggedPayloadField>>> {
+        match self.ty(leaf)? {
+            dir::Type::Instance(_) => {
+                self.tagged_instance_payload_fields(origin, leaf, discriminant)
             }
-            dir::Type::Shape(shape) => self.tagged_case_from_shape(origin, head, arm, &shape),
-            _ => Ok(Answer::Ready(None)),
+            dir::Type::Shape(shape) => {
+                let fields = self
+                    .shape_fields(leaf.module_id, shape.fields)?
+                    .iter()
+                    .filter(|field| field.key != discriminant)
+                    .map(|field| TaggedPayloadField {
+                        key: field.key,
+                        ty: field.ty,
+                        is_optional: field.is_optional,
+                        is_readonly: field.is_readonly,
+                    })
+                    .collect();
+
+                Ok(Answer::Ready(fields))
+            }
+            _ => Err(CompilerError::Internal {
+                message: format!("tagged variant has invalid leaf {leaf:?}"),
+            }),
         }
-    }
-
-    /// Select one tagged case from a nominal backing arm.
-    fn tagged_case_from_instance(
-        &mut self,
-        origin: Origin,
-        head: &TaggedPatternHead,
-        arm: dir::GlobalTypeId,
-        instance: &dir::GenericInstance,
-    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let Some(key) = self
-            .binding_table(instance.symbol.module_id)
-            .get_symbol(instance.symbol.local_id)
-            .key
-        else {
-            return Ok(Answer::Ready(None));
-        };
-        if !key.matches(&head.key) {
-            return Ok(Answer::Ready(None));
-        }
-
-        let tag_key = self.tagged_discriminant_key();
-        let Some(discriminant) = answer!(self.tagged_instance_discriminant(origin, arm, tag_key)?)
-        else {
-            return Ok(Answer::Ready(None));
-        };
-
-        let fields = answer!(self.tagged_instance_payload_fields(origin, arm, tag_key)?);
-        let payload = self.tagged_payload_type(origin, &fields)?;
-        let Some(case) = self.tagged_variant_case(head.instance.symbol, key)? else {
-            return Ok(Answer::Ready(None));
-        };
-        let head_arguments = self
-            .type_ids(head.owner.module_id, head.instance.arguments)?
-            .to_vec();
-        let generic_arguments =
-            self.symbol_generic_argument_bindings(head.instance.symbol, &head_arguments)?;
-
-        Ok(Answer::Ready(Some(TaggedCaseSelection {
-            case,
-            generic_arguments: Some(generic_arguments),
-            discriminant,
-            payload,
-            fields,
-        })))
-    }
-
-    /// Select one tagged case from a structural backing arm.
-    fn tagged_case_from_shape(
-        &mut self,
-        origin: Origin,
-        head: &TaggedPatternHead,
-        arm: dir::GlobalTypeId,
-        shape: &dir::ShapeType,
-    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let tag_key = self.tagged_discriminant_key();
-        let shape_fields = self.shape_fields(arm.module_id, shape.fields)?.to_vec();
-        let Some(tag) = shape_fields.iter().find(|field| field.key == tag_key) else {
-            return Ok(Answer::Ready(None));
-        };
-        let tag = answer!(self.reduce_type_head(origin, tag.ty)?);
-        let dir::Type::Literal(discriminant) = self.ty(tag)? else {
-            return Ok(Answer::Ready(None));
-        };
-
-        let Some(key) = self.tagged_case_key_from_discriminant(discriminant) else {
-            return Ok(Answer::Ready(None));
-        };
-        if !key.matches(&head.key) {
-            return Ok(Answer::Ready(None));
-        }
-
-        let fields = shape_fields
-            .iter()
-            .filter(|field| field.key != tag_key)
-            .map(|field| TaggedPayloadField {
-                key: field.key,
-                ty: field.ty,
-            })
-            .collect::<Vec<_>>();
-        let payload = self.tagged_payload_type(origin, &fields)?;
-        let Some(case) = self.tagged_variant_case(head.instance.symbol, key)? else {
-            return Ok(Answer::Ready(None));
-        };
-        let head_arguments = self
-            .type_ids(head.owner.module_id, head.instance.arguments)?
-            .to_vec();
-        let generic_arguments =
-            self.symbol_generic_argument_bindings(head.instance.symbol, &head_arguments)?;
-
-        Ok(Answer::Ready(Some(TaggedCaseSelection {
-            case,
-            generic_arguments: Some(generic_arguments),
-            discriminant,
-            payload,
-            fields,
-        })))
     }
 
     /// Return the compact payload fields named by one nominal arm.
@@ -661,10 +612,14 @@ impl BodyState<'_, '_> {
         tag_key: dir::StaticKey,
     ) -> CompilerResult<Answer<Vec<TaggedPayloadField>>> {
         let dir::Type::Instance(instance) = self.ty(arm)? else {
-            return Ok(Answer::Ready(Vec::new()));
+            return Err(CompilerError::Internal {
+                message: format!("tagged nominal leaf {arm:?} is not an instance"),
+            });
         };
         let Some(definition) = self.definition(instance.symbol)? else {
-            return Ok(Answer::Ready(Vec::new()));
+            return Err(CompilerError::Internal {
+                message: format!("tagged nominal leaf {arm:?} has no definition"),
+            });
         };
 
         let fields = definition
@@ -682,10 +637,17 @@ impl BodyState<'_, '_> {
                 field.key,
             )?);
             let Some(ty) = lookup.value_type() else {
-                continue;
+                return Err(CompilerError::Internal {
+                    message: format!("tagged payload field {:?} has no value type", field.symbol),
+                });
             };
 
-            payload.push(TaggedPayloadField { key: field.key, ty });
+            payload.push(TaggedPayloadField {
+                key: field.key,
+                ty,
+                is_optional: field.is_optional,
+                is_readonly: field.is_readonly,
+            });
         }
 
         Ok(Answer::Ready(payload))
@@ -703,8 +665,8 @@ impl BodyState<'_, '_> {
             .map(|field| dir::TypeField {
                 key: field.key,
                 ty: field.ty,
-                is_optional: false,
-                is_readonly: false,
+                is_optional: field.is_optional,
+                is_readonly: field.is_readonly,
             })
             .collect::<Vec<_>>();
         let fields = self.intern_fields(module, &fields)?;
@@ -743,7 +705,7 @@ impl BodyState<'_, '_> {
                         payload_fields,
                         pattern,
                         position,
-                    );
+                    )?;
                     let Some(pattern_type) = pattern_type else {
                         let key = position.to_string();
                         self.report_pattern_field_missing(origin, payload, key)?;
@@ -777,18 +739,19 @@ impl BodyState<'_, '_> {
 
                         continue;
                     };
+                    let input = self.tagged_payload_field_type(module, payload_field)?;
 
                     if let Some(pattern) = pattern {
                         self.project_pattern_input(
                             flow,
                             scope,
-                            payload_field.ty,
+                            input,
                             pattern.into_global_any(module),
                         )?;
                     } else if let Some(symbol) =
                         self.module(module).declaration_symbol((*field).into_any())
                     {
-                        let input = self.pattern_binding_type(symbol, payload_field.ty)?;
+                        let input = self.pattern_binding_type(symbol, input)?;
 
                         self.bind_symbol_type(symbol, input)?;
                     }
@@ -797,7 +760,7 @@ impl BodyState<'_, '_> {
                         source,
                         projection: dir::Projection::FieldGet {
                             field: dir::ProjectionField::Key(key),
-                            ty: payload_field.ty,
+                            ty: input,
                         },
                         pattern: pattern.map(|pattern| pattern.into_global_any(module)),
                     });
@@ -816,18 +779,152 @@ impl BodyState<'_, '_> {
 
     /// Return one positional compact payload type.
     fn tagged_positional_payload_type(
-        &self,
+        &mut self,
         module: ModuleId,
         payload: dir::GlobalTypeId,
         fields: &[TaggedPayloadField],
         pattern: dir::LocalNodeId<dir::Pattern>,
         position: usize,
-    ) -> Option<dir::GlobalTypeId> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let pattern = self.module(module).view().get(pattern);
         if matches!(pattern, dir::Pattern::Object { .. }) {
-            return Some(payload);
+            return Ok(Some(payload));
         }
 
-        fields.get(position).map(|field| field.ty)
+        let ty = match fields.get(position) {
+            Some(field) => Some(self.tagged_payload_field_type(module, field)?),
+            None => None,
+        };
+
+        Ok(ty)
+    }
+
+    /// Return one tagged payload field's projected value type.
+    fn tagged_payload_field_type(
+        &mut self,
+        module: ModuleId,
+        field: &TaggedPayloadField,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !field.is_optional {
+            return Ok(field.ty);
+        }
+        let undefined = self.intern_type(module, dir::Type::Undefined)?;
+
+        self.normalized_union_type(module, [field.ty, undefined])
+    }
+}
+
+impl CheckState<'_> {
+    /// Return the case key declared by one Tagged variant symbol.
+    pub(in crate::check) fn tagged_variant_key(
+        &mut self,
+        owner: dir::GlobalSymbolId,
+        member: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(owner)? else {
+            return Ok(None);
+        };
+        let key = definition
+            .tagged_variant_by_symbol(member)
+            .map(|variant| variant.key);
+
+        Ok(key)
+    }
+
+    /// Return the variant declared by one Tagged owner and case key.
+    pub(in crate::check) fn tagged_variant(
+        &mut self,
+        owner: dir::GlobalSymbolId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Option<dir::TaggedVariantDefinition>> {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(owner)? else {
+            return Ok(None);
+        };
+        let variant = definition.tagged_variant_by_key(key).cloned();
+
+        Ok(variant)
+    }
+
+    /// Return the selected case key for one Tagged discriminant.
+    pub(in crate::check) fn tagged_case_key_from_discriminant(
+        &self,
+        owner: dir::GlobalSymbolId,
+        discriminant: dir::ScalarLiteral,
+    ) -> Option<dir::StaticKey> {
+        let dir::ScalarLiteral::String(discriminant) = discriminant else {
+            return None;
+        };
+        let Some(dir::Definition::Newtype(definition)) = self.loaded_definition(owner) else {
+            return None;
+        };
+
+        definition
+            .tagged_variant_by_discriminant(discriminant)
+            .map(|variant| variant.key)
+    }
+
+    /// Return the selected case key for one Tagged owner type and discriminant.
+    pub(in crate::check) fn tagged_case_key_from_type(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        discriminant: dir::ScalarLiteral,
+    ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
+        let owner = answer!(self.reduce_type_head(origin, owner)?);
+        let Some(instance) = self.tagged_domain_instance(owner)? else {
+            return Ok(Answer::Ready(None));
+        };
+        let key = self.tagged_case_key_from_discriminant(instance.symbol, discriminant);
+
+        Ok(Answer::Ready(key))
+    }
+
+    /// Return the finite discriminant domain of one Tagged newtype value.
+    pub(in crate::check) fn tagged_discriminant_domain(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<Vec<dir::ScalarLiteral>>>> {
+        let value = answer!(self.reduce_type_head(origin, value)?);
+        let Some(instance) = self.tagged_domain_instance(value)? else {
+            return Ok(Answer::Ready(None));
+        };
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
+            return Ok(Answer::Ready(None));
+        };
+        if !definition.is_tagged() {
+            return Ok(Answer::Ready(None));
+        }
+        let domain = definition
+            .tagged_variants()
+            .map(|variant| dir::ScalarLiteral::String(variant.discriminant))
+            .collect();
+
+        Ok(Answer::Ready(Some(domain)))
+    }
+
+    /// Return the instance represented by one Tagged domain owner type.
+    fn tagged_domain_instance(
+        &mut self,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GenericInstance>> {
+        let instance = match self.ty(value)? {
+            dir::Type::Instance(instance) => instance,
+            dir::Type::Reference(reference) => {
+                if let Some(template) = self.symbol_template(reference.symbol)?
+                    && !self.generic_template_parameters(template).is_empty()
+                {
+                    return Ok(None);
+                }
+
+                dir::GenericInstance {
+                    symbol: reference.symbol,
+                    arguments: dir::TypeListId::EMPTY,
+                }
+            }
+            _ => return Ok(None),
+        };
+
+        Ok(Some(instance))
     }
 }

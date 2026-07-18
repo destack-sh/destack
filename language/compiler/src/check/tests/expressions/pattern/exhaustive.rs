@@ -75,7 +75,7 @@ struct Err<E> {
 newtype Outcome<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -202,7 +202,7 @@ struct Err<E> {
 newtype Outcome<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -284,16 +284,19 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Edge<T> =
 /// @generic.template symbol=Edge parameters=(in out T#1)
 /// @type.symbol symbol=Edge type=Edge
 /// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
 /// @type.symbol symbol=Edge.Open type=Edge.Open
-/// @definition.newtype symbol=Edge template=(in out T#1) value={ kind: "bounded"; limit: T#1 } | { kind: "open" }
-/// @definition.variant symbol=Edge.Bounded key=Bounded
-/// @definition.variant symbol=Edge.Open key=Open
+/// @definition.newtype symbol=Edge template=(in out T#1) backing={ kind: "bounded"; limit: T#1 } | { kind: "open" }
+/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T#1 }
+/// @definition.variant symbol=Edge.Open key=Open discriminant=open backing={ kind: "open" }
 /// @type.symbol symbol=Edge.T source=T type=T#1
 
     | { kind: "bounded"; limit: T }
@@ -382,16 +385,19 @@ const value: string = match (edge) {
 
 === checked ===
 @derive(Tagged)
+/// @type.node source=derive type=derive
 /// @resolution.name source=derive target=decorator.derive.derive
+/// @type.node source=Tagged type=Tagged
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
 
 newtype Edge<T> =
 /// @generic.template symbol=Edge parameters=(in out T)
 /// @type.symbol symbol=Edge type=Edge
 /// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
 /// @type.symbol symbol=Edge.Open type=Edge.Open
-/// @definition.newtype symbol=Edge template=(in out T) value={ kind: "bounded"; limit: T } | { kind: "open" }
-/// @definition.variant symbol=Edge.Bounded key=Bounded
-/// @definition.variant symbol=Edge.Open key=Open
+/// @definition.newtype symbol=Edge template=(in out T) backing={ kind: "bounded"; limit: T } | { kind: "open" }
+/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T }
+/// @definition.variant symbol=Edge.Open key=Open discriminant=open backing={ kind: "open" }
 /// @type.symbol symbol=Edge.T source=T type=T
 
     | { kind: "bounded"; limit: T }

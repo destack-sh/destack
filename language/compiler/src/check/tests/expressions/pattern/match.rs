@@ -159,6 +159,8 @@ const label = match (status) {
 /// @diagnostic.error code=EC403 message="match is not exhaustive: '\"ready\"' is not covered"
 /// @diagnostic.label line=4 column=15 span="match (status) {\n    \"ready\" if (true) => \"go\"\n    \"error\" => \"stop\"\n}" line_source="const label = match (status) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
+/// @diagnostic.warning code=WC402 message="condition is always true"
+/// @diagnostic.label line=5 column=17 span="true" line_source="\"ready\" if (true) => \"go\""
 "#,
     );
 }
