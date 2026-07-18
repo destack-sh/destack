@@ -1,4 +1,5 @@
 use destack_core::StringId;
+use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{DiagnosticSeverity, FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
@@ -67,6 +68,22 @@ impl<'a> TryFrom<&'a str> for DiagnosticControlLevel {
             "forbid" => Ok(Self::Forbid),
             "expect" => Ok(Self::Expect),
             _ => Err(name),
+        }
+    }
+}
+
+impl TryFrom<dir::LanguageItem> for DiagnosticControlLevel {
+    type Error = dir::LanguageItem;
+
+    /// Convert one diagnostic decorator language item into its control level.
+    fn try_from(item: dir::LanguageItem) -> Result<Self, Self::Error> {
+        match item {
+            dir::LanguageItem::Allow => Ok(Self::Allow),
+            dir::LanguageItem::Warn => Ok(Self::Warn),
+            dir::LanguageItem::Deny => Ok(Self::Deny),
+            dir::LanguageItem::Forbid => Ok(Self::Forbid),
+            dir::LanguageItem::Expect => Ok(Self::Expect),
+            item => Err(item),
         }
     }
 }
