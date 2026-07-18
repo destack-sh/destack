@@ -1160,15 +1160,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::MoveOf {
-            mutability: _,
-            variance: _,
-            right,
-        } => {
-            let right_expr = tree.get(*right);
-            visitor.visit_expression(tree, *right, right_expr);
-        }
-
         Expression::BorrowOf {
             mutability: _,
             variance: _,

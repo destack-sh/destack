@@ -304,26 +304,6 @@ pub(crate) fn format_operator_expression<'ast>(
             write!(f, [value])?;
         }
 
-        // value
-        Expression::MoveOf {
-            mutability,
-            variance,
-            right,
-        } => {
-            write!(f, [token("^")])?;
-            if let Some(mutability) = mutability {
-                match mutability {
-                    Mutability::Immutable => write!(f, [token("readonly"), space()])?,
-                    Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
-                    Mutability::Mutable => {}
-                }
-            }
-            if let Some(variance) = variance {
-                write!(f, [variance.to_keyword(), space()])?;
-            }
-            write_prefix_expression_operand(f, node_id, *right)?;
-        }
-
         // await-like
         Expression::Await { expression } => {
             format_await_expression(f, node_id, *expression, None)?;

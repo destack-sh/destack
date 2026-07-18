@@ -192,7 +192,6 @@ pub(crate) fn expression_precedence(expr: &Expression) -> OperatorPrecedence {
         | Expression::AwaitMust { .. }
         | Expression::Comptime { .. }
         | Expression::Yield { .. }
-        | Expression::MoveOf { .. }
         | Expression::BorrowOf { .. }
         | Expression::Throw { .. }
         | Expression::Return { .. } => OperatorPrecedence::Prefix,

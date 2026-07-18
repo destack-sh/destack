@@ -456,7 +456,7 @@ struct Point {
     x: int32;
 }
 
-let point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 let x = &readonly point.x;
 
 x satisfies &readonly int32;
@@ -473,7 +473,7 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 let x: Borrowed<int32, "static", "readonly"> = &readonly point.x;
 
 x satisfies &readonly int32;
@@ -490,10 +490,10 @@ struct Point {
 
 }
 
-let point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
+/// @resolution.name source=Point target=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1

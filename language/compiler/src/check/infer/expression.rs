@@ -64,9 +64,6 @@ impl BodyState<'_, '_> {
             }
             dir::Expression::Block(block) => self.infer_block(site, block),
             dir::Expression::Comptime { body } => self.infer_transparent_expression(site, body),
-            dir::Expression::MoveOf {
-                mutability, right, ..
-            } => self.infer_move_expression(site, mutability, right),
             dir::Expression::BorrowOf {
                 mutability, right, ..
             } => self.infer_borrow_expression(site, mutability, right),

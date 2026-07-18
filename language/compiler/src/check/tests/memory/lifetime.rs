@@ -6,11 +6,11 @@ fn test_assign_module_and_function_borrows_static_and_frame_lifetimes() {
         r#"
 struct Point { x: int32; }
 
-const modulePoint = ^Point { x: 1 };
+const modulePoint: ^Point = Point { x: 1 };
 const moduleBorrow = &readonly modulePoint;
 
 function inspectFrame(): void {
-    const framePoint = ^Point { x: 2 };
+    const framePoint: ^Point = Point { x: 2 };
     const frameBorrow = &readonly framePoint;
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
@@ -28,11 +28,11 @@ struct Point {
     x: int32;
 }
 
-const modulePoint: ^Point = ^Point { x: 1 };
+const modulePoint: ^Point = Point { x: 1 };
 const moduleBorrow: Borrowed<Point, "static", "readonly"> = &readonly modulePoint;
 
 function inspectFrame(): void {
-    const framePoint: ^Point = ^Point { x: 2 };
+    const framePoint: ^Point = Point { x: 2 };
     const frameBorrow: Borrowed<Point, "frame", "readonly"> = &readonly framePoint;
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
@@ -46,9 +46,10 @@ struct Point { x: int32; }
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
-const modulePoint = ^Point { x: 1 };
+const modulePoint: ^Point = Point { x: 1 };
 /// @type.symbol symbol=modulePoint source=modulePoint type=Owned<Point> reduced=Point
 /// @resolution.pattern source=modulePoint kind=binding target=modulePoint
+/// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
 
 const moduleBorrow = &readonly modulePoint;
@@ -59,9 +60,10 @@ const moduleBorrow = &readonly modulePoint;
 function inspectFrame(): void {
 /// @type.symbol symbol=inspectFrame type=() => void
 
-    const framePoint = ^Point { x: 2 };
+    const framePoint: ^Point = Point { x: 2 };
     /// @type.symbol symbol=inspectFrame.framePoint source=framePoint type=Owned<Point> reduced=Point
     /// @resolution.pattern source=framePoint kind=binding target=inspectFrame.framePoint
+    /// @resolution.name source=Point target=Point
     /// @resolution.name source=Point target=Point
 
     const frameBorrow = &readonly framePoint;

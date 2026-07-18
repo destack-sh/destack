@@ -137,7 +137,6 @@ impl WalkState<'_, '_> {
             | dir::Expression::Is { .. }
             | dir::Expression::InstanceOf { .. }
             | dir::Expression::Unary { .. }
-            | dir::Expression::MoveOf { .. }
             | dir::Expression::BorrowOf { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::Index { .. }

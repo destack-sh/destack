@@ -1331,6 +1331,25 @@ pub enum CheckError {
         name: String,
     },
 
+    /// Moved binding is read after its value moved out.
+    ///
+    /// ```ds
+    /// const taken = move value;
+    /// value.read();
+    /// ```
+    #[diagnostic(
+        id = "use-after-moved",
+        message = "'{name}' is used after being moved"
+    )]
+    UseAfterMove {
+        /// Report the use.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The moved binding name.
+        name: String,
+    },
+
     /// Refutable pattern appears outside a matching context.
     ///
     /// ```ds

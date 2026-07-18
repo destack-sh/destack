@@ -1713,6 +1713,18 @@ impl CheckState<'_> {
         failure: ObligationFailure,
     ) -> CompilerResult<()> {
         match failure {
+            ObligationFailure::UseAfterMove { source, symbol } => {
+                let (module, anchor) = self.source_anchor(source);
+                let name = self.format_symbol(symbol);
+                let error = CheckError::UseAfterMove {
+                    anchor,
+                    module,
+                    name,
+                };
+                let diagnostic =
+                    error.help("reassign the binding before this use, or copy instead of moving");
+                self.report(module, diagnostic);
+            }
             ObligationFailure::NonExhaustivePattern { source, missing } => {
                 let (module, anchor) = self.source_anchor(source);
                 let missing = self.format_uncovered_value(missing);

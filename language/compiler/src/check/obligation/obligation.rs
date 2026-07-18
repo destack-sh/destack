@@ -3,8 +3,8 @@ use destack_dir as dir;
 use crate::{CompilerError, CompilerResult};
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, ExpectedType, FlowBranch, GenericTemplateId, Origin, Task,
-    TaskFailure, TaskFailures, Variance, WriteTarget, answer,
+    Answer, CheckEvent, CheckState, ExpectedType, FlowBranch, GenericTemplateId, MoveSite, Origin,
+    Task, TaskFailure, TaskFailures, Variance, WriteTarget, answer,
 };
 
 /// Component-global id of one collected obligation.
@@ -50,6 +50,8 @@ pub(in crate::check) struct PatternArm {
 pub(in crate::check) enum Obligation {
     /// A pattern-bearing site must cover the matched value space.
     PatternCoverage(PatternCoverageObligation),
+    /// A moved place must be copyable to stay readable.
+    UseAfterMove(UseAfterMoveObligation),
     /// A place assignment must target writable storage.
     WritablePlace(Box<WritablePlaceObligation>),
     /// A type at a representation slot must have a computed representation.
@@ -77,6 +79,7 @@ impl Obligation {
     pub(in crate::check) fn source(&self) -> dir::GlobalNodeIdAny {
         match self {
             Self::PatternCoverage(obligation) => obligation.source,
+            Self::UseAfterMove(obligation) => obligation.source,
             Self::WritablePlace(obligation) => obligation.place.source,
             Self::Representation(obligation) => obligation.source,
             Self::RuntimePredicate(obligation) => obligation.source,
@@ -132,6 +135,13 @@ impl ObligationCheck {
 /// Reason one completed obligation failed.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum ObligationFailure {
+    /// A moved non-copyable place was read.
+    UseAfterMove {
+        /// The reading source node.
+        source: dir::GlobalNodeIdAny,
+        /// The moved place symbol.
+        symbol: dir::GlobalSymbolId,
+    },
     /// A match expression did not cover one remaining value.
     NonExhaustivePattern {
         /// The expression or pattern-bearing source.
@@ -519,6 +529,17 @@ pub(in crate::check) struct RepresentationObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
+/// Obliges one read of a moved place to a value the move left intact.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) struct UseAfterMoveObligation {
+    /// The reading source node.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The moved place symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
+    /// The syntactic position that marked the move.
+    pub(in crate::check) site: MoveSite,
+}
+
 /// Obliges a written type operation to be well-formed once its operands close.
 ///
 /// ```ds
@@ -712,6 +733,9 @@ impl CheckState<'_> {
             Obligation::PatternCoverage(obligation) => {
                 self.check_pattern_coverage(origin, obligation)
             }
+            Obligation::UseAfterMove(obligation) => {
+                self.check_use_after_move(origin, *obligation)
+            }
             Obligation::WritablePlace(obligation) => self.check_writable_place(origin, obligation),
             Obligation::Representation(obligation) => {
                 self.check_representation(origin, obligation.ty)
@@ -737,6 +761,103 @@ impl CheckState<'_> {
             }
             Obligation::ParameterUse(obligation) => self.check_parameter_use(obligation.symbol),
         }
+    }
+
+    /// Check one read of a moved place: copyable values read from a copy.
+    fn check_use_after_move(
+        &mut self,
+        origin: Origin,
+        obligation: UseAfterMoveObligation,
+    ) -> CompilerResult<Answer<ObligationCheck>> {
+        // positions that lend or receive through a borrow never consume
+        if answer!(self.move_site_borrows(origin, &obligation.site)?) {
+            return Ok(Answer::Ready(ObligationCheck::Holds));
+        }
+
+        // only owned values vacate their source; managed handles copy freely
+        let Some(ty) = self.symbol_type_maybe(obligation.symbol) else {
+            return Ok(Answer::Ready(ObligationCheck::Holds));
+        };
+        let ownership = answer!(self.default_ownership(origin, ty)?);
+        if ownership != Some(dir::Ownership::Owned) {
+            return Ok(Answer::Ready(ObligationCheck::Holds));
+        }
+
+        let copyable =
+            answer!(self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?);
+        let check = match copyable {
+            true => ObligationCheck::Holds,
+            false => ObligationCheck::from_failures(vec![ObligationFailure::UseAfterMove {
+                source: obligation.source,
+                symbol: obligation.symbol,
+            }]),
+        };
+
+        Ok(Answer::Ready(check))
+    }
+
+    /// Return whether one marked move position lends through a borrow.
+    fn move_site_borrows(
+        &mut self,
+        origin: Origin,
+        site: &MoveSite,
+    ) -> CompilerResult<Answer<bool>> {
+        // argument and receiver positions read the sealed selection
+        if let Some(call) = site.call {
+            let resolutions = self.resolutions(call.module_id);
+            let resolution = match resolutions.call_resolution(call) {
+                Some(resolution) => resolution.clone(),
+                None => match resolutions.construct_resolution(call) {
+                    Some(resolution) => dir::CallResolution::new(
+                        dir::CallTarget::Universal(Vec::new()),
+                        None,
+                        Vec::new(),
+                        resolution.arguments.clone(),
+                        resolution.return_type,
+                    ),
+                    // unresolved calls stay charitable
+                    None => return Ok(Answer::Ready(true)),
+                },
+            };
+
+            // an argument position lends when its bound parameter borrows
+            let bound = resolution.arguments.iter().find(|binding| {
+                matches!(
+                    binding.argument,
+                    dir::ArgumentSource::Provided(provided) if provided == site.node
+                )
+            });
+            if let Some(binding) = bound {
+                return self.type_head_borrows(origin, binding.ty);
+            }
+
+            // a receiver position lends when the candidate adjusts by borrow
+            let dir::CallTarget::Symbol(candidate) = &resolution.target else {
+                return Ok(Answer::Ready(true));
+            };
+
+            return Ok(Answer::Ready(!candidate.adjustments.is_empty()));
+        }
+
+        // initializer and assignment positions lend into borrow bindings
+        if let Some(target) = site.target
+            && let Some(ty) = self.symbol_type_maybe(target)
+        {
+            return self.type_head_borrows(origin, ty);
+        }
+
+        Ok(Answer::Ready(false))
+    }
+
+    /// Return whether one type lends by default beneath its placement.
+    fn type_head_borrows(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let ownership = answer!(self.default_ownership(origin, ty)?);
+
+        Ok(Answer::Ready(ownership == Some(dir::Ownership::Borrowed)))
     }
 
     /// Check one pattern coverage obligation.

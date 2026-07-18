@@ -262,17 +262,16 @@ fn test_parse_bound_reference_expression() {
     });
 }
 
-/// Parse a value expression.
+/// Reject the retired move prefix in expression position.
 #[test]
-fn test_parse_value_expression() {
-    let test = TestParser::new("^super T");
+fn test_reject_move_prefix_expression() {
+    let test = TestParser::new("^value");
     let mut parser = test.prepare();
-    let expr_id = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::MoveOf { mutability, variance, right, .. } => {
-        assert_eq!(*mutability, Some(Mutability::Mutable));
-        assert_eq!(*variance, Some(VarianceBound::Super));
-        assert_expression_path!(parser, parser.tree.get(*right), "T");
-    });
+
+    assert!(
+        parser.parse_expression(Default::default()).is_err(),
+        "move prefix should not parse"
+    );
 }
 
 /// Parse a new constructor call.

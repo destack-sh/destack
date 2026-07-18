@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{AssignedPlace, WalkState};
+use crate::check::{AssignedPlace, MoveSite, Obligation, UseAfterMoveObligation, WalkState};
 
 impl WalkState<'_, '_> {
     /// Check that one local binding is assigned before a read.
@@ -23,6 +23,21 @@ impl WalkState<'_, '_> {
             return;
         }
 
+        // moved places defer to the obligation, where the sealed transfer
+        // decision and copyability decide whether the move was real
+        if let Some(site) = self.flow().moved_site(AssignedPlace::Symbol(symbol)) {
+            self.check.push_obligation(
+                Obligation::UseAfterMove(UseAfterMoveObligation {
+                    source: source.into_global(self.module),
+                    symbol,
+                    site,
+                }),
+                self.flow().template_scope(),
+            );
+
+            return;
+        }
+
         // report unassigned reads at the read occurrence
         if !self
             .flow()
@@ -32,6 +47,70 @@ impl WalkState<'_, '_> {
             self.check
                 .report_use_before_assigned(self.module, source, symbol);
         }
+    }
+
+    /// Mark one consuming-position source, when it names a local binding.
+    ///
+    /// Receiver positions carry their enclosing call so the obligation can
+    /// read the sealed receiver adjustment; initializer and assignment
+    /// positions carry the receiving binding.
+    pub(in crate::check) fn mark_moved_source(
+        &mut self,
+        source: dir::LocalNodeId<dir::Expression>,
+        call: Option<dir::LocalNodeId<dir::Expression>>,
+        target: Option<dir::GlobalSymbolId>,
+    ) {
+        let node = source.into_global_any(self.module);
+        let site = MoveSite {
+            node,
+            call: call.map(|call| call.into_global_any(self.module)),
+            target,
+        };
+        self.mark_moved_identifier(source, site);
+    }
+
+    /// Mark one consuming argument, keyed by its bound argument node.
+    ///
+    /// The sealed resolution binds parameters to argument nodes, so the
+    /// obligation matches the site against the argument, not its value.
+    pub(in crate::check) fn mark_moved_argument(
+        &mut self,
+        value: dir::LocalNodeId<dir::Expression>,
+        argument: dir::LocalNodeId<dir::Argument>,
+        call: dir::LocalNodeId<dir::Expression>,
+    ) {
+        let site = MoveSite {
+            node: argument.into_global_any(self.module),
+            call: Some(call.into_global_any(self.module)),
+            target: None,
+        };
+        self.mark_moved_identifier(value, site);
+    }
+
+    /// Mark one identifier source's place with one move site.
+    fn mark_moved_identifier(
+        &mut self,
+        source: dir::LocalNodeId<dir::Expression>,
+        site: MoveSite,
+    ) {
+        // only identifier sources move a tracked place
+        if !matches!(self.tree.get(source), dir::Expression::Identifier { .. }) {
+            return;
+        }
+        let node = source.into_global_any(self.module);
+        let Some(symbol) = self
+            .check
+            .resolutions(self.module)
+            .name_resolution(node)
+            .and_then(|resolution| resolution.symbols().first().copied())
+        else {
+            return;
+        };
+        if self.check.symbol_kind(symbol) != dir::SymbolKind::Variable {
+            return;
+        }
+
+        self.flow_mut().mark_moved(AssignedPlace::Symbol(symbol), site);
     }
 
     /// Mark one local flow place as assigned.

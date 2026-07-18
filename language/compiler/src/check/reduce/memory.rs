@@ -973,7 +973,7 @@ impl CheckState<'_> {
     }
 
     /// Return one reduced type's default ownership.
-    fn default_ownership(
+    pub(in crate::check) fn default_ownership(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,

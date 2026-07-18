@@ -66,7 +66,6 @@ fn parent_requires_primary_expression(
 
         // prefix operand
         Expression::Unary { right, .. }
-        | Expression::MoveOf { right, .. }
         | Expression::BorrowOf { right, .. }
         | Expression::Await { expression: right }
         | Expression::AwaitMaybe { expression: right }

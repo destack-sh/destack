@@ -23,6 +23,8 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check::flow) tries: Vec<TryTarget>,
     /// Places definitely assigned at the current walk point.
     pub(in crate::check::flow) assigned: FxIndexSet<AssignedPlace>,
+    /// Places moved out at the current walk point, keyed to their move site.
+    pub(in crate::check::flow) moved: FxIndexMap<AssignedPlace, MoveSite>,
     /// Flow predicates keyed by stable path.
     pub(in crate::check::flow) predicates: FxIndexMap<FlowPath, FlowPredicate>,
     /// Jumps that bound no target and complete as statements.
@@ -46,6 +48,7 @@ impl Default for FlowState {
             targets: Vec::new(),
             tries: Vec::new(),
             assigned: FxIndexSet::default(),
+            moved: FxIndexMap::default(),
             predicates: FxIndexMap::default(),
             unbound_jumps: FxIndexSet::default(),
             changes: Vec::new(),
@@ -117,6 +120,8 @@ pub(in crate::check) struct FlowCheckpoint {
 pub(in crate::check) struct FlowBranch {
     /// Places assigned by this branch.
     assigned: FxIndexSet<AssignedPlace>,
+    /// Places moved out by this branch, keyed to their move site.
+    moved: FxIndexMap<AssignedPlace, MoveSite>,
     /// Predicates touched by this branch.
     predicates: FxIndexMap<FlowPath, Option<FlowPredicate>>,
 }
@@ -126,6 +131,7 @@ impl FlowBranch {
     pub(in crate::check) fn empty() -> Self {
         Self {
             assigned: FxIndexSet::default(),
+            moved: FxIndexMap::default(),
             predicates: FxIndexMap::default(),
         }
     }
@@ -150,6 +156,21 @@ pub(in crate::check) enum AssignedPlace {
     },
 }
 
+/// The source position that moved one place.
+///
+/// Marks are syntactic; whether the position actually transfers ownership
+/// is judged at obligation time against the sealed coercions, adjustments,
+/// and conformances.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct MoveSite {
+    /// The moving source expression.
+    pub(in crate::check) node: dir::GlobalNodeIdAny,
+    /// The enclosing call for argument and receiver positions.
+    pub(in crate::check) call: Option<dir::GlobalNodeIdAny>,
+    /// The receiving binding for initializer and assignment positions.
+    pub(in crate::check) target: Option<dir::GlobalSymbolId>,
+}
+
 /// One reversible flow change.
 #[derive(Debug, Clone)]
 enum FlowChange {
@@ -158,6 +179,17 @@ enum FlowChange {
         /// The assigned place.
         place: AssignedPlace,
         /// Whether the place was already assigned.
+        was_assigned: bool,
+        /// The move displaced by the assignment, for rollback.
+        was_moved: Option<MoveSite>,
+    },
+    /// One move-out change.
+    Move {
+        /// The moved place.
+        place: AssignedPlace,
+        /// The move already recorded for the place, for rollback.
+        was_moved: Option<MoveSite>,
+        /// Whether the place was assigned before the move.
         was_assigned: bool,
     },
     /// One predicate change.
@@ -494,16 +526,39 @@ impl FlowState {
         }
     }
 
-    /// Mark one place as definitely assigned.
+    /// Mark one place as definitely assigned, reviving moved places.
     pub(in crate::check) fn mark_assigned(&mut self, place: AssignedPlace) {
         // record previous assignment state for rollback
         let was_assigned = self.assigned.contains(&place);
+        let was_moved = self.moved.get(&place).copied();
 
         self.changes.push(FlowChange::Assign {
             place,
             was_assigned,
+            was_moved,
         });
         self.assigned.insert(place);
+        self.moved.shift_remove(&place);
+    }
+
+    /// Mark one place as moved out, clearing its assignment.
+    pub(in crate::check) fn mark_moved(&mut self, place: AssignedPlace, site: MoveSite) {
+        // record previous move and assignment state for rollback
+        let was_moved = self.moved.get(&place).copied();
+        let was_assigned = self.assigned.contains(&place);
+
+        self.changes.push(FlowChange::Move {
+            place,
+            was_moved,
+            was_assigned,
+        });
+        self.moved.insert(place, site);
+        self.assigned.shift_remove(&place);
+    }
+
+    /// Return the recorded move site of one place at the current walk point.
+    pub(in crate::check) fn moved_site(&self, place: AssignedPlace) -> Option<MoveSite> {
+        self.moved.get(&place).copied()
     }
 
     /// Narrow one path at the current walk point.
@@ -536,11 +591,15 @@ impl FlowState {
         let mut predicate_paths = FxIndexSet::default();
 
         // collect flow state touched since the checkpoint
+        let mut moved = FxIndexMap::default();
         for change in &self.changes[checkpoint.change_count..] {
             match change {
-                FlowChange::Assign { place, .. } => {
+                FlowChange::Assign { place, .. } | FlowChange::Move { place, .. } => {
                     if self.assigned.contains(place) {
                         assigned.insert(*place);
+                    }
+                    if let Some(site) = self.moved.get(place) {
+                        moved.insert(*place, *site);
                     }
                 }
                 FlowChange::Predicate { path, .. } => {
@@ -561,6 +620,7 @@ impl FlowState {
 
         FlowBranch {
             assigned,
+            moved,
             predicates,
         }
     }
@@ -578,8 +638,31 @@ impl FlowState {
                 FlowChange::Assign {
                     place,
                     was_assigned,
+                    was_moved,
                 } => {
-                    // restore previous assignment state
+                    // restore previous assignment and move state
+                    if was_assigned {
+                        self.assigned.insert(place);
+                    } else {
+                        self.assigned.shift_remove(&place);
+                    }
+                    if let Some(site) = was_moved {
+                        self.moved.insert(place, site);
+                    } else {
+                        self.moved.shift_remove(&place);
+                    }
+                }
+                FlowChange::Move {
+                    place,
+                    was_moved,
+                    was_assigned,
+                } => {
+                    // restore previous move and assignment state
+                    if let Some(site) = was_moved {
+                        self.moved.insert(place, site);
+                    } else {
+                        self.moved.shift_remove(&place);
+                    }
                     if was_assigned {
                         self.assigned.insert(place);
                     } else {
@@ -612,6 +695,11 @@ impl FlowState {
             self.mark_assigned(*place);
         }
 
+        // replay moved places from the branch
+        for (place, site) in &branch.moved {
+            self.mark_moved(*place, *site);
+        }
+
         // replay predicates from the branch
         for (path, predicate) in &branch.predicates {
             // restore present predicate
@@ -637,6 +725,11 @@ impl FlowState {
         // keep places assigned by both branches
         for place in left.assigned.intersection(&right.assigned) {
             self.mark_assigned(*place);
+        }
+
+        // a place moved in either branch is maybe-moved, so it stays moved
+        for (place, site) in left.moved.iter().chain(&right.moved) {
+            self.mark_moved(*place, *site);
         }
 
         // collect all touched predicate paths

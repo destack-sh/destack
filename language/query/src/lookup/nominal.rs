@@ -22,7 +22,6 @@ impl ModuleQueryContext<'_> {
         // unwrap type operators to the underlying nominal expression
         match expression {
             dir::Expression::BorrowOf { right, .. }
-            | dir::Expression::MoveOf { right, .. }
             | dir::Expression::Maybe { left: right, .. }
             | dir::Expression::Must { left: right, .. } => {
                 return self.resolve_nominal_symbol_from_type_expression(*right);

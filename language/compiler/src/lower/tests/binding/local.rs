@@ -22,7 +22,6 @@ entry(v0: float64):
 "#,
     );
 }
-
 #[test]
 fn test_lower_mutable_binding_through_local() {
     let session = TestSession::single(
@@ -50,6 +49,49 @@ entry(v0: int32):
     v4: int32 = local.get l0
     return v4
 }
+"#,
+    );
+}
+
+#[test]
+fn test_lower_owned_value_forwarding_between_bindings() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function relay(): int32 {
+    let point: ^Point = Point { x: 3, y: 4 };
+    const taken = point;
+    return taken.x;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Point {
+    x: int32;
+    y: int32;
+}
+
+function main.relay(): int32 {
+    local l0: Point
+
+entry:
+    v0: int32 = 3
+    v1: int32 = 4
+    v2: Point = aggregate (v0, v1)
+    local.set l0, v2
+    v3: Point = local.get l0
+    v4: int32 = field.get v3, 0
+    return v4
+}
+/// @layout.struct name=Point size=8 align=4 fields=(x@0+4, y@4+4)
 "#,
     );
 }

@@ -34,15 +34,6 @@ enum ValuePrefix {
         /// The operator source range.
         range: ByteRange,
     },
-    /// One move prefix.
-    Move {
-        /// The mutability modifier.
-        mutability: Option<Mutability>,
-        /// The variance modifier.
-        variance: Option<VarianceBound>,
-        /// The operator source range.
-        range: ByteRange,
-    },
 }
 
 impl Parser {
@@ -101,33 +92,24 @@ impl Parser {
             return Ok(Some(ValuePrefix::Unary { operator, range }));
         }
 
-        // leave non-reference tokens to the primary expression
+        // leave non-borrow tokens to the primary expression
         if !matches!(
             self.peek_token_type(),
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd
+            TokenType::ElementwiseAnd | TokenType::LogicalAnd
         ) {
             return Ok(None);
         }
 
-        // parse one borrow or move prefix
+        // parse one borrow prefix
         let token = self.eat_reference_prefix_operator()?.token;
         let mutability = Some(self.parse_reference_mutability());
         let variance = self.parse_variance_bound_if_present();
-        let prefix = if token.is(TokenType::ElementwiseAnd) {
-            ValuePrefix::Borrow {
-                mutability,
-                variance,
-                range: token.range(),
-            }
-        } else {
-            ValuePrefix::Move {
-                mutability,
-                variance,
-                range: token.range(),
-            }
-        };
 
-        Ok(Some(prefix))
+        Ok(Some(ValuePrefix::Borrow {
+            mutability,
+            variance,
+            range: token.range(),
+        }))
     }
 
     /// Fold one consumed value prefix around its operand.
@@ -146,18 +128,6 @@ impl Parser {
                 range,
             } => (
                 Expression::BorrowOf {
-                    mutability,
-                    variance,
-                    right,
-                },
-                range,
-            ),
-            ValuePrefix::Move {
-                mutability,
-                variance,
-                range,
-            } => (
-                Expression::MoveOf {
                     mutability,
                     variance,
                     right,

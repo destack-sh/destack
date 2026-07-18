@@ -20,6 +20,9 @@ impl Obligation {
             .bool("finished", finished);
 
         match self {
+            Self::UseAfterMove(obligation) => {
+                event.text("symbol", context.symbol_label(obligation.symbol))
+            }
             Self::PatternCoverage(obligation) => event
                 .text("value", context.expected_type_label(obligation.value))
                 .text(
@@ -66,6 +69,7 @@ impl Obligation {
     fn kind_label(&self) -> &'static str {
         match self {
             Self::PatternCoverage(_) => "pattern.coverage",
+            Self::UseAfterMove(_) => "use.after.move",
             Self::WritablePlace(_) => "writable.place",
             Self::Representation(_) => "representation",
             Self::RuntimePredicate(_) => "runtime.predicate",

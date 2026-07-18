@@ -113,7 +113,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Satisfies { .. }
         | Expression::Is { .. }
         | Expression::InstanceOf { .. }
-        | Expression::MoveOf { .. }
         | Expression::BorrowOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
@@ -314,7 +313,6 @@ fn format_expression_body_inner<'ast>(
         | Expression::Satisfies { .. }
         | Expression::Is { .. }
         | Expression::InstanceOf { .. }
-        | Expression::MoveOf { .. }
         | Expression::BorrowOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }

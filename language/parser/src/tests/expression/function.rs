@@ -118,10 +118,10 @@ fn test_parse_lambda_function_value() {
     });
 }
 
-/// Parse a lambda body that owns a tagged struct literal.
+/// Parse a lambda body that returns a parenthesized struct literal.
 #[test]
-fn test_parse_lambda_owned_struct_body() {
-    let test = TestParser::new("() => ^Node { parent: this }");
+fn test_parse_lambda_struct_literal_body() {
+    let test = TestParser::new("() => (Node { parent: this })");
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
@@ -133,17 +133,15 @@ fn test_parse_lambda_owned_struct_body() {
             assert!(signature.return_type.is_none());
             assert!(signature.parameters.is_empty());
 
-            assert_node!(parser.tree, body.expect("expected lambda body"), Expression::MoveOf { right, .. } => {
-                assert_node!(parser.tree, *right, Expression::StructExpression { ty, properties } => {
-                    assert_expression_path!(parser, parser.tree.get(*ty), "Node");
-                    assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
-                        let Key::Name(Name::Identifier(name)) = key else {
-                            panic!("expected parent field name");
-                        };
-                        assert_string!(parser, *name, "parent");
-                        assert_node!(parser.tree, *value, Expression::This);
-                    });
+            assert_node!(parser.tree, body.expect("expected lambda body"), Expression::StructExpression { ty, properties } => {
+                assert_expression_path!(parser, parser.tree.get(*ty), "Node");
+                assert_eq!(properties.len(), 1);
+                assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
+                    let Key::Name(Name::Identifier(name)) = key else {
+                        panic!("expected parent field name");
+                    };
+                    assert_string!(parser, *name, "parent");
+                    assert_node!(parser.tree, *value, Expression::This);
                 });
             });
         });

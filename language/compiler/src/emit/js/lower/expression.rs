@@ -1255,7 +1255,6 @@ impl ModuleLowerer<'_> {
             | dir::Expression::Comptime { .. }
             | dir::Expression::AwaitMaybe { .. }
             | dir::Expression::AwaitMust { .. }
-            | dir::Expression::MoveOf { .. }
             | dir::Expression::BorrowOf { .. } => {
                 return Err(self.unsupported_construct(
                     expression_id.into_global_any(self.module.id),

@@ -464,11 +464,6 @@ impl WalkState<'_, '_> {
 
                 // unary operation infers from its queued value use
             }
-            // ^value
-            dir::Expression::MoveOf { right, .. } => {
-                let right = *right;
-                self.walk_expression(right, self.tree.get(right))?;
-            }
             // &value
             dir::Expression::BorrowOf { right, .. } => {
                 let right = *right;
@@ -505,11 +500,21 @@ impl WalkState<'_, '_> {
                 arguments,
                 ..
             } => {
+                let callee = *left;
                 let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_expression(*left, self.tree.get(*left))?;
+                self.walk_expression(callee, self.tree.get(callee))?;
                 self.walk_generic_arguments(generic_arguments)?;
+
+                // a member callee's receiver may be consumed by the candidate
+                if let dir::Expression::Member { left: receiver, .. } = self.tree.get(callee) {
+                    self.mark_moved_source(*receiver, Some(id), None);
+                }
                 for argument in &arguments {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
+                    // by-value arguments may consume their identifier sources
+                    if let Some(value) = self.tree.get(*argument).value() {
+                        self.mark_moved_argument(value, *argument, id);
+                    }
                 }
 
                 // call expression infers from its queued value use
@@ -522,6 +527,10 @@ impl WalkState<'_, '_> {
                 self.walk_construct_type_expression(*ty)?;
                 for argument in &arguments {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
+                    // by-value arguments may consume their identifier sources
+                    if let Some(value) = self.tree.get(*argument).value() {
+                        self.mark_moved_argument(value, *argument, id);
+                    }
                 }
 
                 // construction infers from its queued value use
@@ -1325,6 +1334,12 @@ impl WalkState<'_, '_> {
 
         // walk the assigned value before destructuring defaults and writes
         self.walk_expression(right, self.tree.get(right))?;
+        // assigning a binding elsewhere may consume an identifier source
+        let target = match places.as_slice() {
+            [(_, AssignedPlace::Symbol(symbol))] => Some(*symbol),
+            _ => None,
+        };
+        self.mark_moved_source(right, None, target);
         let places = if is_place_pattern {
             places
         } else {

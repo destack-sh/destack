@@ -8,7 +8,7 @@ struct Point {
     x: int32;
 }
 
-let point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 
 point satisfies ^Point;
 "#,
@@ -23,7 +23,7 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 
 point satisfies ^Point;
 
@@ -38,10 +38,10 @@ struct Point {
 
 }
 
-let point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
+/// @resolution.name source=Point target=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
@@ -112,7 +112,7 @@ struct Container {
     data: ^Data;
 }
 
-const container = Container { data: ^Data { value: 1 } };
+const container = Container { data: Data { value: 1 } };
 
 container.data satisfies ^Data;
 "#,
@@ -131,7 +131,7 @@ struct Container {
     data: ^Data;
 }
 
-const container: Container = Container { data: ^Data { value: 1 } };
+const container: Container = Container { data: Data { value: 1 } };
 
 container.data satisfies ^Data;
 
@@ -157,12 +157,11 @@ struct Container {
 
 }
 
-const container = Container { data: ^Data { value: 1 } };
+const container = Container { data: Data { value: 1 } };
 /// @type.symbol symbol=container source=container type=Container
 /// @resolution.pattern source=container kind=binding target=container
-/// @type.node source="Container { data: ^Data { value: 1 } }" type=Container
+/// @type.node source="Container { data: Data { value: 1 } }" type=Container
 /// @resolution.name source=Container target=Container
-/// @type.node source="^Data { value: 1 }" type=Owned<Data> reduced=Data
 /// @type.node source="Data { value: 1 }" type=Data
 /// @resolution.name source=Data target=Data
 /// @type.node source=1 type=1
@@ -190,7 +189,7 @@ struct User {
     profile: Profile;
 }
 
-let user: ^readonly User = ^readonly User {
+let user: ^readonly User = User {
     profile: Profile { name: "Ada" },
 };
 
@@ -211,7 +210,7 @@ struct User {
     profile: Profile;
 }
 
-let user: ^readonly User = ^readonly User {
+let user: ^readonly User = User {
     profile: Profile { name: "Ada" },
 };
 
@@ -239,11 +238,10 @@ struct User {
 
 }
 
-let user: ^readonly User = ^readonly User {
+let user: ^readonly User = User {
 /// @type.symbol symbol=user source=user type=Owned<Readonly<User>> reduced=Readonly<User>
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
-/// @type.node type=Owned<Readonly<User>> reduced=Readonly<User>
 /// @type.node type=User
 /// @resolution.name source=User target=User
 

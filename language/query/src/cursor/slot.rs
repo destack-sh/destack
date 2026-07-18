@@ -151,9 +151,6 @@ impl ExpressionSlotPosition {
             | dir::Expression::Unary {
                 right: expression, ..
             }
-            | dir::Expression::MoveOf {
-                right: expression, ..
-            }
             | dir::Expression::BorrowOf {
                 right: expression, ..
             } => {

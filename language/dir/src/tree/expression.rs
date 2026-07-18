@@ -630,20 +630,6 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    /// Move operation (e.g., `^x`).
-    ///
-    /// Examples:
-    /// ```
-    /// ^x
-    /// ^readonly x
-    /// ^readonly super T
-    /// ```
-    MoveOf {
-        mutability: Option<Mutability>,
-        variance: Option<VarianceBound>,
-        right: LocalNodeId<Expression>,
-    },
-
     /// Borrow operation (e.g., `&x`).
     ///
     /// Examples:
@@ -862,7 +848,6 @@ impl Expression {
             Self::Is { .. } => "Is",
             Self::InstanceOf { .. } => "InstanceOf",
             Self::Unary { .. } => "Unary",
-            Self::MoveOf { .. } => "MoveOf",
             Self::BorrowOf { .. } => "BorrowOf",
             Self::Member { .. } => "Member",
             Self::Index { .. } => "Index",

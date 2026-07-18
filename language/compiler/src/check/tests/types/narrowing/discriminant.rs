@@ -386,9 +386,14 @@ function read(initial: State, next: State): int32 {
 fn test_early_return_narrows_a_member_discriminant() {
     let session = TestSession::single(
         r#"
-struct Waiter<T> {
+class Waiter<T> {
     value: T;
     next: Waiter<T> | undefined;
+
+    constructor(value: T) {
+        this.value = value;
+        this.next = undefined;
+    }
 }
 
 struct Pending<T> {
@@ -438,12 +443,17 @@ class Cell<T> {
         DirRows::checked(),
         r#"
 === annotated ===
-struct Waiter<out T> {
+class Waiter<in out T> {
     value: T;
     next: Waiter<T> | undefined;
+
+    constructor(value: T): this {
+        this.value = value;
+        this.next = undefined as Waiter<T> | undefined;
+    }
 }
 
-struct Pending<out T> {
+struct Pending<in out T> {
     kind: "pending";
     head: Waiter<T> | undefined;
     tail: Waiter<T> | undefined;
@@ -456,7 +466,7 @@ struct Fulfilled<out T> {
 
 type State<T> = Pending<T> | Fulfilled<T>;
 
-class Cell<in T> {
+class Cell<in out T> {
     state: State<T>;
 
     constructor(pending: Pending<T>): this {
@@ -484,12 +494,13 @@ class Cell<in T> {
 }
 
 === checked ===
-struct Waiter<T> {
-/// @generic.template symbol=Waiter parameters=(out T#1)
+class Waiter<T> {
+/// @generic.template symbol=Waiter parameters=(in out T#1)
 /// @type.symbol symbol=Waiter type=Waiter
-/// @definition.struct symbol=Waiter template=(out T#1)
+/// @definition.class symbol=Waiter template=(in out T#1)
 /// @definition.field symbol=Waiter.next source="next: Waiter<T> | undefined" key=next type=Waiter<T#1> | undefined
 /// @definition.field symbol=Waiter.value source="value: T" key=value type=T#1
+/// @definition.method symbol=Waiter.constructor slot=constructor role=constructor type=(T#1) => this
 /// @type.symbol symbol=Waiter.T source=T type=T#1
 
     value: T;
@@ -501,12 +512,27 @@ struct Waiter<T> {
     /// @resolution.name source=Waiter target=Waiter
     /// @resolution.name source=T target=Waiter.T
 
+    constructor(value: T) {
+    /// @type.symbol symbol=Waiter.constructor type=(T#1) => this
+    /// @type.symbol symbol=Waiter.constructor.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Waiter.T
+
+        this.value = value;
+        /// @resolution.receiver source=this kind=this declaration=Waiter type=Waiter<T#1>
+        /// @resolution.pattern.assign source=this.value kind=place place=field(Waiter.value) type=T#1
+        /// @resolution.name source=value target=Waiter.constructor.value
+
+        this.next = undefined;
+        /// @resolution.receiver source=this kind=this declaration=Waiter type=Waiter<T#1>
+        /// @resolution.pattern.assign source=this.next kind=place place=field(Waiter.next) type=Waiter<T#1> | undefined
+
+    }
 }
 
 struct Pending<T> {
-/// @generic.template symbol=Pending parameters=(out T#2)
+/// @generic.template symbol=Pending parameters=(in out T#2)
 /// @type.symbol symbol=Pending type=Pending
-/// @definition.struct symbol=Pending template=(out T#2)
+/// @definition.struct symbol=Pending template=(in out T#2)
 /// @definition.field symbol=Pending.head source="head: Waiter<T> | undefined" key=head type=Waiter<T#2> | undefined
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.tail source="tail: Waiter<T> | undefined" key=tail type=Waiter<T#2> | undefined
@@ -555,9 +581,9 @@ type State<T> = Pending<T> | Fulfilled<T>;
 /// @resolution.name source=T target=State.T
 
 class Cell<T> {
-/// @generic.template symbol=Cell parameters=(in T#5)
+/// @generic.template symbol=Cell parameters=(in out T#5)
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.class symbol=Cell template=(in T#5)
+/// @definition.class symbol=Cell template=(in out T#5)
 /// @definition.field symbol=Cell.state source="state: State<T>" key=state type=State<T#5>
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Pending<T#5>) => this
 /// @definition.method symbol=Cell.consume slot=consume type=(this: this, T#5) => void

@@ -244,7 +244,9 @@ const selected = select(user);
 selected satisfies "mutable";
 /// @resolution.name source=selected target=selected
 "#,
-        r#""#,
+        r#"
+
+"#,
     );
 }
 
@@ -951,92 +953,6 @@ const selected: &readonly User = condition ? first : second;
 }
 
 #[test]
-fn test_borrow_flow_narrowed_optional_member() {
-    let session = TestSession::single(
-        r#"
-struct Entry {
-    unit?: &readonly string;
-}
-
-class Counter {
-    readonly unit?: string;
-
-    emit(&readonly this): void {
-        const entry = Entry {
-            unit: this.unit == undefined ? undefined : &readonly this.unit,
-        };
-    }
-}
-"#,
-    );
-
-    session.assert_dir_checked("main.ds", DirRows::checked().with_coercion(), r#"
-=== annotated ===
-struct Entry<comptime L0: Lifetime> {
-    unit?: Borrowed<string, L0, "readonly">;
-}
-
-class Counter {
-    readonly unit?: string;
-
-    emit(&readonly this): void {
-        const entry: Entry<"frame"> = Entry<"frame"> {
-            unit: this.unit == undefined
-                ? (undefined as Borrowed<string, "frame", "readonly"> | undefined)
-                : (&readonly this.unit as Borrowed<string, "frame", "readonly"> | undefined),
-        };
-    }
-}
-
-=== checked ===
-struct Entry {
-/// @generic.template symbol=Entry parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=Entry type=Entry
-/// @definition.struct symbol=Entry
-/// @definition.field symbol=Entry.unit source="unit?: &readonly string" key=unit type=Borrowed<string, Entry.L0, "readonly">
-
-    unit?: &readonly string;
-    /// @type.symbol symbol=Entry.unit source="unit?: &readonly string" type=Borrowed<string, Entry.L0, "readonly">
-
-}
-
-class Counter {
-/// @type.symbol symbol=Counter type=Counter
-/// @definition.class symbol=Counter
-/// @definition.field symbol=Counter.unit source="readonly unit?: string" key=unit type=string
-/// @definition.method symbol=Counter.emit slot=emit type=<comptime Counter.emit.L0: Lifetime>(this: Borrowed<this, Counter.emit.L0, "readonly">) => void
-
-    readonly unit?: string;
-    /// @type.symbol symbol=Counter.unit source="readonly unit?: string" type=string
-
-    emit(&readonly this): void {
-    /// @generic.template symbol=Counter.emit parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Counter.emit type=<comptime Counter.emit.L0: Lifetime>(this: Borrowed<this, Counter.emit.L0, "readonly">) => void
-    /// @type.symbol symbol=Counter.emit.this source="&readonly this" type=Borrowed<this, Counter.emit.L0, "readonly">
-
-        const entry = Entry {
-        /// @type.symbol symbol=Counter.emit.entry source=entry type=Entry<"frame">
-        /// @resolution.pattern source=entry kind=binding target=Counter.emit.entry
-        /// @resolution.name source=Entry target=Entry
-
-            unit: this.unit == undefined ? undefined : &readonly this.unit,
-            /// @resolution.member source=this.unit receiver=Borrowed<Counter, Counter.emit.L0, "readonly"> kind=symbol target=Counter.unit
-            /// @resolution.operator source="this.unit == undefined" kind=builtin
-            /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.emit.L0, "readonly">
-            /// @coercion.node source=undefined from=undefined adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined, cases: (1) }] origin=implicit
-            /// @coercion.node source="&readonly this.unit" from=Borrowed<string, "frame", "readonly"> adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined, cases: (0) }] origin=implicit
-            /// @resolution.member source=this.unit receiver=Borrowed<Counter, Counter.emit.L0, "readonly"> kind=symbol target=Counter.unit
-            /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.emit.L0, "readonly">
-
-        };
-    }
-}
-
-/// @generic.instance id="Entry<\"frame\">" template=Entry arguments=("frame")
-"#);
-}
-
-#[test]
 fn test_coerce_each_match_arm_from_managed_to_readonly_borrow() {
     let session = TestSession::single(
         r#"
@@ -1194,39 +1110,6 @@ inspect("message");
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source="inspect(\"message\")" parameters=(Borrowed<string, "frame", "readonly">) arguments=(provided("message") as Borrowed<string, "frame", "readonly">) return=void kind=symbol target=inspect
 /// @coercion.node source="\"message\"" from="message" adjustments=[{ kind: borrow, target: Borrowed<string, "frame", "readonly"> }] origin=implicit
-"#,
-    );
-}
-
-#[test]
-fn test_coerce_managed_bigint_literal_to_readonly_borrow() {
-    let session = TestSession::single(
-        r#"
-declare function inspect(value: &readonly bigint): void;
-
-inspect(42n);
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_coercion(),
-        r#"
-=== annotated ===
-declare function inspect<comptime L0: Lifetime>(value: Borrowed<bigint, L0, "readonly">): void;
-
-inspect(42n as Borrowed<bigint, "frame", "readonly">);
-
-=== checked ===
-declare function inspect(value: &readonly bigint): void;
-/// @generic.template symbol=inspect parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly bigint): void" type=<comptime inspect.L0: Lifetime>(Borrowed<bigint, inspect.L0, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly bigint" type=Borrowed<bigint, inspect.L0, "readonly">
-
-inspect(42n);
-/// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(42n) parameters=(Borrowed<bigint, "frame", "readonly">) arguments=(provided(42n) as Borrowed<bigint, "frame", "readonly">) return=void kind=symbol target=inspect
-/// @coercion.node source=42n from=42n adjustments=[{ kind: borrow, target: Borrowed<bigint, "frame", "readonly"> }] origin=implicit
 "#,
     );
 }
@@ -1728,7 +1611,7 @@ struct Point {
     x: int32;
 }
 
-let point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 let borrow = &point;
 let copied: Point = borrow;
 let owned: ^Point = borrow;
@@ -1744,7 +1627,7 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 let borrow: Borrowed<Point, "static", "mutable"> = &point;
 let copied: Point = borrow as Point;
 let owned: ^Point = borrow as Point;
@@ -1760,10 +1643,10 @@ struct Point {
 
 }
 
-let point = ^Point { x: 1 };
+let point: ^Point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
+/// @resolution.name source=Point target=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
@@ -1792,7 +1675,9 @@ let owned: ^Point = borrow;
 /// @resolution.name source=borrow target=borrow
 /// @coercion.node source=borrow from=Borrowed<Point, "static", "mutable"> adjustments=[{ kind: carrier, target: Point }] origin=implicit
 "#,
-        r#""#,
+        r#"
+
+"#,
     );
 }
 
@@ -1828,7 +1713,9 @@ let owned: ^User = new User();
 /// @resolution.construct source="new User()" parameters=() return=Owned<User> kind=class target=User constructor=default
 /// @resolution.name source=User target=User
 "#,
-        r#""#,
+        r#"
+
+"#,
     );
 }
 

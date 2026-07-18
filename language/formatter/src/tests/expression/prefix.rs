@@ -68,30 +68,22 @@ fn test_format_await_prefix_forms() {
 }
 
 #[test]
-fn test_format_value_reference_chain_compact() {
+fn test_format_borrow_reference_chain_compact() {
     assert_format_program!(
         r#"const borrowed = & &value
-const moved = ^ ^value
-const borrowMove = & ^value
-const moveBorrow = ^ &value
 "#,
         r#"const borrowed = &&value;
-const moved = ^^value;
-const borrowMove = &^value;
-const moveBorrow = ^&value;
 "#,
         FileType::Destack
     );
 }
 
 #[test]
-fn test_format_value_reference_prefix_modifiers() {
+fn test_format_borrow_reference_prefix_modifiers() {
     assert_format_program!(
         r#"const borrowed = & readonly super value
-const moved = ^ exclusive super value
 "#,
         r#"const borrowed = &readonly super value;
-const moved = ^exclusive super value;
 "#,
         FileType::Destack
     );
@@ -99,13 +91,11 @@ const moved = ^exclusive super value;
 
 /// Prefix memory operators should preserve binary operands as one value.
 #[test]
-fn test_format_value_reference_binary_operands() {
+fn test_format_borrow_reference_binary_operands() {
     assert_format_program!(
         r#"const borrowed = &(left+right)
-const moved = ^(left??right)
 "#,
         r#"const borrowed = &(left + right);
-const moved = ^(left ?? right);
 "#,
         FileType::Destack
     );

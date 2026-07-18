@@ -69,7 +69,7 @@ impl WalkState<'_, '_> {
 
         // walk matched value
         if let Some(value) = declarator.value {
-            self.walk_expression(value, self.tree.get(value))?;
+            self.walk_declarator_initializer(id, value)?;
         }
 
         // record pattern checking from the initializer or annotation
@@ -102,6 +102,24 @@ impl WalkState<'_, '_> {
                 );
             }
         }
+
+        Ok(())
+    }
+
+    /// Walk one direct declarator initializer.
+    fn walk_declarator_initializer(
+        &mut self,
+        id: dir::LocalNodeId<dir::Declarator>,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        self.walk_expression(value, self.tree.get(value))?;
+
+        // initializing a binding may consume an identifier source
+        let target = self
+            .check
+            .module(self.module)
+            .declaration_symbol(self.tree.get(id).pattern.into_any());
+        self.mark_moved_source(value, None, target);
 
         Ok(())
     }
