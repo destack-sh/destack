@@ -193,7 +193,7 @@ impl Compiler {
         // declare enum constant
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Item,
-            dir::SymbolKind::EnumField,
+            dir::SymbolKind::Variant,
             Some(field.name.static_key()),
             None,
             dir::SymbolVisibility::Member,

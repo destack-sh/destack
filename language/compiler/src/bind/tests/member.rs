@@ -123,10 +123,10 @@ enum Priority {
 /// @binding.owner_scope owner=Priority scope=Priority
 
     Low = 1,
-    /// @binding.symbol symbol=Low role=item kind=enum_field scope=Priority@0 visibility=member
+    /// @binding.symbol symbol=Low role=item kind=variant scope=Priority@0 visibility=member
 
     High = 2,
-    /// @binding.symbol symbol=High role=item kind=enum_field scope=Priority@1 visibility=member
+    /// @binding.symbol symbol=High role=item kind=variant scope=Priority@1 visibility=member
 
     label(): string {
     /// @binding.symbol symbol=label role=item kind=function scope=Priority@2 visibility=member
