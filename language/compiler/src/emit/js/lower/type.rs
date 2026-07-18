@@ -322,6 +322,7 @@ impl ModuleLowerer<'_> {
             dir::StaticTerm::Array { .. }
             | dir::StaticTerm::FixedArray { .. }
             | dir::StaticTerm::Tuple { .. }
+            | dir::StaticTerm::Newtype { .. }
             | dir::StaticTerm::Object { .. }
             | dir::StaticTerm::Struct { .. } => Err(self.unsupported_construct(
                 source_id.into_global(self.module.id),
