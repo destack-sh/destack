@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use destack_artifact::ConditionSet;
 use destack_core::CaptureMode;
 use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
@@ -19,17 +20,20 @@ impl World {
         &mut self,
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
+        conditions: impl Into<Arc<ConditionSet>>,
         program: impl Into<Arc<program::Program>>,
         execution: Execution,
     ) -> RuntimeResult<RuntimeId> {
         let environment = environment.into();
+        let conditions = conditions.into();
         let mode = self.state.trace.mode();
         let memory = self.memory.clone();
         let collector = self.shared_collector.clone();
         let world = &mut self.state;
-        let mut runtime = Runtime::from_options_in_world(
+        let mut runtime = Runtime::new_in_world(
             environment.clone(),
             options,
+            conditions,
             world,
             memory,
             collector,
@@ -323,6 +327,7 @@ impl World {
             .get_mut(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
         let program = runtime.program.clone();
+        let conditions = runtime.conditions.clone();
         let worker = {
             Worker::from_image(
                 world,
@@ -330,6 +335,7 @@ impl World {
                 runtime_id,
                 worker_id,
                 environment,
+                conditions,
                 worker_image.as_ref(),
                 None,
                 program,

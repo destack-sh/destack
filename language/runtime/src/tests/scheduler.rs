@@ -8,7 +8,7 @@ use crate::runtime::machine::Continuation;
 use crate::runtime::scheduler::{Runnable, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::runtime::time::Nanos;
 use crate::tests::harness::{
-    TestMachine, TestRuntime, TestWorldRuntime, start_worker_continuation,
+    TestMachine, TestRuntime, TestWorldRuntime, start_worker_continuation, test_conditions,
 };
 use crate::world::observation::Observation;
 use crate::world::{Run, RunOutcome, World};
@@ -202,6 +202,7 @@ fn test_world_run_task_drives_runtime() {
         .spawn_runtime(
             Environment::default(),
             &options,
+            test_conditions(),
             machine.program(),
             machine.execution(),
         )
@@ -266,6 +267,7 @@ fn test_world_spawn_runtime_records_observation() {
         .spawn_runtime(
             Environment::default(),
             &options,
+            test_conditions(),
             machine.program(),
             machine.execution(),
         )

@@ -65,7 +65,7 @@ impl Worker {
             runtime_id: self.runtime_id,
             worker_id: self.id,
             environment: self.environment.clone(),
-            options: self.options.clone(),
+            conditions: self.conditions.clone(),
             diagnostics: self.diagnostics.clone(),
             binding_table: &self.binding_table,
             host,

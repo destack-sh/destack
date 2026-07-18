@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_artifact::{ConditionSet, Host, Platform, Runtime};
 use destack_compiler::ProgramLinker;
 use destack_heap::{
     AllocationCache, DEFAULT_MEMORY_MAP_SIZE_BYTES, Heap, HeapLimits, HeapOptions, SharedHeap,
@@ -40,6 +41,8 @@ b1(v2: ref<int32, raw, mutable, space(frame)>, v3: int32):
 pub(crate) struct RuntimeSetup {
     /// Runtime options shared by every run.
     options: RuntimeOptions,
+    /// Runtime conditions shared by every run.
+    conditions: Arc<ConditionSet>,
     /// Ambient launch environment.
     environment: Arc<Environment>,
 }
@@ -54,6 +57,20 @@ impl RuntimeSetup {
 
         Self {
             options,
+            conditions: Arc::new(ConditionSet {
+                modes: Default::default(),
+                roles: Default::default(),
+                features: Default::default(),
+                tags: Default::default(),
+                target: Some("footprint".to_string()),
+                product: None,
+                role: None,
+                labels: Default::default(),
+                stage: None,
+                platform: Platform::Unknown,
+                host: Host::Native,
+                runtime: Runtime::Destack,
+            }),
             environment: Arc::new(Environment::default()),
         }
     }
@@ -71,7 +88,13 @@ impl RuntimeSetup {
         execution: Execution,
     ) -> RuntimeId {
         world
-            .spawn_runtime(self.environment.clone(), &self.options, program, execution)
+            .spawn_runtime(
+                self.environment.clone(),
+                &self.options,
+                self.conditions.clone(),
+                program,
+                execution,
+            )
             .expect("footprint runtime should spawn")
     }
 
@@ -96,6 +119,7 @@ impl RuntimeSetup {
     pub(crate) fn launch(&self) {
         Launch::new(
             self.options.clone(),
+            self.conditions.clone(),
             self.environment.clone(),
             self.program(),
             self.execution(),

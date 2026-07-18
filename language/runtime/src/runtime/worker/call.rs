@@ -1,6 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_artifact::ConditionSet;
+use destack_repository::{Environment, RuntimeDiagnosticLevel};
+
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{
     BindingAccess, BindingAffinity, BindingDescriptor, BindingReplayPayload, BindingTable,
@@ -15,7 +18,6 @@ use crate::world::trace::{EntropySubject, TraceLog};
 use crate::world::{RuntimeId, WorldState};
 
 use super::{RunnableScope, WorkerId, binding_affinity_name};
-use destack_repository::{Environment, RuntimeDiagnosticLevel, RuntimeOptions};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug)]
@@ -26,8 +28,8 @@ pub struct BindingCall<'host> {
     pub(crate) worker_id: WorkerId,
     /// Immutable ambient environment for host bindings.
     pub(crate) environment: Arc<Environment>,
-    /// Immutable runtime options.
-    pub(crate) options: Arc<RuntimeOptions>,
+    /// The active runtime conditions.
+    pub(crate) conditions: Arc<ConditionSet>,
     /// Runtime diagnostics storage.
     pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// Runtime binding table and policy enforcement.
@@ -319,12 +321,8 @@ impl BindingCall<'_> {
     /// Resolve one binding access decision for this call context.
     #[inline]
     fn decide_binding(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeAccess> {
-        self.world().decide_binding(
-            &self.options.conditions,
-            self.runtime_id,
-            self.worker_id,
-            spec,
-        )
+        self.world()
+            .decide_binding(&self.conditions, self.runtime_id, self.worker_id, spec)
     }
 }
 

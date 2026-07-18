@@ -1,6 +1,7 @@
 use std::ptr::NonNull;
 use std::sync::Arc;
 
+use destack_artifact::{ConditionSet, Host, Platform, Runtime};
 use destack_compiler::ProgramLinker;
 use destack_core::StringPool;
 use destack_heap as heap;
@@ -13,14 +14,14 @@ use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeFailure, RuntimeResult};
-use crate::host::core::{Host, HostQueue, poll_host_events};
+use crate::host::core::{HostQueue, poll_host_events};
 use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 use crate::host::time::TimerClock;
 use crate::host::{
-    HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
+    self, HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
 use crate::runtime::machine::{
     Continuation, Entry, Execution, Outcome, ProgramActivation, ProgramStorage,
@@ -38,10 +39,28 @@ pub(crate) fn test_resource_id(local_id: u64) -> ResourceId {
     ResourceId::new(WorkerId(1), local_id)
 }
 
+/// Build the conditions used by isolated runtime tests.
+pub(crate) fn test_conditions() -> Arc<ConditionSet> {
+    Arc::new(ConditionSet {
+        modes: Default::default(),
+        roles: Default::default(),
+        features: Default::default(),
+        tags: Default::default(),
+        target: Some("test".to_string()),
+        product: None,
+        role: None,
+        labels: Default::default(),
+        stage: None,
+        platform: Platform::Unknown,
+        host: Host::Native,
+        runtime: Runtime::Destack,
+    })
+}
+
 /// Build one native binding call for runtime tests.
 pub(crate) fn binding_call<'host>(
     worker: &mut Worker,
-    host: &'host dyn Host,
+    host: &'host dyn host::Host,
     host_queue: &'host HostQueue,
     world: &mut WorldState,
 ) -> BindingCall<'host> {
@@ -51,7 +70,7 @@ pub(crate) fn binding_call<'host>(
         runtime_id: worker.runtime_id,
         worker_id: worker.id,
         environment: worker.environment.clone(),
-        options: worker.options.clone(),
+        conditions: worker.conditions.clone(),
         diagnostics: worker.diagnostics.clone(),
         binding_table: &worker.binding_table,
         host,
@@ -306,6 +325,7 @@ impl TestRuntime {
         let mut worker = Worker::new_in_world(
             Environment::default(),
             options,
+            test_conditions(),
             &mut world.state,
             &shared,
             WorkerOptions::default(),
@@ -581,7 +601,7 @@ impl TestWorldRuntime {
         let program = machine.program();
         let execution = machine.execution();
         let runtime_id = world
-            .spawn_runtime(environment, options, program, execution)
+            .spawn_runtime(environment, options, test_conditions(), program, execution)
             .expect("runtime should spawn");
 
         poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))
@@ -800,7 +820,7 @@ pub(crate) fn runtime_shared_heap(
 /// Start one VM continuation in a worker test harness.
 pub(crate) fn start_worker_continuation(
     worker: &mut Worker,
-    host: &dyn Host,
+    host: &dyn host::Host,
     host_queue: &HostQueue,
     world: &mut WorldState,
     runtime_heap: &RuntimeHeap,

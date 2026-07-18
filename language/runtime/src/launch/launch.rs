@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_artifact::ConditionSet;
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
 
@@ -11,6 +12,8 @@ use crate::world::{Run, RunOutcome, RuntimeId, World};
 pub struct Launch {
     /// Runtime options used to construct the initial world and runtime.
     pub options: RuntimeOptions,
+    /// The active runtime conditions.
+    pub conditions: Arc<ConditionSet>,
     /// Ambient environment exposed to the launched runtime.
     pub environment: Arc<Environment>,
     /// Durable program instantiated by the runtime.
@@ -38,6 +41,7 @@ impl std::fmt::Debug for Launch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Launch")
             .field("options", &self.options)
+            .field("conditions", &self.conditions)
             .field("environment", &self.environment)
             .field("program", &self.program)
             .field("execution", &self.execution)
@@ -51,6 +55,7 @@ impl Launch {
     /// Create a launch request.
     pub fn new(
         options: RuntimeOptions,
+        conditions: impl Into<Arc<ConditionSet>>,
         environment: impl Into<Arc<Environment>>,
         program: impl Into<Arc<program::Program>>,
         execution: Execution,
@@ -58,6 +63,7 @@ impl Launch {
     ) -> Self {
         Self {
             options,
+            conditions: conditions.into(),
             environment: environment.into(),
             program: program.into(),
             execution,
@@ -70,6 +76,7 @@ impl Launch {
     pub fn run(self) -> RuntimeResult<LaunchResult> {
         let Launch {
             options,
+            conditions,
             environment,
             program,
             execution,
@@ -79,7 +86,8 @@ impl Launch {
         let mut world = World::new(&options, environment.clone())?;
 
         // bootstrap the initial runtime
-        let runtime_id = world.spawn_runtime(environment, &options, program, execution)?;
+        let runtime_id =
+            world.spawn_runtime(environment, &options, conditions, program, execution)?;
         let value = world.run_entrypoint(runtime_id, &entry, &entry_args)?;
 
         // drain work scheduled by the entrypoint

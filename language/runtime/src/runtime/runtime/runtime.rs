@@ -1,3 +1,14 @@
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use destack_artifact::ConditionSet;
+use destack_core::CaptureMode;
+use destack_heap as heap;
+use destack_memory::MemoryMap;
+use destack_program as program;
+use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
+use serde::{Deserialize, Serialize};
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::HostQueue;
 use crate::host::poller::{HostPoller, PollerEvent};
@@ -12,14 +23,6 @@ use crate::runtime::worker::{
     WorkerRunOutcome,
 };
 use crate::world::{RestoreContext, RuntimeId, WorkerWake, WorldState};
-use destack_core::CaptureMode;
-use destack_heap as heap;
-use destack_memory::MemoryMap;
-use destack_program as program;
-use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::sync::Arc;
 
 /// Runtime container that owns one or more workers in one shared world.
 pub struct Runtime {
@@ -27,8 +30,10 @@ pub struct Runtime {
     id: RuntimeId,
     /// Immutable ambient environment shared by newly spawned workers.
     pub(crate) environment: Arc<Environment>,
-    /// Runtime options captured for worker defaults and reconstruction.
+    /// The immutable runtime options.
     options: Arc<RuntimeOptions>,
+    /// The active runtime conditions.
+    pub(crate) conditions: Arc<ConditionSet>,
     /// Durable program instantiated by this runtime.
     pub(crate) program: Arc<program::Program>,
     /// Runtime execution strategy shared by worker machines.
@@ -90,13 +95,15 @@ impl RuntimeRunOutcome {
     }
 }
 
-/// Materialized runtime metadata captured in one world image.
+/// One captured runtime image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeImage {
     /// Runtime launch environment.
     pub environment: Arc<Environment>,
-    /// Runtime options captured for worker defaults and reconstruction.
+    /// The captured runtime options.
     pub options: Arc<RuntimeOptions>,
+    /// The active runtime conditions.
+    pub conditions: Arc<ConditionSet>,
     /// Durable program instantiated by this runtime.
     pub program: Arc<program::Program>,
     /// Captured runtime execution strategy.
@@ -116,6 +123,7 @@ impl RuntimeImage {
     pub(crate) fn is_same_image(&self, other: &Self) -> bool {
         self.environment == other.environment
             && self.options == other.options
+            && self.conditions == other.conditions
             && Arc::ptr_eq(&self.program, &other.program)
             && self.execution == other.execution
             && self.shared_heap == other.shared_heap
@@ -131,6 +139,7 @@ impl std::fmt::Debug for Runtime {
             .field("runtime_id", &self.id)
             .field("environment", &self.environment)
             .field("options", &self.options)
+            .field("conditions", &self.conditions)
             .field("heap", &self.heap)
             .field("workers", &self.workers)
             .field("default_worker_id", &self.default_worker_id)
@@ -141,9 +150,10 @@ impl std::fmt::Debug for Runtime {
 
 impl Runtime {
     /// Create a runtime with one default worker in one explicit shared world.
-    pub(crate) fn from_options_in_world(
+    pub(crate) fn new_in_world(
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
+        conditions: Arc<ConditionSet>,
         world: &mut WorldState,
         memory: Arc<MemoryMap>,
         collector: Arc<SharedCollector>,
@@ -158,6 +168,7 @@ impl Runtime {
         let default_worker = Worker::new_in_world(
             environment.clone(),
             options,
+            conditions.clone(),
             world,
             &shared,
             WorkerOptions::default(),
@@ -167,6 +178,7 @@ impl Runtime {
         let runtime = Self::new(
             environment,
             options,
+            conditions,
             program,
             execution,
             shared,
@@ -294,6 +306,7 @@ impl Runtime {
         let worker = Worker::new_in_runtime(
             self.environment.clone(),
             &self.options,
+            self.conditions.clone(),
             world,
             &self.heap,
             self.id,
@@ -573,6 +586,7 @@ impl Runtime {
     fn new(
         environment: Arc<Environment>,
         options: &RuntimeOptions,
+        conditions: Arc<ConditionSet>,
         program: Arc<program::Program>,
         execution: Execution,
         shared: RuntimeHeap,
@@ -593,6 +607,7 @@ impl Runtime {
             id: runtime_id,
             environment,
             options,
+            conditions,
             program,
             execution,
             heap: shared,
@@ -789,6 +804,7 @@ impl Runtime {
             default_worker_id: self.default_worker_id,
             environment: self.environment.clone(),
             options: self.options.clone(),
+            conditions: self.conditions.clone(),
             program: self.program.clone(),
             execution: self.execution.image(),
             shared_heap: self.heap.snapshot()?,
@@ -859,6 +875,7 @@ impl Runtime {
             id: self.id,
             environment: self.environment.clone(),
             options: self.options.clone(),
+            conditions: self.conditions.clone(),
             program: self.program.clone(),
             execution: self.execution.clone(),
             heap: shared,
@@ -880,7 +897,7 @@ impl Runtime {
         worker_images: &BTreeMap<WorkerId, Arc<WorkerImage>>,
         restore: RestoreContext<'_>,
     ) -> RuntimeResult<Self> {
-        // runtime-wide reconstructed state
+        // restore runtime state
         let environment = image.environment.clone();
         if worker_images.is_empty() {
             return Err(RuntimeError::Internal {
@@ -910,6 +927,7 @@ impl Runtime {
                 runtime_id,
                 *worker_id,
                 environment.clone(),
+                image.conditions.clone(),
                 worker_image.as_ref(),
                 Some(&image.options),
                 program.clone(),
@@ -923,7 +941,7 @@ impl Runtime {
             }
         }
 
-        // validate the default worker after reconstruction
+        // validate the default worker
         if !workers.contains_key(&image.default_worker_id) {
             return Err(RuntimeError::default_worker_missing(
                 runtime_id.0,
@@ -936,6 +954,7 @@ impl Runtime {
             id: runtime_id,
             environment,
             options: image.options.clone(),
+            conditions: image.conditions.clone(),
             program,
             execution,
             heap: shared,
@@ -977,13 +996,16 @@ mod tests {
         compile_target_host,
     };
     use crate::runtime::{RuntimeHeap, Worker, WorkerOptions};
-    use crate::tests::harness::{TestMachine, TestWorldRuntime, start_worker_continuation};
+    use crate::tests::harness::{
+        TestMachine, TestWorldRuntime, start_worker_continuation, test_conditions,
+    };
     use crate::world::World;
     use destack_core::{
         CaptureMode, SectionDirectory, SectionImage, SectionPacker, SectionStorage,
     };
     use destack_heap as heap;
     use destack_heap::{AllocationShape, SharedHeap, TraceTable, TraceView};
+    use destack_mir as mir;
     use destack_mir::TraceMap;
     use destack_program as program;
     use destack_repository::{Environment, RuntimeOptions};
@@ -1002,7 +1024,7 @@ mod tests {
     fn allocate_shared_bytes(
         heap: &SharedHeap,
         bytes: &[u8],
-    ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
+    ) -> heap::HeapResult<heap::SharedHeapReference> {
         let trace_map = TraceMap::Empty;
         let shape = AllocationShape::new(bytes.len(), 1, None, trace_map);
         let site = heap.options().allocation_plan(&shape);
@@ -1030,7 +1052,7 @@ mod tests {
         /// Build one empty section-backed trace table.
         fn new() -> Self {
             let mut sections = SectionPacker::new();
-            let traces = TraceTable::pack(&mut sections, &destack_mir::TraceTable::new());
+            let traces = TraceTable::pack(&mut sections, &mir::TraceTable::new());
             let (sections, storage) = sections.finish();
 
             Self {
@@ -1064,21 +1086,21 @@ mod tests {
         .expect("runtime shared heap should construct")
     }
 
-    /// Spawned workers inherit runtime source graph conditions.
+    /// Spawned workers share runtime conditions.
     #[test]
-    fn test_spawn_worker_inherits_runtime_conditions() {
-        let mut options = RuntimeOptions::default();
-        options.conditions.modes.insert("test".to_string());
-        options.conditions.roles.insert("server".to_string());
-        options.conditions.features.insert("payments".to_string());
-
+    fn test_spawn_worker_shares_runtime_conditions() {
+        let options = RuntimeOptions::default();
         let mut runtime = TestWorldRuntime::build(&options, TestMachine::default());
         let worker_id = runtime.spawn_worker();
+        let conditions = runtime
+            .world()
+            .runtime(runtime.runtime_id())
+            .expect("runtime should exist")
+            .conditions
+            .clone();
 
         runtime.with_worker_mut(worker_id, |worker| {
-            assert!(worker.options.conditions.contains_mode("test"));
-            assert!(worker.options.conditions.contains_role("server"));
-            assert!(worker.options.conditions.contains_feature("payments"));
+            assert!(Arc::ptr_eq(&worker.conditions, &conditions));
         });
     }
 
@@ -1086,6 +1108,7 @@ mod tests {
     #[test]
     fn test_deliver_host_event_queues_shared_root_rescan_during_mark() {
         let options = RuntimeOptions::default();
+        let conditions = test_conditions();
         let mut world =
             World::new(&options, Environment::default()).expect("world should construct");
         let machine = TestMachine::default();
@@ -1100,8 +1123,9 @@ mod tests {
             .expect("shared test statics should build");
 
         let mut worker = Worker::new_in_world(
-            destack_repository::Environment::default(),
+            Environment::default(),
             &options,
+            conditions.clone(),
             world_state,
             &shared,
             WorkerOptions::default(),
@@ -1137,8 +1161,9 @@ mod tests {
             .expect("host waiter should register");
 
         let mut runtime = Runtime::new(
-            Arc::new(destack_repository::Environment::default()),
+            Arc::new(Environment::default()),
             &options,
+            conditions,
             program,
             execution,
             shared,
@@ -1194,6 +1219,7 @@ mod tests {
     #[test]
     fn test_capture_image_flushes_worker_shared_cache() {
         let options = RuntimeOptions::default();
+        let conditions = test_conditions();
         let mut world =
             World::new(&options, Environment::default()).expect("world should construct");
         let machine = TestMachine::default();
@@ -1207,8 +1233,9 @@ mod tests {
             .materialize_shared_statics(memory)
             .expect("shared test statics should build");
         let mut worker = Worker::new_in_world(
-            destack_repository::Environment::default(),
+            Environment::default(),
             &options,
+            conditions.clone(),
             world_state,
             &shared,
             WorkerOptions::default(),
@@ -1235,8 +1262,9 @@ mod tests {
         assert_eq!(shared.shared.usage().allocation_count, 0);
 
         let mut runtime = Runtime::new(
-            Arc::new(destack_repository::Environment::default()),
+            Arc::new(Environment::default()),
             &options,
+            conditions,
             program,
             execution,
             shared,
@@ -1258,6 +1286,7 @@ mod tests {
     #[test]
     fn test_runtime_tick_publishes_pending_shared_roots_from_worker() {
         let options = RuntimeOptions::default();
+        let conditions = test_conditions();
         let mut world =
             World::new(&options, Environment::default()).expect("world should construct");
         let machine = TestMachine::default();
@@ -1272,8 +1301,9 @@ mod tests {
             .expect("shared test statics should build");
 
         let mut worker = Worker::new_in_world(
-            destack_repository::Environment::default(),
+            Environment::default(),
             &options,
+            conditions.clone(),
             world_state,
             &shared,
             WorkerOptions::default(),
@@ -1309,8 +1339,9 @@ mod tests {
             .expect("host waiter should register");
 
         let mut runtime = Runtime::new(
-            Arc::new(destack_repository::Environment::default()),
+            Arc::new(Environment::default()),
             &options,
+            conditions,
             program,
             execution,
             shared,

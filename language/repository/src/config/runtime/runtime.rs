@@ -4,7 +4,7 @@ use destack_artifact::{BuildLinkage, BuildProfile};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{ConditionSet, ExecutionMode, ReplayPayloadMode};
+use crate::{ExecutionMode, ReplayPayloadMode};
 
 use super::clock::ClockOptions;
 use super::random::RandomOptions;
@@ -34,9 +34,6 @@ pub struct RuntimeOptions {
     pub profile: BuildProfile,
     /// Build payload linkage.
     pub linkage: BuildLinkage,
-    /// Active source graph conditions for runtime policy selection.
-    #[serde(default)]
-    pub conditions: ConditionSet,
     /// Execution mode for scheduling and effect handling.
     pub mode: ExecutionMode,
     /// Runtime worker configuration.

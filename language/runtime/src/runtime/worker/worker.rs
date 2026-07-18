@@ -1,3 +1,4 @@
+use destack_artifact::ConditionSet;
 use destack_core::{Capture, CaptureMode};
 use destack_heap as heap;
 use destack_program as program;
@@ -31,6 +32,8 @@ pub struct Worker {
     pub(crate) environment: Arc<Environment>,
     /// Immutable runtime options.
     pub(crate) options: Arc<RuntimeOptions>,
+    /// The active runtime conditions.
+    pub(crate) conditions: Arc<ConditionSet>,
     /// Immutable executable program.
     pub(crate) program: Arc<program::Program>,
     /// Debugger generation used to derive executable debug sets.
@@ -77,7 +80,7 @@ pub struct WorkerOptions {
     pub labels: LabelSet,
 }
 
-/// Materialized worker metadata captured in one world image.
+/// One captured worker image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerImage {
     /// Runtime owner identifier.
@@ -86,7 +89,7 @@ pub struct WorkerImage {
     pub worker_id: WorkerId,
     /// Captured worker-local execution sequence.
     pub sequence: WorkerSequence,
-    /// Worker options captured for reconstruction.
+    /// The captured worker options.
     pub options: WorkerOptionsImage,
     /// Captured diagnostics store state.
     pub diagnostics: DiagnosticSnapshot,
@@ -207,6 +210,7 @@ impl Worker {
     pub(crate) fn new_in_world(
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
+        conditions: Arc<ConditionSet>,
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
         worker_options: WorkerOptions,
@@ -219,6 +223,7 @@ impl Worker {
         Self::from_registered(
             environment,
             options,
+            conditions,
             world,
             runtime_heap,
             runtime_id,
@@ -232,6 +237,7 @@ impl Worker {
     pub(crate) fn new_in_runtime(
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
+        conditions: Arc<ConditionSet>,
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
         runtime_id: RuntimeId,
@@ -245,6 +251,7 @@ impl Worker {
         Self::from_registered(
             environment,
             options,
+            conditions,
             world,
             runtime_heap,
             runtime_id,
@@ -258,6 +265,7 @@ impl Worker {
     fn from_registered(
         environment: Arc<Environment>,
         options: &RuntimeOptions,
+        conditions: Arc<ConditionSet>,
         world: &mut WorldState,
         runtime_heap: &RuntimeHeap,
         runtime_id: RuntimeId,
@@ -303,6 +311,7 @@ impl Worker {
             sequence: WorkerSequence::new(0),
             environment,
             options: Arc::new(options.clone()),
+            conditions,
             program,
             debug_generation: world.debugger.generation(),
             stop_points: world.debugger.stop_set(runtime_id, worker_id),
@@ -652,6 +661,7 @@ impl Worker {
             sequence: self.sequence,
             environment: self.environment.clone(),
             options: self.options.clone(),
+            conditions: self.conditions.clone(),
             resources,
             diagnostics,
             binding_table,
@@ -677,6 +687,7 @@ impl Worker {
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         environment: Arc<Environment>,
+        conditions: Arc<ConditionSet>,
         image: &WorkerImage,
         shared_options: Option<&Arc<RuntimeOptions>>,
         program: Arc<program::Program>,
@@ -734,6 +745,7 @@ impl Worker {
             sequence: image.sequence,
             environment,
             options,
+            conditions,
             program,
             debug_generation: world.debugger.generation(),
             stop_points: world.debugger.stop_set(runtime_id, worker_id),
