@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 
@@ -404,6 +406,6 @@ pub(in crate::check) enum CheckAttempt {
 
 // lock the queued constraint shapes
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Constraint>() == 72);
+const _: () = assert!(size_of::<Constraint>() == 72);
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<ValueConstraint>() == 64);
+const _: () = assert!(size_of::<ValueConstraint>() == 64);

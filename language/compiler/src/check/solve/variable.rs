@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use smallvec::SmallVec;
@@ -350,4 +352,4 @@ impl VariableTable {
 
 // lock the hot solver row shape
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Variable>() == 72);
+const _: () = assert!(size_of::<Variable>() == 72);

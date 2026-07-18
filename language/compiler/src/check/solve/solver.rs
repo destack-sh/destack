@@ -1,3 +1,5 @@
+use std::mem::replace;
+
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use smallvec::SmallVec;
@@ -124,7 +126,7 @@ impl Solver {
             variables: self.variables.count(),
             constraints: self.constraints.count(),
             obligations: self.obligations.count(),
-            queue: std::mem::replace(&mut self.queue, WorkQueue::new()),
+            queue: replace(&mut self.queue, WorkQueue::new()),
             undo: self.undo.len(),
             relations: self.relations.snapshot(),
         }
