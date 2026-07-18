@@ -23,6 +23,8 @@ struct CallableCandidate {
     ty: dir::GlobalTypeId,
     /// The owner generic arguments already selected by member lookup.
     generic_arguments: Vec<dir::GenericArgumentBinding>,
+    /// Whether the use-site receiver views its value through readonly.
+    through_readonly: bool,
 }
 
 impl CallableCandidate {
@@ -479,6 +481,7 @@ impl BodyState<'_, '_> {
                         adjustments: Vec::new(),
                         ty,
                         generic_arguments: Vec::new(),
+                        through_readonly: false,
                     });
                 }
                 if !blockers.is_empty() {
@@ -495,6 +498,7 @@ impl BodyState<'_, '_> {
                 else {
                     return Ok(Answer::Ready(None));
                 };
+                let through_readonly = self.receiver_readonly_view(resolution.receiver)?;
                 match &resolution.target {
                     // member candidates carry their receiver-applied types
                     dir::MemberTarget::Symbol(candidate) => {
@@ -506,6 +510,7 @@ impl BodyState<'_, '_> {
                             adjustments: candidate.adjustments.clone(),
                             ty: candidate.ty,
                             generic_arguments: candidate.generic_arguments.clone(),
+                            through_readonly,
                         });
 
                         Ok(Answer::Ready(Some(CallCandidates::Any(candidates))))
@@ -524,6 +529,7 @@ impl BodyState<'_, '_> {
                                 adjustments: candidate.adjustments.clone(),
                                 ty: candidate.ty,
                                 generic_arguments: candidate.generic_arguments.clone(),
+                                through_readonly,
                             });
                         }
                         let candidates = collected;
@@ -594,6 +600,7 @@ impl BodyState<'_, '_> {
                     adjustments: Vec::new(),
                     ty: reduced,
                     generic_arguments: Vec::new(),
+                    through_readonly: false,
                 });
 
                 Ok(Answer::Ready(Some(CallCandidates::Any(candidates))))
@@ -602,6 +609,77 @@ impl BodyState<'_, '_> {
                 Ok(Answer::pending([self.variable_dependency(variable)?]))
             }
             _ => Ok(Answer::Ready(Some(CallCandidates::Any(candidates)))),
+        }
+    }
+
+    /// Return whether one receiver type views its value through readonly.
+    fn receiver_readonly_view(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let mut current = receiver;
+        loop {
+            current = self.settled_root(current)?;
+            match self.ty(current)? {
+                dir::Type::Form(form) => match form.form {
+                    dir::Form::Readonly => return Ok(true),
+                    // owners and placement view through their payload
+                    dir::Form::Owned | dir::Form::Placed { .. } => current = form.value,
+                    _ => return Ok(false),
+                },
+                _ => return Ok(false),
+            }
+        }
+    }
+
+    /// Return whether one candidate's declared receiver rejects the use site.
+    ///
+    /// The declared signature keeps the implicit this symbolic, so this reads
+    /// the receiver mode the substituted candidate type no longer carries.
+    fn receiver_rejects_candidate(
+        &mut self,
+        origin: Origin,
+        candidate: &CallableCandidate,
+    ) -> CompilerResult<Answer<bool>> {
+        let (Some(symbol), Some(receiver)) = (candidate.symbol, candidate.receiver) else {
+            return Ok(Answer::Ready(false));
+        };
+        let Some(declared) = self.check.symbol_type_maybe(symbol) else {
+            return Ok(Answer::Ready(false));
+        };
+        let Some(head) = self.check.signature_head(declared)? else {
+            return Ok(Answer::Ready(false));
+        };
+        let Some(this_parameter) = head.this_parameter else {
+            return Ok(Answer::Ready(false));
+        };
+
+        match self.ty(this_parameter)? {
+            // owned reference-family receivers never reach the bare managed
+            // this: that conversion is an allocation the caller must spell
+            dir::Type::This => {
+                let chain = self.check.form_chain(origin, receiver)?;
+                let Some(form) = chain.ownership_form() else {
+                    return Ok(Answer::Ready(false));
+                };
+                if form.form != dir::Form::Owned {
+                    return Ok(Answer::Ready(false));
+                }
+
+                self.check.defaults_to_managed(origin, form.value)
+            }
+            // readonly views never lend past readonly
+            dir::Type::Form(form) if candidate.through_readonly => {
+                let dir::Form::Borrowed(borrow) = form.form else {
+                    return Ok(Answer::Ready(false));
+                };
+                let access = self
+                    .check
+                    .type_borrow(this_parameter.module_id, borrow)?
+                    .access;
+                let writes =
+                    self.check.access_literal(origin, access)? != Some(dir::Access::Readonly);
+
+                Ok(Answer::Ready(writes))
+            }
+            _ => Ok(Answer::Ready(false)),
         }
     }
 
@@ -617,6 +695,20 @@ impl BodyState<'_, '_> {
         expected_return: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<CandidateOutcome<CallSelection, SignatureRejection>>> {
         let arguments = self.callable_arguments(module, argument_nodes)?;
+
+        // the declared receiver mode gates the candidate before matching
+        match self.receiver_rejects_candidate(origin, candidate)? {
+            Answer::Ready(true) => {
+                return Ok(Answer::Ready(CandidateOutcome::Rejected(
+                    SignatureRejection::Receiver {
+                        source: candidate.receiver.expect("gated receiver"),
+                        target: candidate.receiver.expect("gated receiver"),
+                    },
+                )));
+            }
+            Answer::Ready(false) => {}
+            Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
+        }
         let attempt = self.attempt_callable(
             pass,
             origin,
@@ -674,17 +766,22 @@ impl BodyState<'_, '_> {
         let arguments = self.callable_arguments(origin.module(), argument_nodes)?;
 
         for candidate in candidates {
-            let attempt = self.attempt_callable(
-                CandidatePass::Confirm,
-                origin,
-                candidate.ty,
-                candidate.generic_scope,
-                candidate.receiver,
-                &candidate.generic_arguments,
-                argument_types,
-                &arguments,
-                expected_return,
-            )?;
+            // the declared receiver mode gates each arm before matching
+            let rejected = answer!(self.receiver_rejects_candidate(origin, candidate)?);
+            let attempt = match rejected {
+                true => Answer::Ready(CandidateOutcome::Rejected(SignatureRejection::Inapplicable)),
+                false => self.attempt_callable(
+                    CandidatePass::Confirm,
+                    origin,
+                    candidate.ty,
+                    candidate.generic_scope,
+                    candidate.receiver,
+                    &candidate.generic_arguments,
+                    argument_types,
+                    &arguments,
+                    expected_return,
+                )?,
+            };
             let CandidateOutcome::Accepted(signature) = answer!(attempt) else {
                 // one rejecting variant rejects the whole union call
                 let argument_types = answer!(self.infer_argument_types(site, argument_nodes)?);

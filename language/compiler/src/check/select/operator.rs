@@ -69,9 +69,12 @@ impl BodyState<'_, '_> {
             self.ty(right)?,
             dir::Type::Null | dir::Type::Undefined | dir::Type::Never
         );
+        // scalar comparisons read values, so views compare their pointees
+        let left_value = self.value_beneath_forms(origin, left)?;
+        let right_value = self.value_beneath_forms(origin, right)?;
         let comparable = match (
-            answer!(self.scalar_families(origin, left)?),
-            answer!(self.scalar_families(origin, right)?),
+            answer!(self.scalar_families(origin, left_value)?),
+            answer!(self.scalar_families(origin, right_value)?),
         ) {
             (Some(left), Some(right)) => left.len() == 1 && left == right,
             _ => false,
@@ -80,8 +83,6 @@ impl BodyState<'_, '_> {
             // strict identity always produces a boolean; equality
             //  reads values, so views compare their pointees
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
-                let left_value = self.value_beneath_forms(origin, left)?;
-                let right_value = self.value_beneath_forms(origin, right)?;
                 if !answer!(self.types_may_overlap(origin, left_value, right_value)?) {
                     self.report_invalid_strict_equality(origin, left, right)?;
                 }

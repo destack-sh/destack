@@ -90,19 +90,20 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=(this: this) => int32
+/// @definition.method symbol=Point.length slot=length type=<comptime Point.length.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Point.length.L0, "exclusive">) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(): int32 {
-    /// @type.symbol symbol=Point.length type=(this: this) => int32
+    /// @generic.template symbol=Point.length parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Point.length type=<comptime Point.length.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Point.length.L0, "exclusive">) => int32
 
         return this.x;
-        /// @type.node source=this type=Point
+        /// @type.node source=this type=Borrowed<Point, Point.length.L0, "exclusive">
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
-        /// @resolution.receiver source=this kind=this declaration=Point type=Point
+        /// @resolution.member source=this.x receiver=Borrowed<Point, Point.length.L0, "exclusive"> kind=symbol target=Point.x
+        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.length.L0, "exclusive">
 
     }
 }
@@ -116,11 +117,11 @@ const point = Point { x: 1 };
 const length = point.length();
 /// @type.symbol symbol=length source=length type=int32
 /// @type.node source=point type=Point
-/// @type.node source=point.length type=(this: Point) => int32
+/// @type.node source=point.length type=<comptime Point.length.L0: memory.lifetime.Lifetime>(this: Borrowed<Point, Point.length.L0, "exclusive">) => int32
 /// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.length receiver=Point kind=symbol target=Point.length
-/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point
+/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow)
 "#,
     );
 }

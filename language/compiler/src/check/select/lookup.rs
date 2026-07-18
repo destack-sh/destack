@@ -372,7 +372,7 @@ impl BodyState<'_, '_> {
                 let elements = self.type_ids(subject.module_id, union.elements)?.to_vec();
 
                 self.lookup_union_member(
-                    origin, module, receiver, &elements, space, key, extensions, active,
+                    origin, module, receiver, subject, &elements, space, key, extensions, active,
                 )
             }
 
@@ -571,6 +571,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
         space: dir::MemberSpace,
         key: dir::StaticKey,
@@ -581,10 +582,14 @@ impl BodyState<'_, '_> {
         let mut arms: Vec<SmallVec<[dir::GlobalTypeId; 2]>> = Vec::new();
         let mut fields = SmallVec::<[dir::GlobalTypeId; 4]>::new();
 
+        // direct union receivers seal each member under its own arm
+        let is_direct = self.settled_root(receiver)? == self.settled_root(subject)?;
+
         // every element must expose the member
         for element in elements {
+            let arm_receiver = if is_direct { *element } else { receiver };
             match answer!(self.lookup_subject_member(
-                origin, module, receiver, *element, space, key, extensions, active
+                origin, module, arm_receiver, *element, space, key, extensions, active
             )?) {
                 MemberLookup::Field(ty) => fields.push(ty),
                 MemberLookup::Found(found) => {

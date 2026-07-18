@@ -253,10 +253,11 @@ const send: ^Function<(string,), void> = ((message: string): void => {
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
 /// @definition.struct symbol=Socket
-/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=(this: this, string) => void
+/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<comptime Socket.write.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Socket.write.L0, "exclusive">, string) => void
 
     write(message: string): void {}
-    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=(this: this, string) => void
+    /// @generic.template symbol=Socket.write parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<comptime Socket.write.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Socket.write.L0, "exclusive">, string) => void
     /// @capture.function function=Socket.write bindings=0
     /// @type.symbol symbol=Socket.write.message source="message: string" type=string
 
@@ -299,11 +300,11 @@ const send: ^Function<(string,), void> = (message) => {
 
     socket.write(message);
     /// @type.node source=socket type=Socket
-    /// @type.node source=socket.write type=(this: Socket, string) => void
+    /// @type.node source=socket.write type=<comptime Socket.write.L0: memory.lifetime.Lifetime>(this: Borrowed<Socket, Socket.write.L0, "exclusive">, string) => void
     /// @type.node source=socket.write(message) type=void
     /// @resolution.name source=socket target=socket
     /// @resolution.member source=socket.write receiver=Socket kind=symbol target=Socket.write
-    /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket
+    /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow)
     /// @type.node source=message type=string
     /// @resolution.name source=message target=symbol7.message
 

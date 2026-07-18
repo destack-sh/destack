@@ -856,6 +856,17 @@ impl CheckState<'_> {
         Ok(Answer::Ready(matches_ownership))
     }
 
+    /// Return whether one type's family defaults to managed storage.
+    pub(in crate::check) fn defaults_to_managed(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let ownership = answer!(self.default_ownership(origin, ty)?);
+
+        Ok(Answer::Ready(ownership == Some(dir::Ownership::Managed)))
+    }
+
     /// Return one reduced type's default ownership.
     fn default_ownership(
         &mut self,

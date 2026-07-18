@@ -138,6 +138,14 @@ impl BodyState<'_, '_> {
 
         // dereference one memory form
         if let dir::Type::Form(form) = self.ty(head)? {
+            // an owned reference-family value never steps to its managed
+            // form: that conversion is an allocation the caller must spell
+            if form.form == dir::Form::Owned
+                && answer!(self.check.defaults_to_managed(origin, form.value)?)
+            {
+                return Ok(Answer::Ready(None));
+            }
+
             return Ok(Answer::Ready(Some(dir::Projection::Dereference {
                 read: dir::DereferenceOperation::Direct,
                 ty: form.value,
@@ -179,15 +187,24 @@ impl BodyState<'_, '_> {
             }
 
             let borrow = self.check.type_borrow(this_parameter.module_id, borrow)?;
-            // places behind readonly forms never re-borrow writable
-            if readonly_path && !answer!(self.access_is_readonly(origin, borrow.access)?) {
+            // places behind or beneath readonly forms never re-borrow writable;
+            // the sealed head keeps the view reduction would dissolve
+            let head = self.settled_root(receiver)?;
+            let readonly_receiver = readonly_path
+                || matches!(
+                    self.ty(head)?,
+                    dir::Type::Form(form) if form.form == dir::Form::Readonly
+                );
+            if readonly_receiver && !answer!(self.access_is_readonly(origin, borrow.access)?) {
                 return Ok(Answer::Ready(None));
             }
 
             // managed receivers grant exclusivity only in local space
-            let is_managed = receiver_chain
-                .ownership_form()
-                .is_none_or(|form| matches!(form.form, dir::Form::Managed));
+            let is_managed = match receiver_chain.ownership_form() {
+                Some(form) => matches!(form.form, dir::Form::Managed),
+                // formless receivers answer by their family default
+                None => answer!(self.check.defaults_to_managed(origin, receiver)?),
+            };
             let access = self.check.access_literal(origin, borrow.access)?;
             if is_managed
                 && !self

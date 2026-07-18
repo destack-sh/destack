@@ -932,7 +932,7 @@ impl BodyState<'_, '_> {
                     && let Some(space) = self.check.nominal_space(instance.symbol)?
                 {
                     let place = self.intern_type(
-                        current.module_id,
+                        origin.module(),
                         dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))),
                     )?;
 

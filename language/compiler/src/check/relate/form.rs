@@ -579,18 +579,30 @@ impl CheckState<'_> {
                 Answer::Ready(variance) => variance,
                 Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
             };
+        // a borrow is of storage: value refinements erase from the payload
+        let target_value = match self.reduce_type_head(origin, conversion.borrow.value)? {
+            Answer::Ready(value) => value,
+            Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+        };
+        let target_value = match self.ty(target_value)? {
+            // enum members store as their owner instantiation
+            dir::Type::EnumMember(member) => member.owner,
+            _ => target_value,
+        };
         let payload = self.constrain_form_payload(
             cause,
             relation,
             variance,
             source_value,
-            conversion.borrow.value,
+            target_value,
         )?;
 
         Ok(Some(payload))
     }
 
     /// Constrain one copyable payload read out of a view or borrow.
+    /// A copy read out of a view never lends past readonly, because writes
+    /// into the hidden copy would silently miss the viewed storage.
     fn constrain_copyable_read_out(
         &mut self,
         origin: Origin,
@@ -598,6 +610,16 @@ impl CheckState<'_> {
         payload: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        // reject writable borrow targets before reading the copy out
+        if let dir::Type::Form(target_form) = self.ty(target)?
+            && let dir::Form::Borrowed(borrow) = target_form.form
+        {
+            let access = self.type_borrow(target.module_id, borrow)?.access;
+            if self.access_literal(origin, access)? != Some(dir::Access::Readonly) {
+                return Ok(Answer::Ready(false));
+            }
+        }
+
         let copyable = self.satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)?;
         if !copyable.is_ready_true() {
             return Ok(copyable);

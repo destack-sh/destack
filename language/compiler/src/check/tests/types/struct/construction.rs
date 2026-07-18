@@ -311,20 +311,21 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=(this: this) => Counter
+/// @definition.method symbol=Counter.increment slot=increment type=<comptime Counter.increment.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Counter.increment.L0, "exclusive">) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): Counter {
-    /// @type.symbol symbol=Counter.increment type=(this: this) => Counter
+    /// @generic.template symbol=Counter.increment parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Counter.increment type=<comptime Counter.increment.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Counter.increment.L0, "exclusive">) => Counter
     /// @resolution.name source=Counter target=Counter
 
         Counter { value: this.value + 1 }
         /// @resolution.name source=Counter target=Counter
-        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.L0, "exclusive"> kind=symbol target=Counter.value
         /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
 
     }
 }
@@ -333,7 +334,7 @@ const next = Counter { value: 1 }.increment();
 /// @type.symbol symbol=next source=next type=Counter
 /// @resolution.name source=Counter target=Counter
 /// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter kind=symbol target=Counter.increment
-/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter
+/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow)
 
 next satisfies Counter;
 /// @resolution.name source=next target=next
@@ -538,24 +539,25 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=(this: this) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<comptime Counter.increment.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Counter.increment.L0, "exclusive">) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): int32 {
-    /// @type.symbol symbol=Counter.increment type=(this: this) => int32
+    /// @generic.template symbol=Counter.increment parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Counter.increment type=<comptime Counter.increment.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Counter.increment.L0, "exclusive">) => int32
 
         this.value = this.value + 1;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
         /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
-        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.L0, "exclusive"> kind=symbol target=Counter.value
         /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
 
         this.value
-        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.L0, "exclusive"> kind=symbol target=Counter.value
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
 
     }
 }
@@ -568,7 +570,7 @@ const next = counter.increment();
 /// @type.symbol symbol=next source=next type=int32
 /// @resolution.name source=counter target=counter
 /// @resolution.member source=counter.increment receiver=Counter kind=symbol target=Counter.increment
-/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter
+/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow)
 
 next satisfies int32;
 /// @resolution.name source=next target=next

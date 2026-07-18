@@ -98,7 +98,7 @@ enum Status {
 /// @definition.enum symbol=Status
 /// @definition.variant symbol=Status.Active source="Active = 1" key=Active
 /// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive
-/// @definition.method symbol=Status.isActive slot=isActive type=(this: this) => boolean
+/// @definition.method symbol=Status.isActive slot=isActive type=<comptime Status.isActive.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Status.isActive.L0, "exclusive">) => boolean
 
     Active = 1,
     /// @type.symbol symbol=Status.Active source="Active = 1" type=Status.Active
@@ -109,13 +109,14 @@ enum Status {
     /// @type.node source=2 type=2
 
     isActive(): boolean {
-    /// @type.symbol symbol=Status.isActive type=(this: this) => boolean
+    /// @generic.template symbol=Status.isActive parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Status.isActive type=<comptime Status.isActive.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Status.isActive.L0, "exclusive">) => boolean
 
         return this == Status.Active;
         /// @type.node source="this == Status.Active" type=boolean
-        /// @type.node source=this type=Status
+        /// @type.node source=this type=Borrowed<Status, Status.isActive.L0, "exclusive">
         /// @resolution.call source="this == Status.Active" parameters=() return=boolean kind=builtin builtin=binary.equal
-        /// @resolution.receiver source=this kind=this declaration=Status type=Status
+        /// @resolution.receiver source=this kind=this declaration=Status type=Borrowed<Status, Status.isActive.L0, "exclusive">
         /// @type.node source=Status type=Status
         /// @type.node source=Status.Active type=Status.Active
         /// @resolution.name source=Status target=Status
@@ -128,12 +129,12 @@ const value = Status.Active.isActive();
 /// @type.symbol symbol=value source=value type=boolean
 /// @type.node source=Status type=Status
 /// @type.node source=Status.Active type=Status.Active
-/// @type.node source=Status.Active.isActive type=(this: Status.Active) => boolean
+/// @type.node source=Status.Active.isActive type=<comptime Status.isActive.L0: memory.lifetime.Lifetime>(this: Borrowed<Status.Active, Status.isActive.L0, "exclusive">) => boolean
 /// @type.node source=Status.Active.isActive() type=boolean
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active
 /// @resolution.member source=Status.Active.isActive receiver=Status.Active kind=symbol target=Status.isActive
-/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean kind=symbol target=Status.isActive receiver=Status.Active
+/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow)
 "#,
     );
 }

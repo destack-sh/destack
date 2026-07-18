@@ -543,18 +543,31 @@ impl WalkState<'_, '_> {
                     self.check.report_missing_declaration_body(source, member);
                 }
                 let implicit_receiver_scope = if *is_static { None } else { receiver_scope };
+                let receiver_form =
+                    self.implicit_receiver_form(id, signature, implicit_receiver_scope)?;
                 let receiver = self.method_receiver_binding(
                     id,
                     signature,
                     implicit_receiver_scope,
                     this_parameter,
+                    receiver_form,
                 )?;
                 let (result, tracked) =
                     self.walk_method_result_type(id, signature, *body, receiver)?;
 
                 // write the method's function type
                 let receiver_type = match (receiver, signature.is_constructor()) {
-                    (Some(_), false) => Some(self.intern_type(dir::Type::This)?),
+                    (Some(_), false) => {
+                        let this = self.intern_type(dir::Type::This)?;
+                        let this = match receiver_form {
+                            Some(form) => {
+                                self.intern_type(dir::Type::Form(dir::FormType { form, value: this }))?
+                            }
+                            None => this,
+                        };
+
+                        Some(this)
+                    }
                     _ => None,
                 };
                 let method = self.walk_function_signature_type(
@@ -1031,6 +1044,7 @@ impl WalkState<'_, '_> {
         signature: &dir::FunctionSignature,
         implicit_receiver_scope: Option<Receiver>,
         this_parameter: Option<dir::GlobalTypeId>,
+        receiver_form: Option<dir::Form>,
     ) -> CompilerResult<Option<ReceiverBinding>> {
         // prefer explicit `this` parameters before implicit receivers
         if let (Some(parameter), Some(ty)) = (signature.this_parameter, this_parameter) {
@@ -1056,10 +1070,56 @@ impl WalkState<'_, '_> {
                 .report_missing_explicit_receiver(self.module, id.into_any());
         }
 
-        Ok(Some(ReceiverBinding {
-            symbol,
-            receiver: scope,
-        }))
+        // value-family receivers borrow this under the synthesized form
+        let receiver = match receiver_form {
+            Some(form) => Receiver {
+                ty: self.intern_type(dir::Type::Form(dir::FormType {
+                    form,
+                    value: scope.ty,
+                }))?,
+                ..scope
+            },
+            None => scope,
+        };
+
+        Ok(Some(ReceiverBinding { symbol, receiver }))
+    }
+
+    /// Synthesize the implicit receiver form shared by signature and body.
+    ///
+    /// Value nominals receive this as an exclusive borrow at one induced
+    /// lifetime, the family's highest form; reference nominals keep the
+    /// managed value, so no form applies.
+    fn implicit_receiver_form(
+        &mut self,
+        id: dir::LocalNodeId<dir::Member>,
+        signature: &dir::FunctionSignature,
+        scope: Option<Receiver>,
+    ) -> CompilerResult<Option<dir::Form>> {
+        // explicit receivers and constructors spell their own form
+        let Some(scope) = scope else {
+            return Ok(None);
+        };
+        if signature.this_parameter.is_some() || signature.is_constructor() {
+            return Ok(None);
+        }
+        let is_value_family = scope.declaration.is_some_and(|declaration| {
+            matches!(
+                self.check.symbol_kind(declaration),
+                dir::SymbolKind::Struct | dir::SymbolKind::Enum
+            )
+        });
+        if !is_value_family {
+            return Ok(None);
+        }
+
+        // borrow exclusively at one induced receiver lifetime
+        let lifetime = self.generated_receiver_borrow_lifetime(id.into_any())?;
+        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+            dir::Access::Exclusive,
+        )))?;
+
+        Ok(Some(self.intern_borrow(lifetime, access)?))
     }
 
     /// Return the name used to report one method body requirement.

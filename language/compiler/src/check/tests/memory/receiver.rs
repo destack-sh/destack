@@ -311,3 +311,227 @@ sharedBuffer.clear();
 "#,
     );
 }
+
+#[test]
+fn test_reject_readonly_view_calling_an_implicit_struct_method() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+
+    scale(by: int32): void {
+        this.x = this.x * by;
+    }
+}
+
+function freeze(point: readonly Point): void {
+    point.scale(2);
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+
+    scale(by: int32): void {
+        this.x = this.x * by;
+    }
+}
+
+function freeze(point: readonly Point): void {
+    point.scale(2);
+}
+
+=== checked ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.method symbol=Point.scale slot=scale type=<comptime Point.scale.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Point.scale.L0, "exclusive">, int32) => void
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+    scale(by: int32): void {
+    /// @generic.template symbol=Point.scale parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Point.scale type=<comptime Point.scale.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Point.scale.L0, "exclusive">, int32) => void
+    /// @type.symbol symbol=Point.scale.by source="by: int32" type=int32
+
+        this.x = this.x * by;
+        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.scale.L0, "exclusive">
+        /// @resolution.pattern.assign source=this.x kind=place place=field(Point.x) type=int32
+        /// @resolution.member source=this.x receiver=Borrowed<Point, Point.scale.L0, "exclusive"> kind=symbol target=Point.x
+        /// @resolution.call source="this.x * by" parameters=() return=int32 kind=builtin builtin=binary.multiply
+        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.scale.L0, "exclusive">
+        /// @resolution.name source=by target=Point.scale.by
+
+    }
+}
+
+function freeze(point: readonly Point): void {
+/// @type.symbol symbol=freeze type=(Readonly<Point>) => void
+/// @type.symbol symbol=freeze.point source="point: readonly Point" type=Readonly<Point>
+/// @resolution.name source=Point target=Point
+
+    point.scale(2);
+    /// @resolution.name source=point target=freeze.point
+    /// @resolution.member source=point.scale receiver=Readonly<Point> kind=symbol target=Point.scale
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC322 message="receiver type 'readonly Point' is not assignable to the method's 'this' type 'readonly Point'"
+/// @diagnostic.label line=11 column=5 span="point.scale(2)" line_source="point.scale(2);"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_owned_class_calling_an_implicit_managed_method() {
+    let session = TestSession::single(
+        r#"
+class Counter {
+    count: int32 = 0;
+
+    read(): int32 {
+        return this.count;
+    }
+}
+
+function inspect(counter: ^Counter): int32 {
+    return counter.read();
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Counter {
+    count: int32 = 0;
+
+    read(): int32 {
+        return this.count;
+    }
+}
+
+function inspect(counter: ^Counter): int32 {
+    return counter.read();
+}
+
+=== checked ===
+class Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.count source="count: int32 = 0" key=count type=int32
+/// @definition.method symbol=Counter.read slot=read type=(this: this) => int32
+
+    count: int32 = 0;
+    /// @type.symbol symbol=Counter.count source="count: int32 = 0" type=int32
+
+    read(): int32 {
+    /// @type.symbol symbol=Counter.read type=(this: this) => int32
+
+        return this.count;
+        /// @resolution.member source=this.count receiver=Counter kind=symbol target=Counter.count
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+
+    }
+}
+
+function inspect(counter: ^Counter): int32 {
+/// @type.symbol symbol=inspect type=(Owned<Counter>) => int32
+/// @type.symbol symbol=inspect.counter source="counter: ^Counter" type=Owned<Counter>
+/// @resolution.name source=Counter target=Counter
+
+    return counter.read();
+    /// @resolution.name source=counter target=inspect.counter
+    /// @resolution.member source=counter.read receiver=Owned<Counter> kind=symbol target=Counter.read
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC322 message="receiver type '^Counter' is not assignable to the method's 'this' type '^Counter'"
+/// @diagnostic.label line=11 column=12 span="counter.read()" line_source="return counter.read();"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_explicit_borrowed_this_through_readonly_views() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+
+    length(&readonly this): int32 {
+        return this.x;
+    }
+}
+
+function measure(point: readonly Point): int32 {
+    return point.length();
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+
+    length(&readonly this): int32 {
+        return this.x;
+    }
+}
+
+function measure(point: readonly Point): int32 {
+    return point.length();
+}
+
+=== checked ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.method symbol=Point.length slot=length type=<comptime Point.length.L0: Lifetime>(this: Borrowed<this, Point.length.L0, "readonly">) => int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+    length(&readonly this): int32 {
+    /// @generic.template symbol=Point.length parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=Point.length type=<comptime Point.length.L0: Lifetime>(this: Borrowed<this, Point.length.L0, "readonly">) => int32
+    /// @type.symbol symbol=Point.length.this source="&readonly this" type=Borrowed<this, Point.length.L0, "readonly">
+
+        return this.x;
+        /// @resolution.member source=this.x receiver=Borrowed<Point, Point.length.L0, "readonly"> kind=symbol target=Point.x
+        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.length.L0, "readonly">
+
+    }
+}
+
+function measure(point: readonly Point): int32 {
+/// @type.symbol symbol=measure type=(Readonly<Point>) => int32
+/// @type.symbol symbol=measure.point source="point: readonly Point" type=Readonly<Point>
+/// @resolution.name source=Point target=Point
+
+    return point.length();
+    /// @resolution.name source=point target=measure.point
+    /// @resolution.member source=point.length receiver=Readonly<Point> kind=symbol target=Point.length
+    /// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Readonly<Point> adjustments=(borrow)
+
+}
+"#,
+    );
+}

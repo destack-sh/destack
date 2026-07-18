@@ -84,10 +84,11 @@ struct Box<T> {
 struct Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.struct symbol=Document
-/// @definition.method symbol=Document.read slot=read type=(this: this) => string
+/// @definition.method symbol=Document.read slot=read type=<comptime Document.read.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Document.read.L0, "exclusive">) => string
 
     read(): string {
-    /// @type.symbol symbol=Document.read type=(this: this) => string
+    /// @generic.template symbol=Document.read parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Document.read type=<comptime Document.read.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Document.read.L0, "exclusive">) => string
 
         return "ok";
     }

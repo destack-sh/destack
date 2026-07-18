@@ -207,20 +207,22 @@ shape.draw();
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=(this: this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<comptime Rectangle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Rectangle.draw.L0, "exclusive">) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Rectangle.draw parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<comptime Rectangle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Rectangle.draw.L0, "exclusive">) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=(this: this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<comptime Circle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Circle.draw.L0, "exclusive">) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Circle.draw parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<comptime Circle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Circle.draw.L0, "exclusive">) => void
 
 }
 
@@ -280,20 +282,22 @@ function draw(shape: Shape): void {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=(this: this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<comptime Rectangle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Rectangle.draw.L0, "exclusive">) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Rectangle.draw parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<comptime Rectangle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Rectangle.draw.L0, "exclusive">) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=(this: this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<comptime Circle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Circle.draw.L0, "exclusive">) => void
 
     draw(): void {}
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Circle.draw parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<comptime Circle.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Circle.draw.L0, "exclusive">) => void
 
 }
 

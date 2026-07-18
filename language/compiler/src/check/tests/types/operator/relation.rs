@@ -241,14 +241,15 @@ struct DrawnPoint implements Drawable {
 /// @definition.where symbol=DrawnPoint source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=DrawnPoint source=Drawable target=Drawable
 /// @definition.field symbol=DrawnPoint.x source="x: int32" key=x type=int32
-/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=(this: this) => void
+/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<comptime DrawnPoint.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, DrawnPoint.draw.L0, "exclusive">) => void
 /// @resolution.name source=Drawable target=Drawable
 
     x: int32;
     /// @type.symbol symbol=DrawnPoint.x source="x: int32" type=int32
 
     draw(): void {}
-    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=(this: this) => void
+    /// @generic.template symbol=DrawnPoint.draw parent=template#1 parameters=(comptime L0: memory.lifetime.Lifetime)
+    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<comptime DrawnPoint.draw.L0: memory.lifetime.Lifetime>(this: Borrowed<this, DrawnPoint.draw.L0, "exclusive">) => void
 
 }
 
