@@ -805,23 +805,26 @@ impl CheckState<'_> {
         // argument and receiver positions read the sealed selection
         if let Some(call) = site.call {
             let resolutions = self.resolutions(call.module_id);
-            let resolution = match resolutions.call_resolution(call) {
-                Some(resolution) => resolution.clone(),
+            let (arguments, receiver_borrows) = match resolutions.call_resolution(call) {
+                Some(resolution) => {
+                    let receiver_borrows = match &resolution.target {
+                        dir::CallTarget::Symbol(candidate) => {
+                            Some(!candidate.adjustments.is_empty())
+                        }
+                        _ => None,
+                    };
+
+                    (resolution.arguments.clone(), receiver_borrows)
+                }
                 None => match resolutions.construct_resolution(call) {
-                    Some(resolution) => dir::CallResolution::new(
-                        dir::CallTarget::Universal(Vec::new()),
-                        None,
-                        Vec::new(),
-                        resolution.arguments.clone(),
-                        resolution.return_type,
-                    ),
+                    Some(resolution) => (resolution.arguments.clone(), None),
                     // unresolved calls stay charitable
                     None => return Ok(Answer::Ready(true)),
                 },
             };
 
             // an argument position lends when its bound parameter borrows
-            let bound = resolution.arguments.iter().find(|binding| {
+            let bound = arguments.iter().find(|binding| {
                 matches!(
                     binding.argument,
                     dir::ArgumentSource::Provided(provided) if provided == site.node
@@ -832,11 +835,9 @@ impl CheckState<'_> {
             }
 
             // a receiver position lends when the candidate adjusts by borrow
-            let dir::CallTarget::Symbol(candidate) = &resolution.target else {
-                return Ok(Answer::Ready(true));
-            };
+            let borrows = receiver_borrows.unwrap_or(true);
 
-            return Ok(Answer::Ready(!candidate.adjustments.is_empty()));
+            return Ok(Answer::Ready(borrows));
         }
 
         // initializer and assignment positions lend into borrow bindings

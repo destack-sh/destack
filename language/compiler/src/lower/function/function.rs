@@ -147,9 +147,9 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<Body> {
         let module = self.module;
 
-        // declare the signature's lifetime generics before its parameter types
+        // the sealed definition names the method symbol
         let node = member.into_global_any(module);
-        let Some(symbol) = self.symbol_declared_at(node)? else {
+        let Some(symbol) = self.method_symbol(class.into_global(module), node)? else {
             return Err(CompilerError::Internal {
                 message: "checked DIR is missing a symbol for one method declaration".to_string(),
             });
@@ -276,11 +276,24 @@ impl ModuleLowerer<'_> {
         })
     }
 
+    /// Return the sealed method symbol declared at one member node.
+    fn method_symbol(
+        &self,
+        owner: dir::GlobalSymbolId,
+        member: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let Some(definition) = self.definition(owner)? else {
+            return Ok(None);
+        };
+
+        Ok(definition.method_declared_at(member))
+    }
+
     /// Lower one sealed receiver type to the method's this parameter.
     ///
     /// The symbolic This base maps to the owner nominal: bare This receives
     /// the family's value position; borrowed forms wrap the declared storage.
-    fn lower_receiver(
+    pub(in crate::lower) fn lower_receiver(
         &mut self,
         builder: &mut mir::ModuleBuilder,
         sealed: dir::GlobalTypeId,
@@ -290,6 +303,8 @@ impl ModuleLowerer<'_> {
         match self.ty(sealed)? {
             dir::Type::This => Ok(value),
             dir::Type::Form(form) => match form.form {
+                // consuming receivers take the declared storage by value
+                dir::Form::Owned => Ok(pointee),
                 dir::Form::Borrowed(borrow) => {
                     let Some(borrow) = self.types(sealed.module_id)?.borrow_form_maybe(borrow)
                     else {

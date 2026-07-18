@@ -573,11 +573,16 @@ impl FunctionLowerer<'_, '_, '_> {
                             operator => self.lower_binary(left, operator, right),
                         },
                     },
-                    dir::OperatorResolution::Call(_) => Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a protocol binary operator".to_string(),
-                    }
-                    .into()),
+                    // protocol operators dispatch as left.method(right)
+                    dir::OperatorResolution::Call(resolution) => match &resolution.target {
+                        dir::CallTarget::Symbol(candidate) => {
+                            self.lower_operator_method(left, &resolution, candidate)
+                        }
+                        _ => Err(CompilerError::Internal {
+                            message: "checked DIR selected a non-callable binary operator"
+                                .to_string(),
+                        }),
+                    },
                 }
             }
 
@@ -585,11 +590,16 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Unary { operator, right } => {
                 match self.lowerer.operator_resolution(expression)? {
                     dir::OperatorResolution::Builtin => self.lower_unary(operator, right),
-                    dir::OperatorResolution::Call(_) => Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a protocol unary operator".to_string(),
-                    }
-                    .into()),
+                    // protocol operators dispatch as right.method()
+                    dir::OperatorResolution::Call(resolution) => match &resolution.target {
+                        dir::CallTarget::Symbol(candidate) => {
+                            self.lower_operator_method(right, &resolution, candidate)
+                        }
+                        _ => Err(CompilerError::Internal {
+                            message: "checked DIR selected a non-callable unary operator"
+                                .to_string(),
+                        }),
+                    },
                 }
             }
 

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{Body, ModuleLowerer};
+use crate::lower::{AmbientCallable, Body, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Visitor collecting call expressions in one body.
@@ -25,11 +25,23 @@ impl dir::NodeVisitor for CallCollector {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        if matches!(expression, dir::Expression::Call { .. }) {
+        if matches!(
+            expression,
+            dir::Expression::Call { .. } | dir::Expression::New { .. }
+        ) {
             self.expressions.push(id);
         }
         destack_core::ensure_sufficient_stack(|| dir::walk_expression(self, tree, id, expression));
     }
+}
+
+/// Foreign and host callables demanded by the scanned bodies.
+#[derive(Default)]
+pub(in crate::lower) struct CallDemands {
+    /// Foreign callables to declare as imports.
+    pub(in crate::lower) imports: FxIndexSet<dir::GlobalSymbolId>,
+    /// Sealed bindings to declare as dotted host externs.
+    pub(in crate::lower) bindings: FxIndexSet<dir::GlobalSymbolId>,
 }
 
 impl ModuleLowerer<'_> {
@@ -41,17 +53,17 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         bodies: &[Body],
-    ) -> CompilerResult<(Vec<Body>, FxIndexSet<dir::GlobalSymbolId>)> {
+    ) -> CompilerResult<(Vec<Body>, CallDemands)> {
         // seed the demands from the concrete bodies queued for lowering
         let mut pending = Vec::new();
-        let mut imports = FxIndexSet::default();
+        let mut demands = CallDemands::default();
         for body in bodies {
             self.collect_body_calls(
                 body.source,
                 body.expression,
                 &FxIndexMap::default(),
                 &mut pending,
-                &mut imports,
+                &mut demands,
             )?;
         }
 
@@ -69,12 +81,12 @@ impl ModuleLowerer<'_> {
                 body.expression,
                 &body.substitution,
                 &mut pending,
-                &mut imports,
+                &mut demands,
             )?;
             instances.push(body);
         }
 
-        Ok((instances, imports))
+        Ok((instances, demands))
     }
 
     /// Declare one demanded instance, unless its carrier key already declared.
@@ -111,7 +123,7 @@ impl ModuleLowerer<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
         substitution: &FxIndexMap<dir::GlobalGenericParameterId, dir::GlobalTypeId>,
         pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GlobalTypeId>)>,
-        imports: &mut FxIndexSet<dir::GlobalSymbolId>,
+        demands: &mut CallDemands,
     ) -> CompilerResult<()> {
         // collect the calls that can select generic instances or imports
         let state = self.state(module)?;
@@ -123,6 +135,16 @@ impl ModuleLowerer<'_> {
 
         for id in calls.expressions {
             let node = id.into_global_any(module);
+
+            // foreign declared constructors resolve through imports
+            if let Some(resolution) = state.resolutions.construct_resolution(node)
+                && let dir::ConstructTarget::Class(candidate) = &resolution.target
+                && let dir::ClassConstructor::Declared { symbol } = &candidate.constructor
+                && symbol.module_id != self.module
+            {
+                demands.imports.insert(*symbol);
+            }
+
             let Some(resolution) = state.resolutions.call_resolution(node) else {
                 continue;
             };
@@ -130,12 +152,24 @@ impl ModuleLowerer<'_> {
                 continue;
             };
 
+            // sealed intrinsic and binding callables never materialize instances
+            match self.ambient_callable(candidate.symbol)? {
+                // sealed bindings declare dotted host externs
+                Some(AmbientCallable::Binding { .. }) => {
+                    demands.bindings.insert(candidate.symbol);
+                    continue;
+                }
+                // sealed intrinsics emit MIR without declarations
+                Some(AmbientCallable::Intrinsic { .. }) => continue,
+                None => {}
+            }
+
             // only calls binding type arguments demand instances
             let arguments = self.instance_arguments(candidate, substitution)?;
             if arguments.is_empty() {
                 // plain calls into other modules resolve through imports
                 if candidate.symbol.module_id != self.module {
-                    imports.insert(candidate.symbol);
+                    demands.imports.insert(candidate.symbol);
                 }
                 continue;
             }

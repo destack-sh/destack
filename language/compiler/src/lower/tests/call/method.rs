@@ -160,3 +160,62 @@ entry(v0: Status):
 "#,
     );
 }
+
+#[test]
+fn test_lower_consuming_receiver_call_by_owned_value() {
+    let session = TestSession::single(
+        r#"
+class Box {
+    weight: int32 = 0;
+
+    constructor(weight: int32) {
+        this.weight = weight;
+    }
+
+    unwrap(^this): int32 {
+        return this.weight;
+    }
+}
+
+function open(): int32 {
+    const parcel: ^Box = new Box(7);
+    return parcel.unwrap();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type Box {
+    weight: int32;
+}
+
+function main.Box.constructor(v0: ref<Box, borrowed, exclusive>, v1: int32): void {
+entry(v0: ref<Box, borrowed, exclusive>, v1: int32):
+    v2: ref<int32, borrowed, mutable> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function main.Box.unwrap(v0: Box): int32 {
+entry(v0: Box):
+    v1: int32 = field.get v0, 0
+    return v1
+}
+
+function main.open(): int32 {
+    local l0: Box
+
+entry:
+    v0: ref<Box, borrowed, exclusive> = local.address l0
+    v1: int32 = 7
+    call main.Box.constructor(v0, v1)
+    v2: Box = local.get l0
+    v3: int32 = call main.Box.unwrap(v2)
+    return v3
+}
+/// @layout.struct name=Box size=4 align=4 fields=(weight@0+4)
+"#,
+    );
+}

@@ -8,6 +8,7 @@ mod control;
 mod equality;
 mod expression;
 mod function;
+mod intrinsic;
 mod literal;
 mod r#match;
 mod member;

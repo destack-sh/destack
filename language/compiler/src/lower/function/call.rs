@@ -1,7 +1,8 @@
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_mir::{IntrinsicInstruction, IntrinsicTerminator};
 
-use crate::lower::FunctionLowerer;
+use crate::lower::{AmbientCallable, FunctionLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -15,6 +16,17 @@ impl FunctionLowerer<'_, '_, '_> {
         match &resolution.target {
             // free(...)
             dir::CallTarget::Symbol(candidate) => {
+                // sealed intrinsic and binding callables bypass declared functions
+                match self.lowerer.ambient_callable(candidate.symbol)? {
+                    Some(AmbientCallable::Intrinsic { name }) => {
+                        return self.lower_intrinsic_call(name, &resolution);
+                    }
+                    Some(AmbientCallable::Binding { .. }) => {
+                        return self.lower_binding_call(candidate.symbol, &resolution);
+                    }
+                    None => {}
+                }
+
                 // receiver.method(...)
                 if candidate.receiver.is_some() || !candidate.adjustments.is_empty() {
                     self.lower_method_call(expression, &resolution, candidate)
@@ -51,16 +63,105 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(false)
     }
 
-    /// Lower one call to a declared or imported function.
-    fn lower_function_call(
+    /// Lower one sealed intrinsic call to its MIR operation.
+    fn lower_intrinsic_call(
+        &mut self,
+        name: Option<String>,
+        resolution: &dir::CallResolution,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let Some(name) = name else {
+            return Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "an unnamed intrinsic callable".to_string(),
+            }
+            .into());
+        };
+        // each MIR position owns its own name vocabulary
+        if let Ok(operation) = name.parse::<mir::Intrinsic>() {
+            let result = self
+                .lowerer
+                .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+            let values = self.lower_provided_arguments(resolution)?;
+
+            return Ok(Some(self.builder.intrinsic(operation, result, values)));
+        }
+
+        if let Some(instruction) = IntrinsicInstruction::from_name(&name) {
+            return match instruction {
+                IntrinsicInstruction::AtomicFence => self.lower_atomic_fence(resolution),
+                IntrinsicInstruction::AtomicLoad => self.lower_atomic_load(resolution),
+                IntrinsicInstruction::AtomicCompareExchange { weak } => {
+                    self.lower_atomic_compare_exchange(weak, resolution)
+                }
+                IntrinsicInstruction::AtomicRmw(operator) => {
+                    self.lower_atomic_rmw(operator, resolution)
+                }
+                IntrinsicInstruction::AtomicStore => self.lower_atomic_store(resolution),
+                IntrinsicInstruction::Breakpoint => {
+                    self.builder.breakpoint();
+
+                    Ok(None)
+                }
+                IntrinsicInstruction::Cast(operator) => {
+                    self.lower_cast_intrinsic(operator, resolution)
+                }
+                IntrinsicInstruction::PointerLoad => self.lower_pointer_load(resolution),
+                IntrinsicInstruction::PointerStore => self.lower_pointer_store(resolution),
+                IntrinsicInstruction::PointerReplace => self.lower_pointer_replace(resolution),
+                IntrinsicInstruction::PointerSwap => self.lower_pointer_swap(resolution),
+                IntrinsicInstruction::PointerDropInPlace => {
+                    self.lower_pointer_drop_in_place(resolution)
+                }
+                IntrinsicInstruction::SliceFromRaw => self.lower_slice_from_raw(resolution),
+                IntrinsicInstruction::SliceGet => self.lower_slice_get(resolution),
+                IntrinsicInstruction::SliceLength => self.lower_slice_length(resolution),
+                IntrinsicInstruction::SliceSet => self.lower_slice_set(resolution),
+                IntrinsicInstruction::SliceView => self.lower_slice_view(resolution),
+            };
+        }
+
+        if let Some(terminator) = IntrinsicTerminator::from_name(&name) {
+            match terminator {
+                IntrinsicTerminator::TrapAbort => self.builder.trap_abort(),
+                IntrinsicTerminator::Unreachable => self.builder.unreachable(),
+                IntrinsicTerminator::Panic => {
+                    let values = self.lower_provided_arguments(resolution)?;
+
+                    self.builder.panic(values.into_iter().next());
+                }
+            }
+
+            // code after a terminator continues in a dead block
+            let dead = self.builder.block();
+            self.builder.switch_to_block(dead);
+
+            return Ok(None);
+        }
+
+        Err(LowerError::Unsupported {
+            anchor: self.lowerer.module.into(),
+            construct: format!("the '{name}' intrinsic"),
+        }
+        .into())
+    }
+
+    /// Lower one sealed binding call through its declared dotted extern.
+    fn lower_binding_call(
         &mut self,
         symbol: dir::GlobalSymbolId,
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
-        // resolve the declared MIR function behind the symbol
         let function = self.function_for(symbol, &[])?;
+        let values = self.lower_provided_arguments(resolution)?;
 
-        // lower the bound arguments in parameter order
+        Ok(self.builder.call_function(function, values))
+    }
+
+    /// Lower the provided arguments of one resolution in parameter order.
+    fn lower_provided_arguments(
+        &mut self,
+        resolution: &dir::CallResolution,
+    ) -> CompilerResult<Vec<mir::Value>> {
         let mut values = Vec::with_capacity(resolution.arguments.len());
         for binding in &resolution.arguments {
             let dir::ArgumentSource::Provided(source) = binding.argument else {
@@ -73,6 +174,19 @@ impl FunctionLowerer<'_, '_, '_> {
             values.push(self.lower_argument(source)?);
         }
 
+        Ok(values)
+    }
+
+    /// Lower one call to a declared or imported function.
+    fn lower_function_call(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        resolution: &dir::CallResolution,
+    ) -> CompilerResult<Option<mir::Value>> {
+        // resolve the declared MIR function behind the symbol
+        let function = self.function_for(symbol, &[])?;
+        let values = self.lower_provided_arguments(resolution)?;
+
         Ok(self.builder.call_function(function, values))
     }
 
@@ -83,14 +197,6 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::CallResolution,
         candidate: &dir::CallCandidate,
     ) -> CompilerResult<Option<mir::Value>> {
-        if candidate.symbol.module_id != self.lowerer.module {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "a method call into another module".to_string(),
-            }
-            .into());
-        }
-
         // the callee member names the receiver expression
         let dir::Expression::Call { left: callee, .. } =
             *self.lowerer.source().tree().get(expression)
@@ -109,6 +215,16 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
+        self.lower_candidate_call(receiver, resolution, candidate)
+    }
+
+    /// Lower one candidate call over one explicit receiver expression.
+    pub(in crate::lower) fn lower_candidate_call(
+        &mut self,
+        receiver: dir::LocalNodeId<dir::Expression>,
+        resolution: &dir::CallResolution,
+        candidate: &dir::CallCandidate,
+    ) -> CompilerResult<Option<mir::Value>> {
         // sealed adjustments take the receiver through its place
         let receiver = match candidate.adjustments.as_slice() {
             [] => self.lower_expression(receiver)?,
@@ -130,18 +246,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let function = self.function_for(candidate.symbol, &[])?;
 
         // bind the arguments after the receiver
-        let mut values = Vec::with_capacity(resolution.arguments.len() + 1);
-        values.push(receiver);
-        for binding in &resolution.arguments {
-            let dir::ArgumentSource::Provided(source) = binding.argument else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a defaulted or spread argument".to_string(),
-                }
-                .into());
-            };
-            values.push(self.lower_argument(source)?);
-        }
+        let mut values = vec![receiver];
+        values.extend(self.lower_provided_arguments(resolution)?);
 
         Ok(self.builder.call_function(function, values))
     }
@@ -172,19 +278,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .lowerer
             .instance_key(self.builder.tree_mut(), &arguments)?;
         let function = self.function_for(candidate.symbol, &key)?;
-
-        // lower the bound arguments in parameter order
-        let mut values = Vec::with_capacity(resolution.arguments.len());
-        for binding in &resolution.arguments {
-            let dir::ArgumentSource::Provided(source) = binding.argument else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a defaulted or spread argument".to_string(),
-                }
-                .into());
-            };
-            values.push(self.lower_argument(source)?);
-        }
+        let values = self.lower_provided_arguments(resolution)?;
 
         Ok(self.builder.call_function(function, values))
     }

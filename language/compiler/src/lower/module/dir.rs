@@ -5,6 +5,20 @@ use destack_source::ModuleId;
 use crate::lower::{LowerModuleState, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
 
+/// Sealed intrinsic or binding decoration on one callable.
+pub(in crate::lower) enum AmbientCallable {
+    /// A compiler intrinsic operation.
+    Intrinsic {
+        /// The sealed dotted operation name.
+        name: Option<String>,
+    },
+    /// A host runtime binding.
+    Binding {
+        /// The sealed dotted binding name.
+        name: Option<String>,
+    },
+}
+
 impl ModuleLowerer<'_> {
     /// Return the sealed check output of one loaded module.
     pub(in crate::lower) fn state(&self, module: ModuleId) -> CompilerResult<&LowerModuleState> {
@@ -141,6 +155,96 @@ impl ModuleLowerer<'_> {
                 None => return Ok(current),
             }
         }
+    }
+
+    /// Return the sealed intrinsic or binding decoration on one callable.
+    ///
+    /// Check seals the dotted operation name as a static on the decorator
+    /// application, so classification is a pure table read.
+    pub(in crate::lower) fn ambient_callable(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<AmbientCallable>> {
+        let state = self.state(symbol.module_id)?;
+        let Some(node) = state.bindings.get_symbol(symbol.local_id).declaration else {
+            return Ok(None);
+        };
+
+        for application in state.decorators.applications_for_owner(node) {
+            let dir::DecoratorTarget::LanguageItem { item, .. } = application.resolution.target
+            else {
+                continue;
+            };
+            if !matches!(
+                item,
+                dir::LanguageItem::Intrinsic | dir::LanguageItem::Binding
+            ) {
+                continue;
+            }
+
+            // read the first argument from the sealed nominal decorator value
+            let value = self
+                .state(application.value.module_id)?
+                .statics
+                .get_static_maybe(application.value.local_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "checked DIR is missing one decorator static value".to_string(),
+                })?;
+            let Some((_, value)) = value.as_newtype() else {
+                return Err(CompilerError::Internal {
+                    message: "checked callable decorator value is not a newtype".to_string(),
+                });
+            };
+            let Some(arguments) = value.as_tuple() else {
+                return Err(CompilerError::Internal {
+                    message: "checked callable decorator backing is not a tuple".to_string(),
+                });
+            };
+            let name = match arguments.first() {
+                Some(value) => {
+                    let Some(name) = value.as_string() else {
+                        return Err(CompilerError::Internal {
+                            message: "checked callable decorator name is not a string".to_string(),
+                        });
+                    };
+
+                    Some(self.strings.get(name).to_string())
+                }
+                None => None,
+            };
+
+            return Ok(Some(match item {
+                dir::LanguageItem::Binding => AmbientCallable::Binding { name },
+                _ => AmbientCallable::Intrinsic { name },
+            }));
+        }
+
+        Ok(None)
+    }
+
+    /// Return whether one definition declares non-lifetime generic parameters.
+    ///
+    /// Heritage clauses allocate template rows even on concrete nominals, so
+    /// genericness reads the declared parameters, not the row's presence.
+    pub(in crate::lower) fn definition_is_generic(
+        &self,
+        module: destack_source::ModuleId,
+        definition: &dir::Definition,
+    ) -> CompilerResult<bool> {
+        let Some(template) = definition.template() else {
+            return Ok(false);
+        };
+
+        let generics = &self.state(module)?.generics;
+        let template = generics.get_template(template);
+        for parameter in &template.parameters {
+            let binding = generics.get_parameter(*parameter);
+            if binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return the declared name of one symbol in its owning module.

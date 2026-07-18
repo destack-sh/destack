@@ -494,6 +494,13 @@ pub(crate) fn execute_intrinsic(
             execute_intrinsic_pointer_offset_from(activation, instruction)
         }
         mir::Intrinsic::RawEq => execute_intrinsic_raw_eq(activation, instruction),
+        // volatile access executes with the VM dispatch loop, deferred with it
+        mir::Intrinsic::VolatileLoad => {
+            Err(Error::unsupported_instruction("intrinsic.volatile.load"))
+        }
+        mir::Intrinsic::VolatileStore => {
+            Err(Error::unsupported_instruction("intrinsic.volatile.store"))
+        }
         mir::Intrinsic::Sqrt => execute_intrinsic_sqrt(activation, instruction),
         mir::Intrinsic::Abs => execute_intrinsic_abs(activation, instruction),
         mir::Intrinsic::Fma => execute_intrinsic_fma(activation, instruction),

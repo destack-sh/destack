@@ -329,6 +329,15 @@ impl TestSession {
         self.assert_mir(path, expected, Self::mir_lowered_key);
     }
 
+    /// Assert the diagnostics of one module whose lowering fails.
+    #[track_caller]
+    pub(crate) fn assert_mir_diagnostics(&self, path: &str, expected: &str) {
+        let key = self.mir_lowered_key(path);
+        let _ = self.require_artifact_result(key);
+
+        assert_snapshot(self.diagnostic_snapshot(key), expected);
+    }
+
     /// Assert one rendered MIR snapshot.
     #[track_caller]
     fn assert_mir(&self, path: &str, expected: &str, artifact_key: fn(&Self, &str) -> ArtifactKey) {

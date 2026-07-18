@@ -23,6 +23,8 @@ pub(crate) struct LowerModuleState {
     pub(in crate::lower) coercions: dir::CoercionTable<'static>,
     /// The checked definition table.
     pub(in crate::lower) definitions: dir::DefinitionTable<'static>,
+    /// The checked static table.
+    pub(in crate::lower) statics: dir::StaticTable<'static>,
     /// The checked generic table.
     pub(in crate::lower) generics: dir::GenericTable<'static>,
     /// The checked auto conformance table.
@@ -52,6 +54,7 @@ impl LowerModuleState {
             imports: resolved.imports.clone(),
             coercions: materialized.coercion_table(checked),
             definitions: materialized.definition_table(checked),
+            statics: materialized.static_table(bound, expanded, checked),
             generics: materialized.generic_table(checked),
             autos: checked.auto_table(),
             decorators: checked.decorator_table(),

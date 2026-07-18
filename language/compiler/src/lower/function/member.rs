@@ -52,8 +52,16 @@ impl FunctionLowerer<'_, '_, '_> {
         let nominal = self
             .lowerer
             .lower_nominal(self.builder.tree_mut(), &instance)?;
+        let case = Self::enum_case_index(&nominal, member)?;
 
-        // the member symbol selects the case position
+        Ok(self.builder.variant_new(nominal.ty, case, None))
+    }
+
+    /// Return the declared case position of one enum member.
+    pub(in crate::lower) fn enum_case_index(
+        nominal: &crate::lower::Nominal,
+        member: &dir::EnumMemberType,
+    ) -> CompilerResult<u32> {
         let symbol = member.member.local_id;
         let Some(case) = nominal
             .fields
@@ -65,7 +73,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        Ok(self.builder.variant_new(nominal.ty, case as u32, None))
+        Ok(case as u32)
     }
 
     /// Return the declaration field index behind one member expression.

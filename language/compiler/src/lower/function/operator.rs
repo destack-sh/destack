@@ -26,6 +26,22 @@ impl OperandClass {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
+    /// Lower one protocol operator through its selected method candidate.
+    pub(in crate::lower) fn lower_operator_method(
+        &mut self,
+        receiver: dir::LocalNodeId<dir::Expression>,
+        resolution: &dir::CallResolution,
+        candidate: &dir::CallCandidate,
+    ) -> CompilerResult<mir::Value> {
+        let Some(value) = self.lower_candidate_call(receiver, resolution, candidate)? else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR selected a void operator method".to_string(),
+            });
+        };
+
+        Ok(value)
+    }
+
     /// Lower one builtin unary operation.
     pub(in crate::lower) fn lower_unary(
         &mut self,

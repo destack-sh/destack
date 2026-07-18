@@ -35,7 +35,10 @@ impl ModuleLowerer<'_> {
                     | dir::Definition::Enum(_)
                     | dir::Definition::Class(_)
             );
-            if is_nominal && definition.template().is_none() && symbol.module_id == self.module {
+            if is_nominal
+                && !self.definition_is_generic(symbol.module_id, definition)?
+                && symbol.module_id == self.module
+            {
                 nominals.push(symbol);
             }
         }
