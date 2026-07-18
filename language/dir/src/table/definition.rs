@@ -1260,6 +1260,21 @@ impl<'a> TryFrom<&'a str> for RepresentationKind {
     }
 }
 
+impl EnumDefinition {
+    /// Iterate the enum variants in declaration order.
+    pub fn variants(&self) -> impl Iterator<Item = &EnumVariantDefinition> {
+        self.members.iter().filter_map(|member| match member {
+            DefinitionMember::EnumVariant(variant) => Some(variant),
+            _ => None,
+        })
+    }
+
+    /// Return the enum variant with one member key.
+    pub fn variant_by_key(&self, key: StaticKey) -> Option<&EnumVariantDefinition> {
+        self.variants().find(|variant| variant.key == key)
+    }
+}
+
 impl NewtypeDefinition {
     /// Return whether this newtype has a checked Tagged derivation.
     pub fn is_tagged(&self) -> bool {
