@@ -3,6 +3,7 @@ use std::sync::Arc;
 use destack_artifact::{DirBound, DirParsed};
 use destack_dir as dir;
 use destack_source::{ModuleId, StringId};
+use dir::NodeVisitor as _;
 use indexmap::IndexMap;
 
 use crate::Compiler;
@@ -125,9 +126,19 @@ impl<'a> BindState<'a> {
         dir::LocalScope::new(scope_id, mark)
     }
 
-    /// Bind one node to the current lexical scope.
+    /// Bind one node and its decorators in the current lexical scope.
     pub(in crate::bind) fn bind_node(&mut self, node_id: dir::LocalNodeIdAny) {
-        self.bindings.bind_scope_any(node_id, self.scope());
+        // bind the target before any target-owned scope is entered
+        let scope = self.scope();
+        self.bindings.bind_scope_any(node_id, scope);
+
+        // bind attached decorator expressions at the same lexical cursor
+        let parsed = self.parsed;
+        let tree = &parsed.tree;
+        for &decorator_id in tree.get_decorators_ref(node_id.id) {
+            let decorator = tree.get(decorator_id);
+            self.visit_decorator(tree, decorator_id, decorator);
+        }
     }
 
     /// Insert one child scope below the current lexical scope.
