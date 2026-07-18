@@ -14,113 +14,114 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     node_type: NodeType,
     node_id: u32,
 ) {
-    let local_idx = tree.node_index_by_node_id[node_id as usize].local_id();
+    let node_index = tree.node_index(node_id);
+    let local_index = tree.node_index_by_node_id[node_index].local_id();
     match node_type {
         // --------------------------------------------------------------------
         // Groupings
         // --------------------------------------------------------------------
         NodeType::Expression => {
-            let expression = tree.expressions.get(local_idx);
+            let expression = tree.expressions.get(local_index);
             walk_expression(visitor, tree, LocalNodeId::new(node_id), expression);
         }
         NodeType::TypeExpression => {
-            let type_expression = tree.type_expressions.get(local_idx);
+            let type_expression = tree.type_expressions.get(local_index);
             walk_type_expression(visitor, tree, LocalNodeId::new(node_id), type_expression);
         }
         NodeType::Block => {
-            let block = tree.blocks.get(local_idx);
+            let block = tree.blocks.get(local_index);
             walk_block(visitor, tree, LocalNodeId::new(node_id), block);
         }
         NodeType::Catch => {
-            let catch = tree.catches.get(local_idx);
+            let catch = tree.catches.get(local_index);
             walk_catch(visitor, tree, LocalNodeId::new(node_id), catch);
         }
         // --------------------------------------------------------------------
         // Declarations
         // --------------------------------------------------------------------
         NodeType::Declaration => {
-            let declaration = tree.declarations.get(local_idx);
+            let declaration = tree.declarations.get(local_index);
             walk_declaration(visitor, tree, LocalNodeId::new(node_id), declaration);
         }
         NodeType::Property => {
-            let property = tree.properties.get(local_idx);
+            let property = tree.properties.get(local_index);
             walk_property(visitor, tree, LocalNodeId::new(node_id), property);
         }
         NodeType::TypeMember => {
-            let type_member = tree.type_members.get(local_idx);
+            let type_member = tree.type_members.get(local_index);
             walk_type_member(visitor, tree, LocalNodeId::new(node_id), type_member);
         }
         NodeType::TypeMappedParameter => {
-            let parameter = tree.type_mapped_parameters.get(local_idx);
+            let parameter = tree.type_mapped_parameters.get(local_index);
             walk_type_mapped_parameter(visitor, tree, LocalNodeId::new(node_id), parameter);
         }
         NodeType::Member => {
-            let member = tree.members.get(local_idx);
+            let member = tree.members.get(local_index);
             walk_member(visitor, tree, LocalNodeId::new(node_id), member);
         }
         NodeType::EnumField => {
-            let enum_field = tree.enum_fields.get(local_idx);
+            let enum_field = tree.enum_fields.get(local_index);
             walk_enum_field(visitor, tree, LocalNodeId::new(node_id), enum_field);
         }
         // --------------------------------------------------------------------
         // Context
         // --------------------------------------------------------------------
         NodeType::WhereClause => {
-            let where_clause = tree.where_clauses.get(local_idx);
+            let where_clause = tree.where_clauses.get(local_index);
             walk_where_clause(visitor, tree, LocalNodeId::new(node_id), where_clause);
         }
         NodeType::DependencyItem => {
-            let dependency_item = tree.dependency_items.get(local_idx);
+            let dependency_item = tree.dependency_items.get(local_index);
             walk_dependency_item(visitor, tree, LocalNodeId::new(node_id), dependency_item);
         }
         NodeType::GenericParameter => {
-            let generic_parameter = tree.generic_parameters.get(local_idx);
+            let generic_parameter = tree.generic_parameters.get(local_index);
             walk_generic_parameter(visitor, tree, LocalNodeId::new(node_id), generic_parameter);
         }
         // --------------------------------------------------------------------
         // Bindings
         // --------------------------------------------------------------------
         NodeType::Parameter => {
-            let parameter = tree.parameters.get(local_idx);
+            let parameter = tree.parameters.get(local_index);
             walk_parameter(visitor, tree, LocalNodeId::new(node_id), parameter);
         }
         NodeType::Argument => {
-            let argument = tree.arguments.get(local_idx);
+            let argument = tree.arguments.get(local_index);
             walk_argument(visitor, tree, LocalNodeId::new(node_id), argument);
         }
         NodeType::TreeAttribute => {
-            let attribute = tree.tree_attributes.get(local_idx);
+            let attribute = tree.tree_attributes.get(local_index);
             walk_tree_attribute(visitor, tree, LocalNodeId::new(node_id), attribute);
         }
         NodeType::TreeChild => {
-            let child = tree.tree_children.get(local_idx);
+            let child = tree.tree_children.get(local_index);
             walk_tree_child(visitor, tree, LocalNodeId::new(node_id), child);
         }
         NodeType::GenericArgument => {
-            let type_argument = tree.generic_arguments.get(local_idx);
+            let type_argument = tree.generic_arguments.get(local_index);
             walk_generic_argument(visitor, tree, LocalNodeId::new(node_id), type_argument);
         }
         NodeType::TupleElement => {
-            let tuple_element = tree.tuple_elements.get(local_idx);
+            let tuple_element = tree.tuple_elements.get(local_index);
             walk_tuple_element(visitor, tree, LocalNodeId::new(node_id), tuple_element);
         }
         // --------------------------------------------------------------------
         // Matching
         // --------------------------------------------------------------------
         NodeType::Pattern => {
-            let pattern = tree.patterns.get(local_idx);
+            let pattern = tree.patterns.get(local_index);
             walk_pattern(visitor, tree, LocalNodeId::new(node_id), pattern);
         }
         NodeType::PatternField => {
-            let pattern_field = tree.pattern_fields.get(local_idx);
+            let pattern_field = tree.pattern_fields.get(local_index);
             walk_pattern_field(visitor, tree, LocalNodeId::new(node_id), pattern_field);
         }
         NodeType::AssignPattern => {
-            let assign_pattern = tree.assign_patterns.get(local_idx);
+            let assign_pattern = tree.assign_patterns.get(local_index);
             walk_assign_pattern(visitor, tree, LocalNodeId::new(node_id), assign_pattern);
         }
         NodeType::AssignPatternField => {
-            let assign_pattern_field = tree.assign_pattern_fields.get(local_idx);
+            let assign_pattern_field = tree.assign_pattern_fields.get(local_index);
             walk_assign_pattern_field(
                 visitor,
                 tree,
@@ -129,15 +130,15 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             );
         }
         NodeType::MatchCase => {
-            let match_case = tree.match_cases.get(local_idx);
+            let match_case = tree.match_cases.get(local_index);
             walk_match_case(visitor, tree, LocalNodeId::new(node_id), match_case);
         }
         NodeType::Declarator => {
-            let declarator = tree.declarators.get(local_idx);
+            let declarator = tree.declarators.get(local_index);
             walk_declarator(visitor, tree, LocalNodeId::new(node_id), declarator);
         }
         NodeType::Decorator => {
-            let decorator = tree.decorators.get(local_idx);
+            let decorator = tree.decorators.get(local_index);
             walk_decorator(visitor, tree, LocalNodeId::new(node_id), decorator);
         }
     }

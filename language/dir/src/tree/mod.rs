@@ -15,7 +15,6 @@ mod r#match;
 mod node;
 mod operator;
 mod origin;
-mod parent;
 mod patch;
 mod path;
 mod pattern;

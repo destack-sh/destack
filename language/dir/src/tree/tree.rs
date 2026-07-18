@@ -10,14 +10,13 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use super::index::NodeIndexEntry;
-use super::parent::reparent_direct_children;
 use super::sparse::SparseNodeMap;
 use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
-    Decorator, DependencyItem, Documentation, EnumField, Expression, GenericArgument,
-    GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex,
-    NodeType, Origin, Parameter, Path, Pattern, PatternField, Property, TreeAttribute,
-    TreeCapacity, TreeChild, TreeMark, TreeStore, TupleElement, TypeExpression,
+    Decorator, DependencyItem, DirectChildCollector, Documentation, EnumField, Expression,
+    GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node,
+    NodeParentIndex, NodeType, Origin, Parameter, Path, Pattern, PatternField, Property,
+    TreeAttribute, TreeCapacity, TreeChild, TreeMark, TreeStore, TupleElement, TypeExpression,
     TypeMappedParameter, TypeMember, WhereClause,
 };
 
@@ -447,7 +446,7 @@ impl Tree {
         Self: TreeStore<T>,
     {
         let node_id = self.insert_reserved(node_id, node);
-        reparent_direct_children(self, LocalNodeIdAny::new(node_id.id, T::TYPE));
+        self.reparent_direct_children(node_id.into_any());
 
         node_id
     }
@@ -551,7 +550,7 @@ impl Tree {
         self.set_origin(id.id, Origin::one(derivation, preserved_id.id));
 
         // keep reused child ids attached to the replacement
-        reparent_direct_children(self, id.into_any());
+        self.reparent_direct_children(id.into_any());
 
         // record original payload for reverse lookup
         self.alias_from(id.id, preserved_id);
@@ -703,6 +702,15 @@ impl Tree {
     pub(crate) fn set_parent_id(&mut self, node_id: u32, parent_id: Option<u32>) {
         self.node_index(node_id);
         self.parents.set(node_id, parent_id);
+    }
+
+    /// Reparent reused direct children onto one root.
+    fn reparent_direct_children(&mut self, root_id: LocalNodeIdAny) {
+        let mut children = DirectChildCollector::default();
+        let child_ids = children.collect(self, root_id);
+        for child_id in child_ids.iter().copied() {
+            self.set_parent_id(child_id, Some(root_id.id));
+        }
     }
 
     /// Set the origin for one derived node.

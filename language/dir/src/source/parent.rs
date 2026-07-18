@@ -1,21 +1,17 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
-    GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, Node, NodeType, NodeVisitor,
-    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, Tree, TreeStore, TupleElement,
-    TypeExpression, TypeMember, WhereClause, walk_any,
-};
+use crate::{DirectChildCollector, Expression, LocalNodeId, LocalNodeIdAny, Node, Tree, TreeStore};
 
-/// The NodeParentIndex maps every node of one tree to its parent.
+/// Dense structural parent ids keyed by node id.
 ///
-/// Slots are keyed by node id relative to the tree base, the same convention the tree
-/// uses for its other dense per-node storage, so a tail tree indexes only its own nodes.
+/// Slots use node ids relative to the tree base, matching the tree's other dense storage.
+/// A tail tree therefore indexes only its own nodes.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct NodeParentIndex {
-    /// First global node id this index covers; slots are keyed relative to it.
+    /// The first global node id covered by the index.
     base: u32,
+    /// The parent id for each relative node id.
     parent_id_by_node_id: Vec<u32>,
 }
 
@@ -44,51 +40,67 @@ impl NodeParentIndex {
 
     /// Create a new NodeParentIndex from a Tree.
     pub fn from_tree(tree: &Tree) -> Self {
-        // build dense parent lookup directly: no hash map and no captured child list
+        // build the dense parent lookup from every node's direct children
         let base = tree.first_global_id();
         let node_count = tree.node_index_by_node_id.len();
-        let mut visitor = ParentIndexBuilderVisitor::new(base, node_count);
-        for (index, entry) in tree.node_index_by_node_id.iter().enumerate() {
-            let node_id = base + index as u32;
-            visitor.set_current_parent(node_id);
-            walk_any(&mut visitor, tree, entry.node_type(), node_id);
+        let mut index = Self::with_base(base);
+        index
+            .parent_id_by_node_id
+            .resize(node_count, Self::NO_PARENT);
+        let mut children = DirectChildCollector::default();
+        for (node_index, entry) in tree.node_index_by_node_id.iter().enumerate() {
+            let node_id = base + node_index as u32;
+            let node = LocalNodeIdAny::new(node_id, entry.node_type());
+            index.index_children(tree, node, &mut children);
         }
 
         // record side-attached decorators against the nodes they decorate
         for (owner_id, decorator_ids) in tree.get_all_decorators() {
-            visitor.set_current_parent(*owner_id);
             for decorator_id in decorator_ids {
-                visitor.record_parent_for(decorator_id.id);
+                if let Some(existing_parent) = index.get(*decorator_id) {
+                    assert_eq!(
+                        existing_parent, *owner_id,
+                        "DIR decorator node {} has multiple structural parents",
+                        decorator_id.id
+                    );
+                }
+                index.set(decorator_id.id, Some(*owner_id));
             }
         }
 
-        Self {
-            base,
-            parent_id_by_node_id: visitor.take_parent_ids(),
-        }
+        index
     }
 
     /// Create a new NodeParentIndex from reachable expression roots.
     pub fn from_expression_roots(tree: &Tree, roots: &[LocalNodeId<Expression>]) -> Self {
         let base = tree.first_global_id();
         let node_count = tree.node_index_by_node_id.len();
-        let mut reachable = ReachableNodeVisitor::new(base, node_count);
+        let mut index = Self::with_base(base);
+        index
+            .parent_id_by_node_id
+            .resize(node_count, Self::NO_PARENT);
+        let mut children = DirectChildCollector::default();
+        let mut visited = vec![false; node_count];
+        let mut pending = roots.iter().map(|root_id| root_id.id).collect::<Vec<_>>();
 
-        for root_id in roots {
-            walk_any(&mut reachable, tree, NodeType::Expression, root_id.id);
-        }
+        while let Some(parent_id) = pending.pop() {
+            // skip nodes already indexed
+            let node_index = tree.node_index(parent_id);
+            if visited[node_index] {
+                continue;
+            }
+            visited[node_index] = true;
 
-        let mut visitor = ParentIndexBuilderVisitor::new(base, node_count);
-        for parent_id in reachable.take_node_ids() {
+            // index direct children
             let node_type = tree.get_node_type(parent_id);
-            visitor.set_current_parent(parent_id);
-            walk_any(&mut visitor, tree, node_type, parent_id);
+            let parent = LocalNodeIdAny::new(parent_id, node_type);
+            let child_ids = index.index_children(tree, parent, &mut children);
+
+            // continue through newly discovered children
+            pending.extend_from_slice(child_ids);
         }
 
-        Self {
-            base,
-            parent_id_by_node_id: visitor.take_parent_ids(),
-        }
+        index
     }
 
     /// Get the parent for a node.
@@ -133,11 +145,12 @@ impl NodeParentIndex {
     /// Set or clear the parent for one node id, growing the index to fit.
     #[inline]
     pub fn set(&mut self, node_id: u32, parent_id: Option<u32>) {
-        let Some(index) = node_id.checked_sub(self.base) else {
-            return;
-        };
-
-        let index = index as usize;
+        assert!(
+            node_id >= self.base,
+            "DIR node id {node_id} is before parent index base {}",
+            self.base
+        );
+        let index = (node_id - self.base) as usize;
         if index >= self.parent_id_by_node_id.len() {
             self.parent_id_by_node_id.resize(index + 1, Self::NO_PARENT);
         }
@@ -148,284 +161,40 @@ impl NodeParentIndex {
     /// Drop parents for nodes at or beyond one global id and clear dangling links.
     #[inline]
     pub fn truncate(&mut self, next_global_id: u32) {
-        let len = next_global_id.saturating_sub(self.base) as usize;
-        self.parent_id_by_node_id.truncate(len);
+        assert!(
+            next_global_id >= self.base,
+            "DIR node id {next_global_id} is before parent index base {}",
+            self.base
+        );
+        let length = (next_global_id - self.base) as usize;
+        self.parent_id_by_node_id.truncate(length);
+
+        // clear links into the truncated node range
         for parent_id in &mut self.parent_id_by_node_id {
             if *parent_id != Self::NO_PARENT && *parent_id >= next_global_id {
                 *parent_id = Self::NO_PARENT;
             }
         }
     }
-}
 
-/// Internal visitor that records direct child to parent mappings.
-#[derive(Debug, Clone)]
-struct ParentIndexBuilderVisitor {
-    base: u32,
-    current_parent: u32,
-    parent_id_by_node_id: Vec<u32>,
-    options: NodeVisitorOptions,
-}
-
-/// Internal visitor that collects reachable node ids from one root set.
-#[derive(Debug, Clone)]
-struct ReachableNodeVisitor {
-    base: u32,
-    seen: Vec<bool>,
-    node_ids: Vec<u32>,
-    options: NodeVisitorOptions,
-}
-
-impl ReachableNodeVisitor {
-    /// Create one reachable-node collector with fixed node capacity.
-    fn new(base: u32, node_count: usize) -> Self {
-        Self {
-            base,
-            seen: vec![false; node_count],
-            node_ids: Vec::with_capacity(node_count),
-            options: NodeVisitorOptions::default(),
-        }
-    }
-
-    /// Consume the visitor and return the reachable node ids.
-    fn take_node_ids(self) -> Vec<u32> {
-        self.node_ids
-    }
-}
-
-impl NodeVisitor for ReachableNodeVisitor {
-    #[inline]
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    #[inline]
-    fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
-        let index = (id - self.base) as usize;
-        if self.seen[index] {
-            return;
+    /// Index the direct children of one structural parent.
+    fn index_children<'a>(
+        &mut self,
+        tree: &Tree,
+        parent: LocalNodeIdAny,
+        children: &'a mut DirectChildCollector,
+    ) -> &'a [u32] {
+        let child_ids = children.collect(tree, parent);
+        for child_id in child_ids.iter().copied() {
+            if let Some(existing_parent) = self.get_by_id(child_id) {
+                assert_eq!(
+                    existing_parent, parent.id,
+                    "DIR node {child_id} has multiple structural parents"
+                );
+            }
+            self.set(child_id, Some(parent.id));
         }
 
-        self.seen[index] = true;
-        self.node_ids.push(id);
-    }
-}
-
-impl ParentIndexBuilderVisitor {
-    /// Create a parent index builder with fixed node capacity.
-    fn new(base: u32, node_count: usize) -> Self {
-        Self {
-            base,
-            current_parent: 0,
-            parent_id_by_node_id: vec![NodeParentIndex::NO_PARENT; node_count],
-            options: NodeVisitorOptions::default(),
-        }
-    }
-
-    /// Set the current parent node being walked.
-    #[inline]
-    fn set_current_parent(&mut self, parent_id: u32) {
-        self.current_parent = parent_id;
-    }
-
-    /// Record a parent for a node when it is not the parent itself.
-    #[inline]
-    fn record_parent_for(&mut self, node_id: u32) {
-        if node_id == self.current_parent {
-            return;
-        }
-
-        self.parent_id_by_node_id[(node_id - self.base) as usize] = self.current_parent;
-    }
-
-    /// Consume the builder and return the dense parent table.
-    fn take_parent_ids(self) -> Vec<u32> {
-        self.parent_id_by_node_id
-    }
-}
-
-impl NodeVisitor for ParentIndexBuilderVisitor {
-    #[inline]
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    #[inline]
-    fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
-        self.record_parent_for(id);
-    }
-
-    #[inline]
-    fn visit_block(&mut self, _tree: &Tree, id: LocalNodeId<Block>, _block: &Block) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_expression(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<Expression>,
-        _expression: &Expression,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_declaration(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<Declaration>,
-        _declaration: &Declaration,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_property(&mut self, _tree: &Tree, id: LocalNodeId<Property>, _property: &Property) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_type_member(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<TypeMember>,
-        _type_member: &TypeMember,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_member(&mut self, _tree: &Tree, id: LocalNodeId<Member>, _member: &Member) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_enum_field(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<EnumField>,
-        _enum_field: &EnumField,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_where_clause(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<WhereClause>,
-        _where_clause: &WhereClause,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_dependency_item(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<DependencyItem>,
-        _dependency_item: &DependencyItem,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_generic_parameter(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<GenericParameter>,
-        _generic_parameter: &GenericParameter,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    fn visit_parameter(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<Parameter>,
-        _parameter: &Parameter,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_argument(&mut self, _tree: &Tree, id: LocalNodeId<Argument>, _argument: &Argument) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_generic_argument(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<GenericArgument>,
-        _generic_argument: &GenericArgument,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_tuple_element(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<TupleElement>,
-        _tuple_element: &TupleElement,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_match_case(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<MatchCase>,
-        _match_case: &MatchCase,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_declarator(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<Declarator>,
-        _declarator: &Declarator,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_pattern(&mut self, _tree: &Tree, id: LocalNodeId<Pattern>, _pattern: &Pattern) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_pattern_field(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<PatternField>,
-        _pattern_field: &PatternField,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_decorator(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<Decorator>,
-        _decorator: &Decorator,
-    ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_type_expression(
-        &mut self,
-        _tree: &Tree,
-        id: LocalNodeId<TypeExpression>,
-        _type_expression: &TypeExpression,
-    ) {
-        self.record_parent_for(id.id);
+        child_ids
     }
 }
