@@ -1,7 +1,8 @@
-use destack_core::FxIndexSet;
+use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{DirExpanded, DirParsed, DirResolved};
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
@@ -31,10 +32,7 @@ pub(in crate::check) struct CheckExternalModuleState {
 impl CheckExternalModuleState {
     /// Return the post-expansion DIR tree view of this module.
     pub(in crate::check) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(
-            &self.parsed.tree,
-            std::slice::from_ref(&self.expanded.patch),
-        )
+        dir::View::with_patches(&self.parsed.tree, from_ref(&self.expanded.patch))
     }
 
     /// Return the authored diagnostic span of one visible node.

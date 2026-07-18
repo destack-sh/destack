@@ -1,18 +1,20 @@
+use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DiagnosticBuilder, DirBound, DirExpanded, DirParsed, DirResolved, ProfileKey,
+    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirExpanded, DirParsed, DirResolved,
+    ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use destack_repository::Module;
+use destack_repository::{Module, Package};
 use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyOwner, Capture, Cause, CauseId, CauseKind, CheckError, CheckOutcome, CheckState,
     CheckWarning, Constraint, Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation,
-    answer,
+    StaticGate, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -21,6 +23,8 @@ pub(in crate::check) struct CheckModuleState {
     // inherited inputs from upstream phases, read-only
     /// The requested source module.
     pub(in crate::check) module: Arc<Module>,
+    /// The package containing the requested module.
+    pub(in crate::check) package: Arc<Package>,
     /// The active target profile.
     pub(in crate::check) profile: ProfileKey,
     /// The parsed DIR input.
@@ -59,7 +63,9 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) capture_segment: dir::CaptureSegment,
     /// Checked decorators.
     pub(in crate::check) decorators: dir::DecoratorSegment,
-    /// Inferred static symbol values, materialized to statics during write.
+    /// Checked diagnostic controls.
+    pub(in crate::check) controls: DiagnosticControlTable,
+    /// Inferred static symbol values written to statics during output.
     pub(in crate::check) static_values: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
@@ -73,7 +79,7 @@ pub(in crate::check) struct CheckModuleState {
 
     // statically false gates
     /// Presence decisions for decorated source nodes.
-    pub(in crate::check) static_presence: FxIndexMap<dir::GlobalNodeIdAny, bool>,
+    pub(in crate::check) static_presence: FxIndexMap<dir::GlobalNodeIdAny, StaticGate>,
     /// Declarations whose guards decided statically false.
     pub(in crate::check) absent_symbols: FxIndexSet<dir::GlobalSymbolId>,
 
@@ -88,6 +94,7 @@ impl CheckModuleState {
     /// Create module state from loaded inputs and empty working state.
     pub(in crate::check) fn new(
         module: Arc<Module>,
+        package: Arc<Package>,
         profile: ProfileKey,
         parsed: Arc<DirParsed>,
         bound: Arc<DirBound>,
@@ -107,9 +114,12 @@ impl CheckModuleState {
         let coercions = dir::CoercionSegment::new(module.id);
         let capture_segment = dir::CaptureSegment::new(module.id);
         let decorators = dir::DecoratorSegment::new(module.id);
+        let files = parsed.files.iter().map(|file| file.file_id).collect();
+        let controls = DiagnosticControlTable::new(module.id, files);
 
         Self {
             module,
+            package,
             profile,
             parsed,
             bound,
@@ -127,6 +137,7 @@ impl CheckModuleState {
             coercions,
             capture_segment,
             decorators,
+            controls,
             static_values: FxIndexMap::default(),
             static_presence: FxIndexMap::default(),
             absent_symbols: FxIndexSet::default(),
@@ -142,10 +153,7 @@ impl CheckModuleState {
 
     /// Return the post-expansion DIR tree view visible to check.
     pub(in crate::check) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(
-            &self.parsed.tree,
-            std::slice::from_ref(&self.expanded.patch),
-        )
+        dir::View::with_patches(&self.parsed.tree, from_ref(&self.expanded.patch))
     }
 
     /// Return the authored source tree used for source rendering.
@@ -156,6 +164,13 @@ impl CheckModuleState {
     /// Return the authored source span of one node.
     pub(in crate::check) fn authored_span(&self, node: dir::LocalNodeIdAny) -> Span {
         self.parsed.tree.source_index.get_main_or_enclosing(node.id)
+    }
+
+    /// Return the full source span of one visible node's authored origin.
+    pub(in crate::check) fn source_span(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
+        let source = self.view().get_source_any(node);
+
+        self.parsed.tree.get_span_by_id(source)
     }
 
     /// Return the authored diagnostic span of one visible node.
@@ -303,6 +318,10 @@ impl CheckModuleState {
 
     /// Return one local input static visible to check.
     pub(in crate::check) fn r#static(&self, static_id: dir::LocalStaticId) -> &dir::StaticTerm {
+        if let Some(value) = self.statics.get_static_maybe(static_id) {
+            return value;
+        }
+
         if let Some(value) = self.expanded.statics.get_static_maybe(static_id) {
             return value;
         }

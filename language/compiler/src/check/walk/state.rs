@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -25,8 +27,6 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     /// Entry flow point for each source node occurrence walked in this module.
     node_flows:
         FxIndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
-    /// Capture directive waiting for an immediate function value initializer.
-    capture_directive: Option<dir::CaptureDirective>,
 }
 
 /// How elided borrow lifetimes are handled while walking types.
@@ -50,8 +50,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         check: &'check mut CheckState<'state>,
     ) -> Self {
         let state = check.module_mut(module);
-        let flow = FlowState::from_points(std::mem::take(&mut state.flows));
-        let node_flows = std::mem::take(&mut state.node_flows);
+        let flow = FlowState::from_points(take(&mut state.flows));
+        let node_flows = take(&mut state.node_flows);
 
         Self {
             check,
@@ -61,7 +61,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_borrow_lifetimes: Vec::new(),
             flow,
             node_flows,
-            capture_directive: None,
         }
     }
 
@@ -73,26 +72,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Return mutable flow state for the active module.
     pub(in crate::check) fn flow_mut(&mut self) -> &mut FlowState {
         &mut self.flow
-    }
-
-    /// Walk one initializer with a capture directive for its immediate function value.
-    pub(in crate::check) fn with_capture_directive<T>(
-        &mut self,
-        directive: Option<dir::CaptureDirective>,
-        f: impl FnOnce(&mut Self) -> CompilerResult<T>,
-    ) -> CompilerResult<T> {
-        let previous = self.capture_directive.take();
-        self.capture_directive = directive;
-        let result = f(self);
-
-        self.capture_directive = previous;
-
-        result
-    }
-
-    /// Take the pending capture directive for the current function value.
-    pub(in crate::check) fn take_capture_directive(&mut self) -> Option<dir::CaptureDirective> {
-        self.capture_directive.take()
     }
 
     /// Commit completed walk state back into check state.
@@ -269,7 +248,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(symbol) = self.check.environment.language.symbol(kind.language_item()) else {
+        let Some(symbol) = self.check.global.language.symbol(kind.language_item()) else {
             return Ok(None);
         };
         let arguments = self.intern_type_ids(&[])?;

@@ -1,7 +1,13 @@
 mod application;
+mod apply;
 mod capture;
-mod r#static;
-mod target;
+mod check;
+mod control;
+mod object;
+mod representation;
+mod select;
+mod tagged;
+mod value;
 
 pub(in crate::check) use application::*;
-pub(in crate::check) use r#static::*;
+pub(in crate::check) use object::*;

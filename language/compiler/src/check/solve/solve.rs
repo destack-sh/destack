@@ -51,8 +51,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Check every recorded body in source order, one phase at a time.
-    pub(in crate::check) fn solve_bodies(&mut self) -> CompilerResult<()> {
+    /// Check every recorded ordinary body in source order, one phase at a time.
+    pub(in crate::check) fn check_bodies(&mut self) -> CompilerResult<()> {
         // run regular bodies in source order
         let mut index = 0;
         while index < self.bodies.len() {

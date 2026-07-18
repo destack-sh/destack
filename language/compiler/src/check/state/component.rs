@@ -1,16 +1,17 @@
-use destack_core::{FxIndexMap, FxIndexSet};
 use std::sync::Arc;
 
 use destack_artifact::GlobalEnvironment;
+use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProviderContext};
-use destack_source::{ComponentId, ModuleId, ProfileId};
+use destack_repository::{ArtifactReader, Environment, ProviderContext};
+use destack_source::{ComponentId, ModuleId, ProfileId, StringId};
 use smallvec::SmallVec;
 
 use crate::check::{
     BodyOwner, Cause, CauseId, CheckEvent, CheckExternalModuleState, CheckModuleState,
-    DecisionTable, GenericIndex, GenericScope, GenericTemplateId, Origin, OriginId, Solver,
-    TryPropagationTarget, VarianceContext, VarianceState, should_stream_check_events,
+    DecisionTable, DecoratorApplication, GenericIndex, GenericScope, GenericTemplateId, Origin,
+    OriginId, Solver, TryPropagationTarget, VarianceContext, VarianceState,
+    should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -34,8 +35,10 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) artifacts: &'a ArtifactReader<'a>,
     /// The active profile.
     pub(in crate::check) profile: ProfileId,
-    /// The active global environment.
-    pub(in crate::check) environment: Arc<GlobalEnvironment>,
+    /// The active global language and module environment.
+    pub(in crate::check) global: Arc<GlobalEnvironment>,
+    /// The ambient environment captured by the current revision.
+    pub(in crate::check) environment: Arc<Environment>,
 
     // loaded modules
     /// Loaded component modules keyed by module id.
@@ -44,6 +47,10 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) external_modules: FxIndexMap<ModuleId, CheckExternalModuleState>,
     /// Checked component artifact containing each external module.
     pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckComponentKey>,
+
+    // walk state
+    /// Resolved decorators in component walk order.
+    pub(in crate::check) decorators: Vec<DecoratorApplication>,
 
     // checked state
     /// Stable declaration symbol types.
@@ -102,7 +109,7 @@ pub(in crate::check) struct CheckState<'a> {
 
 impl<'a> CheckState<'a> {
     /// Return the shared repository string pool.
-    pub(in crate::check) fn strings(&self) -> &'a destack_core::StringPool {
+    pub(in crate::check) fn strings(&self) -> &'a StringPool {
         self.compiler.repository.string_pool()
     }
 
@@ -112,7 +119,8 @@ impl<'a> CheckState<'a> {
         context: &'a dyn ProviderContext,
         artifacts: &'a ArtifactReader<'a>,
         profile: ProfileId,
-        environment: Arc<GlobalEnvironment>,
+        global: Arc<GlobalEnvironment>,
+        environment: Arc<Environment>,
         external_components: FxIndexMap<ModuleId, CheckComponentKey>,
         emit_events: bool,
     ) -> Self {
@@ -121,10 +129,12 @@ impl<'a> CheckState<'a> {
             context,
             artifacts,
             profile,
+            global,
             environment,
             modules: FxIndexMap::default(),
             external_modules: FxIndexMap::default(),
             external_components,
+            decorators: Vec::new(),
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
             node_types: FxIndexMap::default(),
@@ -183,11 +193,6 @@ impl<'a> CheckState<'a> {
         Ok(())
     }
 
-    /// Complete walk-time state before solving.
-    pub(in crate::check) fn propagate(&mut self) -> CompilerResult<()> {
-        self.propagate_induced_parameters()
-    }
-
     /// Load one module into component state.
     fn load_module(&mut self, module_id: ModuleId) -> CompilerResult<()> {
         if self.is_component_module(module_id) {
@@ -199,6 +204,9 @@ impl<'a> CheckState<'a> {
             .profile(self.context.revision(), self.profile)?
             .key;
         let module = self.compiler.module(self.context.revision(), module_id)?;
+        let package = self
+            .compiler
+            .package(self.context.revision(), module.package_id)?;
         let parsed = self
             .artifacts
             .dir_parsed(module_id)
@@ -217,6 +225,7 @@ impl<'a> CheckState<'a> {
             .map_err(CompilerError::from)?;
         let module = CheckModuleState::new(
             module,
+            package,
             profile,
             parsed,
             bound,
@@ -231,7 +240,7 @@ impl<'a> CheckState<'a> {
 
     /// Return one language symbol resolved for one module.
     pub(in crate::check) fn language_symbol(&self, item: dir::LanguageItem) -> dir::GlobalSymbolId {
-        self.environment.language.symbol(item).unwrap_or_else(|| {
+        self.global.language.symbol(item).unwrap_or_else(|| {
             unreachable!("language item {item} is missing from the global environment")
         })
     }
@@ -243,7 +252,7 @@ impl<'a> CheckState<'a> {
     ) -> CompilerResult<Option<dir::LanguageItem>> {
         let symbol = self.resolve_symbol_alias(symbol)?;
 
-        Ok(self.environment.language.item(symbol))
+        Ok(self.global.language.item(symbol))
     }
 
     /// Return the nominal symbol named by one type head.
@@ -648,7 +657,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn intern_strings(
         &mut self,
         module: ModuleId,
-        values: &[destack_source::StringId],
+        values: &[StringId],
     ) -> CompilerResult<dir::TypeListId> {
         Ok(self
             .working_module_mut(module)?
@@ -741,7 +750,7 @@ impl CheckState<'_> {
         &self,
         module: ModuleId,
         list: dir::TypeListId,
-    ) -> CompilerResult<&[destack_source::StringId]> {
+    ) -> CompilerResult<&[StringId]> {
         self.type_rows(
             module,
             list,
@@ -1082,6 +1091,8 @@ impl CheckState<'_> {
                         dir::TypeOperation::Index(index)
                     }
                     dir::TypeOperation::TemplateLiteral(mut template) => {
+                        let strings = self.template_strings(source, template.strings)?.to_vec();
+                        template.strings = self.intern_strings(target, &strings)?;
                         template.spans =
                             self.map_type_id_list(source, target, template.spans, map)?;
 

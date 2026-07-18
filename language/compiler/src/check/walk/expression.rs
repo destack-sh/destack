@@ -101,7 +101,6 @@ impl WalkState<'_, '_> {
                         self.tree.get(*declarator),
                         Some(*kind),
                         *place,
-                        Some(id.into_any()),
                         *is_ambient,
                     )?;
                     self.mark_declarator_assigned(self.tree.get(*declarator), *is_ambient);
@@ -117,7 +116,6 @@ impl WalkState<'_, '_> {
                         self.tree.get(*declarator),
                         None,
                         None,
-                        Some(id.into_any()),
                         false,
                     )?;
                     self.mark_declarator_assigned(self.tree.get(*declarator), false);
@@ -132,7 +130,7 @@ impl WalkState<'_, '_> {
                 else_branch,
                 ..
             } => {
-                self.walk_let_else_expression(id, *kind, *declarator, *else_branch)?;
+                self.walk_let_else_expression(*kind, *declarator, *else_branch)?;
             }
             // if condition { then } else { otherwise }
             dir::Expression::If {
@@ -379,8 +377,13 @@ impl WalkState<'_, '_> {
             }
             // type T
             dir::Expression::Type { value } => {
-                let ty = self.walk_frame_type_expression(*value)?;
-                self.commit_node_type(id, ty)?;
+                let represented = self.walk_frame_type_expression(*value)?;
+                let reflected = self.check.language_type(
+                    self.module,
+                    dir::LanguageItem::Type,
+                    &[represented],
+                )?;
+                self.commit_node_type(id, reflected)?;
             }
             // comptime value
             dir::Expression::Comptime { body } => {
@@ -686,7 +689,6 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_let_else_expression(
         &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
         kind: dir::LetKind,
         declarator: dir::LocalNodeId<dir::Declarator>,
         else_branch: dir::LocalNodeId<dir::Expression>,
@@ -696,7 +698,6 @@ impl WalkState<'_, '_> {
             self.tree.get(declarator),
             Some(kind),
             None,
-            Some(id.into_any()),
             false,
         )?;
 
@@ -814,7 +815,6 @@ impl WalkState<'_, '_> {
                     declarator,
                     self.tree.get(declarator),
                     Some(*kind),
-                    None,
                     None,
                     false,
                 )?;

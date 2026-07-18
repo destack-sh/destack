@@ -1,8 +1,7 @@
 use destack_dir as dir;
-use smallvec::smallvec;
 
-use crate::CompilerResult;
-use crate::check::{Decision, WalkState};
+use crate::check::{Decision, DecoratorApplication, DecoratorExpression, WalkState};
+use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Walk one decorator application.
@@ -14,43 +13,132 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_decorator(
         &mut self,
-        id: dir::LocalNodeId<dir::Decorator>,
+        decorator: DecoratorExpression,
+        owner: dir::GlobalNodeIdAny,
     ) -> CompilerResult<()> {
-        let application = self.check.decorator_application(self.module, id);
+        self.enter_node(decorator.decorator)?;
+        self.enter_node(decorator.target)?;
 
-        // walk non-if decorator target names
-        if self
-            .check
-            .static_if_decorator_from_application(self.module, &application)
-            .is_none()
-        {
-            self.walk_decorator_target_name(application.target)?;
+        // resolve the decorator declaration exactly once
+        let Some(symbol) = self.walk_decorator_target(decorator.target)? else {
+            return Ok(());
+        };
+        let symbol = self.check.resolve_symbol_alias(symbol)?;
+        if !matches!(self.check.symbol_kind(symbol), dir::SymbolKind::Newtype) {
+            self.check
+                .report_invalid_decorator_target(self.module, decorator.target.into_any());
+
+            return Ok(());
         }
 
-        // decorator arguments are read by their decorator consumers
+        // walk explicit decorator type arguments
+        self.walk_generic_arguments(&decorator.generic_arguments)?;
+
+        // walk decorator value expressions
+        for argument in &decorator.arguments {
+            self.walk_argument(*argument, self.tree.get(*argument))?;
+        }
+
+        // retain the resolved application in component walk order
+        self.check.decorators.push(DecoratorApplication {
+            expression: decorator,
+            owner,
+            symbol,
+        });
+
         Ok(())
     }
 
-    /// Walk one non-if decorator target name.
-    ///
-    /// A decorator names a single declaration, either by a lexical name or
-    /// through a namespace path. Decorators resolve eagerly during the walk
-    /// and cannot defer to selection, so anything else is an error.
+    /// Walk one decorator target.
     ///
     /// Example:
     /// ```ds
     /// @repr("C")
     /// struct Header {}
     /// ```
-    fn walk_decorator_target_name(
+    fn walk_decorator_target(
         &mut self,
         target: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        let symbol = match self.tree.get(target) {
-            dir::Expression::Identifier { name } => self.decorator_identifier_symbol(target, *name),
-            dir::Expression::Member { .. } => self.decorator_path_symbol(target),
-            // any other computed form is not a name and cannot resolve here
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        // require a lexical name or namespace path
+        let is_member = match self.tree.get(target) {
+            dir::Expression::Identifier { .. } => false,
+            dir::Expression::Member { .. } => true,
             _ => {
+                self.check
+                    .report_invalid_decorator_target(self.module, target.into_any());
+
+                return Ok(None);
+            }
+        };
+        let path =
+            self.tree
+                .tree()
+                .reference_path(target)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("decorator target {target:?} has no reference path"),
+                })?;
+        let reference = self
+            .check
+            .module(self.module)
+            .resolved
+            .references
+            .get(target.into_global_any(self.module))
+            .cloned();
+        let Some(reference) = reference else {
+            // classify members without namespace resolution as value projections
+            if is_member {
+                self.check
+                    .report_invalid_decorator_target(self.module, target.into_any());
+
+                return Ok(None);
+            }
+
+            return Err(CompilerError::Internal {
+                message: format!("decorator target {target:?} has no resolved reference"),
+            });
+        };
+
+        // resolve the one visible declaration named by the path
+        let symbol = match reference {
+            dir::Reference::Bound(symbols) => {
+                let symbols = self.check.present_symbols(&symbols);
+
+                match symbols.as_slice() {
+                    [] => {
+                        self.check.report_unresolved_reference(
+                            self.module,
+                            target.into_any(),
+                            &path,
+                        );
+
+                        None
+                    }
+                    [symbol] => Some(*symbol),
+                    _ => {
+                        self.check.report_ambiguous_reference(
+                            self.module,
+                            target.into_any(),
+                            &path,
+                        );
+
+                        None
+                    }
+                }
+            }
+            dir::Reference::Missing => {
+                self.check
+                    .report_unresolved_reference(self.module, target.into_any(), &path);
+
+                None
+            }
+            dir::Reference::Ambiguous(_) => {
+                self.check
+                    .report_ambiguous_reference(self.module, target.into_any(), &path);
+
+                None
+            }
+            dir::Reference::Namespace(_) | dir::Reference::Projected { .. } => {
                 self.check
                     .report_invalid_decorator_target(self.module, target.into_any());
 
@@ -65,121 +153,6 @@ impl WalkState<'_, '_> {
             )?;
         }
 
-        Ok(())
-    }
-
-    /// Resolve one lexical decorator name to its single declaration.
-    fn decorator_identifier_symbol(
-        &mut self,
-        target: dir::LocalNodeId<dir::Expression>,
-        name: dir::StringId,
-    ) -> Option<dir::GlobalSymbolId> {
-        let reference = self
-            .check
-            .module(self.module)
-            .resolved
-            .references
-            .get(target.into_global_any(self.module))
-            .cloned();
-
-        match reference {
-            Some(dir::Reference::Bound(symbols)) => {
-                let symbols = self.check.present_symbols(&symbols);
-                match symbols.as_slice() {
-                    [symbol] => Some(*symbol),
-                    // a decorator names exactly one declaration
-                    _ => {
-                        let path = dir::Path {
-                            segments: smallvec![name],
-                        };
-                        self.check.report_ambiguous_reference(
-                            self.module,
-                            target.into_any(),
-                            &path,
-                        );
-
-                        None
-                    }
-                }
-            }
-            Some(dir::Reference::Missing) => {
-                let path = dir::Path {
-                    segments: smallvec![name],
-                };
-                self.check
-                    .report_unresolved_reference(self.module, target.into_any(), &path);
-
-                None
-            }
-            Some(dir::Reference::Ambiguous(_)) => {
-                let path = dir::Path {
-                    segments: smallvec![name],
-                };
-                self.check
-                    .report_ambiguous_reference(self.module, target.into_any(), &path);
-
-                None
-            }
-            Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Projected { .. }) | None => {
-                self.check
-                    .report_invalid_decorator_target(self.module, target.into_any());
-
-                None
-            }
-        }
-    }
-
-    /// Resolve one namespace-path decorator to its single declaration.
-    fn decorator_path_symbol(
-        &mut self,
-        target: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        let reference = self
-            .check
-            .module(self.module)
-            .resolved
-            .references
-            .get(target.into_global_any(self.module))
-            .cloned();
-
-        match reference {
-            // a namespace path naming a single declaration
-            Some(dir::Reference::Bound(symbols)) => {
-                let symbols = self.check.present_symbols(&symbols);
-                match symbols.as_slice() {
-                    [symbol] => Some(*symbol),
-                    // an overload set is not a single decorator
-                    _ => {
-                        self.check
-                            .report_invalid_decorator_target(self.module, target.into_any());
-
-                        None
-                    }
-                }
-            }
-            Some(dir::Reference::Ambiguous(_)) => {
-                if let Some(path) = self.tree.tree().reference_path(target) {
-                    self.check
-                        .report_ambiguous_reference(self.module, target.into_any(), &path);
-                }
-
-                None
-            }
-            Some(dir::Reference::Missing) => {
-                if let Some(path) = self.tree.tree().reference_path(target) {
-                    self.check
-                        .report_unresolved_reference(self.module, target.into_any(), &path);
-                }
-
-                None
-            }
-            // a namespace, a value projection, or an untracked target is not a decorator
-            Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Projected { .. }) | None => {
-                self.check
-                    .report_invalid_decorator_target(self.module, target.into_any());
-
-                None
-            }
-        }
+        Ok(symbol)
     }
 }

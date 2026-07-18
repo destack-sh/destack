@@ -3,55 +3,81 @@ use destack_source::ModuleId;
 
 use crate::check::CheckState;
 
-/// Decorator application extracted from syntax.
+/// One authored decorator expression.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct DecoratorApplication {
+pub(in crate::check) struct DecoratorExpression {
     /// The decorator node.
     pub(in crate::check) decorator: dir::LocalNodeId<dir::Decorator>,
     /// The decorator target expression.
     pub(in crate::check) target: dir::LocalNodeId<dir::Expression>,
+    /// The explicit generic arguments.
+    pub(in crate::check) generic_arguments: Vec<dir::LocalNodeId<dir::GenericArgument>>,
     /// The decorator application arguments.
     pub(in crate::check) arguments: Vec<dir::LocalNodeId<dir::Argument>>,
 }
 
+/// One resolved decorator application.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct DecoratorApplication {
+    /// The authored decorator expression.
+    pub(in crate::check) expression: DecoratorExpression,
+    /// The node receiving the annotation.
+    pub(in crate::check) owner: dir::GlobalNodeIdAny,
+    /// The resolved decorator newtype.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
+}
+
+/// One selected decorator application.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct SelectedDecorator {
+    /// The resolved authored application.
+    pub(in crate::check) application: DecoratorApplication,
+    /// The selected decorator resolution.
+    pub(in crate::check) resolution: dir::DecoratorResolution,
+}
+
 impl CheckState<'_> {
-    /// Return decorator applications attached to one decorated node.
-    pub(in crate::check) fn decorator_applications(
-        &self,
-        module: ModuleId,
-        decorated: dir::LocalNodeIdAny,
-    ) -> Vec<DecoratorApplication> {
-        let view = self.module_view(module);
-        let decorators = view.get_decorators_any(decorated);
-        let mut applications = Vec::with_capacity(decorators.len());
-
-        // extract attached decorator applications in source order
-        for decorator in decorators {
-            applications.push(self.decorator_application(module, decorator));
-        }
-
-        applications
-    }
-
-    /// Extract one decorator application.
-    pub(in crate::check) fn decorator_application(
+    /// Return one authored decorator expression.
+    fn decorator_expression(
         &self,
         module: ModuleId,
         decorator: dir::LocalNodeId<dir::Decorator>,
-    ) -> DecoratorApplication {
+    ) -> DecoratorExpression {
         let view = self.module_view(module);
         let expression = view.get(decorator).expression;
-        let (target, arguments) = match view.get(expression) {
+        let (target, generic_arguments, arguments) = match view.get(expression) {
             dir::Expression::Call {
-                left, arguments, ..
-            } => (*left, arguments.clone()),
-            _ => (expression, Vec::new()),
+                left,
+                generic_arguments,
+                arguments,
+                ..
+            } => (*left, generic_arguments.clone(), arguments.clone()),
+            _ => (expression, Vec::new(), Vec::new()),
         };
 
-        DecoratorApplication {
+        DecoratorExpression {
             decorator,
             target,
+            generic_arguments,
             arguments,
         }
+    }
+
+    /// Return decorator applications attached to one decorated node.
+    pub(in crate::check) fn decorator_expressions(
+        &self,
+        module: ModuleId,
+        decorated: dir::LocalNodeIdAny,
+    ) -> Vec<DecoratorExpression> {
+        let view = self.module_view(module);
+        let decorators = view.get_decorators_any(decorated);
+        let mut expressions = Vec::with_capacity(decorators.len());
+
+        // extract attached decorator expressions in source order
+        for decorator in decorators {
+            expressions.push(self.decorator_expression(module, decorator));
+        }
+
+        expressions
     }
 }

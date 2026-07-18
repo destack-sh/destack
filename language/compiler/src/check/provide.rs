@@ -93,9 +93,10 @@ impl Compiler {
 
         // load context shared across the component check
         let external_components = external_components(&graph, component_id)?;
-        let environment = artifacts
+        let global = artifacts
             .global_environment(profile)
             .map_err(CompilerError::from)?;
+        let environment = self.environment(context.revision())?;
         let entry_module = self.module(context.revision(), entry)?;
         let options = self.workspace_compiler_options(context, entry_module.as_ref())?;
 
@@ -106,14 +107,16 @@ impl Compiler {
             context,
             &artifacts,
             profile,
+            global,
             environment,
             external_components.modules,
             emit_events,
         );
         check.load(modules.as_slice())?;
         check.walk()?;
-        check.propagate()?;
-        check.solve_bodies()?;
+        check.propagate_induced_parameters()?;
+        check.check_decorators()?;
+        check.check_bodies()?;
         check.settle()?;
         check.report_constant_conditions()?;
 

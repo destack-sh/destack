@@ -1,3 +1,5 @@
+use std::slice::from_ref;
+
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -40,7 +42,7 @@ impl CheckState<'_> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
         let mut walk = WalkState::new(module, tree, self);
 
@@ -63,7 +65,7 @@ impl CheckState<'_> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
         let mut walk = WalkState::new(module, tree, self);
 
