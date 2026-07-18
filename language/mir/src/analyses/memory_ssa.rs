@@ -1728,6 +1728,41 @@ impl<'a> MemoryAccessCollector<'a> {
                 effects
             }
 
+            // volatile pointer access keeps its exact position
+            mir::Intrinsic::VolatileLoad | mir::Intrinsic::VolatileStore => {
+                let mut effects = SmallVec::new();
+                let pointer = args.first().copied();
+                let is_load = intrinsic == mir::Intrinsic::VolatileLoad;
+
+                // emit a volatile effect on the accessed location
+                match pointer {
+                    Some(pointer) => {
+                        let access_type = self.reference_location_type(pointer);
+                        let reference_kind = self.reference_kind(pointer);
+                        let reference_space = self.reference_space(pointer);
+                        let region = MemoryRegion::from_reference(
+                            pointer,
+                            access_type,
+                            reference_kind,
+                            reference_space,
+                            self.target_layout.pointer_bits(),
+                        );
+                        let mut effect = match is_load {
+                            true => MemoryAccessEffect::read(region, true),
+                            false => MemoryAccessEffect::write(region, true),
+                        };
+                        self.apply_reference_region(&mut effect, pointer);
+                        effects.push(effect);
+                    }
+                    None => effects.push(MemoryAccessEffect::read_write(
+                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                        true,
+                    )),
+                }
+
+                effects
+            }
+
             // type punning and raw reference ops
             mir::Intrinsic::Transmute
             | mir::Intrinsic::SpaceCast

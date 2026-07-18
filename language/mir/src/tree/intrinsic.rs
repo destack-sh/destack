@@ -4,6 +4,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::{AtomicRmwOperator, CastOperator};
+
 /// Machine intrinsic operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Intrinsic {
@@ -102,6 +104,12 @@ pub enum Intrinsic {
     /// Compute byte offset between two pointers.
     /// `(ptr, ptr) => isize`
     PointerOffsetFrom,
+    /// Load through a pointer without eliding, duplicating, or reordering.
+    /// `(ptr) => T`
+    VolatileLoad,
+    /// Store through a pointer without eliding, duplicating, or reordering.
+    /// `(ptr, T) => ()`
+    VolatileStore,
     /// Byte-wise equality comparison.
     /// `(T, T) => bool`
     RawEq,
@@ -229,6 +237,8 @@ impl Intrinsic {
             Intrinsic::Transmute => "memory.raw.transmute",
             Intrinsic::SpaceCast => "space.cast",
             Intrinsic::PointerOffsetFrom => "memory.ptr.byteOffsetFrom",
+            Intrinsic::VolatileLoad => "memory.ptr.readVolatile",
+            Intrinsic::VolatileStore => "memory.ptr.writeVolatile",
             Intrinsic::RawEq => "memory.raw.eq",
 
             // float
@@ -327,6 +337,8 @@ impl Intrinsic {
                 | Intrinsic::Memcmp
                 | Intrinsic::PrefetchRead
                 | Intrinsic::PrefetchWrite
+                | Intrinsic::VolatileLoad
+                | Intrinsic::VolatileStore
         )
     }
 }
@@ -370,6 +382,14 @@ impl FromStr for Intrinsic {
             "memory.raw.transmute" => Ok(Intrinsic::Transmute),
             "space.cast" => Ok(Intrinsic::SpaceCast),
             "memory.ptr.byteOffsetFrom" => Ok(Intrinsic::PointerOffsetFrom),
+            "memory.ptr.readVolatile" => Ok(Intrinsic::VolatileLoad),
+            "memory.ptr.writeVolatile" => Ok(Intrinsic::VolatileStore),
+            "memory.ptr.copy" => Ok(Intrinsic::Memmove),
+            "memory.ptr.copyNonOverlapping" => Ok(Intrinsic::Memcpy),
+            "memory.ptr.writeBytes" => Ok(Intrinsic::Memset),
+            "memory.ptr.asReference" => Ok(Intrinsic::Transmute),
+            "memory.ptr.asReadonlyReference" => Ok(Intrinsic::Transmute),
+            "memory.ptr.asExclusive" => Ok(Intrinsic::Transmute),
             "memory.raw.eq" => Ok(Intrinsic::RawEq),
             "math.float.sqrt" => Ok(Intrinsic::Sqrt),
             "math.float.abs" => Ok(Intrinsic::Abs),
@@ -440,6 +460,12 @@ pub enum IntrinsicSignature {
 
     /// Prefetch hint (no result)
     Prefetch,
+
+    /// Volatile pointer load: (ptr) => pointee
+    VolatileLoad,
+
+    /// Volatile pointer store: (ptr, T) => void
+    VolatileStore,
 
     /// Branch hint: (bool) => bool or (bool, bool) => bool
     BranchHint { args: u8 },
@@ -519,6 +545,10 @@ impl Intrinsic {
             // float math (ternary)
             Intrinsic::Fma => IntrinsicSignature::Ternary,
 
+            // volatile pointer access
+            Intrinsic::VolatileLoad => IntrinsicSignature::VolatileLoad,
+            Intrinsic::VolatileStore => IntrinsicSignature::VolatileStore,
+
             // compiler hints
             Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },
             Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
@@ -548,6 +578,8 @@ impl Intrinsic {
             IntrinsicSignature::Memory { args } => args,
             IntrinsicSignature::MemoryCompare => 3,
             IntrinsicSignature::Prefetch => 1,
+            IntrinsicSignature::VolatileLoad => 1,
+            IntrinsicSignature::VolatileStore => 2,
             IntrinsicSignature::BranchHint { args } => args,
             IntrinsicSignature::Passthrough => 1,
         }
@@ -566,6 +598,8 @@ impl Intrinsic {
             IntrinsicSignature::Memory { .. } => false,
             IntrinsicSignature::MemoryCompare => true,
             IntrinsicSignature::Prefetch => false,
+            IntrinsicSignature::VolatileLoad => true,
+            IntrinsicSignature::VolatileStore => false,
             IntrinsicSignature::BranchHint { .. } => true,
             IntrinsicSignature::Passthrough => true,
         }
@@ -594,6 +628,9 @@ impl Intrinsic {
 
             // pointer diff: isize
             Intrinsic::PointerOffsetFrom => IntrinsicResultType::Isize,
+
+            // volatile load: the pointee of the accessed pointer
+            Intrinsic::VolatileLoad => IntrinsicResultType::Pointee(0),
 
             // branch hints: bool (input and output)
             Intrinsic::Expect => IntrinsicResultType::Boolean,
@@ -690,5 +727,120 @@ impl IntrinsicResultType {
             IntrinsicResultType::OverflowingArithmetic => Some(0),
             _ => None,
         }
+    }
+}
+
+/// The instruction one sealed intrinsic name denotes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicInstruction {
+    /// An atomic memory fence.
+    AtomicFence,
+    /// An atomic load.
+    AtomicLoad,
+    /// An atomic store.
+    AtomicStore,
+    /// An atomic read-modify-write returning the old value.
+    AtomicRmw(AtomicRmwOperator),
+    /// An atomic compare-exchange returning the old value and success.
+    AtomicCompareExchange {
+        /// Whether spurious failure is allowed.
+        weak: bool,
+    },
+    /// A debugger breakpoint.
+    Breakpoint,
+    /// A scalar cast of the receiver or sole operand.
+    Cast(CastOperator),
+    /// A load through a raw pointer.
+    PointerLoad,
+    /// A store through a raw pointer.
+    PointerStore,
+    /// A pointed-to value exchange returning the old value.
+    PointerReplace,
+    /// A swap of two pointed-to values.
+    PointerSwap,
+    /// A drop of the pointed-to value.
+    PointerDropInPlace,
+    /// A slice element read.
+    SliceGet,
+    /// A slice element write.
+    SliceSet,
+    /// A slice view over raw parts.
+    SliceFromRaw,
+    /// A slice length read.
+    SliceLength,
+    /// A slice view over a contiguous range.
+    SliceView,
+}
+
+impl IntrinsicInstruction {
+    /// Return the instruction one sealed intrinsic name denotes.
+    pub fn from_name(name: &str) -> Option<Self> {
+        let denoted = match name {
+            "error.debug.breakpoint" => Self::Breakpoint,
+            "math.cast.int.truncate" => Self::Cast(CastOperator::Truncate),
+            "math.cast.int.saturate" => Self::Cast(CastOperator::Saturate),
+            "math.cast.floatToSignedInt.saturating" => {
+                Self::Cast(CastOperator::FloatToSignedIntSaturating)
+            }
+            "math.cast.floatToUnsignedInt.saturating" => {
+                Self::Cast(CastOperator::FloatToUnsignedIntSaturating)
+            }
+            "collections.slice.fromRaw" => Self::SliceFromRaw,
+            "collections.slice.get" => Self::SliceGet,
+            "collections.slice.length" => Self::SliceLength,
+            "collections.slice.set" => Self::SliceSet,
+            "collections.slice.subslice" => Self::SliceView,
+            "memory.ptr.read" => Self::PointerLoad,
+            "memory.ptr.write" => Self::PointerStore,
+            "memory.ptr.replace" => Self::PointerReplace,
+            "memory.ptr.swap" => Self::PointerSwap,
+            "memory.ptr.dropInPlace" => Self::PointerDropInPlace,
+            "sync.atomic.fence" => Self::AtomicFence,
+            "sync.atomic.load" => Self::AtomicLoad,
+            "sync.atomic.store" => Self::AtomicStore,
+            "sync.atomic.cas" => Self::AtomicCompareExchange { weak: false },
+            "sync.atomic.cas.weak" => Self::AtomicCompareExchange { weak: true },
+            "sync.atomic.xchg" => Self::AtomicRmw(AtomicRmwOperator::Exchange),
+            "sync.atomic.fetch.add" => Self::AtomicRmw(AtomicRmwOperator::Add),
+            "sync.atomic.fetch.and" => Self::AtomicRmw(AtomicRmwOperator::And),
+            "sync.atomic.fetch.fadd" => Self::AtomicRmw(AtomicRmwOperator::Fadd),
+            "sync.atomic.fetch.fmax" => Self::AtomicRmw(AtomicRmwOperator::Fmax),
+            "sync.atomic.fetch.fmin" => Self::AtomicRmw(AtomicRmwOperator::Fmin),
+            "sync.atomic.fetch.max" => Self::AtomicRmw(AtomicRmwOperator::Max),
+            "sync.atomic.fetch.min" => Self::AtomicRmw(AtomicRmwOperator::Min),
+            "sync.atomic.fetch.or" => Self::AtomicRmw(AtomicRmwOperator::Or),
+            "sync.atomic.fetch.sub" => Self::AtomicRmw(AtomicRmwOperator::Sub),
+            "sync.atomic.fetch.umax" => Self::AtomicRmw(AtomicRmwOperator::Umax),
+            "sync.atomic.fetch.umin" => Self::AtomicRmw(AtomicRmwOperator::Umin),
+            "sync.atomic.fetch.xor" => Self::AtomicRmw(AtomicRmwOperator::Xor),
+            _ => return None,
+        };
+
+        Some(denoted)
+    }
+}
+
+/// The terminator one sealed intrinsic name denotes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicTerminator {
+    /// Abort execution immediately.
+    TrapAbort,
+    /// Panic with a message payload.
+    Panic,
+    /// Assert the point is never reached.
+    Unreachable,
+}
+
+impl IntrinsicTerminator {
+    /// Return the terminator one sealed intrinsic name denotes.
+    pub fn from_name(name: &str) -> Option<Self> {
+        let denoted = match name {
+            "error.abort" | "error.trap" => Self::TrapAbort,
+            "error.panic" | "error.todo" => Self::Panic,
+            "error.unreachable" => Self::Unreachable,
+            _ => return None,
+        };
+
+        Some(denoted)
     }
 }

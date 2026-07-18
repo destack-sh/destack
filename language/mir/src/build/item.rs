@@ -109,4 +109,17 @@ impl ModuleBuilder {
 
         function_id
     }
+
+    /// Declare an external function dispatched through one runtime binding.
+    pub fn binding_function(
+        &mut self,
+        header: FunctionHeader,
+        binding: &str,
+    ) -> LocalNodeId<Function> {
+        let function_id = self.external_function(header);
+        let binding = self.strings.intern(binding);
+        self.tree.get_mut(function_id).binding = Some(binding);
+
+        function_id
+    }
 }

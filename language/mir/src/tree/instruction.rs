@@ -154,8 +154,6 @@ pub enum Instruction {
 
     // memory (pointers)
     /// Load from a pointer (dereference).
-    ///
-    /// Optional memory access entries is stored in `Tree::memory_table`.
     Load {
         /// The SSA value to define with the loaded value.
         destination: Value,
@@ -165,8 +163,6 @@ pub enum Instruction {
         result_type: TypeId,
     },
     /// Store to a pointer (write through pointer).
-    ///
-    /// Optional memory access entries is stored in `Tree::memory_table`.
     Store {
         /// The pointer to store to.
         pointer: Value,

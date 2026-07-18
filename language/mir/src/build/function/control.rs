@@ -170,6 +170,15 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::Panic { payload };
     }
 
+    /// Mark the current block's end as unreachable.
+    pub fn unreachable(&mut self) {
+        let block = self.current_block();
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Unreachable;
+    }
+
     /// Continue the active unwind after cleanup.
     pub fn resume_unwind(&mut self) {
         let block = self.current_block();
