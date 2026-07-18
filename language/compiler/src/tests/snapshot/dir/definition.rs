@@ -36,7 +36,9 @@ fn add_definition_rows(
             add_type_alias_row(builder, symbol, source, definition);
         }
         dir::Definition::Struct(definition) => {
-            add_declaration_row(builder, symbol, "struct", source, definition.template);
+            let row = declaration_row(builder, symbol, "struct", source, definition.template);
+            let row = add_representation_fields(row, definition.representation);
+            builder.push(row);
             add_heritage(builder, symbol, "implements", &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
@@ -47,6 +49,7 @@ fn add_definition_rows(
                     definition.is_abstract.then(|| "true".to_string()),
                 )
                 .optional_field("final", definition.is_final.then(|| "true".to_string()));
+            let row = add_representation_fields(row, definition.representation);
             builder.push(row);
             add_optional_heritage(builder, symbol, "extends", definition.extends.as_ref());
             add_heritage(builder, symbol, "implements", &definition.implements);
@@ -60,7 +63,7 @@ fn add_definition_rows(
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Enum(definition) => {
-            add_declaration_row(builder, symbol, "enum", source, definition.template);
+            add_enum_row(builder, symbol, source, definition);
             add_heritage(builder, symbol, "implements", &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
@@ -79,6 +82,30 @@ fn add_definition_rows(
     // render where predicates for every other templated declaration
     if !matches!(definition, dir::Definition::Extension(_)) {
         add_template_predicates(builder, symbol, definition.template());
+    }
+}
+
+/// Add one enum declaration row.
+fn add_enum_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    symbol: dir::GlobalSymbolId,
+    source: dir::GlobalNodeIdAny,
+    definition: &dir::EnumDefinition,
+) {
+    let backing = (definition.backing != dir::EnumBackingType::DEFAULT)
+        .then(|| enum_backing_label(definition.backing));
+    let row = declaration_row(builder, symbol, "enum", source, definition.template)
+        .optional_field("backing", backing);
+    let row = add_representation_fields(row, definition.representation);
+
+    builder.push(row);
+}
+
+/// Render one enum backing type.
+fn enum_backing_label(backing: dir::EnumBackingType) -> String {
+    match backing {
+        dir::EnumBackingType::String => "string".to_string(),
+        dir::EnumBackingType::Integer(integer) => integer.as_str(),
     }
 }
 
@@ -120,9 +147,30 @@ fn add_newtype_row(
                 .template
                 .and_then(|template| template_label(builder, symbol, template)),
         )
-        .type_field("value", builder.global_type_label(definition.value));
+        .type_field("backing", builder.global_type_label(definition.backing));
+    let row = add_representation_fields(row, definition.representation);
 
     builder.push(row);
+}
+
+/// Add non-default representation fields to one definition row.
+fn add_representation_fields(row: SnapshotRow, representation: dir::Representation) -> SnapshotRow {
+    let kind = match representation.kind {
+        dir::RepresentationKind::Destack => None,
+        dir::RepresentationKind::C => Some("C".to_string()),
+        dir::RepresentationKind::Transparent => Some("transparent".to_string()),
+        dir::RepresentationKind::Integer(integer) => Some(integer.as_str()),
+    };
+
+    row.optional_field("representation", kind)
+        .optional_field(
+            "alignment",
+            representation.alignment.map(|value| value.to_string()),
+        )
+        .optional_field(
+            "packing",
+            representation.packing.map(|value| value.to_string()),
+        )
 }
 
 /// Build one definition declaration row.
@@ -140,19 +188,6 @@ fn declaration_row(
             "template",
             template.and_then(|template| template_label(builder, symbol, template)),
         )
-}
-
-/// Add one definition declaration row.
-fn add_declaration_row(
-    builder: &mut DirSnapshotBuilder<'_>,
-    symbol: dir::GlobalSymbolId,
-    kind: &'static str,
-    source: dir::GlobalNodeIdAny,
-    template: Option<dir::LocalGenericTemplateId>,
-) {
-    let row = declaration_row(builder, symbol, kind, source, template);
-
-    builder.push(row);
 }
 
 /// Add one optional nominal heritage row.
@@ -297,7 +332,12 @@ fn add_members(
             dir::DefinitionMember::AssociatedConst(value) => {
                 add_associated_const(builder, owner, value);
             }
-            dir::DefinitionMember::Variant(variant) => add_variant(builder, owner, variant),
+            dir::DefinitionMember::EnumVariant(variant) => {
+                add_enum_variant(builder, owner, variant);
+            }
+            dir::DefinitionMember::TaggedVariant(variant) => {
+                add_tagged_variant(builder, owner, variant);
+            }
             dir::DefinitionMember::CallSignature(signature) => {
                 add_signature(builder, owner, "call", signature);
             }
@@ -403,22 +443,33 @@ fn add_associated_const(
     builder.push(row);
 }
 
-/// Add one enum variant row.
-fn add_variant(
+/// Add one declared enum variant row.
+fn add_enum_variant(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
-    variant: &dir::VariantDefinition,
+    variant: &dir::EnumVariantDefinition,
 ) {
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "variant")
         .field("symbol", builder.symbol_path_label(variant.symbol))
         .optional_field("source", builder.node_source(variant.source))
         .field("key", builder.static_key(variant.key))
-        .optional_field(
-            "value",
-            variant
-                .value
-                .map(|value| builder.global_static_label(value)),
-        );
+        .field("value", builder.scalar_literal_label(&variant.value.into()));
+
+    builder.push(row);
+}
+
+/// Add one derived tagged variant row.
+fn add_tagged_variant(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    variant: &dir::TaggedVariantDefinition,
+) {
+    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "variant")
+        .field("symbol", builder.symbol_path_label(variant.symbol))
+        .optional_field("source", builder.node_source(variant.source))
+        .field("key", builder.static_key(variant.key))
+        .field("discriminant", builder.strings.get(variant.discriminant))
+        .type_field("backing", builder.global_type_label(variant.backing));
 
     builder.push(row);
 }
