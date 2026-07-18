@@ -355,6 +355,10 @@ impl ProgramLinker {
     }
 
     /// Build dense function ids from MIR storage order.
+    // TODO(link): when programs merge multiple module MIRs, dedup functions by
+    // canonical name here and assert colliding bodies are structurally identical:
+    // instance copies (e.g. lib.pick#int32) are deterministic per target, so a
+    // mismatch means non-deterministic lowering and must fail loudly.
     fn build_function_ids(tree: &mir::Tree) -> HashMap<mir::FunctionId, FunctionId> {
         tree.iter_nodes::<mir::Function>()
             .enumerate()

@@ -90,6 +90,14 @@ impl BlockOrder {
                     }
                     queue.push(default.block);
                 }
+                mir::Terminator::VariantSwitch { cases, default, .. } => {
+                    for case in tree.get_switch_cases(*cases) {
+                        queue.push(case.target.block);
+                    }
+                    if let Some(default) = default {
+                        queue.push(default.block);
+                    }
+                }
                 mir::Terminator::Yield { resume, .. } => {
                     queue.push(resume.block);
                 }

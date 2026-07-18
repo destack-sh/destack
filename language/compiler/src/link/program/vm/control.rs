@@ -208,6 +208,10 @@ impl<'a> BlockLowerer<'a> {
                 Instruction::new(Op::Check, constraint.0, success_edge.0, failure_edge.0, 0)
             }
 
+            mir::Terminator::VariantSwitch { .. } => {
+                return Err(self.unsupported_instruction("variant.switch"));
+            }
+
             mir::Terminator::Switch {
                 value,
                 cases,
