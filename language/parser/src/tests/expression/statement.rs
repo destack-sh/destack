@@ -249,14 +249,22 @@ const value =
     });
 }
 
-/// Parse a statement expression.
+/// Parse a statement expression and retain its trailing boundary.
 #[test]
 fn test_parse_statement_expression() {
     let test = TestParser::new("a;");
     let mut parser = test.prepare();
     let expr_id = parser.parse_statement(Default::default());
-    // a;
+
     assert_expression_path!(parser, parser.tree.get(expr_id), "a");
+    let span = parser.tree.get_span(expr_id);
+    let trailing = parser
+        .tree
+        .get_side_span(expr_id, NodeSpanType::Boundary(NodeSpanBoundary::Trailing))
+        .expect("statement expression should own its semicolon");
+
+    assert_eq!(parser.span_str(span), "a");
+    assert_eq!(parser.span_str(trailing), ";");
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use destack_source::Span;
+use destack_source::{NodeSpanType, Span};
 use indexmap::IndexSet;
 use smallvec::SmallVec;
 
@@ -105,6 +105,18 @@ impl<'a> View<'a> {
         let (tree, node_id) = self.visible_node(node_id)?;
 
         tree.get_span_by_id(node_id.id)
+    }
+
+    /// Get one visible side source span by typed id.
+    pub fn get_side_span<T: Node>(
+        &self,
+        node_id: LocalNodeId<T>,
+        span_type: NodeSpanType,
+    ) -> Option<Span> {
+        let node_id = node_id.into_any();
+        let (tree, node_id) = self.visible_node(node_id)?;
+
+        tree.get_side_span_by_id(node_id.id, span_type)
     }
 
     /// Get the visible parent for one local node id.

@@ -309,7 +309,10 @@ impl Parser {
         block: Option<BlockFrame>,
     ) -> BlockItem {
         // expression;
-        if self.eat_token_if(TokenType::Semicolon) {
+        if self.peek_is(TokenType::Semicolon) {
+            let semicolon = self.eat();
+            self.set_node_trailing_range(expression, semicolon.span.end);
+
             return BlockItem::Statement(expression);
         }
 
