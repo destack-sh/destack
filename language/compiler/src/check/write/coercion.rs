@@ -256,13 +256,39 @@ impl CheckState<'_> {
         let Some(kind) = dir::Coercion::classify(&source_head, &target_head) else {
             return Ok(None);
         };
+        let mut coercion = dir::Coercion::new(source, target, kind, dir::CastOrigin::Implicit);
 
-        Ok(Some(dir::Coercion::new(
-            source,
-            target,
-            kind,
-            dir::CastOrigin::Implicit,
-        )))
+        // union entries record the member storing the value when it settles
+        if kind == dir::CoercionKind::Union
+            && let dir::Type::Union(union) = target_head
+            && !matches!(source_head, dir::Type::Union(_))
+        {
+            coercion.member =
+                self.union_member_storing(origin, judged_source, judged_target, &union)?;
+        }
+
+        Ok(Some(coercion))
+    }
+
+    /// Return the union member the source value stores as on entry, when decidable.
+    fn union_member_storing(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        union: &dir::UnionType,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // the first admitting member wins in declaration order
+        let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+        for element in elements {
+            let element = self.reduce_type_ready(origin, element, "union member")?;
+            let decision = self.decide_relation(origin, Relation::Assignable, source, element)?;
+            if decision.is_ready_true() {
+                return Ok(Some(element));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Return whether two tuple types store their elements differently.

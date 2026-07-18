@@ -6,11 +6,14 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 impl SnapshotTable for dir::CoercionSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         for (node_id, coercion) in self.coercions() {
-            let row = SnapshotRow::new(builder.anchor_node(node_id), "coercion", "node")
+            let mut row = SnapshotRow::new(builder.anchor_node(node_id), "coercion", "node")
                 .optional_field("source", builder.node_source(node_id))
                 .type_field("from", builder.global_type_label(coercion.source))
-                .type_field("to", builder.global_type_label(coercion.target))
-                .field("origin", cast_origin_label(coercion.origin));
+                .type_field("to", builder.global_type_label(coercion.target));
+            if let Some(member) = coercion.member {
+                row = row.type_field("member", builder.global_type_label(member));
+            }
+            let row = row.field("origin", cast_origin_label(coercion.origin));
 
             builder.push(row);
         }

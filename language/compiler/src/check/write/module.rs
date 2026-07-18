@@ -60,7 +60,8 @@ impl CheckState<'_> {
         // record derived parameter variances beside their declarations
         self.write_derived_variances(module)?;
 
-        // seal every type id embedded in the output segments
+        // record marker conformances, then seal every embedded type id
+        self.write_auto_conformances(module)?;
         self.seal_output_segments(module, failed_applications, &mut sealed)?;
 
         Ok(())
@@ -114,6 +115,51 @@ impl CheckState<'_> {
             self.module_mut(module)
                 .generics
                 .set_derived_variance(parameter, modifier);
+        }
+
+        Ok(())
+    }
+
+    /// Record representation marker conformance for each concrete nominal.
+    fn write_auto_conformances(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // generic nominals conform per materialized instance
+        let mut nominals = Vec::new();
+        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+            let is_nominal = matches!(
+                definition,
+                dir::Definition::Struct(_)
+                    | dir::Definition::Class(_)
+                    | dir::Definition::Enum(_)
+                    | dir::Definition::Newtype(_)
+            );
+            if is_nominal && definition.template().is_none() {
+                nominals.push(symbol);
+            }
+        }
+
+        // seal the satisfied markers on each nominal's own instance
+        for symbol in nominals {
+            let instance = self.declaration_instance(module, symbol)?;
+            let target = self.intern_type(module, dir::Type::Instance(instance))?;
+            let origin = Origin::Symbol(symbol);
+            for interface in dir::AutoInterface::REPRESENTATION {
+                let holds = match self.satisfies_auto_interface(origin, target, interface)? {
+                    Answer::Ready(holds) => holds,
+                    Answer::Pending(_) => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "marker conformance for {symbol:?} suspended at settle"
+                            ),
+                        });
+                    }
+                };
+
+                if holds {
+                    self.module_mut(module)
+                        .auto
+                        .push_conformance(dir::AutoConformance { interface, target });
+                }
+            }
         }
 
         Ok(())
