@@ -400,7 +400,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.push_constraint(Constraint::generic_bound(
             argument,
             bound,
-            application.local_id,
+            application,
             cause,
         ));
     }

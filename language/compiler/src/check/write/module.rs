@@ -401,6 +401,20 @@ impl CheckState<'_> {
         failed_applications: &FxIndexSet<dir::GlobalTypeId>,
         sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep foreign types, whose tables closed with their own component
+        if !self.is_component_module(id.module_id) {
+            if failed_applications.contains(&id) || self.type_flags(id)?.has_variable() {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "check found unsettled state in the sealed type {}",
+                        self.format_type(id)
+                    ),
+                });
+            }
+
+            return Ok(id);
+        }
+
         // poison a generic application whose declared argument bound failed
         if failed_applications.contains(&id) {
             return self.intern_type(id.module_id, dir::Type::Error);

@@ -41,7 +41,7 @@ pub(in crate::check) struct TypeConstraint {
     /// Why this constraint exists.
     pub(in crate::check) cause: CauseId,
     /// The generic application invalidated when this relation fails.
-    pub(in crate::check) invalidated_application: Option<dir::LocalTypeId>,
+    pub(in crate::check) invalidated_application: Option<dir::GlobalTypeId>,
     /// Whether this constraint derives from a primary constraint.
     ///
     /// Derived constraints verify and reject candidates, but their failures
@@ -159,7 +159,7 @@ impl Constraint {
     pub(in crate::check) fn generic_bound(
         argument: dir::GlobalTypeId,
         bound: dir::GlobalTypeId,
-        application: dir::LocalTypeId,
+        application: dir::GlobalTypeId,
         cause: CauseId,
     ) -> Self {
         Self::Type(TypeConstraint {
@@ -355,16 +355,13 @@ impl CheckState<'_> {
                 continue;
             }
             let Constraint::Type(TypeConstraint {
-                cause,
                 invalidated_application: Some(application),
                 ..
             }) = constraint
             else {
                 continue;
             };
-            let module = self.cause_origin(*cause).module();
-            let application = dir::GlobalTypeId::new(module, *application);
-            applications.insert(application);
+            applications.insert(*application);
         }
 
         Ok(applications)
@@ -448,3 +445,4 @@ pub(in crate::check) enum CheckAttempt {
     /// The expression form checked against this target.
     Checked(ValueCheck),
 }
+

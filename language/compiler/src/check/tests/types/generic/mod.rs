@@ -8,5 +8,6 @@ mod module;
 mod parameter;
 mod r#return;
 mod unused;
+mod variadic;
 mod variance;
 mod widens;
