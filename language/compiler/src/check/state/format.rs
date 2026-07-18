@@ -573,7 +573,7 @@ impl CheckState<'_> {
     }
 
     /// Format one scalar literal type.
-    fn format_scalar_literal(&self, literal: &dir::ScalarLiteral) -> String {
+    pub(in crate::check) fn format_scalar_literal(&self, literal: &dir::ScalarLiteral) -> String {
         match literal {
             dir::ScalarLiteral::String(value) => format!("\"{}\"", self.text(*value)),
             dir::ScalarLiteral::Character(value) => format!("'{value}'"),
@@ -731,7 +731,7 @@ impl CheckState<'_> {
 
     /// Return the compact language item name for one symbol.
     fn language_item_symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<String> {
-        let item = self.environment.language.item(symbol)?;
+        let item = self.global.language.item(symbol)?;
         let key = item.key();
 
         if let Some((_, name)) = key.rsplit_once('.') {

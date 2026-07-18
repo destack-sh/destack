@@ -33,9 +33,9 @@ const value: Status = Status.Default;
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
-/// @definition.variant symbol=Status.Active source="Active = 1" key=Active
+/// @definition.variant symbol=Status.Active source="Active = 1" key=Active value=1
 /// @definition.field symbol=Status.Default source="static Default = Status.Active" key=Default static=true type=Status
-/// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive
+/// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive value=2
 
     Active = 1,
     /// @type.symbol symbol=Status.Active source="Active = 1" type=Status.Active
@@ -96,8 +96,8 @@ const value: boolean = Status.Active.isActive();
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
-/// @definition.variant symbol=Status.Active source="Active = 1" key=Active
-/// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive
+/// @definition.variant symbol=Status.Active source="Active = 1" key=Active value=1
+/// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive value=2
 /// @definition.method symbol=Status.isActive slot=isActive type=<comptime Status.isActive.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Status.isActive.L0, "exclusive">) => boolean
 
     Active = 1,
@@ -164,8 +164,8 @@ enum Status {
 enum Status {
 /// @type.symbol symbol=Status type=Status
 /// @definition.enum symbol=Status
-/// @definition.variant symbol=Status.Ready#1 source=Ready key=Ready
-/// @definition.variant symbol=Status.Ready#2 source=Ready key=Ready
+/// @definition.variant symbol=Status.Ready#1 source=Ready key=Ready value=0
+/// @definition.variant symbol=Status.Ready#2 source=Ready key=Ready value=1
 
     Ready,
     /// @type.symbol symbol=Status.Ready#1 source=Ready type=Status.Ready#1

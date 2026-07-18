@@ -20,7 +20,7 @@ const mode: Mode = 1;
         DirRows::checked(),
         r#"
 === annotated ===
-@repr("uint8")
+@repr("uint8" as Representation)
 enum Mode {
     Read = 1,
     Write = 2,
@@ -35,9 +35,9 @@ const mode: Mode = 1;
 
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
-/// @definition.enum symbol=Mode
-/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
-/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
+/// @definition.enum symbol=Mode backing=uint8 representation=uint8
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
 
     Read = 1,
     /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read

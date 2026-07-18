@@ -2,21 +2,31 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CauseKind, CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
-    ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericTemplateId,
-    ImplementationCoherenceObligation, InducedParameterOwner, Obligation, Origin,
-    ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
+    Answer, CauseKind, CheckError, CheckState, ClassInitializationObligation,
+    DeclarationHeritageObligation, ExtensionConformanceObligation, FlowBranch, FunctionHeader,
+    GenericTemplateId, ImplementationCoherenceObligation, InducedParameterOwner, Obligation,
+    Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
     TypeSubstitution, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One component template pass: identities declare everywhere before
+/// One component template declaration pass.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum TemplatePass {
     /// Declare template and parameter identities.
     Declare,
     /// Walk parameter bounds, defaults, and where predicates.
     Walk,
+}
+
+/// Result of walking one enum variant declaration.
+enum WalkedEnumVariant {
+    /// The variant is absent under its static guard.
+    Absent,
+    /// The variant is present but invalid.
+    Invalid,
+    /// The variant has one valid scalar value.
+    Present(dir::EnumVariantDefinition),
 }
 
 impl CheckState<'_> {
@@ -401,14 +411,14 @@ impl WalkState<'_, '_> {
         self.push_induced_parameter_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
-        let definition = if let Some(receiver) = receiver {
-            let members = self.walk_tagged_variant_members(source, symbol, receiver.ty, value)?;
-
+        let definition = if receiver.is_some() {
             dir::Definition::Newtype(dir::NewtypeDefinition {
                 space: declaration.place.map(dir::PlaceModifier::space),
                 template: template.map(|template| template.local_id),
-                value,
-                members,
+                representation: dir::Representation::default(),
+                backing: value,
+                discriminant: None,
+                members: Vec::new(),
             })
         } else {
             self.bind_symbol_type(symbol, value)?;
@@ -445,7 +455,9 @@ impl WalkState<'_, '_> {
             let definition = dir::Definition::Newtype(dir::NewtypeDefinition {
                 space: declaration.place.map(dir::PlaceModifier::space),
                 template: template.map(|template| template.local_id),
-                value,
+                representation: dir::Representation::default(),
+                backing: value,
+                discriminant: None,
                 members: Vec::new(),
             });
             self.check.insert_definition(symbol, source, definition)?;
@@ -527,6 +539,7 @@ impl WalkState<'_, '_> {
         let definition = dir::Definition::Struct(dir::StructDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
+            representation: dir::Representation::default(),
             implements,
             members,
         });
@@ -648,6 +661,7 @@ impl WalkState<'_, '_> {
         let definition = dir::Definition::Class(dir::ClassDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
+            representation: dir::Representation::default(),
             is_abstract: declaration.is_abstract,
             is_final: declaration.is_final,
             extends,
@@ -852,10 +866,50 @@ impl WalkState<'_, '_> {
             &declaration.implements_types,
         )?;
 
-        // walk variants and members
+        // evaluate variants and establish one scalar backing domain
         let mut members = Vec::new();
+        let mut next_value = Some(Ok(dir::EnumVariantValue::Integer(0)));
+        let mut backing = None;
         for field in &declaration.fields {
-            members.extend(self.walk_enum_field(*field, self.tree.get(*field), receiver.ty)?);
+            let variant = self.walk_enum_field(*field, self.tree.get(*field), next_value)?;
+            let variant = match variant {
+                WalkedEnumVariant::Absent => continue,
+                WalkedEnumVariant::Invalid => {
+                    next_value = None;
+
+                    continue;
+                }
+                WalkedEnumVariant::Present(variant) => variant,
+            };
+            let variant_backing = variant.value.default_backing();
+            if backing.is_some_and(|backing| backing != variant_backing) {
+                let anchor = self.check.diagnostic_anchor(self.module, field.into_any());
+                let error = CheckError::MixedEnumVariantDomain {
+                    anchor,
+                    module: self.module,
+                };
+                self.check.report(self.module, error);
+
+                let error = self.intern_type(dir::Type::Error)?;
+                self.bind_symbol_type(variant.symbol, error)?;
+                next_value = None;
+
+                continue;
+            }
+
+            // commit the accepted singleton and its scalar value
+            let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType {
+                owner: receiver.ty,
+                member: variant.symbol,
+            }))?;
+            self.bind_symbol_type(variant.symbol, ty)?;
+            let literal = dir::ScalarLiteral::from(variant.value);
+            let static_type = self.intern_type(dir::Type::Literal(literal))?;
+            self.commit_static_value(variant.symbol, static_type)?;
+
+            backing = Some(variant_backing);
+            next_value = Some(variant.value.increment());
+            members.push(dir::DefinitionMember::EnumVariant(variant));
         }
         let mut member_headers = Vec::new();
         for member in &declaration.members {
@@ -875,6 +929,8 @@ impl WalkState<'_, '_> {
         let definition = dir::Definition::Enum(dir::EnumDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
+            representation: dir::Representation::default(),
+            backing: backing.unwrap_or(dir::EnumBackingType::DEFAULT),
             implements,
             members,
         });
@@ -1285,20 +1341,20 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Walk one enum field and return its variant member.
+    /// Walk one enum field and return its scalar variant.
     ///
     /// Example:
     /// ```ds
-    /// Some(value)
+    /// enum Status { Ready = 1 }
     /// ```
-    pub(in crate::check) fn walk_enum_field(
+    fn walk_enum_field(
         &mut self,
         id: dir::LocalNodeId<dir::EnumField>,
         enum_field: &dir::EnumField,
-        owner: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::DefinitionMember>> {
+        implicit: Option<Result<dir::EnumVariantValue, dir::EnumVariantIncrementError>>,
+    ) -> CompilerResult<WalkedEnumVariant> {
         if !self.decide_decorated_presence(id.into_any())? {
-            return Ok(None);
+            return Ok(WalkedEnumVariant::Absent);
         }
         let (name, value) = (enum_field.name, enum_field.value);
         let Some(symbol) = self
@@ -1306,169 +1362,102 @@ impl WalkState<'_, '_> {
             .module(self.module)
             .declaration_symbol(id.into_any())
         else {
-            return Ok(None);
+            return Ok(WalkedEnumVariant::Invalid);
         };
 
-        // record the written variant value
-        if let Some(value) = value {
-            let written = self.walk_static_term(value)?;
-            self.commit_static_value(symbol, written)?;
-        }
+        // evaluate the scalar value before committing its member state
+        let Some(value) = self.evaluate_enum_variant_value(id, value, implicit)? else {
+            let error = self.intern_type(dir::Type::Error)?;
+            self.bind_symbol_type(symbol, error)?;
 
-        let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType {
-            owner,
-            member: symbol,
-        }))?;
-        self.bind_symbol_type(symbol, ty)?;
+            return Ok(WalkedEnumVariant::Invalid);
+        };
 
-        Ok(Some(dir::DefinitionMember::Variant(
-            dir::VariantDefinition {
-                symbol,
-                source: id.into_global_any(self.module),
-                key: name.static_key(),
-                value: None,
-            },
-        )))
+        Ok(WalkedEnumVariant::Present(dir::EnumVariantDefinition {
+            symbol,
+            source: id.into_global_any(self.module),
+            key: name.static_key(),
+            value,
+        }))
     }
 
-    /// Walk generated tagged variant members for one nominal newtype.
-    fn walk_tagged_variant_members(
+    /// Evaluate one enum variant's explicit or implicit scalar value.
+    fn evaluate_enum_variant_value(
         &mut self,
-        source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-        owner: dir::GlobalTypeId,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<dir::DefinitionMember>> {
-        if !self.check.symbol_has_tagged_derive(symbol) {
-            return Ok(Vec::new());
-        }
+        id: dir::LocalNodeId<dir::EnumField>,
+        expression: Option<dir::LocalNodeId<dir::Expression>>,
+        implicit: Option<Result<dir::EnumVariantValue, dir::EnumVariantIncrementError>>,
+    ) -> CompilerResult<Option<dir::EnumVariantValue>> {
+        match expression {
+            Some(expression) => {
+                let static_type = self.walk_static_term(expression)?;
+                let origin = Origin::Node(
+                    expression.into_global_any(self.module),
+                    self.flow().template_scope(),
+                );
+                let reduced = self.check.reduce_type_head(origin, static_type)?;
+                let static_type = match reduced {
+                    Answer::Ready(static_type) => static_type,
+                    Answer::Pending(_) => {
+                        self.check
+                            .report_undecidable_static_value(self.module, expression.into_any());
 
-        let arms = match self.check.ty(value)? {
-            dir::Type::Union(union) => self
-                .check
-                .type_ids(value.module_id, union.elements)?
-                .to_vec(),
-            _ => vec![value],
-        };
+                        return Ok(None);
+                    }
+                };
+                let value = match self.check.ty(static_type)? {
+                    dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+                        dir::EnumVariantValue::Integer(value)
+                    }
+                    dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+                        dir::EnumVariantValue::String(value)
+                    }
+                    dir::Type::Error => return Ok(None),
+                    _ => {
+                        let ty = self.check.format_type(static_type);
+                        let anchor = self
+                            .check
+                            .diagnostic_anchor(self.module, expression.into_any());
+                        let error = CheckError::InvalidEnumVariantType {
+                            anchor,
+                            module: self.module,
+                            ty,
+                        };
+                        self.check.report(self.module, error);
 
-        // derive one static member per backing arm
-        let mut members = Vec::with_capacity(arms.len());
-        for arm in arms {
-            members.extend(self.walk_tagged_variant_member(source, symbol, owner, arm)?);
-        }
+                        return Ok(None);
+                    }
+                };
 
-        Ok(members)
-    }
-
-    /// Walk one generated tagged variant member from a backing arm.
-    fn walk_tagged_variant_member(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-        owner: dir::GlobalTypeId,
-        arm: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::DefinitionMember>> {
-        let discriminant = self.declared_tagged_arm_discriminant(arm)?;
-        let Some(discriminant) = discriminant else {
-            return Ok(None);
-        };
-        let Some(key) = self.check.tagged_case_key_from_discriminant(discriminant) else {
-            return Ok(None);
-        };
-
-        // insert the case member and bind its singleton type
-        let member = self.check.insert_tagged_variant_symbol(symbol, key)?;
-        let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType { owner, member }))?;
-        self.bind_symbol_type(member, ty)?;
-
-        Ok(Some(dir::DefinitionMember::Variant(
-            dir::VariantDefinition {
-                symbol: member,
-                source,
-                key,
-                value: None,
-            },
-        )))
-    }
-
-    /// Return the source-declared tagged discriminant for one backing arm.
-    fn declared_tagged_arm_discriminant(
-        &mut self,
-        arm: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let tag_key = self.check.tagged_discriminant_key();
-
-        match self.check.ty(arm)? {
-            // structural backing arms declare their tag directly
-            dir::Type::Shape(shape) => {
-                self.declared_shape_discriminant(arm.module_id, shape, tag_key)
+                Ok(Some(value))
             }
+            None => {
+                let value = match implicit {
+                    Some(Ok(value)) => value,
+                    Some(Err(dir::EnumVariantIncrementError::ExplicitValueRequired)) => {
+                        let anchor = self.check.diagnostic_anchor(self.module, id.into_any());
+                        let error = CheckError::ImplicitStringEnumVariant {
+                            anchor,
+                            module: self.module,
+                        };
+                        self.check.report(self.module, error);
 
-            // nominal backing arms expose their declared instance field
-            dir::Type::Instance(instance) => {
-                self.declared_nominal_discriminant(instance.symbol, tag_key)
+                        return Ok(None);
+                    }
+                    Some(Err(dir::EnumVariantIncrementError::Overflow)) => {
+                        let anchor = self.check.diagnostic_anchor(self.module, id.into_any());
+                        let error = CheckError::EnumVariantValueOverflow {
+                            anchor,
+                            module: self.module,
+                        };
+                        self.check.report(self.module, error);
+
+                        return Ok(None);
+                    }
+                    None => return Ok(None),
+                };
+                Ok(Some(value))
             }
-
-            // every other backing arm cannot derive a tagged case
-            _ => Ok(None),
-        }
-    }
-
-    /// Return one source-declared shape discriminant.
-    fn declared_shape_discriminant(
-        &mut self,
-        module: ModuleId,
-        shape: dir::ShapeType,
-        tag_key: dir::StaticKey,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let Some(field) = self
-            .check
-            .shape_fields(module, shape.fields)?
-            .iter()
-            .find(|field| field.key == tag_key)
-            .copied()
-        else {
-            return Ok(None);
-        };
-
-        self.declared_discriminant_literal(field.ty)
-    }
-
-    /// Return one source-declared nominal discriminant.
-    fn declared_nominal_discriminant(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        tag_key: dir::StaticKey,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let Some(definition) = self.check.definition(symbol)? else {
-            return Ok(None);
-        };
-
-        let field = definition.members().iter().find_map(|member| match member {
-            dir::DefinitionMember::Field(field)
-                if field.space == dir::MemberSpace::Instance && field.key == tag_key =>
-            {
-                Some(field.symbol)
-            }
-            _ => None,
-        });
-        let Some(field) = field else {
-            return Ok(None);
-        };
-
-        let ty = self.check.require_symbol_type(field)?;
-
-        self.declared_discriminant_literal(ty)
-    }
-
-    /// Return one literal discriminant type.
-    fn declared_discriminant_literal(
-        &self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        match self.check.ty(ty)? {
-            dir::Type::Literal(literal) => Ok(Some(literal)),
-            _ => Ok(None),
         }
     }
 
