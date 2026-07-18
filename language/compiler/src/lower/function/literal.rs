@@ -50,14 +50,16 @@ impl FunctionLowerer<'_, '_> {
 
     /// Return the concrete type carrying one literal node's value.
     fn literal_carrier(
-        &self,
+        &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         literal: dir::ScalarLiteral,
     ) -> CompilerResult<mir::Type> {
         // use the node's own type when concretely typed
-        let ty = self.lowerer.node_type(expression)?;
-        if !matches!(ty, dir::Type::Literal(_)) {
-            return self.lowerer.lower_type(&ty);
+        let ty = self.lowerer.node_type_id(expression)?;
+        if !matches!(self.lowerer.ty(ty)?, dir::Type::Literal(_)) {
+            let carrier = self.lowerer.lower_type_id(self.builder.tree_mut(), ty)?;
+
+            return Ok(self.builder.tree().get(carrier).clone());
         }
 
         match literal {
@@ -72,9 +74,9 @@ impl FunctionLowerer<'_, '_> {
                             .to_string(),
                     });
                 };
-                let carrier = self.lowerer.ty(coercion.target)?;
+                let carrier = self.lowerer.lower_type_id(self.builder.tree_mut(), coercion.target)?;
 
-                self.lowerer.lower_type(&carrier)
+                Ok(self.builder.tree().get(carrier).clone())
             }
 
             // reject literal domains without scalar carriers

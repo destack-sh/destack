@@ -13,7 +13,7 @@ function nudge(x: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function nudge(v0: int32): int32 {
+function main.nudge(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 2
     v2: int32 = int.shl v0, v1
@@ -36,7 +36,7 @@ function mask(x: uint32, m: uint32): uint32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function mask(v0: uint32, v1: uint32): uint32 {
+function main.mask(v0: uint32, v1: uint32): uint32 {
 entry(v0: uint32, v1: uint32):
     v2: uint32 = int.and v0, v1
     v3: uint32 = int.xor v0, v1

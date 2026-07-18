@@ -10,22 +10,22 @@ impl FunctionLowerer<'_, '_> {
         body: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // return the value of expression bodies directly
-        let dir::Expression::Block(block) = self.lowerer.tree.get(body) else {
+        let dir::Expression::Block(block) = *self.lowerer.source().tree().get(body) else {
             let value = self.lower_expression(body)?;
             self.builder.return_(Some(value));
 
             return Ok(());
         };
-        let block = self.lowerer.tree.get(*block).clone();
 
         // lower the statements until one terminates the block
-        for statement in &block.leading_expressions {
-            if self.lower_statement(*statement)? {
+        for index in 0..self.block_statement_count(block) {
+            let statement = self.block_statement(block, index);
+            if self.lower_statement(statement)? {
                 return Ok(());
             }
         }
 
-        match block.tail_expression {
+        match self.lowerer.source().tree().get(block).tail_expression {
             // run valueless tails for control flow, not for a result
             Some(tail) if self.tail_is_valueless(tail)? => {
                 if !self.lower_statement(tail)? {
@@ -48,24 +48,27 @@ impl FunctionLowerer<'_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
-        let dir::Expression::Block(block) = self.lowerer.tree.get(expression) else {
+        let dir::Expression::Block(block) = *self.lowerer.source().tree().get(expression) else {
             return self.lower_statement(expression);
         };
-        let block = self.lowerer.tree.get(*block).clone();
 
-        self.lower_block(&block)
+        self.lower_block(block)
     }
 
     /// Lower one statement-position block, returning whether it terminated.
-    pub(in crate::lower) fn lower_block(&mut self, block: &dir::Block) -> CompilerResult<bool> {
+    pub(in crate::lower) fn lower_block(
+        &mut self,
+        block: dir::LocalNodeId<dir::Block>,
+    ) -> CompilerResult<bool> {
         // lower the statements until one terminates the block
-        for statement in &block.leading_expressions {
-            if self.lower_statement(*statement)? {
+        for index in 0..self.block_statement_count(block) {
+            let statement = self.block_statement(block, index);
+            if self.lower_statement(statement)? {
                 return Ok(true);
             }
         }
 
-        match block.tail_expression {
+        match self.lowerer.source().tree().get(block).tail_expression {
             // keep lowering valueless tails as statements
             Some(tail) if self.tail_is_valueless(tail)? => self.lower_statement(tail),
             // discard the tail value in statement blocks
@@ -83,7 +86,7 @@ impl FunctionLowerer<'_, '_> {
         &mut self,
         statement: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
-        match self.lowerer.tree.get(statement).clone() {
+        match self.lowerer.source().tree().get(statement).clone() {
             // return value
             dir::Expression::Return { value } => {
                 let value = value
@@ -157,7 +160,7 @@ impl FunctionLowerer<'_, '_> {
             dir::Expression::Loop { body } => self.lower_loop(None, body),
 
             // outer: while (cond) { ... }
-            dir::Expression::Label { label, body } => match self.lowerer.tree.get(body).clone() {
+            dir::Expression::Label { label, body } => match self.lowerer.source().tree().get(body).clone() {
                 dir::Expression::While {
                     form,
                     condition,
@@ -183,6 +186,15 @@ impl FunctionLowerer<'_, '_> {
             // continue label
             dir::Expression::Continue { label } => self.lower_continue(label),
 
+            // Meters(5)
+            dir::Expression::Call { .. }
+                if let Some(resolution) = self.lowerer.construct_resolution(statement) =>
+            {
+                self.lower_construct(statement, &resolution)?;
+
+                Ok(false)
+            }
+
             // call(...)
             dir::Expression::Call { .. } => {
                 self.lower_call(statement)?;
@@ -203,5 +215,19 @@ impl FunctionLowerer<'_, '_> {
         let ty = self.lowerer.node_type(tail)?;
 
         Ok(matches!(ty, dir::Type::Never | dir::Type::Void))
+    }
+
+    /// Return the leading statement count of one block.
+    fn block_statement_count(&self, block: dir::LocalNodeId<dir::Block>) -> usize {
+        self.lowerer.source().tree().get(block).leading_expressions.len()
+    }
+
+    /// Return one leading statement of one block by position.
+    fn block_statement(
+        &self,
+        block: dir::LocalNodeId<dir::Block>,
+        index: usize,
+    ) -> dir::LocalNodeId<dir::Expression> {
+        self.lowerer.source().tree().get(block).leading_expressions[index]
     }
 }

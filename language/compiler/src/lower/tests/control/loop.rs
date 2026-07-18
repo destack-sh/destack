@@ -19,7 +19,7 @@ function sum(n: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function sum(v0: int32): int32 {
+function main.sum(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -74,7 +74,7 @@ function firstOver(limit: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function firstOver(v0: int32): int32 {
+function main.firstOver(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -128,7 +128,7 @@ function sum(n: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function sum(v0: int32): int32 {
+function main.sum(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -183,7 +183,7 @@ function drain(n: int64): int64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function drain(v0: int64): int64 {
+function main.drain(v0: int64): int64 {
     local l0: int64
 
 entry(v0: int64):
@@ -231,7 +231,7 @@ function next(seed: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function next(v0: int32): int32 {
+function main.next(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -284,7 +284,7 @@ function find(limit: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function find(v0: int32): int32 {
+function main.find(v0: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32

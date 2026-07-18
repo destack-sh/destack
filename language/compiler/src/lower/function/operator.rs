@@ -2,7 +2,6 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::function::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The operator class of one checked operand type.
@@ -34,12 +33,134 @@ impl FunctionLowerer<'_, '_> {
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        let operand = self.lowerer.coerced_type(left)?;
-        let left = self.lower_expression(left)?;
-        let right = self.lower_expression(right)?;
+        // reference operands compare as pointer identities, while borrows
+        // of value payloads read out and compare as values
+        let left_reference = self.lowerer.type_is_reference(self.lowerer.coerced_type_id(left)?)?
+            && self.operand_read(left)?.is_none();
+        let right_reference = self
+            .lowerer
+            .type_is_reference(self.lowerer.coerced_type_id(right)?)?
+            && self.operand_read(right)?.is_none();
+        if left_reference || right_reference {
+            return self.lower_reference_compare(left, operator, right);
+        }
+
+        // classify the operator at the read-out operand carrier
+        let operand = match self.operand_read(left)? {
+            Some(stored) => self.lowerer.ty(stored)?,
+            None => self.lowerer.coerced_type(left)?,
+        };
+        let left = self.lower_operand(left)?;
+        let right = self.lower_operand(right)?;
         let operator = self.binary_operator(operator, &operand)?;
 
         Ok(self.builder.binary_op(operator, left, right))
+    }
+
+    /// Return the value type one operand reads out of its view, when it has one.
+    fn operand_read(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let ty = self.lowerer.coerced_type_id(expression)?;
+        let Some(layer) = self.lowerer.peel_reference(ty)? else {
+            return Ok(None);
+        };
+        if self.lowerer.type_is_reference(layer.stored)? {
+            return Ok(None);
+        }
+
+        Ok(Some(layer.stored))
+    }
+
+    /// Lower one operand, reading borrowed values out of their views.
+    fn lower_operand(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::Value> {
+        let mut value = self.lower_expression(expression)?;
+        let stored = self.operand_read(expression)?;
+        if let Some(stored) = stored {
+            let pointee = self.lowerer.lower_type_id(self.builder.tree_mut(), stored)?;
+            value = self.builder.load(value, pointee);
+        }
+
+        // enum operands operate at their discriminant tag
+        let operand = match stored {
+            Some(stored) => self.lowerer.ty(stored)?,
+            None => self.lowerer.coerced_type(expression)?,
+        };
+        if self.operand_is_enum(&operand)? {
+            value = self.builder.variant_tag(value);
+        }
+
+        Ok(value)
+    }
+
+    /// Return whether one operand type is a value enum or its member.
+    fn operand_is_enum(&self, operand: &dir::Type) -> CompilerResult<bool> {
+        let symbol = match operand {
+            dir::Type::Instance(instance) => instance.symbol,
+            dir::Type::EnumMember(member) => member.member,
+            _ => return Ok(false),
+        };
+        if let dir::Type::EnumMember(_) = operand {
+            return Ok(true);
+        }
+
+        Ok(matches!(
+            self.lowerer.definition(symbol)?,
+            Some(dir::Definition::Enum(_))
+        ))
+    }
+
+    /// Lower one comparison between reference operands.
+    fn lower_reference_compare(
+        &mut self,
+        left: dir::LocalNodeId<dir::Expression>,
+        operator: dir::BinaryOperator,
+        right: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::Value> {
+        let operator = match operator {
+            // a === b
+            dir::BinaryOperator::EqualStrict | dir::BinaryOperator::Equal => {
+                mir::BinaryOperator::Equal
+            }
+            // a !== b
+            dir::BinaryOperator::NotEqualStrict | dir::BinaryOperator::NotEqual => {
+                mir::BinaryOperator::NotEqual
+            }
+            other => {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: format!("the '{other:?}' operator on references"),
+                }
+                .into());
+            }
+        };
+
+        // nullish operands materialize at the reference operand's carrier
+        let left_is_reference = self
+            .lowerer
+            .type_is_reference(self.lowerer.coerced_type_id(left)?)?;
+        let (reference, nullish) = match left_is_reference {
+            true => (left, right),
+            false => (right, left),
+        };
+        let reference = self.lower_expression(reference)?;
+        let Some(carrier) = self.builder.value_type(reference) else {
+            return Err(CompilerError::Internal {
+                message: "lowered MIR compared an untyped reference".to_string(),
+            });
+        };
+        let nullish = match self.lowerer.node_type(nullish)? {
+            // null and undefined compare as their carrier constants
+            dir::Type::Null => self.builder.constant(mir::Constant::Null, carrier),
+            dir::Type::Undefined => self.builder.constant(mir::Constant::Undefined, carrier),
+            _ => self.lower_expression(nullish)?,
+        };
+
+        Ok(self.builder.binary_op(operator, reference, nullish))
     }
 
     /// Lower one builtin unary operation.
@@ -114,23 +235,12 @@ impl FunctionLowerer<'_, '_> {
         operator: dir::UnaryOperator,
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // resolve the updated place to its local
-        let place = self.lowerer.place_resolution(target)?;
-        let dir::Storage::Binding { symbol } = place.storage else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "an update through a projection".to_string(),
-            }
-            .into());
-        };
-        let Some(Binding::Local(local)) = self.values.get(&symbol.local_id).copied() else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR updated a binding without a mutable local".to_string(),
-            });
-        };
+        // the checked resolution names the updated place
+        let resolution = self.lowerer.place_resolution(target)?;
+        let place = self.place(&resolution)?;
 
         // rewrite the place by one over its checked carrier
-        let carrier = self.lowerer.ty(place.ty)?;
+        let carrier = self.lowerer.coerced_type(target)?;
         let one = self.lower_constant(
             dir::ScalarLiteral::Integer(1),
             self.lowerer.lower_type(&carrier)?,
@@ -142,9 +252,9 @@ impl FunctionLowerer<'_, '_> {
             _ => dir::BinaryOperator::Subtract,
         };
         let operator = self.binary_operator(operator, &carrier)?;
-        let current = self.builder.local_get(local);
+        let current = self.read_place(&place)?;
         let value = self.builder.binary_op(operator, current, one);
-        self.builder.local_set(local, value);
+        self.write_place(&place, value)?;
 
         Ok(())
     }
@@ -282,6 +392,11 @@ impl FunctionLowerer<'_, '_> {
 
     /// Classify one checked operand type for operator selection.
     fn operand_class(&self, operand: &dir::Type) -> CompilerResult<OperandClass> {
+        // value enums operate at their integer discriminant
+        if self.operand_is_enum(operand)? {
+            return Ok(OperandClass::Int { signed: true });
+        }
+
         match self.lowerer.lower_type(operand)? {
             mir::Type::Int { is_signed, .. } => Ok(OperandClass::Int { signed: is_signed }),
             mir::Type::Isize => Ok(OperandClass::Int { signed: true }),

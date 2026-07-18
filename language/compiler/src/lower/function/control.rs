@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::function::LoopFrame;
+use crate::lower::function::body::LoopFrame;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_> {
@@ -232,8 +232,7 @@ impl FunctionLowerer<'_, '_> {
             continue_target,
             exit,
         });
-        let body = self.lowerer.tree.get(body).clone();
-        let terminated = self.lower_block(&body)?;
+        let terminated = self.lower_block(body)?;
         self.loops.pop();
 
         Ok(terminated)

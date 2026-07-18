@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_direct_call_between_module_functions() {
+fn test_lower_direct_call_between_local_functions() {
     let session = TestSession::single(
         r#"
 function double(x: int32): int32 {
@@ -17,16 +17,16 @@ function quad(x: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function double(v0: int32): int32 {
+function main.double(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = int.add v0, v0
     return v1
 }
 
-function quad(v0: int32): int32 {
+function main.quad(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call double(v0)
-    v2: int32 = call double(v1)
+    v1: int32 = call main.double(v0)
+    v2: int32 = call main.double(v1)
     return v2
 }
 "#,
@@ -49,14 +49,14 @@ function run(x: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function noop(): void {
+function main.noop(): void {
 entry:
     return
 }
 
-function run(v0: int32): int32 {
+function main.run(v0: int32): int32 {
 entry(v0: int32):
-    call noop()
+    call main.noop()
     return v0
 }
 "#,

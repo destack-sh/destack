@@ -27,7 +27,7 @@ impl FunctionLowerer<'_, '_> {
         }
 
         let operator = self.cast_operator(&source, &target)?;
-        let target = self.builder.tree_mut().insert_type(target);
+        let target = self.builder.tree_mut().insert(target);
 
         Ok(self.builder.cast(operator, lowered, target))
     }

@@ -13,3 +13,4 @@ pub(crate) use module::*;
 pub use warning::*;
 
 use function::*;
+use r#type::*;

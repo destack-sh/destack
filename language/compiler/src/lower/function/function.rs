@@ -1,50 +1,9 @@
-use destack_core::{FxIndexMap, StringId};
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::ModuleLowerer;
+use crate::lower::{Body, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
-
-/// One lowered value bound to a symbol.
-#[derive(Clone, Copy)]
-pub(in crate::lower) enum Binding {
-    /// An immutable SSA value.
-    Value(mir::Value),
-    /// A mutable local.
-    Local(mir::LocalNodeId<mir::Local>),
-}
-
-/// One enclosing loop's control targets.
-pub(in crate::lower) struct LoopFrame {
-    /// The label naming this loop, when one does.
-    pub(in crate::lower) label: Option<StringId>,
-    /// The block continue re-enters.
-    pub(in crate::lower) continue_target: mir::LocalNodeId<mir::Block>,
-    /// The exit block break jumps to.
-    pub(in crate::lower) exit: mir::LocalNodeId<mir::Block>,
-}
-
-/// One declared function body awaiting lowering.
-pub(in crate::lower) struct Body {
-    /// The declared MIR function.
-    pub(in crate::lower) function: mir::FunctionId,
-    /// The parameter symbols in order.
-    pub(in crate::lower) parameters: Vec<dir::LocalSymbolId>,
-    /// The DIR body expression.
-    pub(in crate::lower) expression: dir::LocalNodeId<dir::Expression>,
-}
-
-/// Lowering state for one function body.
-pub(in crate::lower) struct FunctionLowerer<'a, 'b> {
-    /// The module lowering state.
-    pub(in crate::lower) lowerer: &'a ModuleLowerer<'a>,
-    /// The MIR function builder.
-    pub(in crate::lower) builder: mir::FunctionBuilder<'b>,
-    /// The lowered binding for each symbol.
-    pub(in crate::lower) values: FxIndexMap<dir::LocalSymbolId, Binding>,
-    /// The enclosing loops, innermost last.
-    pub(in crate::lower) loops: Vec<LoopFrame>,
-}
 
 impl ModuleLowerer<'_> {
     /// Declare the MIR header for one function declaration with a body.
@@ -52,116 +11,304 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         declaration: dir::LocalNodeId<dir::Declaration>,
-        function: &dir::FunctionDeclaration,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Body> {
         let module = self.module;
 
-        // resolve the checked parameter types alongside their symbols
-        let mut parameters = Vec::with_capacity(function.signature.parameters.len());
-        let mut symbols = Vec::with_capacity(function.signature.parameters.len());
-        for parameter in &function.signature.parameters {
-            let node = parameter.into_global_any(module);
-            let Some(symbol) = self.symbol_declared_at(node) else {
-                return Err(CompilerError::Internal {
-                    message: "checked DIR is missing a symbol for one parameter".to_string(),
-                });
-            };
-            let ty = self.ty(self.symbol_type(symbol)?)?;
-            let ty = self.lower_type(&ty)?;
-            parameters.push(builder.insert_type(ty));
-            symbols.push(symbol.local_id);
-        }
-
-        // resolve the checked return type from the function's own symbol
+        // declare the signature's lifetime generics before its parameter types
         let node = declaration.into_global_any(module);
-        let Some(symbol) = self.symbol_declared_at(node) else {
+        let Some(symbol) = self.symbol_declared_at(node)? else {
             return Err(CompilerError::Internal {
                 message: "checked DIR is missing a symbol for one function declaration".to_string(),
             });
         };
+        let lifetimes = self.signature_lifetimes(self.symbol_type(symbol)?)?;
+        self.lifetime_slots = lifetimes.clone();
+
+        // resolve the checked parameter types alongside their symbols
+        let dir::Declaration::Function(function) = self.local().tree().get(declaration) else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR declared a function body outside a function".to_string(),
+            });
+        };
+        let mut parameters = Vec::with_capacity(function.signature.parameters.len());
+        let mut symbols = Vec::with_capacity(function.signature.parameters.len());
+        for parameter in &function.signature.parameters {
+            let node = parameter.into_global_any(module);
+            let Some(symbol) = self.symbol_declared_at(node)? else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR is missing a symbol for one parameter".to_string(),
+                });
+            };
+            let ty = self.symbol_type(symbol)?;
+            parameters.push(self.lower_type_id(builder.tree_mut(), ty)?);
+            symbols.push(symbol.local_id);
+        }
+
+        // resolve the checked return type from the function's own symbol
         let declared = self.symbol_type(symbol)?;
         let result = match self.signature_return(declared)? {
-            Some(return_type) => {
-                let ty = self.ty(return_type)?;
-                let ty = self.lower_type(&ty)?;
-
-                builder.insert_type(ty)
-            }
-            None => builder.type_void(),
+            Some(return_type) => self.lower_type_id(builder.tree_mut(), return_type)?,
+            None => builder.tree_mut().insert(mir::Type::Void),
         };
 
         // declare the header under the function's name
-        let Some(name) = function.name else {
+        let Some(name) = self.symbol_name(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "checked DIR is missing a name on one lowered function declaration"
                     .to_string(),
             });
         };
-        let name = self.strings.get(name.string()).to_string();
-        let header = builder
-            .function_header(&name)
-            .parameters(parameters)
-            .result(result);
+        let name = format!("{}.{}", self.local().path, self.strings.get(name));
+        let mut header = builder.function_header(&name);
+        for slot in 0..lifetimes.len() {
+            header = header.lifetime(&format!("L{slot}"));
+        }
+        let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
-        self.functions.insert(symbol.local_id, function);
+        self.functions.insert((symbol, Vec::new()), function);
 
         Ok(Body {
             function,
+            has_this: false,
             parameters: symbols,
+            lifetimes,
+            substitution: FxIndexMap::default(),
+            source: self.module,
             expression,
         })
     }
-}
 
-impl FunctionLowerer<'_, '_> {
-    /// Lower one declared function body.
-    pub(in crate::lower) fn run(
-        lowerer: &ModuleLowerer<'_>,
-        builder: &mut mir::ModuleBuilder,
-        body: Body,
-    ) -> CompilerResult<()> {
-        let builder =
-            builder
-                .function_body(body.function)
-                .map_err(|error| CompilerError::Internal {
-                    message: format!("MIR body start failed: {error}"),
-                })?;
-        let mut function = FunctionLowerer {
-            lowerer,
-            builder,
-            values: FxIndexMap::default(),
-            loops: Vec::new(),
+    /// Return whether one callable declares generic parameters beyond lifetimes.
+    pub(in crate::lower) fn signature_is_generic(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        // peel the callable down to its signature template
+        let Ok((signature, owner)) = self.signature_of(ty) else {
+            return Ok(false);
+        };
+        let Some(template) = self.types(owner)?.signature(signature).template else {
+            return Ok(false);
         };
 
-        // bind the parameters and lower the body block by block
-        for (index, symbol) in body.parameters.iter().enumerate() {
-            let value = function.builder.function_parameter(index);
-            function.values.insert(*symbol, Binding::Value(value));
+        // any non-lifetime parameter makes the callable instance-polymorphic
+        let generics = &self.state(template.module_id)?.generics;
+        let template = generics.get_template(template.local_id);
+        for parameter in &template.parameters {
+            let binding = generics.get_parameter(*parameter);
+            if binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
+                return Ok(true);
+            }
         }
-        let entry = function.builder.block();
-        function.builder.switch_to_block(entry);
-        function.lower_body(body.expression)?;
-        function.builder.seal_all_blocks();
-        function
-            .builder
-            .finish()
-            .map_err(|error| CompilerError::Internal {
-                message: format!("MIR function build failed: {error}"),
-            })?;
 
-        Ok(())
+        Ok(false)
     }
 
-    /// Allocate one join local typed as one expression's runtime type.
-    pub(in crate::lower) fn value_slot(
-        &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Local>> {
-        let ty = self.lowerer.coerced_type(expression)?;
-        let ty = self.lowerer.lower_type(&ty)?;
-        let ty = self.builder.tree_mut().insert_type(ty);
+    /// Return the lifetime slot for each induced lifetime generic of one callable.
+    pub(in crate::lower) fn signature_lifetimes(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<FxIndexMap<dir::LocalGenericParameterId, u16>> {
+        // peel the callable down to its signature template
+        let Ok((signature, owner)) = self.signature_of(ty) else {
+            return Ok(FxIndexMap::default());
+        };
+        let Some(template) = self.types(owner)?.signature(signature).template else {
+            return Ok(FxIndexMap::default());
+        };
 
-        Ok(self.builder.local(ty, mir::Mutability::Mutable))
+        // lifetime parameters take slots in declaration order
+        let mut slots = FxIndexMap::default();
+        let generics = &self.state(template.module_id)?.generics;
+        let template = generics.get_template(template.local_id);
+        for parameter in &template.parameters {
+            let binding = generics.get_parameter(*parameter);
+            if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
+                let slot = slots.len() as u16;
+                slots.insert(*parameter, slot);
+            }
+        }
+
+        Ok(slots)
+    }
+
+    /// Declare the MIR header for one class method with a body.
+    pub(in crate::lower) fn declare_method(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        class: dir::LocalSymbolId,
+        member: dir::LocalNodeId<dir::Member>,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Body> {
+        let module = self.module;
+
+        // declare the signature's lifetime generics before its parameter types
+        let node = member.into_global_any(module);
+        let Some(symbol) = self.symbol_declared_at(node)? else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR is missing a symbol for one method declaration".to_string(),
+            });
+        };
+        let lifetimes = self.signature_lifetimes(self.symbol_type(symbol)?)?;
+        self.lifetime_slots = lifetimes.clone();
+
+        // the receiver reference leads the parameter list
+        let class = class.into_global(self.module);
+        let Some(nominal) = self.nominals.get(&class) else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR is missing a lowered nominal for one method".to_string(),
+            });
+        };
+        let (pointee, value) = (nominal.ty, nominal.value);
+
+        // read the sealed receiver before borrowing the member signature
+        let (signature, owner) = self.signature_of(self.symbol_type(symbol)?)?;
+        let sealed_this = self.types(owner)?.signature(signature).this_parameter;
+
+        // classify the member role in one narrow borrow
+        let role = {
+            let dir::Member::Method { signature, .. } = self.local().tree().get(member) else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR declared a method body outside a method".to_string(),
+                });
+            };
+
+            signature.role
+        };
+
+        // constructors initialize storage exclusively, whatever its final form
+        let this = match role {
+            Some(dir::FunctionRole::Constructor) => {
+                builder.tree_mut().insert(mir::Type::Reference {
+                    kind: mir::ReferenceKind::Borrowed,
+                    lifetime: mir::Lifetime::empty(),
+                    space: mir::Space::Local,
+                    access: mir::Access::Exclusive,
+                    pointee,
+                    nullability: mir::Nullability::None,
+                })
+            }
+            // methods receive this at their sealed receiver type
+            _ => {
+                let Some(sealed) = sealed_this else {
+                    return Err(CompilerError::Internal {
+                        message: "checked DIR sealed an instance method without a receiver"
+                            .to_string(),
+                    });
+                };
+
+                self.lower_receiver(builder, sealed, pointee, value)?
+            }
+        };
+        let dir::Member::Method { signature, .. } = self.local().tree().get(member) else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR declared a method body outside a method".to_string(),
+            });
+        };
+        let mut parameters = vec![this];
+        let mut symbols = Vec::with_capacity(signature.parameters.len());
+        for parameter in &signature.parameters {
+            let node = parameter.into_global_any(module);
+            let Some(symbol) = self.symbol_declared_at(node)? else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR is missing a symbol for one parameter".to_string(),
+                });
+            };
+            let ty = self.symbol_type(symbol)?;
+            parameters.push(self.lower_type_id(builder.tree_mut(), ty)?);
+            symbols.push(symbol.local_id);
+        }
+
+        // constructors initialize storage and return no value
+        let result = match role {
+            Some(dir::FunctionRole::Constructor) => builder.tree_mut().insert(mir::Type::Void),
+            _ => {
+                let declared = self.symbol_type(symbol)?;
+                match self.signature_return(declared)? {
+                    Some(return_type) => self.lower_type_id(builder.tree_mut(), return_type)?,
+                    None => builder.tree_mut().insert(mir::Type::Void),
+                }
+            }
+        };
+
+        // declare the header under the class-qualified name
+        let class_name = self
+            .symbol_name(class)?
+            .map(|name| self.strings.get(name).to_string())
+            .ok_or_else(|| CompilerError::Internal {
+                message: "checked DIR declared a class without a name".to_string(),
+            })?;
+        let member_name = match self.local().bindings.get_symbol(symbol.local_id).name() {
+            Some(name) => self.strings.get(name).to_string(),
+            None if role == Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
+            None => {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR declared a method without a name".to_string(),
+                });
+            }
+        };
+        let name = format!("{}.{class_name}.{member_name}", self.local().path);
+        let mut header = builder.function_header(&name);
+        for slot in 0..lifetimes.len() {
+            header = header.lifetime(&format!("L{slot}"));
+        }
+        let header = header.parameters(parameters).result(result);
+        let function = builder.declare_function(header);
+        self.functions.insert((symbol, Vec::new()), function);
+
+        Ok(Body {
+            function,
+            has_this: true,
+            parameters: symbols,
+            lifetimes,
+            substitution: FxIndexMap::default(),
+            source: self.module,
+            expression,
+        })
+    }
+
+    /// Lower one sealed receiver type to the method's this parameter.
+    ///
+    /// The symbolic This base maps to the owner nominal: bare This receives
+    /// the family's value position; borrowed forms wrap the declared storage.
+    fn lower_receiver(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        sealed: dir::GlobalTypeId,
+        pointee: mir::LocalNodeId<mir::Type>,
+        value: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        match self.ty(sealed)? {
+            dir::Type::This => Ok(value),
+            dir::Type::Form(form) => match form.form {
+                dir::Form::Borrowed(borrow) => {
+                    let Some(borrow) = self.types(sealed.module_id)?.borrow_form_maybe(borrow)
+                    else {
+                        return Err(CompilerError::Internal {
+                            message: "checked DIR is missing a receiver borrow form".to_string(),
+                        });
+                    };
+                    let lifetime = self.borrow_lifetime(borrow.lifetime)?;
+                    let access = self.borrow_access(borrow.access)?;
+
+                    Ok(builder.tree_mut().insert(mir::Type::Reference {
+                        kind: mir::ReferenceKind::Borrowed,
+                        lifetime,
+                        space: mir::Space::Local,
+                        access,
+                        pointee,
+                        nullability: mir::Nullability::None,
+                    }))
+                }
+                other => Err(crate::LowerError::Unsupported {
+                    anchor: self.module.into(),
+                    construct: format!("a '{other:?}' receiver form"),
+                }
+                .into()),
+            },
+            other => Err(crate::LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: format!("a '{}' receiver type", other.variant_name()),
+            }
+            .into()),
+        }
     }
 }
