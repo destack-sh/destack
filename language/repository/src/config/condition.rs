@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 pub use destack_artifact::ConditionSet;
 use destack_serde::Reflect;
 use destack_source::matches as glob_matches;
@@ -83,8 +86,72 @@ pub struct ConditionCatalog {
 }
 
 impl ConditionCatalog {
+    /// Expand selected condition names through their declared ancestors.
+    pub fn expand<'a>(
+        &self,
+        axis: ConditionAxis,
+        selected: impl IntoIterator<Item = &'a str>,
+    ) -> Result<IndexSet<String>, ConditionError> {
+        let Some(declarations) = self.axis_names(axis) else {
+            return Ok(selected.into_iter().map(str::to_string).collect());
+        };
+        let mut conditions = IndexSet::new();
+
+        // expand each selected condition in ancestor first order
+        for selected_name in selected {
+            let mut pending = vec![(selected_name, 0)];
+
+            while let Some((name, parent_index)) = pending.last().copied() {
+                // skip conditions expanded through another path
+                if conditions.contains(name) {
+                    pending.pop();
+                }
+                // expand the next declared parent
+                else if let Some(parent) = declarations
+                    .get(name)
+                    .and_then(|condition| condition.extends.get(parent_index))
+                {
+                    let index = pending.len() - 1;
+                    pending[index].1 += 1;
+
+                    // reject undeclared parents
+                    if !declarations.contains_key(parent) {
+                        return Err(ConditionError::UnknownParent {
+                            axis,
+                            condition: name.to_string(),
+                            parent: parent.clone(),
+                        });
+                    }
+
+                    // reject cycles at their first repeated condition
+                    if let Some(position) = pending
+                        .iter()
+                        .position(|(active, _)| *active == parent.as_str())
+                    {
+                        let mut conditions = pending[position..]
+                            .iter()
+                            .map(|(active, _)| (*active).to_string())
+                            .collect::<Vec<_>>();
+                        conditions.push(parent.clone());
+
+                        return Err(ConditionError::InheritanceCycle { axis, conditions });
+                    }
+
+                    pending.push((parent, 0));
+                }
+                // complete conditions without another declared parent
+                else {
+                    conditions.insert(name.to_string());
+                    pending.pop();
+                }
+            }
+        }
+
+        Ok(conditions)
+    }
+
     /// Resolve one condition reference against this catalog.
-    pub fn resolve(&self, reference: &ConditionRef) -> Result<ConditionGate, ConditionRefError> {
+    pub fn resolve(&self, reference: &ConditionRef) -> Result<ConditionGate, ConditionError> {
         self.resolve_reference(reference, &mut Vec::new())
     }
 
@@ -93,7 +160,7 @@ impl ConditionCatalog {
         &self,
         reference: &ConditionRef,
         aliases: &mut Vec<String>,
-    ) -> Result<ConditionGate, ConditionRefError> {
+    ) -> Result<ConditionGate, ConditionError> {
         match reference {
             ConditionRef::Name(name) => self.resolve_name(name, aliases),
             ConditionRef::Predicate(predicate) => self.resolve_predicate(predicate, aliases),
@@ -101,7 +168,7 @@ impl ConditionCatalog {
     }
 
     /// Return every unambiguous condition name accepted in file suffixes.
-    pub fn suffix_aliases(&self) -> Result<IndexMap<String, ConditionGate>, ConditionRefError> {
+    pub fn suffix_aliases(&self) -> Result<IndexMap<String, ConditionGate>, ConditionError> {
         // preserve explicit aliases
         let mut aliases = IndexMap::new();
         for (name, reference) in &self.aliases {
@@ -134,7 +201,7 @@ impl ConditionCatalog {
         &self,
         name: &str,
         aliases: &mut Vec<String>,
-    ) -> Result<ConditionGate, ConditionRefError> {
+    ) -> Result<ConditionGate, ConditionError> {
         // resolve explicit axis references
         if let Some((axis, value)) = name.split_once(':') {
             return self.resolve_axis_name(axis, value);
@@ -155,12 +222,12 @@ impl ConditionCatalog {
         name: &str,
         reference: &ConditionRef,
         aliases: &mut Vec<String>,
-    ) -> Result<ConditionGate, ConditionRefError> {
+    ) -> Result<ConditionGate, ConditionError> {
         if aliases.iter().any(|alias| alias == name) {
             let mut cycle = aliases.clone();
             cycle.push(name.to_string());
 
-            return Err(ConditionRefError::AliasCycle { aliases: cycle });
+            return Err(ConditionError::AliasCycle { aliases: cycle });
         }
 
         aliases.push(name.to_string());
@@ -175,7 +242,7 @@ impl ConditionCatalog {
         &self,
         predicate: &ConditionPredicate,
         aliases: &mut Vec<String>,
-    ) -> Result<ConditionGate, ConditionRefError> {
+    ) -> Result<ConditionGate, ConditionError> {
         let all = predicate
             .all
             .as_ref()
@@ -214,7 +281,7 @@ impl ConditionCatalog {
         &self,
         references: &[ConditionRef],
         aliases: &mut Vec<String>,
-    ) -> Result<Vec<ConditionGate>, ConditionRefError> {
+    ) -> Result<Vec<ConditionGate>, ConditionError> {
         references
             .iter()
             .map(|reference| self.resolve_reference(reference, aliases))
@@ -222,28 +289,24 @@ impl ConditionCatalog {
     }
 
     /// Resolve one prefixed condition reference.
-    fn resolve_axis_name(
-        &self,
-        axis: &str,
-        name: &str,
-    ) -> Result<ConditionGate, ConditionRefError> {
+    fn resolve_axis_name(&self, axis: &str, name: &str) -> Result<ConditionGate, ConditionError> {
         // parse the axis prefix
         let Some(axis) = ConditionAxis::parse(axis) else {
-            return Err(ConditionRefError::UnknownAxis {
+            return Err(ConditionError::UnknownAxis {
                 axis: axis.to_string(),
             });
         };
 
         // reject empty names
         if name.is_empty() {
-            return Err(ConditionRefError::EmptyName { axis });
+            return Err(ConditionError::EmptyName { axis });
         }
 
         Ok(ConditionGate::axis(axis, name))
     }
 
     /// Resolve one unprefixed condition name.
-    fn resolve_unprefixed_name(&self, name: &str) -> Result<ConditionGate, ConditionRefError> {
+    fn resolve_unprefixed_name(&self, name: &str) -> Result<ConditionGate, ConditionError> {
         let mut gate = None;
 
         // scan source graph axes
@@ -260,7 +323,7 @@ impl ConditionCatalog {
             return Ok(alias.gate());
         }
 
-        Err(ConditionRefError::UnknownName {
+        Err(ConditionError::UnknownName {
             name: name.to_string(),
         })
     }
@@ -271,7 +334,7 @@ impl ConditionCatalog {
         gate: &mut Option<ConditionGate>,
         axis: ConditionAxis,
         name: &str,
-    ) -> Result<(), ConditionRefError> {
+    ) -> Result<(), ConditionError> {
         // skip axes without this name
         if !self.contains_axis_name(axis, name) {
             return Ok(());
@@ -279,7 +342,7 @@ impl ConditionCatalog {
 
         // reject ambiguous unprefixed names
         if gate.is_some() {
-            return Err(ConditionRefError::AmbiguousName {
+            return Err(ConditionError::AmbiguousName {
                 name: name.to_string(),
             });
         }
@@ -294,7 +357,7 @@ impl ConditionCatalog {
         &self,
         aliases: &mut IndexMap<String, ConditionGate>,
         axis: ConditionAxis,
-    ) -> Result<(), ConditionRefError> {
+    ) -> Result<(), ConditionError> {
         // skip scalar axes
         let Some(names) = self.axis_names(axis) else {
             return Ok(());
@@ -353,9 +416,9 @@ impl Default for ConditionRef {
     }
 }
 
-/// Error raised while resolving one condition reference.
+/// Error raised while resolving a condition catalog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ConditionRefError {
+pub enum ConditionError {
     /// The prefixed condition axis is unknown.
     UnknownAxis { axis: String },
     /// The prefixed condition name is empty.
@@ -366,10 +429,26 @@ pub enum ConditionRefError {
     AmbiguousName { name: String },
     /// The condition aliases recursively include one another.
     AliasCycle { aliases: Vec<String> },
+    /// A condition includes an undeclared parent.
+    UnknownParent {
+        /// The condition axis.
+        axis: ConditionAxis,
+        /// The child condition name.
+        condition: String,
+        /// The missing parent condition name.
+        parent: String,
+    },
+    /// Condition inheritance contains a cycle.
+    InheritanceCycle {
+        /// The condition axis.
+        axis: ConditionAxis,
+        /// The repeated condition path.
+        conditions: Vec<String>,
+    },
 }
 
-impl std::fmt::Display for ConditionRefError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ConditionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownAxis { axis } => write!(formatter, "unknown condition axis '{axis}'"),
             Self::EmptyName { axis } => {
@@ -385,9 +464,26 @@ impl std::fmt::Display for ConditionRefError {
             Self::AliasCycle { aliases } => {
                 write!(formatter, "condition alias cycle: {}", aliases.join(" -> "))
             }
+            Self::UnknownParent {
+                axis,
+                condition,
+                parent,
+            } => write!(
+                formatter,
+                "{} condition '{condition}' extends unknown condition '{parent}'",
+                axis.name()
+            ),
+            Self::InheritanceCycle { axis, conditions } => write!(
+                formatter,
+                "{} condition inheritance cycle: {}",
+                axis.name(),
+                conditions.join(" -> ")
+            ),
         }
     }
 }
+
+impl Error for ConditionError {}
 
 /// Declared condition predicate before named references are resolved.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]

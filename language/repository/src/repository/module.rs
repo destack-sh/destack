@@ -8,7 +8,9 @@ use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{ConditionGate, ConditionRefError, Module, ModuleFile, ModuleIndex, PackageIndex};
+use crate::{
+    ConditionGate, Module, ModuleFile, ModuleIndex, PackageIndex, builtin_condition_aliases,
+};
 
 /// Module identity delta between two revisions.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -175,20 +177,15 @@ impl Repository {
             config
                 .conditions
                 .suffix_aliases()
-                .map_err(|error| Self::module_condition_ref_error(config.file_id, error))?
+                .map_err(|error| RepositoryError::InvalidConfig {
+                    file: config.file_id,
+                    message: error.to_string(),
+                })?
         } else {
-            crate::builtin_condition_aliases()
+            builtin_condition_aliases()
         };
 
         Ok(aliases)
-    }
-
-    /// Build one repository error for an invalid condition reference.
-    fn module_condition_ref_error(file: FileId, error: ConditionRefError) -> RepositoryError {
-        RepositoryError::InvalidConfig {
-            file,
-            message: error.to_string(),
-        }
     }
 
     /// Build one module from its base file candidate.
