@@ -430,3 +430,112 @@ entry(v0: ref<int32, raw, mutable>):
 "#,
     );
 }
+
+#[test]
+fn test_lower_layout_queries_to_target_constants() {
+    let session = TestSession::single(
+        r#"
+struct Pair {
+    low: int32;
+    high: int64;
+}
+
+@intrinsic("reflect.sizeOf")
+declare function sizeOf<T>(): usize;
+
+@intrinsic("reflect.alignOf")
+declare function alignOf<T>(): usize;
+
+@intrinsic("reflect.strideOf")
+declare function strideOf<T>(): usize;
+
+function measure(): usize {
+    return sizeOf<Pair>() + alignOf<Pair>() + strideOf<Pair>();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Pair {
+    low: int32;
+    high: int64;
+}
+
+function main.measure(): usize {
+entry:
+    v0: uint64 = 16
+    v1: uint64 = 8
+    v2: uint64 = int.add v0, v1
+    v3: uint64 = 16
+    v4: uint64 = int.add v2, v3
+    return v4
+}
+/// @layout.struct name=Pair size=16 align=8 fields=(low@8+4, high@0+8)
+"#,
+    );
+}
+
+#[test]
+fn test_lower_dangling_to_the_alignment_constant() {
+    let session = TestSession::single(
+        r#"
+@intrinsic("memory.ptr.dangling")
+declare function dangling<T>(): *T;
+
+function empty(): *int64 {
+    return dangling<int64>();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function main.empty(): ref<int64, raw, mutable> {
+entry:
+    v0: uint64 = 8
+    v1: ref<int64, raw, mutable> = intrinsic.memory.raw.transmute(v0)
+    return v1
+}
+"#,
+    );
+}
+
+#[test]
+fn test_lower_pointer_offset_to_stride_arithmetic() {
+    let session = TestSession::single(
+        r#"
+@intrinsic("memory.ptr.offset")
+declare function offset<T>(pointer: *T, count: int): *T;
+
+@intrinsic("memory.ptr.offsetFrom")
+declare function offsetFrom<T>(pointer: *T, origin: *T): int;
+
+function distance(pointer: *int32, origin: *int32): int {
+    return offsetFrom<int32>(offset<int32>(pointer, 2), origin);
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function main.distance(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int64 {
+entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
+    v2: int64 = 2
+    v3: int64 = 4
+    v4: int64 = intrinsic.memory.raw.transmute(v0)
+    v5: int64 = int.mul v2, v3
+    v6: int64 = int.add v4, v5
+    v7: ref<int32, raw, mutable> = intrinsic.memory.raw.transmute(v6)
+    v8: int64 = 4
+    v9: int64 = intrinsic.memory.ptr.byteOffsetFrom(v7, v1)
+    v10: int64 = int.div.s v9, v8
+    return v10
+}
+"#,
+    );
+}

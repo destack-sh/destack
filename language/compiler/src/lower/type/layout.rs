@@ -10,9 +10,11 @@ impl ModuleLowerer<'_> {
         &self,
         builder: &mut mir::ModuleBuilder,
     ) -> CompilerResult<()> {
+        let pointer_bytes = builder.pointer_bytes();
+        let (tree, layouts) = builder.tree_and_layouts_mut();
+
         // collect the aggregates before mutating the layout table
-        let aggregates: Vec<_> = builder
-            .tree_mut()
+        let aggregates: Vec<_> = tree
             .iter_nodes::<mir::Type>()
             .filter(|(_, ty)| {
                 matches!(
@@ -27,7 +29,7 @@ impl ModuleLowerer<'_> {
             .collect();
 
         for ty in aggregates {
-            self.lower_layout(builder, ty)?;
+            self.lower_layout(tree, layouts, pointer_bytes, ty)?;
         }
 
         Ok(())
@@ -36,26 +38,32 @@ impl ModuleLowerer<'_> {
     /// Lower the layout of one MIR type into the layout table.
     pub(in crate::lower) fn lower_layout(
         &self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
+        layouts: &mut mir::LayoutTable,
+        pointer_bytes: u8,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::LayoutId> {
         // reuse the layout already computed for this type
-        if let Some(id) = builder.layouts().types.get(&ty) {
+        if let Some(id) = layouts.types.get(&ty) {
             return Ok(*id);
         }
 
-        let layout = self.compute_layout(builder, ty)?;
+        let layout = self.compute_layout(tree, layouts, pointer_bytes, ty)?;
+        let id = layouts.insert(layout);
+        layouts.types.insert(ty, id);
 
-        Ok(builder.insert_layout(ty, layout))
+        Ok(id)
     }
 
     /// Compute the layout of one MIR type against the target.
     fn compute_layout(
         &self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
+        layouts: &mut mir::LayoutTable,
+        pointer_bytes: u8,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Layout> {
-        match builder.tree_mut().get(ty).clone() {
+        match tree.get(ty).clone() {
             // scalars occupy their natural width
             mir::Type::Void => Ok(self.scalar_layout(0, 1)),
             mir::Type::Boolean => Ok(self.scalar_layout(1, 1)),
@@ -65,13 +73,13 @@ impl ModuleLowerer<'_> {
                 Ok(self.scalar_layout(bytes, bytes))
             }
             mir::Type::Isize | mir::Type::Usize => {
-                let bytes = builder.pointer_bytes() as u32;
+                let bytes = pointer_bytes as u32;
 
                 Ok(self.scalar_layout(bytes, bytes))
             }
             // references occupy one pointer, nullish values in the zero page
             mir::Type::Reference { .. } => {
-                let bytes = builder.pointer_bytes() as u32;
+                let bytes = pointer_bytes as u32;
 
                 Ok(self.scalar_layout(bytes, bytes))
             }
@@ -85,10 +93,11 @@ impl ModuleLowerer<'_> {
             mir::Type::Struct { fields, .. } => {
                 let mut parts = Vec::with_capacity(fields.len());
                 for field in fields {
-                    let field = builder.tree_mut().get(field).clone();
+                    let field = tree.get(field).clone();
                     parts.push((field.name, field.ty));
                 }
-                let (fields, size, alignment) = self.pack_fields(builder, &parts)?;
+                let (fields, size, alignment) =
+                    self.pack_fields(tree, layouts, pointer_bytes, &parts)?;
 
                 Ok(mir::Layout {
                     shape: mir::LayoutShape::Struct(mir::StructLayout { fields }),
@@ -101,7 +110,8 @@ impl ModuleLowerer<'_> {
             // tuples pack their elements the same way
             mir::Type::Tuple { elements, .. } => {
                 let parts: Vec<_> = elements.iter().map(|element| (None, *element)).collect();
-                let (elements, size, alignment) = self.pack_fields(builder, &parts)?;
+                let (elements, size, alignment) =
+                    self.pack_fields(tree, layouts, pointer_bytes, &parts)?;
 
                 Ok(mir::Layout {
                     shape: mir::LayoutShape::Tuple(mir::TupleLayout { elements }),
@@ -113,8 +123,8 @@ impl ModuleLowerer<'_> {
 
             // newtypes store transparently as their inner type
             mir::Type::Newtype { inner, .. } => {
-                let backing = self.lower_layout(builder, inner)?;
-                let layout = builder.layouts().entries[backing.index()].clone();
+                let backing = self.lower_layout(tree, layouts, pointer_bytes, inner)?;
+                let layout = layouts.entries[backing.index()].clone();
 
                 Ok(mir::Layout {
                     shape: mir::LayoutShape::Newtype(mir::NewtypeLayout {
@@ -133,7 +143,7 @@ impl ModuleLowerer<'_> {
                 storage,
                 cases,
                 ..
-            } => self.variant_layout(builder, discriminant, storage, &cases),
+            } => self.variant_layout(tree, layouts, pointer_bytes, discriminant, storage, &cases),
 
             other => Err(LowerError::Unsupported {
                 anchor: self.module.into(),
@@ -146,14 +156,16 @@ impl ModuleLowerer<'_> {
     /// Pack fields largest alignment first, declaration order as the tiebreak.
     fn pack_fields(
         &self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
+        layouts: &mut mir::LayoutTable,
+        pointer_bytes: u8,
         parts: &[(Option<StringId>, mir::LocalNodeId<mir::Type>)],
     ) -> CompilerResult<(Vec<mir::LayoutField>, u32, u32)> {
         // compute each field's own layout in declaration order
         let mut computed = Vec::with_capacity(parts.len());
         for (index, (name, ty)) in parts.iter().enumerate() {
-            let layout = self.lower_layout(builder, *ty)?;
-            let layout = builder.layouts().entries[layout.index()].clone();
+            let layout = self.lower_layout(tree, layouts, pointer_bytes, *ty)?;
+            let layout = layouts.entries[layout.index()].clone();
 
             computed.push((index, *name, *ty, layout));
         }
@@ -187,7 +199,9 @@ impl ModuleLowerer<'_> {
     /// Compute one variant's layout with a direct discriminant encoding.
     fn variant_layout(
         &self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
+        layouts: &mut mir::LayoutTable,
+        pointer_bytes: u8,
         discriminant: mir::LocalNodeId<mir::Type>,
         storage: mir::LocalNodeId<mir::Type>,
         cases: &[mir::VariantCase],
@@ -196,20 +210,22 @@ impl ModuleLowerer<'_> {
         let mut payload_size = 0u32;
         let mut payload_alignment = 1u32;
         for case in cases {
-            let layout = self.lower_layout(builder, case.ty)?;
-            let layout = builder.layouts().entries[layout.index()].clone();
+            let layout = self.lower_layout(tree, layouts, pointer_bytes, case.ty)?;
+            let layout = layouts.entries[layout.index()].clone();
             payload_size = payload_size.max(layout.size);
             payload_alignment = payload_alignment.max(layout.alignment);
         }
 
         // elect a niche when spare payload values can carry the void cases
-        if let Some(layout) = self.niche_layout(builder, discriminant, storage, cases)? {
+        if let Some(layout) =
+            self.niche_layout(tree, layouts, pointer_bytes, discriminant, storage, cases)?
+        {
             return Ok(layout);
         }
 
         // the discriminant leads, the payload follows at its alignment
-        let tag = self.lower_layout(builder, discriminant)?;
-        let tag = builder.layouts().entries[tag.index()].clone();
+        let tag = self.lower_layout(tree, layouts, pointer_bytes, discriminant)?;
+        let tag = layouts.entries[tag.index()].clone();
         let payload_offset = tag.size.next_multiple_of(payload_alignment.max(1));
         let alignment = tag.alignment.max(payload_alignment);
         let size = (payload_offset + payload_size).next_multiple_of(alignment);
@@ -249,7 +265,9 @@ impl ModuleLowerer<'_> {
     /// Elect one niche encoding when a single payload's spare values cover the rest.
     fn niche_layout(
         &self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
+        layouts: &mut mir::LayoutTable,
+        pointer_bytes: u8,
         discriminant: mir::LocalNodeId<mir::Type>,
         storage: mir::LocalNodeId<mir::Type>,
         cases: &[mir::VariantCase],
@@ -257,7 +275,7 @@ impl ModuleLowerer<'_> {
         // exactly one case may carry a payload; the others ride its spare values
         let mut untagged = None;
         for (index, case) in cases.iter().enumerate() {
-            if matches!(builder.tree_mut().get(case.ty), mir::Type::Void) {
+            if matches!(tree.get(case.ty), mir::Type::Void) {
                 continue;
             }
             if untagged.is_some() {
@@ -270,7 +288,7 @@ impl ModuleLowerer<'_> {
         };
 
         // booleans spare every value above one
-        let mir::Type::Boolean = builder.tree_mut().get(payload) else {
+        let mir::Type::Boolean = tree.get(payload) else {
             return Ok(None);
         };
         let niche_start = 2u128;
@@ -292,8 +310,8 @@ impl ModuleLowerer<'_> {
             })
             .collect::<CompilerResult<Vec<_>>>()?;
 
-        let payload_layout = self.lower_layout(builder, payload)?;
-        let payload_layout = builder.layouts().entries[payload_layout.index()].clone();
+        let payload_layout = self.lower_layout(tree, layouts, pointer_bytes, payload)?;
+        let payload_layout = layouts.entries[payload_layout.index()].clone();
 
         Ok(Some(mir::Layout {
             shape: mir::LayoutShape::Variant(mir::VariantLayout {
