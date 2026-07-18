@@ -263,6 +263,13 @@ struct DeltaPathStep {
 }
 
 impl Repository {
+    /// Return the ambient environment captured by one revision.
+    pub fn environment(&self, revision: Revision) -> Result<Arc<Environment>, RepositoryError> {
+        let revision = self.revision(revision)?;
+
+        Ok(revision.environment.clone())
+    }
+
     /// Return source files changed between one ancestor and descendant revision.
     pub(crate) fn source_delta_between(
         &self,
