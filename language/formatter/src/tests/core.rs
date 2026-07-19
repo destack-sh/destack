@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
 use destack_core::StringPool;
-use destack_dir::{Comment, Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
+use destack_dir::{Comment, Expression, LocalNodeId, Node, NodeParentIndex, Path, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::{Allocator, Format};
 use destack_parser::{CommentRetention, Parser, ParserResult};
@@ -23,11 +23,41 @@ pub(crate) struct TestFormatter {
     strings: Arc<StringPool>,
 }
 
+/// Parser fixture result that can index its structural roots.
+pub(crate) trait IndexParents {
+    /// Build structural parents for these roots.
+    fn index_parents(&self, tree: &mut Tree);
+}
+
+impl<T> IndexParents for LocalNodeId<T>
+where
+    T: Node,
+{
+    fn index_parents(&self, tree: &mut Tree) {
+        tree.index_parents(std::slice::from_ref(self));
+    }
+}
+
+impl<T> IndexParents for Vec<LocalNodeId<T>>
+where
+    T: Node,
+{
+    fn index_parents(&self, tree: &mut Tree) {
+        tree.index_parents(self);
+    }
+}
+
+impl IndexParents for Path {
+    /// Paths allocate no DIR nodes.
+    fn index_parents(&self, _tree: &mut Tree) {}
+}
+
 impl TestFormatter {
     /// Parse one input with the default file type.
     pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParserResult<(Self, N)>
     where
         F: FnOnce(&mut Parser) -> ParserResult<N>,
+        N: IndexParents,
     {
         Self::parse_with_file_type(input, FileType::Destack, parse_fn)
     }
@@ -40,6 +70,7 @@ impl TestFormatter {
     ) -> ParserResult<(Self, N)>
     where
         F: FnOnce(&mut Parser) -> ParserResult<N>,
+        N: IndexParents,
     {
         Self::parse_with_file_name_and_type(input, "<string>", file_type, parse_fn)
     }
@@ -53,6 +84,7 @@ impl TestFormatter {
     ) -> ParserResult<(Self, N)>
     where
         F: FnOnce(&mut Parser) -> ParserResult<N>,
+        N: IndexParents,
     {
         // source
         let file_id = FileId::new(0);
@@ -79,7 +111,7 @@ impl TestFormatter {
 
             let tokens = parser.take_token_spans();
             let comments = parser.take_comments();
-            parser.tree.index_parents();
+            n.index_parents(&mut parser.tree);
             let parents = parser.tree.parents().clone();
             let strings = parser.publish_strings().clone();
 
@@ -210,7 +242,7 @@ pub(crate) fn assert_format_roundtrip_with_file_type<F, N>(
     options: DestackFormatOptions,
 ) where
     F: Fn(&mut Parser) -> ParserResult<N> + Copy,
-    N: for<'a> Format<'a, DestackFormatContext<'a>>,
+    N: IndexParents + for<'a> Format<'a, DestackFormatContext<'a>>,
 {
     let options = normalize_test_options_for_file_type(options, file_type);
 

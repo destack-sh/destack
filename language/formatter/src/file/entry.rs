@@ -70,7 +70,7 @@ pub fn format_file_tree(
     let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
         message: format!("formatter received non-code file type: {:?}", file.ty),
     })?;
-    let parents = NodeParentIndex::from_expression_roots(tree, roots);
+    let parents = NodeParentIndex::from_roots(tree, roots);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options, file, tree, tokens, comments, &side_span, strings, &parents,
@@ -119,7 +119,7 @@ pub fn format_source(
     // build the formatter context
     let tokens = parser.take_token_spans();
     let side_span = parser.tree.decorator_span();
-    parser.tree.index_parents();
+    parser.tree.index_parents(&expressions);
     let comments = parser.comments();
     let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
@@ -186,7 +186,7 @@ pub fn format_source_range(
     // build the formatter context
     let tokens = parser.take_token_spans();
     let side_span = parser.tree.decorator_span();
-    parser.tree.index_parents();
+    parser.tree.index_parents(&expressions);
     let comments = parser.comments();
     let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
