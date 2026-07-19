@@ -4,55 +4,23 @@ use crate::declaration::expression_is_in_statement_context;
 use crate::operator::should_flatten_binary;
 use destack_dir::{
     Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfForm,
-    LocalNodeId, MatchCase, MatchForm, NodeType, OperatorPrecedence, Property, TypeExpression,
+    LocalNodeId, MatchArm, NodeType, OperatorPrecedence, Property, TypeExpression,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
-/// Return whether one expression is a match case expression body.
-fn expression_is_match_case_body(
+/// Return whether one expression is a match arm expression body.
+fn expression_is_match_arm_body(
     context: &DestackFormatContext<'_>,
     parent_id: u32,
     parent_type: NodeType,
     parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
-    if parent_type != NodeType::MatchCase {
+    if parent_type != NodeType::MatchArm {
         return false;
     }
 
-    let case_id = LocalNodeId::<MatchCase>::new(parent_id);
-    matches!(context.tree.get(case_id), MatchCase::Expression { body, .. } if *body == parent_child_id)
-}
-
-/// Return whether one expression is the body of a switch case.
-fn expression_is_switch_case_body(
-    context: &DestackFormatContext<'_>,
-    parent_id: u32,
-    parent_type: NodeType,
-    parent_child_id: LocalNodeId<Expression>,
-) -> bool {
-    if parent_type != NodeType::MatchCase {
-        return false;
-    }
-
-    let case_id = LocalNodeId::<MatchCase>::new(parent_id);
-    let case_body_matches = match context.tree.get(case_id) {
-        MatchCase::Expression { body, .. } => *body == parent_child_id,
-        MatchCase::Block { .. } => false,
-    };
-    if !case_body_matches {
-        return false;
-    }
-
-    let Some((match_id, NodeType::Expression)) = context.parent(case_id) else {
-        return false;
-    };
-    matches!(
-        context.tree.get(LocalNodeId::<Expression>::new(match_id)),
-        Expression::Match {
-            form: MatchForm::Switch,
-            ..
-        }
-    )
+    let arm_id = LocalNodeId::<MatchArm>::new(parent_id);
+    matches!(context.tree.get(arm_id), MatchArm::Expression { body, .. } if *body == parent_child_id)
 }
 
 /// Return whether one expression is a spread value.
@@ -715,10 +683,8 @@ pub(crate) fn expression_requires_parentheses_in_parent(
 
     // statement context
     if parent_type != NodeType::Expression {
-        let is_match_case_body =
-            expression_is_match_case_body(context, parent_id, parent_type, parent_child_id);
-        let is_switch_case_body =
-            expression_is_switch_case_body(context, parent_id, parent_type, parent_child_id);
+        let is_match_arm_body =
+            expression_is_match_arm_body(context, parent_id, parent_type, parent_child_id);
         if expression_is_statement_like_value(context.tree.get(node_id))
             && expression_is_spread_value(context, parent_id, parent_type, parent_child_id)
         {
@@ -730,10 +696,6 @@ pub(crate) fn expression_requires_parentheses_in_parent(
                 parent_type == NodeType::AssignPattern
             }
             Expression::Assign { left, .. } => {
-                if is_switch_case_body {
-                    return false;
-                }
-
                 if expression_is_in_statement_context(context, node_id) {
                     return expression_assignment_needs_parentheses_in_statement_context(
                         context, node_id, *left,
@@ -743,7 +705,7 @@ pub(crate) fn expression_requires_parentheses_in_parent(
                 true
             }
             Expression::ObjectExpression { .. } => {
-                is_match_case_body
+                is_match_arm_body
                     || expression_is_in_statement_context(context, node_id)
                     || expression_is_type_relation_left_chain_in_statement_context(context, node_id)
                     || expression_is_lambda_body_position(context, node_id)

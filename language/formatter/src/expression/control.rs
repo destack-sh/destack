@@ -22,8 +22,8 @@ use destack_core::{StringId, ensure_sufficient_stack};
 use destack_dir::{
     Asynchrony, BindingKeyword, Block, BlockForm, Catch, Condition, ConditionOperand,
     DecoratorPosition, Expression, ForEachBinding, ForEachOperator, IfForm, Keyword, LetKind,
-    LocalNodeId, MatchCase, MatchForm, MatchSelector, NodeType, Pattern, TypeExpression, WhileForm,
-    YieldCardinality,
+    LocalNodeId, MatchArm, Node, NodeType, Pattern, SwitchCase, SwitchSelector, Tree, TreeStore,
+    TypeExpression, WhileForm, YieldCardinality,
 };
 use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::{
@@ -126,11 +126,15 @@ fn format_statement_body_expression<'ast>(
     Ok(())
 }
 
-/// Write prefix items for one match case.
-fn write_match_case_prefix<'ast>(
+/// Write leading comments and prefix annotations for one match arm or switch case.
+fn write_case_prefix<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
-    case_id: LocalNodeId<MatchCase>,
-) -> FormatResult<()> {
+    case_id: LocalNodeId<T>,
+) -> FormatResult<()>
+where
+    T: Node + Clone + 'ast,
+    Tree: TreeStore<T>,
+{
     let leading_comments = prefix_comment_nodes(f.context(), case_id);
     if !leading_comments.is_empty() {
         write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
@@ -155,17 +159,17 @@ fn write_match_case_prefix<'ast>(
     write_annotation_sequence(f, &prefix_annotation_ids)
 }
 
-/// Write a match or switch selector guard.
-fn write_match_selector_guard<'ast>(
+/// Write one match arm guard.
+fn write_match_guard<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    case_id: LocalNodeId<MatchCase>,
+    arm_id: LocalNodeId<MatchArm>,
     pattern_id: LocalNodeId<Pattern>,
     guard_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let guard_clause_span = f
         .context()
         .tree
-        .get_side_span(case_id, NodeSpanType::Region(NodeSpanRegion::Guard))
+        .get_side_span(arm_id, NodeSpanType::Region(NodeSpanRegion::Guard))
         .ok_or(FormatError::SyntaxError {
             message: "match guard requires a clause span",
         })?;
@@ -982,43 +986,6 @@ pub(crate) fn format_if_else_chain<'ast>(
     Ok(())
 }
 
-/// Format a match selector according to the selected case style.
-fn format_selector_with_style<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    case_id: LocalNodeId<MatchCase>,
-    selector: &MatchSelector,
-    is_switch_style: bool,
-) -> FormatResult<()> {
-    if !is_switch_style {
-        match selector {
-            MatchSelector::Pattern { pattern, guard } => {
-                write!(f, [*pattern])?;
-                if let Some(guard) = guard {
-                    write_match_selector_guard(f, case_id, *pattern, *guard)?;
-                }
-            }
-            MatchSelector::Default => {
-                write!(f, [token("_")])?;
-            }
-        }
-    } else {
-        match selector {
-            MatchSelector::Pattern { pattern, guard } => {
-                write!(f, [Keyword::Case, space(), *pattern])?;
-                if let Some(guard) = guard {
-                    write_match_selector_guard(f, case_id, *pattern, *guard)?;
-                }
-                write!(f, [token(":")])?;
-            }
-            MatchSelector::Default => {
-                write!(f, [Keyword::Default, token(":")])?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 /// Format one return expression in statement position.
 pub(crate) fn format_return_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1449,142 +1416,182 @@ fn write_try_branch_after_keyword<'ast>(
     write!(f, [branch_expression_id])
 }
 
-/// Format one match case with the selected style.
-pub(crate) fn format_match_case_with_style<'ast>(
+/// Format one match arm.
+fn format_match_arm<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    case_id: LocalNodeId<MatchCase>,
-    is_switch_style: bool,
+    arm_id: LocalNodeId<MatchArm>,
 ) -> FormatResult<()> {
-    let case = f.context().tree.get(case_id);
+    let arm = f.context().tree.get(arm_id);
 
-    // case prefix
-    write_match_case_prefix(f, case_id)?;
+    // arm prefix
+    write_case_prefix(f, arm_id)?;
 
-    // selector, separator, and body
-    match case {
-        MatchCase::Expression { selector, body } => {
-            format_selector_with_style(f, case_id, selector, is_switch_style)?;
+    // write the pattern and guard
+    let pattern = arm.pattern();
+    write!(f, [pattern])?;
+    if let Some(guard) = arm.guard() {
+        write_match_guard(f, arm_id, pattern, guard)?;
+    }
 
-            let format_switch_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                format_statement_body_expression(f, *body)
-            });
-
-            if !is_switch_style {
-                write!(f, [space(), token("=>"), space(), *body])?;
-            } else if switch_case_expression_body_is_explicit_block(f.context(), *body) {
-                write!(f, [space(), *body])?;
-            } else {
-                write!(f, [hard_line_break(), block_indent(&format_switch_body)])?;
-            }
+    // arm body
+    match arm {
+        MatchArm::Expression { body, .. } => {
+            write!(f, [space(), token("=>"), space(), *body])?;
         }
-        MatchCase::Block { selector, body } => {
-            format_selector_with_style(f, case_id, selector, is_switch_style)?;
-            if !is_switch_style {
-                write!(f, [space(), token("=>"), space(), *body])?;
-            } else {
-                let block = f.context().tree.get(*body);
-                if block.is_explicit() {
-                    write!(f, [space(), *body])?;
-                } else if !block.is_empty() {
-                    write!(
-                        f,
-                        [
-                            hard_line_break(),
-                            block_indent(&block_statement_sequence(*body, false, None))
-                        ]
-                    )?;
-                }
-            }
+        MatchArm::Block { body, .. } => {
+            write!(f, [space(), token("=>"), space(), *body])?;
         }
     }
 
-    // case postfix
+    // arm postfix
+    write!(f, [infix_or_postfix_annotations(f.context(), arm_id)])?;
+
+    Ok(())
+}
+
+impl<'ast> FormatNode<'ast, MatchArm> for MatchArm {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<MatchArm>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        format_match_arm(f, node_id)
+    }
+}
+
+/// Format one switch case.
+fn format_switch_case<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    case_id: LocalNodeId<SwitchCase>,
+) -> FormatResult<()> {
+    let case = f.context().tree.get(case_id);
+    write_case_prefix(f, case_id)?;
+
+    // write the selector
+    match case.selector {
+        SwitchSelector::Case(value) => {
+            write!(f, [Keyword::Case, space(), value, token(":")])?;
+        }
+        SwitchSelector::Default => {
+            write!(f, [Keyword::Default, token(":")])?;
+        }
+    }
+
+    // keep a sole explicit block beside the selector
+    let body = f.context().tree.get(case.body);
+    let explicit_block = body.only_expression().filter(|expression| {
+        matches!(
+            f.context().tree.get(*expression),
+            Expression::Block(block) if f.context().tree.get(*block).is_explicit()
+        )
+    });
+    if let Some(explicit_block) = explicit_block {
+        write!(f, [space(), explicit_block])?;
+    } else if !body.is_empty() {
+        write!(
+            f,
+            [
+                hard_line_break(),
+                block_indent(&block_statement_sequence(case.body, false, None))
+            ]
+        )?;
+    }
+
     write!(f, [infix_or_postfix_annotations(f.context(), case_id)])?;
 
     Ok(())
 }
 
-/// Return whether one switch case expression body is one explicit block expression.
-fn switch_case_expression_body_is_explicit_block(
-    context: &DestackFormatContext<'_>,
-    body_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Block(block_id) = context.tree.get(body_expression_id) else {
-        return false;
-    };
-
-    let block = context.tree.get(*block_id);
-    block.is_explicit()
-}
-
-impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
+impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
     fn format_node(
         &self,
-        node_id: LocalNodeId<MatchCase>,
+        node_id: LocalNodeId<SwitchCase>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        format_match_case_with_style(f, node_id, false)
+        format_switch_case(f, node_id)
     }
 }
 
-/// Format a match expression.
-pub(crate) fn format_match<'ast>(
+/// Format one match expression.
+pub(crate) fn format_match_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    include_prefix: bool,
+    value: LocalNodeId<Expression>,
+    arms: &[LocalNodeId<MatchArm>],
 ) -> FormatResult<()> {
-    let match_node = f.context().tree.get(node_id);
-    let Expression::Match { form, value, cases } = &match_node else {
-        return Err(FormatError::SyntaxError {
-            message: "invalid match expression",
-        });
-    };
-    let form = *form;
-    let is_switch_style = matches!(form, MatchForm::Switch);
-
-    if include_prefix {
-        // match/switch <expression>
-        let keyword = match form {
-            MatchForm::Match => Keyword::Match,
-            MatchForm::Switch => Keyword::Switch,
-        };
-        write!(f, [keyword, space()])?;
-    }
-
+    write!(f, [Keyword::Match, space()])?;
     write!(
         f,
         [
             token("("),
-            format_with(|f| write_grouped_control_head(f, value)),
+            format_with(|f| write_grouped_control_head(f, &value)),
             token(")")
         ]
     )?;
 
-    // empty match body
-    if cases.is_empty() {
+    // format the arm block
+    if arms.is_empty() {
         write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
-        write!(f, [postfix_annotations(f.context(), node_id)])?;
-        return Ok(());
+    } else {
+        write!(f, [space(), token("{"), hard_line_break()])?;
+        write!(
+            f,
+            [group(&format_args![block_indent(&format_with(|f| {
+                for (index, arm) in arms.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, [hard_line_break()])?;
+                    }
+                    format_match_arm(f, *arm)?;
+                }
+                Ok(())
+            })),])]
+        )?;
+        write!(f, [block_infix_annotations(f.context(), node_id)])?;
+        write!(f, [hard_line_break(), token("}")])?;
     }
+    write!(f, [postfix_annotations(f.context(), node_id)])?;
 
-    // match/switch cases
-    write!(f, [space(), token("{"), hard_line_break()])?;
+    Ok(())
+}
+
+/// Format one switch statement.
+pub(crate) fn format_switch_statement<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    value: LocalNodeId<Expression>,
+    cases: &[LocalNodeId<SwitchCase>],
+) -> FormatResult<()> {
+    write!(f, [Keyword::Switch, space()])?;
     write!(
         f,
-        [group(&format_args![block_indent(&format_with(|f| {
-            let mut first = true;
-            for case_id in cases {
-                if !first {
-                    write!(f, [hard_line_break()])?;
-                }
-                first = false;
-                format_match_case_with_style(f, *case_id, is_switch_style)?;
-            }
-            Ok(())
-        })),])]
+        [
+            token("("),
+            format_with(|f| write_grouped_control_head(f, &value)),
+            token(")")
+        ]
     )?;
-    write!(f, [block_infix_annotations(f.context(), node_id)])?;
-    write!(f, [hard_line_break(), token("}")])?;
+
+    // format the case block
+    if cases.is_empty() {
+        write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
+    } else {
+        write!(f, [space(), token("{"), hard_line_break()])?;
+        write!(
+            f,
+            [group(&format_args![block_indent(&format_with(|f| {
+                for (index, case) in cases.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, [hard_line_break()])?;
+                    }
+                    format_switch_case(f, *case)?;
+                }
+                Ok(())
+            })),])]
+        )?;
+        write!(f, [block_infix_annotations(f.context(), node_id)])?;
+        write!(f, [hard_line_break(), token("}")])?;
+    }
+    write!(f, [postfix_annotations(f.context(), node_id)])?;
 
     Ok(())
 }

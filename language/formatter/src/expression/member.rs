@@ -387,11 +387,10 @@ pub(crate) fn format_type_template_literal<'ast>(
         let format_inner = format_with(move |f| {
             match span_layout {
                 TemplateInterpolationLayout::SingleLine => {
-                    if let Some(span_element) = &span_element {
-                        if let Some(span_element) = (*span_element).remove_soft_lines(f.allocator())
-                        {
-                            f.write_element(span_element);
-                        }
+                    if let Some(span_element) = &span_element
+                        && let Some(span_element) = (*span_element).remove_soft_lines(f.allocator())
+                    {
+                        f.write_element(span_element);
                     }
                 }
                 TemplateInterpolationLayout::Fit => {

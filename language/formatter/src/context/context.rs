@@ -7,9 +7,9 @@ pub use destack_dir::Decorator;
 use destack_dir::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
-    LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern,
-    PatternField, Property, TokenSpan, Tree, TreeAttribute, TreeChild, TreeStore, TupleElement,
-    TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    LocalNodeIdAny, MatchArm, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern,
+    PatternField, Property, SwitchCase, TokenSpan, Tree, TreeAttribute, TreeChild, TreeStore,
+    TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 use destack_fir::format::{
     Format, FormatContext, FormatElement as FirElement, FormatLayout, FormatResult, Formatter,
@@ -362,8 +362,8 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for LocalNodeIdAny {
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
-            NodeType::MatchCase => {
-                let node_id = LocalNodeId::<MatchCase>::new(self.id);
+            NodeType::MatchArm => {
+                let node_id = LocalNodeId::<MatchArm>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
@@ -394,6 +394,11 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::Decorator => {
                 let node_id = LocalNodeId::<Decorator>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::SwitchCase => {
+                let node_id = LocalNodeId::<SwitchCase>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

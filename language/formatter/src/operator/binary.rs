@@ -1,7 +1,7 @@
 use crate::context::with_following_span_start;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, BinaryOperator, Expression, IfForm, LocalNodeId, MatchForm, Member, NodeType,
+    Argument, BinaryOperator, Expression, IfForm, LocalNodeId, Member, NodeType,
     OperatorPrecedence, Property,
 };
 use destack_fir::format::{Format, FormatResult, Formatter as FirFormatter};
@@ -301,9 +301,7 @@ impl BinaryLikeExpression {
             Expression::For { condition, .. } => {
                 condition.is_some_and(|condition| condition == self.node_id)
             }
-            Expression::Match { value, form, .. } => {
-                *value == self.node_id && matches!(form, MatchForm::Switch)
-            }
+            Expression::Switch { value, .. } => *value == self.node_id,
             _ => false,
         }
     }

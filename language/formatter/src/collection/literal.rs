@@ -219,12 +219,11 @@ fn format_interpolated_template_literal<'ast>(
             match layout {
                 // single-line layout
                 TemplateElementLayout::SingleLine => {
-                    if let Some(argument_element) = &argument_element {
-                        if let Some(argument_element) =
+                    if let Some(argument_element) = &argument_element
+                        && let Some(argument_element) =
                             (*argument_element).remove_soft_lines(f.allocator())
-                        {
-                            f.write_element(argument_element);
-                        }
+                    {
+                        f.write_element(argument_element);
                     }
                 }
                 // fit layout
@@ -340,6 +339,7 @@ fn template_argument_should_indent_fit_layout(
             | Expression::Index { .. }
             | Expression::If { .. }
             | Expression::Match { .. }
+            | Expression::Switch { .. }
             | Expression::Try { .. }
             | Expression::Comptime { .. }
             | Expression::Binary { .. }

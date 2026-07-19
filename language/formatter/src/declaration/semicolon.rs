@@ -427,6 +427,7 @@ pub(crate) fn statement_wrapper_needs_semicolon(
             | Expression::For { .. }
             | Expression::Loop { .. }
             | Expression::Match { .. }
+            | Expression::Switch { .. }
             | Expression::Label { .. }
     ) {
         return false;

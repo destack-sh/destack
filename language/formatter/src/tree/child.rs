@@ -6,7 +6,7 @@ use crate::chain::{
 };
 use destack_dir::{
     Block, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm, IfForm,
-    LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral, Tree, TreeChild, TreeStore,
+    LocalNodeId, MatchArm, Node, NodeType, ScalarLiteral, Tree, TreeChild, TreeStore,
 };
 
 /// Return whether one node span contains a line comment.
@@ -405,15 +405,14 @@ fn tree_control_child_has_tree_branch(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
-        Expression::Match { cases, .. } => {
-            cases
-                .iter()
+        Expression::Match { arms, .. } => {
+            arms.iter()
                 .copied()
-                .any(|case_id| match context.tree.get(case_id) {
-                    MatchCase::Expression { body, .. } => {
+                .any(|arm_id| match context.tree.get(arm_id) {
+                    MatchArm::Expression { body, .. } => {
                         expression_branch_has_tree_value(context, *body)
                     }
-                    MatchCase::Block { body, .. } => block_has_tree_value(context, *body),
+                    MatchArm::Block { body, .. } => block_has_tree_value(context, *body),
                 })
         }
         Expression::Try {

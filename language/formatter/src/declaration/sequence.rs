@@ -1136,7 +1136,7 @@ pub(crate) fn block_allows_value_tail(
     let Some((block_expression_id, block_expression_type)) = context.parent(block_id) else {
         return false;
     };
-    if block_expression_type == NodeType::MatchCase {
+    if block_expression_type == NodeType::MatchArm {
         return true;
     }
     if block_expression_type != NodeType::Expression {

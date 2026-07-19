@@ -1,9 +1,9 @@
 use super::control::{
     format_break_expression, format_continue_expression, format_for_each_expression,
-    format_for_expression, format_if_else_chain, format_loop_expression, format_match,
-    format_return_expression, format_statement_body_block, format_throw_expression,
-    format_try_expression, format_while_expression, format_yield_expression,
-    is_empty_statement_block,
+    format_for_expression, format_if_else_chain, format_loop_expression, format_match_expression,
+    format_return_expression, format_statement_body_block, format_switch_statement,
+    format_throw_expression, format_try_expression, format_while_expression,
+    format_yield_expression, is_empty_statement_block,
 };
 use super::ternary::format_ternary;
 use crate::DestackFormatter;
@@ -259,9 +259,14 @@ pub(crate) fn format_statement_expression<'ast>(
             format_try_expression(f, *body, *catch, *finally, expand_try_branches)?;
         }
 
-        // match
-        Expression::Match { .. } => {
-            format_match(f, node_id, true)?;
+        // match expression
+        Expression::Match { value, arms } => {
+            format_match_expression(f, node_id, *value, arms)?;
+        }
+
+        // switch statement
+        Expression::Switch { value, cases } => {
+            format_switch_statement(f, node_id, *value, cases)?;
         }
 
         // break

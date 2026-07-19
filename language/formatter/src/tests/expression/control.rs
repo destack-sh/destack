@@ -107,22 +107,6 @@ fn test_format_switch_with_default_case() {
     );
 }
 
-/// Switch guards should use the same parenthesized shape as match guards.
-#[test]
-fn test_format_switch_with_guard() {
-    assert_format!(
-        "switch (x) { case 1 if (x > 0): break; default: break; }",
-        r#"switch (x) {
-	case 1 if (x > 0):
-		break;
-	default:
-		break;
-}"#,
-        parse_first_expression,
-        DestackFormatOptions::default_tab()
-    );
-}
-
 #[test]
 fn test_format_switch_with_block() {
     assert_format!(

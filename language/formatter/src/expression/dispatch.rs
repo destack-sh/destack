@@ -82,6 +82,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Loop { .. }
         | Expression::Try { .. }
         | Expression::Match { .. }
+        | Expression::Switch { .. }
         | Expression::Break { .. }
         | Expression::Continue { .. }
         | Expression::Yield { .. }
@@ -280,6 +281,7 @@ fn format_expression_body_inner<'ast>(
         | Expression::Loop { .. }
         | Expression::Try { .. }
         | Expression::Match { .. }
+        | Expression::Switch { .. }
         | Expression::Break { .. }
         | Expression::Continue { .. }
         | Expression::Yield { .. }

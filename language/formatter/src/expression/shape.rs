@@ -171,6 +171,7 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
         | Expression::New { arguments, .. }
         | Expression::NewMaybe { arguments, .. } => !arguments.is_empty(),
         Expression::Match { .. }
+        | Expression::Switch { .. }
         | Expression::If { .. }
         | Expression::Loop { .. }
         | Expression::Try { .. }
