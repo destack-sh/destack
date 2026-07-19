@@ -298,9 +298,12 @@ export declare function tensorSize<T, comptime Rank: int, F: TensorFormat, P: Pl
 
 /// Return one tensor's elementByteLength.
 @intrinsic("tensor.elementByteLength")
-export declare function tensorElementByteLength<T, comptime Rank: int, F: TensorFormat, P: Placement>(
-    tensor: &readonly Tensor<T, Rank, F, P>,
-): usize;
+export declare function tensorElementByteLength<
+    T,
+    comptime Rank: int,
+    F: TensorFormat,
+    P: Placement,
+>(tensor: &readonly Tensor<T, Rank, F, P>): usize;
 
 /// Return one tensor's byteLength.
 @intrinsic("tensor.byteLength")
@@ -322,6 +325,9 @@ export declare function tensorBuffer<T, comptime Rank: int, F: TensorFormat>(
 
 /// Return the mesh that owns one sharded tensor's shards.
 @intrinsic("tensor.mesh")
-export declare function tensorMesh<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis>(
-    tensor: &readonly Tensor<T, Rank, F, Sharding<...Axes>>,
-): Mesh;
+export declare function tensorMesh<
+    T,
+    comptime Rank: int,
+    F: TensorFormat,
+    comptime ...Axes: ShardingAxis,
+>(tensor: &readonly Tensor<T, Rank, F, Sharding<...Axes>>): Mesh;

@@ -179,39 +179,63 @@ export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement> of
 
 /// Return one tensor view's shape.
 @intrinsic("tensor.view.shape")
-export declare function tensorViewShape<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
-    view: &readonly TensorView<T, Rank, F, P, A>,
-): Shape<Rank>;
+export declare function tensorViewShape<
+    T,
+    comptime Rank: int,
+    F: TensorViewFormat,
+    P: Placement,
+    comptime A: Access,
+>(view: &readonly TensorView<T, Rank, F, P, A>): Shape<Rank>;
 
 /// Return one tensor view's format.
 @intrinsic("tensor.view.format")
-export declare function tensorViewFormat<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
-    view: &readonly TensorView<T, Rank, F, P, A>,
-): F;
+export declare function tensorViewFormat<
+    T,
+    comptime Rank: int,
+    F: TensorViewFormat,
+    P: Placement,
+    comptime A: Access,
+>(view: &readonly TensorView<T, Rank, F, P, A>): F;
 
 /// Return one tensor view's placement.
 @intrinsic("tensor.view.placement")
-export declare function tensorViewPlacement<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
-    view: &readonly TensorView<T, Rank, F, P, A>,
-): P;
+export declare function tensorViewPlacement<
+    T,
+    comptime Rank: int,
+    F: TensorViewFormat,
+    P: Placement,
+    comptime A: Access,
+>(view: &readonly TensorView<T, Rank, F, P, A>): P;
 
 /// Return one tensor view's size.
 @intrinsic("tensor.view.size")
-export declare function tensorViewSize<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
-    view: &readonly TensorView<T, Rank, F, P, A>,
-): usize;
+export declare function tensorViewSize<
+    T,
+    comptime Rank: int,
+    F: TensorViewFormat,
+    P: Placement,
+    comptime A: Access,
+>(view: &readonly TensorView<T, Rank, F, P, A>): usize;
 
 /// Return one tensor view's elementByteLength.
 @intrinsic("tensor.view.elementByteLength")
-export declare function tensorViewElementByteLength<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
-    view: &readonly TensorView<T, Rank, F, P, A>,
-): usize;
+export declare function tensorViewElementByteLength<
+    T,
+    comptime Rank: int,
+    F: TensorViewFormat,
+    P: Placement,
+    comptime A: Access,
+>(view: &readonly TensorView<T, Rank, F, P, A>): usize;
 
 /// Return one tensor view's byteLength.
 @intrinsic("tensor.view.byteLength")
-export declare function tensorViewByteLength<T, comptime Rank: int, F: TensorViewFormat, P: Placement, comptime A: Access>(
-    view: &readonly TensorView<T, Rank, F, P, A>,
-): usize;
+export declare function tensorViewByteLength<
+    T,
+    comptime Rank: int,
+    F: TensorViewFormat,
+    P: Placement,
+    comptime A: Access,
+>(view: &readonly TensorView<T, Rank, F, P, A>): usize;
 
 /// Return the element stride of each axis of one strided tensor view.
 @intrinsic("tensor.view.strides")
@@ -221,9 +245,13 @@ export declare function tensorViewStrides<T, comptime Rank: int, P: Placement, c
 
 /// Return the mesh that owns one sharded tensor view's shards.
 @intrinsic("tensor.view.mesh")
-export declare function tensorViewMesh<T, comptime Rank: int, F: TensorViewFormat, comptime A: Access, comptime ...Axes: ShardingAxis>(
-    view: &readonly TensorView<T, Rank, F, Sharding<...Axes>, A>,
-): Mesh;
+export declare function tensorViewMesh<
+    T,
+    comptime Rank: int,
+    F: TensorViewFormat,
+    comptime A: Access,
+    comptime ...Axes: ShardingAxis,
+>(view: &readonly TensorView<T, Rank, F, Sharding<...Axes>, A>): Mesh;
 
 /// Build one strided tensor view over a slice.
 @intrinsic("tensor.view.fromStridedSlice")
@@ -235,7 +263,9 @@ export declare function tensorViewFromStridedSlice<T, comptime Rank: int, compti
 
 /// Build one dense tensor view over a contiguous slice.
 @intrinsic("tensor.view.fromSlice")
-export declare function tensorViewFromSlice<T, comptime Rank: int, comptime Order: MemoryOrder, comptime A: Access>(
-    slice: WithAccess<&[T], A>,
-    shape: Shape<Rank>,
-): TensorView<T, Rank, Dense<Order>, Unsharded, A>;
+export declare function tensorViewFromSlice<
+    T,
+    comptime Rank: int,
+    comptime Order: MemoryOrder,
+    comptime A: Access,
+>(slice: WithAccess<&[T], A>, shape: Shape<Rank>): TensorView<T, Rank, Dense<Order>, Unsharded, A>;

@@ -1,8 +1,8 @@
 import {
-    Type,
     equalTypes as equalReflectedTypes,
     type as reflectedType,
     typeOf as reflectedTypeOf,
+    Type,
 } from "./type.ds";
 
 /// Static reflection namespace.

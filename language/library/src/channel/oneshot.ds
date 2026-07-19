@@ -19,6 +19,9 @@ export function asyncChannel<T>(): (AsyncSender<T>, AsyncReceiver<T>) {
 }
 
 /// Create a shared suspending one-shot channel.
-export function sharedAsyncChannel<T: SharedSafe>(): (AsyncSender<shared T>, AsyncReceiver<shared T>) {
+export function sharedAsyncChannel<T: SharedSafe>(): (
+    AsyncSender<shared T>,
+    AsyncReceiver<shared T>,
+) {
     todo("oneshot.sharedAsyncChannel")
 }

@@ -35,11 +35,15 @@ export declare function assumeInitReference<T>(storage: &MaybeUninit<T>): &T;
 
 /// Borrow one initialized storage with readonly access.
 @intrinsic("memory.init.assumeInitReadonlyReference")
-export declare function assumeInitReadonlyReference<T>(storage: &readonly MaybeUninit<T>): &readonly T;
+export declare function assumeInitReadonlyReference<T>(
+    storage: &readonly MaybeUninit<T>,
+): &readonly T;
 
 /// Borrow one initialized storage with exclusive access.
 @intrinsic("memory.init.assumeInitExclusiveReference")
-export declare function assumeInitExclusiveReference<T>(storage: &exclusive MaybeUninit<T>): &exclusive T;
+export declare function assumeInitExclusiveReference<T>(
+    storage: &exclusive MaybeUninit<T>,
+): &exclusive T;
 
 /// Move one initialized storage out as `T`.
 @intrinsic("memory.init.assumeInit")
