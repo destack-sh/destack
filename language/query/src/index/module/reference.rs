@@ -296,7 +296,7 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
                     self.push_reference(candidate.symbol, source, dir::ReferenceKind::Call);
                 }
             }
-            dir::CallTarget::Builtin(_) | dir::CallTarget::Expression { .. } => {}
+            dir::CallTarget::Expression { .. } => {}
         }
     }
 

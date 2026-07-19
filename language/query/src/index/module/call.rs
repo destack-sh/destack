@@ -121,7 +121,7 @@ impl<'context, 'query> CallIndexer<'context, 'query> {
                     targets.push(candidate.symbol);
                 }
             }
-            dir::CallTarget::Builtin(_) | dir::CallTarget::Expression { .. } => {}
+            dir::CallTarget::Expression { .. } => {}
         }
 
         // normalize duplicate overload targets
