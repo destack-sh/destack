@@ -25,8 +25,11 @@ impl DirParsed {
         files: Vec<DirParsedFile>,
         anchor_expression: dir::LocalNodeId<dir::Expression>,
     ) -> Self {
-        // index parent links once the tree is final
-        tree.index_parents();
+        let roots = files
+            .iter()
+            .flat_map(|file| file.roots.iter().copied())
+            .collect::<Vec<_>>();
+        tree.index_parents(&roots);
 
         Self {
             tree,
