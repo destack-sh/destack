@@ -34,6 +34,31 @@ pub enum ScalarDomain {
 }
 
 impl ScalarDomain {
+    /// Return the language item that owns this domain's members.
+    pub fn member_owner_item(self) -> Option<LanguageItem> {
+        match self {
+            Self::Integer | Self::Float => Some(LanguageItem::Number),
+            Self::Bigint => Some(LanguageItem::BigInt),
+            Self::String => Some(LanguageItem::String),
+            Self::Character | Self::Symbol | Self::Boolean | Self::Null | Self::Undefined => None,
+        }
+    }
+
+    /// Return the language item that carries this domain at runtime.
+    pub fn representation_item(self) -> Option<LanguageItem> {
+        match self {
+            Self::Bigint => Some(LanguageItem::BigInt),
+            Self::String => Some(LanguageItem::String),
+            Self::Integer
+            | Self::Float
+            | Self::Character
+            | Self::Symbol
+            | Self::Boolean
+            | Self::Null
+            | Self::Undefined => None,
+        }
+    }
+
     /// Return whether this domain holds builtin numerics.
     pub fn is_numeric(self) -> bool {
         matches!(self, Self::Integer | Self::Float | Self::Bigint)
@@ -88,6 +113,21 @@ pub enum ScalarLiteral {
 }
 
 impl ScalarLiteral {
+    /// Return this literal's variant name.
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            Self::Null => "null",
+            Self::Undefined => "undefined",
+            Self::Boolean(_) => "boolean",
+            Self::Integer(_) => "integer",
+            Self::Bigint(_) => "bigint",
+            Self::Float(_) => "float",
+            Self::Character(_) => "character",
+            Self::String(_) => "string",
+            Self::RegexString { .. } => "regex",
+        }
+    }
+
     /// Return this literal's scalar domain.
     pub fn scalar_domain(&self) -> Option<ScalarDomain> {
         let domain = match self {
@@ -265,22 +305,9 @@ impl ScalarLiteral {
         }
     }
 
-    /// Return the language item owning this literal's members.
-    pub fn owner_item(&self) -> Option<LanguageItem> {
-        match self {
-            Self::String(_) => Some(LanguageItem::String),
-            Self::Integer(_) | Self::Float(_) => Some(LanguageItem::Number),
-            _ => None,
-        }
-    }
-
-    /// Return the language item owning this literal's runtime representation.
+    /// Return the language item carrying this literal's runtime representation.
     pub fn representation_item(&self) -> Option<LanguageItem> {
-        match self {
-            Self::String(_) => Some(LanguageItem::String),
-            Self::Bigint(_) => Some(LanguageItem::BigInt),
-            _ => None,
-        }
+        self.scalar_domain()?.representation_item()
     }
 }
 

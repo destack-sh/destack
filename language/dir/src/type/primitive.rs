@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, roundtrip_float};
 
-use crate::{LanguageItem, RangeType, ScalarLiteral, StringId};
+use crate::{LanguageItem, RangeType, ScalarDomain, ScalarLiteral, StringId};
 
 /// A primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -27,6 +27,19 @@ pub enum PrimitiveType {
 }
 
 impl PrimitiveType {
+    /// Return this primitive's scalar domain.
+    pub fn scalar_domain(self) -> ScalarDomain {
+        match self {
+            Self::Boolean => ScalarDomain::Boolean,
+            Self::Character => ScalarDomain::Character,
+            Self::String => ScalarDomain::String,
+            Self::Bigint => ScalarDomain::Bigint,
+            Self::Integer(_) => ScalarDomain::Integer,
+            Self::Float(_) => ScalarDomain::Float,
+            Self::Symbol | Self::UniqueSymbol => ScalarDomain::Symbol,
+        }
+    }
+
     /// Return whether this primitive widens losslessly into another.
     pub fn widens_to(self, target: PrimitiveType) -> bool {
         match (self, target) {
@@ -45,22 +58,9 @@ impl PrimitiveType {
         }
     }
 
-    /// Return the language item that owns this primitive's representation.
+    /// Return the language item carrying this primitive's runtime representation.
     pub fn representation_item(&self) -> Option<LanguageItem> {
-        match self {
-            Self::String => Some(LanguageItem::String),
-            Self::Bigint => Some(LanguageItem::BigInt),
-            _ => None,
-        }
-    }
-
-    /// Return the language item owning this primitive's members.
-    pub fn owner_item(&self) -> Option<LanguageItem> {
-        match self {
-            Self::String | Self::Bigint => self.representation_item(),
-            Self::Integer(_) | Self::Float(_) => Some(LanguageItem::Number),
-            _ => None,
-        }
+        self.scalar_domain().representation_item()
     }
 }
 

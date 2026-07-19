@@ -229,15 +229,7 @@ impl Type {
         let domain = match self {
             Self::Null => ScalarDomain::Null,
             Self::Undefined => ScalarDomain::Undefined,
-            Self::Primitive(PrimitiveType::Boolean) => ScalarDomain::Boolean,
-            Self::Primitive(PrimitiveType::Character) => ScalarDomain::Character,
-            Self::Primitive(PrimitiveType::String) => ScalarDomain::String,
-            Self::Primitive(PrimitiveType::Symbol | PrimitiveType::UniqueSymbol) => {
-                ScalarDomain::Symbol
-            }
-            Self::Primitive(PrimitiveType::Bigint) => ScalarDomain::Bigint,
-            Self::Primitive(PrimitiveType::Integer(_)) => ScalarDomain::Integer,
-            Self::Primitive(PrimitiveType::Float(_)) => ScalarDomain::Float,
+            Self::Primitive(primitive) => primitive.scalar_domain(),
             Self::Literal(literal) => return literal.scalar_domain(),
             Self::Key(key) if key.is_string_like() => ScalarDomain::String,
             Self::Key(key) if key.is_number_like() => ScalarDomain::Integer,
