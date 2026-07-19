@@ -1,7 +1,10 @@
+use std::fmt;
+
 use destack_core::StringId;
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{DiagnosticSeverity, FileId, ModuleId, Span};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::DiagnosticAnchor;
@@ -26,8 +29,8 @@ pub struct DiagnosticControl {
     pub scope: DiagnosticControlScope,
     /// The selected diagnostic level.
     pub level: DiagnosticControlLevel,
-    /// The stable lint id or diagnostic code selector.
-    pub selector: StringId,
+    /// The canonical diagnostic id.
+    pub diagnostic: StringId,
     /// The optional authored reason.
     pub reason: Option<StringId>,
 }
@@ -54,6 +57,26 @@ pub enum DiagnosticControlLevel {
     Forbid,
     /// Suppress one matching diagnostic and require that it occurs.
     Expect,
+}
+
+/// Checked diagnostic controls indexed by their source owners.
+#[derive(Debug)]
+pub struct DiagnosticControlIndex<'a> {
+    /// The checked control tables.
+    tables: Box<[&'a DiagnosticControlTable]>,
+    /// Control table indices by module.
+    modules: FxHashMap<ModuleId, usize>,
+    /// Control table indices by physical file.
+    files: FxHashMap<FileId, usize>,
+}
+
+/// An invalid diagnostic control index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticControlIndexError {
+    /// One module has multiple checked control tables.
+    DuplicateModule(ModuleId),
+    /// One physical file belongs to multiple checked modules.
+    DuplicateFile(FileId),
 }
 
 impl<'a> TryFrom<&'a str> for DiagnosticControlLevel {
@@ -124,10 +147,11 @@ impl DiagnosticControlTable {
         self.controls.is_empty()
     }
 
-    /// Return whether one control activates an otherwise disabled selector.
-    pub fn enables(&self, selectors: &[StringId]) -> bool {
+    /// Return whether one control activates a diagnostic.
+    pub fn activates(&self, diagnostic: StringId) -> bool {
         self.controls.iter().any(|control| {
-            control.selects(selectors) && !matches!(control.level, DiagnosticControlLevel::Allow)
+            control.diagnostic == diagnostic
+                && !matches!(control.level, DiagnosticControlLevel::Allow)
         })
     }
 
@@ -136,27 +160,22 @@ impl DiagnosticControlTable {
         self.controls.iter().rev().find(|previous| {
             matches!(previous.level, DiagnosticControlLevel::Forbid)
                 && !matches!(control.level, DiagnosticControlLevel::Forbid)
-                && previous.selector == control.selector
+                && previous.diagnostic == control.diagnostic
                 && previous.scope.contains(control.scope)
         })
     }
 
     /// Return the effective control and index for one diagnostic.
-    pub fn effective(
+    fn effective(
         &self,
-        selectors: &[StringId],
+        diagnostic: StringId,
         anchor: &DiagnosticAnchor,
     ) -> Option<(usize, &DiagnosticControl)> {
-        // reject anchors owned by another module
-        if !self.owns(anchor) {
-            return None;
-        }
-
         // inspect every checked control in stable order
         let mut effective: Option<(usize, &DiagnosticControl)> = None;
         for (index, control) in self.controls.iter().enumerate() {
             // ignore controls that do not select or contain this diagnostic
-            if !control.selects(selectors) || !control.scope.contains_anchor(anchor) {
+            if control.diagnostic != diagnostic || !control.scope.contains_anchor(anchor) {
                 continue;
             }
 
@@ -178,37 +197,101 @@ impl DiagnosticControlTable {
         effective
     }
 
-    /// Iterate expectations for one selector.
+    /// Iterate expectations for one diagnostic.
     pub fn expectations<'a>(
         &'a self,
-        selectors: &'a [StringId],
+        diagnostic: StringId,
     ) -> impl Iterator<Item = (usize, &'a DiagnosticControl)> + 'a {
         self.controls
             .iter()
             .enumerate()
             .filter(move |(_, control)| {
-                control.selects(selectors)
+                control.diagnostic == diagnostic
                     && matches!(control.level, DiagnosticControlLevel::Expect)
             })
     }
+}
 
-    /// Return whether one diagnostic anchor belongs to this module.
-    fn owns(&self, anchor: &DiagnosticAnchor) -> bool {
-        match anchor {
-            DiagnosticAnchor::Span(span) => self.files.contains(&span.file),
-            DiagnosticAnchor::File(file) => self.files.contains(file),
-            DiagnosticAnchor::Module(module) => *module == self.module,
-            DiagnosticAnchor::Package(_) => false,
+impl<'a> DiagnosticControlIndex<'a> {
+    /// Index checked control tables by their source owners.
+    pub fn new(
+        tables: impl IntoIterator<Item = &'a DiagnosticControlTable>,
+    ) -> Result<Self, DiagnosticControlIndexError> {
+        let tables = tables.into_iter().collect::<Vec<_>>();
+        let mut modules = FxHashMap::default();
+        let mut files = FxHashMap::default();
+
+        // index exact module and file ownership
+        for (index, table) in tables.iter().enumerate() {
+            if modules.insert(table.module, index).is_some() {
+                return Err(DiagnosticControlIndexError::DuplicateModule(table.module));
+            }
+            for file in &table.files {
+                if files.insert(*file, index).is_some() {
+                    return Err(DiagnosticControlIndexError::DuplicateFile(*file));
+                }
+            }
+        }
+
+        Ok(Self {
+            tables: tables.into_boxed_slice(),
+            modules,
+            files,
+        })
+    }
+
+    /// Iterate indexed control tables in input order.
+    pub fn iter(&self) -> impl Iterator<Item = (usize, &DiagnosticControlTable)> {
+        self.tables.iter().copied().enumerate()
+    }
+
+    /// Return the effective control and table indices for one diagnostic.
+    pub fn effective(
+        &self,
+        diagnostic: StringId,
+        anchor: &DiagnosticAnchor,
+    ) -> Option<(usize, usize, &DiagnosticControl)> {
+        let (table_index, table) = self.table(anchor)?;
+        let (control_index, control) = table.effective(diagnostic, anchor)?;
+
+        Some((table_index, control_index, control))
+    }
+
+    /// Return the control table that owns one diagnostic anchor.
+    fn table(&self, anchor: &DiagnosticAnchor) -> Option<(usize, &DiagnosticControlTable)> {
+        let index = match anchor {
+            DiagnosticAnchor::Span(span) => self.files.get(&span.file),
+            DiagnosticAnchor::File(file) => self.files.get(file),
+            DiagnosticAnchor::Module(module) => self.modules.get(module),
+            DiagnosticAnchor::Package(_) => None,
+        }?;
+        let table = self.tables[*index];
+
+        Some((*index, table))
+    }
+}
+
+impl fmt::Display for DiagnosticControlIndexError {
+    /// Format the violated source ownership invariant.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DuplicateModule(module) => {
+                write!(
+                    formatter,
+                    "module {module:?} has multiple diagnostic control tables"
+                )
+            }
+            Self::DuplicateFile(file) => {
+                write!(
+                    formatter,
+                    "source file {file} belongs to multiple checked modules"
+                )
+            }
         }
     }
 }
 
-impl DiagnosticControl {
-    /// Return whether this control selects one accepted diagnostic identity.
-    fn selects(&self, selectors: &[StringId]) -> bool {
-        selectors.contains(&self.selector)
-    }
-}
+impl std::error::Error for DiagnosticControlIndexError {}
 
 impl DiagnosticControlScope {
     /// Return whether this scope contains another lexical scope.
