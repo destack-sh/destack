@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use destack_serde::Reflect;
-use destack_source::{File, FileId, FilePatch, Patch, PatchSet, PathExt, ProfileId};
+use destack_source::{FileId, FilePatch, Patch, PatchSet, PathExt, ProfileId};
 use serde::{Deserialize, Serialize};
 
 use super::specifier::{SpecifierPolicy, SpecifierRenames};
@@ -33,40 +32,6 @@ pub struct RenameFilesRequest {
 pub struct RenameFilesResponse {
     /// File rename edit, if available.
     pub edit: Option<PatchSet>,
-}
-
-impl ProgramQueryContext<'_> {
-    /// Resolve file content for file rename edits.
-    fn read_rename_file(&self, file_id: FileId) -> Arc<File> {
-        let repository = self.repository();
-        let file = repository
-            .file(self.revision(), file_id)
-            .unwrap_or_else(|error| panic!("failed to read renamed file {file_id:?}: {error}"))
-            .unwrap_or_else(|| panic!("missing renamed file {file_id:?}"));
-        if file.has_line_index() {
-            return file;
-        }
-
-        // load file content from the filesystem when repository text is unavailable
-        let path = file
-            .path
-            .as_ref()
-            .unwrap_or_else(|| panic!("missing path for renamed file {file_id:?}"));
-        let content = repository
-            .file_system()
-            .read_to_string(path)
-            .unwrap_or_else(|error| panic!("failed to read renamed file {path:?}: {error}"));
-        let loaded = File::from_text(
-            file.id,
-            file.name.clone(),
-            file.uri.clone(),
-            file.path.clone(),
-            file.ty,
-            content,
-        );
-
-        Arc::new(loaded)
-    }
 }
 
 /// One source string literal used for specifier rewrites.
@@ -149,7 +114,11 @@ impl ProgramQueryContext<'_> {
                 .unwrap_or_else(|| panic!("missing renamed module {module_id:?}"));
 
             // resolve file content for literal edits
-            let file = self.read_rename_file(module.file_id);
+            let file_id = module.file_id;
+            let file = repository
+                .file(revision, file_id)
+                .unwrap_or_else(|error| panic!("failed to read renamed file {file_id:?}: {error}"))
+                .unwrap_or_else(|| panic!("missing renamed file {file_id:?}"));
 
             let module = self.module_context(module.id, profile_id);
             for entry in &entries {
