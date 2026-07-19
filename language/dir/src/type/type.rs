@@ -1,6 +1,7 @@
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 
 use crate::{
     Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
@@ -197,6 +198,21 @@ impl Type {
         )
     }
 
+    /// Return whether this type denotes one exact value.
+    pub fn is_singleton(&self) -> bool {
+        matches!(
+            self,
+            Self::Void
+                | Self::Null
+                | Self::Undefined
+                | Self::Literal(_)
+                | Self::Key(_)
+                | Self::Memory(_)
+                | Self::Static(_)
+                | Self::EnumMember(_)
+        )
+    }
+
     /// Return whether runtime values of this type can carry memory placement.
     pub fn is_placeable(&self) -> bool {
         !matches!(
@@ -239,6 +255,35 @@ impl Type {
         };
 
         Some(domain)
+    }
+
+    /// Return the language declaration that owns this built-in type's members.
+    pub fn member_owner_item(&self) -> Option<LanguageItem> {
+        if let Some(domain) = self.scalar_domain() {
+            return domain.member_owner_item();
+        }
+
+        match self {
+            Self::Array(_) => Some(LanguageItem::Array),
+            Self::Slice(_) => Some(LanguageItem::Slice),
+            Self::FixedArray(_) => Some(LanguageItem::FixedArray),
+            _ => None,
+        }
+    }
+
+    /// Return every inhabitant when this type has a finite literal set.
+    pub fn finite_literals(&self) -> Option<SmallVec<[ScalarLiteral; 2]>> {
+        match self {
+            Self::Never => Some(SmallVec::new()),
+            Self::Null => Some(smallvec![ScalarLiteral::Null]),
+            Self::Undefined => Some(smallvec![ScalarLiteral::Undefined]),
+            Self::Literal(literal) => Some(smallvec![*literal]),
+            Self::Primitive(PrimitiveType::Boolean) => Some(smallvec![
+                ScalarLiteral::Boolean(false),
+                ScalarLiteral::Boolean(true),
+            ]),
+            _ => None,
+        }
     }
 
     /// Return the symbolic leaf kind contributed by this type alone.
