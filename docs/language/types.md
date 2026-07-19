@@ -690,11 +690,6 @@ const view: readonly Shape[] = circles; // OK: readonly views are covariant
 const copies: Shape[] = [...circles];   // OK: explicit copy reifies Shape elements
 ```
 
-Declared variance closes the gaps derivation cannot reach.
-A generic parameter that never occurs in its declaration is an error (`EC442`); an explicit modifier like `out T` keeps a deliberate marker parameter.
-Declared modifiers on derivable declarations are checked against usage - `class Evil<out T> { slot: T }` is rejected (`EC443`) because the mutable field uses `T` invariantly.
-On an intrinsic newtype the compiler cannot derive anything, so the modifier is a trusted assertion about the opaque storage, composed with the handle context like a field: `Unique<out T>` is covariant for owned and viewed storage and still invariant behind a writable alias.
-
 For the other ways to write "a collection of shapes", the element representation decides everything:
 
 | Element type | `Shape[]` means | Holds |
