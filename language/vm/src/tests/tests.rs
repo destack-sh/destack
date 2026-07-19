@@ -14,7 +14,7 @@ use destack_program::{
     Layout, LayoutShape, Profile, ProfileOptions, Program, StaticSpace, StopReason, TypeId, Value,
     WatchSet,
 };
-use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
+use destack_source::{DiagnosticSeverity, File, FileId, FileType, PackageId, Uri};
 use mir::parse::{ParseOptions, Parser};
 use mir::{
     DropTable, LocalNodeId, TargetLayout, TensorDimension, TraceMap, Type, VariantCaseLayout,
@@ -260,7 +260,15 @@ fn parse_test_mir(
     StringPool,
 ) {
     let file_id = FileId::from_source_bytes(mir_text.as_bytes());
-    let parsed = Parser::parse(file_id, mir_text, options);
+    let file = File::from_text(
+        file_id,
+        "test.mir".to_string(),
+        Uri::from_string("test.mir"),
+        None,
+        FileType::Text,
+        mir_text.to_string(),
+    );
+    let parsed = Parser::parse(&file, options).expect("test MIR should be text");
     let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
         parsed.into_parts();
 

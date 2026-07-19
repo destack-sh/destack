@@ -47,7 +47,7 @@ impl Parser {
         match self.token_type(token) {
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
-                let start = token.start;
+                let start = token.start();
                 self.bump();
 
                 if self.value_name_map.contains_key(&name) {
@@ -72,7 +72,7 @@ impl Parser {
             _ => Err(ParseError::unexpected(
                 "value definition",
                 self.token_type(token),
-                token.start,
+                token.start(),
             )),
         }
     }
@@ -87,7 +87,7 @@ impl Parser {
         match self.token_type(token) {
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
-                let start = token.start;
+                let start = token.start();
                 self.bump();
 
                 let value =
@@ -116,7 +116,7 @@ impl Parser {
         match self.token_type(token) {
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
-                let start = token.start;
+                let start = token.start();
                 self.bump();
 
                 self.block_name_map
@@ -132,7 +132,7 @@ impl Parser {
     /// Parse a local reference and return its span.
     pub(super) fn parse_local_ref_part(&mut self) -> ParseResult<(LocalId, Span)> {
         let token = self.eat_token(TokenType::Identifier)?;
-        let token_start = token.start;
+        let token_start = token.start();
         let token_text = self.tree.source_text(token.span).to_string();
         let token_length = token_text.len();
         let span = self.span_at(token_start, token_length);
@@ -141,7 +141,7 @@ impl Parser {
             .get(&token_text)
             .copied()
             .ok_or_else(|| {
-                ParseError::invalid_at_span("local reference", token_start, token_length)
+                ParseError::invalid_with_length("local reference", token_start, token_length)
             })?;
 
         Ok((local, span))

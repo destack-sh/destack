@@ -109,7 +109,7 @@ impl Parser {
             .ok_or_else(|| ParseError::unexpected_end("attribute value", self.pos()))?;
         let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
-        let token_start = token.start;
+        let token_start = token.start();
 
         // type values
         if self.peek_type(kind) {

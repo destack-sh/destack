@@ -1399,7 +1399,7 @@ impl Parser {
     fn eat_named_group(&mut self, name: &str) -> ParseResult<()> {
         let token = self.eat_token(TokenType::Identifier)?;
         if self.tree.source_text(token.span) != name {
-            return Err(ParseError::invalid(name, token.start));
+            return Err(ParseError::invalid(name, token.start()));
         }
 
         Ok(())
@@ -1410,7 +1410,7 @@ impl Parser {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
         let operator = VectorReduceOperator::parse(self.tree.source_text(token.span))
-            .ok_or_else(|| ParseError::invalid("vector reduce operator", token.start))?;
+            .ok_or_else(|| ParseError::invalid("vector reduce operator", token.start()))?;
         Ok(operator)
     }
 
@@ -1419,7 +1419,7 @@ impl Parser {
         // parse the mode token
         let token = self.eat_token(TokenType::Identifier)?;
         let mode = VectorConvertMode::parse(self.tree.source_text(token.span))
-            .ok_or_else(|| ParseError::invalid("vector convert mode", token.start))?;
+            .ok_or_else(|| ParseError::invalid("vector convert mode", token.start()))?;
         Ok(mode)
     }
 
@@ -1428,7 +1428,7 @@ impl Parser {
         // parse the mode token
         let token = self.eat_token(TokenType::Identifier)?;
         let mode = TensorConvertMode::parse(self.tree.source_text(token.span))
-            .ok_or_else(|| ParseError::invalid("tensor convert mode", token.start))?;
+            .ok_or_else(|| ParseError::invalid("tensor convert mode", token.start()))?;
         Ok(mode)
     }
 
@@ -1437,7 +1437,7 @@ impl Parser {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
         let operator = TensorReduceOperator::parse(self.tree.source_text(token.span))
-            .ok_or_else(|| ParseError::invalid("tensor reduce operator", token.start))?;
+            .ok_or_else(|| ParseError::invalid("tensor reduce operator", token.start()))?;
         Ok(operator)
     }
 
@@ -1446,7 +1446,7 @@ impl Parser {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
         let operator = TensorIndexReduceOperator::parse(self.tree.source_text(token.span))
-            .ok_or_else(|| ParseError::invalid("tensor index reduce operator", token.start))?;
+            .ok_or_else(|| ParseError::invalid("tensor index reduce operator", token.start()))?;
         Ok(operator)
     }
 
@@ -1455,7 +1455,7 @@ impl Parser {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
         let operator = BinaryOperator::from_str(self.tree.source_text(token.span))
-            .map_err(|_| ParseError::invalid("comparison operator", token.start))?;
+            .map_err(|_| ParseError::invalid("comparison operator", token.start()))?;
         Ok(operator)
     }
 
@@ -1468,12 +1468,12 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let token = self.eat_token(TokenType::Identifier)?;
         if self.tree.source_text(token.span) != "mode" {
-            return Err(ParseError::invalid("mode", token.start));
+            return Err(ParseError::invalid("mode", token.start()));
         }
         self.eat_token(TokenType::OpenParenthesis)?;
         let token = self.eat_token(TokenType::Identifier)?;
         let mode_text = self.tree.source_text(token.span).to_string();
-        let mode_start = token.start;
+        let mode_start = token.start();
         self.eat_token(TokenType::CloseParenthesis)?;
         let mode = TensorScatterMode::parse(&mode_text)
             .ok_or_else(|| ParseError::invalid("scatter mode", mode_start))?;
@@ -1491,14 +1491,14 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let token = self.eat_token(TokenType::Identifier)?;
         if self.tree.source_text(token.span) != "tieBreak" {
-            return Err(ParseError::invalid("tieBreak", token.start));
+            return Err(ParseError::invalid("tieBreak", token.start()));
         }
 
         // parse the named value
         self.eat_token(TokenType::OpenParenthesis)?;
         let token = self.eat_token(TokenType::Identifier)?;
         let tie_break_text = self.tree.source_text(token.span).to_string();
-        let tie_break_start = token.start;
+        let tie_break_start = token.start();
         self.eat_token(TokenType::CloseParenthesis)?;
         let tie_break = TensorIndexTieBreak::parse(&tie_break_text)
             .ok_or_else(|| ParseError::invalid("tensor index reduce tie break", tie_break_start))?;
@@ -1510,7 +1510,7 @@ impl Parser {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
         if self.tree.source_text(token.span) != "dims" {
-            return Err(ParseError::invalid("dims", token.start));
+            return Err(ParseError::invalid("dims", token.start()));
         }
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -1522,7 +1522,7 @@ impl Parser {
         while !self.peek_token(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             let key_text = self.tree.source_text(key_token.span).to_string();
-            let key_start = key_token.start;
+            let key_start = key_token.start();
             let list = self.parse_u32_paren_list()?;
             match key_text.as_str() {
                 "lhsBatch" => lhs_batch = Some(list),
@@ -1560,7 +1560,7 @@ impl Parser {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
         if self.tree.source_text(token.span) != "dims" {
-            return Err(ParseError::invalid("dims", token.start));
+            return Err(ParseError::invalid("dims", token.start()));
         }
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -1613,7 +1613,7 @@ impl Parser {
                 _ => {
                     return Err(ParseError::invalid(
                         "convolution dimension key",
-                        key_token.start,
+                        key_token.start(),
                     ));
                 }
             }
@@ -1679,7 +1679,7 @@ impl Parser {
         if self.eat_token_maybe(TokenType::Comma) {
             let token = self.eat_token(TokenType::Identifier)?;
             if self.tree.source_text(token.span) != "window" {
-                return Err(ParseError::invalid("window", token.start));
+                return Err(ParseError::invalid("window", token.start()));
             }
             self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -1695,7 +1695,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::invalid(
                             "convolution window key",
-                            key_token.start,
+                            key_token.start(),
                         ));
                     }
                 }
@@ -1727,14 +1727,14 @@ impl Parser {
         if self.eat_token_maybe(TokenType::Comma) {
             let token = self.eat_token(TokenType::Identifier)?;
             if self.tree.source_text(token.span) != "groups" {
-                return Err(ParseError::invalid("groups", token.start));
+                return Err(ParseError::invalid("groups", token.start()));
             }
             self.eat_token(TokenType::OpenParenthesis)?;
 
             while !self.peek_token(TokenType::CloseParenthesis) {
                 let key_token = self.eat_token(TokenType::Identifier)?;
                 let key_text = self.tree.source_text(key_token.span).to_string();
-                let key_start = key_token.start;
+                let key_start = key_token.start();
                 let value = {
                     self.eat_token(TokenType::OpenParenthesis)?;
                     let value = self.parse_int_as_u32()?;
@@ -1767,7 +1767,7 @@ impl Parser {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
         if self.tree.source_text(token.span) != "dims" {
-            return Err(ParseError::invalid("dims", token.start));
+            return Err(ParseError::invalid("dims", token.start()));
         }
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -1787,7 +1787,12 @@ impl Parser {
                     index_vector_dim = Some(self.parse_int_as_u32()?);
                     self.eat_token(TokenType::CloseParenthesis)?;
                 }
-                _ => return Err(ParseError::invalid("gather dimension key", key_token.start)),
+                _ => {
+                    return Err(ParseError::invalid(
+                        "gather dimension key",
+                        key_token.start(),
+                    ));
+                }
             }
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -1818,7 +1823,7 @@ impl Parser {
         // parse the header
         let token = self.eat_token(TokenType::Identifier)?;
         if self.tree.source_text(token.span) != "dims" {
-            return Err(ParseError::invalid("dims", token.start));
+            return Err(ParseError::invalid("dims", token.start()));
         }
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -1843,7 +1848,7 @@ impl Parser {
                 _ => {
                     return Err(ParseError::invalid(
                         "scatter dimension key",
-                        key_token.start,
+                        key_token.start(),
                     ));
                 }
             }
@@ -2148,12 +2153,12 @@ impl Parser {
                 return Err(ParseError::unexpected(
                     "storage set",
                     self.token_type(token),
-                    token.start,
+                    token.start(),
                 ));
             }
 
             let token_text = self.tree.source_text(token.span).to_string();
-            let token_start = token.start;
+            let token_start = token.start();
             self.bump();
 
             // combine storage names

@@ -13,12 +13,12 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     /// Create a lexer.
-    pub const fn new(source: &'a str) -> Self {
+    const fn new(source: &'a str) -> Self {
         Self { source, offset: 0 }
     }
 
     /// Lex all tokens from one source.
-    pub fn lex(file_id: FileId, source: &'a str) -> Vec<Token> {
+    pub(crate) fn lex(file_id: FileId, source: &'a str) -> Vec<Token> {
         let mut lexer = Self::new(source);
         let mut tokens = Vec::new();
 
@@ -117,7 +117,7 @@ impl<'a> Lexer<'a> {
 
     /// Create one token from the current offset.
     fn token(&self, file_id: FileId, start: usize, ty: TokenType) -> Token {
-        let length = self.offset.saturating_sub(start);
+        let length = self.offset - start;
         let span = Span::at(file_id, start as u32, length as u32);
 
         Token::new(ty, span)

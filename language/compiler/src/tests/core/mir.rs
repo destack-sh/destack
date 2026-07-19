@@ -30,11 +30,11 @@ impl TestProgram {
             "<test.mir>".to_string(),
             Uri::from_string("<test.mir>"),
             None,
-            FileType::Destack,
+            FileType::Text,
             source.to_string(),
         ));
-        let parsed =
-            mir::parse::Parser::parse(file_id, source, mir::parse::ParseOptions::default());
+        let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+            .expect("test MIR should be text");
         if parsed
             .diagnostics
             .has_diagnostics_of_severity(DiagnosticSeverity::Error)

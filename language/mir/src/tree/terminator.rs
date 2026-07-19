@@ -920,15 +920,16 @@ fn block_edge(
 
 #[cfg(test)]
 mod tests {
-    use destack_core::StringPool;
-    use destack_source::FileId;
-
-    use crate::parse::{ParseOptions, Parser};
+    use crate::parse::{ParseOptions, Parser, test_file};
     use crate::{Block, Terminator, Tree, Type};
+    use destack_core::StringPool;
 
     /// Parse one MIR tree for terminator owner-method tests.
     fn parse_tree(source: &str) -> (Tree, StringPool) {
-        Parser::parse(FileId::new(0), source, ParseOptions::default())
+        let file = test_file(source);
+
+        Parser::parse(&file, ParseOptions::default())
+            .expect("MIR parser requires text content")
             .finish()
             .expect("parse failed")
     }

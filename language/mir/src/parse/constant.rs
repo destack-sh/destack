@@ -15,7 +15,7 @@ impl Parser {
             .ok_or_else(|| ParseError::unexpected_end("constant", self.pos()))?;
         let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
-        let token_start = token.start;
+        let token_start = token.start();
 
         // parse the literal
         match kind {
@@ -78,7 +78,7 @@ impl Parser {
             .ok_or_else(|| ParseError::unexpected_end("constant", self.pos()))?;
         let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
-        let token_start = token.start;
+        let token_start = token.start();
         let expected_type = self.constant_storage_type(expected_type)?;
         let expected = self.tree.get(expected_type).clone();
 
@@ -236,13 +236,13 @@ impl Parser {
         let token = self.eat_token(TokenType::Integer)?;
         let text = self.tree.source_text(token.span).to_string();
 
-        self.parse_int_literal_payload(&text, token.start)
+        self.parse_int_literal_payload(&text, token.start())
     }
 
     /// Parse an integer literal and return its span.
     pub(super) fn parse_int_literal_part(&mut self) -> ParseResult<(i128, Span)> {
         let token = self.eat_token(TokenType::Integer)?;
-        let token_start = token.start;
+        let token_start = token.start();
         let token_text = self.tree.source_text(token.span).to_string();
         let token_length = token_text.len();
         let span = self.span_at(token_start, token_length);

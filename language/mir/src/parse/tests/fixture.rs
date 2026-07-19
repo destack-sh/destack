@@ -1,5 +1,5 @@
 use destack_core::StringPool;
-use destack_source::{DiagnosticCollection, FileId, Span};
+use destack_source::{DiagnosticCollection, File, FileId, FileType, Span, Uri};
 
 use crate::parse::{ParseOptions, Parser};
 use crate::{CommentSpan, MirFormatOptions, Tree, format_mir};
@@ -44,6 +44,18 @@ pub(crate) struct TestParser<'a> {
     pub source: &'a str,
 }
 
+/// Build one MIR text fixture file.
+pub(crate) fn test_file(source: &str) -> File {
+    File::from_text(
+        FileId::new(0),
+        "test.mir".to_string(),
+        Uri::from_string("test.mir"),
+        None,
+        FileType::Text,
+        source.to_string(),
+    )
+}
+
 impl<'a> TestParser<'a> {
     /// Create a new parser test fixture.
     pub(crate) fn new(source: &'a str) -> Self {
@@ -52,14 +64,19 @@ impl<'a> TestParser<'a> {
 
     /// Parse one fixture and require no parse errors.
     pub(crate) fn parse(self) -> (Tree, StringPool) {
-        Parser::parse(FileId::new(0), self.source, ParseOptions::default())
+        let file = test_file(self.source);
+
+        Parser::parse(&file, ParseOptions::default())
+            .expect("MIR parser requires text content")
             .finish()
             .expect("parse failed")
     }
 
     /// Parse one fixture and keep recovery diagnostics.
     pub(crate) fn parse_with_diagnostics(self) -> (Tree, DiagnosticCollection) {
-        let parsed = Parser::parse(FileId::new(0), self.source, ParseOptions::default());
+        let file = test_file(self.source);
+        let parsed = Parser::parse(&file, ParseOptions::default())
+            .expect("MIR parser requires text content");
         let (
             tree,
             _target_layout,
@@ -85,7 +102,9 @@ impl<'a> TestParser<'a> {
 
     /// Assert one canonical format result.
     pub(crate) fn assert_format(self, expected: &str) {
-        let parsed = Parser::parse(FileId::new(0), self.source, ParseOptions::default());
+        let file = test_file(self.source);
+        let parsed = Parser::parse(&file, ParseOptions::default())
+            .expect("MIR parser requires text content");
         let (
             tree,
             target_layout,

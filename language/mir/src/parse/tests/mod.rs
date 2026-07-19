@@ -3,4 +3,4 @@ mod recovery;
 mod source;
 mod trivia;
 
-pub(super) use fixture::*;
+pub(crate) use fixture::*;

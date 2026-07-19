@@ -8,7 +8,7 @@ use destack_heap::{
 use destack_memory::MemoryMap;
 use destack_mir as mir;
 use destack_program::{FunctionId, StaticSpace, Value};
-use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
+use destack_source::{DiagnosticSeverity, File, FileId, FileType, PackageId, Uri};
 use destack_vm::{Machine, MachineOptions};
 use mir::parse::{ParseOptions, Parser};
 
@@ -39,7 +39,16 @@ impl Runtime {
     pub(crate) fn new(program: &str, entry: &str) -> Self {
         // parse the benchmark program
         let file_id = FileId::from_source_bytes(program.as_bytes());
-        let parsed = Parser::parse(file_id, program, ParseOptions::default());
+        let file = File::from_text(
+            file_id,
+            "dispatch.mir".to_string(),
+            Uri::from_string("dispatch.mir"),
+            None,
+            FileType::Text,
+            program.to_string(),
+        );
+        let parsed =
+            Parser::parse(&file, ParseOptions::default()).expect("benchmark MIR should be text");
         let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
             parsed.into_parts();
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {

@@ -205,7 +205,7 @@ impl Parser {
                     if self.peek_token(TokenType::OpenParenthesis) {
                         depth += 1;
                     } else if self.peek_token(TokenType::CloseParenthesis) {
-                        depth = depth.saturating_sub(1);
+                        depth -= 1;
                     }
 
                     self.bump();
@@ -247,7 +247,7 @@ impl Parser {
             if self.peek_token(TokenType::OpenBrace) {
                 depth += 1;
             } else if self.peek_token(TokenType::CloseBrace) {
-                depth = depth.saturating_sub(1);
+                depth -= 1;
             }
 
             self.bump();
@@ -263,7 +263,7 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<TypeAlias>> {
         // alias header
         let keyword_token = self.eat_token(TokenType::Type)?;
-        let keyword_start = keyword_token.start;
+        let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
 
@@ -297,7 +297,7 @@ impl Parser {
                 (ty, type_span, field_spans, declaration_spans)
             } else {
                 let equals_token = self.eat_token(TokenType::Equal)?;
-                let equals_start = equals_token.start;
+                let equals_start = equals_token.start();
                 let equals_length = self.tree.source_text(equals_token.span).len();
                 let equals_span = self.span_at(equals_start, equals_length);
                 let (ty, type_span) = self.parse_type_part()?;
@@ -404,7 +404,7 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Global>> {
         // global header
         let keyword_token = self.eat_token(TokenType::Global)?;
-        let keyword_start = keyword_token.start;
+        let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
 
@@ -428,10 +428,10 @@ impl Parser {
                     TokenType::Identifier | TokenType::Local => {
                         let text = self.tree.source_text(token.span);
                         crate::Space::from_name(text).ok_or_else(|| {
-                            ParseError::invalid_at_span(
+                            ParseError::invalid_with_length(
                                 "global space",
-                                token.start,
-                                token.span.end.saturating_sub(token.span.start) as usize,
+                                token.start(),
+                                token.span.len() as usize,
                             )
                         })?
                     }
@@ -439,7 +439,7 @@ impl Parser {
                         return Err(ParseError::unexpected(
                             "global space",
                             self.token_type(token),
-                            token.start,
+                            token.start(),
                         ));
                     }
                 };
@@ -516,7 +516,7 @@ impl Parser {
                 self.eat_token(TokenType::Identifier)?;
                 let token = self.eat_token(TokenType::String)?;
                 let token_text = self.tree.source_text(token.span).to_string();
-                let token_start = token.start;
+                let token_start = token.start();
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
@@ -525,7 +525,7 @@ impl Parser {
             // string literal
             TokenType::String => {
                 let token_text = self.tree.source_text(token.span).to_string();
-                let token_start = token.start;
+                let token_start = token.start();
                 self.bump();
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
@@ -576,7 +576,7 @@ impl Parser {
             _ => Err(ParseError::unexpected(
                 "data initializer",
                 self.token_type(token),
-                token.start,
+                token.start(),
             )),
         }
     }

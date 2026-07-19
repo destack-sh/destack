@@ -10,7 +10,7 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{DispatchTable, DropTable, LayoutTable, TargetLayout, Tree, TypeTable};
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
-use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
+use destack_source::{DiagnosticSeverity, File, FileId, FileType, PackageId, Uri};
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeFailure, RuntimeResult};
@@ -209,7 +209,15 @@ fn parse_mir(
     StringPool,
 ) {
     let file_id = FileId::from_source_bytes(mir.as_bytes());
-    let parsed = Parser::parse(file_id, mir, ParseOptions::default());
+    let file = File::from_text(
+        file_id,
+        "test.mir".to_string(),
+        Uri::from_string("test.mir"),
+        None,
+        FileType::Text,
+        mir.to_string(),
+    );
+    let parsed = Parser::parse(&file, ParseOptions::default()).expect("test MIR should be text");
     let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
         parsed.into_parts();
 

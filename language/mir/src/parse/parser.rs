@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
 use destack_source::{
-    ContentId, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileId, NodeSpanList,
-    NodeSpanType, Span,
+    Content, ContentId, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File,
+    FileId, NodeSpanList, NodeSpanType, Span,
 };
 
 use crate::source::{Lexer, TokenType};
@@ -76,7 +76,7 @@ impl ParsedMir {
     }
 
     /// Return the parsed MIR when no parse errors were emitted.
-    pub fn finish(self) -> ParseResult<(Tree, StringPool)> {
+    pub fn finish(self) -> Result<(Tree, StringPool), DiagnosticCollection> {
         let Self {
             tree,
             target_layout: _,
@@ -93,10 +93,7 @@ impl ParsedMir {
 
         // fail strictly when parse diagnostics were emitted
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-            let Some(diagnostic) = diagnostics.iter().next() else {
-                return Err(ParseError::new("parser emitted an empty error set", 0));
-            };
-            return Err(ParseError::from_diagnostic(diagnostic));
+            return Err(diagnostics);
         }
 
         Ok((tree, strings))
@@ -184,12 +181,15 @@ pub struct Parser {
 
 impl Parser {
     /// Create a new parser for a specific file.
-    pub fn new(file_id: FileId, source: &str, options: ParseOptions) -> Self {
-        let content_id = ContentId::for_text(source);
-        let tree = Tree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
+    pub fn new(file: &File, options: ParseOptions) -> ParseResult<Self> {
+        let Content::Text { content } = file.content.payload() else {
+            return Err(ParseError::new("MIR parser requires text content", 0));
+        };
+
+        let tree = Tree::with_parsed_source(content.clone(), Lexer::lex(file.id, content));
         let target_layout = TargetLayout::for_pointer_bytes(options.pointer_bytes);
 
-        Self {
+        Ok(Self {
             pos: 0,
             tree,
             target_layout,
@@ -201,8 +201,8 @@ impl Parser {
             effects: EffectTable::default(),
             profile: ProfileTable::default(),
             strings: StringPool::new(),
-            file_id,
-            content_id,
+            file_id: file.id,
+            content_id: file.content_id(),
             diagnostics: DiagnosticCollector::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
@@ -220,12 +220,12 @@ impl Parser {
             next_value_id: 0,
             parsed_block_count: 0,
             lifetime_scopes: Vec::new(),
-        }
+        })
     }
 
     /// Parse MIR text and return the parsed source bundle.
-    pub fn parse(file_id: FileId, source: &str, options: ParseOptions) -> ParsedMir {
-        let mut parser = Parser::new(file_id, source, options);
+    pub fn parse(file: &File, options: ParseOptions) -> ParseResult<ParsedMir> {
+        let mut parser = Parser::new(file, options)?;
 
         // parse the semantic MIR
         parser.parse_module();
@@ -239,7 +239,7 @@ impl Parser {
         // rebuild derived primitive type cache
         parser.types.rebuild_primitive_types(&parser.tree);
 
-        ParsedMir {
+        Ok(ParsedMir {
             tree: parser.tree,
             target_layout: parser.target_layout,
             types: parser.types,
@@ -251,7 +251,7 @@ impl Parser {
             profile: parser.profile,
             strings: parser.strings,
             diagnostics: parser.diagnostics.take_collection(),
-        }
+        })
     }
 
     /// Finalize generated names for every parsed function.
@@ -319,12 +319,15 @@ impl Parser {
             if scope.iter().any(|(candidate, _)| candidate == &name) {
                 return Err(ParseError::invalid(
                     "duplicate lifetime parameter",
-                    name_token.start,
+                    name_token.start(),
                 ));
             }
             self.eat_token(TokenType::Colon)?;
             if !self.eat_identifier_text("lifetime") {
-                return Err(ParseError::invalid("lifetime parameter", name_token.start));
+                return Err(ParseError::invalid(
+                    "lifetime parameter",
+                    name_token.start(),
+                ));
             }
 
             let slot = LifetimeSlot(scope.len() as u32);

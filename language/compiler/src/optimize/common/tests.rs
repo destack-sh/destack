@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{DiffOptions, FileId, ModuleId, PackageId, ProfileId, TargetId, print_diff};
+use destack_source::{
+    DiffOptions, File, FileId, FileType, ModuleId, PackageId, ProfileId, TargetId, Uri, print_diff,
+};
 
 use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext, PipelineOptions};
 use crate::{OptimizeError, OptimizeWarning};
@@ -29,11 +31,24 @@ fn test_target_id_for_package(package_id: PackageId, name: &str) -> TargetId {
     TargetId::new(package_id, name)
 }
 
+/// Build one optimizer MIR fixture file.
+fn test_mir_file(source: &str) -> File {
+    File::from_text(
+        FileId::new(0),
+        "test.mir".to_string(),
+        Uri::from_string("test.mir"),
+        None,
+        FileType::Text,
+        source.to_string(),
+    )
+}
+
 /// Validate one expected MIR fixture and return its literal text.
 fn expected_mir_text(source: &str) -> String {
-    match mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
-        .finish()
-    {
+    let file = test_mir_file(source);
+    let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+        .expect("test MIR should be text");
+    match parsed.finish() {
         Ok(_) => {}
         Err(error) => {
             eprintln!("===EXPECTED_BEGIN===\n{source}\n===EXPECTED_END===");
@@ -46,9 +61,10 @@ fn expected_mir_text(source: &str) -> String {
 
 /// Require one MIR fixture to parse.
 fn assert_parseable_mir_text(source: &str) {
-    let result =
-        mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
-            .finish();
+    let file = test_mir_file(source);
+    let result = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+        .expect("test MIR should be text")
+        .finish();
 
     if let Err(error) = result {
         eprintln!("===UNPARSEABLE_MIR_BEGIN===\n{source}\n===UNPARSEABLE_MIR_END===");
@@ -76,10 +92,11 @@ pub(crate) struct TestProgram {
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
-        let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
-                .finish()
-                .expect("failed to parse MIR");
+        let file = test_mir_file(source);
+        let (tree, strings) = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+            .expect("test MIR should be text")
+            .finish()
+            .expect("failed to parse MIR");
         let strings_pool = StringPool::new();
 
         // copy parser strings for passes that intern through context
@@ -924,13 +941,11 @@ impl TestProgram {
     /// Assert that the MIR is unchanged from the original source.
     #[track_caller]
     pub(crate) fn assert_unchanged(&self, original: &str) {
-        let (tree, strings) = mir::parse::Parser::parse(
-            FileId::new(0),
-            original,
-            mir::parse::ParseOptions::default(),
-        )
-        .finish()
-        .expect("failed to parse expected MIR");
+        let file = test_mir_file(original);
+        let (tree, strings) = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+            .expect("test MIR should be text")
+            .finish()
+            .expect("failed to parse expected MIR");
         let expected = mir::format_mir(
             &tree,
             mir::TargetLayout::default(),

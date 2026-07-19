@@ -145,7 +145,7 @@ impl Parser {
     ) -> ParseResult<ParsedFunctionHeader> {
         // keyword and name
         let keyword_token = self.eat_token(TokenType::Function)?;
-        let keyword_start = keyword_token.start;
+        let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
         let (name, name_start) = self.parse_symbol_name()?;
@@ -168,7 +168,7 @@ impl Parser {
         let (parameters, parameter_spans, open_paren_span, close_paren_span) =
             self.parse_function_parameters(linkage, mode)?;
         let return_colon_token = self.eat_token(TokenType::Colon)?;
-        let return_colon_start = return_colon_token.start;
+        let return_colon_start = return_colon_token.start();
         let return_colon_length = self.tree.source_text(return_colon_token.span).len();
         let return_colon_span = self.span_at(return_colon_start, return_colon_length);
         let (return_type, return_type_span) =
@@ -297,7 +297,7 @@ impl Parser {
 
         // body
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
-        let open_brace_start = open_brace_token.start;
+        let open_brace_start = open_brace_token.start();
         let open_brace_length = self.tree.source_text(open_brace_token.span).len();
         let open_brace_span = self.span_at(open_brace_start, open_brace_length);
         self.tree.set_function_header_spans(
@@ -383,7 +383,7 @@ impl Parser {
         mode: FunctionHeaderMode,
     ) -> ParseResult<(Vec<FunctionParameter>, Vec<TypedValueSpan>, Span, Span)> {
         let open_paren_token = self.eat_token(TokenType::OpenParenthesis)?;
-        let open_paren_start = open_paren_token.start;
+        let open_paren_start = open_paren_token.start();
         let open_paren_length = self.tree.source_text(open_paren_token.span).len();
         let open_paren_span = self.span_at(open_paren_start, open_paren_length);
 
@@ -443,7 +443,7 @@ impl Parser {
         };
 
         let close_paren_token = self.eat_token(TokenType::CloseParenthesis)?;
-        let close_paren_start = close_paren_token.start;
+        let close_paren_start = close_paren_token.start();
         let close_paren_length = self.tree.source_text(close_paren_token.span).len();
         let close_paren_span = self.span_at(close_paren_start, close_paren_length);
 
@@ -514,7 +514,7 @@ impl Parser {
             _ => Err(ParseError::unexpected(
                 "value definition",
                 self.token_type(token),
-                token.start,
+                token.start(),
             )),
         }
     }
@@ -542,7 +542,7 @@ impl Parser {
         // local reference
         let local_token = self.eat_token(TokenType::Identifier)?;
         let local_name_text = self.tree.source_text(local_token.span).to_string();
-        let local_name_start = local_token.start;
+        let local_name_start = local_token.start();
         let local_name_length = local_name_text.len();
         let local_span = self.span_at(local_name_start, local_name_length);
         if self.local_name_map.contains_key(&local_name_text) {
@@ -609,7 +609,7 @@ impl Parser {
                     return Err(ParseError::unexpected(
                         "block label",
                         self.token_type(block_token),
-                        block_token.start,
+                        block_token.start(),
                     ));
                 }
             };
@@ -667,9 +667,7 @@ impl Parser {
                         self.diagnostics
                             .insert(error.to_diagnostic(self.content_id, self.file_id));
                         self.try_recover_to_block(recovery_pos);
-                        terminator_span = Some(
-                            self.span_at(error.position, self.pos().saturating_sub(error.position)),
-                        );
+                        terminator_span = Some(self.span_between(error.position(), self.pos()));
                         terminator_main_span = main_token.as_ref().map(|token| token.span);
                         terminator = Some(Terminator::Error);
                         is_broken = true;
@@ -688,10 +686,7 @@ impl Parser {
                         .insert(error.to_diagnostic(self.content_id, self.file_id));
                     let continue_block = self.try_recover_in_block(recovery_index);
                     let error_end = self.pos();
-                    let error_span = self.span_at(
-                        instruction_start,
-                        error_end.saturating_sub(instruction_start),
-                    );
+                    let error_span = self.span_between(instruction_start, error_end);
                     let error_instruction = self.tree.insert(Instruction::Error);
                     self.tree.set_text_span(error_instruction, error_span);
                     instructions.push(error_instruction);
@@ -755,9 +750,9 @@ impl Parser {
                     .insert(error.to_diagnostic(self.content_id, self.file_id));
                 self.try_recover_to_block(recovery_pos);
 
-                let error_start = error.position;
+                let error_start = error.position();
                 let error_end = self.pos();
-                let error_span = self.span_at(error_start, error_end.saturating_sub(error_start));
+                let error_span = self.span_between(error_start, error_end);
                 let block = Block {
                     name: None,
                     parameters: Vec::new(),
@@ -922,7 +917,7 @@ impl Parser {
         match self.token_type(token) {
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
-                let start = token.start;
+                let start = token.start();
                 self.bump();
 
                 let value =
@@ -935,7 +930,7 @@ impl Parser {
             _ => Err(ParseError::unexpected(
                 "entry block parameter",
                 self.token_type(token),
-                token.start,
+                token.start(),
             )),
         }
     }
@@ -1051,7 +1046,7 @@ impl Parser {
                     });
                 }
 
-                Err(ParseError::invalid("expected `trap.abort`", token.start))
+                Err(ParseError::invalid("expected `trap.abort`", token.start()))
             }
             TokenType::Panic => {
                 self.bump();
@@ -1083,7 +1078,7 @@ impl Parser {
             _ => Err(ParseError::unexpected(
                 "terminator",
                 self.token_type(&token),
-                token.start,
+                token.start(),
             )),
         }
     }
@@ -1131,7 +1126,7 @@ impl Parser {
                 return Err(ParseError::unexpected(
                     "invoke or tail call",
                     token_type,
-                    token.start,
+                    token.start(),
                 ));
             }
         };
@@ -1249,7 +1244,7 @@ impl Parser {
             _ => Err(ParseError::unexpected(
                 "terminator",
                 self.token_type(token),
-                token.start,
+                token.start(),
             )),
         }
     }
@@ -1271,7 +1266,7 @@ impl Parser {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("check kind", self.pos()))?;
         let kind_text = self.tree.source_text(kind_token.span).to_string();
-        let kind_start = kind_token.start;
+        let kind_start = kind_token.start();
 
         match self.token_type(kind_token) {
             TokenType::Identifier | TokenType::TypeName | TokenType::Type => self.bump(),
@@ -1555,7 +1550,7 @@ impl Parser {
                     {
                         return Err(ParseError::new(
                             format!("duplicate block label '{token_text}'"),
-                            token.start,
+                            token.start(),
                         ));
                     }
                 }

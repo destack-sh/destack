@@ -1,14 +1,16 @@
 use destack_core::StringPool;
-use destack_source::{DiagnosticSeverity, FileId};
+use destack_source::DiagnosticSeverity;
 
 use crate as mir;
 use crate::analyses::{FunctionAnalysisCache, TreeAnalysisCache};
-use crate::parse::{ParseOptions, Parser};
+use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{DispatchTable, EffectTable, Function, LocalNodeId, MemoryTable, Tree};
 
 /// Parse one MIR test module and return its single function.
 pub(crate) fn parse_test_function(source: &str) -> (Tree, LocalNodeId<Function>) {
-    let (tree, _) = Parser::parse(FileId::new(0), source, ParseOptions::default())
+    let file = test_file(source);
+    let (tree, _) = Parser::parse(&file, ParseOptions::default())
+        .expect("MIR parser requires text content")
         .finish()
         .expect("parse failed");
 
@@ -59,7 +61,9 @@ pub(crate) struct TestProgram {
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
-        let parsed = Parser::parse(FileId::new(0), source, ParseOptions::default());
+        let file = test_file(source);
+        let parsed = Parser::parse(&file, ParseOptions::default())
+            .expect("MIR parser requires text content");
         let (
             tree,
             _target_layout,

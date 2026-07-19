@@ -587,17 +587,18 @@ impl FunctionAnalysis for ValueTypes {
 
 #[cfg(test)]
 mod tests {
-    use destack_core::StringPool;
-    use destack_source::FileId;
-
     use crate as mir;
-    use crate::parse::{ParseOptions, Parser};
+    use crate::parse::{ParseOptions, Parser, test_file};
+    use destack_core::StringPool;
 
     use super::{ValueDefinitions, ValueUse, ValueUses};
 
     /// Parse one MIR tree for value definition tests.
     fn parse_tree(source: &str) -> (mir::Tree, StringPool) {
-        Parser::parse(FileId::new(0), source, ParseOptions::default())
+        let file = test_file(source);
+
+        Parser::parse(&file, ParseOptions::default())
+            .expect("MIR parser requires text content")
             .finish()
             .expect("parse failed")
     }

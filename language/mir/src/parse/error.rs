@@ -1,104 +1,151 @@
-use crate::source::TokenType;
 use std::fmt;
 
-use destack_source::{ContentId, Diagnostic, DiagnosticLabel, DiagnosticTarget, FileId, Span};
+use destack_source::{
+    ContentId, Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticTarget, FileId, Span,
+};
 
-use crate::source::Token;
+use crate::source::{Token, TokenType};
 
-const MIR_PARSE_DIAGNOSTIC_CODE: &str = "EMIRP001";
+/// All MIR parser diagnostic definitions.
+const MIR_PARSE_DIAGNOSTICS: &[DiagnosticDefinition] = &[
+    ParseErrorKind::Invalid.definition(),
+    ParseErrorKind::UnexpectedToken.definition(),
+    ParseErrorKind::UnexpectedEnd.definition(),
+];
 
-/// Parse error for MIR text format.
-#[derive(Debug, Clone)]
+/// One class of MIR text parse failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ParseErrorKind {
+    /// Structurally invalid MIR source.
+    Invalid,
+    /// One token rejected by its grammar position.
+    UnexpectedToken,
+    /// MIR source that ended before a required construct.
+    UnexpectedEnd,
+}
+
+/// One MIR text parse error.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
-    /// The error message.
-    pub message: String,
-    /// Position in the source where the error occurred.
-    pub position: usize,
-    /// The source length covered by this error when known.
-    pub length: usize,
+    /// The failure class.
+    kind: ParseErrorKind,
+    /// The exact failure message.
+    message: String,
+    /// The source byte position.
+    position: usize,
+    /// The covered source length when known.
+    length: usize,
+}
+
+impl ParseErrorKind {
+    /// Return the static diagnostic definition.
+    const fn definition(self) -> DiagnosticDefinition {
+        let (id, description) = match self {
+            Self::Invalid => ("invalid-mir", "MIR source is structurally invalid."),
+            Self::UnexpectedToken => (
+                "unexpected-mir-token",
+                "MIR source contains an unexpected token.",
+            ),
+            Self::UnexpectedEnd => (
+                "unexpected-end-of-mir",
+                "MIR source ended before a required construct.",
+            ),
+        };
+
+        DiagnosticDefinition::error(id, description)
+    }
 }
 
 impl ParseError {
-    /// Create a new parse error.
-    pub fn new(message: impl Into<String>, position: usize) -> Self {
+    /// All MIR parser diagnostic definitions.
+    pub const ALL: &'static [DiagnosticDefinition] = MIR_PARSE_DIAGNOSTICS;
+
+    /// Create one invalid MIR error.
+    pub(super) fn new(message: impl Into<String>, position: usize) -> Self {
         Self {
+            kind: ParseErrorKind::Invalid,
             message: message.into(),
             position,
             length: 0,
         }
     }
 
-    /// Create a new parse error with one known source length.
-    pub fn new_with_length(message: impl Into<String>, position: usize, length: usize) -> Self {
+    /// Create one invalid MIR error with a known source length.
+    fn with_length(message: impl Into<String>, position: usize, length: usize) -> Self {
         Self {
+            kind: ParseErrorKind::Invalid,
             message: message.into(),
             position,
             length,
         }
     }
 
-    /// Create an "unexpected token" error.
-    pub fn unexpected(expected: &str, got: TokenType, position: usize) -> Self {
-        Self::new(format!("expected {expected}, got {got:?}"), position)
+    /// Create an unexpected MIR token error.
+    pub(super) fn unexpected(expected: &str, actual: TokenType, position: usize) -> Self {
+        Self {
+            kind: ParseErrorKind::UnexpectedToken,
+            message: format!("expected {expected}, got {actual:?}"),
+            position,
+            length: 0,
+        }
     }
 
-    /// Create an "unexpected token" error for one concrete token.
-    pub fn unexpected_token(expected: &str, token: &Token) -> Self {
-        Self::new_with_length(
-            format!("expected {expected}, got {:?}", token.ty),
-            token.span.start as usize,
-            token.span.end.saturating_sub(token.span.start) as usize,
-        )
+    /// Create an unexpected error for one concrete MIR token.
+    pub(super) fn unexpected_token(expected: &str, token: &Token) -> Self {
+        Self {
+            kind: ParseErrorKind::UnexpectedToken,
+            message: format!("expected {expected}, got {:?}", token.ty),
+            position: token.span.start as usize,
+            length: token.span.len() as usize,
+        }
     }
 
-    /// Create an "unexpected end of input" error.
-    pub fn unexpected_end(expected: &str, position: usize) -> Self {
-        Self::new(format!("expected {expected}, got end of input"), position)
+    /// Create an unexpected end of MIR source error.
+    pub(super) fn unexpected_end(expected: &str, position: usize) -> Self {
+        Self {
+            kind: ParseErrorKind::UnexpectedEnd,
+            message: format!("expected {expected}, got end of input"),
+            position,
+            length: 0,
+        }
     }
 
-    /// Create an "invalid" error.
-    pub fn invalid(what: &str, position: usize) -> Self {
-        Self::new(format!("invalid {what}"), position)
+    /// Create an invalid MIR construct error.
+    pub(super) fn invalid(description: &str, position: usize) -> Self {
+        Self::new(format!("invalid {description}"), position)
     }
 
-    /// Create an "invalid" error for one known source span.
-    pub fn invalid_at_span(what: &str, position: usize, length: usize) -> Self {
-        Self::new_with_length(format!("invalid {what}"), position, length)
+    /// Create an invalid MIR construct error with a known source length.
+    pub(super) fn invalid_with_length(description: &str, position: usize, length: usize) -> Self {
+        Self::with_length(format!("invalid {description}"), position, length)
     }
 
-    /// Convert this parse error into one shared source diagnostic.
-    pub fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
-        let start = u32::try_from(self.position).unwrap_or(u32::MAX);
-        let length = u32::try_from(self.length).unwrap_or(u32::MAX);
+    /// Return the source byte position of this error.
+    pub(super) fn position(&self) -> usize {
+        self.position
+    }
+
+    /// Convert this MIR parse error into one source diagnostic.
+    pub(super) fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
+        let definition = self.kind.definition();
+        let start = self.position as u32;
+        let length = self.length as u32;
         let span = Span::at(file_id, start, length);
-        let label = self.message.clone();
+        let primary =
+            DiagnosticLabel::message(content, DiagnosticTarget::Span(span), self.message.clone());
 
-        Diagnostic::error(
-            MIR_PARSE_DIAGNOSTIC_CODE,
-            format!("parse error: {}", self.message),
-            DiagnosticLabel::message(content, DiagnosticTarget::Span(span), label),
-        )
-    }
-
-    /// Rebuild one parse error from a shared diagnostic.
-    pub fn from_diagnostic(diagnostic: &Diagnostic) -> Self {
-        let primary = diagnostic.primary_label();
-        let span = primary
-            .target
-            .span()
-            .unwrap_or_else(|| Span::empty(primary.target.file()));
-
-        Self::new_with_length(
-            primary.message.clone().unwrap_or_default(),
-            span.start as usize,
-            span.end.saturating_sub(span.start) as usize,
-        )
+        Diagnostic::error(definition.id, self.message.clone(), primary)
     }
 }
 
 impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "parse error at {}: {}", self.position, self.message)
+    /// Format one MIR parse error.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "MIR parse error at {}: {}",
+            self.position, self.message
+        )
     }
 }
 

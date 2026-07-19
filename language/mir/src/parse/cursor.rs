@@ -8,10 +8,17 @@ use super::parser::Parser;
 impl Parser {
     /// Get current position for error reporting.
     pub(super) fn pos(&self) -> usize {
-        self.peek()
-            .map(|token| token.start)
-            .or_else(|| self.last_consumed_token_end())
-            .unwrap_or(0)
+        if let Some(token) = self.peek() {
+            token.start()
+        } else if let Some(end) = self.last_consumed_token_end() {
+            end
+        } else {
+            let Some(source) = self.tree.source_text.as_ref() else {
+                unreachable!("MIR parser tree has no source text");
+            };
+
+            source.len()
+        }
     }
 
     /// Return the MIR token type for one source token.
@@ -27,15 +34,14 @@ impl Parser {
 
     /// Build a span for a source slice.
     pub(super) fn span_at(&self, start: usize, length: usize) -> Span {
-        let start = u32::try_from(start).unwrap_or(u32::MAX);
-        let length = u32::try_from(length).unwrap_or(0);
-
-        Span::at(self.file_id, start, length)
+        Span::at(self.file_id, start as u32, length as u32)
     }
 
     /// Build a span for one parsed range.
     pub(super) fn span_between(&self, start: usize, end: usize) -> Span {
-        self.span_at(start, end.saturating_sub(start))
+        assert!(end >= start, "MIR source span ends before it starts");
+
+        self.span_at(start, end - start)
     }
 
     /// Build a span from one parse start to the last consumed token.
@@ -185,7 +191,7 @@ impl Parser {
             | TokenType::CallVirtual
             | TokenType::CallDynamic => {
                 let text = self.tree.source_text(token.span).to_string();
-                let start = token.start;
+                let start = token.start();
                 self.bump();
 
                 Ok((text, start))

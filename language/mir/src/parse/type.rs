@@ -163,7 +163,7 @@ impl Parser {
         }
 
         let error_end = self.pos();
-        let span = self.span_at(error.position, error_end.saturating_sub(error.position));
+        let span = self.span_between(error.position(), error_end);
         let ty = self.error_type();
 
         (ty, span)
@@ -324,7 +324,7 @@ impl Parser {
             match self.token_type(token) {
                 TokenType::OpenBrace => depth += 1,
                 TokenType::CloseBrace => {
-                    depth = depth.saturating_sub(1);
+                    depth -= 1;
                     if depth == 0 {
                         break;
                     }
@@ -360,7 +360,7 @@ impl Parser {
                 .ok_or_else(|| ParseError::unexpected_end("type", self.pos()))?;
             (
                 self.token_type(token),
-                token.start,
+                token.start(),
                 self.tree.source_text(token.span).to_string(),
             )
         };
@@ -493,7 +493,7 @@ impl Parser {
         let token = self.eat_token(TokenType::Integer)?;
         let token_text = self.tree.source_text(token.span).to_string();
         let lanes = token_text.parse().map_err(|_| {
-            ParseError::invalid(&format!("vector lane count '{token_text}'"), token.start)
+            ParseError::invalid(&format!("vector lane count '{token_text}'"), token.start())
         })?;
 
         self.eat_token(TokenType::GreaterThan)?;
@@ -628,7 +628,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<(LocalNodeId<Type>, Vec<FieldSpan>, TypeDeclarationSpans)> {
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
-        let open_brace_start = open_brace_token.start;
+        let open_brace_start = open_brace_token.start();
         let open_brace_length = self.tree.source_text(open_brace_token.span).len();
         let open_brace_span = self.span_at(open_brace_start, open_brace_length);
 
@@ -655,7 +655,7 @@ impl Parser {
             {
                 self.eat_token(TokenType::At)?;
                 let name_token = self.eat_token(TokenType::Identifier)?;
-                let name_start = name_token.start;
+                let name_start = name_token.start();
                 let name_text = self.tree.source_text(name_token.span).to_string();
                 let name_length = name_text.len() + 1;
                 let display_name = format!("@{name_text}");
@@ -668,7 +668,7 @@ impl Parser {
                 && self.token_type(next_token) == TokenType::Colon
             {
                 let name_token = self.eat_token(TokenType::Identifier)?;
-                let name_start = name_token.start;
+                let name_start = name_token.start();
                 let name_text = self.tree.source_text(name_token.span).to_string();
                 let name_length = name_text.len();
                 let span = self.span_at(name_start, name_length);
@@ -730,7 +730,7 @@ impl Parser {
         }
 
         let close_brace_token = self.eat_token(TokenType::CloseBrace)?;
-        let close_brace_start = close_brace_token.start;
+        let close_brace_start = close_brace_token.start();
         let close_brace_length = self.tree.source_text(close_brace_token.span).len();
         let close_brace_span = self.span_at(close_brace_start, close_brace_length);
 
@@ -1007,10 +1007,10 @@ impl Parser {
             TokenType::Identifier | TokenType::Local => {
                 let text = self.tree.source_text(token.span);
                 Space::from_name(text).ok_or_else(|| {
-                    ParseError::invalid_at_span(
+                    ParseError::invalid_with_length(
                         "space",
-                        token.start,
-                        token.span.end.saturating_sub(token.span.start) as usize,
+                        token.start(),
+                        token.span.len() as usize,
                     )
                 })?
             }
@@ -1018,7 +1018,7 @@ impl Parser {
                 return Err(ParseError::unexpected(
                     "space",
                     self.token_type(token),
-                    token.start,
+                    token.start(),
                 ));
             }
         };
@@ -1045,10 +1045,10 @@ impl Parser {
                     }
                     name => {
                         let slot = self.lifetime_slot(name).ok_or_else(|| {
-                            ParseError::invalid_at_span(
+                            ParseError::invalid_with_length(
                                 "lifetime name",
-                                token.start,
-                                token.span.end.saturating_sub(token.span.start) as usize,
+                                token.start(),
+                                token.span.len() as usize,
                             )
                         })?;
                         terms.push(LifetimeTerm::Slot(slot));
@@ -1059,7 +1059,7 @@ impl Parser {
                     return Err(ParseError::unexpected(
                         "lifetime origin",
                         self.token_type(token),
-                        token.start,
+                        token.start(),
                     ));
                 }
             }
@@ -1133,7 +1133,7 @@ impl Parser {
                     return Err(ParseError::unexpected(
                         "tensor shape dimension",
                         self.token_type(token),
-                        token.start,
+                        token.start(),
                     ));
                 }
             }
@@ -1162,7 +1162,7 @@ impl Parser {
                     } else if let Some(view_format) = view_format.as_deref_mut() {
                         *view_format = self.parse_tensor_view_format()?;
                     } else {
-                        return Err(ParseError::invalid("tensor format group", token.start));
+                        return Err(ParseError::invalid("tensor format group", token.start()));
                     }
                     self.eat_token(TokenType::CloseParenthesis)?;
                 }
@@ -1171,7 +1171,7 @@ impl Parser {
                     *sharding = self.parse_tensor_sharding()?;
                     self.eat_token(TokenType::CloseParenthesis)?;
                 }
-                _ => return Err(ParseError::invalid("tensor group", token.start)),
+                _ => return Err(ParseError::invalid("tensor group", token.start())),
             }
         }
 
@@ -1188,7 +1188,7 @@ impl Parser {
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Ok(TensorFormat::Dense { order })
             }
-            _ => Err(ParseError::invalid("tensor format", token.start)),
+            _ => Err(ParseError::invalid("tensor format", token.start())),
         }
     }
 
@@ -1203,7 +1203,7 @@ impl Parser {
                 Ok(TensorViewFormat::Dense { order })
             }
             "strided" => Ok(TensorViewFormat::Strided),
-            _ => Err(ParseError::invalid("tensor view format", token.start)),
+            _ => Err(ParseError::invalid("tensor view format", token.start())),
         }
     }
 
@@ -1253,7 +1253,7 @@ impl Parser {
 
                 Ok(TensorShardingAxis::Partial { reduction })
             }
-            _ => Err(ParseError::invalid("tensor sharding axis", token.start)),
+            _ => Err(ParseError::invalid("tensor sharding axis", token.start())),
         }
     }
 
@@ -1267,7 +1267,7 @@ impl Parser {
             "maximum" => TensorReduction::Maximum,
             "and" => TensorReduction::And,
             "or" => TensorReduction::Or,
-            _ => return Err(ParseError::invalid("tensor reduction", token.start)),
+            _ => return Err(ParseError::invalid("tensor reduction", token.start())),
         };
 
         Ok(reduction)
@@ -1279,7 +1279,7 @@ impl Parser {
         let order = match self.tree.source_text(token.span) {
             "rowMajor" => TensorDimensionOrder::RowMajor,
             "columnMajor" => TensorDimensionOrder::ColumnMajor,
-            _ => return Err(ParseError::invalid("tensor dimension order", token.start)),
+            _ => return Err(ParseError::invalid("tensor dimension order", token.start())),
         };
 
         Ok(order)

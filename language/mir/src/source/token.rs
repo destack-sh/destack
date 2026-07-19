@@ -9,25 +9,19 @@ pub struct Token {
     pub ty: TokenType,
     /// The exact source span.
     pub span: Span,
-    /// The source start byte.
-    pub start: usize,
 }
 
 impl Token {
     /// Create one token.
     #[inline]
     pub const fn new(ty: TokenType, span: Span) -> Self {
-        Self {
-            ty,
-            span,
-            start: span.start as usize,
-        }
+        Self { ty, span }
     }
 
     /// Return the source start byte.
     #[inline]
     pub const fn start(self) -> usize {
-        self.start
+        self.span.start as usize
     }
 
     /// Return whether this token is trivia.

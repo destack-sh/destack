@@ -14,7 +14,7 @@ use destack_runtime::launch::Launch;
 use destack_runtime::runtime::WorkerOptions;
 use destack_runtime::runtime::machine::{Entry, Execution};
 use destack_runtime::world::{RuntimeId, World};
-use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
+use destack_source::{DiagnosticSeverity, File, FileId, FileType, PackageId, Uri};
 use destack_vm::{Continuation, Machine, MachineOptions, Outcome};
 
 /// MIR program used by footprint setups.
@@ -258,7 +258,16 @@ fn build_machine() -> Machine {
 
 /// Build one executable footprint program.
 fn build_program(options: &MachineOptions) -> Arc<Program> {
-    let parsed = Parser::parse(FileId::new(0), VM_PROGRAM, ParseOptions::default());
+    let file = File::from_text(
+        FileId::new(0),
+        "footprint.mir".to_string(),
+        Uri::from_string("footprint.mir"),
+        None,
+        FileType::Text,
+        VM_PROGRAM.to_string(),
+    );
+    let parsed =
+        Parser::parse(&file, ParseOptions::default()).expect("footprint MIR should be text");
     let (tree, target_layout, types, layouts, dispatch, drops, _, _, _, strings, diagnostics) =
         parsed.into_parts();
 
