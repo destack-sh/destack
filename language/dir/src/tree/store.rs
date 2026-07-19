@@ -1,8 +1,8 @@
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
-    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, MatchCase, Member,
-    Node, Parameter, Pattern, PatternField, Property, Tree, TreeAttribute, TreeChild, TupleElement,
-    TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, MatchArm, Member,
+    Node, Parameter, Pattern, PatternField, Property, SwitchCase, Tree, TreeAttribute, TreeChild,
+    TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Map node types to arenas.
@@ -65,10 +65,11 @@ impl_tree_stores! {
     Argument => arguments,
     TreeAttribute => tree_attributes,
     TreeChild => tree_children,
-    MatchCase => match_cases,
+    MatchArm => match_arms,
     Pattern => patterns,
     PatternField => pattern_fields,
     AssignPattern => assign_patterns,
     AssignPatternField => assign_pattern_fields,
     Decorator => decorators,
+    SwitchCase => switch_cases,
 }

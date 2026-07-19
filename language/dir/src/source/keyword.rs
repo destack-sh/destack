@@ -142,7 +142,7 @@ pub enum Keyword {
     Else,
     /// Match expression.
     Match,
-    /// Switch expression.
+    /// Switch statement.
     Switch,
     /// Case expression.
     Case,

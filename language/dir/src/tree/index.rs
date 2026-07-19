@@ -71,12 +71,13 @@ impl NodeIndexEntry {
             18 => NodeType::Argument,
             19 => NodeType::TreeAttribute,
             20 => NodeType::TreeChild,
-            21 => NodeType::MatchCase,
+            21 => NodeType::MatchArm,
             22 => NodeType::Pattern,
             23 => NodeType::PatternField,
             24 => NodeType::AssignPattern,
             25 => NodeType::AssignPatternField,
             26 => NodeType::Decorator,
+            27 => NodeType::SwitchCase,
             _ => unreachable!("invalid DIR node type tag in packed node index"),
         }
     }

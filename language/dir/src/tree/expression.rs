@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
-    InferForm, Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Pattern,
-    PlaceModifier, Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TreeAttribute,
+    InferForm, Keyword, LocalNodeId, MatchArm, Mutability, Node, NodeType, Pattern, PlaceModifier,
+    Property, RangeEnd, ScalarLiteral, StaticKey, SwitchCase, TemplateLiteral, TreeAttribute,
     TreeChild, TypeExpression, UnaryOperator,
 };
 
@@ -285,10 +285,7 @@ pub enum Expression {
         finally: Option<LocalNodeId<Expression>>,
     },
 
-    /// A Match is a match expression with case patterns.
-    /// The clauses must be exhaustive and return the same type.
-    /// Match statements are Expressions and also used in catch patterns.
-    /// Like other statements, match cases do not need to be terminated with a colon/semicolon.
+    /// A match expression.
     ///
     /// Examples:
     /// ```
@@ -302,9 +299,18 @@ pub enum Expression {
     /// }
     /// ```
     Match {
-        form: MatchForm,
+        /// The selected value.
         value: LocalNodeId<Expression>,
-        cases: Vec<LocalNodeId<MatchCase>>,
+        /// The ordered arms.
+        arms: Vec<LocalNodeId<MatchArm>>,
+    },
+
+    /// A switch statement.
+    Switch {
+        /// The selected value.
+        value: LocalNodeId<Expression>,
+        /// The ordered cases.
+        cases: Vec<LocalNodeId<SwitchCase>>,
     },
 
     /// A break statement.
@@ -825,6 +831,7 @@ impl Expression {
             Self::Loop { .. } => "Loop",
             Self::Try { .. } => "Try",
             Self::Match { .. } => "Match",
+            Self::Switch { .. } => "Switch",
             Self::Break { .. } => "Break",
             Self::Continue { .. } => "Continue",
             Self::Await { .. } => "Await",
@@ -934,7 +941,7 @@ impl Expression {
                 catch,
                 finally,
             } => catch.is_some() || finally.is_some(),
-            Expression::Match { .. } => true,
+            Expression::Match { .. } | Expression::Switch { .. } => true,
             _ => false,
         }
     }
@@ -988,6 +995,7 @@ impl Expression {
                 | Expression::For { .. }
                 | Expression::Loop { .. }
                 | Expression::Match { .. }
+                | Expression::Switch { .. }
                 | Expression::Break { .. }
                 | Expression::Continue { .. }
                 | Expression::Yield { .. }
@@ -1021,6 +1029,7 @@ impl Expression {
                 | Expression::While { .. }
                 | Expression::Loop { .. }
                 | Expression::Match { .. }
+                | Expression::Switch { .. }
                 | Expression::Break { .. }
                 | Expression::Continue { .. }
                 | Expression::Return { .. }

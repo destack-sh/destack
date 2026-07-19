@@ -14,10 +14,10 @@ use super::sparse::SparseNodeMap;
 use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
     Decorator, DependencyItem, DirectChildCollector, Documentation, EnumField, Expression,
-    GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node,
+    GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny, MatchArm, Member, Node,
     NodeParentIndex, NodeType, Origin, Parameter, Path, Pattern, PatternField, Property,
-    TreeAttribute, TreeCapacity, TreeChild, TreeMark, TreeStore, TupleElement, TypeExpression,
-    TypeMappedParameter, TypeMember, WhereClause,
+    SwitchCase, TreeAttribute, TreeCapacity, TreeChild, TreeMark, TreeStore, TupleElement,
+    TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Mutable DIR tree across a set of related source units.
@@ -57,12 +57,13 @@ pub struct Tree {
     pub(crate) arguments: Arena<Argument>,
     pub(crate) tree_attributes: Arena<TreeAttribute>,
     pub(crate) tree_children: Arena<TreeChild>,
-    pub(crate) match_cases: Arena<MatchCase>,
+    pub(crate) match_arms: Arena<MatchArm>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
     pub(crate) assign_patterns: Arena<AssignPattern>,
     pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
     pub(crate) decorators: Arena<Decorator>,
+    pub(crate) switch_cases: Arena<SwitchCase>,
 
     // node side data
     /// Parent of every node, rebuilt when the tree is complete and updated in place.
@@ -142,12 +143,13 @@ impl Tree {
             arguments: Arena::new(),
             tree_attributes: Arena::new(),
             tree_children: Arena::new(),
-            match_cases: Arena::new(),
+            match_arms: Arena::new(),
             patterns: Arena::new(),
             pattern_fields: Arena::new(),
             assign_patterns: Arena::new(),
             assign_pattern_fields: Arena::new(),
             decorators: Arena::new(),
+            switch_cases: Arena::new(),
 
             parents: NodeParentIndex::new(),
             origin_by_node_id: SparseNodeMap::new(),
@@ -296,12 +298,13 @@ impl Tree {
             NodeType::Argument => self.arguments.truncate(len),
             NodeType::TreeAttribute => self.tree_attributes.truncate(len),
             NodeType::TreeChild => self.tree_children.truncate(len),
-            NodeType::MatchCase => self.match_cases.truncate(len),
+            NodeType::MatchArm => self.match_arms.truncate(len),
             NodeType::Pattern => self.patterns.truncate(len),
             NodeType::PatternField => self.pattern_fields.truncate(len),
             NodeType::AssignPattern => self.assign_patterns.truncate(len),
             NodeType::AssignPatternField => self.assign_pattern_fields.truncate(len),
             NodeType::Decorator => self.decorators.truncate(len),
+            NodeType::SwitchCase => self.switch_cases.truncate(len),
         }
     }
 

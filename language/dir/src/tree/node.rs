@@ -34,12 +34,13 @@ pub enum NodeType {
     Argument = 18,
     TreeAttribute = 19,
     TreeChild = 20,
-    MatchCase = 21,
+    MatchArm = 21,
     Pattern = 22,
     PatternField = 23,
     AssignPattern = 24,
     AssignPatternField = 25,
     Decorator = 26,
+    SwitchCase = 27,
 }
 
 impl NodeType {
@@ -67,12 +68,13 @@ impl NodeType {
             NodeType::Argument => "argument",
             NodeType::TreeAttribute => "tree attribute",
             NodeType::TreeChild => "tree child",
-            NodeType::MatchCase => "match case",
+            NodeType::MatchArm => "match arm",
             NodeType::Pattern => "pattern",
             NodeType::PatternField => "pattern field",
             NodeType::AssignPattern => "assignment pattern",
             NodeType::AssignPatternField => "assignment pattern field",
             NodeType::Decorator => "decorator",
+            NodeType::SwitchCase => "switch case",
         }
     }
 }

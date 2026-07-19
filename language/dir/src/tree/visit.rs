@@ -1,14 +1,15 @@
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
-    LocalNodeIdAny, MatchCase, Member, NodeType, Parameter, Pattern, PatternField, Property, Tree,
-    TreeAttribute, TreeChild, TupleElement, TypeExpression, TypeMappedParameter, TypeMember,
-    WhereClause, walk_any, walk_argument, walk_assign_pattern, walk_assign_pattern_field,
-    walk_block, walk_catch, walk_declaration, walk_declarator, walk_decorator,
-    walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
-    walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_property, walk_tree_attribute, walk_tree_child, walk_tuple_element,
-    walk_type_expression, walk_type_mapped_parameter, walk_type_member, walk_where_clause,
+    LocalNodeIdAny, MatchArm, Member, NodeType, Parameter, Pattern, PatternField, Property,
+    SwitchCase, Tree, TreeAttribute, TreeChild, TupleElement, TypeExpression, TypeMappedParameter,
+    TypeMember, WhereClause, walk_any, walk_argument, walk_assign_pattern,
+    walk_assign_pattern_field, walk_block, walk_catch, walk_declaration, walk_declarator,
+    walk_decorator, walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
+    walk_generic_parameter, walk_match_arm, walk_member, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_switch_case, walk_tree_attribute, walk_tree_child,
+    walk_tuple_element, walk_type_expression, walk_type_mapped_parameter, walk_type_member,
+    walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -166,14 +167,14 @@ pub trait NodeVisitor {
         walk_tuple_element(self, tree, id, tuple_element);
     }
 
-    /// Visit a MatchCase.
-    fn visit_match_case(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<MatchCase>,
-        match_case: &MatchCase,
-    ) {
-        walk_match_case(self, tree, id, match_case);
+    /// Visit a match arm.
+    fn visit_match_arm(&mut self, tree: &Tree, id: LocalNodeId<MatchArm>, arm: &MatchArm) {
+        walk_match_arm(self, tree, id, arm);
+    }
+
+    /// Visit a switch case.
+    fn visit_switch_case(&mut self, tree: &Tree, id: LocalNodeId<SwitchCase>, case: &SwitchCase) {
+        walk_switch_case(self, tree, id, case);
     }
 
     /// Visit a Declarator.
@@ -454,13 +455,12 @@ impl NodeVisitor for DirectChildCollector {
         self.visit_any(tree, NodeType::AssignPatternField, id.id);
     }
 
-    fn visit_match_case(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<MatchCase>,
-        _match_case: &MatchCase,
-    ) {
-        self.visit_any(tree, NodeType::MatchCase, id.id);
+    fn visit_match_arm(&mut self, tree: &Tree, id: LocalNodeId<MatchArm>, _arm: &MatchArm) {
+        self.visit_any(tree, NodeType::MatchArm, id.id);
+    }
+
+    fn visit_switch_case(&mut self, tree: &Tree, id: LocalNodeId<SwitchCase>, _case: &SwitchCase) {
+        self.visit_any(tree, NodeType::SwitchCase, id.id);
     }
 
     fn visit_declarator(

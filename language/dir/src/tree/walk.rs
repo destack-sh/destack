@@ -2,9 +2,9 @@ use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, ConditionOperand, Declaration,
     Declarator, Decorator, DependencyItem, EnumField, Expression, ForEachBinding,
     FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, LocalNodeIdAny,
-    MatchCase, MatchSelector, Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Property, TemplateLiteral, Tree, TreeAttribute, TreeChild, TupleElement, TypeExpression,
-    TypeMappedParameter, TypeMember, WhereClause,
+    MatchArm, Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
+    SwitchCase, SwitchSelector, TemplateLiteral, Tree, TreeAttribute, TreeChild, TupleElement,
+    TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Walk any node.
@@ -129,9 +129,9 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
                 assign_pattern_field,
             );
         }
-        NodeType::MatchCase => {
-            let match_case = tree.match_cases.get(local_index);
-            walk_match_case(visitor, tree, LocalNodeId::new(node_id), match_case);
+        NodeType::MatchArm => {
+            let arm = tree.match_arms.get(local_index);
+            walk_match_arm(visitor, tree, LocalNodeId::new(node_id), arm);
         }
         NodeType::Declarator => {
             let declarator = tree.declarators.get(local_index);
@@ -140,6 +140,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Decorator => {
             let decorator = tree.decorators.get(local_index);
             walk_decorator(visitor, tree, LocalNodeId::new(node_id), decorator);
+        }
+        NodeType::SwitchCase => {
+            let case = tree.switch_cases.get(local_index);
+            walk_switch_case(visitor, tree, LocalNodeId::new(node_id), case);
         }
     }
 }
@@ -242,10 +246,10 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &L
             let tuple_element = tree.get(tuple_element_id);
             visitor.visit_tuple_element(tree, tuple_element_id, tuple_element);
         }
-        NodeType::MatchCase => {
-            let match_case_id = LocalNodeId::<MatchCase>::new(root.id);
-            let match_case = tree.get(match_case_id);
-            visitor.visit_match_case(tree, match_case_id, match_case);
+        NodeType::MatchArm => {
+            let arm_id = LocalNodeId::<MatchArm>::new(root.id);
+            let arm = tree.get(arm_id);
+            visitor.visit_match_arm(tree, arm_id, arm);
         }
         NodeType::Pattern => {
             let pattern_id = LocalNodeId::<Pattern>::new(root.id);
@@ -276,6 +280,11 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &L
             let decorator_id = LocalNodeId::<Decorator>::new(root.id);
             let decorator = tree.get(decorator_id);
             visitor.visit_decorator(tree, decorator_id, decorator);
+        }
+        NodeType::SwitchCase => {
+            let case_id = LocalNodeId::<SwitchCase>::new(root.id);
+            let case = tree.get(case_id);
+            visitor.visit_switch_case(tree, case_id, case);
         }
     }
 }
@@ -912,16 +921,21 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Match {
-            form: _,
-            value,
-            cases,
-        } => {
+        Expression::Match { value, arms } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+            for arm_id in arms {
+                let arm = tree.get(*arm_id);
+                visitor.visit_match_arm(tree, *arm_id, arm);
+            }
+        }
+
+        Expression::Switch { value, cases } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
             for case_id in cases {
                 let case = tree.get(*case_id);
-                visitor.visit_match_case(tree, *case_id, case);
+                visitor.visit_switch_case(tree, *case_id, case);
             }
         }
 
@@ -2060,45 +2074,48 @@ pub fn walk_assign_pattern_field<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the MatchSelector.
-fn walk_match_selector<V: NodeVisitor + ?Sized>(
+/// Walk one match arm.
+pub fn walk_match_arm<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
-    selector: &MatchSelector,
+    id: LocalNodeId<MatchArm>,
+    arm: &MatchArm,
 ) {
-    match selector {
-        MatchSelector::Pattern { pattern, guard } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(guard_expr) = guard {
-                let guard_node = tree.get(*guard_expr);
-                visitor.visit_expression(tree, *guard_expr, guard_node);
-            }
-        }
-        MatchSelector::Default => {}
+    visitor.visit_any(tree, NodeType::MatchArm, id.id);
+    let pattern = arm.pattern();
+    let pattern_node = tree.get(pattern);
+    visitor.visit_pattern(tree, pattern, pattern_node);
+    if let Some(guard) = arm.guard() {
+        let guard_node = tree.get(guard);
+        visitor.visit_expression(tree, guard, guard_node);
     }
-}
 
-/// Walk the MatchCase.
-pub fn walk_match_case<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &Tree,
-    id: LocalNodeId<MatchCase>,
-    match_case: &MatchCase,
-) {
-    visitor.visit_any(tree, NodeType::MatchCase, id.id);
-    match match_case {
-        MatchCase::Expression { selector, body } => {
-            walk_match_selector(visitor, tree, selector);
+    match arm {
+        MatchArm::Expression { body, .. } => {
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }
-        MatchCase::Block { selector, body } => {
-            walk_match_selector(visitor, tree, selector);
+        MatchArm::Block { body, .. } => {
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
     }
+}
+
+/// Walk one switch case.
+pub fn walk_switch_case<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<SwitchCase>,
+    case: &SwitchCase,
+) {
+    visitor.visit_any(tree, NodeType::SwitchCase, id.id);
+    if let SwitchSelector::Case(value) = case.selector {
+        let value_node = tree.get(value);
+        visitor.visit_expression(tree, value, value_node);
+    }
+    let body = tree.get(case.body);
+    visitor.visit_block(tree, case.body, body);
 }
 
 /// Walk the Declarator.

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd, TypeExpression};
 
 /// A Pattern is a pattern to match something and unwrap it.
-/// Guards are handled only for match cases (see MatchCase).
+/// Guards are handled only by match arms.
 ///
 /// Examples:
 /// ```
