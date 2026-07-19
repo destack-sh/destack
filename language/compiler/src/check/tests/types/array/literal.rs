@@ -51,7 +51,7 @@ const pair: [int32; 2] = [1, 2, 3];
 /// @type.node source=3 type=3
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
+/// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
 /// @diagnostic.label line=2 column=26 span="[1, 2, 3]" line_source="const pair: [int32; 2] = [1, 2, 3];"
 /// @diagnostic.note message="the mismatch is in the length: expected '2', found '3'"
 "#,
@@ -329,7 +329,7 @@ const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 /// @type.node source=3 type=3
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 1>' is not assignable to type 'FixedArray<int32, 2>'"
+/// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 1>' is not assignable to type 'FixedArray<int32, 2>'"
 /// @diagnostic.label line=2 column=42 span="[3]" line_source="const matrix: [[int32; 2]; 2] = [[1, 2], [3]];"
 /// @diagnostic.note message="the mismatch is in the length: expected '2', found '1'"
 "#,

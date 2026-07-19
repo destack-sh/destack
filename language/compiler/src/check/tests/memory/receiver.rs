@@ -306,7 +306,7 @@ sharedBuffer.clear();
 /// @resolution.member source=sharedBuffer.clear receiver=Placed<Buffer, "shared"> kind=symbol target=Buffer.clear
 "#,
         r#"
-/// @diagnostic.error code=EC322 message="receiver type 'shared Buffer' is not assignable to the method's 'this' type 'shared &exclusive Buffer'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Buffer' is not assignable to the method's 'this' type 'shared &exclusive Buffer'"
 /// @diagnostic.label line=10 column=1 span="sharedBuffer.clear()" line_source="sharedBuffer.clear();"
 "#,
     );
@@ -385,7 +385,7 @@ function freeze(point: readonly Point): void {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC322 message="receiver type 'readonly Point' is not assignable to the method's 'this' type 'readonly Point'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'readonly Point' is not assignable to the method's 'this' type 'readonly Point'"
 /// @diagnostic.label line=11 column=5 span="point.scale(2)" line_source="point.scale(2);"
 "#,
     );
@@ -458,7 +458,7 @@ function inspect(counter: ^Counter): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC322 message="receiver type '^Counter' is not assignable to the method's 'this' type '^Counter'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '^Counter' is not assignable to the method's 'this' type '^Counter'"
 /// @diagnostic.label line=11 column=12 span="counter.read()" line_source="return counter.read();"
 "#,
     );

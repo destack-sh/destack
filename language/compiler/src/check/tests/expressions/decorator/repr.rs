@@ -164,7 +164,7 @@ class Handle {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC501 message="representation 'C' is not supported by this declaration"
+/// @diagnostic.error id=unsupported-representation message="representation 'C' is not supported by this declaration"
 /// @diagnostic.label line=2 column=2 span="repr(\"C\")" line_source="@repr(\"C\")"
 "#,
     );
@@ -212,7 +212,7 @@ abstract class Handle extends Base {}
 /// @definition.extends symbol=Handle source=Base target=Base
 "#,
         r#"
-/// @diagnostic.error code=EC501 message="representation 'C' is not supported by this declaration"
+/// @diagnostic.error id=unsupported-representation message="representation 'C' is not supported by this declaration"
 /// @diagnostic.label line=6 column=2 span="repr(\"C\")" line_source="@repr(\"C\")"
 "#,
     );
@@ -244,7 +244,7 @@ struct Header {}
 /// @definition.struct symbol=Header source="struct Header {}"
 "#,
         r#"
-/// @diagnostic.error code=EC501 message="representation 'transparent' is not supported by this declaration"
+/// @diagnostic.error id=unsupported-representation message="representation 'transparent' is not supported by this declaration"
 /// @diagnostic.label line=2 column=2 span="repr(\"transparent\")" line_source="@repr(\"transparent\")"
 "#,
     );
@@ -281,7 +281,7 @@ struct Header {}
 /// @definition.struct symbol=Header source="struct Header {}" representation=C
 "#,
         r#"
-/// @diagnostic.error code=EC509 message="duplicate representation decorator"
+/// @diagnostic.error id=duplicate-representation-decorator message="duplicate representation decorator"
 /// @diagnostic.label line=3 column=2 span="repr(\"C\")" line_source="@repr(\"C\")"
 /// @diagnostic.related line=2 column=2 span="repr(\"C\")" line_source="@repr(\"C\")" message="first representation selected here"
 "#,
@@ -322,7 +322,7 @@ enum Mode {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC507 message="C enum representation requires integer variant values"
+/// @diagnostic.error id=non-integer-c-enum message="C enum representation requires integer variant values"
 /// @diagnostic.label line=2 column=2 span="repr(\"C\")" line_source="@repr(\"C\")"
 "#,
     );
@@ -362,7 +362,7 @@ enum Mode {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC508 message="enum value 256 does not fit representation 'uint8'"
+/// @diagnostic.error id=enum-value-outside-representation message="enum value 256 does not fit representation 'uint8'"
 /// @diagnostic.label line=2 column=2 span="repr(\"uint8\")" line_source="@repr(\"uint8\")"
 "#,
     );

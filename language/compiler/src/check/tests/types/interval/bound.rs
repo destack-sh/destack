@@ -41,7 +41,7 @@ const bad: Count = 5;
 /// @resolution.name source=Count target=Count
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '5' is not assignable to type 'Count'"
+/// @diagnostic.error id=not-assignable message="type '5' is not assignable to type 'Count'"
 /// @diagnostic.label line=6 column=20 span="5" line_source="const bad: Count = 5;"
 /// @diagnostic.note message="'Count' reduces to '0..5'"
 "#,
@@ -89,7 +89,7 @@ const bad: Digit = 10;
 /// @resolution.name source=Digit target=Digit
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '10' is not assignable to type 'Digit'"
+/// @diagnostic.error id=not-assignable message="type '10' is not assignable to type 'Digit'"
 /// @diagnostic.label line=6 column=20 span="10" line_source="const bad: Digit = 10;"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
@@ -155,7 +155,7 @@ type Count = 0..;
 /// @definition.type symbol=Count source="type Count = 0.." value=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC502 message="interval type must be bounded"
+/// @diagnostic.error id=unbounded-interval-type message="interval type must be bounded"
 /// @diagnostic.label line=2 column=15 span=".." line_source="type Count = 0..;"
 "#,
     );
@@ -182,7 +182,7 @@ type Count = ..;
 /// @definition.type symbol=Count source="type Count = .." value=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC502 message="interval type must be bounded"
+/// @diagnostic.error id=unbounded-interval-type message="interval type must be bounded"
 /// @diagnostic.label line=2 column=14 span=".." line_source="type Count = ..;"
 "#,
     );
@@ -209,7 +209,7 @@ type Unit = 0.0..=1.0;
 /// @definition.type symbol=Unit source="type Unit = 0.0..=1.0" value=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC503 message="interval type bounds must be integer, bigint, or char literals"
+/// @diagnostic.error id=invalid-interval-domain message="interval type bounds must be integer, bigint, or char literals"
 /// @diagnostic.label line=2 column=16 span="..=" line_source="type Unit = 0.0..=1.0;"
 "#,
     );
@@ -236,7 +236,7 @@ type Mixed = 0..='z';
 /// @definition.type symbol=Mixed source="type Mixed = 0..='z'" value=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC503 message="interval type bounds must be integer, bigint, or char literals"
+/// @diagnostic.error id=invalid-interval-domain message="interval type bounds must be integer, bigint, or char literals"
 /// @diagnostic.label line=2 column=15 span="..=" line_source="type Mixed = 0..='z';"
 "#,
     );

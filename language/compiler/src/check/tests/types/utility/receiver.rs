@@ -155,7 +155,7 @@ fn("bad");
 /// @generic.instance id="OmitThisParameter<Function<(float64,), string>>" template=types.function.OmitThisParameter arguments=(Function<(float64,), string>)
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type '\"bad\"' is not assignable to parameter of type 'float64'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"bad\"' is not assignable to parameter of type 'float64'"
 /// @diagnostic.label line=5 column=4 span="\"bad\"" line_source="fn(\"bad\");"
 /// @diagnostic.related line=5 column=1 span="fn(\"bad\")" line_source="fn(\"bad\");" message="in this call"
 "#,

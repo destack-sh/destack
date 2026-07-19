@@ -11,7 +11,7 @@ pub enum ImportError {
     /// import { User } from "./missing.ds";
     /// ```
     #[diagnostic(
-        code = "EI200",
+        id = "unresolved-module",
         message = "unresolved module '{target}'",
         optional_message = "; did you mean '{suggestion}'?"
     )]
@@ -30,7 +30,7 @@ pub enum ImportError {
     /// import data from "./data.json" with { type: "binary" };
     /// ```
     #[diagnostic(
-        code = "EI203",
+        id = "invalid-import-attribute-type",
         message = "invalid import attribute type '{value}'",
         optional_message = "; did you mean '{suggestion}'?"
     )]
@@ -48,7 +48,10 @@ pub enum ImportError {
     /// ```ds
     /// import { value } from "https://example.com/value.ds";
     /// ```
-    #[diagnostic(code = "EI204", message = "unsupported module specifier '{target}'")]
+    #[diagnostic(
+        id = "unsupported-module-specifier",
+        message = "unsupported module specifier '{target}'"
+    )]
     UnsupportedModuleSpecifier {
         /// The unsupported specifier.
         anchor: DiagnosticAnchor,
@@ -62,7 +65,7 @@ pub enum ImportError {
     /// import { value } from "./config";
     /// ```
     #[diagnostic(
-        code = "EI205",
+        id = "ambiguous-module-specifier",
         message = "ambiguous module specifier '{target}': {candidates}"
     )]
     AmbiguousModuleSpecifier {
@@ -80,7 +83,7 @@ pub enum ImportError {
     /// import { value } from "../other-package/value.ds";
     /// ```
     #[diagnostic(
-        code = "EI206",
+        id = "cross-package-relative-import",
         message = "relative module specifier '{target}' crosses package boundaries"
     )]
     CrossPackageRelativeImport {
@@ -96,7 +99,7 @@ pub enum ImportError {
     /// { "exports": { ".": "../other-package/mod.ds" } }
     /// ```
     #[diagnostic(
-        code = "EI207",
+        id = "cross-package-export",
         message = "package export path '{target}' crosses package boundaries"
     )]
     CrossPackageExport {
@@ -112,7 +115,7 @@ pub enum ImportError {
     /// import { value } from "missing-package";
     /// ```
     #[diagnostic(
-        code = "EI208",
+        id = "missing-package-dependency",
         message = "package '{package}' is not declared as a dependency"
     )]
     MissingPackageDependency {
@@ -128,7 +131,7 @@ pub enum ImportError {
     /// import { value } from "library/missing";
     /// ```
     #[diagnostic(
-        code = "EI209",
+        id = "missing-package-export",
         message = "package '{package}' has no active export '{export}'",
         optional_message = "; did you mean '{suggestion}'?"
     )]
@@ -149,7 +152,7 @@ pub enum ImportError {
     /// import asset from "library/style.css";
     /// ```
     #[diagnostic(
-        code = "EI210",
+        id = "non-module-package-export",
         message = "package '{package}' export '{export}' is not a module"
     )]
     NonModulePackageExport {
@@ -167,7 +170,7 @@ pub enum ImportError {
     /// import { value } from "library";
     /// ```
     #[diagnostic(
-        code = "EI211",
+        id = "unloaded-package-dependency",
         message = "package '{package}' dependency is not loaded"
     )]
     UnloadedPackageDependency {
@@ -183,7 +186,10 @@ pub enum ImportError {
     /// @if
     /// import { debug } from "./debug.ds";
     /// ```
-    #[diagnostic(code = "EI212", message = "`@if` import guard requires a condition")]
+    #[diagnostic(
+        id = "missing-static-import-condition",
+        message = "`@if` import guard requires a condition"
+    )]
     StaticIfRequiresCondition {
         /// The `@if` decorator.
         anchor: DiagnosticAnchor,
@@ -196,7 +202,7 @@ pub enum ImportError {
     /// import { debug } from "./debug.ds";
     /// ```
     #[diagnostic(
-        code = "EI213",
+        id = "multiple-static-import-conditions",
         message = "`@if` import guard requires exactly one condition"
     )]
     StaticIfRequiresOneArgument {
@@ -211,7 +217,7 @@ pub enum ImportError {
     /// import { debug } from "./debug.ds";
     /// ```
     #[diagnostic(
-        code = "EI214",
+        id = "non-boolean-static-import-condition",
         message = "`@if` import guard condition must be boolean"
     )]
     StaticIfRequiresBoolean {
@@ -225,7 +231,10 @@ pub enum ImportError {
     /// @if(enabled)
     /// import { debug } from "./debug.ds";
     /// ```
-    #[diagnostic(code = "EI215", message = "`@if` import guard condition is not static")]
+    #[diagnostic(
+        id = "non-static-import-condition",
+        message = "`@if` import guard condition is not static"
+    )]
     StaticIfNotStatic {
         /// The non-static `@if` condition.
         anchor: DiagnosticAnchor,
@@ -238,7 +247,7 @@ pub enum ImportError {
     /// import { debug } from "./debug.ds";
     /// ```
     #[diagnostic(
-        code = "EI216",
+        id = "invalid-static-import-condition",
         message = "`@if` import guard must be invoked as `@if(condition)`"
     )]
     InvalidStaticIfInvocation {
@@ -247,7 +256,7 @@ pub enum ImportError {
     },
 
     /// Internal import failure.
-    #[diagnostic(code = "EI900", message = "internal error: {message}")]
+    #[diagnostic(id = "internal-import-error", message = "internal error: {message}")]
     Internal {
         /// The source that triggered the internal failure.
         anchor: DiagnosticAnchor,

@@ -151,7 +151,7 @@ const either: Holder<Circle | Square> = circles;
 /// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Holder<Circle>' is not assignable to type 'Holder<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<Circle | Square>'"
 /// @diagnostic.label line=11 column=41 span="circles" line_source="const either: Holder<Circle | Square> = circles;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"
 "#,
@@ -210,7 +210,7 @@ const wide: Holder<int32> = one;
 /// @generic.instance id=Holder<int32> template=Holder arguments=(int32)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Holder<1>' is not assignable to type 'Holder<int32>'"
+/// @diagnostic.error id=not-assignable message="type 'Holder<1>' is not assignable to type 'Holder<int32>'"
 /// @diagnostic.label line=7 column=29 span="one" line_source="const wide: Holder<int32> = one;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'int32', found '1'"
 "#,
@@ -278,7 +278,7 @@ const opaque: Holder<unknown> = circles;
 /// @generic.instance id=Holder<unknown> template=Holder arguments=(unknown)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Holder<Circle>' is not assignable to type 'Holder<unknown>'"
+/// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<unknown>'"
 /// @diagnostic.label line=9 column=33 span="circles" line_source="const opaque: Holder<unknown> = circles;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'unknown', found 'Circle'"
 "#,
@@ -358,7 +358,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 /// @generic.instance id=Holder<Dynamic<Draw>> template=Holder arguments=(Dynamic<Draw>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Holder<Circle>' is not assignable to type 'Holder<Dynamic<Draw>>'"
+/// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<Dynamic<Draw>>'"
 /// @diagnostic.label line=10 column=40 span="circles" line_source="const dynamic: Holder<Dynamic<Draw>> = circles;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Dynamic<Draw>', found 'Circle'"
 "#,
@@ -516,7 +516,7 @@ const either: Holder<() => Circle | Square> = makers;
 /// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Holder<() => Circle>' is not assignable to type 'Holder<() => … | …>'"
+/// @diagnostic.error id=not-assignable message="type 'Holder<() => Circle>' is not assignable to type 'Holder<() => … | …>'"
 /// @diagnostic.label line=11 column=47 span="makers" line_source="const either: Holder<() => Circle | Square> = makers;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected '() => Circle | Square', found '() => Circle'"
 "#,
@@ -593,7 +593,7 @@ const widened: Box<Shape> = boxed;
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
 /// @diagnostic.label line=10 column=29 span="boxed" line_source="const widened: Box<Shape> = boxed;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Box': expected 'Shape', found 'Circle'"
 "#,
@@ -825,7 +825,7 @@ const widened: ^Pipe<Shape> = pipe;
 /// @generic.instance id=Pipe<Shape> template=Pipe arguments=(Shape)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '^Pipe<Circle>' is not assignable to type '^Pipe<Shape>'"
+/// @diagnostic.error id=not-assignable message="type '^Pipe<Circle>' is not assignable to type '^Pipe<Shape>'"
 /// @diagnostic.label line=12 column=31 span="pipe" line_source="const widened: ^Pipe<Shape> = pipe;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Pipe': expected 'Shape', found 'Circle'"
 "#,
@@ -936,7 +936,7 @@ const widened: Stack<Shape> = circles;
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Stack<Circle>' is not assignable to type 'Stack<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'Stack<Circle>' is not assignable to type 'Stack<Shape>'"
 /// @diagnostic.label line=16 column=31 span="circles" line_source="const widened: Stack<Shape> = circles;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Stack': expected 'Shape', found 'Circle'"
 "#,
@@ -1140,7 +1140,7 @@ const view: readonly Bag<Shape> = circles;
 /// @generic.instance id=Bag<Shape> template=Bag arguments=(Shape)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Bag<Circle>' is not assignable to type 'readonly Bag<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'Bag<Circle>' is not assignable to type 'readonly Bag<Shape>'"
 /// @diagnostic.label line=14 column=35 span="circles" line_source="const view: readonly Bag<Shape> = circles;"
 "#,
     );
@@ -1275,7 +1275,7 @@ const either: Handle<Circle | Square> = handle;
 /// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Handle<Circle>' is not assignable to type 'Handle<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type 'Handle<Circle>' is not assignable to type 'Handle<Circle | Square>'"
 /// @diagnostic.label line=9 column=41 span="handle" line_source="const either: Handle<Circle | Square> = handle;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Handle': expected 'Circle | Square', found 'Circle'"
 "#,
@@ -1345,7 +1345,7 @@ const widened: Managed<Handle<Shape>> = handle;
 /// @generic.instance id=Managed<Handle<Shape>> template=memory.managed.Managed arguments=(Handle<Shape>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Managed<Handle<Circle>>' is not assignable to type 'Managed<Handle<Shape>>'"
+/// @diagnostic.error id=not-assignable message="type 'Managed<Handle<Circle>>' is not assignable to type 'Managed<Handle<Shape>>'"
 /// @diagnostic.label line=8 column=41 span="handle" line_source="const widened: Managed<Handle<Shape>> = handle;"
 /// @diagnostic.note message="'Managed<Handle<Circle>>' reduces to 'Handle<Circle>'"
 /// @diagnostic.note message="'Managed<Handle<Shape>>' reduces to 'Handle<Shape>'"
@@ -1441,7 +1441,7 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @generic.instance id=Holder<Shape> template=Holder arguments=(Shape)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '&readonly Holder<Circle>' is not assignable to type '&readonly Holder<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type '&readonly Holder<Circle>' is not assignable to type '&readonly Holder<Circle | Square>'"
 /// @diagnostic.label line=12 column=51 span="&readonly holder" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;"
 "#,
     );

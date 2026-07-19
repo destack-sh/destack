@@ -37,7 +37,7 @@ enum Status {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC622 message="enum variant value must be an integer or string constant, received 'true'"
+/// @diagnostic.error id=invalid-enum-variant-type message="enum variant value must be an integer or string constant, received 'true'"
 /// @diagnostic.label line=3 column=13 span="true" line_source="Ready = true,"
 "#,
     );
@@ -82,7 +82,7 @@ enum Status {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC623 message="enum variants must all use the same scalar domain"
+/// @diagnostic.error id=mixed-enum-variant-domain message="enum variants must all use the same scalar domain"
 /// @diagnostic.label line=4 column=5 span="Failed" line_source="Failed = \"failed\","
 "#,
     );
@@ -126,7 +126,7 @@ enum Status {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC624 message="string backed enum variants require explicit values"
+/// @diagnostic.error id=implicit-string-enum-variant message="string backed enum variants require explicit values"
 /// @diagnostic.label line=4 column=5 span="Failed" line_source="Failed,"
 "#,
     );
@@ -170,7 +170,7 @@ enum Status {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC625 message="implicit enum variant value overflows int64"
+/// @diagnostic.error id=enum-variant-value-overflow message="implicit enum variant value overflows int64"
 /// @diagnostic.label line=4 column=5 span="Failed" line_source="Failed,"
 "#,
     );

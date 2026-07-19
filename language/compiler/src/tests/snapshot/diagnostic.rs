@@ -16,9 +16,9 @@ pub(crate) fn render_diagnostics(
 
     for diagnostic in diagnostics.iter() {
         lines.push(format!(
-            "/// @diagnostic.{} code={} message={}",
+            "/// @diagnostic.{} id={} message={}",
             diagnostic.severity.family_name(),
-            diagnostic.code,
+            diagnostic.id,
             quote(&diagnostic.message)
         ));
         let primary_file = diagnostic.primary.target.file();

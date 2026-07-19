@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 #[diagnostic(severity = Error, phase = Expand)]
 pub enum ExpandError {
     /// Internal expand failure.
-    #[diagnostic(code = "EX900", message = "internal error: {message}")]
+    #[diagnostic(id = "internal-expansion-error", message = "internal error: {message}")]
     Internal {
         /// The source that triggered the internal failure.
         anchor: DiagnosticAnchor,

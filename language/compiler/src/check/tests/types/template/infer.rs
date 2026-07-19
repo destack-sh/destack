@@ -327,9 +327,9 @@ const bad: Result = ("foo-bar", "baz");
 /// @generic.instance id="Pair<\"foo-bar-baz\">" template=Pair arguments=("foo-bar-baz")
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"foo-bar\"' is not assignable to type '\"foo\"'"
+/// @diagnostic.error id=not-assignable message="type '\"foo-bar\"' is not assignable to type '\"foo\"'"
 /// @diagnostic.label line=5 column=22 span="\"foo-bar\"" line_source="const bad: Result = (\"foo-bar\", \"baz\");"
-/// @diagnostic.error code=EC200 message="type '\"baz\"' is not assignable to type '\"bar-baz\"'"
+/// @diagnostic.error id=not-assignable message="type '\"baz\"' is not assignable to type '\"bar-baz\"'"
 /// @diagnostic.label line=5 column=33 span="\"baz\"" line_source="const bad: Result = (\"foo-bar\", \"baz\");"
 "#,
     );
@@ -384,9 +384,9 @@ const bad: Result = ("", "a");
 /// @generic.instance id="Split<\"a\">" template=Split arguments=("a")
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"\"' is not assignable to type '\"a\"'"
+/// @diagnostic.error id=not-assignable message="type '\"\"' is not assignable to type '\"a\"'"
 /// @diagnostic.label line=6 column=22 span="\"\"" line_source="const bad: Result = (\"\", \"a\");"
-/// @diagnostic.error code=EC200 message="type '\"a\"' is not assignable to type '\"\"'"
+/// @diagnostic.error id=not-assignable message="type '\"a\"' is not assignable to type '\"\"'"
 /// @diagnostic.label line=6 column=26 span="\"a\"" line_source="const bad: Result = (\"\", \"a\");"
 "#,
     );

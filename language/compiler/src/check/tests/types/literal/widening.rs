@@ -131,7 +131,7 @@ const value = true ? 1 : 2;
 /// @check.stats.solve variables=0 types=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.warning code=WC402 message="condition is always true"
+/// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=15 span="true" line_source="const value = true ? 1 : 2;"
 "#,
     );
@@ -163,7 +163,7 @@ let value = true ? 1 : 2;
 /// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.warning code=WC402 message="condition is always true"
+/// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=13 span="true" line_source="let value = true ? 1 : 2;"
 "#,
     );

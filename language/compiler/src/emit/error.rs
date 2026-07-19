@@ -7,10 +7,10 @@ use destack_source::ModuleId;
 #[diagnostic(severity = Error, phase = Emit)]
 pub enum EmitError {
     // -------------------------------------------------------------------------
-    // 1xx: Target / setup
+    // target and setup
     // -------------------------------------------------------------------------
     /// Unsupported target/output format.
-    #[diagnostic(code = "EG100", message = "unsupported target: {target}")]
+    #[diagnostic(id = "unsupported-target", message = "unsupported target: {target}")]
     UnsupportedTarget {
         anchor: DiagnosticAnchor,
         module: ModuleId,
@@ -18,7 +18,7 @@ pub enum EmitError {
     },
 
     /// Unresolved function reference.
-    #[diagnostic(code = "EG101", message = "unresolved function: {name}")]
+    #[diagnostic(id = "unresolved-function", message = "unresolved function: {name}")]
     UnresolvedFunction {
         anchor: DiagnosticAnchor,
         module: ModuleId,
@@ -26,34 +26,40 @@ pub enum EmitError {
     },
 
     /// Native code generation is unavailable.
-    #[diagnostic(code = "EG102", message = "native code generation is unavailable")]
+    #[diagnostic(
+        id = "native-emit-unavailable",
+        message = "native code generation is unavailable"
+    )]
     NativeEmitUnavailable {
         anchor: DiagnosticAnchor,
         module: ModuleId,
     },
 
     // -------------------------------------------------------------------------
-    // 2xx: Type issues
+    // types
     // -------------------------------------------------------------------------
     /// Unsupported type for emit.
-    #[diagnostic(code = "EG200", message = "unsupported type")]
+    #[diagnostic(id = "unsupported-emission-type", message = "unsupported type")]
     UnsupportedType {
         anchor: DiagnosticAnchor,
         module: ModuleId,
     },
 
     /// Missing type information.
-    #[diagnostic(code = "EG201", message = "missing type")]
+    #[diagnostic(id = "missing-type-information", message = "missing type")]
     MissingType {
         anchor: DiagnosticAnchor,
         module: ModuleId,
     },
 
     // -------------------------------------------------------------------------
-    // 3xx: Construct issues
+    // constructs
     // -------------------------------------------------------------------------
     /// Unsupported construct (instruction, expression, etc.).
-    #[diagnostic(code = "EG300", message = "unsupported construct: {message}")]
+    #[diagnostic(
+        id = "unsupported-emission-construct",
+        message = "unsupported construct: {message}"
+    )]
     UnsupportedConstruct {
         anchor: DiagnosticAnchor,
         module: ModuleId,
@@ -61,7 +67,10 @@ pub enum EmitError {
     },
 
     /// Unexpected construct (wrong node type).
-    #[diagnostic(code = "EG301", message = "unexpected construct: {message}")]
+    #[diagnostic(
+        id = "unexpected-emission-construct",
+        message = "unexpected construct: {message}"
+    )]
     UnexpectedConstruct {
         anchor: DiagnosticAnchor,
         module: ModuleId,
@@ -69,17 +78,20 @@ pub enum EmitError {
     },
 
     /// Unresolved construct.
-    #[diagnostic(code = "EG302", message = "unresolved construct")]
+    #[diagnostic(id = "unresolved-construct", message = "unresolved construct")]
     UnresolvedConstruct {
         anchor: DiagnosticAnchor,
         module: ModuleId,
     },
 
     // -------------------------------------------------------------------------
-    // 4xx: Bounds / access
+    // bounds and access
     // -------------------------------------------------------------------------
     /// Out of bounds access (tuple/array element index).
-    #[diagnostic(code = "EG400", message = "index {index} out of bounds (len {len})")]
+    #[diagnostic(
+        id = "out-of-bounds",
+        message = "index {index} out of bounds (len {len})"
+    )]
     OutOfBounds {
         anchor: DiagnosticAnchor,
         module: ModuleId,
@@ -88,10 +100,10 @@ pub enum EmitError {
     },
 
     // -------------------------------------------------------------------------
-    // 9xx: Internal
+    // internal failures
     // -------------------------------------------------------------------------
     /// Internal emit error.
-    #[diagnostic(code = "EG900", message = "internal error: {message}")]
+    #[diagnostic(id = "internal-emission-error", message = "internal error: {message}")]
     Internal {
         anchor: DiagnosticAnchor,
         module: ModuleId,

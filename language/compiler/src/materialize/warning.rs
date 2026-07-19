@@ -6,9 +6,9 @@ use destack_artifact_macros::Diagnostic;
 #[diagnostic(severity = Warning, phase = Materialize)]
 pub enum MaterializeWarning {
     // -------------------------------------------------------------------------
-    // 9xx: Unsupported / internal
+    // unsupported and internal failures
     // -------------------------------------------------------------------------
     /// Unsupported construct.
-    #[diagnostic(code = "WM900", message = "unsupported construct")]
+    #[diagnostic(id = "ignored-comptime-construct", message = "unsupported construct")]
     UnsupportedConstruct { anchor: DiagnosticAnchor },
 }

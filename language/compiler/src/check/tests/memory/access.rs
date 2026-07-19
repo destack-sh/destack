@@ -215,7 +215,7 @@ function update(state: &State): void {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC505 message="type 'Status' is not safe to overwrite through non-exclusive access"
+/// @diagnostic.error id=overwrite-stability-not-satisfied message="type 'Status' is not safe to overwrite through non-exclusive access"
 /// @diagnostic.label line=7 column=11 span="status" line_source="state.status = Status.Busy;"
 /// @diagnostic.note message="overwriting may invalidate live borrows of the old value"
 /// @diagnostic.help message="write through an exclusive or owned path or store an overwrite-stable type"
@@ -372,7 +372,7 @@ function update(value: &Status): void {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC505 message="type 'Status' is not safe to overwrite through non-exclusive access"
+/// @diagnostic.error id=overwrite-stability-not-satisfied message="type 'Status' is not safe to overwrite through non-exclusive access"
 /// @diagnostic.label line=5 column=5 span="*" line_source="*value = Status.Busy;"
 /// @diagnostic.note message="overwriting may invalidate live borrows of the old value"
 /// @diagnostic.help message="write through an exclusive or owned path or store an overwrite-stable type"
@@ -411,7 +411,7 @@ function update(value: &readonly int32): void {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC217 message="'mutable' access is not granted by a value of type '&readonly int32'"
+/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type '&readonly int32'"
 /// @diagnostic.label line=3 column=5 span="*" line_source="*value = 1;"
 /// @diagnostic.note message="the source grants at most 'readonly' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
@@ -488,7 +488,7 @@ function updateStatuses(values: &[Status; 2]): void {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC505 message="type 'Status' is not safe to overwrite through non-exclusive access"
+/// @diagnostic.error id=overwrite-stability-not-satisfied message="type 'Status' is not safe to overwrite through non-exclusive access"
 /// @diagnostic.label line=9 column=5 span="values[0]" line_source="values[0] = Status.Busy;"
 /// @diagnostic.note message="overwriting may invalidate live borrows of the old value"
 /// @diagnostic.help message="write through an exclusive or owned path or store an overwrite-stable type"
@@ -577,7 +577,7 @@ sharedState.status = Status.Busy;
 /// @resolution.member source=Status.Busy receiver=Status kind=symbol target=Status.Busy
 "#,
         r#"
-/// @diagnostic.error code=EC505 message="type 'shared Status' is not safe to overwrite through non-exclusive access"
+/// @diagnostic.error id=overwrite-stability-not-satisfied message="type 'shared Status' is not safe to overwrite through non-exclusive access"
 /// @diagnostic.label line=12 column=13 span="status" line_source="sharedState.status = Status.Busy;"
 /// @diagnostic.note message="overwriting may invalidate live borrows of the old value"
 /// @diagnostic.help message="write through an exclusive or owned path or store an overwrite-stable type"

@@ -249,7 +249,7 @@ declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
 /// @generic.instance id="Borrowed<Node, L1, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, L1, "mutable")
 "#,
         r#"
-/// @diagnostic.error code=EC614 message="bodyless signatures must name result lifetimes explicitly"
+/// @diagnostic.error id=bodyless-lifetime-elided message="bodyless signatures must name result lifetimes explicitly"
 /// @diagnostic.label line=4 column=18 span="choose" line_source="declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>("
 "#,
     );

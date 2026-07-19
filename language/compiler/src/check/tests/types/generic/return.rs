@@ -578,7 +578,7 @@ function countdown(n: float64) {
     session.assert_dir_checked_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EC103 message="type is circular"
+/// @diagnostic.error id=circular-type message="type is circular"
 /// @diagnostic.label line=2 column=10 span="countdown" line_source="function countdown(n: float64) {"
 "#,
     );
@@ -600,12 +600,12 @@ function pong(n: float64) {
     session.assert_dir_checked_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EC100 message="cannot infer a type here"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
 /// @diagnostic.related line=3 column=12 span="n > 0 ? pong(n - 1) : n" line_source="return n > 0 ? pong(n - 1) : n;" message="'_ | float64' flows into it here"
 /// @diagnostic.related line=2 column=27 span="{\n    return n > 0 ? pong(n - 1) : n;\n}" line_source="function ping(n: float64) {" message="'never' flows into it here"
 /// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error code=EC100 message="cannot infer a type here"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
 /// @diagnostic.related line=7 column=12 span="n > 0 ? ping(n - 1) : n" line_source="return n > 0 ? ping(n - 1) : n;" message="'_ | float64' flows into it here"
 /// @diagnostic.related line=6 column=27 span="{\n    return n > 0 ? ping(n - 1) : n;\n}" line_source="function pong(n: float64) {" message="'never' flows into it here"

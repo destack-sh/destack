@@ -288,7 +288,7 @@ function pending(): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'field' does not exist on type 'never'"
+/// @diagnostic.error id=missing-member message="member 'field' does not exist on type 'never'"
 /// @diagnostic.label line=6 column=18 span="field" line_source="return value.field;"
 "#,
     );

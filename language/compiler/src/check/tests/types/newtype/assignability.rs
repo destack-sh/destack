@@ -29,7 +29,7 @@ const id: UserId = 42;
 /// @resolution.name source=UserId target=UserId
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '42' is not assignable to type 'UserId'"
+/// @diagnostic.error id=not-assignable message="type '42' is not assignable to type 'UserId'"
 /// @diagnostic.label line=4 column=20 span="42" line_source="const id: UserId = 42;"
 "#,
     );
@@ -65,7 +65,7 @@ const raw: int64 = UserId(42);
 /// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'UserId' is not assignable to type 'int64'"
+/// @diagnostic.error id=not-assignable message="type 'UserId' is not assignable to type 'int64'"
 /// @diagnostic.label line=4 column=20 span="UserId(42)" line_source="const raw: int64 = UserId(42);"
 "#,
     );
@@ -202,7 +202,7 @@ const order: OrderId = user;
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'UserId' is not assignable to type 'OrderId'"
+/// @diagnostic.error id=not-assignable message="type 'UserId' is not assignable to type 'OrderId'"
 /// @diagnostic.label line=6 column=24 span="user" line_source="const order: OrderId = user;"
 "#,
     );
@@ -255,7 +255,7 @@ const id: LeftUserId = RightUserId(42);
 /// @resolution.construct source=RightUserId(42) parameters=(int64) arguments=(provided(42) as int64) return=right.UserId kind=newtype target=right.UserId backing=int64
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'right.UserId' is not assignable to type 'left.UserId'"
+/// @diagnostic.error id=not-assignable message="type 'right.UserId' is not assignable to type 'left.UserId'"
 /// @diagnostic.label line=5 column=24 span="RightUserId(42)" line_source="const id: LeftUserId = RightUserId(42);"
 "#,
     );
@@ -290,7 +290,7 @@ const config: Config = { debug: true };
 /// @resolution.name source=Config target=Config
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ debug: true }' is not assignable to type 'Config'"
+/// @diagnostic.error id=not-assignable message="type '{ debug: true }' is not assignable to type 'Config'"
 /// @diagnostic.label line=4 column=24 span="{ debug: true }" line_source="const config: Config = { debug: true };"
 "#,
     );

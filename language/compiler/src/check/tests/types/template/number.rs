@@ -72,7 +72,7 @@ const bad: Numeric = "NaN";
 /// @resolution.name source=Numeric target=Numeric
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"NaN\"' is not assignable to type 'Numeric'"
+/// @diagnostic.error id=not-assignable message="type '\"NaN\"' is not assignable to type 'Numeric'"
 /// @diagnostic.label line=4 column=22 span="\"NaN\"" line_source="const bad: Numeric = \"NaN\";"
 /// @diagnostic.note message="'Numeric' reduces to '`${float64}`'"
 "#,
@@ -151,7 +151,7 @@ const bad: Small = "128";
 /// @resolution.name source=Small target=Small
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"128\"' is not assignable to type 'Small'"
+/// @diagnostic.error id=not-assignable message="type '\"128\"' is not assignable to type 'Small'"
 /// @diagnostic.label line=4 column=20 span="\"128\"" line_source="const bad: Small = \"128\";"
 /// @diagnostic.note message="'Small' reduces to '`${int8}`'"
 "#,
@@ -238,7 +238,7 @@ parse("128");
 /// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type '\"128\"' is not assignable to parameter of type '`${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"128\"' is not assignable to parameter of type '`${_}`'"
 /// @diagnostic.label line=4 column=7 span="\"128\"" line_source="parse(\"128\");"
 /// @diagnostic.related line=4 column=1 span="parse(\"128\")" line_source="parse(\"128\");" message="in this call"
 "#,

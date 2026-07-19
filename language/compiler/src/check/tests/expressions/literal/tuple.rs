@@ -166,7 +166,7 @@ const value: (number, string) = (1, 2);
 /// @check.stats.solve variables=0 types=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '2' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type '2' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=37 span="2" line_source="const value: (number, string) = (1, 2);"
 "#,
     );

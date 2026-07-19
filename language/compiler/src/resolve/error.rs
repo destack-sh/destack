@@ -13,7 +13,7 @@ pub enum ResolveError {
     /// export { missing } from "./library.ds";
     /// ```
     #[diagnostic(
-        code = "ER200",
+        id = "missing-export",
         message = "missing export '{name}' from '{target}'",
         optional_message = "; did you mean '{suggestion}'?"
     )]
@@ -34,7 +34,7 @@ pub enum ResolveError {
     /// import { hidden } from "./library.ds";
     /// ```
     #[diagnostic(
-        code = "ER202",
+        id = "not-exported",
         message = "'{name}' exists in '{target}' but is not exported"
     )]
     NotExported {
@@ -53,7 +53,10 @@ pub enum ResolveError {
     /// export * from "./right.ds";
     /// import { shared } from "./barrel.ds";
     /// ```
-    #[diagnostic(code = "ER201", message = "ambiguous export '{name}' from '{target}'")]
+    #[diagnostic(
+        id = "ambiguous-export",
+        message = "ambiguous export '{name}' from '{target}'"
+    )]
     AmbiguousExport {
         /// The import or re-export clause.
         anchor: DiagnosticAnchor,
@@ -64,7 +67,10 @@ pub enum ResolveError {
     },
 
     /// Internal resolve failure.
-    #[diagnostic(code = "ER900", message = "internal error: {message}")]
+    #[diagnostic(
+        id = "internal-resolution-error",
+        message = "internal error: {message}"
+    )]
     Internal {
         /// The source that triggered the internal failure.
         anchor: DiagnosticAnchor,

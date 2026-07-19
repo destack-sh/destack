@@ -307,7 +307,7 @@ match (status) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC438 message="variant 'Other.Ok' is not a variant of type 'Status'"
+/// @diagnostic.error id=pattern-variant-not-in-type message="variant 'Other.Ok' is not a variant of type 'Status'"
 /// @diagnostic.label line=11 column=5 span="Other.Ok(value)" line_source="Other.Ok(value) => value"
 "#,
     );
@@ -377,7 +377,7 @@ match (status) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC439 message="variant 'Done' does not exist on type 'Status'"
+/// @diagnostic.error id=pattern-variant-missing message="variant 'Done' does not exist on type 'Status'"
 /// @diagnostic.label line=8 column=5 span="Status.Done(value)" line_source="Status.Done(value) => value"
 "#,
     );
@@ -542,7 +542,7 @@ const label = match (status) {
 };
 "#,
         r#"
-/// @diagnostic.error code=EC403 message="match is not exhaustive: 'Status.Ok' is not covered"
+/// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: 'Status.Ok' is not covered"
 /// @diagnostic.label line=7 column=15 span="match (status) {\n    Status.Ok(value) if (value.length > 0) => \"ok\"\n    Status.Err(code) => \"err\"\n}" line_source="const label = match (status) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
@@ -691,7 +691,7 @@ function describe(mode: Mode): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC403 message="match is not exhaustive: 'Mode.Write' is not covered"
+/// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: 'Mode.Write' is not covered"
 /// @diagnostic.label line=8 column=5 span="match (mode) {\n        Mode.Read => 10\n    }" line_source="match (mode) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,

@@ -176,7 +176,7 @@ enum Status {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC612 message="member 'Ready' is already declared"
+/// @diagnostic.error id=duplicate-member message="member 'Ready' is already declared"
 /// @diagnostic.label line=4 column=5 span="Ready" line_source="Ready,"
 "#,
     );

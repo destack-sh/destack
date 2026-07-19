@@ -79,7 +79,7 @@ const writer: NamedWriter = Buffer {};
 /// @resolution.name source=Buffer target=Buffer
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Buffer' is not assignable to type 'NamedWriter'"
+/// @diagnostic.error id=not-assignable message="type 'Buffer' is not assignable to type 'NamedWriter'"
 /// @diagnostic.label line=14 column=29 span="Buffer {}" line_source="const writer: NamedWriter = Buffer {};"
 "#,
     );

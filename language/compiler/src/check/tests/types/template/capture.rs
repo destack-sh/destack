@@ -82,7 +82,7 @@ parse("row-col");
 /// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type '\"row-col\"' is not assignable to parameter of type '`${_}-${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"row-col\"' is not assignable to parameter of type '`${_}-${_}`'"
 /// @diagnostic.label line=4 column=7 span="\"row-col\"" line_source="parse(\"row-col\");"
 /// @diagnostic.related line=4 column=1 span="parse(\"row-col\")" line_source="parse(\"row-col\");" message="in this call"
 "#,
@@ -193,7 +193,7 @@ segment satisfies "users" | "posts";
 /// @generic.instance id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
 "#,
         r#"
-/// @diagnostic.warning code=WC402 message="condition is always true"
+/// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=4 column=15 span="true" line_source="const input = true ? \"id:users\" : \"id:posts\";"
 "#,
     );

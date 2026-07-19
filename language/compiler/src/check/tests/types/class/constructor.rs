@@ -375,7 +375,7 @@ new Box(true);
 /// @type.node source=true type=true
 "#,
         r#"
-/// @diagnostic.error code=EC311 message="no constructor matches arguments ('true')"
+/// @diagnostic.error id=no-matching-construct message="no constructor matches arguments ('true')"
 /// @diagnostic.label line=14 column=1 span="new Box(true)" line_source="new Box(true);"
 /// @diagnostic.note message="the candidate '(string) => this' rejects argument 0: 'true' is not assignable to 'string'"
 /// @diagnostic.note message="the candidate '(int32) => this' rejects argument 0: 'true' is not assignable to 'int32'"
@@ -464,7 +464,7 @@ class Box {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC611 message="declaration 'constructor' requires a body"
+/// @diagnostic.error id=missing-declaration-body message="declaration 'constructor' requires a body"
 /// @diagnostic.label line=3 column=5 span="constructor(value: string)" line_source="constructor(value: string);"
 "#,
     );

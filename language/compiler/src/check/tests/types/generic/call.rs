@@ -345,7 +345,7 @@ identity<int32>("x");
 /// @generic.instance id=identity<int32> template=identity arguments=(int32)
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type '\"x\"' is not assignable to parameter of type 'int32'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"x\"' is not assignable to parameter of type 'int32'"
 /// @diagnostic.label line=6 column=17 span="\"x\"" line_source="identity<int32>(\"x\");"
 /// @diagnostic.related line=6 column=1 span="identity<int32>(\"x\")" line_source="identity<int32>(\"x\");" message="in this call"
 "#,
@@ -474,7 +474,7 @@ const parser = parse<int32>;
 /// @generic.instance id=Array<T#2>.<extension#6>.index#4 template=collections.array.index#4 arguments=(T#2, T#2)
 "#,
         r#"
-/// @diagnostic.error code=EC309 message="ambiguous reference 'parse'"
+/// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'parse'"
 /// @diagnostic.label line=10 column=16 span="parse" line_source="const parser = parse<int32>;"
 "#,
     );

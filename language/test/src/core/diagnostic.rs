@@ -37,11 +37,11 @@ where
             .clone()
             .with_highlight_color(diagnostic.severity.color());
 
-        // header preamble (severity + code)
+        // header preamble
         let header_preamble = annotate_options.color_highlight.apply_bold(&format!(
-            "{} {}",
+            "{}[{}]",
             diagnostic.severity.family_name().to_ascii_lowercase(),
-            diagnostic.code,
+            diagnostic.id,
         ));
 
         let header_message = annotate_options.color_normal.apply(&diagnostic.message);

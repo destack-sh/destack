@@ -264,7 +264,7 @@ const ok = value instanceof Named;
 /// @resolution.name source=Named target=Named
 "#,
         r#"
-/// @diagnostic.error code=EC317 message="right-hand side of 'instanceof' must be a class"
+/// @diagnostic.error id=instance-of-target-not-class message="right-hand side of 'instanceof' must be a class"
 /// @diagnostic.label line=8 column=29 span="Named" line_source="const ok = value instanceof Named;"
 "#,
     );
@@ -309,7 +309,7 @@ const ok = value instanceof User;
 /// @resolution.name source=User target=User
 "#,
         r#"
-/// @diagnostic.error code=EC318 message="type 'string' can never be an instance of 'User'"
+/// @diagnostic.error id=impossible-instance-of message="type 'string' can never be an instance of 'User'"
 /// @diagnostic.label line=5 column=12 span="value" line_source="const ok = value instanceof User;"
 "#,
     );

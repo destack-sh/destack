@@ -73,7 +73,7 @@ const bad: Match = "b";
 /// @generic.instance id="Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" template=types.object.Extract arguments=("a" | "b" | "c", "a" | "c")
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"b\"' is not assignable to type 'Match'"
+/// @diagnostic.error id=not-assignable message="type '\"b\"' is not assignable to type 'Match'"
 /// @diagnostic.label line=4 column=20 span="\"b\"" line_source="const bad: Match = \"b\";"
 /// @diagnostic.note message="'Match' reduces to '\"a\" | \"c\"'"
 "#,
@@ -112,7 +112,7 @@ let bad: Match = "a";
 /// @generic.instance id="Extract<never, \"a\">" template=types.object.Extract arguments=(never, "a")
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"a\"' is not assignable to type 'Match'"
+/// @diagnostic.error id=not-assignable message="type '\"a\"' is not assignable to type 'Match'"
 /// @diagnostic.label line=4 column=18 span="\"a\"" line_source="let bad: Match = \"a\";"
 /// @diagnostic.note message="'Match' reduces to 'never'"
 "#,

@@ -7,10 +7,13 @@ use destack_source::ModuleId;
 #[diagnostic(severity = Error, phase = Materialize)]
 pub enum MaterializeError {
     // -------------------------------------------------------------------------
-    // 1xx: Comptime execution errors
+    // compile-time execution
     // -------------------------------------------------------------------------
     /// Comptime lowering failed.
-    #[diagnostic(code = "EM100", message = "comptime lowering failed: {message}")]
+    #[diagnostic(
+        id = "comptime-lowering-failed",
+        message = "comptime lowering failed: {message}"
+    )]
     FailedLower {
         /// Anchor the error to a module.
         anchor: DiagnosticAnchor,
@@ -23,7 +26,10 @@ pub enum MaterializeError {
     },
 
     /// Comptime execution failed.
-    #[diagnostic(code = "EM101", message = "comptime execution failed: {message}")]
+    #[diagnostic(
+        id = "comptime-execution-failed",
+        message = "comptime execution failed: {message}"
+    )]
     FailedExecution {
         /// Anchor the error to a module.
         anchor: DiagnosticAnchor,
@@ -34,11 +40,11 @@ pub enum MaterializeError {
     },
 
     // -------------------------------------------------------------------------
-    // 9xx: Unsupported / internal
+    // unsupported and internal failures
     // -------------------------------------------------------------------------
     /// Unsupported construct for comptime execution.
     #[diagnostic(
-        code = "EM900",
+        id = "unsupported-comptime-construct",
         message = "unsupported construct for comptime execution"
     )]
     UnsupportedConstruct { anchor: DiagnosticAnchor },

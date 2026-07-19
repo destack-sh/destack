@@ -130,7 +130,7 @@ const age = person.age;
 /// @generic.instance id="Pick<Person, \"name\" | \"active\">" template=types.object.Pick arguments=(Person, "name" | "active")
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'age' does not exist on type 'Pick<Person, \"name\" | \"active\">'"
+/// @diagnostic.error id=missing-member message="member 'age' does not exist on type 'Pick<Person, \"name\" | \"active\">'"
 /// @diagnostic.label line=9 column=20 span="age" line_source="const age = person.age;"
 "#,
     );
@@ -272,7 +272,7 @@ const person: AgeOnly = { name: "Ada" };
 /// @generic.instance id="Pick<Person, \"age\">" template=types.object.Pick arguments=(Person, "age")
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'name' in object literal for type 'AgeOnly'"
+/// @diagnostic.error id=excess-property message="unknown property 'name' in object literal for type 'AgeOnly'"
 /// @diagnostic.label line=9 column=25 span="{ name: \"Ada\" }" line_source="const person: AgeOnly = { name: \"Ada\" };"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
@@ -401,7 +401,7 @@ const person: NameOnly = {};
 /// @generic.instance id="Pick<Person, \"name\">" template=types.object.Pick arguments=(Person, "name")
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property 'name' for type 'NameOnly'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'name' for type 'NameOnly'"
 /// @diagnostic.label line=9 column=26 span="{}" line_source="const person: NameOnly = {};"
 "#,
     );
@@ -464,7 +464,7 @@ const person: NameOnly = { name: "Ada", age: 42 };
 /// @generic.instance id="Pick<Person, \"name\">" template=types.object.Pick arguments=(Person, "name")
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'age' in object literal for type 'NameOnly'"
+/// @diagnostic.error id=excess-property message="unknown property 'age' in object literal for type 'NameOnly'"
 /// @diagnostic.label line=9 column=26 span="{ name: \"Ada\", age: 42 }" line_source="const person: NameOnly = { name: \"Ada\", age: 42 };"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
@@ -534,7 +534,7 @@ person.name = "Grace";
 /// @generic.instance id="Pick<Person, \"name\">" template=types.object.Pick arguments=(Person, "name")
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=10 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );

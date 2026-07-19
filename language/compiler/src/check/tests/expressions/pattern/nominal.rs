@@ -182,7 +182,7 @@ match (point) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC411 message="pattern tag '{ x: int32; y: int32 }' is not a nominal type"
+/// @diagnostic.error id=invalid-pattern-tag message="pattern tag '{ x: int32; y: int32 }' is not a nominal type"
 /// @diagnostic.label line=7 column=5 span="Point { x, y }" line_source="Point { x, y } => x + y"
 "#,
     );
@@ -267,7 +267,7 @@ match (user) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC427 message="member 'displayName' on type 'User' is not a field"
+/// @diagnostic.error id=pattern-member-not-field message="member 'displayName' on type 'User' is not a field"
 /// @diagnostic.label line=12 column=12 span="displayName" line_source="User { displayName } => displayName"
 "#,
     );

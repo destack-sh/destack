@@ -67,7 +67,7 @@ value();
 /// @resolution.name source=value target=value
 "#,
         r#"
-/// @diagnostic.error code=EC301 message="value of type '1' is not callable"
+/// @diagnostic.error id=not-callable message="value of type '1' is not callable"
 /// @diagnostic.label line=3 column=1 span="value()" line_source="value();"
 "#,
     );

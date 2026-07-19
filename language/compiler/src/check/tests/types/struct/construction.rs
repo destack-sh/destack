@@ -388,7 +388,7 @@ const point = Point { x: 1 };
 /// @resolution.name source=Point target=Point
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property 'y' for type 'Point'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'y' for type 'Point'"
 /// @diagnostic.label line=7 column=15 span="Point { x: 1 }" line_source="const point = Point { x: 1 };"
 "#,
     );
@@ -439,7 +439,7 @@ const point = Point { x: 1, y: 2, z: 3 };
 /// @resolution.name source=Point target=Point
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'z' in object literal for type 'Point'"
+/// @diagnostic.error id=excess-property message="unknown property 'z' in object literal for type 'Point'"
 /// @diagnostic.label line=7 column=15 span="Point { x: 1, y: 2, z: 3 }" line_source="const point = Point { x: 1, y: 2, z: 3 };"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
@@ -491,7 +491,7 @@ const point = new Point(1, 2);
 /// @resolution.name source=Point target=Point
 "#,
         r#"
-/// @diagnostic.error code=EC313 message="type 'Point' cannot be constructed with 'new'; construct value types with 'T { … }'"
+/// @diagnostic.error id=not-constructible message="type 'Point' cannot be constructed with 'new'; construct value types with 'T { … }'"
 /// @diagnostic.label line=7 column=15 span="new Point(1, 2)" line_source="const point = new Point(1, 2);"
 "#,
     );
@@ -617,7 +617,7 @@ const counter: Counter = { value: 1 };
 /// @resolution.name source=Counter target=Counter
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ value: 1 }' is not assignable to type 'Counter'"
+/// @diagnostic.error id=not-assignable message="type '{ value: 1 }' is not assignable to type 'Counter'"
 /// @diagnostic.label line=6 column=26 span="{ value: 1 }" line_source="const counter: Counter = { value: 1 };"
 "#,
     );

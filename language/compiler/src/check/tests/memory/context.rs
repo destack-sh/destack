@@ -410,7 +410,7 @@ shared const sharedWorld: ^World = world;
 /// @resolution.name source=world target=world
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '^World' is not assignable to type 'shared ^World'"
+/// @diagnostic.error id=not-assignable message="type '^World' is not assignable to type 'shared ^World'"
 /// @diagnostic.label line=5 column=36 span="world" line_source="shared const sharedWorld: ^World = world;"
 "#,
     );

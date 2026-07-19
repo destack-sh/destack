@@ -112,7 +112,7 @@ const narrow = Index { value: 1 as int32 };
 /// @generic.instance id=Index<int64> template=Index arguments=(int64)
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type 'int32' does not satisfy 'int64'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
 /// @diagnostic.label line=7 column=16 span="Index { value: 1 as int32 }" line_source="const narrow = Index { value: 1 as int32 };"
 /// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"
 "#,
@@ -166,7 +166,7 @@ const index: usize = key;
 /// @resolution.name source=key target=key
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '300' is not assignable to type 'int8'"
+/// @diagnostic.error id=not-assignable message="type '300' is not assignable to type 'int8'"
 /// @diagnostic.label line=3 column=25 span="300" line_source="const overflows: int8 = 300;"
 "#,
     );

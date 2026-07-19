@@ -146,7 +146,7 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '2' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type '2' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=52 span="2" line_source="const value: { a: number; b: string } = { a: 1, b: 2 };"
 /// @diagnostic.note message="the mismatch is in field 'b'"
 "#,

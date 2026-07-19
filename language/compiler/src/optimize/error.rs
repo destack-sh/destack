@@ -7,7 +7,10 @@ use destack_source::{PackageId, TargetId};
 #[diagnostic(severity = Error, phase = Optimize)]
 pub enum OptimizeError {
     /// Invalid target configuration for optimization.
-    #[diagnostic(code = "EO110", message = "invalid target {target}: {message}")]
+    #[diagnostic(
+        id = "invalid-optimization-target",
+        message = "invalid target {target}: {message}"
+    )]
     InvalidTarget {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -16,11 +19,17 @@ pub enum OptimizeError {
     },
 
     /// Unsupported MIR construct encountered during optimization.
-    #[diagnostic(code = "EO900", message = "unsupported MIR construct")]
+    #[diagnostic(
+        id = "unsupported-optimization-construct",
+        message = "unsupported MIR construct"
+    )]
     UnsupportedConstruct { anchor: DiagnosticAnchor },
 
     /// Internal optimization error.
-    #[diagnostic(code = "EO901", message = "internal optimization error: {message}")]
+    #[diagnostic(
+        id = "internal-optimization-error",
+        message = "internal optimization error: {message}"
+    )]
     InternalError {
         anchor: DiagnosticAnchor,
         message: String,

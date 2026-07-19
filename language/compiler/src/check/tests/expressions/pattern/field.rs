@@ -30,7 +30,7 @@ let { y } = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC426 message="pattern field 'y' does not exist on type '{ x: int32 }'"
+/// @diagnostic.error id=pattern-field-missing message="pattern field 'y' does not exist on type '{ x: int32 }'"
 /// @diagnostic.label line=4 column=7 span="y" line_source="let { y } = point;"
 "#,
     );
@@ -68,7 +68,7 @@ let { x, x: other } = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC428 message="field 'x' appears more than once in pattern"
+/// @diagnostic.error id=duplicate-pattern-field message="field 'x' appears more than once in pattern"
 /// @diagnostic.label line=4 column=10 span="x" line_source="let { x, x: other } = point;"
 /// @diagnostic.related line=4 column=7 span="x" line_source="let { x, x: other } = point;" message="first matched here"
 "#,
@@ -108,7 +108,7 @@ let { left: value, right: value } = pair;
 /// @resolution.name source=pair target=pair
 "#,
         r#"
-/// @diagnostic.error code=EC429 message="binding 'value' appears more than once in pattern"
+/// @diagnostic.error id=duplicate-pattern-binding message="binding 'value' appears more than once in pattern"
 /// @diagnostic.label line=4 column=27 span="value" line_source="let { left: value, right: value } = pair;"
 "#,
     );

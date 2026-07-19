@@ -220,7 +220,7 @@ export * from "./a.ds";
     compiler.assert_dir_resolved_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ER200 message="missing export 'missing' from './a.ds'"
+/// @diagnostic.error id=missing-export message="missing export 'missing' from './a.ds'"
 /// @diagnostic.label line=2 column=10 span="missing" line_source="import { missing } from \"./a.ds\";"
 "#,
     );
@@ -245,7 +245,7 @@ export let value = 1;
     compiler.assert_dir_resolved_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ER200 message="missing export 'missing' from './dep.ds'"
+/// @diagnostic.error id=missing-export message="missing export 'missing' from './dep.ds'"
 /// @diagnostic.label line=2 column=10 span="missing" line_source="export { missing } from \"./dep.ds\";"
 "#,
     );

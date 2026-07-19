@@ -73,7 +73,7 @@ const bad: Present = null;
 /// @generic.instance id="NonNullable<string | null | undefined>" template=types.object.NonNullable arguments=(string | null | undefined)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'null' is not assignable to type 'Present'"
+/// @diagnostic.error id=not-assignable message="type 'null' is not assignable to type 'Present'"
 /// @diagnostic.label line=4 column=22 span="null" line_source="const bad: Present = null;"
 /// @diagnostic.note message="'Present' reduces to 'string'"
 "#,
@@ -112,7 +112,7 @@ let bad: Present = "no";
 /// @generic.instance id=NonNullable<never> template=types.object.NonNullable arguments=(never)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'Present'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Present'"
 /// @diagnostic.label line=4 column=20 span="\"no\"" line_source="let bad: Present = \"no\";"
 /// @diagnostic.note message="'Present' reduces to 'never'"
 "#,

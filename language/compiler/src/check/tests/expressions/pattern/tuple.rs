@@ -81,7 +81,7 @@ let (x, y) = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC424 message="type '{ x: int32; y: int32 }' cannot be destructured as a tuple pattern"
+/// @diagnostic.error id=pattern-source-not-tuple-shaped message="type '{ x: int32; y: int32 }' cannot be destructured as a tuple pattern"
 /// @diagnostic.label line=4 column=5 span="(x, y)" line_source="let (x, y) = point;"
 "#,
     );

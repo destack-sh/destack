@@ -166,7 +166,7 @@ person.name = "Grace";
 /// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=9 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );
@@ -229,7 +229,7 @@ person.profile.name = "Grace";
 /// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=10 column=16 span="name" line_source="person.profile.name = \"Grace\";"
 "#,
     );

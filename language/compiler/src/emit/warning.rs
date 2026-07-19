@@ -7,20 +7,23 @@ use destack_source::ModuleId;
 #[diagnostic(severity = Warning, phase = Emit)]
 pub enum EmitWarning {
     // -------------------------------------------------------------------------
-    // 1xx: Type warnings
+    // types
     // -------------------------------------------------------------------------
     /// Imprecise type.
-    #[diagnostic(code = "WG100", message = "imprecise type")]
+    #[diagnostic(id = "imprecise-type", message = "imprecise type")]
     ImpreciseType {
         anchor: DiagnosticAnchor,
         module: ModuleId,
     },
 
     // -------------------------------------------------------------------------
-    // 2xx: Construct warnings
+    // constructs
     // -------------------------------------------------------------------------
     /// Unexpected construct (recoverable).
-    #[diagnostic(code = "WG200", message = "unexpected construct")]
+    #[diagnostic(
+        id = "recoverable-emission-construct",
+        message = "unexpected construct"
+    )]
     UnexpectedConstruct {
         anchor: DiagnosticAnchor,
         module: ModuleId,

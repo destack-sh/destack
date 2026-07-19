@@ -6,24 +6,24 @@ use destack_artifact_macros::Diagnostic;
 #[diagnostic(severity = Warning, phase = Link)]
 pub enum LinkWarning {
     // -------------------------------------------------------------------------
-    // 1xx: Symbol issues
+    // symbols
     // -------------------------------------------------------------------------
     /// Missing target for a symbol.
-    #[diagnostic(code = "WK100", message = "missing target for a symbol")]
+    #[diagnostic(id = "missing-symbol-target", message = "missing target for a symbol")]
     MissingTarget { anchor: DiagnosticAnchor },
 
     /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
-    #[diagnostic(code = "WK101", message = "weak symbol")]
+    #[diagnostic(id = "weak-symbol", message = "weak symbol")]
     WeakSymbol {
         anchor: DiagnosticAnchor,
         symbol: String,
     },
 
     // -------------------------------------------------------------------------
-    // 2xx: Size issues
+    // size
     // -------------------------------------------------------------------------
     /// Large binary / large static data section.
-    #[diagnostic(code = "WK200", message = "large binary")]
+    #[diagnostic(id = "large-binary", message = "large binary")]
     LargeBinary {
         anchor: DiagnosticAnchor,
         size_mb: u64,

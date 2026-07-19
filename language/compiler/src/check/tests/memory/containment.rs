@@ -214,15 +214,15 @@ const union: shared (local User | undefined) = user;
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC506 message="shared space cannot hold references into local space"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
 /// @diagnostic.label line=10 column=14 span="shared" line_source="const field: shared BoxedUser = BoxedUser { user };"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
-/// @diagnostic.error code=EC506 message="shared space cannot hold references into local space"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
 /// @diagnostic.label line=11 column=14 span="shared" line_source="const tuple: shared (local User, int32) = (user, 1);"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
-/// @diagnostic.error code=EC506 message="shared space cannot hold references into local space"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
 /// @diagnostic.label line=12 column=14 span="shared" line_source="const union: shared (local User | undefined) = user;"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
@@ -270,7 +270,7 @@ shared struct State {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC506 message="shared space cannot hold references into local space"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
 /// @diagnostic.label line=5 column=5 span="user" line_source="user: local User;"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
@@ -424,7 +424,7 @@ const accepted: shared Box<shared User> = Box { value: sharedUser };
 /// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
 "#,
         r#"
-/// @diagnostic.error code=EC506 message="shared space cannot hold references into local space"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
 /// @diagnostic.label line=11 column=17 span="shared" line_source="const rejected: shared Box<local User> = Box { value: localUser };"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
@@ -556,11 +556,11 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 /// @generic.instance id="Borrowed<User, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(User, "static", "mutable")
 "#,
         r#"
-/// @diagnostic.error code=EC506 message="shared space cannot hold references into local space"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
 /// @diagnostic.label line=10 column=17 span="shared" line_source="const ownedBox: shared OwnedBox = OwnedBox { value: owned };"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
-/// @diagnostic.error code=EC506 message="shared space cannot hold references into local space"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
 /// @diagnostic.label line=11 column=20 span="shared" line_source="const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
@@ -638,7 +638,7 @@ const box: shared Box = new Box(user);
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'local User' is not assignable to parameter of type 'shared User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local User' is not assignable to parameter of type 'shared User'"
 /// @diagnostic.label line=10 column=33 span="user" line_source="const box: shared Box = new Box(user);"
 /// @diagnostic.related line=10 column=25 span="new Box(user)" line_source="const box: shared Box = new Box(user);" message="in this call"
 /// @diagnostic.note message="a value never changes its space"
@@ -802,10 +802,10 @@ cleanEnvelope satisfies SharedSafe;
 /// @generic.instance id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
 /// @diagnostic.label line=23 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
 /// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
-/// @diagnostic.error code=EC201 message="type 'Handle' does not satisfy 'SharedSafe'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Handle' does not satisfy 'SharedSafe'"
 /// @diagnostic.label line=25 column=1 span="publish(handle)" line_source="publish(handle);"
 /// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
 "#,

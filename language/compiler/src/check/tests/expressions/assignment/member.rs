@@ -34,7 +34,7 @@ state.count = 1;
 /// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'count'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"
 /// @diagnostic.label line=3 column=7 span="count" line_source="state.count = 1;"
 "#,
     );
@@ -240,7 +240,7 @@ counter.current = 1;
 /// @resolution.name source=counter target=counter
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'current'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'current'"
 /// @diagnostic.label line=7 column=9 span="current" line_source="counter.current = 1;"
 "#,
     );
@@ -292,7 +292,7 @@ const value = sink.value;
 /// @resolution.name source=sink target=sink
 "#,
         r#"
-/// @diagnostic.error code=EC321 message="member 'value' is write-only"
+/// @diagnostic.error id=cannot-read-write-only-member message="member 'value' is write-only"
 /// @diagnostic.label line=7 column=20 span="value" line_source="const value = sink.value;"
 "#,
     );

@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 #[diagnostic(severity = Error, phase = Check)]
 pub enum CheckError {
     // -------------------------------------------------------------------------
-    // 1xx: inference
+    // inference
     // -------------------------------------------------------------------------
     /// Solver could not determine a required type or static value.
     ///
@@ -15,7 +15,7 @@ pub enum CheckError {
     /// const value = _;
     /// ```
     #[diagnostic(
-        code = "EC100",
+        id = "cannot-infer-type",
         message = "cannot infer a type here",
         help = "annotate the type explicitly"
     )]
@@ -31,7 +31,7 @@ pub enum CheckError {
     /// ```ds
     /// declare function foo();
     /// ```
-    #[diagnostic(code = "EC101", message = "missing type annotation")]
+    #[diagnostic(id = "missing-type-annotation", message = "missing type annotation")]
     MissingTypeAnnotation {
         /// Report the declaration that needs a type.
         anchor: DiagnosticAnchor,
@@ -44,7 +44,7 @@ pub enum CheckError {
     /// ```ds
     /// type Loop = Loop;
     /// ```
-    #[diagnostic(code = "EC103", message = "type is circular")]
+    #[diagnostic(id = "circular-type", message = "type is circular")]
     CircularType {
         /// Report the recursive type reference.
         anchor: DiagnosticAnchor,
@@ -57,7 +57,7 @@ pub enum CheckError {
     /// ```ds
     /// let value: object;
     /// ```
-    #[diagnostic(code = "EC104", message = "unsupported type: {name}")]
+    #[diagnostic(id = "unsupported-source-type", message = "unsupported type: {name}")]
     UnsupportedType {
         /// Report the unsupported type.
         anchor: DiagnosticAnchor,
@@ -73,7 +73,7 @@ pub enum CheckError {
     /// Box<int32, string>;
     /// ```
     #[diagnostic(
-        code = "EC105",
+        id = "wrong-generic-arity",
         message = "'{name}' takes {expected} generic argument(s), but {supplied} were supplied"
     )]
     WrongGenericArity {
@@ -95,7 +95,7 @@ pub enum CheckError {
     /// type T = typeof call();
     /// ```
     #[diagnostic(
-        code = "EC106",
+        id = "invalid-type-query",
         message = "typeof type query requires a value reference"
     )]
     InvalidTypeQuery {
@@ -106,7 +106,7 @@ pub enum CheckError {
     },
 
     // -------------------------------------------------------------------------
-    // 2xx: relations
+    // relations
     // -------------------------------------------------------------------------
     /// Source type is not assignable to target type.
     ///
@@ -114,7 +114,7 @@ pub enum CheckError {
     /// let value: string = 1;
     /// ```
     #[diagnostic(
-        code = "EC200",
+        id = "not-assignable",
         message = "type '{source}' is not assignable to type '{target}'"
     )]
     NotAssignable {
@@ -136,7 +136,7 @@ pub enum CheckError {
     /// value satisfies { name: string };
     /// ```
     #[diagnostic(
-        code = "EC201",
+        id = "constraint-not-satisfied",
         message = "type '{source}' does not satisfy '{target}'"
     )]
     ConstraintNotSatisfied {
@@ -155,7 +155,10 @@ pub enum CheckError {
     /// ```ds
     /// class User extends number {}
     /// ```
-    #[diagnostic(code = "EC202", message = "type '{source}' does not extend '{target}'")]
+    #[diagnostic(
+        id = "does-not-extend",
+        message = "type '{source}' does not extend '{target}'"
+    )]
     DoesNotExtend {
         /// Report the extends clause or constrained type.
         anchor: DiagnosticAnchor,
@@ -177,7 +180,7 @@ pub enum CheckError {
     /// class User implements Serializable {}
     /// ```
     #[diagnostic(
-        code = "EC203",
+        id = "interface-not-implemented",
         message = "type '{source}' does not implement interface '{target}'"
     )]
     InterfaceNotImplemented {
@@ -198,7 +201,10 @@ pub enum CheckError {
     ///
     /// (value + 1) = 2;
     /// ```
-    #[diagnostic(code = "EC204", message = "assignment target is not a writable place")]
+    #[diagnostic(
+        id = "non-writable-assignment-target",
+        message = "assignment target is not a writable place"
+    )]
     InvalidAssignmentTarget {
         /// Report the assignment target.
         anchor: DiagnosticAnchor,
@@ -212,7 +218,7 @@ pub enum CheckError {
     /// const value: { name: string } = { name: "Ada", extra: true };
     /// ```
     #[diagnostic(
-        code = "EC205",
+        id = "excess-property",
         message = "unknown property '{key}' in object literal for type '{target}'"
     )]
     ExcessProperty {
@@ -232,7 +238,7 @@ pub enum CheckError {
     /// const value = "text" as int32;
     /// ```
     #[diagnostic(
-        code = "EC206",
+        id = "invalid-cast",
         message = "type '{source}' cannot be cast to '{target}'"
     )]
     InvalidCast {
@@ -251,7 +257,10 @@ pub enum CheckError {
     /// ```ds
     /// let value: intrinsic;
     /// ```
-    #[diagnostic(code = "EC207", message = "intrinsic type is not valid here")]
+    #[diagnostic(
+        id = "invalid-intrinsic-type",
+        message = "intrinsic type is not valid here"
+    )]
     InvalidIntrinsicType {
         /// Report the intrinsic type expression.
         anchor: DiagnosticAnchor,
@@ -264,7 +273,7 @@ pub enum CheckError {
     /// ```ds
     /// let value: const;
     /// ```
-    #[diagnostic(code = "EC208", message = "const type is not valid here")]
+    #[diagnostic(id = "invalid-const-type", message = "const type is not valid here")]
     InvalidConstType {
         /// Report the const type expression.
         anchor: DiagnosticAnchor,
@@ -280,7 +289,7 @@ pub enum CheckError {
     /// parse(1);
     /// ```
     #[diagnostic(
-        code = "EC209",
+        id = "argument-not-assignable",
         message = "argument of type '{source}' is not assignable to parameter of type '{target}'"
     )]
     ArgumentNotAssignable {
@@ -300,7 +309,7 @@ pub enum CheckError {
     /// function f(): string { 1 }
     /// ```
     #[diagnostic(
-        code = "EC210",
+        id = "return-not-assignable",
         message = "type '{source}' is not assignable to the declared result type '{target}'"
     )]
     ReturnNotAssignable {
@@ -320,7 +329,7 @@ pub enum CheckError {
     /// const merged = { ...1 };
     /// ```
     #[diagnostic(
-        code = "EC211",
+        id = "spread-not-object",
         message = "type '{source}' cannot be spread into an object literal"
     )]
     SpreadNotObject {
@@ -339,7 +348,7 @@ pub enum CheckError {
     /// value = 2;
     /// ```
     #[diagnostic(
-        code = "EC212",
+        id = "cannot-assign-immutable-binding",
         message = "cannot assign to immutable binding '{name}'",
         help = "declare '{name}' with 'let' to allow reassignment"
     )]
@@ -358,7 +367,10 @@ pub enum CheckError {
     /// import { value } from "./value.ds";
     /// value = 2;
     /// ```
-    #[diagnostic(code = "EC213", message = "cannot assign to imported binding '{name}'")]
+    #[diagnostic(
+        id = "cannot-assign-imported-binding",
+        message = "cannot assign to imported binding '{name}'"
+    )]
     CannotAssignImportedBinding {
         /// Report the mutation.
         anchor: DiagnosticAnchor,
@@ -376,7 +388,7 @@ pub enum CheckError {
     /// value.count = 2;
     /// ```
     #[diagnostic(
-        code = "EC214",
+        id = "cannot-assign-readonly-member",
         message = "cannot assign to readonly member '{member}'"
     )]
     CannotAssignReadonlyMember {
@@ -394,7 +406,7 @@ pub enum CheckError {
     /// const value: { name: string } = {};
     /// ```
     #[diagnostic(
-        code = "EC215",
+        id = "missing-required-property",
         message = "missing required property '{key}' for type '{target}'"
     )]
     MissingRequiredProperty {
@@ -417,7 +429,7 @@ pub enum CheckError {
     /// write({ x: 1 });
     /// ```
     #[diagnostic(
-        code = "EC216",
+        id = "writable-index-requires-index-set",
         message = "type '{source}' is missing IndexSet<{key}> with input '{value}' for writable index signature"
     )]
     WritableIndexRequiresIndexSet {
@@ -441,7 +453,7 @@ pub enum CheckError {
     /// const view = &exclusive user;
     /// ```
     #[diagnostic(
-        code = "EC217",
+        id = "borrow-access-not-granted",
         message = "'{access}' access is not granted by a value of type '{source}'"
     )]
     BorrowAccessNotGranted {
@@ -456,7 +468,7 @@ pub enum CheckError {
     },
 
     // -------------------------------------------------------------------------
-    // 3xx: selection
+    // selection
     // -------------------------------------------------------------------------
     /// Receiver type does not contain a selected member.
     ///
@@ -466,7 +478,7 @@ pub enum CheckError {
     /// user.missing;
     /// ```
     #[diagnostic(
-        code = "EC300",
+        id = "missing-member",
         message = "member '{key}' does not exist on type '{receiver}'",
         optional_message = "; did you mean '{suggestion}'?"
     )]
@@ -489,7 +501,7 @@ pub enum CheckError {
     /// const value = 1;
     /// value();
     /// ```
-    #[diagnostic(code = "EC301", message = "value of type '{ty}' is not callable")]
+    #[diagnostic(id = "not-callable", message = "value of type '{ty}' is not callable")]
     NotCallable {
         /// Report the call expression.
         anchor: DiagnosticAnchor,
@@ -507,7 +519,7 @@ pub enum CheckError {
     /// parse(1, 2, 3);
     /// ```
     #[diagnostic(
-        code = "EC302",
+        id = "no-matching-call",
         message = "no overload matches arguments ({arguments})"
     )]
     NoMatchingCall {
@@ -525,7 +537,7 @@ pub enum CheckError {
     /// new User(true);
     /// ```
     #[diagnostic(
-        code = "EC311",
+        id = "no-matching-construct",
         message = "no constructor matches arguments ({arguments})"
     )]
     NoMatchingConstruct {
@@ -543,7 +555,10 @@ pub enum CheckError {
     /// @derive(ordinaryValue)
     /// newtype Shape = { kind: "shape" };
     /// ```
-    #[diagnostic(code = "EC326", message = "type '{provider}' is not a derive provider")]
+    #[diagnostic(
+        id = "invalid-derive-provider",
+        message = "type '{provider}' is not a derive provider"
+    )]
     InvalidDeriveProvider {
         /// Report the derive provider argument.
         anchor: DiagnosticAnchor,
@@ -560,7 +575,7 @@ pub enum CheckError {
     /// struct Shape {}
     /// ```
     #[diagnostic(
-        code = "EC327",
+        id = "invalid-derive-target",
         message = "'{provider}' cannot be derived for this declaration"
     )]
     InvalidDeriveTarget {
@@ -578,7 +593,10 @@ pub enum CheckError {
     /// @derive(Tagged, Tagged)
     /// newtype Shape = { kind: "shape" };
     /// ```
-    #[diagnostic(code = "EC328", message = "duplicate derive provider '{provider}'")]
+    #[diagnostic(
+        id = "duplicate-derive-provider",
+        message = "duplicate derive provider '{provider}'"
+    )]
     DuplicateDeriveProvider {
         /// Report the derive application.
         anchor: DiagnosticAnchor,
@@ -595,7 +613,7 @@ pub enum CheckError {
     /// newtype Shape = { kind: string };
     /// ```
     #[diagnostic(
-        code = "EC329",
+        id = "invalid-tagged-variant",
         message = "Tagged backing arm must declare a string literal '{discriminant}' field"
     )]
     InvalidTaggedVariant {
@@ -614,7 +632,7 @@ pub enum CheckError {
     /// newtype Shape = { kind: "---" };
     /// ```
     #[diagnostic(
-        code = "EC330",
+        id = "invalid-tagged-case",
         message = "Tagged discriminant '{discriminant}' does not produce a valid case name"
     )]
     InvalidTaggedCase {
@@ -632,7 +650,10 @@ pub enum CheckError {
     /// @derive(Tagged)
     /// newtype Shape = { kind: "shape" } | { kind: "Shape" };
     /// ```
-    #[diagnostic(code = "EC331", message = "duplicate Tagged case '{key}'")]
+    #[diagnostic(
+        id = "duplicate-tagged-case",
+        message = "duplicate Tagged case '{key}'"
+    )]
     DuplicateTaggedCase {
         /// Report the derive application.
         anchor: DiagnosticAnchor,
@@ -647,7 +668,7 @@ pub enum CheckError {
     /// ```ds
     /// value.name;
     /// ```
-    #[diagnostic(code = "EC303", message = "member '{key}' is ambiguous")]
+    #[diagnostic(id = "ambiguous-member", message = "member '{key}' is ambiguous")]
     AmbiguousMember {
         /// Report the member access.
         anchor: DiagnosticAnchor,
@@ -662,7 +683,7 @@ pub enum CheckError {
     /// ```ds
     /// parse(value);
     /// ```
-    #[diagnostic(code = "EC304", message = "ambiguous call")]
+    #[diagnostic(id = "ambiguous-call", message = "ambiguous call")]
     AmbiguousCall {
         /// Report the call expression.
         anchor: DiagnosticAnchor,
@@ -680,7 +701,7 @@ pub enum CheckError {
     /// const user = new User();
     /// user.value;
     /// ```
-    #[diagnostic(code = "EC305", message = "member '{key}' is {visibility}")]
+    #[diagnostic(id = "inaccessible-member", message = "member '{key}' is {visibility}")]
     InaccessibleMember {
         /// Report the member access.
         anchor: DiagnosticAnchor,
@@ -698,7 +719,7 @@ pub enum CheckError {
     /// 1 + true;
     /// ```
     #[diagnostic(
-        code = "EC306",
+        id = "no-matching-operator",
         message = "operator '{operator}' is not defined for {operands}"
     )]
     NoMatchingOperator {
@@ -722,7 +743,7 @@ pub enum CheckError {
     /// user === 1;
     /// ```
     #[diagnostic(
-        code = "EC307",
+        id = "invalid-strict-equality",
         message = "this comparison is unintentional: types '{left}' and '{right}' have no overlap"
     )]
     InvalidStrictEquality {
@@ -742,7 +763,7 @@ pub enum CheckError {
     /// missing;
     /// ```
     #[diagnostic(
-        code = "EC308",
+        id = "unresolved-reference",
         message = "cannot find '{name}'",
         optional_message = "; did you mean '{suggestion}'?"
     )]
@@ -762,7 +783,7 @@ pub enum CheckError {
     /// ```ds
     /// value;
     /// ```
-    #[diagnostic(code = "EC309", message = "ambiguous reference '{name}'")]
+    #[diagnostic(id = "ambiguous-reference", message = "ambiguous reference '{name}'")]
     AmbiguousReference {
         /// Report the reference expression.
         anchor: DiagnosticAnchor,
@@ -778,7 +799,10 @@ pub enum CheckError {
     /// @value.field
     /// const decorated = 1;
     /// ```
-    #[diagnostic(code = "EC310", message = "decorator must name a newtype declaration")]
+    #[diagnostic(
+        id = "invalid-decorator-target",
+        message = "decorator must name a newtype declaration"
+    )]
     InvalidDecoratorTarget {
         /// Report the decorator target expression.
         anchor: DiagnosticAnchor,
@@ -793,7 +817,10 @@ pub enum CheckError {
     /// @capture("move")
     /// const closure = () => value;
     /// ```
-    #[diagnostic(code = "EC325", message = "duplicate capture decorator")]
+    #[diagnostic(
+        id = "duplicate-capture-decorator",
+        message = "duplicate capture decorator"
+    )]
     DuplicateCaptureDecorator {
         /// Report the duplicate capture decorator.
         anchor: DiagnosticAnchor,
@@ -808,7 +835,7 @@ pub enum CheckError {
     /// const value = 1;
     /// ```
     #[diagnostic(
-        code = "EC324",
+        id = "invalid-capture-target",
         message = "capture decorator requires a declared function value"
     )]
     InvalidCaptureTarget {
@@ -829,7 +856,7 @@ pub enum CheckError {
     /// user.name;
     /// ```
     #[diagnostic(
-        code = "EC312",
+        id = "possibly-nullish",
         message = "value is possibly {nullish}",
         help = "narrow the value with a check or access it with '?.'"
     )]
@@ -850,7 +877,7 @@ pub enum CheckError {
     /// new Point();
     /// ```
     #[diagnostic(
-        code = "EC313",
+        id = "not-constructible",
         message = "type '{ty}' cannot be constructed with 'new'{hint}"
     )]
     NotConstructible {
@@ -870,7 +897,7 @@ pub enum CheckError {
     /// const value: string = _(1);
     /// ```
     #[diagnostic(
-        code = "EC323",
+        id = "invalid-inferred-construct-target",
         message = "type '{ty}' cannot be constructed with '_(...)'"
     )]
     InvalidInferredConstructTarget {
@@ -889,7 +916,7 @@ pub enum CheckError {
     /// pair(1);
     /// ```
     #[diagnostic(
-        code = "EC314",
+        id = "wrong-argument-count",
         message = "expected {expected}, but got {supplied} argument(s)"
     )]
     WrongArgumentCount {
@@ -908,7 +935,10 @@ pub enum CheckError {
     /// ```ds
     /// type Value = int32["name"];
     /// ```
-    #[diagnostic(code = "EC315", message = "type '{receiver}' cannot be indexed")]
+    #[diagnostic(
+        id = "invalid-index-receiver",
+        message = "type '{receiver}' cannot be indexed"
+    )]
     InvalidIndexReceiver {
         /// Report the index expression.
         anchor: DiagnosticAnchor,
@@ -926,7 +956,7 @@ pub enum CheckError {
     /// type Value = User["missing"];
     /// ```
     #[diagnostic(
-        code = "EC316",
+        id = "invalid-index-key",
         message = "type '{receiver}' cannot be indexed by type '{key}'"
     )]
     InvalidIndexKey {
@@ -948,7 +978,7 @@ pub enum CheckError {
     /// value instanceof Named;
     /// ```
     #[diagnostic(
-        code = "EC317",
+        id = "instance-of-target-not-class",
         message = "right-hand side of 'instanceof' must be a class"
     )]
     InstanceOfTargetNotClass {
@@ -968,7 +998,7 @@ pub enum CheckError {
     /// name instanceof User;
     /// ```
     #[diagnostic(
-        code = "EC318",
+        id = "impossible-instance-of",
         message = "type '{source}' can never be an instance of '{target}'"
     )]
     ImpossibleInstanceOf {
@@ -990,7 +1020,7 @@ pub enum CheckError {
     /// value is int32;
     /// ```
     #[diagnostic(
-        code = "EC319",
+        id = "impossible-is",
         message = "type '{source}' can never satisfy runtime check '{target}'"
     )]
     ImpossibleIs {
@@ -1012,7 +1042,7 @@ pub enum CheckError {
     /// value is &User;
     /// ```
     #[diagnostic(
-        code = "EC320",
+        id = "runtime-predicate-not-testable",
         message = "type '{target}' cannot be tested at runtime"
     )]
     RuntimePredicateNotTestable {
@@ -1034,7 +1064,10 @@ pub enum CheckError {
     /// declare const sink: Sink;
     /// sink.value;
     /// ```
-    #[diagnostic(code = "EC321", message = "member '{member}' is write-only")]
+    #[diagnostic(
+        id = "cannot-read-write-only-member",
+        message = "member '{member}' is write-only"
+    )]
     CannotReadWriteOnlyMember {
         /// Report the member access.
         anchor: DiagnosticAnchor,
@@ -1056,7 +1089,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC322",
+        id = "receiver-not-assignable",
         message = "receiver type '{source}' is not assignable to the method's 'this' type '{target}'"
     )]
     ReceiverNotAssignable {
@@ -1071,7 +1104,7 @@ pub enum CheckError {
     },
 
     // -------------------------------------------------------------------------
-    // 4xx: expressions
+    // expressions
     // -------------------------------------------------------------------------
     /// Runtime condition does not have boolean type.
     ///
@@ -1079,7 +1112,7 @@ pub enum CheckError {
     /// if (1) {}
     /// ```
     #[diagnostic(
-        code = "EC400",
+        id = "non-boolean-condition",
         message = "condition must be boolean, found '{actual}'"
     )]
     NonBooleanCondition {
@@ -1098,7 +1131,7 @@ pub enum CheckError {
     /// const value = 1;
     /// ```
     #[diagnostic(
-        code = "EC401",
+        id = "invalid-static-condition",
         message = "static condition must evaluate to a boolean"
     )]
     InvalidStaticCondition {
@@ -1117,7 +1150,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC404",
+        id = "undecidable-static-condition",
         message = "static @if condition must be statically decidable"
     )]
     UndecidableStaticCondition {
@@ -1132,7 +1165,10 @@ pub enum CheckError {
     /// ```ds
     /// type Value<comptime N: number = runtimeValue> = N;
     /// ```
-    #[diagnostic(code = "EC440", message = "static value must be statically decidable")]
+    #[diagnostic(
+        id = "undecidable-static-value",
+        message = "static value must be statically decidable"
+    )]
     UndecidableStaticValue {
         /// Report the static value expression.
         anchor: DiagnosticAnchor,
@@ -1146,7 +1182,10 @@ pub enum CheckError {
     /// @if<boolean>(true)
     /// const value = 1;
     /// ```
-    #[diagnostic(code = "EC444", message = "`@if` must be invoked as `@if(condition)`")]
+    #[diagnostic(
+        id = "invalid-static-if-invocation",
+        message = "`@if` must be invoked as `@if(condition)`"
+    )]
     InvalidStaticIfInvocation {
         /// Report the malformed `@if` decorator.
         anchor: DiagnosticAnchor,
@@ -1159,7 +1198,10 @@ pub enum CheckError {
     /// ```ds
     /// break;
     /// ```
-    #[diagnostic(code = "EC402", message = "break statement has no target")]
+    #[diagnostic(
+        id = "break-outside-control-target",
+        message = "break statement has no target"
+    )]
     BreakOutsideControlTarget {
         /// Report the break expression.
         anchor: DiagnosticAnchor,
@@ -1173,7 +1215,7 @@ pub enum CheckError {
     /// while (true) { break 1; }
     /// ```
     #[diagnostic(
-        code = "EC441",
+        id = "break-value-outside-loop",
         message = "break with a value can only target a `loop` or labeled block"
     )]
     BreakValueOutsideLoop {
@@ -1188,7 +1230,10 @@ pub enum CheckError {
     /// ```ds
     /// class Tag<T> {}
     /// ```
-    #[diagnostic(code = "EC442", message = "generic parameter '{name}' is never used")]
+    #[diagnostic(
+        id = "unused-generic-parameter",
+        message = "generic parameter '{name}' is never used"
+    )]
     UnusedGenericParameter {
         /// Report the parameter declaration.
         anchor: DiagnosticAnchor,
@@ -1206,7 +1251,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC443",
+        id = "variance-conflict",
         message = "generic parameter '{name}' is used {usage} and cannot be declared '{declared}'"
     )]
     VarianceConflict {
@@ -1232,7 +1277,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC403",
+        id = "non-exhaustive-pattern",
         message = "match is not exhaustive: '{missing}' is not covered"
     )]
     NonExhaustivePattern {
@@ -1250,7 +1295,10 @@ pub enum CheckError {
     /// let value: int32;
     /// value + 1;
     /// ```
-    #[diagnostic(code = "EC405", message = "'{name}' is used before being assigned")]
+    #[diagnostic(
+        id = "use-before-assigned",
+        message = "'{name}' is used before being assigned"
+    )]
     UseBeforeAssigned {
         /// Report the use.
         anchor: DiagnosticAnchor,
@@ -1268,7 +1316,7 @@ pub enum CheckError {
     /// let "ready" = state;
     /// ```
     #[diagnostic(
-        code = "EC406",
+        id = "refutable-pattern",
         message = "refutable pattern in binding position: '{missing}' is not covered"
     )]
     RefutablePattern {
@@ -1287,7 +1335,10 @@ pub enum CheckError {
     ///
     /// const value = await promise;
     /// ```
-    #[diagnostic(code = "EC407", message = "await expression requires an async context")]
+    #[diagnostic(
+        id = "await-outside-async-context",
+        message = "await expression requires an async context"
+    )]
     AwaitOutsideAsyncContext {
         /// Report the await expression.
         anchor: DiagnosticAnchor,
@@ -1302,7 +1353,10 @@ pub enum CheckError {
     ///
     /// yield value;
     /// ```
-    #[diagnostic(code = "EC408", message = "yield expression requires a generator")]
+    #[diagnostic(
+        id = "yield-outside-generator",
+        message = "yield expression requires a generator"
+    )]
     YieldOutsideGenerator {
         /// Report the yield expression.
         anchor: DiagnosticAnchor,
@@ -1315,7 +1369,10 @@ pub enum CheckError {
     /// ```ds
     /// type Block = [uint8; 1 / 0];
     /// ```
-    #[diagnostic(code = "EC409", message = "static evaluation failed: {message}")]
+    #[diagnostic(
+        id = "invalid-static-operation",
+        message = "static evaluation failed: {message}"
+    )]
     InvalidStaticOperation {
         /// Report the static operation.
         anchor: DiagnosticAnchor,
@@ -1331,7 +1388,7 @@ pub enum CheckError {
     /// const value = 1?;
     /// ```
     #[diagnostic(
-        code = "EC410",
+        id = "invalid-try-operand",
         message = "'{operator}' requires a Try carrier or nullish value, found '{ty}'"
     )]
     InvalidTryOperand {
@@ -1354,7 +1411,10 @@ pub enum CheckError {
     ///     Point { x, y } => x + y,
     /// }
     /// ```
-    #[diagnostic(code = "EC411", message = "pattern tag '{ty}' is not a nominal type")]
+    #[diagnostic(
+        id = "invalid-pattern-tag",
+        message = "pattern tag '{ty}' is not a nominal type"
+    )]
     InvalidPatternTag {
         /// Report the pattern tag.
         anchor: DiagnosticAnchor,
@@ -1369,7 +1429,10 @@ pub enum CheckError {
     /// ```ds
     /// continue;
     /// ```
-    #[diagnostic(code = "EC412", message = "continue statement has no target")]
+    #[diagnostic(
+        id = "continue-outside-loop",
+        message = "continue statement has no target"
+    )]
     ContinueOutsideLoop {
         /// Report the continue expression.
         anchor: DiagnosticAnchor,
@@ -1382,7 +1445,10 @@ pub enum CheckError {
     /// ```ds
     /// return;
     /// ```
-    #[diagnostic(code = "EC413", message = "return statement is outside a function")]
+    #[diagnostic(
+        id = "return-outside-function",
+        message = "return statement is outside a function"
+    )]
     ReturnOutsideFunction {
         /// Report the return expression.
         anchor: DiagnosticAnchor,
@@ -1395,7 +1461,7 @@ pub enum CheckError {
     /// ```ds
     /// const value = this;
     /// ```
-    #[diagnostic(code = "EC414", message = "'this' is not available here")]
+    #[diagnostic(id = "this-outside-receiver", message = "'this' is not available here")]
     ThisOutsideReceiver {
         /// Report the this expression.
         anchor: DiagnosticAnchor,
@@ -1408,7 +1474,7 @@ pub enum CheckError {
     /// ```ds
     /// const value = super;
     /// ```
-    #[diagnostic(code = "EC415", message = "'super' is not available here")]
+    #[diagnostic(id = "super-outside-class", message = "'super' is not available here")]
     SuperOutsideClass {
         /// Report the super expression.
         anchor: DiagnosticAnchor,
@@ -1423,7 +1489,10 @@ pub enum CheckError {
     ///
     /// let "ready" = status else { 0 };
     /// ```
-    #[diagnostic(code = "EC416", message = "else branch of let-else must diverge")]
+    #[diagnostic(
+        id = "let-else-branch-can-complete",
+        message = "else branch of let-else must diverge"
+    )]
     LetElseBranchCanComplete {
         /// Report the else branch.
         anchor: DiagnosticAnchor,
@@ -1437,7 +1506,7 @@ pub enum CheckError {
     /// <View />
     /// ```
     #[diagnostic(
-        code = "EC417",
+        id = "missing-tree-builder",
         message = "tree expression requires an active tree builder"
     )]
     MissingTreeBuilder {
@@ -1456,7 +1525,10 @@ pub enum CheckError {
     ///     settings.ready => 1,
     /// }
     /// ```
-    #[diagnostic(code = "EC418", message = "expression pattern must close to a literal")]
+    #[diagnostic(
+        id = "expression-pattern-not-literal",
+        message = "expression pattern must close to a literal"
+    )]
     ExpressionPatternNotLiteral {
         /// Report the expression pattern.
         anchor: DiagnosticAnchor,
@@ -1469,7 +1541,10 @@ pub enum CheckError {
     /// ```ds
     /// yield*;
     /// ```
-    #[diagnostic(code = "EC419", message = "yield* expression requires a value")]
+    #[diagnostic(
+        id = "yield-delegate-missing-value",
+        message = "yield* expression requires a value"
+    )]
     YieldDelegateMissingValue {
         /// Report the yield expression.
         anchor: DiagnosticAnchor,
@@ -1483,7 +1558,7 @@ pub enum CheckError {
     /// 1?;
     /// ```
     #[diagnostic(
-        code = "EC420",
+        id = "try-outside-function",
         message = "'?' can only propagate from a function body"
     )]
     TryOutsideFunction {
@@ -1498,7 +1573,10 @@ pub enum CheckError {
     /// ```ds
     /// for (const value of 1) {}
     /// ```
-    #[diagnostic(code = "EC421", message = "for-of source must be iterable")]
+    #[diagnostic(
+        id = "for-of-source-not-iterable",
+        message = "for-of source must be iterable"
+    )]
     ForOfSourceNotIterable {
         /// Report the for-of expression.
         anchor: DiagnosticAnchor,
@@ -1511,7 +1589,10 @@ pub enum CheckError {
     /// ```ds
     /// for (const key in 1) {}
     /// ```
-    #[diagnostic(code = "EC422", message = "for-in source must be object-shaped")]
+    #[diagnostic(
+        id = "for-in-source-not-object-shaped",
+        message = "for-in source must be object-shaped"
+    )]
     ForInSourceNotObjectShaped {
         /// Report the for-in expression.
         anchor: DiagnosticAnchor,
@@ -1525,7 +1606,7 @@ pub enum CheckError {
     /// const { value } = 1;
     /// ```
     #[diagnostic(
-        code = "EC423",
+        id = "pattern-source-not-object-shaped",
         message = "type '{source}' cannot be destructured as an object pattern"
     )]
     PatternSourceNotObjectShaped {
@@ -1545,7 +1626,7 @@ pub enum CheckError {
     /// const (left, right) = value;
     /// ```
     #[diagnostic(
-        code = "EC424",
+        id = "pattern-source-not-tuple-shaped",
         message = "type '{source}' cannot be destructured as a tuple pattern"
     )]
     PatternSourceNotTupleShaped {
@@ -1565,7 +1646,7 @@ pub enum CheckError {
     /// const [head, ...tail] = value;
     /// ```
     #[diagnostic(
-        code = "EC425",
+        id = "pattern-source-not-sequence-shaped",
         message = "type '{source}' cannot be destructured as a sequence pattern"
     )]
     PatternSourceNotSequenceShaped {
@@ -1585,7 +1666,7 @@ pub enum CheckError {
     /// const { missing } = value;
     /// ```
     #[diagnostic(
-        code = "EC426",
+        id = "pattern-field-missing",
         message = "pattern field '{key}' does not exist on type '{receiver}'"
     )]
     PatternFieldMissing {
@@ -1607,7 +1688,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC427",
+        id = "pattern-member-not-field",
         message = "member '{key}' on type '{receiver}' is not a field"
     )]
     PatternMemberNotField {
@@ -1629,7 +1710,7 @@ pub enum CheckError {
     /// const { name, name: alias } = user;
     /// ```
     #[diagnostic(
-        code = "EC428",
+        id = "duplicate-pattern-field",
         message = "field '{key}' appears more than once in pattern"
     )]
     DuplicatePatternField {
@@ -1649,7 +1730,7 @@ pub enum CheckError {
     /// const { left: value, right: value } = pair;
     /// ```
     #[diagnostic(
-        code = "EC429",
+        id = "duplicate-pattern-binding",
         message = "binding '{name}' appears more than once in pattern"
     )]
     DuplicatePatternBinding {
@@ -1668,7 +1749,7 @@ pub enum CheckError {
     ///
     /// const [head, ...middle, tail] = values;
     /// ```
-    #[diagnostic(code = "EC430", message = "rest pattern must be last")]
+    #[diagnostic(id = "rest-pattern-not-last", message = "rest pattern must be last")]
     RestPatternNotLast {
         /// Report the rest pattern.
         anchor: DiagnosticAnchor,
@@ -1683,7 +1764,10 @@ pub enum CheckError {
     ///
     /// const [head, ...tail, ...rest] = values;
     /// ```
-    #[diagnostic(code = "EC431", message = "pattern can contain at most one rest field")]
+    #[diagnostic(
+        id = "multiple-rest-patterns",
+        message = "pattern can contain at most one rest field"
+    )]
     MultipleRestPatterns {
         /// Report the extra rest pattern.
         anchor: DiagnosticAnchor,
@@ -1700,7 +1784,7 @@ pub enum CheckError {
     /// const { [key]: value } = point;
     /// ```
     #[diagnostic(
-        code = "EC432",
+        id = "computed-pattern-key-not-valid",
         message = "computed pattern key is not valid for the source type"
     )]
     ComputedPatternKeyNotValid {
@@ -1719,7 +1803,10 @@ pub enum CheckError {
     ///     0..10 => true
     /// }
     /// ```
-    #[diagnostic(code = "EC433", message = "range pattern cannot match type '{domain}'")]
+    #[diagnostic(
+        id = "invalid-range-pattern-domain",
+        message = "range pattern cannot match type '{domain}'"
+    )]
     InvalidRangePatternDomain {
         /// Report the range pattern.
         anchor: DiagnosticAnchor,
@@ -1740,7 +1827,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC434",
+        id = "invalid-range-pattern-bound",
         message = "range pattern bound must close to an integer, bigint, or char literal"
     )]
     InvalidRangePatternBound {
@@ -1758,7 +1845,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC435",
+        id = "pattern-alternative-binding-mismatch",
         message = "union pattern alternatives must bind the same names with the same forms"
     )]
     PatternAlternativeBindingMismatch {
@@ -1774,7 +1861,7 @@ pub enum CheckError {
     /// [left, right] += values;
     /// ```
     #[diagnostic(
-        code = "EC436",
+        id = "destructuring-assignment-requires-plain-assignment",
         message = "destructuring assignment only supports plain '='"
     )]
     DestructuringAssignmentRequiresPlainAssignment {
@@ -1792,7 +1879,7 @@ pub enum CheckError {
     /// } catch ("missing") {}
     /// ```
     #[diagnostic(
-        code = "EC437",
+        id = "refutable-catch-pattern",
         message = "catch pattern must be irrefutable: '{missing}' is not covered"
     )]
     RefutableCatchPattern {
@@ -1812,7 +1899,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC438",
+        id = "pattern-variant-not-in-type",
         message = "variant '{variant}' is not a variant of type '{source}'"
     )]
     PatternVariantNotInType {
@@ -1834,7 +1921,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC439",
+        id = "pattern-variant-missing",
         message = "variant '{variant}' does not exist on type '{owner}'"
     )]
     PatternVariantMissing {
@@ -1849,7 +1936,7 @@ pub enum CheckError {
     },
 
     // -------------------------------------------------------------------------
-    // 5xx: representation
+    // representation
     // -------------------------------------------------------------------------
     /// Type is not concrete and therefore has no layout.
     ///
@@ -1858,7 +1945,10 @@ pub enum CheckError {
     ///     return comptime sizeOf<T>();
     /// }
     /// ```
-    #[diagnostic(code = "EC500", message = "type '{ty}' has no concrete layout")]
+    #[diagnostic(
+        id = "layout-not-concrete",
+        message = "type '{ty}' has no concrete layout"
+    )]
     LayoutNotConcrete {
         /// Report the layout request.
         anchor: DiagnosticAnchor,
@@ -1870,7 +1960,7 @@ pub enum CheckError {
 
     /// A declaration does not support the selected representation family.
     #[diagnostic(
-        code = "EC501",
+        id = "unsupported-representation",
         message = "representation '{representation}' is not supported by this declaration"
     )]
     UnsupportedRepresentation {
@@ -1887,7 +1977,10 @@ pub enum CheckError {
     /// ```ds
     /// type Values = 1..;
     /// ```
-    #[diagnostic(code = "EC502", message = "interval type must be bounded")]
+    #[diagnostic(
+        id = "unbounded-interval-type",
+        message = "interval type must be bounded"
+    )]
     UnboundedIntervalType {
         /// Report the interval type.
         anchor: DiagnosticAnchor,
@@ -1901,7 +1994,7 @@ pub enum CheckError {
     /// type Values = 0.0..1.0;
     /// ```
     #[diagnostic(
-        code = "EC503",
+        id = "invalid-interval-domain",
         message = "interval type bounds must be integer, bigint, or char literals"
     )]
     InvalidIntervalDomain {
@@ -1916,7 +2009,10 @@ pub enum CheckError {
     /// ```ds
     /// const value: Dynamic<<T>(T) => T>;
     /// ```
-    #[diagnostic(code = "EC504", message = "type '{ty}' is not dynamic-safe")]
+    #[diagnostic(
+        id = "dynamic-safety-not-satisfied",
+        message = "type '{ty}' is not dynamic-safe"
+    )]
     DynamicSafetyNotSatisfied {
         /// Report the erased type.
         anchor: DiagnosticAnchor,
@@ -1932,7 +2028,7 @@ pub enum CheckError {
     /// *borrow = value;
     /// ```
     #[diagnostic(
-        code = "EC505",
+        id = "overwrite-stability-not-satisfied",
         message = "type '{ty}' is not safe to overwrite through non-exclusive access"
     )]
     OverwriteStabilityNotSatisfied {
@@ -1950,7 +2046,7 @@ pub enum CheckError {
     /// shared struct State { user: local User }
     /// ```
     #[diagnostic(
-        code = "EC506",
+        id = "local-reference-in-shared-storage",
         message = "shared space cannot hold references into local space"
     )]
     LocalReferenceInSharedStorage {
@@ -1962,7 +2058,7 @@ pub enum CheckError {
 
     /// A C enum has string variant values.
     #[diagnostic(
-        code = "EC507",
+        id = "non-integer-c-enum",
         message = "C enum representation requires integer variant values"
     )]
     NonIntegerCEnum {
@@ -1974,7 +2070,7 @@ pub enum CheckError {
 
     /// An enum variant value does not fit the selected integer representation.
     #[diagnostic(
-        code = "EC508",
+        id = "enum-value-outside-representation",
         message = "enum value {value} does not fit representation '{representation}'"
     )]
     EnumValueOutsideRepresentation {
@@ -1989,7 +2085,10 @@ pub enum CheckError {
     },
 
     /// A declaration carries more than one representation decorator.
-    #[diagnostic(code = "EC509", message = "duplicate representation decorator")]
+    #[diagnostic(
+        id = "duplicate-representation-decorator",
+        message = "duplicate representation decorator"
+    )]
     DuplicateRepresentationDecorator {
         /// Report the duplicate representation decorator.
         anchor: DiagnosticAnchor,
@@ -1998,7 +2097,7 @@ pub enum CheckError {
     },
 
     // -------------------------------------------------------------------------
-    // 6xx: declarations
+    // declarations
     // -------------------------------------------------------------------------
     /// Override declaration does not match an inherited member.
     ///
@@ -2008,7 +2107,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC600",
+        id = "invalid-override",
         message = "'{member}' does not override an inherited member"
     )]
     InvalidOverride {
@@ -2030,7 +2129,7 @@ pub enum CheckError {
     /// class User extends Entity {}
     /// ```
     #[diagnostic(
-        code = "EC601",
+        id = "unimplemented-abstract-member",
         message = "abstract member '{member}' is not implemented"
     )]
     UnimplementedAbstractMember {
@@ -2050,7 +2149,7 @@ pub enum CheckError {
     /// new AbstractUser();
     /// ```
     #[diagnostic(
-        code = "EC602",
+        id = "cannot-construct-abstract-type",
         message = "abstract class '{ty}' cannot be constructed"
     )]
     CannotConstructAbstractType {
@@ -2069,7 +2168,10 @@ pub enum CheckError {
     ///     name() {}
     /// }
     /// ```
-    #[diagnostic(code = "EC603", message = "method must name its receiver explicitly")]
+    #[diagnostic(
+        id = "missing-explicit-receiver",
+        message = "method must name its receiver explicitly"
+    )]
     MissingExplicitReceiver {
         /// Report the method declaration.
         anchor: DiagnosticAnchor,
@@ -2087,7 +2189,7 @@ pub enum CheckError {
     /// extension of User implements Show {}
     /// ```
     #[diagnostic(
-        code = "EC604",
+        id = "conflicting-implementation",
         message = "conflicting implementations of interface '{interface}' for type '{ty}'"
     )]
     ConflictingImplementation {
@@ -2111,7 +2213,7 @@ pub enum CheckError {
     /// extension<T: Equal> of T implements PartialEqual {}
     /// ```
     #[diagnostic(
-        code = "EC605",
+        id = "foreign-blanket-implementation",
         message = "blanket implementation over a bare parameter must live in the package declaring interface '{interface}'"
     )]
     ForeignBlanketImplementation {
@@ -2135,7 +2237,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC606",
+        id = "missing-override",
         message = "'{member}' shadows an inherited member and must be declared 'override'"
     )]
     MissingOverride {
@@ -2159,7 +2261,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC607",
+        id = "override-not-virtual",
         message = "cannot override '{member}': the inherited member is not virtual"
     )]
     OverrideNotVirtual {
@@ -2178,7 +2280,10 @@ pub enum CheckError {
     ///
     /// class Admin extends FinalUser {}
     /// ```
-    #[diagnostic(code = "EC608", message = "final class '{ty}' cannot be extended")]
+    #[diagnostic(
+        id = "final-class-extended",
+        message = "final class '{ty}' cannot be extended"
+    )]
     FinalClassExtended {
         /// Report the extending declaration.
         anchor: DiagnosticAnchor,
@@ -2196,7 +2301,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC609",
+        id = "abstract-member-in-concrete-class",
         message = "abstract member '{member}' requires an abstract class"
     )]
     AbstractMemberInConcreteClass {
@@ -2220,7 +2325,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC610",
+        id = "incompatible-override",
         message = "override '{member}' has type '{source}', which is not assignable to the inherited type '{target}'"
     )]
     IncompatibleOverride {
@@ -2241,7 +2346,10 @@ pub enum CheckError {
     /// ```ds
     /// function parse(input: string): int32;
     /// ```
-    #[diagnostic(code = "EC611", message = "declaration '{name}' requires a body")]
+    #[diagnostic(
+        id = "missing-declaration-body",
+        message = "declaration '{name}' requires a body"
+    )]
     MissingDeclarationBody {
         /// Report the bodyless declaration.
         anchor: DiagnosticAnchor,
@@ -2259,7 +2367,10 @@ pub enum CheckError {
     ///     ready,
     /// }
     /// ```
-    #[diagnostic(code = "EC612", message = "member '{member}' is already declared")]
+    #[diagnostic(
+        id = "duplicate-member",
+        message = "member '{member}' is already declared"
+    )]
     DuplicateMember {
         /// Report the later declaration.
         anchor: DiagnosticAnchor,
@@ -2277,7 +2388,7 @@ pub enum CheckError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EC613",
+        id = "field-not-definitely-initialized",
         message = "field '{field}' is not initialized on every constructor path"
     )]
     FieldNotDefinitelyInitialized {
@@ -2295,7 +2406,7 @@ pub enum CheckError {
     /// declare function only(value: &Node): &Node;
     /// ```
     #[diagnostic(
-        code = "EC614",
+        id = "bodyless-lifetime-elided",
         message = "bodyless signatures must name result lifetimes explicitly"
     )]
     BodylessLifetimeElided {
@@ -2312,7 +2423,7 @@ pub enum CheckError {
     /// interface Drawable extends Shape {}
     /// ```
     #[diagnostic(
-        code = "EC615",
+        id = "interface-base-not-interface",
         message = "interface '{source}' can only extend interfaces, not '{target}'"
     )]
     InterfaceBaseNotInterface {
@@ -2333,7 +2444,7 @@ pub enum CheckError {
     /// struct Point implements Shape {}
     /// ```
     #[diagnostic(
-        code = "EC616",
+        id = "implementation-target-not-interface",
         message = "type '{source}' can only implement interfaces, not '{target}'"
     )]
     ImplementationTargetNotInterface {
@@ -2356,7 +2467,7 @@ pub enum CheckError {
     /// interface Both extends Left, Right {}
     /// ```
     #[diagnostic(
-        code = "EC617",
+        id = "conflicting-heritage",
         message = "type '{source}' has conflicting heritage for '{target}'"
     )]
     ConflictingHeritage {
@@ -2376,7 +2487,10 @@ pub enum CheckError {
     /// interface A extends B {}
     /// interface B extends A {}
     /// ```
-    #[diagnostic(code = "EC618", message = "type '{source}' has circular heritage")]
+    #[diagnostic(
+        id = "circular-heritage",
+        message = "type '{source}' has circular heritage"
+    )]
     CircularHeritage {
         /// Report the heritage clause whose branch exposes the cycle.
         anchor: DiagnosticAnchor,
@@ -2392,7 +2506,7 @@ pub enum CheckError {
     /// export extension of External {}
     /// ```
     #[diagnostic(
-        code = "EC619",
+        id = "unnamed-exported-nonlocal-extension",
         message = "exported extension on nonlocal type '{target}' must have a name"
     )]
     UnnamedExportedNonlocalExtension {
@@ -2412,7 +2526,7 @@ pub enum CheckError {
     /// declare const registry: local Registry;
     /// ```
     #[diagnostic(
-        code = "EC620",
+        id = "placement-conflict",
         message = "placement '{written}' conflicts with the declaration placement '{declared}'"
     )]
     PlacementConflict {
@@ -2434,7 +2548,7 @@ pub enum CheckError {
     /// class Invalid extends Base implements Service {}
     /// ```
     #[diagnostic(
-        code = "EC621",
+        id = "heritage-placement-conflict",
         message = "heritage declarations require one consistent placement"
     )]
     HeritagePlacementConflict {
@@ -2450,7 +2564,7 @@ pub enum CheckError {
     /// enum Status { Ready = true }
     /// ```
     #[diagnostic(
-        code = "EC622",
+        id = "invalid-enum-variant-type",
         message = "enum variant value must be an integer or string constant, received '{ty}'"
     )]
     InvalidEnumVariantType {
@@ -2464,7 +2578,7 @@ pub enum CheckError {
 
     /// Enum variants mix integer and string scalar domains.
     #[diagnostic(
-        code = "EC623",
+        id = "mixed-enum-variant-domain",
         message = "enum variants must all use the same scalar domain"
     )]
     MixedEnumVariantDomain {
@@ -2476,7 +2590,7 @@ pub enum CheckError {
 
     /// An implicit enum variant follows a string value.
     #[diagnostic(
-        code = "EC624",
+        id = "implicit-string-enum-variant",
         message = "string backed enum variants require explicit values"
     )]
     ImplicitStringEnumVariant {
@@ -2488,7 +2602,7 @@ pub enum CheckError {
 
     /// Incrementing the preceding enum value overflows the integer domain.
     #[diagnostic(
-        code = "EC625",
+        id = "enum-variant-value-overflow",
         message = "implicit enum variant value overflows int64"
     )]
     EnumVariantValueOverflow {
@@ -2499,39 +2613,67 @@ pub enum CheckError {
     },
 
     // -------------------------------------------------------------------------
-    // 7xx: diagnostics
+    // diagnostics
     // -------------------------------------------------------------------------
     /// An expected compiler diagnostic did not occur.
     #[diagnostic(
-        code = "EC700",
-        message = "expected diagnostic '{selector}' did not occur"
+        id = "unmet-diagnostic-expectation",
+        message = "expected diagnostic '{diagnostic}' did not occur"
     )]
     UnmetDiagnosticExpectation {
-        /// Report the expectation selector.
+        /// Report the diagnostic expectation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The expected diagnostic selector.
-        selector: String,
+        /// The expected diagnostic id.
+        diagnostic: String,
     },
 
     /// A diagnostic control overrides an enclosing forbid.
     ///
     /// ```ds
-    /// @forbid("WC402")
-    /// @allow("WC402")
+    /// @forbid("constant-condition")
+    /// @allow("constant-condition")
     /// if (true) {}
     /// ```
     #[diagnostic(
-        code = "EC701",
-        message = "diagnostic '{selector}' is forbidden by an enclosing control"
+        id = "forbidden-diagnostic-override",
+        message = "diagnostic '{diagnostic}' is forbidden by an enclosing control"
     )]
     ForbiddenDiagnosticOverride {
-        /// Report the rejected diagnostic selector.
+        /// Report the rejected diagnostic id.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The forbidden diagnostic selector.
-        selector: String,
+        /// The forbidden diagnostic id.
+        diagnostic: String,
+    },
+
+    /// A diagnostic control names an unknown id.
+    #[diagnostic(
+        id = "unknown-diagnostic",
+        message = "unknown diagnostic '{diagnostic}'"
+    )]
+    UnknownDiagnostic {
+        /// Report the rejected diagnostic id.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unknown diagnostic id.
+        diagnostic: String,
+    },
+
+    /// A diagnostic control names an uncontrollable diagnostic.
+    #[diagnostic(
+        id = "uncontrollable-diagnostic",
+        message = "diagnostic '{diagnostic}' cannot be controlled"
+    )]
+    UncontrollableDiagnostic {
+        /// Report the rejected diagnostic id.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The rejected canonical diagnostic id.
+        diagnostic: String,
     },
 }

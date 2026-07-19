@@ -49,7 +49,7 @@ const value: string = /abc/;
 /// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'RegExp' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=23 span="/abc/" line_source="const value: string = /abc/;"
 "#,
     );
@@ -104,7 +104,7 @@ const value: boolean = /abc/;
 /// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'RegExp' is not assignable to type 'boolean'"
+/// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'boolean'"
 /// @diagnostic.label line=2 column=24 span="/abc/" line_source="const value: boolean = /abc/;"
 "#,
     );

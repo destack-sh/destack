@@ -79,7 +79,7 @@ let { [key]: value } = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC432 message="computed pattern key is not valid for the source type"
+/// @diagnostic.error id=computed-pattern-key-not-valid message="computed pattern key is not valid for the source type"
 /// @diagnostic.label line=5 column=8 span="key" line_source="let { [key]: value } = point;"
 "#,
     );

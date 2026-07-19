@@ -27,6 +27,7 @@ entry(v0: (int32, float64)):
     );
 }
 
+
 #[test]
 fn test_lower_tuple_of_structs() {
     let session = TestSession::single(
@@ -62,4 +63,3 @@ entry(v0: Point, v1: Point):
 "#,
     );
 }
-

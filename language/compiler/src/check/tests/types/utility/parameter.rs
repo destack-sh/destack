@@ -145,7 +145,7 @@ const bad: Args = ("Ada", "one");
 /// @generic.instance id="Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"one\"' is not assignable to type 'float64'"
+/// @diagnostic.error id=not-assignable message="type '\"one\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=4 column=27 span="\"one\"" line_source="const bad: Args = (\"Ada\", \"one\");"
 "#,
     );

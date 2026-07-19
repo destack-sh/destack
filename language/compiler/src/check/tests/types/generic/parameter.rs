@@ -168,7 +168,7 @@ take(values);
 /// @resolution.name source=values target=values
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'Array<1 | 2>' is not assignable to parameter of type 'Array<float64>'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Array<1 | 2>' is not assignable to parameter of type 'Array<float64>'"
 /// @diagnostic.label line=5 column=6 span="values" line_source="take(values);"
 /// @diagnostic.related line=5 column=1 span="take(values)" line_source="take(values);" message="in this call"
 /// @diagnostic.note message="the mismatch is in the element type: expected 'float64', found '1 | 2'"
@@ -270,7 +270,7 @@ take([1, 2, 3]);
 /// @resolution.call source="take([1, 2, 3])" parameters=(FixedArray<float64, 2>) arguments=(provided([1, 2, 3]) as FixedArray<float64, 2>) return=void kind=symbol target=take
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'FixedArray<float64, 3>' is not assignable to parameter of type 'FixedArray<float64, 2>'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'FixedArray<float64, 3>' is not assignable to parameter of type 'FixedArray<float64, 2>'"
 /// @diagnostic.label line=4 column=6 span="[1, 2, 3]" line_source="take([1, 2, 3]);"
 /// @diagnostic.related line=4 column=1 span="take([1, 2, 3])" line_source="take([1, 2, 3]);" message="in this call"
 /// @diagnostic.note message="the mismatch is in the length: expected '2', found '3'"
@@ -463,7 +463,7 @@ function read<T: T | { name: string }>(value: T): string {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'name' does not exist on type 'T'"
+/// @diagnostic.error id=missing-member message="member 'name' does not exist on type 'T'"
 /// @diagnostic.label line=3 column=18 span="name" line_source="return value.name;"
 "#,
     );

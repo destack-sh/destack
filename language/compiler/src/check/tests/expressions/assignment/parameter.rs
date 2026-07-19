@@ -39,7 +39,7 @@ function bump(value: int32): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
+/// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
 /// @diagnostic.label line=3 column=5 span="value" line_source="value = 2;"
 /// @diagnostic.related line=2 column=15 span="value" line_source="function bump(value: int32): int32 {" message="declared here"
 /// @diagnostic.help message="declare 'value' with 'let' to allow reassignment"
@@ -87,7 +87,7 @@ function bump(value: int32): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
+/// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
 /// @diagnostic.label line=3 column=5 span="value" line_source="value += 2;"
 /// @diagnostic.related line=2 column=15 span="value" line_source="function bump(value: int32): int32 {" message="declared here"
 /// @diagnostic.help message="declare 'value' with 'let' to allow reassignment"

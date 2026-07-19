@@ -127,7 +127,7 @@ const same = "ready" === "done";
 /// @type.node source="\"done\"" type="done"
 "#,
         r#"
-/// @diagnostic.error code=EC307 message="this comparison is unintentional: types '\"ready\"' and '\"done\"' have no overlap"
+/// @diagnostic.error id=invalid-strict-equality message="this comparison is unintentional: types '\"ready\"' and '\"done\"' have no overlap"
 /// @diagnostic.label line=2 column=22 span="===" line_source="const same = \"ready\" === \"done\";"
 "#,
     );

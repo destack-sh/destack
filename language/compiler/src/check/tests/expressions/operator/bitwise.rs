@@ -96,7 +96,7 @@ const bad = scale & 2;
 /// @resolution.name source=scale target=scale
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator '&' is not defined for 'float64' and '2'"
+/// @diagnostic.error id=no-matching-operator message="operator '&' is not defined for 'float64' and '2'"
 /// @diagnostic.label line=3 column=19 span="&" line_source="const bad = scale & 2;"
 "#,
     );

@@ -102,7 +102,7 @@ const person: Person = { name: "Ada" };
 /// @resolution.name source=Person target=Person
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property 'age' for type 'Person'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type 'Person'"
 /// @diagnostic.label line=6 column=24 span="{ name: \"Ada\" }" line_source="const person: Person = { name: \"Ada\" };"
 "#,
     );
@@ -151,7 +151,7 @@ const value: Value = { value: "ok" };
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"ok\"' is not assignable to type 'int32 & string'"
+/// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'int32 & string'"
 /// @diagnostic.label line=6 column=31 span="\"ok\"" line_source="const value: Value = { value: \"ok\" };"
 /// @diagnostic.note message="the mismatch is in field 'value'"
 "#,
@@ -244,7 +244,7 @@ let value: Both = "ok";
 /// @resolution.name source=Both target=Both
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"ok\"' is not assignable to type 'Both'"
+/// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'Both'"
 /// @diagnostic.label line=4 column=19 span="\"ok\"" line_source="let value: Both = \"ok\";"
 /// @diagnostic.note message="'Both' reduces to 'string & int32'"
 "#,
@@ -280,7 +280,7 @@ let value: Value = ();
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '()' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '()' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="()" line_source="let value: Value = ();"
 /// @diagnostic.note message="'Value' reduces to 'void & never'"
 "#,

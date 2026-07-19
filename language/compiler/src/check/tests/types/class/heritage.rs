@@ -63,7 +63,7 @@ class Document extends Drawable {}
 /// @resolution.name source=Drawable target=Drawable
 "#,
         r#"
-/// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Drawable'"
+/// @diagnostic.error id=does-not-extend message="type 'Document' does not extend 'Drawable'"
 /// @diagnostic.label line=4 column=24 span="Drawable" line_source="class Document extends Drawable {}"
 "#,
     );
@@ -106,7 +106,7 @@ class Document extends Alias {}
 /// @resolution.name source=Alias target=Alias
 "#,
         r#"
-/// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Alias'"
+/// @diagnostic.error id=does-not-extend message="type 'Document' does not extend 'Alias'"
 /// @diagnostic.label line=5 column=24 span="Alias" line_source="class Document extends Alias {}"
 "#,
     );
@@ -149,7 +149,7 @@ class Document extends Base | Other {}
 /// @resolution.name source=Other target=Other
 "#,
         r#"
-/// @diagnostic.error code=EC202 message="type 'Document' does not extend 'Base | Other'"
+/// @diagnostic.error id=does-not-extend message="type 'Document' does not extend 'Base | Other'"
 /// @diagnostic.label line=5 column=29 span="|" line_source="class Document extends Base | Other {}"
 "#,
     );
@@ -265,7 +265,7 @@ class Document implements Alias {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC616 message="type 'Document' can only implement interfaces, not 'Alias'"
+/// @diagnostic.error id=implementation-target-not-interface message="type 'Document' can only implement interfaces, not 'Alias'"
 /// @diagnostic.label line=7 column=27 span="Alias" line_source="class Document implements Alias {"
 "#,
     );
@@ -323,7 +323,7 @@ class Point implements Drawable {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
 /// @diagnostic.label line=6 column=24 span="Drawable" line_source="class Point implements Drawable {"
 "#,
     );
@@ -401,7 +401,7 @@ class Point implements Drawable {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
 /// @diagnostic.label line=10 column=24 span="Drawable" line_source="class Point implements Drawable {"
 "#,
     );
@@ -438,9 +438,9 @@ class Right extends Left {}
 /// @resolution.name source=Left target=Left
 "#,
         r#"
-/// @diagnostic.error code=EC618 message="type 'Left' has circular heritage"
+/// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
 /// @diagnostic.label line=2 column=20 span="Right" line_source="class Left extends Right {}"
-/// @diagnostic.error code=EC618 message="type 'Right' has circular heritage"
+/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
 /// @diagnostic.label line=3 column=21 span="Left" line_source="class Right extends Left {}"
 "#,
     );
@@ -477,7 +477,7 @@ class Document {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC600 message="'print' does not override an inherited member"
+/// @diagnostic.error id=invalid-override message="'print' does not override an inherited member"
 /// @diagnostic.label line=3 column=14 span="print" line_source="override print(): void {}"
 "#,
     );
@@ -534,7 +534,7 @@ class Document extends Base {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC606 message="'print' shadows an inherited member and must be declared 'override'"
+/// @diagnostic.error id=missing-override message="'print' shadows an inherited member and must be declared 'override'"
 /// @diagnostic.label line=7 column=5 span="print" line_source="print(): void {}"
 /// @diagnostic.help message="add the 'override' modifier"
 "#,
@@ -592,7 +592,7 @@ class Document extends Base {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC607 message="cannot override 'print': the inherited member is not virtual"
+/// @diagnostic.error id=override-not-virtual message="cannot override 'print': the inherited member is not virtual"
 /// @diagnostic.label line=7 column=14 span="print" line_source="override print(): void {}"
 /// @diagnostic.help message="declare the inherited member 'virtual' or 'abstract'"
 "#,
@@ -630,7 +630,7 @@ class Header extends Packet {}
 /// @resolution.name source=Packet target=Packet
 "#,
         r#"
-/// @diagnostic.error code=EC608 message="final class 'Packet' cannot be extended"
+/// @diagnostic.error id=final-class-extended message="final class 'Packet' cannot be extended"
 /// @diagnostic.label line=4 column=7 span="Header" line_source="class Header extends Packet {}"
 "#,
     );
@@ -668,7 +668,7 @@ class Writer {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC609 message="abstract member 'write' requires an abstract class"
+/// @diagnostic.error id=abstract-member-in-concrete-class message="abstract member 'write' requires an abstract class"
 /// @diagnostic.label line=3 column=14 span="write" line_source="abstract write(value: string): void;"
 "#,
     );
@@ -716,7 +716,7 @@ class FileWriter extends Writer {}
 /// @resolution.name source=Writer target=Writer
 "#,
         r#"
-/// @diagnostic.error code=EC601 message="abstract member 'write' is not implemented"
+/// @diagnostic.error id=unimplemented-abstract-member message="abstract member 'write' is not implemented"
 /// @diagnostic.label line=6 column=7 span="FileWriter" line_source="class FileWriter extends Writer {}"
 /// @diagnostic.help message="implement the member or declare the class 'abstract'"
 "#,
@@ -754,7 +754,7 @@ const map: Map<string, int32> = record;
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Record<string, int32>' is not assignable to type 'Map<string, int32>'"
+/// @diagnostic.error id=not-assignable message="type 'Record<string, int32>' is not assignable to type 'Map<string, int32>'"
 /// @diagnostic.label line=3 column=33 span="record" line_source="const map: Map<string, int32> = record;"
 /// @diagnostic.note message="'Record<string, int32>' reduces to '{ [P: string]: int32 }'"
 "#,
@@ -789,7 +789,7 @@ new Writer();
 /// @resolution.name source=Writer target=Writer
 "#,
         r#"
-/// @diagnostic.error code=EC602 message="abstract class 'Writer' cannot be constructed"
+/// @diagnostic.error id=cannot-construct-abstract-type message="abstract class 'Writer' cannot be constructed"
 /// @diagnostic.label line=4 column=1 span="new Writer()" line_source="new Writer();"
 /// @diagnostic.help message="construct a concrete subclass instead"
 "#,
@@ -863,7 +863,7 @@ class Parser extends Base {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC610 message="override 'parse' has type '(string) => int32', which is not assignable to the inherited type '(string) => string'"
+/// @diagnostic.error id=incompatible-override message="override 'parse' has type '(string) => int32', which is not assignable to the inherited type '(string) => string'"
 /// @diagnostic.label line=9 column=14 span="parse" line_source="override parse(value: string): int32 {"
 "#,
     );

@@ -100,7 +100,7 @@ dep.value;
 /// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="cannot find 'dep.value'"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'dep.value'"
 /// @diagnostic.label line=4 column=5 span="value" line_source="dep.value;"
 "#,
     );

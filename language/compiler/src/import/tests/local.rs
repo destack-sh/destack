@@ -173,7 +173,7 @@ import { Missing } from "./missing.ds";
     compiler.assert_dir_imported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EI200 message="unresolved module './missing.ds'"
+/// @diagnostic.error id=unresolved-module message="unresolved module './missing.ds'"
 /// @diagnostic.label line=2 column=1 span="import { Missing } from \"./missing.ds\"" line_source="import { Missing } from \"./missing.ds\";"
 "#,
     );
@@ -205,7 +205,7 @@ export declare let value: int32;
     compiler.assert_dir_imported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EI205 message="ambiguous module specifier './dep': dep.ds, dep.d.ds"
+/// @diagnostic.error id=ambiguous-module-specifier message="ambiguous module specifier './dep': dep.ds, dep.d.ds"
 /// @diagnostic.label line=2 column=1 span="import { value } from \"./dep\"" line_source="import { value } from \"./dep\";"
 "#,
     );
@@ -257,7 +257,7 @@ export let value = 1;
     compiler.assert_dir_imported_diagnostics(
         "packages/app/main.ds",
         r#"
-/// @diagnostic.error code=EI206 message="relative module specifier '../lib/dep.ds' crosses package boundaries"
+/// @diagnostic.error id=cross-package-relative-import message="relative module specifier '../lib/dep.ds' crosses package boundaries"
 /// @diagnostic.label line=2 column=1 span="import { value } from \"../lib/dep.ds\"" line_source="import { value } from \"../lib/dep.ds\";"
 "#,
     );

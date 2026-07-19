@@ -6,6 +6,6 @@ use destack_artifact_macros::Diagnostic;
 #[diagnostic(severity = Warning, phase = Export)]
 pub enum ExportWarning {
     /// Unused re-export.
-    #[diagnostic(code = "WT100", message = "unused re-export")]
+    #[diagnostic(id = "unused-re-export", message = "unused re-export")]
     UnusedReExport { anchor: DiagnosticAnchor },
 }

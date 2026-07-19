@@ -111,7 +111,7 @@ const bad: Value = 1;
 /// @generic.instance id="ReturnType<Function<(), string>>" template=types.function.ReturnType arguments=(Function<(), string>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '1' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="1" line_source="const bad: Value = 1;"
 /// @diagnostic.note message="'Value' reduces to 'string'"
 "#,

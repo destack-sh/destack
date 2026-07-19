@@ -98,9 +98,9 @@ struct Right {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC103 message="type is circular"
+/// @diagnostic.error id=circular-type message="type is circular"
 /// @diagnostic.label line=7 column=5 span="left" line_source="left: Left;"
-/// @diagnostic.error code=EC103 message="type is circular"
+/// @diagnostic.error id=circular-type message="type is circular"
 /// @diagnostic.label line=3 column=5 span="right" line_source="right: Right;"
 "#,
     );

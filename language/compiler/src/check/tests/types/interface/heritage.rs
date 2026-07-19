@@ -93,7 +93,7 @@ interface Drawable extends Shape {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC615 message="interface 'Drawable' can only extend interfaces, not 'Shape'"
+/// @diagnostic.error id=interface-base-not-interface message="interface 'Drawable' can only extend interfaces, not 'Shape'"
 /// @diagnostic.label line=4 column=28 span="Shape" line_source="interface Drawable extends Shape {"
 "#,
     );
@@ -136,7 +136,7 @@ interface Drawable extends Alias {}
 /// @resolution.name source=Alias target=Alias
 "#,
         r#"
-/// @diagnostic.error code=EC615 message="interface 'Drawable' can only extend interfaces, not 'Alias'"
+/// @diagnostic.error id=interface-base-not-interface message="interface 'Drawable' can only extend interfaces, not 'Alias'"
 /// @diagnostic.label line=5 column=28 span="Alias" line_source="interface Drawable extends Alias {}"
 "#,
     );
@@ -179,7 +179,7 @@ interface Drawable extends Named | DrawableBase {}
 /// @resolution.name source=DrawableBase target=DrawableBase
 "#,
         r#"
-/// @diagnostic.error code=EC615 message="interface 'Drawable' can only extend interfaces, not 'Named | DrawableBase'"
+/// @diagnostic.error id=interface-base-not-interface message="interface 'Drawable' can only extend interfaces, not 'Named | DrawableBase'"
 /// @diagnostic.label line=5 column=34 span="|" line_source="interface Drawable extends Named | DrawableBase {}"
 "#,
     );
@@ -250,7 +250,7 @@ interface Both extends Left, Right {}
 /// @resolution.name source=Right target=Right
 "#,
         r#"
-/// @diagnostic.error code=EC617 message="type 'Both' has conflicting heritage for 'Base'"
+/// @diagnostic.error id=conflicting-heritage message="type 'Both' has conflicting heritage for 'Base'"
 /// @diagnostic.label line=9 column=30 span="Right" line_source="interface Both extends Left, Right {}"
 "#,
     );
@@ -287,9 +287,9 @@ interface Right extends Left {}
 /// @resolution.name source=Left target=Left
 "#,
         r#"
-/// @diagnostic.error code=EC618 message="type 'Left' has circular heritage"
+/// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
 /// @diagnostic.label line=2 column=24 span="Right" line_source="interface Left extends Right {}"
-/// @diagnostic.error code=EC618 message="type 'Right' has circular heritage"
+/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
 /// @diagnostic.label line=3 column=25 span="Left" line_source="interface Right extends Left {}"
 "#,
     );

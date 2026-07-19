@@ -81,7 +81,7 @@ let [x, y] = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC425 message="type '{ x: int32; y: int32 }' cannot be destructured as a sequence pattern"
+/// @diagnostic.error id=pattern-source-not-sequence-shaped message="type '{ x: int32; y: int32 }' cannot be destructured as a sequence pattern"
 /// @diagnostic.label line=4 column=5 span="[x, y]" line_source="let [x, y] = point;"
 "#,
     );

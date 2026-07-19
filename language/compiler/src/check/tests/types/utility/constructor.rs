@@ -174,7 +174,7 @@ const bad: Args = ("Ada", "old");
 /// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"old\"' is not assignable to type 'float64'"
+/// @diagnostic.error id=not-assignable message="type '\"old\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=8 column=27 span="\"old\"" line_source="const bad: Args = (\"Ada\", \"old\");"
 "#,
     );

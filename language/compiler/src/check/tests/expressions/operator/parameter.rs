@@ -263,7 +263,7 @@ function mix<T: int32 | float64, U: int32 | float64>(left: T, right: U): T {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator '*' is not defined for 'T' and 'U'"
+/// @diagnostic.error id=no-matching-operator message="operator '*' is not defined for 'T' and 'U'"
 /// @diagnostic.label line=3 column=17 span="*" line_source="return left * right;"
 "#,
     );
@@ -304,7 +304,7 @@ function double<T>(value: T): T {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator '+' is not defined for 'T' and 'T'"
+/// @diagnostic.error id=no-matching-operator message="operator '+' is not defined for 'T' and 'T'"
 /// @diagnostic.label line=3 column=18 span="+" line_source="return value + value;"
 "#,
     );
@@ -330,7 +330,7 @@ const value = missing * 2;
 /// @type.symbol symbol=value source=value type=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="cannot find 'missing'"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'missing'"
 /// @diagnostic.label line=2 column=15 span="missing" line_source="const value = missing * 2;"
 "#,
     );

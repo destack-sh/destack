@@ -6,6 +6,9 @@ use destack_artifact_macros::Diagnostic;
 #[diagnostic(severity = Warning, phase = Expand)]
 pub enum ExpandWarning {
     /// Unsupported construct.
-    #[diagnostic(code = "WX900", message = "unsupported construct")]
+    #[diagnostic(
+        id = "unsupported-expansion-construct",
+        message = "unsupported construct"
+    )]
     UnsupportedConstruct { anchor: DiagnosticAnchor },
 }

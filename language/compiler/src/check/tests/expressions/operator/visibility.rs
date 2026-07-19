@@ -189,7 +189,7 @@ const scaled = force * 2.0;
 /// @resolution.name source=force target=force
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator '*' is not defined for 'Force' and '2'"
+/// @diagnostic.error id=no-matching-operator message="operator '*' is not defined for 'Force' and '2'"
 /// @diagnostic.label line=5 column=22 span="*" line_source="const scaled = force * 2.0;"
 "#,
     );

@@ -123,11 +123,11 @@ const sharedFromLocal: shared User = localUser;
 /// @resolution.name source=localUser target=localUser
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'shared User' is not assignable to type 'local User'"
+/// @diagnostic.error id=not-assignable message="type 'shared User' is not assignable to type 'local User'"
 /// @diagnostic.label line=7 column=37 span="sharedUser" line_source="const localFromShared: local User = sharedUser;"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"
-/// @diagnostic.error code=EC200 message="type 'local User' is not assignable to type 'shared User'"
+/// @diagnostic.error id=not-assignable message="type 'local User' is not assignable to type 'shared User'"
 /// @diagnostic.label line=8 column=38 span="localUser" line_source="const sharedFromLocal: shared User = localUser;"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"
@@ -266,11 +266,11 @@ const localFromShared: local ^User = sharedUser;
 /// @resolution.name source=sharedUser target=sharedUser
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'local ^User' is not assignable to type 'shared ^User'"
+/// @diagnostic.error id=not-assignable message="type 'local ^User' is not assignable to type 'shared ^User'"
 /// @diagnostic.label line=7 column=39 span="localUser" line_source="const sharedFromLocal: shared ^User = localUser;"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"
-/// @diagnostic.error code=EC200 message="type 'shared ^User' is not assignable to type 'local ^User'"
+/// @diagnostic.error id=not-assignable message="type 'shared ^User' is not assignable to type 'local ^User'"
 /// @diagnostic.label line=8 column=38 span="sharedUser" line_source="const localFromShared: local ^User = sharedUser;"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"

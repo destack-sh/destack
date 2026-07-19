@@ -57,7 +57,7 @@ const copy = valeu;
 /// @type.symbol symbol=copy source=copy type=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="cannot find 'valeu'; did you mean 'value'?"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'valeu'; did you mean 'value'?"
 /// @diagnostic.label line=3 column=14 span="valeu" line_source="const copy = valeu;"
 /// @diagnostic.suggestion message="rename to 'value'" applicability=dangerous patched="const copy = value;"
 "#,
@@ -89,7 +89,7 @@ const copy = json;
 /// @type.symbol symbol=copy source=copy type=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="cannot find 'json'; did you mean 'JSON'?"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'json'; did you mean 'JSON'?"
 /// @diagnostic.label line=3 column=14 span="json" line_source="const copy = json;"
 /// @diagnostic.suggestion message="rename to 'JSON'" applicability=automatic patched="const copy = JSON;"
 "#,
@@ -122,7 +122,7 @@ const same = value as int32;
 /// @resolution.name source=value target=value
 "#,
         r#"
-/// @diagnostic.warning code=WC200 message="cast to 'int32' has no effect"
+/// @diagnostic.warning id=redundant-cast message="cast to 'int32' has no effect"
 /// @diagnostic.label line=3 column=20 span="as" line_source="const same = value as int32;"
 /// @diagnostic.suggestion message="remove the cast" applicability=automatic patched="const same = value int32;"
 "#,
@@ -174,7 +174,7 @@ const size = point.lenght;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'lenght' does not exist on type 'Point'; did you mean 'length'?"
+/// @diagnostic.error id=missing-member message="member 'lenght' does not exist on type 'Point'; did you mean 'length'?"
 /// @diagnostic.label line=7 column=20 span="lenght" line_source="const size = point.lenght;"
 /// @diagnostic.suggestion message="rename to 'length'" applicability=dangerous patched="const size = point.length;"
 "#,

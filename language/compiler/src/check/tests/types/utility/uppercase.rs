@@ -107,7 +107,7 @@ const bad: Value = "hello";
 /// @generic.instance id="Uppercase<\"hello\">" template=types.string.Uppercase arguments=("hello")
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"hello\"' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="\"hello\"" line_source="const bad: Value = \"hello\";"
 /// @diagnostic.note message="'Value' reduces to '\"HELLO\"'"
 "#,

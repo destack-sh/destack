@@ -172,7 +172,7 @@ segment.wide;
 /// @resolution.name source=segment target=segment
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'wide' does not exist on type 'Segment'"
+/// @diagnostic.error id=missing-member message="member 'wide' does not exist on type 'Segment'"
 /// @diagnostic.label line=16 column=9 span="wide" line_source="segment.wide;"
 "#,
     );
@@ -256,7 +256,7 @@ class Packet<T> {
 /// @generic.instance id=Packet<T> template=Packet arguments=(T)
 "#,
         r#"
-/// @diagnostic.error code=EC404 message="static @if condition must be statically decidable"
+/// @diagnostic.error id=undecidable-static-condition message="static @if condition must be statically decidable"
 /// @diagnostic.label line=5 column=11 span="extends" line_source="@if(T extends string)"
 "#,
     );

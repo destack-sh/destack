@@ -81,7 +81,7 @@ if (value is { name: string }) {
 /// @generic.instance id=Dynamic<unknown> template=memory.dynamic.Dynamic arguments=(unknown)
 "#,
         r#"
-/// @diagnostic.error code=EC320 message="type '{ name: string }' cannot be tested at runtime"
+/// @diagnostic.error id=runtime-predicate-not-testable message="type '{ name: string }' cannot be tested at runtime"
 /// @diagnostic.label line=4 column=14 span="{ name: string }" line_source="if (value is { name: string }) {"
 "#,
     );
@@ -174,7 +174,7 @@ if (value is int32) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC319 message="type 'string' can never satisfy runtime check 'int32'"
+/// @diagnostic.error id=impossible-is message="type 'string' can never satisfy runtime check 'int32'"
 /// @diagnostic.label line=4 column=5 span="value" line_source="if (value is int32) {"
 "#,
     );
@@ -283,9 +283,9 @@ function check<T>(value: unknown): void {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC320 message="type 'T' cannot be tested at runtime"
+/// @diagnostic.error id=runtime-predicate-not-testable message="type 'T' cannot be tested at runtime"
 /// @diagnostic.label line=3 column=18 span="T" line_source="if (value is T) {"
-/// @diagnostic.error code=EC504 message="type 'T' is not dynamic-safe"
+/// @diagnostic.error id=dynamic-safety-not-satisfied message="type 'T' is not dynamic-safe"
 /// @diagnostic.label line=3 column=18 span="T" line_source="if (value is T) {"
 "#,
     );

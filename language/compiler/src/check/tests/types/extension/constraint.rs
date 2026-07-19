@@ -256,7 +256,7 @@ boxed.read();
 /// @generic.instance id=Box<Token> template=Box arguments=(Token)
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'read' does not exist on type 'Box<Token>'"
+/// @diagnostic.error id=missing-member message="member 'read' does not exist on type 'Box<Token>'"
 /// @diagnostic.label line=19 column=7 span="read" line_source="boxed.read();"
 "#,
     );

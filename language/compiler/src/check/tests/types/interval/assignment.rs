@@ -35,7 +35,7 @@ const digit: Digit = value;
 /// @resolution.name source=value target=value
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'Digit'"
+/// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=22 span="value" line_source="const digit: Digit = value;"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
@@ -79,7 +79,7 @@ const next: Digit = digit + 1;
 /// @resolution.call source="digit + 1" parameters=() return=int32 kind=builtin builtin=binary.add
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'Digit'"
+/// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=21 span="digit + 1" line_source="const next: Digit = digit + 1;"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
@@ -127,7 +127,7 @@ const bad: Edge = 128;
 /// @resolution.name source=Edge target=Edge
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '128' is not assignable to type 'Edge'"
+/// @diagnostic.error id=not-assignable message="type '128' is not assignable to type 'Edge'"
 /// @diagnostic.label line=6 column=19 span="128" line_source="const bad: Edge = 128;"
 /// @diagnostic.note message="'Edge' reduces to '0..=3 | 252..=255'"
 "#,
@@ -170,7 +170,7 @@ const port = Port(443);
 /// @resolution.construct source=Port(443) parameters=(1..=65535) arguments=(provided(443) as 1..=65535) return=Port kind=newtype target=Port backing=1..=65535
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '443' is not assignable to type 'Port'"
+/// @diagnostic.error id=not-assignable message="type '443' is not assignable to type 'Port'"
 /// @diagnostic.label line=4 column=19 span="443" line_source="const raw: Port = 443;"
 "#,
     );

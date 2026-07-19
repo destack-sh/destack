@@ -7,10 +7,10 @@ use destack_source::{PackageId, ProductId, TargetId};
 #[diagnostic(severity = Error, phase = Link)]
 pub enum LinkError {
     // -------------------------------------------------------------------------
-    // 1xx: Target issues
+    // targets
     // -------------------------------------------------------------------------
     /// Missing target.
-    #[diagnostic(code = "EK100", message = "missing target: {target}")]
+    #[diagnostic(id = "missing-link-target", message = "missing target: {target}")]
     MissingTarget {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -18,7 +18,10 @@ pub enum LinkError {
     },
 
     /// Invalid target configuration.
-    #[diagnostic(code = "EK101", message = "invalid target: {target}: {message}")]
+    #[diagnostic(
+        id = "invalid-link-target",
+        message = "invalid target: {target}: {message}"
+    )]
     InvalidTarget {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -28,7 +31,7 @@ pub enum LinkError {
 
     /// Invalid module kind for one linked subject.
     #[diagnostic(
-        code = "EK102",
+        id = "invalid-module-kind",
         message = "invalid module kind: {target}: {subject} expected {expected}, found '{found}'"
     )]
     InvalidModuleKind {
@@ -42,7 +45,7 @@ pub enum LinkError {
 
     /// Unsupported suffix on one linked reference.
     #[diagnostic(
-        code = "EK103",
+        id = "unsupported-reference-suffix",
         message = "unsupported reference suffix: {target}: {reference} does not support query or fragment suffix yet: '{value}'"
     )]
     UnsupportedReferenceSuffix {
@@ -55,7 +58,7 @@ pub enum LinkError {
 
     /// Invalid output path state for one linked subject.
     #[diagnostic(
-        code = "EK104",
+        id = "invalid-output-path",
         message = "invalid output path: {target}: {subject} has no usable emitted path segment from '{value}'"
     )]
     InvalidOutputPath {
@@ -67,7 +70,7 @@ pub enum LinkError {
     },
 
     /// Missing product.
-    #[diagnostic(code = "EK105", message = "missing product: {product}")]
+    #[diagnostic(id = "missing-product", message = "missing product: {product}")]
     MissingProduct {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -75,7 +78,10 @@ pub enum LinkError {
     },
 
     /// Invalid product configuration.
-    #[diagnostic(code = "EK106", message = "invalid product: {product}: {message}")]
+    #[diagnostic(
+        id = "invalid-product",
+        message = "invalid product: {product}: {message}"
+    )]
     InvalidProduct {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -84,7 +90,7 @@ pub enum LinkError {
     },
 
     /// Invalid executable input.
-    #[diagnostic(code = "EK107", message = "invalid input: {context}")]
+    #[diagnostic(id = "invalid-executable-input", message = "invalid input: {context}")]
     InvalidInput {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -93,7 +99,7 @@ pub enum LinkError {
 
     /// Type mismatch while linking executable output.
     #[diagnostic(
-        code = "EK108",
+        id = "type-mismatch",
         message = "type mismatch: expected {expected}, found {actual}"
     )]
     TypeMismatch {
@@ -104,7 +110,10 @@ pub enum LinkError {
     },
 
     /// Invalid instruction while linking executable output.
-    #[diagnostic(code = "EK109", message = "invalid instruction: {context}")]
+    #[diagnostic(
+        id = "invalid-link-instruction",
+        message = "invalid instruction: {context}"
+    )]
     InvalidInstruction {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -112,7 +121,7 @@ pub enum LinkError {
     },
 
     /// Invalid cast while linking executable output.
-    #[diagnostic(code = "EK110", message = "invalid cast: {context}")]
+    #[diagnostic(id = "invalid-linked-cast", message = "invalid cast: {context}")]
     InvalidCast {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -121,7 +130,7 @@ pub enum LinkError {
 
     /// Invalid field access while linking executable output.
     #[diagnostic(
-        code = "EK111",
+        id = "invalid-field-access",
         message = "invalid field access: field {index} but value has {field_count} field(s)"
     )]
     InvalidFieldAccess {
@@ -132,7 +141,10 @@ pub enum LinkError {
     },
 
     /// Invalid pointer type while linking executable output.
-    #[diagnostic(code = "EK112", message = "invalid pointer type: {actual}")]
+    #[diagnostic(
+        id = "invalid-pointer-type",
+        message = "invalid pointer type: {actual}"
+    )]
     InvalidPointerType {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -140,7 +152,10 @@ pub enum LinkError {
     },
 
     /// Unsupported instruction while linking executable output.
-    #[diagnostic(code = "EK113", message = "unsupported instruction: {name}")]
+    #[diagnostic(
+        id = "unsupported-instruction",
+        message = "unsupported instruction: {name}"
+    )]
     UnsupportedInstruction {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -148,7 +163,10 @@ pub enum LinkError {
     },
 
     /// Unsupported zero initializer while linking executable output.
-    #[diagnostic(code = "EK114", message = "unsupported zero initializer: {ty}")]
+    #[diagnostic(
+        id = "unsupported-zero-initializer",
+        message = "unsupported zero initializer: {ty}"
+    )]
     UnsupportedZeroInitializer {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -156,7 +174,7 @@ pub enum LinkError {
     },
 
     /// Undefined function while linking executable output.
-    #[diagnostic(code = "EK115", message = "undefined function: {function}")]
+    #[diagnostic(id = "undefined-function", message = "undefined function: {function}")]
     UndefinedFunction {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -164,7 +182,7 @@ pub enum LinkError {
     },
 
     /// Executable layout cannot encode a value.
-    #[diagnostic(code = "EK116", message = "layout overflow: {context}")]
+    #[diagnostic(id = "layout-overflow", message = "layout overflow: {context}")]
     LayoutOverflow {
         anchor: DiagnosticAnchor,
         package: PackageId,
@@ -172,10 +190,10 @@ pub enum LinkError {
     },
 
     // -------------------------------------------------------------------------
-    // 9xx: Internal
+    // internal failures
     // -------------------------------------------------------------------------
     /// Internal error during linking.
-    #[diagnostic(code = "EK900", message = "internal error: {message}")]
+    #[diagnostic(id = "internal-link-error", message = "internal error: {message}")]
     Internal {
         anchor: DiagnosticAnchor,
         package: PackageId,

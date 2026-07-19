@@ -100,7 +100,7 @@ const undecided: Options = { retries: maybe };
 /// @resolution.name source=maybe target=maybe
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'int32 | undefined' is not assignable to type 'int32'"
+/// @diagnostic.error id=not-assignable message="type 'int32 | undefined' is not assignable to type 'int32'"
 /// @diagnostic.label line=8 column=39 span="maybe" line_source="const undecided: Options = { retries: maybe };"
 /// @diagnostic.note message="the mismatch is in field 'retries': expected 'int32', found 'undefined'"
 "#,

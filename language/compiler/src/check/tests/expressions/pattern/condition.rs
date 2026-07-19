@@ -479,7 +479,7 @@ if (let { name } = user) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="cannot find 'name'"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'name'"
 /// @diagnostic.label line=7 column=5 span="name" line_source="name;"
 "#,
     );

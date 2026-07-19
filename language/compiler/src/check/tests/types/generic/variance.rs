@@ -44,7 +44,7 @@ const shapes: Shape[] = circles;
 /// @resolution.name source=circles target=circles
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Array<Circle>' is not assignable to type 'Array<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'Array<Circle>' is not assignable to type 'Array<Shape>'"
 /// @diagnostic.label line=6 column=25 span="circles" line_source="const shapes: Shape[] = circles;"
 /// @diagnostic.note message="the mismatch is in the element type: expected 'Shape', found 'Circle'"
 "#,
@@ -150,7 +150,7 @@ const widened: readonly (Circle | Square)[] = circles;
 /// @resolution.name source=circles target=circles
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Array<Circle>' is not assignable to type 'readonly Array<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type 'Array<Circle>' is not assignable to type 'readonly Array<Circle | Square>'"
 /// @diagnostic.label line=7 column=47 span="circles" line_source="const widened: readonly (Circle | Square)[] = circles;"
 "#,
     );
@@ -216,7 +216,7 @@ const either: () => Circle | Square = make;
 /// @resolution.name source=make target=make
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '() => Circle' is not assignable to type '() => Circle | Square'"
+/// @diagnostic.error id=not-assignable message="type '() => Circle' is not assignable to type '() => Circle | Square'"
 /// @diagnostic.label line=8 column=39 span="make" line_source="const either: () => Circle | Square = make;"
 "#,
     );
@@ -256,7 +256,7 @@ declare class Evil<out T> {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC443 message="generic parameter 'T' is used invariantly and cannot be declared 'out'"
+/// @diagnostic.error id=variance-conflict message="generic parameter 'T' is used invariantly and cannot be declared 'out'"
 /// @diagnostic.label line=2 column=24 span="T" line_source="declare class Evil<out T> {"
 "#,
     );
@@ -296,7 +296,7 @@ struct Sink<out T> {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC443 message="generic parameter 'T' is used contravariantly and cannot be declared 'out'"
+/// @diagnostic.error id=variance-conflict message="generic parameter 'T' is used contravariantly and cannot be declared 'out'"
 /// @diagnostic.label line=2 column=17 span="T" line_source="struct Sink<out T> {"
 "#,
     );
@@ -393,7 +393,7 @@ const widened: Managed<Box<Shape>> = aliased;
 /// @generic.instance id=Managed<Box<Shape>> template=memory.managed.Managed arguments=(Box<Shape>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Managed<Box<Circle>>' is not assignable to type 'Managed<Box<Shape>>'"
+/// @diagnostic.error id=not-assignable message="type 'Managed<Box<Circle>>' is not assignable to type 'Managed<Box<Shape>>'"
 /// @diagnostic.label line=13 column=38 span="aliased" line_source="const widened: Managed<Box<Shape>> = aliased;"
 /// @diagnostic.note message="'Managed<Box<Circle>>' reduces to 'Box<Circle>'"
 /// @diagnostic.note message="'Managed<Box<Shape>>' reduces to 'Box<Shape>'"
@@ -463,7 +463,7 @@ const widened: { x: float64 } = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
+/// @diagnostic.error id=not-assignable message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
 /// @diagnostic.label line=3 column=33 span="point" line_source="const widened: { x: float64 } = point;"
 /// @diagnostic.note message="the mismatch is in field 'x': expected 'float64', found '1'"
 "#,
@@ -527,7 +527,7 @@ const converted: { readonly x: float64 } = scalar;
 /// @resolution.name source=scalar target=scalar
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
+/// @diagnostic.error id=not-assignable message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
 /// @diagnostic.label line=9 column=44 span="scalar" line_source="const converted: { readonly x: float64 } = scalar;"
 /// @diagnostic.note message="the mismatch is in field 'x': expected 'float64', found '1'"
 "#,
@@ -593,7 +593,7 @@ const useShape2: (shape: Shape) => void = useCircle2;
 /// @resolution.name source=useCircle2 target=useCircle2
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '(Circle) => void' is not assignable to type '(Shape) => void'"
+/// @diagnostic.error id=not-assignable message="type '(Circle) => void' is not assignable to type '(Shape) => void'"
 /// @diagnostic.label line=9 column=43 span="useCircle2" line_source="const useShape2: (shape: Shape) => void = useCircle2;"
 "#,
     );
@@ -642,7 +642,7 @@ const target: Handle<string> = source;
 /// @generic.instance id=Handle<string> template=Handle arguments=(string)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Handle<int32>' is not assignable to type 'Handle<string>'"
+/// @diagnostic.error id=not-assignable message="type 'Handle<int32>' is not assignable to type 'Handle<string>'"
 /// @diagnostic.label line=5 column=32 span="source" line_source="const target: Handle<string> = source;"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Handle': expected 'string', found 'int32'"
 "#,

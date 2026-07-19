@@ -49,7 +49,7 @@ user.profile.name = "Grace";
 /// @resolution.pattern.assign source=user.profile.name kind=place place=field(name) type=string
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=9 column=14 span="name" line_source="user.profile.name = \"Grace\";"
 "#,
     );
@@ -116,7 +116,7 @@ let bad: number[] = frozen;
 /// @resolution.name source=frozen target=frozen
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'readonly Array<float64>' is not assignable to type 'Array<float64>'"
+/// @diagnostic.error id=not-assignable message="type 'readonly Array<float64>' is not assignable to type 'Array<float64>'"
 /// @diagnostic.label line=3 column=21 span="frozen" line_source="let bad: number[] = frozen;"
 "#,
     );
@@ -187,7 +187,7 @@ user.profile.name = "Grace";
 /// @resolution.pattern.assign source=user.profile.name kind=place place=field(Profile.name) type=string
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=11 column=14 span="name" line_source="user.profile.name = \"Grace\";"
 "#,
     );

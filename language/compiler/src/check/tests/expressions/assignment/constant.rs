@@ -31,7 +31,7 @@ value = 2;
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
+/// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
 /// @diagnostic.label line=3 column=1 span="value" line_source="value = 2;"
 /// @diagnostic.related line=2 column=7 span="value" line_source="const value: int32 = 1;" message="declared here"
 /// @diagnostic.help message="declare 'value' with 'let' to allow reassignment"
@@ -71,7 +71,7 @@ value += 2;
 /// @check.stats.solve variables=0 types=4 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
-/// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
+/// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
 /// @diagnostic.label line=3 column=1 span="value" line_source="value += 2;"
 /// @diagnostic.related line=2 column=7 span="value" line_source="const value: int32 = 1;" message="declared here"
 /// @diagnostic.help message="declare 'value' with 'let' to allow reassignment"

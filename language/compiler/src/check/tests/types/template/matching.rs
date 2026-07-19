@@ -91,7 +91,7 @@ const bad: Route = "fr-users";
 /// @resolution.name source=Route target=Route
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"fr-users\"' is not assignable to type 'Route'"
+/// @diagnostic.error id=not-assignable message="type '\"fr-users\"' is not assignable to type 'Route'"
 /// @diagnostic.label line=6 column=20 span="\"fr-users\"" line_source="const bad: Route = \"fr-users\";"
 /// @diagnostic.note message="'Route' reduces to '\"en-users\" | \"en-posts\" | \"de-users\" | \"de-posts\"'"
 "#,
@@ -127,7 +127,7 @@ const bad: Route = "api:orders";
 /// @resolution.name source=Route target=Route
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"api:orders\"' is not assignable to type 'Route'"
+/// @diagnostic.error id=not-assignable message="type '\"api:orders\"' is not assignable to type 'Route'"
 /// @diagnostic.label line=4 column=20 span="\"api:orders\"" line_source="const bad: Route = \"api:orders\";"
 /// @diagnostic.note message="'Route' reduces to '\"api:users\" | \"api:posts\"'"
 "#,
@@ -169,7 +169,7 @@ const bad: PrimitiveText = "yes-null-undefined";
 /// @resolution.name source=PrimitiveText target=PrimitiveText
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"yes-null-undefined\"' is not assignable to type 'PrimitiveText'"
+/// @diagnostic.error id=not-assignable message="type '\"yes-null-undefined\"' is not assignable to type 'PrimitiveText'"
 /// @diagnostic.label line=5 column=28 span="\"yes-null-undefined\"" line_source="const bad: PrimitiveText = \"yes-null-undefined\";"
 /// @diagnostic.note message="'PrimitiveText' reduces to '`${boolean}-${null}-${undefined}`'"
 "#,
@@ -205,7 +205,7 @@ const bad: Nothing = "id:anything";
 /// @resolution.name source=Nothing target=Nothing
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"id:anything\"' is not assignable to type 'Nothing'"
+/// @diagnostic.error id=not-assignable message="type '\"id:anything\"' is not assignable to type 'Nothing'"
 /// @diagnostic.label line=4 column=22 span="\"id:anything\"" line_source="const bad: Nothing = \"id:anything\";"
 /// @diagnostic.note message="'Nothing' reduces to 'never'"
 "#,
@@ -316,7 +316,7 @@ const bad: NumericRoute = "item:abc";
 /// @resolution.name source=NumericRoute target=NumericRoute
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"item:abc\"' is not assignable to type 'NumericRoute'"
+/// @diagnostic.error id=not-assignable message="type '\"item:abc\"' is not assignable to type 'NumericRoute'"
 /// @diagnostic.label line=4 column=27 span="\"item:abc\"" line_source="const bad: NumericRoute = \"item:abc\";"
 /// @diagnostic.note message="'NumericRoute' reduces to '`item:${float64}`'"
 "#,
@@ -383,7 +383,7 @@ const value: Nested = "prefix-id-a";
 /// @resolution.name source=Nested target=Nested
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"prefix-id-a\"' is not assignable to type 'Nested'"
+/// @diagnostic.error id=not-assignable message="type '\"prefix-id-a\"' is not assignable to type 'Nested'"
 /// @diagnostic.label line=4 column=23 span="\"prefix-id-a\"" line_source="const value: Nested = \"prefix-id-a\";"
 /// @diagnostic.note message="'Nested' reduces to '`prefix-${`id-${float64}`}`'"
 "#,

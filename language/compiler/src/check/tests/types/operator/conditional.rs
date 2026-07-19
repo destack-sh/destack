@@ -186,7 +186,7 @@ let value: Result = "no";
 /// @generic.instance id=OnlyStrings<never> template=OnlyStrings arguments=(never)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'Result'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Result'"
 /// @diagnostic.label line=5 column=21 span="\"no\"" line_source="let value: Result = \"no\";"
 /// @diagnostic.note message="'Result' reduces to 'never'"
 "#,
@@ -362,7 +362,7 @@ let value: Value = "no";
 /// @generic.instance id=Text<Box<int32>> template=Text arguments=(Box<int32>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=6 column=20 span="\"no\"" line_source="let value: Value = \"no\";"
 /// @diagnostic.note message="'Value' reduces to 'never'"
 "#,

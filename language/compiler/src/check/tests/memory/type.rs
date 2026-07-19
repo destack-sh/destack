@@ -39,11 +39,11 @@ type FrameCell = WithSpace<Cell, "frame">;
 /// @resolution.name source=Cell target=Cell
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type '\"static\"' does not satisfy 'Space'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '\"static\"' does not satisfy 'Space'"
 /// @diagnostic.label line=4 column=35 span="\"static\"" line_source="type StaticCell = WithSpace<Cell, \"static\">;"
 /// @diagnostic.related file="type.ds" message="required by this bound on 'S'"
 /// @diagnostic.note message="'Space' reduces to '\"local\" | \"shared\"'"
-/// @diagnostic.error code=EC201 message="type '\"frame\"' does not satisfy 'Space'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '\"frame\"' does not satisfy 'Space'"
 /// @diagnostic.label line=5 column=34 span="\"frame\"" line_source="type FrameCell = WithSpace<Cell, \"frame\">;"
 /// @diagnostic.related file="type.ds" message="required by this bound on 'S'"
 /// @diagnostic.note message="'Space' reduces to '\"local\" | \"shared\"'"

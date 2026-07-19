@@ -91,7 +91,7 @@ extension of User implements Show {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC604 message="conflicting implementations of interface 'Show' for type 'User'"
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Show' for type 'User'"
 /// @diagnostic.label line=14 column=1 span="extension of User implements Show {\n    show(): string {\n        return \"debug\";\n    }\n}" line_source="extension of User implements Show {"
 /// @diagnostic.related line=8 column=1 span="extension of User implements Show {\n    show(): string {\n        return \"user\";\n    }\n}" line_source="extension of User implements Show {" message="conflicting implementation"
 "#,
@@ -147,7 +147,7 @@ extension of User implements Show {}
 /// @resolution.name source=Show target=Show
 "#,
         r#"
-/// @diagnostic.error code=EC203 message="type 'User' does not implement interface 'Show'"
+/// @diagnostic.error id=interface-not-implemented message="type 'User' does not implement interface 'Show'"
 /// @diagnostic.label line=8 column=30 span="Show" line_source="extension of User implements Show {}"
 "#,
     );
@@ -238,7 +238,7 @@ extension of User implements Show {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC203 message="type 'User' does not implement interface 'Show'"
+/// @diagnostic.error id=interface-not-implemented message="type 'User' does not implement interface 'Show'"
 /// @diagnostic.label line=12 column=30 span="Show" line_source="extension of User implements Show {"
 "#,
     );
@@ -412,7 +412,7 @@ extension of User implements NotInterface {}
 /// @resolution.name source=NotInterface target=NotInterface
 "#,
         r#"
-/// @diagnostic.error code=EC616 message="type 'User' can only implement interfaces, not 'NotInterface'"
+/// @diagnostic.error id=implementation-target-not-interface message="type 'User' can only implement interfaces, not 'NotInterface'"
 /// @diagnostic.label line=5 column=30 span="NotInterface" line_source="extension of User implements NotInterface {}"
 "#,
     );
@@ -486,7 +486,7 @@ extension of User implements Alias {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC616 message="type 'User' can only implement interfaces, not 'Alias'"
+/// @diagnostic.error id=implementation-target-not-interface message="type 'User' can only implement interfaces, not 'Alias'"
 /// @diagnostic.label line=8 column=30 span="Alias" line_source="extension of User implements Alias {"
 "#,
     );
@@ -570,7 +570,7 @@ extension of User implements Show | Debug {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC616 message="type 'User' can only implement interfaces, not 'Show | Debug'"
+/// @diagnostic.error id=implementation-target-not-interface message="type 'User' can only implement interfaces, not 'Show | Debug'"
 /// @diagnostic.label line=10 column=35 span="|" line_source="extension of User implements Show | Debug {"
 "#,
     );
@@ -1274,7 +1274,7 @@ export extension<T> of Pack<T> implements Has<T> {
     }
 }
 "#,
-        r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has<T>'"
+        r#"/// @diagnostic.error id=interface-not-implemented message="type 'Pack<T>' does not implement interface 'Has<T>'"
 /// @diagnostic.label line=12 column=43 span="Has" line_source="export extension<T> of Pack<T> implements Has<T> {"
 "#,
     );
@@ -1373,7 +1373,7 @@ export extension<T> of Pack<T> implements Has<T> {
     }
 }
 "#,
-        r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has<T>'"
+        r#"/// @diagnostic.error id=interface-not-implemented message="type 'Pack<T>' does not implement interface 'Has<T>'"
 /// @diagnostic.label line=10 column=43 span="Has" line_source="export extension<T> of Pack<T> implements Has<T> {"
 "#,
     );

@@ -7,7 +7,7 @@ use destack_artifact_macros::Diagnostic;
 pub enum LowerError {
     /// Construct is not supported by native compilation.
     #[diagnostic(
-        code = "EL900",
+        id = "unsupported-native-construct",
         message = "native compilation does not support {construct}"
     )]
     Unsupported {

@@ -73,7 +73,7 @@ const bad: Letter = "b";
 /// @generic.instance id="Exclude<\"a\" | \"b\" | \"c\", \"b\">" template=types.object.Exclude arguments=("a" | "b" | "c", "b")
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"b\"' is not assignable to type 'Letter'"
+/// @diagnostic.error id=not-assignable message="type '\"b\"' is not assignable to type 'Letter'"
 /// @diagnostic.label line=4 column=21 span="\"b\"" line_source="const bad: Letter = \"b\";"
 /// @diagnostic.note message="'Letter' reduces to '\"a\" | \"c\"'"
 "#,
@@ -112,7 +112,7 @@ let bad: Letter = "b";
 /// @generic.instance id="Exclude<never, \"b\">" template=types.object.Exclude arguments=(never, "b")
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"b\"' is not assignable to type 'Letter'"
+/// @diagnostic.error id=not-assignable message="type '\"b\"' is not assignable to type 'Letter'"
 /// @diagnostic.label line=4 column=19 span="\"b\"" line_source="let bad: Letter = \"b\";"
 /// @diagnostic.note message="'Letter' reduces to 'never'"
 "#,

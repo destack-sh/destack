@@ -12,7 +12,7 @@ pub enum ExportError {
     /// export { missing };
     /// ```
     #[diagnostic(
-        code = "ET100",
+        id = "missing-export-binding",
         message = "missing exported local binding '{name}'",
         optional_message = "; did you mean '{suggestion}'?"
     )]
@@ -31,7 +31,7 @@ pub enum ExportError {
     /// export const value = 1;
     /// export { value as value };
     /// ```
-    #[diagnostic(code = "ET101", message = "duplicate export '{key}'")]
+    #[diagnostic(id = "duplicate-export", message = "duplicate export '{key}'")]
     DuplicateExport {
         /// The duplicate export declaration.
         anchor: DiagnosticAnchor,
@@ -46,7 +46,10 @@ pub enum ExportError {
     ///     export { value as default };
     /// }
     /// ```
-    #[diagnostic(code = "ET102", message = "global export cannot use default key")]
+    #[diagnostic(
+        id = "default-global-export",
+        message = "global export cannot use default key"
+    )]
     DefaultGlobalExport {
         /// The default global export item.
         anchor: DiagnosticAnchor,
@@ -59,7 +62,10 @@ pub enum ExportError {
     ///     export * from "./module.ds";
     /// }
     /// ```
-    #[diagnostic(code = "ET107", message = "global namespace export requires an alias")]
+    #[diagnostic(
+        id = "namespace-global-export",
+        message = "global namespace export requires an alias"
+    )]
     NamespaceGlobalExport {
         /// The bare namespace re-export item.
         anchor: DiagnosticAnchor,
@@ -71,7 +77,10 @@ pub enum ExportError {
     /// @if
     /// export { debug };
     /// ```
-    #[diagnostic(code = "ET103", message = "`@if` export guard requires a condition")]
+    #[diagnostic(
+        id = "missing-static-export-condition",
+        message = "`@if` export guard requires a condition"
+    )]
     StaticIfRequiresCondition {
         /// The `@if` decorator.
         anchor: DiagnosticAnchor,
@@ -84,7 +93,7 @@ pub enum ExportError {
     /// export { debug };
     /// ```
     #[diagnostic(
-        code = "ET104",
+        id = "multiple-static-export-conditions",
         message = "`@if` export guard requires exactly one condition"
     )]
     StaticIfRequiresOneArgument {
@@ -99,7 +108,7 @@ pub enum ExportError {
     /// export { debug };
     /// ```
     #[diagnostic(
-        code = "ET105",
+        id = "non-boolean-static-export-condition",
         message = "`@if` export guard condition must be boolean"
     )]
     StaticIfRequiresBoolean {
@@ -113,7 +122,10 @@ pub enum ExportError {
     /// @if(enabled)
     /// export { debug };
     /// ```
-    #[diagnostic(code = "ET106", message = "`@if` export guard condition is not static")]
+    #[diagnostic(
+        id = "non-static-export-condition",
+        message = "`@if` export guard condition is not static"
+    )]
     StaticIfNotStatic {
         /// The non-static `@if` condition.
         anchor: DiagnosticAnchor,
@@ -126,7 +138,7 @@ pub enum ExportError {
     /// export { debug };
     /// ```
     #[diagnostic(
-        code = "ET108",
+        id = "invalid-static-export-condition",
         message = "`@if` export guard must be invoked as `@if(condition)`"
     )]
     InvalidStaticIfInvocation {
@@ -135,7 +147,7 @@ pub enum ExportError {
     },
 
     /// Internal export failure.
-    #[diagnostic(code = "ET900", message = "internal error: {message}")]
+    #[diagnostic(id = "internal-export-error", message = "internal error: {message}")]
     Internal {
         /// The source that triggered the internal failure.
         anchor: DiagnosticAnchor,

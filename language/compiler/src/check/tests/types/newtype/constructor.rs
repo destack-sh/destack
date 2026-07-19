@@ -368,7 +368,7 @@ const value = _(1);
 /// @type.symbol symbol=value source=value type=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC100 message="cannot infer a type here"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=2 column=15 span="_(1)" line_source="const value = _(1);"
 /// @diagnostic.help message="annotate the type explicitly"
 "#,
@@ -395,7 +395,7 @@ const value: string = _(1);
 /// @type.symbol symbol=value source=value type=string
 "#,
         r#"
-/// @diagnostic.error code=EC323 message="type 'string' cannot be constructed with '_(...)'"
+/// @diagnostic.error id=invalid-inferred-construct-target message="type 'string' cannot be constructed with '_(...)'"
 /// @diagnostic.label line=2 column=23 span="_(1)" line_source="const value: string = _(1);"
 "#,
     );

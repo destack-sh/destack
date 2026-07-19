@@ -242,7 +242,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
 /// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 "#,
         r#"
-/// @diagnostic.error code=EC403 message="match is not exhaustive: 'Err<E>' is not covered"
+/// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: 'Err<E>' is not covered"
 /// @diagnostic.label line=13 column=5 span="match (outcome) {\n        Ok { value } => value\n    }" line_source="match (outcome) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 "#,
@@ -441,7 +441,7 @@ const value: string = match (edge) {
 /// @generic.instance id=Edge<string> template=Edge arguments=(string)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'string | int32' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type 'string | int32' is not assignable to type 'string'"
 /// @diagnostic.label line=9 column=23 span="match (edge) {\n    Edge.Bounded { limit } => limit\n    Edge.Open => \"\"\n}" line_source="const value: string = match (edge) {"
 /// @diagnostic.note message="expected 'string', found 'int32'"
 "#,

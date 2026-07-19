@@ -35,7 +35,7 @@ const bad: Small = 11n;
 /// @resolution.name source=Small target=Small
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '11n' is not assignable to type 'Small'"
+/// @diagnostic.error id=not-assignable message="type '11n' is not assignable to type 'Small'"
 /// @diagnostic.label line=5 column=20 span="11n" line_source="const bad: Small = 11n;"
 /// @diagnostic.note message="'Small' reduces to '1n..=10n'"
 "#,

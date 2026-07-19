@@ -30,7 +30,7 @@ struct Shape {}
 /// @definition.struct symbol=Shape source="struct Shape {}"
 "#,
         r#"
-/// @diagnostic.error code=EC327 message="'Tagged' cannot be derived for this declaration"
+/// @diagnostic.error id=invalid-derive-target message="'Tagged' cannot be derived for this declaration"
 /// @diagnostic.label line=2 column=9 span="Tagged" line_source="@derive(Tagged)"
 "#,
     );
@@ -68,7 +68,7 @@ newtype Shape = { value: int32 };
 /// @definition.newtype symbol=Shape source="newtype Shape = { value: int32 }" backing={ value: int32 }
 "#,
         r#"
-/// @diagnostic.error code=EC329 message="Tagged backing arm must declare a string literal 'kind' field"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must declare a string literal 'kind' field"
 /// @diagnostic.label line=2 column=9 span="Tagged" line_source="@derive(Tagged)"
 "#,
     );
@@ -110,7 +110,7 @@ newtype Shape = { kind: "fooBar" } | { kind: "foo_bar" };
 /// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" backing={ kind: "fooBar" } | { kind: "foo_bar" }
 "#,
         r#"
-/// @diagnostic.error code=EC331 message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
 /// @diagnostic.label line=2 column=9 span="Tagged({ case: \"snake_case\" })" line_source="@derive(Tagged({ case: \"snake_case\" }))"
 "#,
     );
@@ -147,7 +147,7 @@ newtype Shape = { kind: "shape" };
 /// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"shape\" }" backing={ kind: "shape" }
 "#,
         r#"
-/// @diagnostic.error code=EC328 message="duplicate derive provider 'Tagged'"
+/// @diagnostic.error id=duplicate-derive-provider message="duplicate derive provider 'Tagged'"
 /// @diagnostic.label line=2 column=17 span="Tagged" line_source="@derive(Tagged, Tagged)"
 "#,
     );

@@ -73,7 +73,7 @@ const value = 1;
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC310 message="decorator must name a newtype declaration"
+/// @diagnostic.error id=invalid-decorator-target message="decorator must name a newtype declaration"
 /// @diagnostic.label line=4 column=10 span="field" line_source="@subject.field"
 "#,
     );

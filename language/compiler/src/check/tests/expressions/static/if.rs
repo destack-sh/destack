@@ -56,7 +56,7 @@ const value: int32 = "text";
 /// @type.node source="\"text\"" type="text"
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
+/// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=3 column=22 span="\"text\"" line_source="const value: int32 = \"text\";"
 "#,
     );
@@ -85,7 +85,7 @@ const value = 1;
 
 "#,
         r#"
-/// @diagnostic.error code=EC401 message="static condition must evaluate to a boolean"
+/// @diagnostic.error id=invalid-static-condition message="static condition must evaluate to a boolean"
 /// @diagnostic.label line=2 column=5 span="1" line_source="@if(1)"
 "#,
     );
@@ -121,7 +121,7 @@ let enabled = true;
 const value = 1;
 "#,
         r#"
-/// @diagnostic.error code=EC404 message="static @if condition must be statically decidable"
+/// @diagnostic.error id=undecidable-static-condition message="static @if condition must be statically decidable"
 /// @diagnostic.label line=4 column=5 span="enabled" line_source="@if(enabled)"
 "#,
     );
@@ -150,7 +150,7 @@ const value = 1;
 
 "#,
         r#"
-/// @diagnostic.error code=EC444 message="`@if` must be invoked as `@if(condition)`"
+/// @diagnostic.error id=invalid-static-if-invocation message="`@if` must be invoked as `@if(condition)`"
 /// @diagnostic.label line=2 column=1 span="@if<boolean>(true)" line_source="@if<boolean>(true)"
 "#,
     );

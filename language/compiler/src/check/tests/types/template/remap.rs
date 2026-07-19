@@ -379,7 +379,7 @@ const missing = names.orderPaid;
 /// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'orderPaid' does not exist on type 'Names<Events>'"
+/// @diagnostic.error id=missing-member message="member 'orderPaid' does not exist on type 'Names<Events>'"
 /// @diagnostic.label line=12 column=23 span="orderPaid" line_source="const missing = names.orderPaid;"
 "#,
     );

@@ -520,10 +520,10 @@ replace(user);
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'local readonly User' is not assignable to parameter of type 'local &User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local readonly User' is not assignable to parameter of type 'local &User'"
 /// @diagnostic.label line=8 column=8 span="user" line_source="modify(user);"
 /// @diagnostic.related line=8 column=1 span="modify(user)" line_source="modify(user);" message="in this call"
-/// @diagnostic.error code=EC209 message="argument of type 'local readonly User' is not assignable to parameter of type 'local &exclusive User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local readonly User' is not assignable to parameter of type 'local &exclusive User'"
 /// @diagnostic.label line=9 column=9 span="user" line_source="replace(user);"
 /// @diagnostic.related line=9 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
 "#,
@@ -1200,7 +1200,7 @@ replace(user);
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'shared User' is not assignable to parameter of type 'shared &exclusive User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared User' is not assignable to parameter of type 'shared &exclusive User'"
 /// @diagnostic.label line=7 column=9 span="user" line_source="replace(user);"
 /// @diagnostic.related line=7 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
 "#,
@@ -1399,7 +1399,7 @@ values.push(1);
 /// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> kind=existential targets=[collections.array.push#1, collections.array.push#2]
 "#,
         r#"
-/// @diagnostic.error code=EC302 message="no overload matches arguments ('1')"
+/// @diagnostic.error id=no-matching-call message="no overload matches arguments ('1')"
 /// @diagnostic.label line=4 column=1 span="values.push(1)" line_source="values.push(1);"
 /// @diagnostic.note message="the candidate '<comptime L0: Lifetime>(int32) => void' rejects the receiver: 'shared Array<int32>' is not assignable to '&exclusive Array<int32>'"
 /// @diagnostic.note message="the candidate '<comptime L0: Lifetime>(...int32[]) => float64' rejects the receiver: 'shared Array<int32>' is not assignable to '&exclusive Array<int32>'"
@@ -1492,7 +1492,7 @@ let owned: ^User = user;
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'User' is not assignable to type '^User'"
+/// @diagnostic.error id=not-assignable message="type 'User' is not assignable to type '^User'"
 /// @diagnostic.label line=5 column=20 span="user" line_source="let owned: ^User = user;"
 "#,
     );
@@ -1554,7 +1554,7 @@ let owned: ^Label = borrow;
 /// @resolution.name source=borrow target=borrow
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '&Label' is not assignable to type '^Label'"
+/// @diagnostic.error id=not-assignable message="type '&Label' is not assignable to type '^Label'"
 /// @diagnostic.label line=7 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
 /// @diagnostic.note message="'^Label' reduces to 'Label'"
 "#,
@@ -1831,7 +1831,7 @@ duplicate(session);
 /// @generic.instance id=duplicate<Owned<Session>> template=duplicate arguments=(Owned<Session>)
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type '^Session' does not satisfy 'Copy'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^Session' does not satisfy 'Copy'"
 /// @diagnostic.label line=10 column=1 span="duplicate(session)" line_source="duplicate(session);"
 /// @diagnostic.related line=6 column=28 span="T" line_source="declare function duplicate<T: Copy>(value: T): ^T;" message="required by this bound on 'T'"
 "#,

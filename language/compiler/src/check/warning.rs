@@ -5,13 +5,16 @@ use crate::DiagnosticAnchor;
 
 /// Warnings during the check phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
-#[diagnostic(severity = Warning, phase = Check)]
+#[diagnostic(severity = Warning, phase = Check, controllable)]
 pub enum CheckWarning {
     // -------------------------------------------------------------------------
-    // 1xx: inference
+    // inference
     // -------------------------------------------------------------------------
     /// Authored type constituent adds nothing to its type.
-    #[diagnostic(code = "WC100", message = "redundant type constituent")]
+    #[diagnostic(
+        id = "redundant-type-constituent",
+        message = "redundant type constituent"
+    )]
     RedundantTypeConstituent {
         /// Report the redundant constituent.
         anchor: DiagnosticAnchor,
@@ -20,7 +23,10 @@ pub enum CheckWarning {
     },
 
     /// Explicit type argument equals the inferred argument.
-    #[diagnostic(code = "WC101", message = "unnecessary type argument")]
+    #[diagnostic(
+        id = "unnecessary-type-argument",
+        message = "unnecessary type argument"
+    )]
     UnnecessaryTypeArgument {
         /// Report the unnecessary argument.
         anchor: DiagnosticAnchor,
@@ -29,14 +35,14 @@ pub enum CheckWarning {
     },
 
     // -------------------------------------------------------------------------
-    // 2xx: relations
+    // relations
     // -------------------------------------------------------------------------
     /// Cast does not change the expression's type.
     ///
     /// ```ds
     /// const value = 1 as int32 as int32;
     /// ```
-    #[diagnostic(code = "WC200", message = "cast to '{ty}' has no effect")]
+    #[diagnostic(id = "redundant-cast", message = "cast to '{ty}' has no effect")]
     RedundantCast {
         /// Report the cast expression.
         anchor: DiagnosticAnchor,
@@ -47,7 +53,10 @@ pub enum CheckWarning {
     },
 
     /// Type assertion does not change the proven type.
-    #[diagnostic(code = "WC201", message = "unnecessary type assertion")]
+    #[diagnostic(
+        id = "unnecessary-type-assertion",
+        message = "unnecessary type assertion"
+    )]
     UnnecessaryTypeAssertion {
         /// Report the unnecessary assertion.
         anchor: DiagnosticAnchor,
@@ -56,7 +65,10 @@ pub enum CheckWarning {
     },
 
     /// Literal conversion loses information.
-    #[diagnostic(code = "WC202", message = "numeric conversion loses precision")]
+    #[diagnostic(
+        id = "loss-of-precision",
+        message = "numeric conversion loses precision"
+    )]
     LossOfPrecision {
         /// Report the lossy conversion.
         anchor: DiagnosticAnchor,
@@ -65,7 +77,7 @@ pub enum CheckWarning {
     },
 
     // -------------------------------------------------------------------------
-    // 3xx: selection
+    // selection
     // -------------------------------------------------------------------------
     /// Extension overload can never win against an earlier declaration.
     ///
@@ -75,7 +87,10 @@ pub enum CheckWarning {
     ///     show(): string {}
     /// }
     /// ```
-    #[diagnostic(code = "WC300", message = "overload '{key}' can never be selected")]
+    #[diagnostic(
+        id = "unreachable-overload",
+        message = "overload '{key}' can never be selected"
+    )]
     UnreachableOverload {
         /// Report the unreachable overload.
         anchor: DiagnosticAnchor,
@@ -86,7 +101,7 @@ pub enum CheckWarning {
     },
 
     /// Resolved definition is deprecated.
-    #[diagnostic(code = "WC301", message = "use of deprecated definition")]
+    #[diagnostic(id = "deprecated", message = "use of deprecated definition")]
     Deprecated {
         /// Report the deprecated use.
         anchor: DiagnosticAnchor,
@@ -95,7 +110,7 @@ pub enum CheckWarning {
     },
 
     /// Name resolves identically without its qualifier.
-    #[diagnostic(code = "WC302", message = "unnecessary qualifier")]
+    #[diagnostic(id = "unnecessary-qualifier", message = "unnecessary qualifier")]
     UnnecessaryQualifier {
         /// Report the unnecessary qualifier.
         anchor: DiagnosticAnchor,
@@ -104,7 +119,7 @@ pub enum CheckWarning {
     },
 
     // -------------------------------------------------------------------------
-    // 4xx: expressions
+    // expressions
     // -------------------------------------------------------------------------
     /// Code follows an expression that always transfers control.
     ///
@@ -114,7 +129,7 @@ pub enum CheckWarning {
     ///     process();
     /// }
     /// ```
-    #[diagnostic(code = "WC400", message = "unreachable code")]
+    #[diagnostic(id = "unreachable-code", message = "unreachable code")]
     UnreachableCode {
         /// Report the first unreachable expression.
         anchor: DiagnosticAnchor,
@@ -123,7 +138,7 @@ pub enum CheckWarning {
     },
 
     /// Pattern coverage proves this pattern can never match.
-    #[diagnostic(code = "WC401", message = "unreachable pattern")]
+    #[diagnostic(id = "unreachable-pattern", message = "unreachable pattern")]
     UnreachablePattern {
         /// Report the unreachable pattern.
         anchor: DiagnosticAnchor,
@@ -136,7 +151,7 @@ pub enum CheckWarning {
     /// ```ds
     /// if (true) {}
     /// ```
-    #[diagnostic(code = "WC402", message = "condition is always {value}")]
+    #[diagnostic(id = "constant-condition", message = "condition is always {value}")]
     ConstantCondition {
         /// Report the condition expression.
         anchor: DiagnosticAnchor,
@@ -147,7 +162,7 @@ pub enum CheckWarning {
     },
 
     /// Assigned value is never observed.
-    #[diagnostic(code = "WC403", message = "unused assignment")]
+    #[diagnostic(id = "unused-assignment", message = "unused assignment")]
     UnusedAssignment {
         /// Report the unused assignment.
         anchor: DiagnosticAnchor,
@@ -156,7 +171,7 @@ pub enum CheckWarning {
     },
 
     /// A value marked as requiring use is discarded.
-    #[diagnostic(code = "WC404", message = "unused must-use value")]
+    #[diagnostic(id = "unused-must-use", message = "unused must-use value")]
     UnusedMustUse {
         /// Report the discarded value.
         anchor: DiagnosticAnchor,
@@ -165,7 +180,7 @@ pub enum CheckWarning {
     },
 
     /// Label is never targeted.
-    #[diagnostic(code = "WC405", message = "unused label")]
+    #[diagnostic(id = "unused-label", message = "unused label")]
     UnusedLabel {
         /// Report the unused label.
         anchor: DiagnosticAnchor,
@@ -174,7 +189,7 @@ pub enum CheckWarning {
     },
 
     /// Checked type and flow prove the condition outcome.
-    #[diagnostic(code = "WC406", message = "unnecessary condition")]
+    #[diagnostic(id = "unnecessary-condition", message = "unnecessary condition")]
     UnnecessaryCondition {
         /// Report the unnecessary condition.
         anchor: DiagnosticAnchor,
@@ -183,7 +198,10 @@ pub enum CheckWarning {
     },
 
     /// Callback result is discarded despite requiring observation.
-    #[diagnostic(code = "WC407", message = "discarded callback result")]
+    #[diagnostic(
+        id = "discarded-callback-result",
+        message = "discarded callback result"
+    )]
     DiscardedCallbackResult {
         /// Report the discarded result.
         anchor: DiagnosticAnchor,
@@ -192,7 +210,10 @@ pub enum CheckWarning {
     },
 
     /// Binary expression has a statically fixed result.
-    #[diagnostic(code = "WC408", message = "constant binary expression")]
+    #[diagnostic(
+        id = "constant-binary-expression",
+        message = "constant binary expression"
+    )]
     ConstantBinaryExpression {
         /// Report the constant expression.
         anchor: DiagnosticAnchor,
@@ -201,7 +222,10 @@ pub enum CheckWarning {
     },
 
     /// Control transfer from finally suppresses an earlier exit.
-    #[diagnostic(code = "WC409", message = "control transfer from finally")]
+    #[diagnostic(
+        id = "unsafe-finally-control-transfer",
+        message = "control transfer from finally"
+    )]
     UnsafeFinallyControlTransfer {
         /// Report the control transfer.
         anchor: DiagnosticAnchor,
@@ -210,7 +234,7 @@ pub enum CheckWarning {
     },
 
     /// Switch arm falls through without stating that intent.
-    #[diagnostic(code = "WC410", message = "implicit switch fallthrough")]
+    #[diagnostic(id = "fallthrough", message = "implicit switch fallthrough")]
     Fallthrough {
         /// Report the falling-through arm.
         anchor: DiagnosticAnchor,
@@ -219,7 +243,7 @@ pub enum CheckWarning {
     },
 
     /// Generator body cannot yield.
-    #[diagnostic(code = "WC411", message = "generator has no yield")]
+    #[diagnostic(id = "generator-without-yield", message = "generator has no yield")]
     GeneratorWithoutYield {
         /// Report the generator declaration.
         anchor: DiagnosticAnchor,
@@ -228,7 +252,7 @@ pub enum CheckWarning {
     },
 
     // -------------------------------------------------------------------------
-    // 6xx: declarations
+    // declarations
     // -------------------------------------------------------------------------
     /// Implementation pairs a foreign interface with a foreign type.
     ///
@@ -236,7 +260,7 @@ pub enum CheckWarning {
     /// extension of ForeignType implements ForeignInterface {}
     /// ```
     #[diagnostic(
-        code = "WC600",
+        id = "non-local-implementation",
         message = "implementation of foreign interface '{interface}' for foreign type '{ty}' is not local to this package"
     )]
     NonLocalImplementation {
@@ -251,7 +275,7 @@ pub enum CheckWarning {
     },
 
     /// Resolved import has no attributed use.
-    #[diagnostic(code = "WC601", message = "unused import")]
+    #[diagnostic(id = "unused-import", message = "unused import")]
     UnusedImport {
         /// Report the unused import.
         anchor: DiagnosticAnchor,
@@ -260,7 +284,7 @@ pub enum CheckWarning {
     },
 
     /// Resolved binding has no attributed use.
-    #[diagnostic(code = "WC602", message = "unused binding")]
+    #[diagnostic(id = "unused-binding", message = "unused binding")]
     UnusedBinding {
         /// Report the unused binding.
         anchor: DiagnosticAnchor,
@@ -269,7 +293,7 @@ pub enum CheckWarning {
     },
 
     /// Resolved parameter has no attributed use.
-    #[diagnostic(code = "WC603", message = "unused parameter")]
+    #[diagnostic(id = "unused-parameter", message = "unused parameter")]
     UnusedParameter {
         /// Report the unused parameter.
         anchor: DiagnosticAnchor,
@@ -278,7 +302,7 @@ pub enum CheckWarning {
     },
 
     /// Private member has no reachable use.
-    #[diagnostic(code = "WC604", message = "unused private member")]
+    #[diagnostic(id = "unused-private-member", message = "unused private member")]
     UnusedPrivateMember {
         /// Report the unused member.
         anchor: DiagnosticAnchor,

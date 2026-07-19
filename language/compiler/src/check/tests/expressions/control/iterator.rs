@@ -80,7 +80,7 @@ for (const value of 1) {
 
 "#,
         r#"
-/// @diagnostic.error code=EC421 message="for-of source must be iterable"
+/// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
 /// @diagnostic.label line=2 column=1 span="for (const value of 1) {\n    value;\n}" line_source="for (const value of 1) {"
 "#,
     );
@@ -176,7 +176,7 @@ for (const key in target) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type 'string' does not satisfy '\"a\" | \"b\"'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'string' does not satisfy '\"a\" | \"b\"'"
 /// @diagnostic.label line=5 column=9 span="satisfies" line_source="key satisfies \"a\" | \"b\";"
 "#,
     );
@@ -306,7 +306,7 @@ for (const key in 1) {
 
 "#,
         r#"
-/// @diagnostic.error code=EC422 message="for-in source must be object-shaped"
+/// @diagnostic.error id=for-in-source-not-object-shaped message="for-in source must be object-shaped"
 /// @diagnostic.label line=2 column=1 span="for (const key in 1) {\n    key;\n}" line_source="for (const key in 1) {"
 "#,
     );
@@ -353,7 +353,7 @@ for (const key in target) {
 
 "#,
         r#"
-/// @diagnostic.error code=EC422 message="for-in source must be object-shaped"
+/// @diagnostic.error id=for-in-source-not-object-shaped message="for-in source must be object-shaped"
 /// @diagnostic.label line=4 column=1 span="for (const key in target) {\n    key;\n}" line_source="for (const key in target) {"
 "#,
     );
@@ -394,7 +394,7 @@ for (const key in [1, 2, 3]) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC422 message="for-in source must be object-shaped"
+/// @diagnostic.error id=for-in-source-not-object-shaped message="for-in source must be object-shaped"
 /// @diagnostic.label line=2 column=1 span="for (const key in [1, 2, 3]) {\n    key;\n}" line_source="for (const key in [1, 2, 3]) {"
 "#,
     );

@@ -180,7 +180,7 @@ point.length();
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'length' does not exist on type 'Point'"
+/// @diagnostic.error id=missing-member message="member 'length' does not exist on type 'Point'"
 /// @diagnostic.label line=14 column=7 span="length" line_source="point.length();"
 "#,
     );
@@ -352,7 +352,7 @@ extension of Buffer {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC322 message="receiver type '&readonly Buffer' is not assignable to the method's 'this' type '&exclusive Buffer'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&readonly Buffer' is not assignable to the method's 'this' type '&exclusive Buffer'"
 /// @diagnostic.label line=10 column=9 span="this.grow()" line_source="this.grow()"
 "#,
     );

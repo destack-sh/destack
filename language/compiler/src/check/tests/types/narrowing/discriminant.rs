@@ -375,7 +375,7 @@ function read(initial: State, next: State): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'reactions' does not exist on type 'State'"
+/// @diagnostic.error id=missing-member message="member 'reactions' does not exist on type 'State'"
 /// @diagnostic.label line=19 column=22 span="reactions" line_source="return state.reactions;"
 "#,
     );

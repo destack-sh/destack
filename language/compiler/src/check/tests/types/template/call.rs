@@ -190,7 +190,7 @@ parse(key);
 /// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'string' is not assignable to parameter of type '`id:${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'string' is not assignable to parameter of type '`id:${_}`'"
 /// @diagnostic.label line=6 column=7 span="key" line_source="parse(key);"
 /// @diagnostic.related line=6 column=1 span="parse(key)" line_source="parse(key);" message="in this call"
 "#,
@@ -325,7 +325,7 @@ parse("no");
 /// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type '\"no\"' is not assignable to parameter of type '`${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"no\"' is not assignable to parameter of type '`${_}`'"
 /// @diagnostic.label line=4 column=7 span="\"no\"" line_source="parse(\"no\");"
 /// @diagnostic.related line=4 column=1 span="parse(\"no\")" line_source="parse(\"no\");" message="in this call"
 "#,

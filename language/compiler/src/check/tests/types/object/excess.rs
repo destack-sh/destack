@@ -34,7 +34,7 @@ const value: Person = { name: "Ada", extra: true };
 /// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type 'Person'"
+/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Person'"
 /// @diagnostic.label line=4 column=23 span="{ name: \"Ada\", extra: true }" line_source="const value: Person = { name: \"Ada\", extra: true };"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,

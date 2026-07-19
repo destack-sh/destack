@@ -24,7 +24,7 @@ const value = 1;
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="cannot find 'missing'"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'missing'"
 /// @diagnostic.label line=2 column=2 span="missing" line_source="@missing"
 "#,
     );
@@ -68,7 +68,7 @@ const value = 1;
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC309 message="ambiguous reference 'mark'"
+/// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'mark'"
 /// @diagnostic.label line=5 column=2 span="mark" line_source="@mark"
 "#,
     );
@@ -108,7 +108,7 @@ const value = 1;
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC310 message="decorator must name a newtype declaration"
+/// @diagnostic.error id=invalid-decorator-target message="decorator must name a newtype declaration"
 /// @diagnostic.label line=4 column=2 span="mark" line_source="@mark"
 "#,
     );

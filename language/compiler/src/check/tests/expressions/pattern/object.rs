@@ -70,7 +70,7 @@ let { value } = 1;
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC423 message="type '1' cannot be destructured as an object pattern"
+/// @diagnostic.error id=pattern-source-not-object-shaped message="type '1' cannot be destructured as an object pattern"
 /// @diagnostic.label line=2 column=5 span="{ value }" line_source="let { value } = 1;"
 "#,
     );

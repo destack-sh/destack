@@ -35,7 +35,7 @@ const bad: LowerAscii = 'A';
 /// @resolution.name source=LowerAscii target=LowerAscii
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type ''A'' is not assignable to type 'LowerAscii'"
+/// @diagnostic.error id=not-assignable message="type ''A'' is not assignable to type 'LowerAscii'"
 /// @diagnostic.label line=5 column=25 span="'A'" line_source="const bad: LowerAscii = 'A';"
 /// @diagnostic.note message="'LowerAscii' reduces to ''a'..='z''"
 "#,

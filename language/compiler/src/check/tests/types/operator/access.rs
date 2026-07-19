@@ -104,7 +104,7 @@ type Missing = ObjectLike[5];
 /// @resolution.name source=ObjectLike target=ObjectLike
 "#,
         r#"
-/// @diagnostic.error code=EC316 message="type '{ label: string }' cannot be indexed by type '5'"
+/// @diagnostic.error id=invalid-index-key message="type '{ label: string }' cannot be indexed by type '5'"
 /// @diagnostic.label line=3 column=16 span="ObjectLike[5]" line_source="type Missing = ObjectLike[5];"
 "#,
     );
@@ -131,7 +131,7 @@ type Missing = int32["name"];
 /// @definition.type symbol=Missing source="type Missing = int32[\"name\"]" value=int32["name"] reduced=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC315 message="type 'int32' cannot be indexed"
+/// @diagnostic.error id=invalid-index-receiver message="type 'int32' cannot be indexed"
 /// @diagnostic.label line=2 column=16 span="int32[\"name\"]" line_source="type Missing = int32[\"name\"];"
 "#,
     );
@@ -211,7 +211,7 @@ const bad: Value = true;
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.note message="'Value' reduces to 'string | int32'"
 "#,
@@ -355,7 +355,7 @@ const bad: Value = true;
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'Value'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.note message="'Value' reduces to 'float64 | undefined | string'"
 "#,
@@ -390,7 +390,7 @@ type Missing = User["missing"];
 /// @resolution.name source=User target=User
 "#,
         r#"
-/// @diagnostic.error code=EC316 message="type '{ name: string; age: int32 }' cannot be indexed by type '\"missing\"'"
+/// @diagnostic.error id=invalid-index-key message="type '{ name: string; age: int32 }' cannot be indexed by type '\"missing\"'"
 /// @diagnostic.label line=3 column=16 span="User[\"missing\"]" line_source="type Missing = User[\"missing\"];"
 "#,
     );
@@ -556,7 +556,7 @@ type ValueAt<T, K> = T[K];
 /// @resolution.name source=K target=ValueAt.K
 "#,
         r#"
-/// @diagnostic.error code=EC316 message="type 'T' cannot be indexed by type 'K'"
+/// @diagnostic.error id=invalid-index-key message="type 'T' cannot be indexed by type 'K'"
 /// @diagnostic.label line=2 column=22 span="T[K]" line_source="type ValueAt<T, K> = T[K];"
 "#,
     );

@@ -112,7 +112,7 @@ const person: Required<Person> = { name: "Ada" };
 /// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property 'age' for type 'Required<Person>'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type 'Required<Person>'"
 /// @diagnostic.label line=7 column=34 span="{ name: \"Ada\" }" line_source="const person: Required<Person> = { name: \"Ada\" };"
 "#,
     );
@@ -216,7 +216,7 @@ person.name = "Grace";
 /// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=7 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );

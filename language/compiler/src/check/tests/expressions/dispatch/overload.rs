@@ -196,7 +196,7 @@ parse(true);
 /// @type.node source=true type=true
 "#,
         r#"
-/// @diagnostic.error code=EC302 message="no overload matches arguments ('true')"
+/// @diagnostic.error id=no-matching-call message="no overload matches arguments ('true')"
 /// @diagnostic.label line=5 column=1 span="parse(true)" line_source="parse(true);"
 /// @diagnostic.note message="the candidate '(string) => int32' rejects argument 0: 'true' is not assignable to 'string'"
 /// @diagnostic.note message="the candidate '(int32) => int32' rejects argument 0: 'true' is not assignable to 'int32'"
@@ -225,7 +225,7 @@ function parse(value: string): int32;
 /// @type.symbol symbol=parse.value source="value: string" type=string
 "#,
         r#"
-/// @diagnostic.error code=EC611 message="declaration 'parse' requires a body"
+/// @diagnostic.error id=missing-declaration-body message="declaration 'parse' requires a body"
 /// @diagnostic.label line=2 column=10 span="parse" line_source="function parse(value: string): int32;"
 "#,
     );
@@ -293,7 +293,7 @@ extension of Buffer {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC611 message="declaration 'trailing' requires a body"
+/// @diagnostic.error id=missing-declaration-body message="declaration 'trailing' requires a body"
 /// @diagnostic.label line=10 column=5 span="trailing" line_source="trailing(): usize;"
 "#,
     );

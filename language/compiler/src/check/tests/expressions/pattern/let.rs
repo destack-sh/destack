@@ -90,7 +90,7 @@ function parse(status: "ready" | "error"): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC406 message="refutable pattern in binding position: '\"error\"' is not covered"
+/// @diagnostic.error id=refutable-pattern message="refutable pattern in binding position: '\"error\"' is not covered"
 /// @diagnostic.label line=3 column=9 span="\"ready\"" line_source="let \"ready\" = status;"
 /// @diagnostic.help message="handle the uncovered values with 'if let' or 'match'"
 "#,
@@ -146,7 +146,7 @@ function parse(status: "ready" | "error"): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC416 message="else branch of let-else must diverge"
+/// @diagnostic.error id=let-else-branch-can-complete message="else branch of let-else must diverge"
 /// @diagnostic.label line=3 column=31 span="{\n        0;\n    }" line_source="let \"ready\" = status else {"
 "#,
     );

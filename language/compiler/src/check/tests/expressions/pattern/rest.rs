@@ -76,7 +76,7 @@ let [...middle, last] = [1, 2, 3];
 /// @type.node source=3 type=3
 "#,
         r#"
-/// @diagnostic.error code=EC430 message="rest pattern must be last"
+/// @diagnostic.error id=rest-pattern-not-last message="rest pattern must be last"
 /// @diagnostic.label line=2 column=6 span="...middle" line_source="let [...middle, last] = [1, 2, 3];"
 "#,
     );
@@ -108,7 +108,7 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 /// @type.node source=3 type=3
 "#,
         r#"
-/// @diagnostic.error code=EC431 message="pattern can contain at most one rest field"
+/// @diagnostic.error id=multiple-rest-patterns message="pattern can contain at most one rest field"
 /// @diagnostic.label line=2 column=23 span="...tail" line_source="let [head, ...middle, ...tail] = [1, 2, 3];"
 "#,
     );

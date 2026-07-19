@@ -90,7 +90,7 @@ for (const { name } in item) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC423 message="type 'string' cannot be destructured as an object pattern"
+/// @diagnostic.error id=pattern-source-not-object-shaped message="type 'string' cannot be destructured as an object pattern"
 /// @diagnostic.label line=4 column=12 span="{ name }" line_source="for (const { name } in item) {"
 "#,
     );

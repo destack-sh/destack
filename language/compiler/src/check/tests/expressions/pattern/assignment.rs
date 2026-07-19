@@ -407,7 +407,7 @@ declare const bag: { [key: string]: int32 };
 /// @resolution.name source=bag target=bag
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'int32 | undefined' is not assignable to type 'int32'"
+/// @diagnostic.error id=not-assignable message="type 'int32 | undefined' is not assignable to type 'int32'"
 /// @diagnostic.label line=6 column=11 span="value" line_source="({ [key]: value } = bag);"
 /// @diagnostic.note message="expected 'int32', found 'undefined'"
 "#,
@@ -456,7 +456,7 @@ declare const point: { x: int32 };
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC432 message="computed pattern key is not valid for the source type"
+/// @diagnostic.error id=computed-pattern-key-not-valid message="computed pattern key is not valid for the source type"
 /// @diagnostic.label line=6 column=5 span="key" line_source="({ [key]: value } = point);"
 "#,
     );

@@ -86,7 +86,7 @@ scoped;
 /// @type.node source=scoped type=<error>
 "#,
         r#"
-/// @diagnostic.error code=EC308 message="cannot find 'scoped'"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'scoped'"
 /// @diagnostic.label line=7 column=1 span="scoped" line_source="scoped;"
 "#,
     );

@@ -126,7 +126,7 @@ const bad: Keys = "left";
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"left\"' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type '\"left\"' is not assignable to type 'Keys'"
 /// @diagnostic.label line=6 column=19 span="\"left\"" line_source="const bad: Keys = \"left\";"
 /// @diagnostic.note message="'Keys' reduces to '\"shared\"'"
 "#,
@@ -449,7 +449,7 @@ const bad: Keys = true;
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Keys'"
 /// @diagnostic.label line=5 column=19 span="true" line_source="const bad: Keys = true;"
 /// @diagnostic.note message="'Keys' reduces to 'string | usize'"
 "#,
@@ -530,7 +530,7 @@ const bad: Keys = "name";
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"name\"' is not assignable to type 'Keys'"
+/// @diagnostic.error id=not-assignable message="type '\"name\"' is not assignable to type 'Keys'"
 /// @diagnostic.label line=5 column=19 span="\"name\"" line_source="const bad: Keys = \"name\";"
 /// @diagnostic.note message="'Keys' reduces to 'usize'"
 "#,

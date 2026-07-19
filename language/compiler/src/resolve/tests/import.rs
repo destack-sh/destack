@@ -308,7 +308,7 @@ export let value = 1;
     compiler.assert_dir_resolved_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ER200 message="missing export 'missing' from './dep.ds'"
+/// @diagnostic.error id=missing-export message="missing export 'missing' from './dep.ds'"
 /// @diagnostic.label line=2 column=10 span="missing" line_source="import { missing } from \"./dep.ds\";"
 "#,
     );
@@ -334,7 +334,7 @@ export let value = 2;
     compiler.assert_dir_resolved_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ER202 message="'hidden' exists in './dep.ds' but is not exported"
+/// @diagnostic.error id=not-exported message="'hidden' exists in './dep.ds' but is not exported"
 /// @diagnostic.label line=2 column=10 span="hidden" line_source="import { hidden } from \"./dep.ds\";"
 /// @diagnostic.help message="export 'hidden' from './dep.ds'"
 "#,
@@ -360,7 +360,7 @@ export let JSON = 1;
     compiler.assert_dir_resolved_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ER200 message="missing export 'json' from './dep.ds'; did you mean 'JSON'?"
+/// @diagnostic.error id=missing-export message="missing export 'json' from './dep.ds'; did you mean 'JSON'?"
 /// @diagnostic.label line=2 column=10 span="json" line_source="import { json } from \"./dep.ds\";"
 /// @diagnostic.suggestion message="rename to 'JSON'" applicability=automatic patched="import { JSON } from \"./dep.ds\";"
 "#,
@@ -393,7 +393,7 @@ export { value as default };
     compiler.assert_dir_resolved_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ER200 message="missing export 'default' from './mid.ds'"
+/// @diagnostic.error id=missing-export message="missing export 'default' from './mid.ds'"
 /// @diagnostic.label line=2 column=10 span="default as value" line_source="import { default as value } from \"./mid.ds\";"
 "#,
     );
@@ -431,7 +431,7 @@ export let value = 2;
     compiler.assert_dir_resolved_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ER201 message="ambiguous export 'value' from './mid.ds'"
+/// @diagnostic.error id=ambiguous-export message="ambiguous export 'value' from './mid.ds'"
 /// @diagnostic.label line=2 column=10 span="value" line_source="import { value } from \"./mid.ds\";"
 /// @diagnostic.related file="a.ds" message="one 'value' comes from this module"
 /// @diagnostic.related file="b.ds" message="one 'value' comes from this module"

@@ -65,7 +65,7 @@ class User {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC613 message="field 'name' is not initialized on every constructor path"
+/// @diagnostic.error id=field-not-definitely-initialized message="field 'name' is not initialized on every constructor path"
 /// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
 "#,
     );
@@ -191,7 +191,7 @@ class User {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC613 message="field 'name' is not initialized on every constructor path"
+/// @diagnostic.error id=field-not-definitely-initialized message="field 'name' is not initialized on every constructor path"
 /// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
 "#,
     );
@@ -234,7 +234,7 @@ class Connection {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC613 message="field 'count' is not initialized on every constructor path"
+/// @diagnostic.error id=field-not-definitely-initialized message="field 'count' is not initialized on every constructor path"
 /// @diagnostic.label line=4 column=5 span="count" line_source="count: int32;"
 "#,
     );

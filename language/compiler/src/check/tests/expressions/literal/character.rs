@@ -98,7 +98,7 @@ const value: string = 'a';
 /// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type ''a'' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=23 span="'a'" line_source="const value: string = 'a';"
 "#,
     );
@@ -127,7 +127,7 @@ const value: int32 = 'a';
 /// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type ''a'' is not assignable to type 'int32'"
+/// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'int32'"
 /// @diagnostic.label line=2 column=22 span="'a'" line_source="const value: int32 = 'a';"
 "#,
     );

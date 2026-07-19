@@ -261,7 +261,7 @@ user.profile.name = "Grace";
 /// @type.node source="\"Grace\"" type="Grace"
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=14 column=14 span="name" line_source="user.profile.name = \"Grace\";"
 "#,
     );

@@ -236,7 +236,7 @@ struct Point implements Drawable {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
 /// @diagnostic.label line=6 column=25 span="Drawable" line_source="struct Point implements Drawable {"
 "#,
     );
@@ -296,9 +296,9 @@ struct Point implements Left, Right {}
 /// @resolution.name source=Right target=Right
 "#,
         r#"
-/// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Right'"
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Right'"
 /// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
-/// @diagnostic.error code=EC617 message="type 'Point' has conflicting heritage for 'Base'"
+/// @diagnostic.error id=conflicting-heritage message="type 'Point' has conflicting heritage for 'Base'"
 /// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
 "#,
     );
@@ -368,7 +368,7 @@ const value: PointClass = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Point' is not assignable to type 'PointClass'"
+/// @diagnostic.error id=not-assignable message="type 'Point' is not assignable to type 'PointClass'"
 /// @diagnostic.label line=11 column=27 span="point" line_source="const value: PointClass = point;"
 "#,
     );
@@ -439,7 +439,7 @@ const value: Point = point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'PointClass' is not assignable to type 'Point'"
+/// @diagnostic.error id=not-assignable message="type 'PointClass' is not assignable to type 'Point'"
 /// @diagnostic.label line=11 column=22 span="point" line_source="const value: Point = point;"
 "#,
     );

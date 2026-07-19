@@ -360,7 +360,7 @@ fn test_in_rejects_primitive_receiver() {
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"x\"' and '1'"
+/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for '\"x\"' and '1'"
 /// @diagnostic.label line=2 column=5 span="in" line_source="\"x\" in 1;"
 "#,
     );
@@ -399,7 +399,7 @@ true in point;
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator 'in' is not defined for 'true' and '{ x: float64 }'"
+/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for 'true' and '{ x: float64 }'"
 /// @diagnostic.label line=4 column=6 span="in" line_source="true in point;"
 "#,
     );
@@ -436,7 +436,7 @@ declare const value: unknown;
 /// @resolution.name source=value target=value
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"name\"' and 'unknown'"
+/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for '\"name\"' and 'unknown'"
 /// @diagnostic.label line=4 column=8 span="in" line_source="\"name\" in value;"
 "#,
     );

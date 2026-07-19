@@ -128,7 +128,7 @@ const flags: Flags = { a: true };
 /// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property 'b' for type 'Flags'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'b' for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ a: true }" line_source="const flags: Flags = { a: true };"
 "#,
     );
@@ -166,7 +166,7 @@ const flags: Flags = { 1: "one" };
 /// @generic.instance id="Record<1 | 2, string>" template=types.object.Record arguments=(1 | 2, string)
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property '2' for type 'Flags'"
+/// @diagnostic.error id=missing-required-property message="missing required property '2' for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ 1: \"one\" }" line_source="const flags: Flags = { 1: \"one\" };"
 "#,
     );
@@ -204,7 +204,7 @@ const flags: Flags = { a: true, b: false, c: true };
 /// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'c' in object literal for type 'Flags'"
+/// @diagnostic.error id=excess-property message="unknown property 'c' in object literal for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ a: true, b: false, c: true }" line_source="const flags: Flags = { a: true, b: false, c: true };"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
@@ -233,7 +233,7 @@ type Bad = Record<{ name: string }, boolean>;
 /// @resolution.name source=Record target=types.object.Record
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type '{ name: string }' does not satisfy 'PropertyKey'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
 /// @diagnostic.label line=2 column=19 span="{ name: string }" line_source="type Bad = Record<{ name: string }, boolean>;"
 /// @diagnostic.related file="object.ds" message="required by this bound on 'K'"
 /// @diagnostic.note message="'PropertyKey' reduces to 'string | usize | symbol'"
@@ -341,7 +341,7 @@ const value = read(point);
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=20 span="point" line_source="const value = read(point);"
 /// @diagnostic.related line=7 column=15 span="read(point)" line_source="const value = read(point);" message="in this call"
 "#,
@@ -562,7 +562,7 @@ const empty: Empty = { value: true };
 /// @generic.instance id="Record<never, boolean>" template=types.object.Record arguments=(never, boolean)
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'value' in object literal for type 'Empty'"
+/// @diagnostic.error id=excess-property message="unknown property 'value' in object literal for type 'Empty'"
 /// @diagnostic.label line=4 column=22 span="{ value: true }" line_source="const empty: Empty = { value: true };"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,

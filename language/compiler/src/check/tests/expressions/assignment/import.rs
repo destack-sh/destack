@@ -40,7 +40,7 @@ counter = 1;
 /// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC213 message="cannot assign to imported binding 'counter'"
+/// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'counter'"
 /// @diagnostic.label line=4 column=1 span="counter" line_source="counter = 1;"
 /// @diagnostic.related file="counter.ds" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
 "#,
@@ -87,7 +87,7 @@ localCounter = 1;
 /// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC213 message="cannot assign to imported binding 'localCounter'"
+/// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'localCounter'"
 /// @diagnostic.label line=4 column=1 span="localCounter" line_source="localCounter = 1;"
 /// @diagnostic.related file="counter.ds" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
 "#,
@@ -133,7 +133,7 @@ counter = counter;
 /// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC204 message="assignment target is not a writable place"
+/// @diagnostic.error id=non-writable-assignment-target message="assignment target is not a writable place"
 /// @diagnostic.label line=4 column=1 span="counter" line_source="counter = counter;"
 "#,
     );
@@ -179,7 +179,7 @@ namespaceCounter.counter = 1;
 /// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC213 message="cannot assign to imported binding 'namespaceCounter.counter'"
+/// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'namespaceCounter.counter'"
 /// @diagnostic.label line=4 column=18 span="counter" line_source="namespaceCounter.counter = 1;"
 /// @diagnostic.related file="counter.ds" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
 "#,

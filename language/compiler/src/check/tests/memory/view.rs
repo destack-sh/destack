@@ -213,7 +213,7 @@ local class Meter {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'readonly Dynamic<Sink>' is not assignable to parameter of type 'Dynamic<Sink>'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'readonly Dynamic<Sink>' is not assignable to parameter of type 'Dynamic<Sink>'"
 /// @diagnostic.label line=17 column=22 span="sink" line_source="consume(this.sink)"
 /// @diagnostic.related line=17 column=9 span="consume(this.sink)" line_source="consume(this.sink)" message="in this call"
 "#,
@@ -365,7 +365,7 @@ person.profile.count = 5;
 /// @resolution.member source=person.profile receiver=Readonly<Person> kind=symbol target=Person.profile
 /// @resolution.pattern.assign source=person.profile.count kind=place place=field(Profile.count) type=int32
 "#, r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'count'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"
 /// @diagnostic.label line=12 column=16 span="count" line_source="person.profile.count = 5;"
 "#);
 }

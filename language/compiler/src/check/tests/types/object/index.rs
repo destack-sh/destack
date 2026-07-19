@@ -125,7 +125,7 @@ const value = read(mixed);
 /// @resolution.name source=mixed target=mixed
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type '{ x: int32; y: string }' is not assignable to parameter of type 'Bag'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32; y: string }' is not assignable to parameter of type 'Bag'"
 /// @diagnostic.label line=7 column=20 span="mixed" line_source="const value = read(mixed);"
 /// @diagnostic.related line=7 column=15 span="read(mixed)" line_source="const value = read(mixed);" message="in this call"
 /// @diagnostic.note message="'Bag' reduces to '{ readonly [key: string]: int32 }'"
@@ -168,7 +168,7 @@ const missing = checked["missing"];
 /// @resolution.name source=checked target=checked
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator '[]' is not defined for '{ x: 1 }' and '\"missing\"'"
+/// @diagnostic.error id=no-matching-operator message="operator '[]' is not defined for '{ x: 1 }' and '\"missing\"'"
 /// @diagnostic.label line=5 column=17 span="checked[\"missing\"]" line_source="const missing = checked[\"missing\"];"
 "#,
     );
@@ -219,7 +219,7 @@ const bad = write(point);
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC216 message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=19 span="point" line_source="const bad = write(point);"
 /// @diagnostic.related line=7 column=13 span="write(point)" line_source="const bad = write(point);" message="in this call"
 "#,
@@ -492,7 +492,7 @@ const bad = read(point);
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=18 span="point" line_source="const bad = read(point);"
 /// @diagnostic.related line=7 column=13 span="read(point)" line_source="const bad = read(point);" message="in this call"
 "#,
@@ -633,14 +633,14 @@ const value = bag.missing;
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'missing' does not exist on type 'Bag'"
+/// @diagnostic.error id=missing-member message="member 'missing' does not exist on type 'Bag'"
 /// @diagnostic.label line=5 column=19 span="missing" line_source="const value = bag.missing;"
 "#,
     );
 }
 
 // TODO #Incomplete: subscript selection does not project nominal interface
-//  index signatures yet, so the read below still rejects with EC306
+//  index signatures yet, so the read below still rejects with no-matching-operator
 #[test]
 fn test_interface_index_signature_carries_its_key_domain() {
     let session = TestSession::single(
@@ -695,7 +695,7 @@ const value = bag["name"];
 /// @generic.instance id=Bag<int32> template=Bag arguments=(int32)
 "#,
         r#"
-/// @diagnostic.error code=EC306 message="operator '[]' is not defined for 'Bag<int32>' and '\"name\"'"
+/// @diagnostic.error id=no-matching-operator message="operator '[]' is not defined for 'Bag<int32>' and '\"name\"'"
 /// @diagnostic.label line=7 column=15 span="bag[\"name\"]" line_source="const value = bag[\"name\"];"
 "#,
     );

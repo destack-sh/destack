@@ -95,7 +95,7 @@ consume(user);
 /// @resolution.name source=user target=user
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'shared User' is not assignable to parameter of type 'User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared User' is not assignable to parameter of type 'User'"
 /// @diagnostic.label line=7 column=9 span="user" line_source="consume(user);"
 /// @diagnostic.related line=7 column=1 span="consume(user)" line_source="consume(user);" message="in this call"
 "#,

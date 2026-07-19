@@ -223,7 +223,7 @@ const values: number[] = [1, "two"];
 /// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"two\"' is not assignable to type 'float64'"
+/// @diagnostic.error id=not-assignable message="type '\"two\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=30 span="\"two\"" line_source="const values: number[] = [1, \"two\"];"
 "#,
     );

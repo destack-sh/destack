@@ -11,7 +11,7 @@ pub enum VerifyError {
     /// v1: ref<int32, unique, mutable> = field.get v0, 0
     /// v2: ref<int32, unique, mutable> = field.get v0, 0 // moved by v1
     /// ```
-    #[diagnostic(code = "EV100", message = "use of moved value")]
+    #[diagnostic(id = "use-after-move", message = "use of moved value")]
     UseAfterMove {
         /// The use after the move.
         anchor: DiagnosticAnchor,
@@ -31,7 +31,7 @@ pub enum VerifyError {
     /// b3:
     ///     load v0 // moved when reached through b1
     /// ```
-    #[diagnostic(code = "EV101", message = "value may have been moved")]
+    #[diagnostic(id = "maybe-use-after-move", message = "value may have been moved")]
     MaybeUseAfterMove {
         /// The use after a possible move.
         anchor: DiagnosticAnchor,
@@ -46,7 +46,7 @@ pub enum VerifyError {
     /// v3: ref<int32, unique, mutable> = field.get v1, 0
     /// call consume(v3) // v1 still owns its other field
     /// ```
-    #[diagnostic(code = "EV102", message = "aggregate is only partially moved")]
+    #[diagnostic(id = "partial-move", message = "aggregate is only partially moved")]
     PartialMove {
         /// The operation reached before decomposition completed.
         anchor: DiagnosticAnchor,
@@ -55,28 +55,31 @@ pub enum VerifyError {
     },
 
     /// A Drop method cannot suspend execution.
-    #[diagnostic(code = "EV103", message = "Drop method may suspend")]
+    #[diagnostic(id = "drop-may-suspend", message = "Drop method may suspend")]
     DropMaySuspend {
         /// The Drop method.
         anchor: DiagnosticAnchor,
     },
 
     /// A Drop method cannot panic.
-    #[diagnostic(code = "EV104", message = "Drop method may panic")]
+    #[diagnostic(id = "drop-may-panic", message = "Drop method may panic")]
     DropMayPanic {
         /// The Drop method.
         anchor: DiagnosticAnchor,
     },
 
     /// A Drop method cannot allocate storage.
-    #[diagnostic(code = "EV105", message = "Drop method may allocate")]
+    #[diagnostic(id = "drop-may-allocate", message = "Drop method may allocate")]
     DropMayAllocate {
         /// The Drop method.
         anchor: DiagnosticAnchor,
     },
 
     /// A Drop method cannot observe entropy or host state.
-    #[diagnostic(code = "EV106", message = "Drop method may observe entropy")]
+    #[diagnostic(
+        id = "drop-may-observe-entropy",
+        message = "Drop method may observe entropy"
+    )]
     DropMayObserveEntropy {
         /// The Drop method.
         anchor: DiagnosticAnchor,
@@ -84,7 +87,7 @@ pub enum VerifyError {
 
     /// Cannot move a field out of a type that implements Drop.
     #[diagnostic(
-        code = "EV107",
+        id = "move-out-of-drop",
         message = "cannot move out of a value that implements Drop"
     )]
     MoveOutOfDrop {
@@ -94,7 +97,7 @@ pub enum VerifyError {
 
     /// A Drop method must exclusively borrow its receiver and return void.
     #[diagnostic(
-        code = "EV108",
+        id = "invalid-drop-signature",
         message = "Drop method must take one exclusive borrowed receiver and return void"
     )]
     InvalidDropSignature {
@@ -108,7 +111,10 @@ pub enum VerifyError {
     /// v1: ref<int32, borrowed, exclusive> = field.address v0, 0
     /// v2: ref<int32, borrowed, readonly> = field.address v0, 0 // overlaps v1
     /// ```
-    #[diagnostic(code = "EV200", message = "borrow conflicts with active borrow")]
+    #[diagnostic(
+        id = "borrow-conflict",
+        message = "borrow conflicts with active borrow"
+    )]
     BorrowConflict {
         /// The new borrow.
         anchor: DiagnosticAnchor,
@@ -122,7 +128,10 @@ pub enum VerifyError {
     /// v1: ref<int32, borrowed, mutable> = field.address v0, 0
     /// call consume(v0) // moves the borrowed root
     /// ```
-    #[diagnostic(code = "EV201", message = "cannot invalidate borrowed place")]
+    #[diagnostic(
+        id = "invalidation-of-borrowed-place",
+        message = "cannot invalidate borrowed place"
+    )]
     InvalidationOfBorrowedPlace {
         /// The invalidating operation.
         anchor: DiagnosticAnchor,
@@ -136,7 +145,7 @@ pub enum VerifyError {
     /// store v0, v1 // v0: ref<int32, borrowed, readonly>
     /// ```
     #[diagnostic(
-        code = "EV202",
+        id = "write-through-readonly-reference",
         message = "invalid MIR: cannot write through readonly reference"
     )]
     WriteThroughReadonlyReference {
@@ -151,7 +160,7 @@ pub enum VerifyError {
     /// // v0: ref<User, managed, mutable, space(shared)>
     /// ```
     #[diagnostic(
-        code = "EV204",
+        id = "exclusive-borrow-from-shared-managed",
         message = "cannot borrow shared managed storage exclusively"
     )]
     ExclusiveBorrowFromSharedManaged {
@@ -165,7 +174,10 @@ pub enum VerifyError {
     /// v1: ref<int32, borrowed, readonly> = field.address v0, 0
     /// yield v2 => b1(v1) // v0 is managed
     /// ```
-    #[diagnostic(code = "EV205", message = "managed borrow cannot cross suspension")]
+    #[diagnostic(
+        id = "managed-borrow-across-suspension",
+        message = "managed borrow cannot cross suspension"
+    )]
     ManagedBorrowAcrossSuspension {
         /// The suspension point.
         anchor: DiagnosticAnchor,
@@ -181,7 +193,10 @@ pub enum VerifyError {
     ///     return v1 // managed borrow is not static
     /// }
     /// ```
-    #[diagnostic(code = "EV300", message = "borrow does not live long enough")]
+    #[diagnostic(
+        id = "borrow-outlives-origin",
+        message = "borrow does not live long enough"
+    )]
     BorrowOutlivesOrigin {
         /// The escaping borrow.
         anchor: DiagnosticAnchor,
@@ -195,7 +210,7 @@ pub enum VerifyError {
     /// }
     /// ```
     #[diagnostic(
-        code = "EV301",
+        id = "undeclared-borrow-obligation",
         message = "invalid MIR: function signature is missing borrow obligation"
     )]
     UndeclaredBorrowObligation {

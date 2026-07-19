@@ -170,7 +170,7 @@ const bad: Partial<Person> = { name: "Ada", extra: true };
 /// @generic.instance id=Partial<Person> template=types.object.Partial arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type 'Partial<Person>'"
+/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Partial<Person>'"
 /// @diagnostic.label line=7 column=30 span="{ name: \"Ada\", extra: true }" line_source="const bad: Partial<Person> = { name: \"Ada\", extra: true };"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
@@ -225,7 +225,7 @@ const bad: Partial<Person> = { name: "Ada", age: "no" };
 /// @generic.instance id=Partial<Person> template=types.object.Partial arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type 'int32'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=7 column=50 span="\"no\"" line_source="const bad: Partial<Person> = { name: \"Ada\", age: \"no\" };"
 /// @diagnostic.note message="the mismatch is in field 'age'"
 "#,
@@ -286,7 +286,7 @@ person.name = "Grace";
 /// @generic.instance id=Partial<Person> template=types.object.Partial arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
 /// @diagnostic.label line=8 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );

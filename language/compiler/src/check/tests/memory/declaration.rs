@@ -407,11 +407,11 @@ declare const wrongShared: local SharedUser;
 /// @resolution.name source=SharedUser target=SharedUser
 "#,
         r#"
-/// @diagnostic.error code=EC620 message="placement 'shared' conflicts with the declaration placement 'local'"
+/// @diagnostic.error id=placement-conflict message="placement 'shared' conflicts with the declaration placement 'local'"
 /// @diagnostic.label line=5 column=27 span="shared" line_source="declare const wrongLocal: shared LocalUser;"
 /// @diagnostic.related line=2 column=13 span="LocalUser" line_source="local class LocalUser {}" message="'LocalUser' is local"
 /// @diagnostic.help message="remove 'shared' or use a shared type"
-/// @diagnostic.error code=EC620 message="placement 'local' conflicts with the declaration placement 'shared'"
+/// @diagnostic.error id=placement-conflict message="placement 'local' conflicts with the declaration placement 'shared'"
 /// @diagnostic.label line=6 column=28 span="local" line_source="declare const wrongShared: local SharedUser;"
 /// @diagnostic.related line=3 column=14 span="SharedUser" line_source="shared class SharedUser {}" message="'SharedUser' is shared"
 /// @diagnostic.help message="remove 'local' or use a local type"
@@ -678,7 +678,7 @@ class Invalid extends LocalBase implements SharedService {}
 /// @resolution.name source=SharedService target=SharedService
 "#,
         r#"
-/// @diagnostic.error code=EC621 message="heritage declarations require one consistent placement"
+/// @diagnostic.error id=heritage-placement-conflict message="heritage declarations require one consistent placement"
 /// @diagnostic.label line=5 column=23 span="LocalBase" line_source="class Invalid extends LocalBase implements SharedService {}"
 /// @diagnostic.related line=5 column=44 span="SharedService" line_source="class Invalid extends LocalBase implements SharedService {}" message="conflicting placement"
 /// @diagnostic.related line=2 column=13 span="LocalBase" line_source="local class LocalBase {}" message="'LocalBase' is declared here"

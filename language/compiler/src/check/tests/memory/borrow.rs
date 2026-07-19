@@ -172,15 +172,15 @@ const readonlyExclusive = &exclusive readonlyUser;
 /// @resolution.name source=readonlyUser target=readonlyUser
 "#,
         r#"
-/// @diagnostic.error code=EC217 message="'exclusive' access is not granted by a value of type 'shared User'"
+/// @diagnostic.error id=borrow-access-not-granted message="'exclusive' access is not granted by a value of type 'shared User'"
 /// @diagnostic.label line=7 column=25 span="&" line_source="const sharedExclusive = &exclusive sharedUser;"
 /// @diagnostic.note message="the source grants at most 'mutable' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
-/// @diagnostic.error code=EC217 message="'mutable' access is not granted by a value of type 'local readonly User'"
+/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'local readonly User'"
 /// @diagnostic.label line=8 column=25 span="&" line_source="const readonlyMutable = &readonlyUser;"
 /// @diagnostic.note message="the source grants at most 'readonly' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
-/// @diagnostic.error code=EC217 message="'exclusive' access is not granted by a value of type 'local readonly User'"
+/// @diagnostic.error id=borrow-access-not-granted message="'exclusive' access is not granted by a value of type 'local readonly User'"
 /// @diagnostic.label line=9 column=27 span="&" line_source="const readonlyExclusive = &exclusive readonlyUser;"
 /// @diagnostic.note message="the source grants at most 'readonly' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
@@ -347,13 +347,13 @@ replace(mutableView);
 /// @resolution.name source=mutableView target=mutableView
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'local &readonly User' is not assignable to parameter of type 'local &User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &readonly User' is not assignable to parameter of type 'local &User'"
 /// @diagnostic.label line=9 column=8 span="readonlyView" line_source="modify(readonlyView);"
 /// @diagnostic.related line=9 column=1 span="modify(readonlyView)" line_source="modify(readonlyView);" message="in this call"
-/// @diagnostic.error code=EC209 message="argument of type 'local &readonly User' is not assignable to parameter of type 'local &exclusive User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &readonly User' is not assignable to parameter of type 'local &exclusive User'"
 /// @diagnostic.label line=10 column=9 span="readonlyView" line_source="replace(readonlyView);"
 /// @diagnostic.related line=10 column=1 span="replace(readonlyView)" line_source="replace(readonlyView);" message="in this call"
-/// @diagnostic.error code=EC209 message="argument of type 'local &User' is not assignable to parameter of type 'local &exclusive User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &User' is not assignable to parameter of type 'local &exclusive User'"
 /// @diagnostic.label line=11 column=9 span="mutableView" line_source="replace(mutableView);"
 /// @diagnostic.related line=11 column=1 span="replace(mutableView)" line_source="replace(mutableView);" message="in this call"
 "#,

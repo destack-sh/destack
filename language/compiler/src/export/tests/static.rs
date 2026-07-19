@@ -194,7 +194,7 @@ export { value };
     compiler.assert_dir_exported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ET108 message="`@if` export guard must be invoked as `@if(condition)`"
+/// @diagnostic.error id=invalid-static-export-condition message="`@if` export guard must be invoked as `@if(condition)`"
 /// @diagnostic.label line=4 column=1 span="@if<boolean>(true)" line_source="@if<boolean>(true)"
 "#,
     );

@@ -6,64 +6,79 @@ use destack_artifact_macros::Diagnostic;
 #[diagnostic(severity = Warning, phase = Optimize)]
 pub enum OptimizeWarning {
     /// Owned value created but never used.
-    #[diagnostic(code = "WO200", message = "owned value is never used")]
+    #[diagnostic(id = "unused-owned-value", message = "owned value is never used")]
     UnusedOwnedValue { anchor: DiagnosticAnchor },
 
     /// Owned value dropped immediately after creation without being used.
-    #[diagnostic(code = "WO201", message = "value created and immediately dropped")]
+    #[diagnostic(
+        id = "immediately-dropped",
+        message = "value created and immediately dropped"
+    )]
     ImmediatelyDropped { anchor: DiagnosticAnchor },
 
     /// Class call could not be devirtualized.
-    #[diagnostic(code = "WO300", message = "cannot devirtualize: {reason}")]
+    #[diagnostic(id = "cannot-devirtualize", message = "cannot devirtualize: {reason}")]
     CannotDevirtualize {
         anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Bounds check could not be eliminated.
-    #[diagnostic(code = "WO301", message = "cannot eliminate bounds check: {reason}")]
+    #[diagnostic(
+        id = "cannot-eliminate-bounds-check",
+        message = "cannot eliminate bounds check: {reason}"
+    )]
     CannotEliminateBoundsCheck {
         anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Null check could not be eliminated.
-    #[diagnostic(code = "WO302", message = "cannot eliminate null check: {reason}")]
+    #[diagnostic(
+        id = "cannot-eliminate-null-check",
+        message = "cannot eliminate null check: {reason}"
+    )]
     CannotEliminateNullCheck {
         anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Function could not be inlined.
-    #[diagnostic(code = "WO303", message = "cannot inline: {reason}")]
+    #[diagnostic(id = "cannot-inline", message = "cannot inline: {reason}")]
     CannotInline {
         anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Allocation could not be promoted to stack.
-    #[diagnostic(code = "WO304", message = "cannot stack-promote: {reason}")]
+    #[diagnostic(
+        id = "cannot-stack-promote",
+        message = "cannot stack-promote: {reason}"
+    )]
     CannotStackPromote {
         anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Loop optimization failed or was skipped.
-    #[diagnostic(code = "WO305", message = "loop not optimized: {reason}")]
+    #[diagnostic(id = "loop-not-optimized", message = "loop not optimized: {reason}")]
     LoopNotOptimized {
         anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Optimization hint annotation was ignored.
-    #[diagnostic(code = "WO900", message = "optimization hint ignored: {reason}")]
+    #[diagnostic(id = "ignored-hint", message = "optimization hint ignored: {reason}")]
     IgnoredHint {
         anchor: DiagnosticAnchor,
         reason: String,
     },
 
     /// Optimization was skipped for this node.
-    #[diagnostic(code = "WO901", message = "optimization skipped: {reason}")]
+    #[diagnostic(
+        id = "skipped-optimization",
+        message = "optimization skipped: {reason}"
+    )]
     SkippedOptimization {
         anchor: DiagnosticAnchor,
         reason: String,

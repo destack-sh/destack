@@ -148,7 +148,7 @@ const value: string = 123;
 /// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '123' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type '123' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=23 span="123" line_source="const value: string = 123;"
 "#,
     );

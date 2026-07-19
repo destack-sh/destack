@@ -64,7 +64,7 @@ const copied: int32[] = [...fixed];
 /// @resolution.name source=fixed target=fixed
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'Array<int32>'"
+/// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'Array<int32>'"
 /// @diagnostic.label line=3 column=24 span="fixed" line_source="const grown: int32[] = fixed;"
 "#,
     );
