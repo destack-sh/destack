@@ -1,5 +1,5 @@
 use destack_artifact::{ArtifactDependencySet, ArtifactPayload, Data};
-use destack_source::{File, FileId, FileType, ModuleId, Span};
+use destack_source::{File, FileType, ModuleId, Span};
 use std::sync::Arc;
 
 use crate::{ProviderAttempt, SessionError, SessionState};
@@ -40,11 +40,11 @@ impl SessionState {
                 Data::Json(value)
             }
             FileType::Toml => {
-                let value = Self::parse_toml_value(file.id, file.text())?;
+                let value = Self::parse_toml_value(file.as_ref())?;
                 Data::Json(value)
             }
             FileType::Yaml => {
-                let value = Self::parse_yaml_value(file.id, file.text())?;
+                let value = Self::parse_yaml_value(file.as_ref())?;
                 Data::Json(value)
             }
             file_type => {
@@ -60,7 +60,22 @@ impl SessionState {
     /// Parse JSON content into a JSON value.
     fn parse_json_value(file: &File) -> Result<serde_json::Value, SessionError> {
         serde_json::from_str(file.text()).map_err(|error| {
-            let offset = File::byte_offset_from_position(file.text(), error.line(), error.column());
+            let line = error.line().checked_sub(1);
+            let line = line.and_then(|line| u32::try_from(line).ok());
+            let column = error.column().checked_sub(1);
+            let column = column.and_then(|column| u32::try_from(column).ok());
+            let offset = line
+                .zip(column)
+                .and_then(|(line, column)| file.get_byte_position(line, column));
+            let Some(offset) = offset else {
+                return SessionError::Internal {
+                    detail: format!(
+                        "json parser reported invalid location {}:{}: {error}",
+                        error.line(),
+                        error.column(),
+                    ),
+                };
+            };
             let span = Span::at(file.id, offset, 1);
 
             SessionError::Internal {
@@ -70,20 +85,25 @@ impl SessionState {
     }
 
     /// Parse YAML content into a JSON value.
-    fn parse_yaml_value(file_id: FileId, content: &str) -> Result<serde_json::Value, SessionError> {
-        serde_yaml_ng::from_str(content).map_err(|error| {
-            let span = error
-                .location()
-                .map(|location| {
-                    let offset = File::byte_offset_from_position(
-                        content,
-                        location.line(),
-                        location.column(),
-                    );
+    fn parse_yaml_value(file: &File) -> Result<serde_json::Value, SessionError> {
+        serde_yaml_ng::from_str(file.text()).map_err(|error| {
+            let span = match error.location() {
+                Some(location) => {
+                    let offset = u32::try_from(location.index()).ok();
+                    let offset = offset.filter(|offset| *offset <= file.len);
+                    let Some(offset) = offset else {
+                        return SessionError::Internal {
+                            detail: format!(
+                                "yaml parser reported invalid byte index {}: {error}",
+                                location.index(),
+                            ),
+                        };
+                    };
 
-                    Span::at(file_id, offset, 1)
-                })
-                .unwrap_or_else(|| Span::empty(file_id));
+                    Span::at(file.id, offset, 1)
+                }
+                None => Span::empty(file.id),
+            };
 
             SessionError::Internal {
                 detail: format!("yaml data parse failed at {span:?}: {error}"),
@@ -93,12 +113,12 @@ impl SessionState {
 
     /// Parse TOML content into a JSON value.
     #[cfg(not(target_arch = "wasm32"))]
-    fn parse_toml_value(file_id: FileId, content: &str) -> Result<serde_json::Value, SessionError> {
-        let value: toml::Value = toml::from_str(content).map_err(|error| {
+    fn parse_toml_value(file: &File) -> Result<serde_json::Value, SessionError> {
+        let value: toml::Value = toml::from_str(file.text()).map_err(|error| {
             let span = error
                 .span()
-                .map(|range| Span::new(file_id, range.start as u32, range.end as u32))
-                .unwrap_or_else(|| Span::empty(file_id));
+                .map(|range| Span::new(file.id, range.start as u32, range.end as u32))
+                .unwrap_or_else(|| Span::empty(file.id));
 
             SessionError::Internal {
                 detail: format!("toml data parse failed at {span:?}: {}", error.message()),
@@ -110,14 +130,11 @@ impl SessionState {
 
     /// Parse TOML content into a JSON value on wasm.
     #[cfg(target_arch = "wasm32")]
-    fn parse_toml_value(
-        file_id: FileId,
-        _content: &str,
-    ) -> Result<serde_json::Value, SessionError> {
+    fn parse_toml_value(file: &File) -> Result<serde_json::Value, SessionError> {
         Err(SessionError::Internal {
             detail: format!(
                 "toml data parse failed at {:?}: toml imports are not supported on wasm",
-                Span::empty(file_id)
+                Span::empty(file.id)
             ),
         })
     }
