@@ -1,6 +1,6 @@
 use destack_core::{DenseGraph, SccPartition};
 use indexmap::IndexMap;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -350,6 +350,34 @@ impl ComponentGraph {
         };
 
         &self.dependencies[index]
+    }
+
+    /// Return every transitive dependency in stable breadth-first order.
+    pub fn transitive_dependencies(&self, component: ComponentId) -> Vec<ComponentId> {
+        let mut dependencies = Vec::new();
+        let mut seen = FxHashSet::default();
+
+        // seed the walk with direct dependencies in graph order
+        for dependency in self.dependencies(component) {
+            if seen.insert(*dependency) {
+                dependencies.push(*dependency);
+            }
+        }
+
+        // extend the ordered worklist through the condensation graph
+        let mut index = 0;
+        while index < dependencies.len() {
+            let current = dependencies[index];
+            index += 1;
+
+            for dependency in self.dependencies(current) {
+                if seen.insert(*dependency) {
+                    dependencies.push(*dependency);
+                }
+            }
+        }
+
+        dependencies
     }
 
     /// Return the stable fingerprint of one projected component graph value.
@@ -805,6 +833,40 @@ mod tests {
 
         assert_eq!(derived.edges(first).as_ref(), &[second]);
         assert_eq!(derived.edges(second).as_ref(), &[third]);
+    }
+
+    #[test]
+    fn test_return_transitive_component_dependencies() {
+        let first = module(1);
+        let second = module(2);
+        let third = module(3);
+        let fourth = module(4);
+        let graph = ComponentGraph::from_edges(
+            profile(),
+            graph_edges(&[
+                (first, &[second, third]),
+                (second, &[fourth]),
+                (third, &[fourth]),
+                (fourth, &[]),
+            ]),
+        );
+        let first = graph
+            .component(first)
+            .expect("first component should exist");
+        let second = graph
+            .component(second)
+            .expect("second component should exist");
+        let third = graph
+            .component(third)
+            .expect("third component should exist");
+        let fourth = graph
+            .component(fourth)
+            .expect("fourth component should exist");
+
+        assert_eq!(
+            graph.transitive_dependencies(first),
+            vec![second, third, fourth]
+        );
     }
 
     #[test]
