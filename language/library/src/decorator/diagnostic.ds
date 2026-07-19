@@ -1,5 +1,5 @@
-/// A stable lint identifier or diagnostic code.
-export type DiagnosticSelector = string;
+/// A canonical diagnostic id.
+export type DiagnosticId = string;
 
 /// Options for scoped diagnostic controls.
 export type DiagnosticControlOptions =
@@ -27,7 +27,7 @@ export type DiagnosticControlOptions =
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.allow")
-export newtype allow = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
+export newtype allow = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Report a diagnostic as a warning.
 ///
@@ -36,7 +36,7 @@ export newtype allow = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticCo
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.warn")
-export newtype warn = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
+export newtype warn = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Report a diagnostic as an error.
 ///
@@ -45,7 +45,7 @@ export newtype warn = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticCon
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.deny")
-export newtype deny = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
+export newtype deny = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Forbid overriding a diagnostic error.
 ///
@@ -54,7 +54,7 @@ export newtype deny = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticCon
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.forbid")
-export newtype forbid = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
+export newtype forbid = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
 
 /// Expect a diagnostic.
 ///
@@ -63,4 +63,4 @@ export newtype forbid = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticC
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.expect")
-export newtype expect = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
+export newtype expect = (DiagnosticId,) | (DiagnosticId, DiagnosticControlOptions);
