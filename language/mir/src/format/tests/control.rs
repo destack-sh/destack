@@ -56,7 +56,7 @@ entry(v0: int32):
     yield v1 => b1(v0) | b2
 
 b1(v2: int32, v3: int32):
-    invoke callee(v3) => b3 | b2
+    invoke callee(v3): (int32) => int32 => b3 | b2
 
 b2:
     unwind.resume
@@ -77,7 +77,7 @@ external function callee(int32): int32
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
@@ -131,7 +131,7 @@ b2:
 
 function tailDirect(v0: int32): int32 {
 entry(v0: int32):
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 
 function tailIndirect(v0: fn(int32) => int32, v1: int32): int32 {

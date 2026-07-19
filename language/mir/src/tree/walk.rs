@@ -148,16 +148,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
             layout,
             result_type,
             ..
-        }
-        | Instruction::FrameAllocZeroed {
-            layout,
-            result_type,
-            ..
-        }
-        | Instruction::FrameAllocUninit {
-            layout,
-            result_type,
-            ..
         } => {
             walk_type_id(visitor, tree, layout);
             walk_type_id(visitor, tree, result_type);

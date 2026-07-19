@@ -756,30 +756,6 @@ pub enum Instruction {
         value: Value,
     },
 
-    // frame allocation
-    /// Allocate zeroed frame-scoped storage (`frame.alloc.zeroed`).
-    ///
-    /// The storage is released when the frame exits.
-    FrameAllocZeroed {
-        /// The SSA value to define with the frame allocation pointer.
-        destination: Value,
-        /// The type of the value to allocate.
-        layout: TypeId,
-        /// The result type of the allocation.
-        result_type: TypeId,
-    },
-    /// Allocate uninitialized frame-scoped storage (`frame.alloc.uninit`).
-    ///
-    /// The storage is released when the frame exits.
-    FrameAllocUninit {
-        /// The SSA value to define with the frame allocation pointer.
-        destination: Value,
-        /// The type of the value to allocate.
-        layout: TypeId,
-        /// The result type of the allocation.
-        result_type: TypeId,
-    },
-
     // address stability
     /// Stabilize one heap value against movement (`pin`).
     ///
@@ -979,9 +955,7 @@ impl Instruction {
             | Instruction::NewUninit { destination, .. }
             | Instruction::NewComplete { destination, .. }
             | Instruction::NewSliceZeroed { destination, .. }
-            | Instruction::NewSliceUninit { destination, .. }
-            | Instruction::FrameAllocZeroed { destination, .. }
-            | Instruction::FrameAllocUninit { destination, .. } => Some(*destination),
+            | Instruction::NewSliceUninit { destination, .. } => Some(*destination),
             Instruction::Free { .. } => None,
             Instruction::Pin { destination, .. } => Some(*destination),
             Instruction::Unpin { .. } => None,
@@ -1128,9 +1102,6 @@ impl Instruction {
                 offset,
                 byte_len,
             } => smallvec![*object, *offset, *byte_len],
-            Instruction::FrameAllocZeroed { .. } | Instruction::FrameAllocUninit { .. } => {
-                smallvec![]
-            }
             Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
             Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::AtomicCompareExchange {

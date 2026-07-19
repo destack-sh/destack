@@ -180,8 +180,6 @@ impl PureExpression {
             | mir::Instruction::Free { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
-            | mir::Instruction::FrameAllocZeroed { .. }
-            | mir::Instruction::FrameAllocUninit { .. }
             | mir::Instruction::Aggregate { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }

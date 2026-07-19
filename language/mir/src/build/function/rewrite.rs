@@ -68,9 +68,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::GlobalAddr { .. }
                 | Instruction::FunctionAddr { .. }
                 | Instruction::NewZeroed { .. }
-                | Instruction::NewUninit { .. }
-                | Instruction::FrameAllocZeroed { .. }
-                | Instruction::FrameAllocUninit { .. } => {}
+                | Instruction::NewUninit { .. } => {}
                 Instruction::FunctionBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }

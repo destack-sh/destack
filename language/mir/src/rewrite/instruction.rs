@@ -116,9 +116,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::NewUninit { .. }
         | mir::Instruction::NewComplete { .. }
         | mir::Instruction::NewSliceZeroed { .. }
-        | mir::Instruction::NewSliceUninit { .. }
-        | mir::Instruction::FrameAllocZeroed { .. }
-        | mir::Instruction::FrameAllocUninit { .. } => false,
+        | mir::Instruction::NewSliceUninit { .. } => false,
 
         // deallocation has side effects
         mir::Instruction::Free { .. } => false,
@@ -288,9 +286,7 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::NewUninit { .. }
         | mir::Instruction::NewComplete { .. }
         | mir::Instruction::NewSliceZeroed { .. }
-        | mir::Instruction::NewSliceUninit { .. }
-        | mir::Instruction::FrameAllocZeroed { .. }
-        | mir::Instruction::FrameAllocUninit { .. } => true,
+        | mir::Instruction::NewSliceUninit { .. } => true,
 
         // deallocation has side effects
         mir::Instruction::Free { .. } => true,
@@ -359,8 +355,6 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::Free { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
-            | mir::Instruction::FrameAllocZeroed { .. }
-            | mir::Instruction::FrameAllocUninit { .. }
     )
 }
 
@@ -1170,8 +1164,6 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
-        | mir::Instruction::FrameAllocZeroed { .. }
-        | mir::Instruction::FrameAllocUninit { .. }
         | mir::Instruction::ProfileIncrement { .. }
         | mir::Instruction::Breakpoint
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
@@ -2631,24 +2623,6 @@ pub fn instruction_map(
             length: remap(*length),
             result_type: *result_type,
         },
-        mir::Instruction::FrameAllocZeroed {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::FrameAllocZeroed {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
-        },
-        mir::Instruction::FrameAllocUninit {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::FrameAllocUninit {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
-        },
         mir::Instruction::Intrinsic {
             destination,
             intrinsic,
@@ -3412,24 +3386,6 @@ pub fn instruction_map_with_locals(
         },
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),
-        },
-        mir::Instruction::FrameAllocZeroed {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::FrameAllocZeroed {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
-        },
-        mir::Instruction::FrameAllocUninit {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::FrameAllocUninit {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
         },
         mir::Instruction::Call { destination, call } => mir::Instruction::Call {
             destination: destination.map(remap),

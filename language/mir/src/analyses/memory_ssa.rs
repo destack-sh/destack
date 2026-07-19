@@ -1294,9 +1294,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
-            | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::FrameAllocZeroed { .. }
-            | mir::Instruction::FrameAllocUninit { .. } => {
+            | mir::Instruction::NewSliceUninit { .. } => {
                 Self::single_effect(MemoryAccessEffect::read_write(
                     MemoryRegion::any_spaces(mir::StorageSet::ANY),
                     false,
@@ -2179,9 +2177,12 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
+
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2222,9 +2223,12 @@ entry:
         let mut test = TestProgram::new(
             r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
+
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2416,10 +2420,8 @@ entry:
     fn test_memory_ssa_memcpy_read_write_effects() {
         let test = TestProgram::new(
             r#"
-function test(): int32 {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -2454,12 +2456,8 @@ entry:
         let write_reference =
             reference_from_region(&write_effect.region).expect("missing write reference");
 
-        let frame_allocs = test.frame_alloc_destinations_in_entry(function_id);
-        let dest_value = *frame_allocs.first().expect("missing stack allocation");
-        let src_value = *frame_allocs.get(1).expect("missing stack allocation");
-
-        assert_eq!(read_reference, src_value);
-        assert_eq!(write_reference, dest_value);
+        assert_eq!(read_reference, mir::Value::new(1));
+        assert_eq!(write_reference, mir::Value::new(0));
 
         let read_size = size_from_region(&read_effect.region).expect("missing read size");
         let write_size = size_from_region(&write_effect.region).expect("missing write size");
@@ -2473,10 +2471,8 @@ entry:
     fn test_memory_ssa_memcmp_read_effects() {
         let test = TestProgram::new(
             r#"
-function test(): int32 {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
@@ -2508,9 +2504,8 @@ entry:
     fn test_memory_ssa_volatile_marks_effects() {
         let mut test = TestProgram::new(
             r#"
-function test(): int32 {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = load v0
     store v0, v1
     return v1
@@ -2523,8 +2518,8 @@ entry:
 
         // locate volatile instructions
         let block = test.tree.get(function.block(0));
-        let volatile_load = block.instructions[1];
-        let volatile_store = block.instructions[2];
+        let volatile_load = block.instructions[0];
+        let volatile_store = block.instructions[1];
 
         // attach volatile memory access entries
         test.insert_reference_location_with_options(
@@ -2569,9 +2564,8 @@ entry:
     fn test_memory_ssa_atomic_marks_effects() {
         let test = TestProgram::new(
             r#"
-function test(): int32 {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+function test(v0: ref<atomic<int32>, raw, mutable>): int32 {
+entry(v0: ref<atomic<int32>, raw, mutable>):
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     return v1
@@ -2586,8 +2580,8 @@ entry:
         let memory_ssa = memory_ssa.as_ref();
 
         let block = test.tree.get(function.block(0));
-        let atomic_load = block.instructions[1];
-        let atomic_store = block.instructions[2];
+        let atomic_load = block.instructions[0];
+        let atomic_store = block.instructions[1];
 
         let load_access = memory_ssa
             .instruction_access(atomic_load)
@@ -2644,7 +2638,7 @@ external function imported(ref<int32, raw, mutable>): void
 
 function test(v0: ref<int32, raw, mutable>): int32 {
 entry(v0: ref<int32, raw, mutable>):
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v1: int32 = 0
     return v1
 }
@@ -2685,7 +2679,7 @@ external function imported(ref<int32, raw, mutable>): void
 
 function test(v0: ref<int32, raw, mutable>): int32 {
 entry(v0: ref<int32, raw, mutable>):
-    invoke imported(v0) => b1 | b2
+    invoke imported(v0): (ref<int32, raw, mutable>) => void => b1 | b2
 
 b1:
     v1: int32 = load v0
@@ -2730,7 +2724,7 @@ external function imported(ref<int32, raw, mutable>): void
 
 function test(v0: ref<int32, raw, mutable>): int32 {
 entry(v0: ref<int32, raw, mutable>):
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v1: int32 = 0
     return v1
 }
@@ -2762,7 +2756,7 @@ external function imported(ref<int32, raw, mutable>, ref<int32, raw, mutable>): 
 
 function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int32 {
 entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
-    call imported(v0, v1)
+    call imported(v0, v1): (ref<int32, raw, mutable>, ref<int32, raw, mutable>) => void
     v2: int32 = 0
     return v2
 }
@@ -2888,12 +2882,14 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
+    local l0: int32
+
 entry:
     v0: int32 = 0
     return v0
 
 b1:
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 1
     store v1, v2
     return v2

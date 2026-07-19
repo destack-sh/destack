@@ -376,7 +376,7 @@ entry:
 
 function test(): int32 {
 entry:
-    v0: int32 = call callee()
+    v0: int32 = call callee(): () => int32
     return v0
 }
 "#,
@@ -406,19 +406,19 @@ entry:
             r#"
 function alpha(): void {
 entry:
-    call beta()
+    call beta(): () => void
     return
 }
 
 function beta(): void {
 entry:
-    call alpha()
+    call alpha(): () => void
     return
 }
 
 function gamma(): void {
 entry:
-    call gamma()
+    call gamma(): () => void
     return
 }
 
@@ -481,7 +481,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#,
         );
@@ -564,7 +564,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1

@@ -145,14 +145,14 @@ entry(v0: ref<int32, borrowed, mutable>):
         assert!(analysis.get(function_id).is_empty());
     }
 
-    /// Owned reference return yields no lifetime bounds.
+    /// Unique reference return yields no lifetime bounds.
     #[test]
-    fn test_resolve_none_for_owned_return() {
+    fn test_resolve_none_for_unique_return() {
         let program = TestProgram::new(
             r#"
-function create(): ref<int32, raw, mutable, space(frame)> {
+function create(): ref<int32, unique, mutable> {
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, unique, mutable> = new.zeroed int32
     return v0
 }
 "#,
@@ -163,7 +163,7 @@ entry:
         let tree_analysis_cache = program.tree_analysis_cache();
         let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
 
-        // raw/owned return: not a borrowed ref, no lifetime
+        // unique return: not a borrowed ref, no lifetime
         assert!(analysis.get(function_id).is_empty());
     }
 
@@ -239,11 +239,7 @@ entry(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, muta
     fn test_resolve_none_for_undeclared_static_borrow() {
         let program = TestProgram::new(
             r#"
-function getStatic(v0: int32): ref<int32, borrowed, mutable> {
-entry(v0: int32):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    return v1
-}
+external function getStatic(int32): ref<int32, borrowed, mutable>
 "#,
         );
 

@@ -16,10 +16,10 @@ pub enum AllocationMode {
     #[default]
     Any,
     /// Managed allocation forbidden.
-    /// Unique, raw, and frame allocation are still allowed.
+    /// Unique allocation and function-local storage are still allowed.
     NoManaged,
     /// No heap allocation.
-    /// Only `FrameAlloc` is allowed.
+    /// Only function-local storage is allowed.
     NoHeap,
 }
 
@@ -505,6 +505,21 @@ impl FunctionBody {
 }
 
 impl Function {
+    /// Return the explicit function signature type.
+    pub fn signature(&self) -> Type {
+        let parameters = self
+            .parameters
+            .iter()
+            .map(FunctionParameter::signature_parameter)
+            .collect();
+
+        Type::FunctionSignature {
+            lifetimes: self.lifetimes.clone(),
+            parameters,
+            result: self.return_type,
+        }
+    }
+
     /// Return the dense value table capacity for this function.
     pub fn value_capacity(&self) -> usize {
         self.body

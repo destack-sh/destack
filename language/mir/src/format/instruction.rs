@@ -1551,44 +1551,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::Free { value } => write!(f, [token("free"), space(), value]),
 
-            Instruction::FrameAllocZeroed {
-                destination,
-                layout,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("frame.alloc.zeroed"),
-                        space(),
-                        layout
-                    ]
-                )
-            }
-
-            Instruction::FrameAllocUninit {
-                destination,
-                layout,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("frame.alloc.uninit"),
-                        space(),
-                        layout
-                    ]
-                )
-            }
-
             Instruction::Pin {
                 destination, value, ..
             } => {

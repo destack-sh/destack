@@ -187,15 +187,18 @@ mod tests {
 
     use crate::analyses::tests::TestProgram;
 
-    /// Independent frame allocations do not alias.
+    /// Independent local slots do not alias.
     #[test]
-    fn test_alias_distinguishes_frame_allocations() {
+    fn test_alias_distinguishes_local_slots() {
         let program = TestProgram::new(
             r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
+
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 0
     return v2
 }
@@ -206,11 +209,11 @@ entry:
         let function = program.tree.get(function_id);
         let analyses = program.function_analysis_cache();
         let alias = analyses.get::<AliasAnalysis>(function, &program.tree);
-        let allocations = program.frame_alloc_destinations_in_entry(function_id);
+        let addresses = program.local_address_destinations_in_entry(function_id);
 
         // compare two distinct storage roots
-        let left = ReferenceLocation::from_reference(allocations[0]);
-        let right = ReferenceLocation::from_reference(allocations[1]);
+        let left = ReferenceLocation::from_reference(addresses[0]);
+        let right = ReferenceLocation::from_reference(addresses[1]);
 
         assert_eq!(alias.alias(&left, &right), AliasResult::NoAlias);
     }

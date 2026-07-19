@@ -113,8 +113,8 @@ impl TestProgram {
             .expect("missing test function")
     }
 
-    /// Return the stack allocation destinations in a function entry block.
-    pub(crate) fn frame_alloc_destinations_in_entry(
+    /// Return the local address destinations in a function entry block.
+    pub(crate) fn local_address_destinations_in_entry(
         &self,
         function_id: LocalNodeId<Function>,
     ) -> Vec<mir::Value> {
@@ -122,12 +122,12 @@ impl TestProgram {
         let block_id = self.entry_block_id(function_id);
         let block = self.tree.get(block_id);
 
-        // collect stack allocation destinations in order
+        // collect local address destinations in order
         block
             .instructions
             .iter()
             .filter_map(|instruction_id| {
-                if let mir::Instruction::FrameAllocZeroed { destination, .. } =
+                if let mir::Instruction::LocalAddr { destination, .. } =
                     self.tree.get(*instruction_id)
                 {
                     Some(*destination)

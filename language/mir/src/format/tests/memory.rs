@@ -5,17 +5,15 @@ use super::{assert_format, assert_format_eq};
 fn test_format_allocation_family() {
     assert_format(
         r#"
-function allocFamily(v0: int64): ref<int32, raw, mutable, space(frame)> {
+function allocFamily(v0: int64): ref<int32, managed, mutable> {
 entry(v0: int64):
     v1: ref<int32, managed, mutable> = new.zeroed int32
     v2: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
-    v3: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v5: uninit<ref<int32, managed, mutable>> = new.uninit int32
-    v6: ref<int32, managed, mutable> = new.complete v5
-    v7: uninit<slice<int32, managed, mutable>> = new.slice.uninit int32, v0
-    v8: slice<int32, managed, mutable> = new.complete v7
-    v9: ref<int32, raw, mutable, space(frame)> = frame.alloc.uninit int32
-    return v9
+    v3: uninit<ref<int32, managed, mutable>> = new.uninit int32
+    v4: ref<int32, managed, mutable> = new.complete v3
+    v5: uninit<slice<int32, managed, mutable>> = new.slice.uninit int32, v0
+    v6: slice<int32, managed, mutable> = new.complete v5
+    return v4
 }
 "#,
     );

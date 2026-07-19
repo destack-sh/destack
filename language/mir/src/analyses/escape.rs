@@ -138,9 +138,7 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
             mir::Instruction::NewZeroed { destination, .. }
             | mir::Instruction::NewUninit { destination, .. }
             | mir::Instruction::NewSliceZeroed { destination, .. }
-            | mir::Instruction::NewSliceUninit { destination, .. }
-            | mir::Instruction::FrameAllocZeroed { destination, .. }
-            | mir::Instruction::FrameAllocUninit { destination, .. } => {
+            | mir::Instruction::NewSliceUninit { destination, .. } => {
                 self.set_root(*destination, *destination)
             }
             mir::Instruction::NewComplete {
@@ -459,7 +457,7 @@ entry(v0: ref<int32, unique, mutable>):
 function test(): int32 {
 entry:
     v0: ref<int32, unique, mutable> = new.zeroed int32
-    call sink(v0)
+    call sink(v0): (ref<int32, unique, mutable>) => void
     v1: int32 = 0
     return v1
 }

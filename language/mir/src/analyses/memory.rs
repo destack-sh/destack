@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate as mir;
 
@@ -21,289 +21,6 @@ pub struct ReferenceLocation {
     pub reference_kind: Option<mir::ReferenceKind>,
     /// Space for the reference, when known.
     pub reference_space: Option<mir::Space>,
-}
-
-impl ValueDefinitions {
-    /// Collect stack allocations that do not escape the function.
-    pub fn non_escaping_frame_allocs(
-        &self,
-        function: &mir::Function,
-        tree: &mir::Tree,
-        effects: &mir::EffectTable,
-    ) -> HashSet<mir::Value> {
-        // collect stack allocation bases
-        let mut frame_allocs = HashSet::new();
-
-        // scan blocks for stack allocations
-        for &block_id in function.blocks() {
-            // read the block
-            let block = tree.get(block_id);
-
-            // scan instructions in the block
-            for &instruction_id in &block.instructions {
-                // read the instruction
-                let instruction = tree.get(instruction_id);
-                if let mir::Instruction::FrameAllocZeroed { destination, .. }
-                | mir::Instruction::FrameAllocUninit { destination, .. } = instruction
-                {
-                    frame_allocs.insert(*destination);
-                }
-            }
-        }
-
-        // collect escaping stack allocations
-        let mut escaping = HashSet::new();
-
-        // scan blocks for escaping uses
-        for &block_id in function.blocks() {
-            // read the block
-            let block = tree.get(block_id);
-
-            // scan instructions in the block
-            for &instruction_id in &block.instructions {
-                // read the instruction
-                let instruction = tree.get(instruction_id);
-                match instruction {
-                    mir::Instruction::Call { .. } => {
-                        // capture call effects for escape checks
-                        let argument_effects = effects
-                            .call(mir::CallSite::Instruction(instruction_id))
-                            .map(|tables| tables.arguments.as_slice());
-
-                        // mark stack references passed to calls as escaping
-                        if let Some(arg_slice) = instruction.argument_slice() {
-                            let arguments = tree.get_values(arg_slice);
-
-                            for (index, arg) in arguments.iter().copied().enumerate() {
-                                if call_argument_escapes(argument_effects, index) {
-                                    record_stack_escape(
-                                        arg,
-                                        self,
-                                        tree,
-                                        &frame_allocs,
-                                        &mut escaping,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    mir::Instruction::Store { value, .. } => {
-                        // mark stored stack references as escaping
-                        record_stack_escape(*value, self, tree, &frame_allocs, &mut escaping);
-                    }
-                    _ => {}
-                }
-            }
-
-            // scan terminators for escaping values
-            let terminator = tree.get(block.terminator);
-            match terminator {
-                mir::Terminator::Error => {
-                    panic!("invalid MIR terminator reached memory analysis");
-                }
-                mir::Terminator::Return { value: Some(value) } => {
-                    record_stack_escape(*value, self, tree, &frame_allocs, &mut escaping);
-                }
-                mir::Terminator::Jump { target } => {
-                    for arg in target.arguments(tree).iter().copied() {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::Branch {
-                    then_target,
-                    else_target,
-                    ..
-                } => {
-                    for arg in then_target
-                        .arguments(tree)
-                        .iter()
-                        .chain(else_target.arguments(tree).iter())
-                        .copied()
-                    {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::Check {
-                    success, failure, ..
-                } => {
-                    for arg in success
-                        .arguments(tree)
-                        .iter()
-                        .chain(failure.arguments(tree).iter())
-                        .copied()
-                    {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::NewZeroedTry {
-                    success, failure, ..
-                }
-                | mir::Terminator::NewUninitTry {
-                    success, failure, ..
-                } => {
-                    for arg in success
-                        .arguments(tree)
-                        .iter()
-                        .chain(failure.arguments(tree).iter())
-                        .copied()
-                    {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::NewSliceZeroedTry {
-                    length,
-                    success,
-                    failure,
-                    ..
-                }
-                | mir::Terminator::NewSliceUninitTry {
-                    length,
-                    success,
-                    failure,
-                    ..
-                } => {
-                    record_stack_escape(*length, self, tree, &frame_allocs, &mut escaping);
-
-                    for arg in success
-                        .arguments(tree)
-                        .iter()
-                        .chain(failure.arguments(tree).iter())
-                        .copied()
-                    {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::Switch { cases, default, .. } => {
-                    for arg in default.arguments(tree).iter().copied() {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                    for case in tree.get_switch_cases(*cases) {
-                        for arg in case.target.arguments(tree).iter().copied() {
-                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                        }
-                    }
-                }
-                mir::Terminator::VariantSwitch { cases, default, .. } => {
-                    if let Some(default) = default {
-                        for arg in default.arguments(tree).iter().copied() {
-                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                        }
-                    }
-                    for case in tree.get_switch_cases(*cases) {
-                        for arg in case.target.arguments(tree).iter().copied() {
-                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                        }
-                    }
-                }
-                mir::Terminator::Yield {
-                    value,
-                    resume,
-                    unwind,
-                } => {
-                    record_stack_escape(*value, self, tree, &frame_allocs, &mut escaping);
-                    for arg in resume.arguments(tree).iter().copied() {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                    if let Some(unwind) = unwind {
-                        for arg in unwind.arguments(tree).iter().copied() {
-                            record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                        }
-                    }
-                }
-                mir::Terminator::Invoke {
-                    call,
-                    target,
-                    unwind,
-                } => {
-                    for argument in call
-                        .callee
-                        .uses()
-                        .into_iter()
-                        .chain(tree.get_values(call.arguments).iter().copied())
-                        .chain(target.arguments(tree).iter().copied())
-                        .chain(unwind.arguments(tree).iter().copied())
-                    {
-                        record_stack_escape(argument, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::Trap { .. } => {}
-                mir::Terminator::Panic { payload } => {
-                    if let Some(payload) = payload {
-                        record_stack_escape(*payload, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::UnwindResume => {}
-                mir::Terminator::TailCall { call } => {
-                    for argument in call
-                        .callee
-                        .uses()
-                        .into_iter()
-                        .chain(tree.get_values(call.arguments).iter().copied())
-                    {
-                        record_stack_escape(argument, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::Unreachable | mir::Terminator::Return { value: None } => {}
-            }
-        }
-
-        // retain only stack allocations that never escaped
-        frame_allocs
-            .difference(&escaping)
-            .copied()
-            .collect::<HashSet<_>>()
-    }
-}
-
-/// Report whether a call argument may escape.
-fn call_argument_escapes(arguments: Option<&[mir::CallArgumentEffect]>, index: usize) -> bool {
-    // require escape tables before treating an argument as local
-    let Some(arguments) = arguments else {
-        return true;
-    };
-
-    // require escape tables for the specific argument
-    let Some(argument) = arguments.get(index) else {
-        return true;
-    };
-
-    // treat non escaping arguments as local to the call
-    !matches!(argument.escape, mir::ArgumentEscape::None)
-}
-
-/// Record a stack escape by walking derived values.
-fn record_stack_escape(
-    value: mir::Value,
-    definitions: &ValueDefinitions,
-    tree: &mir::Tree,
-    frame_allocs: &HashSet<mir::Value>,
-    escaping: &mut HashSet<mir::Value>,
-) {
-    // record stack escapes by walking value definitions
-    let mut visited = HashSet::new();
-    record_stack_escape_value(
-        value,
-        definitions,
-        tree,
-        frame_allocs,
-        escaping,
-        &mut visited,
-    );
-}
-
-/// Record stack escapes from a value and its derived operands.
-fn record_stack_escape_value(
-    value: mir::Value,
-    definitions: &ValueDefinitions,
-    tree: &mir::Tree,
-    frame_allocs: &HashSet<mir::Value>,
-    escaping: &mut HashSet<mir::Value>,
-    visited: &mut HashSet<mir::Value>,
-) {
-    let mut bases = HashSet::new();
-    definitions.collect_frame_alloc_bases(value, tree, frame_allocs, visited, &mut bases);
-
-    escaping.extend(bases);
 }
 
 impl ReferenceLocation {
@@ -424,6 +141,12 @@ impl MemoryRegion {
         }
     }
 
+    /// Return whether this region is owned by the current activation frame.
+    pub fn is_frame_storage(&self) -> bool {
+        matches!(self, Self::Local(_))
+            || matches!(self, Self::Place(place) if matches!(place.root, StorageRoot::LocalSlot(_)))
+    }
+
     /// Create a reference access with optional access type and inferred size.
     pub fn from_reference(
         reference: mir::Value,
@@ -516,8 +239,6 @@ impl MemoryRegion {
 /// Identified storage root for one memory place.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StorageRoot {
-    /// Frame allocation instruction.
-    FrameAllocation(mir::LocalNodeId<mir::Instruction>),
     /// Local slot address.
     LocalSlot(mir::LocalNodeId<mir::Local>),
     /// Static storage address.
@@ -564,9 +285,6 @@ impl StorageRoot {
     /// Return whether two identified storage roots are disjoint.
     pub fn is_disjoint_from(&self, other: &StorageRoot) -> bool {
         match (self, other) {
-            (StorageRoot::FrameAllocation(left), StorageRoot::FrameAllocation(right)) => {
-                left != right
-            }
             (StorageRoot::LocalSlot(left), StorageRoot::LocalSlot(right)) => left != right,
             (
                 StorageRoot::Static { global: left, .. },
@@ -605,7 +323,7 @@ impl StorageRoot {
     /// Return the memory spaces covered by this storage root.
     pub fn spaces(&self) -> mir::StorageSet {
         match self {
-            StorageRoot::FrameAllocation(_) | StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
+            StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
             StorageRoot::Static { space, .. } => space.space_set(),
             StorageRoot::Allocation { space, .. } | StorageRoot::Parameter { space, .. } => {
                 space.space_set()
@@ -816,15 +534,6 @@ impl<'a> MemoryRegionBuilder<'a> {
         let instruction = self.tree.get(instruction_id);
 
         match instruction {
-            // identify fresh allocation storage
-            mir::Instruction::FrameAllocZeroed { destination, .. }
-            | mir::Instruction::FrameAllocUninit { destination, .. }
-                if *destination == reference =>
-            {
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::FrameAllocation(
-                    instruction_id,
-                )))
-            }
             mir::Instruction::NewZeroed { destination, .. }
             | mir::Instruction::NewUninit { destination, .. }
                 if *destination == reference =>
@@ -1149,7 +858,6 @@ mod tests {
     /// Storage roots expose their memory spaces.
     #[test]
     fn test_storage_spaces() {
-        let stack = StorageRoot::FrameAllocation(mir::LocalNodeId::new(0));
         let local = StorageRoot::LocalSlot(mir::LocalNodeId::new(0));
         let allocation = StorageRoot::Allocation {
             instruction: mir::LocalNodeId::new(1),
@@ -1163,7 +871,6 @@ mod tests {
             access: mir::Access::Mutable,
         };
 
-        assert_eq!(stack.spaces(), mir::StorageSet::FRAME);
         assert_eq!(local.spaces(), mir::StorageSet::FRAME);
         assert_eq!(allocation.spaces(), mir::StorageSet::SHARED);
         assert_eq!(parameter.spaces(), mir::StorageSet::LOCAL);
@@ -1172,8 +879,7 @@ mod tests {
     /// Memory places track constant and indexed offsets.
     #[test]
     fn test_memory_place_const_offset() {
-        let mut place =
-            MemoryPlace::from_root(StorageRoot::FrameAllocation(mir::LocalNodeId::new(0)));
+        let mut place = MemoryPlace::from_root(StorageRoot::LocalSlot(mir::LocalNodeId::new(0)));
         assert!(place.is_constant_offset());
 
         place.add_const_offset(16);
@@ -1199,18 +905,17 @@ mod tests {
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
-        let stack = StorageRoot::FrameAllocation(mir::LocalNodeId::new(0));
+        let local = StorageRoot::LocalSlot(mir::LocalNodeId::new(0));
 
         assert!(exclusive_parameter.is_exclusive_parameter());
         assert!(!mutable_parameter.is_exclusive_parameter());
-        assert!(!stack.is_exclusive_parameter());
+        assert!(!local.is_exclusive_parameter());
     }
 
     /// Field paths are captured by memory places.
     #[test]
     fn test_memory_place_fields() {
-        let mut place =
-            MemoryPlace::from_root(StorageRoot::FrameAllocation(mir::LocalNodeId::new(0)));
+        let mut place = MemoryPlace::from_root(StorageRoot::LocalSlot(mir::LocalNodeId::new(0)));
         assert!(place.fields.is_empty());
 
         place.add_field(0);
@@ -1259,8 +964,7 @@ mod tests {
     /// Negative offsets are handled consistently.
     #[test]
     fn test_memory_place_negative_offset() {
-        let mut place =
-            MemoryPlace::from_root(StorageRoot::FrameAllocation(mir::LocalNodeId::new(0)));
+        let mut place = MemoryPlace::from_root(StorageRoot::LocalSlot(mir::LocalNodeId::new(0)));
 
         place.add_const_offset(-8);
         assert_eq!(place.const_offset, -8);

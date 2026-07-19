@@ -233,10 +233,6 @@ impl<'a> FunctionEffectBuilder<'a> {
                 memory: mir::MemoryEffect::unknown(),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
-            mir::Instruction::FrameAllocZeroed { .. }
-            | mir::Instruction::FrameAllocUninit { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::StorageSet::FRAME))
-            }
             mir::Instruction::NewComplete { result_type, .. } => mir::FunctionEffect::memory(
                 mir::MemoryEffect::read_write(self.space_set_for_type(result_type)),
             ),
@@ -562,7 +558,7 @@ entry:
 
 function root(): ref<int32, unique, mutable> {
 entry:
-    v0: ref<int32, unique, mutable> = call allocate()
+    v0: ref<int32, unique, mutable> = call allocate(): () => ref<int32, unique, mutable>
     return v0
 }
 "#,
@@ -585,7 +581,7 @@ external function allocate(): void
 
 function root(): void {
 entry:
-    call allocate()
+    call allocate(): () => void
     return
 }
 "#,

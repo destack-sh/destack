@@ -818,8 +818,8 @@ impl Type {
             // atomic cells are storage, not freely copied values
             Type::Atomic { .. } => Copy::No,
 
-            // erased values may own hidden payloads
-            Type::Dynamic { .. } => Copy::No,
+            // dynamic values carry one managed payload reference and witness table
+            Type::Dynamic { .. } => Copy::Yes,
 
             // initialization tokens are linear capabilities
             Type::Uninit { .. } | Type::ManuallyDrop { .. } => Copy::No,

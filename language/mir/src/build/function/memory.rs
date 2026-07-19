@@ -250,38 +250,6 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Free { value });
     }
 
-    /// Allocate zeroed frame storage.
-    pub fn frame_alloc_zeroed(
-        &mut self,
-        layout: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FrameAllocZeroed {
-            destination,
-            layout,
-            result_type,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
-    /// Allocate uninitialized frame storage.
-    pub fn frame_alloc_uninit(
-        &mut self,
-        layout: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FrameAllocUninit {
-            destination,
-            layout,
-            result_type,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
     // instruction builders: assumptions
 
     /// Assume a condition is true (UB if false).

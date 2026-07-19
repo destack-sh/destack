@@ -9,8 +9,8 @@ use crate::{
     Instruction, LocalNodeId, MemoryOrdering, StorageSet, TensorConvertMode,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId,
-    UnaryOperator, Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeId, UnaryOperator,
+    Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -171,7 +171,7 @@ impl Parser {
             }
             "call.virtual" => {
                 let (receiver, class, slot, arguments, signature) =
-                    self.parse_class_call_target_segments(&mut segment_spans)?;
+                    self.parse_virtual_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_values(&arguments);
                 Instruction::Call {
                     destination,
@@ -218,7 +218,7 @@ impl Parser {
                 Instruction::Drop { value }
             }
 
-            // allocation and frame protocol
+            // allocation protocol
             "free" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Free { value }
@@ -1097,23 +1097,6 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
-                    "frame.alloc.zeroed" => {
-                        let layout = self.parse_type()?;
-                        Instruction::FrameAllocZeroed {
-                            destination,
-                            layout,
-                            result_type: destination_type,
-                        }
-                    }
-                    "frame.alloc.uninit" => {
-                        let layout = self.parse_type()?;
-                        Instruction::FrameAllocUninit {
-                            destination,
-                            layout,
-                            result_type: destination_type,
-                        }
-                    }
-
                     // address stability
                     "pin" => {
                         let value = self.parse_value_segment(&mut segment_spans)?;
@@ -1915,50 +1898,28 @@ impl Parser {
         self.parse_direct_call_target_segments(&mut segment_spans)
     }
 
-    /// Parse one direct call target and arguments with source segments.
+    /// Parse one direct call target, arguments, and signature with source segments.
     pub(super) fn parse_direct_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(FunctionId, Vec<Value>, TypeId)> {
         let function = self.parse_function_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
-        let signature = if self.peek_token(TokenType::Colon) {
-            self.parse_required_call_signature_segment(segment_spans)?
-        } else {
-            self.infer_direct_call_signature(function)?
-        };
+        let signature = self.parse_call_signature_segment(segment_spans)?;
 
         Ok((function, arguments, signature))
     }
 
-    /// Infer one direct call signature from its callee.
-    fn infer_direct_call_signature(&mut self, function: FunctionId) -> ParseResult<TypeId> {
-        let function = self.tree.get(function);
-        let parameters = function
-            .parameters
-            .iter()
-            .map(|parameter| parameter.signature_parameter())
-            .collect();
-        let result = function.return_type;
-        let lifetimes = function.lifetimes.clone();
-
-        self.intern_type(Type::FunctionSignature {
-            lifetimes,
-            parameters,
-            result,
-        })
-    }
-
     /// Parse one virtual call target and signature.
-    pub(super) fn parse_class_call_target(
+    pub(super) fn parse_virtual_call_target(
         &mut self,
     ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
         let mut segment_spans = Vec::new();
-        self.parse_class_call_target_segments(&mut segment_spans)
+        self.parse_virtual_call_target_segments(&mut segment_spans)
     }
 
     /// Parse one virtual call target and signature with source segments.
-    pub(super) fn parse_class_call_target_segments(
+    pub(super) fn parse_virtual_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
@@ -1971,7 +1932,7 @@ impl Parser {
             .map_err(|_| ParseError::invalid("virtual dispatch slot", self.pos()))?;
         let slot = DispatchSlot::new(slot);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
-        let signature = self.parse_required_call_signature_segment(segment_spans)?;
+        let signature = self.parse_call_signature_segment(segment_spans)?;
 
         Ok((receiver, class, slot, arguments, signature))
     }
@@ -1998,7 +1959,7 @@ impl Parser {
             u32::try_from(slot).map_err(|_| ParseError::invalid("dynamic slot", self.pos()))?;
         let slot = DispatchSlot::new(slot);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
-        let signature = self.parse_required_call_signature_segment(segment_spans)?;
+        let signature = self.parse_call_signature_segment(segment_spans)?;
 
         Ok((receiver, constraint, slot, arguments, signature))
     }
@@ -2018,13 +1979,13 @@ impl Parser {
     ) -> ParseResult<(Value, Vec<Value>, TypeId)> {
         let callee = self.parse_value_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
-        let signature = self.parse_required_call_signature_segment(segment_spans)?;
+        let signature = self.parse_call_signature_segment(segment_spans)?;
 
         Ok((callee, arguments, signature))
     }
 
-    /// Parse one required call signature.
-    fn parse_required_call_signature_segment(
+    /// Parse one call signature.
+    fn parse_call_signature_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<TypeId> {

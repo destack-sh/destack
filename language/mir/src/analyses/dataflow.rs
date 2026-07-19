@@ -400,7 +400,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#,
         );

@@ -79,7 +79,7 @@ function caller(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = 2
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     v3: fn(int32, int32) => int32 = function.address callee
     v4: int32 = call.indirect v3(v0, v1): (int32, int32) => int32
     v5: int32 = call.virtual v0, int32, 0(v0, v1): (int32, int32) => int32
@@ -99,7 +99,7 @@ external function consume(() => int32): void
 
 function caller(v0: () => int32): void {
 entry(v0: () => int32):
-    call consume(v0)
+    call consume(v0): (() => int32) => void
     return
 }
 "#,

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate as mir;
 
@@ -144,47 +144,6 @@ impl ValueDefinitions {
         self.constants.get(value.0 as usize).copied().flatten()
     }
 
-    /// Return the frame allocation base for a derived reference value.
-    pub fn frame_alloc_base(
-        &self,
-        value: impl Into<mir::Value>,
-        tree: &mir::Tree,
-    ) -> Option<mir::Value> {
-        let mut current = value.into();
-        let mut visited = HashSet::new();
-
-        loop {
-            // stop on cycles
-            if !visited.insert(current) {
-                return None;
-            }
-
-            // read the defining instruction
-            let instruction_id = self.instruction(current)?;
-            let instruction = tree.get(instruction_id);
-
-            // walk through address computations
-            match instruction {
-                mir::Instruction::FrameAllocZeroed { destination, .. }
-                | mir::Instruction::FrameAllocUninit { destination, .. }
-                    if *destination == current =>
-                {
-                    return Some(current);
-                }
-                mir::Instruction::FieldAddr { aggregate, .. } => {
-                    current = *aggregate;
-                }
-                mir::Instruction::ElementAddr { base, .. } => {
-                    current = *base;
-                }
-                mir::Instruction::Cast { argument, .. } => {
-                    current = *argument;
-                }
-                _ => return None,
-            }
-        }
-    }
-
     /// Return the raw instruction definition map.
     pub fn instruction_map(&self) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
         self.definitions
@@ -196,69 +155,6 @@ impl ValueDefinitions {
                     .map(|instruction| (mir::Value(value as u32), instruction))
             })
             .collect()
-    }
-
-    /// Collect frame allocation bases reachable from one value.
-    pub fn collect_frame_alloc_bases(
-        &self,
-        value: mir::Value,
-        tree: &mir::Tree,
-        frame_allocs: &HashSet<mir::Value>,
-        visited: &mut HashSet<mir::Value>,
-        bases: &mut HashSet<mir::Value>,
-    ) {
-        // avoid repeating work for values
-        if !visited.insert(value) {
-            return;
-        }
-
-        // resolve the frame allocation base directly
-        if let Some(base) = self.frame_alloc_base(value, tree) {
-            if frame_allocs.contains(&base) {
-                bases.insert(base);
-            }
-            return;
-        }
-
-        // walk through block parameter definitions
-        let Some(instruction_id) = self.instruction(value) else {
-            if let Some(params) = self.block_parameter_values.get(&value) {
-                for &arg in params {
-                    self.collect_frame_alloc_bases(arg, tree, frame_allocs, visited, bases);
-                }
-            }
-            return;
-        };
-
-        // walk through aggregate and local projections
-        let instruction = tree.get(instruction_id);
-        match instruction {
-            mir::Instruction::Aggregate { values, .. } => {
-                for arg in tree.get_values(*values).iter().copied() {
-                    self.collect_frame_alloc_bases(arg, tree, frame_allocs, visited, bases);
-                }
-            }
-            mir::Instruction::Select {
-                then_value,
-                else_value,
-                ..
-            } => {
-                self.collect_frame_alloc_bases(*then_value, tree, frame_allocs, visited, bases);
-                self.collect_frame_alloc_bases(*else_value, tree, frame_allocs, visited, bases);
-            }
-            mir::Instruction::FieldGet { aggregate, .. }
-            | mir::Instruction::ElementGet { aggregate, .. } => {
-                self.collect_frame_alloc_bases(*aggregate, tree, frame_allocs, visited, bases);
-            }
-            mir::Instruction::LocalGet { local, .. } => {
-                if let Some(values) = self.local_values.get(local) {
-                    for &arg in values {
-                        self.collect_frame_alloc_bases(arg, tree, frame_allocs, visited, bases);
-                    }
-                }
-            }
-            _ => {}
-        }
     }
 
     /// Iterate over SSA values and their definition sites.

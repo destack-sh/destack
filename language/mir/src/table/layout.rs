@@ -96,11 +96,11 @@ impl LayoutId {
     }
 }
 
-/// Concrete memory layout for an aggregate type.
+/// Concrete memory layout for one MIR type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct Layout {
+pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
     /// The layout shape.
-    pub shape: LayoutShape,
+    pub shape: LayoutShape<T, L>,
     /// Total size in bytes, including trailing padding.
     pub size: u32,
     /// Alignment requirement in bytes.
@@ -119,15 +119,25 @@ impl Layout {
             trace_map: TraceMap::Empty,
         }
     }
+}
 
+impl<T, L> Layout<T, L> {
     /// Return the byte width of this layout.
     pub const fn byte_len(&self) -> usize {
         self.size as usize
     }
 
     /// Return one field by layout index.
-    pub fn field_at(&self, index: u32) -> Option<&LayoutField> {
+    pub fn field_at(&self, index: u32) -> Option<&LayoutField<T>> {
         self.shape.fields().get(index as usize)
+    }
+
+    /// Return one field by source index.
+    pub fn source_field(&self, index: u32) -> Option<&LayoutField<T>> {
+        self.shape
+            .fields()
+            .iter()
+            .find(|field| field.source_index == index)
     }
 
     /// Return the field count for field-addressable layouts.
@@ -139,44 +149,72 @@ impl Layout {
             _ => None,
         }
     }
+
+    /// Return the fixed element layout when present.
+    pub const fn element(&self) -> Option<&ElementLayout<T>> {
+        self.shape.elements()
+    }
+
+    /// Return the fixed element count when present.
+    pub const fn element_count(&self) -> Option<usize> {
+        match self.element() {
+            Some(element) => Some(element.count as usize),
+            None => None,
+        }
+    }
+
+    /// Return whether this layout is a slice descriptor.
+    pub const fn is_slice(&self) -> bool {
+        matches!(self.shape, LayoutShape::Slice)
+    }
+
+    /// Return whether this layout has one scalar representation.
+    pub const fn is_scalar(&self) -> bool {
+        matches!(self.shape, LayoutShape::Scalar | LayoutShape::Tensor(_))
+    }
+
+    /// Return the aligned stride of this layout.
+    pub fn stride(&self) -> usize {
+        self.byte_len().next_multiple_of(self.alignment as usize)
+    }
 }
 
 /// Concrete memory layout shape.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum LayoutShape {
+pub enum LayoutShape<T = LocalNodeId<Type>, L = LayoutId> {
     /// No runtime storage.
     None,
     /// Builtin scalar storage.
     Scalar,
     /// Struct storage.
-    Struct(StructLayout),
+    Struct(StructLayout<T>),
     /// Tuple storage.
-    Tuple(TupleLayout),
+    Tuple(TupleLayout<T>),
     /// Slice header storage.
     Slice,
     /// Fixed array storage.
-    Array(ElementLayout),
+    Array(ElementLayout<T>),
     /// Vector value storage.
-    Vector(ElementLayout),
+    Vector(ElementLayout<T>),
     /// Tensor handle storage.
-    Tensor(TensorLayout),
+    Tensor(TensorLayout<T>),
     /// Tensor view descriptor storage.
-    TensorView(TensorViewLayout),
+    TensorView(TensorViewLayout<T>),
     /// Variant value storage.
-    Variant(VariantLayout),
+    Variant(VariantLayout<T>),
     /// Object storage with a dispatch table header.
-    Object(ObjectLayout),
+    Object(ObjectLayout<T>),
     /// Runtime dynamic value layout.
     Dynamic,
     /// Runtime function value storage.
     Function,
     /// Transparent nominal storage.
-    Newtype(NewtypeLayout),
+    Newtype(NewtypeLayout<T, L>),
 }
 
-impl LayoutShape {
+impl<T, L> LayoutShape<T, L> {
     /// Return element layout when this shape stores indexed elements inline.
-    pub const fn elements(&self) -> Option<&ElementLayout> {
+    pub const fn elements(&self) -> Option<&ElementLayout<T>> {
         match self {
             Self::Array(layout) | Self::Vector(layout) => Some(layout),
             _ => None,
@@ -184,7 +222,7 @@ impl LayoutShape {
     }
 
     /// Return field layouts for field-addressable shapes.
-    pub fn fields(&self) -> &[LayoutField] {
+    pub fn fields(&self) -> &[LayoutField<T>] {
         match self {
             Self::Struct(layout) => &layout.fields,
             Self::Tuple(layout) => &layout.elements,
@@ -204,7 +242,7 @@ impl LayoutShape {
     }
 
     /// Return this shape with field layouts attached when supported.
-    pub fn with_fields(self, fields: Vec<LayoutField>) -> Self {
+    pub fn with_fields(self, fields: Vec<LayoutField<T>>) -> Self {
         match self {
             Self::Struct(_) => Self::Struct(StructLayout { fields }),
             Self::Tuple(_) => Self::Tuple(TupleLayout { elements: fields }),
@@ -226,23 +264,23 @@ impl LayoutShape {
 
 /// Concrete layout for a struct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct StructLayout {
+pub struct StructLayout<T = LocalNodeId<Type>> {
     /// The fields in layout order.
-    pub fields: Vec<LayoutField>,
+    pub fields: Vec<LayoutField<T>>,
 }
 
 /// Concrete layout for a tuple.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TupleLayout {
+pub struct TupleLayout<T = LocalNodeId<Type>> {
     /// The tuple elements in layout order.
-    pub elements: Vec<LayoutField>,
+    pub elements: Vec<LayoutField<T>>,
 }
 
 /// Layout for inline indexed element storage.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ElementLayout {
+pub struct ElementLayout<T = LocalNodeId<Type>> {
     /// The stored element type.
-    pub element: LocalNodeId<Type>,
+    pub element: T,
     /// The byte stride between elements.
     pub stride: u32,
     /// The fixed element count.
@@ -251,9 +289,9 @@ pub struct ElementLayout {
 
 /// Concrete layout for a tensor handle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TensorLayout {
+pub struct TensorLayout<T = LocalNodeId<Type>> {
     /// The tensor element type.
-    pub element: LocalNodeId<Type>,
+    pub element: T,
     /// The tensor storage format.
     pub format: TensorFormat,
     /// The tensor placement.
@@ -264,9 +302,9 @@ pub struct TensorLayout {
 
 /// Concrete layout for a tensor view descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TensorViewLayout {
+pub struct TensorViewLayout<T = LocalNodeId<Type>> {
     /// The viewed element type.
-    pub element: LocalNodeId<Type>,
+    pub element: T,
     /// The tensor view format.
     pub format: TensorViewFormat,
     /// The tensor placement.
@@ -277,15 +315,15 @@ pub struct TensorViewLayout {
 
 /// Concrete layout for a variant value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct VariantLayout {
+pub struct VariantLayout<T = LocalNodeId<Type>> {
     /// The logical discriminant type.
-    pub discriminant: LocalNodeId<Type>,
+    pub discriminant: T,
     /// The logical payload storage type.
-    pub storage: LocalNodeId<Type>,
+    pub storage: T,
     /// The physical discriminant encoding.
     pub encoding: VariantEncoding,
     /// The variant cases.
-    pub cases: Vec<VariantCaseLayout>,
+    pub cases: Vec<VariantCaseLayout<T>>,
 }
 
 /// Physical scalar field carrying a variant discriminant.
@@ -473,44 +511,44 @@ impl VariantEncoding {
 
 /// Concrete layout for an object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ObjectLayout {
+pub struct ObjectLayout<T = LocalNodeId<Type>> {
     /// The fields in layout order.
-    pub fields: Vec<LayoutField>,
+    pub fields: Vec<LayoutField<T>>,
 }
 
 /// Concrete layout for a nominal newtype.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct NewtypeLayout {
+pub struct NewtypeLayout<T = LocalNodeId<Type>, L = LayoutId> {
     /// The backing type.
-    pub backing_type: LocalNodeId<Type>,
+    pub backing_type: T,
     /// The backing type layout.
-    pub backing_layout: LayoutId,
+    pub backing_layout: L,
 }
 
 /// Memory layout for a single field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LayoutField {
+pub struct LayoutField<T = LocalNodeId<Type>> {
     /// Field name for lookup and debugging.
     pub name: Option<StringId>,
     /// MIR type of the field.
-    pub ty: LocalNodeId<Type>,
+    pub ty: T,
     /// Byte offset from the start of the aggregate.
     pub offset: u32,
     /// Size of the field in bytes.
     pub size: u32,
     /// Alignment requirement of the field in bytes.
     pub alignment: u32,
-    /// Original source index for stable mapping.
-    pub source_index: Option<u32>,
+    /// Logical field index before physical layout ordering.
+    pub source_index: u32,
 }
 
 /// Concrete layout for one variant case.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct VariantCaseLayout {
+pub struct VariantCaseLayout<T = LocalNodeId<Type>> {
     /// The logical discriminant bits.
     pub discriminant: Discriminant,
     /// The logical case type.
-    pub ty: LocalNodeId<Type>,
+    pub ty: T,
     /// The payload byte offset from the variant base.
     pub payload_offset: u32,
 }

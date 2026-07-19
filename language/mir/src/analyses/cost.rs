@@ -24,7 +24,7 @@ pub struct OperationCost {
     pub store: usize,
     /// Atomic memory operations.
     pub atomic: usize,
-    /// Heap or frame allocation operations.
+    /// Heap allocation operations.
     pub allocate: usize,
     /// Explicit unique-storage release operations.
     pub release: usize,
@@ -387,8 +387,6 @@ impl CostModel {
             | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::FrameAllocZeroed { .. }
-            | mir::Instruction::FrameAllocUninit { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. } => cost.allocate += 1,
             mir::Instruction::Free { .. } => cost.release += 1,

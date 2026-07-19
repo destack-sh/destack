@@ -1011,45 +1011,6 @@ entry(v0: slice<int32, managed, mutable>, v1: int64, v2: int64):
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: frame.alloc.zeroed.
-#[test]
-fn test_build_frame_alloc_zeroed() {
-    // setup
-    let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let raw_ref_type = module.tree_mut().intern_type(Type::Reference {
-        kind: ReferenceKind::Raw,
-        lifetime: Lifetime::empty(),
-        space: Space::Frame,
-        access: Access::Readonly,
-        pointee: i32_type,
-        nullability: Nullability::None,
-    });
-
-    // build function with frame.alloc.zeroed
-    let header = module
-        .function_header("stackAllocTest")
-        .result(raw_ref_type);
-    let mut builder = module.function(header);
-    let entry_block = builder.block();
-    builder.switch_to_block(entry_block);
-    let allocated_value = builder.frame_alloc_zeroed(i32_type, raw_ref_type);
-    builder.return_(Some(allocated_value));
-    builder.seal_block(entry_block);
-    builder.finish().unwrap();
-
-    // verify output
-    let (tree, strings) = module.finish_tree();
-    let output = format_test_mir(&tree, &strings);
-    let expected = "\
-function stackAllocTest(): ref<int32, raw, readonly, space(frame)> {
-entry:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
-    return v0
-}";
-    assert_eq!(output, expected);
-}
-
 /// Intrinsic instructions via the builder.
 #[test]
 fn test_build_intrinsics() {

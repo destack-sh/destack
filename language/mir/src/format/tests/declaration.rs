@@ -21,7 +21,7 @@ function checkDefault(): boolean {
 entry:
     v0: ref<Status, raw, readonly> = global.address Status.Default
     v1: Status = load v0
-    v2: boolean = call Status.isActive(v1)
+    v2: boolean = call Status.isActive(v1): (Status) => boolean
     return v2
 }
 "#,
@@ -42,7 +42,7 @@ function checkDefault(): boolean {
 entry:
     v0: ref<Status, raw, readonly> = global.address Status.Default
     v1: Status = load v0
-    v2: boolean = call Status.isActive(v1)
+    v2: boolean = call Status.isActive(v1): (Status) => boolean
     return v2
 }
 "#,
@@ -88,7 +88,7 @@ external function touch(): void
 
 export function exported(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call imported(v0)
+    v1: int32 = call imported(v0): (int32) => int32
     return v1
 }
 "#,

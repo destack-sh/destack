@@ -1103,7 +1103,7 @@ impl Parser {
             }
             TokenType::InvokeVirtual | TokenType::TailCallVirtual => {
                 let (receiver, class, slot, arguments, signature) =
-                    self.parse_class_call_target()?;
+                    self.parse_virtual_call_target()?;
                 let callee = Callee::Virtual {
                     receiver,
                     class,

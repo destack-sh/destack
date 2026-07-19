@@ -151,6 +151,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
                 receiver,
                 class,
                 slot,
+                ..
             } => {
                 let target = self.virtual_target(*receiver, *class, *slot);
                 self.record_target_or_open(
@@ -164,6 +165,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
                 receiver,
                 constraint,
                 slot,
+                ..
             } => {
                 let target = self.dynamic_target(*receiver, *constraint, *slot);
                 self.record_target_or_open(

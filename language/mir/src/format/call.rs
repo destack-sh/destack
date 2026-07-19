@@ -13,17 +13,13 @@ pub(super) fn format_call<'a>(
     formatter: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     // format the callable target
-    let has_signature = match &call.callee {
+    match &call.callee {
         Callee::Direct { function } => {
             write!(formatter, [token(opcodes[0]), space()])?;
             format_function_id(*function, formatter)?;
-
-            false
         }
         Callee::Indirect { value } => {
             write!(formatter, [token(opcodes[1]), space(), value])?;
-
-            true
         }
         Callee::Virtual {
             receiver,
@@ -44,8 +40,6 @@ pub(super) fn format_call<'a>(
                     copied_text(&slot.0.to_string())
                 ]
             )?;
-
-            true
         }
         Callee::Dynamic {
             receiver,
@@ -66,17 +60,13 @@ pub(super) fn format_call<'a>(
                     copied_text(&slot.0.to_string())
                 ]
             )?;
-
-            true
         }
-    };
+    }
 
-    // format arguments and the explicit open-call signature
+    // format arguments and the explicit signature
     let arguments = formatter.context().tree.get_values(call.arguments);
     format_value_list(arguments, formatter)?;
-    if has_signature {
-        format_call_signature_suffix(&call.signature, formatter)?;
-    }
+    format_call_signature_suffix(&call.signature, formatter)?;
 
     Ok(())
 }
