@@ -7,7 +7,7 @@ use destack_artifact::{
     SegmentedArtifactStore,
 };
 use destack_core::{StringPool, TreapRoot};
-use destack_source::{Content, ContentEntry, ContentId, FileSystem};
+use destack_source::{Content, ContentEntry, ContentId, File, FileSystem};
 
 use crate::artifact::Artifacts;
 use crate::repository::{
@@ -244,14 +244,18 @@ impl Repository {
 
     /// Intern one immutable content payload.
     pub fn intern_content(&self, content: Content) -> Result<ContentId, RepositoryError> {
+        let length = content.byte_length();
+        if length > File::MAX_BYTES {
+            return Err(RepositoryError::ContentTooLarge { length });
+        }
+
+        // persist and intern content
         let content_id = self.content_store().store(&content).map_err(|error| {
             RepositoryError::ContentStore {
                 message: error.to_string(),
             }
         })?;
-        let stored_id = self.content_pool.intern(content);
-
-        debug_assert_eq!(stored_id, content_id);
+        let _entry = self.content_pool.insert(content_id, content);
 
         Ok(content_id)
     }
@@ -272,11 +276,15 @@ impl Repository {
             return Err(RepositoryError::MissingContent { content });
         };
 
-        let stored_id = self.content_pool.intern(payload);
-        debug_assert_eq!(stored_id, content);
+        // validate stored content
+        let length = payload.byte_length();
+        if length > File::MAX_BYTES {
+            return Err(RepositoryError::ContentTooLarge { length });
+        }
 
-        self.content_pool
-            .get(content)
-            .ok_or(RepositoryError::MissingContent { content })
+        // intern the loaded content
+        let entry = self.content_pool.insert(content, payload);
+
+        Ok(entry)
     }
 }

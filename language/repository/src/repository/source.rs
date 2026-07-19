@@ -208,6 +208,12 @@ impl<'a> FileSystemSource<'a> {
             }
         };
 
+        // reject content outside source coordinates
+        let length = content.len();
+        if length > File::MAX_BYTES {
+            return Err(RepositoryError::ContentTooLarge { length });
+        }
+
         // parse through normal workspace config logic
         let file = File::from_text(
             FileId::from_logical_str("destack.json"),
@@ -850,6 +856,14 @@ fn patch_text(
             path: path.to_path_buf(),
             message: error.to_string(),
         })?;
+
+    // reject content outside source coordinates
+    let length = text.len();
+    if length > File::MAX_BYTES {
+        return Err(RepositoryError::ContentTooLarge { length });
+    }
+
+    // build the source file for patch application
     let file_id = FileId::from_logical_path(logical_path);
     let name = path
         .file_name()

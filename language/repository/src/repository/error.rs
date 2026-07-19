@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use destack_artifact::ArtifactVersion;
-use destack_source::{ContentId, FileId, ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{ContentId, File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::{Ref, Revision};
 
@@ -42,6 +42,8 @@ pub enum RepositoryError {
     },
     /// The requested content payload does not exist.
     MissingContent { content: ContentId },
+    /// One content payload exceeds the source coordinate range.
+    ContentTooLarge { length: usize },
     /// The repository content store failed.
     ContentStore { message: String },
     /// The repository artifact store failed.
@@ -144,6 +146,11 @@ impl fmt::Display for RepositoryError {
             Self::MissingContent { content } => {
                 write!(formatter, "missing repository content '{content}'")
             }
+            Self::ContentTooLarge { length } => write!(
+                formatter,
+                "content is {length} bytes, maximum is {}",
+                File::MAX_BYTES
+            ),
             Self::ContentStore { message } => {
                 write!(formatter, "repository content store failed: {message}")
             }

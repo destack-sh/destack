@@ -17,15 +17,14 @@ impl ContentPool {
         Self::default()
     }
 
-    /// Intern one content payload and return its exact identity.
-    pub(crate) fn intern(&self, content: Content) -> ContentId {
-        let content_id = ContentId::for_content(&content);
-
-        self.content_by_id
+    /// Insert one identified content payload and return its shared entry.
+    pub(crate) fn insert(&self, content_id: ContentId, content: Content) -> Arc<ContentEntry> {
+        let entry = self
+            .content_by_id
             .entry(content_id)
             .or_insert_with(|| Arc::new(ContentEntry::new(content)));
 
-        content_id
+        Arc::clone(entry.value())
     }
 
     /// Get one shared content payload.
