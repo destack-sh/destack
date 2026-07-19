@@ -58,7 +58,7 @@ impl<'a> CoercionTable<'a> {
     }
 
     /// Get the effective coercion for one node.
-    pub fn coercion(&self, node_id: GlobalNodeIdAny) -> Option<Coercion> {
+    pub fn coercion(&self, node_id: GlobalNodeIdAny) -> Option<&Coercion> {
         for segment in self.segments.iter().rev() {
             if let Some(coercion) = segment.coercion(node_id) {
                 return Some(coercion);
@@ -69,7 +69,7 @@ impl<'a> CoercionTable<'a> {
     }
 
     /// Iterate visible coercions.
-    pub fn coercions(&self) -> impl Iterator<Item = (GlobalNodeIdAny, Coercion)> + '_ {
+    pub fn coercions(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Coercion)> + '_ {
         self.segments
             .iter()
             .enumerate()
@@ -84,7 +84,7 @@ impl<'a> CoercionTable<'a> {
                             .skip(segment_index + 1)
                             .any(|segment| segment.coercions.contains_key(node_id));
 
-                        (!is_shadowed).then_some((*node_id, *coercion))
+                        (!is_shadowed).then_some((*node_id, coercion))
                     })
             })
     }
@@ -95,9 +95,11 @@ impl<'a> CoercionTable<'a> {
     }
 }
 
-/// One representation change performed by a coercion.
+/// One adjustment in an implicit coercion path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum CoercionKind {
+    /// Change the semantic type without changing its runtime representation.
+    Direct,
     /// Borrow one value with the target lifetime and access.
     Borrow,
     /// Tag the value into or out of a union carrier.
@@ -113,9 +115,10 @@ pub enum CoercionKind {
 }
 
 impl CoercionKind {
-    /// Return the stable textual name of this representation change.
+    /// Return the stable textual name of this adjustment.
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::Direct => "direct",
             Self::Borrow => "borrow",
             Self::Union => "union",
             Self::Existential => "existential",
@@ -127,40 +130,54 @@ impl CoercionKind {
 }
 
 /// One type coercion attached to a value node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Coercion {
     /// The source type before coercion.
     pub source: GlobalTypeId,
-    /// The target type after coercion.
-    pub target: GlobalTypeId,
-    /// The target member selected for the stored value, when the target composes members.
-    pub member: Option<GlobalTypeId>,
-    /// The representation change performed.
-    pub kind: CoercionKind,
+    /// The ordered adjustments applied to the source value.
+    pub adjustments: Vec<CoercionAdjustment>,
     /// How the coercion entered DIR.
     pub origin: CastOrigin,
+}
+
+/// One typed adjustment in an implicit coercion path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct CoercionAdjustment {
+    /// The adjustment performed.
+    pub kind: CoercionKind,
+    /// The type after this adjustment.
+    pub target: GlobalTypeId,
 }
 
 impl Coercion {
     /// Create one coercion.
     pub fn new(
         source: GlobalTypeId,
-        target: GlobalTypeId,
-        kind: CoercionKind,
+        adjustments: Vec<CoercionAdjustment>,
         origin: CastOrigin,
     ) -> Self {
+        assert!(
+            !adjustments.is_empty(),
+            "a coercion requires at least one adjustment"
+        );
+
         Self {
             source,
-            target,
-            member: None,
-            kind,
+            adjustments,
             origin,
         }
     }
 
-    /// Classify the representation change between two settled, distinct type
-    /// heads, or nothing when the value stores directly.
-    pub fn classify(source: &Type, target: &Type) -> Option<CoercionKind> {
+    /// Return the final target type.
+    pub fn target(&self) -> GlobalTypeId {
+        self.adjustments[self.adjustments.len() - 1].target
+    }
+}
+
+impl CoercionKind {
+    /// Classify the adjustment between two settled, distinct type heads, or
+    /// nothing when the value stores directly.
+    pub fn classify(source: &Type, target: &Type) -> Option<Self> {
         // unreachable sources store nothing
         if matches!(source, Type::Never) {
             return None;
@@ -168,7 +185,7 @@ impl Coercion {
 
         // union carriers tag their values on entry and exit
         if matches!(source, Type::Union(_)) || matches!(target, Type::Union(_)) {
-            return Some(CoercionKind::Union);
+            return Some(Self::Union);
         }
 
         // existential carriers box their values on entry and exit
@@ -179,13 +196,13 @@ impl Coercion {
             )
         };
         if existential(source) || existential(target) {
-            return Some(CoercionKind::Existential);
+            return Some(Self::Existential);
         }
 
         // memory forms convert when their runtime carriers differ
         if let (Type::Form(source), Type::Form(target)) = (source, target) {
             return match Self::carriers_differ(source.form, target.form) {
-                true => Some(CoercionKind::Carrier),
+                true => Some(Self::Carrier),
                 false => None,
             };
         }
@@ -208,7 +225,7 @@ impl Coercion {
         }
         // owned, borrowed, and raw values convert against bare payloads
         if matches!(source, Type::Form(_)) || matches!(target, Type::Form(_)) {
-            return Some(CoercionKind::Carrier);
+            return Some(Self::Carrier);
         }
 
         // sized sequences and thin pointers convert into their fat carriers
@@ -218,7 +235,7 @@ impl Coercion {
                 | (Type::FixedArray(_), Type::Slice(_))
                 | (Type::FunctionPointer(_), Type::Function(_))
         ) {
-            return Some(CoercionKind::Carrier);
+            return Some(Self::Carrier);
         }
 
         // scalar singletons widen naturally into their base scalars
@@ -229,7 +246,7 @@ impl Coercion {
                     && matches!(target, Type::Primitive(_))
                     && literal.widens_to(target)
                 {
-                    return Some(CoercionKind::Widen);
+                    return Some(Self::Widen);
                 }
 
                 literal.widens_to(target)
@@ -249,7 +266,7 @@ impl Coercion {
         if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
             && source.widens_to(*target)
         {
-            return Some(CoercionKind::Scalar);
+            return Some(Self::Scalar);
         }
 
         None
@@ -302,24 +319,23 @@ impl CoercionSegment {
     }
 
     /// Get the coercion for one value node.
-    pub fn coercion(&self, node_id: GlobalNodeIdAny) -> Option<Coercion> {
-        self.coercions.get(&node_id).copied()
+    pub fn coercion(&self, node_id: GlobalNodeIdAny) -> Option<&Coercion> {
+        self.coercions.get(&node_id)
     }
 
     /// Iterate coercions in insertion order.
-    pub fn coercions(&self) -> impl Iterator<Item = (GlobalNodeIdAny, Coercion)> + '_ {
+    pub fn coercions(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Coercion)> + '_ {
         self.coercions
             .iter()
-            .map(|(node_id, coercion)| (*node_id, *coercion))
+            .map(|(node_id, coercion)| (*node_id, coercion))
     }
 
     /// Map every type id embedded in this segment.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         for coercion in self.coercions.values_mut() {
             coercion.source = map(coercion.source);
-            coercion.target = map(coercion.target);
-            if let Some(member) = &mut coercion.member {
-                *member = map(*member);
+            for adjustment in &mut coercion.adjustments {
+                adjustment.target = map(adjustment.target);
             }
         }
     }
