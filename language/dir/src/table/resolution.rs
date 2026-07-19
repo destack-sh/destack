@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AssignPatternResolution, CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId,
     GlobalTypeId, GuardResolution, InstantiationResolution, LabelResolution, MemberResolution,
-    NameResolution, PatternResolution, PlaceResolution, ReceiverResolution, SegmentView,
+    NameResolution, OperatorResolution, PatternResolution, PlaceResolution, ReceiverResolution,
+    SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -93,6 +94,13 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.members)
     }
 
+    /// Iterate visible operator resolutions.
+    pub fn operator_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &OperatorResolution)> + '_ {
+        self.visible_entries(|segment| &segment.operators)
+    }
+
     /// Iterate visible call resolutions.
     pub fn call_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &CallResolution)> + '_ {
         self.visible_entries(|segment| &segment.calls)
@@ -160,6 +168,11 @@ impl<'a> ResolutionTable<'a> {
     /// Get the member resolution for a node.
     pub fn member_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&MemberResolution> {
         self.lookup(node_id, |segment| &segment.members)
+    }
+
+    /// Get the operator resolution for a node.
+    pub fn operator_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&OperatorResolution> {
+        self.lookup(node_id, |segment| &segment.operators)
     }
 
     /// Get the call resolution for a node.
@@ -254,6 +267,8 @@ pub struct ResolutionSegment {
     pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution, FxBuildHasher>,
     /// Checked member resolutions keyed by DIR node.
     pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution, FxBuildHasher>,
+    /// Checked operator resolutions keyed by DIR node.
+    pub(crate) operators: IndexMap<GlobalNodeIdAny, OperatorResolution, FxBuildHasher>,
     /// Checked call resolutions keyed by DIR node.
     pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution, FxBuildHasher>,
     /// Checked place resolutions keyed by DIR node.
@@ -272,7 +287,7 @@ pub struct ResolutionSegment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolutionMark {
     /// The per-kind map lengths at the mark.
-    lengths: [usize; 11],
+    lengths: [usize; 12],
 }
 
 impl ResolutionSegment {
@@ -285,6 +300,7 @@ impl ResolutionSegment {
                 self.labels.len(),
                 self.receivers.len(),
                 self.members.len(),
+                self.operators.len(),
                 self.calls.len(),
                 self.places.len(),
                 self.guards.len(),
@@ -303,6 +319,7 @@ impl ResolutionSegment {
             labels,
             receivers,
             members,
+            operators,
             calls,
             places,
             guards,
@@ -315,6 +332,7 @@ impl ResolutionSegment {
         Self::truncate_map(&mut self.labels, labels);
         Self::truncate_map(&mut self.receivers, receivers);
         Self::truncate_map(&mut self.members, members);
+        Self::truncate_map(&mut self.operators, operators);
         Self::truncate_map(&mut self.calls, calls);
         Self::truncate_map(&mut self.places, places);
         Self::truncate_map(&mut self.guards, guards);
@@ -341,6 +359,7 @@ impl ResolutionSegment {
             labels: IndexMap::default(),
             receivers: IndexMap::default(),
             members: IndexMap::default(),
+            operators: IndexMap::default(),
             calls: IndexMap::default(),
             places: IndexMap::default(),
             guards: IndexMap::default(),
@@ -370,6 +389,10 @@ impl ResolutionSegment {
 
         if let Some(resolution) = self.members.get(&source).cloned() {
             self.members.insert(target, resolution);
+        }
+
+        if let Some(resolution) = self.operators.get(&source).cloned() {
+            self.operators.insert(target, resolution);
         }
 
         if let Some(resolution) = self.calls.get(&source).cloned() {
@@ -470,6 +493,20 @@ impl ResolutionSegment {
     /// Get the member resolution for a node.
     pub fn member_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&MemberResolution> {
         self.members.get(&node_id)
+    }
+
+    /// Set the operator resolution for a node.
+    pub fn set_operator_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: OperatorResolution,
+    ) {
+        self.operators.insert(node_id, resolution);
+    }
+
+    /// Get the operator resolution for a node.
+    pub fn operator_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&OperatorResolution> {
+        self.operators.get(&node_id)
     }
 
     /// Set the call resolution for a node.
@@ -588,6 +625,15 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate visible operator resolutions.
+    pub fn operator_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &OperatorResolution)> + '_ {
+        self.operators
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Iterate visible call resolutions.
     pub fn call_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &CallResolution)> + '_ {
         self.calls
@@ -643,6 +689,7 @@ impl ResolutionSegment {
             && self.labels.is_empty()
             && self.receivers.is_empty()
             && self.members.is_empty()
+            && self.operators.is_empty()
             && self.calls.is_empty()
             && self.places.is_empty()
             && self.guards.is_empty()
@@ -662,6 +709,9 @@ impl ResolutionSegment {
             resolution.map_type_ids(map);
         }
         for resolution in self.members.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.operators.values_mut() {
             resolution.map_type_ids(map);
         }
         for resolution in self.calls.values_mut() {

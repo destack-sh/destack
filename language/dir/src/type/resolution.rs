@@ -2,10 +2,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentBinding, BinaryOperator, ClassConstructor, DereferenceOperation,
-    GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, MemberSpace, Predicate,
-    Projection, ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, UnaryOperator,
-    VariantCase,
+    ArgumentBinding, ClassConstructor, DereferenceOperation, GenericArgumentBinding,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, MemberSpace, Predicate, Projection,
+    ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, VariantCase,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -359,6 +358,31 @@ impl CallResolution {
     }
 }
 
+/// Operator implementation selected at a usage site.
+///
+/// Examples:
+/// ```ds
+/// left + right  // Builtin
+/// left == right // Call, when selected through PartialEqual.equal
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum OperatorResolution {
+    /// Compiler-defined operation over checked operand carriers.
+    Builtin,
+    /// User-defined protocol operation.
+    Call(Box<CallResolution>),
+}
+
+impl OperatorResolution {
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Builtin => {}
+            Self::Call(call) => call.map_type_ids(map),
+        }
+    }
+}
+
 /// Place selected by a checked expression.
 ///
 /// Examples:
@@ -467,14 +491,6 @@ impl Storage {
 /// Callable target selected at a call site.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CallTarget {
-    /// Compiler builtin selected at a usage site.
-    ///
-    /// Examples:
-    /// ```ds
-    /// left + right
-    /// !flag
-    /// ```
-    Builtin(BuiltinCall),
     /// Callable expression without a declaration symbol.
     ///
     /// Examples:
@@ -507,7 +523,6 @@ impl CallTarget {
     /// Apply one mapping to every type id stored in this target.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Builtin(_) => {}
             Self::Expression { generic_arguments } => {
                 for argument in generic_arguments {
                     argument.map_type_ids(map);
@@ -648,33 +663,6 @@ impl InGuardResolution {
         self.receiver_type = map(self.receiver_type);
         self.predicate.map_type_ids(map);
     }
-}
-
-/// Compiler builtin callable selected at a usage site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum BuiltinCall {
-    /// Builtin unary operator behavior.
-    ///
-    /// Examples:
-    /// ```ds
-    /// !flag
-    /// -value
-    /// ```
-    UnaryOperator {
-        /// The source operator.
-        operator: UnaryOperator,
-    },
-    /// Builtin binary operator behavior.
-    ///
-    /// Examples:
-    /// ```ds
-    /// left + right
-    /// left === right
-    /// ```
-    BinaryOperator {
-        /// The source operator.
-        operator: BinaryOperator,
-    },
 }
 
 /// One callable candidate after overload selection.
