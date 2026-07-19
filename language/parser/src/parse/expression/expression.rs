@@ -393,8 +393,8 @@ impl Parser {
             return true;
         }
 
-        // leave match continuation lines to the enclosing case
-        if context.stops.contains(ExpressionStops::MATCH_LINE) && self.peek_is_on_new_line() {
+        // leave match continuation lines to the enclosing arm
+        if context.stops.contains(ExpressionStops::MATCH_ARM_LINE) && self.peek_is_on_new_line() {
             return true;
         }
 

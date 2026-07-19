@@ -38,6 +38,7 @@ mod search;
 mod statement;
 mod stop;
 mod r#struct;
+mod switch;
 mod template;
 mod tree;
 mod r#try;

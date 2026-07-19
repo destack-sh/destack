@@ -32,12 +32,13 @@ const PARSER_DIAGNOSTICS: &[DiagnosticDefinition] = &[
     ParserDiagnostic::Expected(NodeType::Argument).definition(),
     ParserDiagnostic::Expected(NodeType::TreeAttribute).definition(),
     ParserDiagnostic::Expected(NodeType::TreeChild).definition(),
-    ParserDiagnostic::Expected(NodeType::MatchCase).definition(),
+    ParserDiagnostic::Expected(NodeType::MatchArm).definition(),
     ParserDiagnostic::Expected(NodeType::Pattern).definition(),
     ParserDiagnostic::Expected(NodeType::PatternField).definition(),
     ParserDiagnostic::Expected(NodeType::AssignPattern).definition(),
     ParserDiagnostic::Expected(NodeType::AssignPatternField).definition(),
     ParserDiagnostic::Expected(NodeType::Decorator).definition(),
+    ParserDiagnostic::Expected(NodeType::SwitchCase).definition(),
     ParserDiagnostic::InvalidAssignmentTarget.definition(),
 ];
 
@@ -113,9 +114,7 @@ impl ParserDiagnostic {
             Self::Expected(NodeType::TreeChild) => {
                 ("expected-tree-child", "Expected a tree child.")
             }
-            Self::Expected(NodeType::MatchCase) => {
-                ("expected-match-case", "Expected a match case.")
-            }
+            Self::Expected(NodeType::MatchArm) => ("expected-match-arm", "Expected a match arm."),
             Self::Expected(NodeType::Pattern) => ("expected-pattern", "Expected a pattern."),
             Self::Expected(NodeType::PatternField) => {
                 ("expected-pattern-field", "Expected a pattern field.")
@@ -129,6 +128,9 @@ impl ParserDiagnostic {
                 "Expected an assignment pattern field.",
             ),
             Self::Expected(NodeType::Decorator) => ("expected-decorator", "Expected a decorator."),
+            Self::Expected(NodeType::SwitchCase) => {
+                ("expected-switch-case", "Expected a switch case.")
+            }
             Self::InvalidAssignmentTarget => {
                 ("invalid-assignment-target", "Invalid assignment target.")
             }

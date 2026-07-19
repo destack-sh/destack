@@ -90,7 +90,7 @@ impl Parser {
             if is_on_new_line
                 && !continues_postfix
                 && (context.decorator != DecoratorContext::None
-                    || context.stops.contains(ExpressionStops::MATCH_LINE)
+                    || context.stops.contains(ExpressionStops::MATCH_ARM_LINE)
                     || context.stops.contains(ExpressionStops::NEWLINE_CALL)
                     || context.statement == StatementPosition::Direct
                         && self.tree.get(left).ends_statement_on_newline())

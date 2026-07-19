@@ -1,6 +1,6 @@
 use destack_dir::{
-    BinaryOperator, Block, CommentKind, Declarator, Expression, LetKind, MatchCase, MatchForm,
-    MatchSelector, Mutability, NodeType, Pattern, PatternField, ScalarLiteral, TokenType,
+    BinaryOperator, Block, CommentKind, Declarator, Expression, LetKind, MatchArm, Mutability,
+    NodeType, Pattern, PatternField, ScalarLiteral, SwitchCase, SwitchSelector, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -25,14 +25,14 @@ match (x) {
 
     let match_id = parser.parse_match(Default::default()).unwrap();
 
-    assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value, cases } => {
+    assert_node!(parser.tree, match_id, Expression::Match { value, arms } => {
         // value: path x
         assert_expression_path!(parser, parser.tree.get(*value), "x");
 
-        assert_eq!(cases.len(), 4);
+        assert_eq!(arms.len(), 4);
 
         // case 0: 1 => 10
-        assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -41,7 +41,7 @@ match (x) {
         });
 
         // case 1: 2 => 20
-        assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[1], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
@@ -50,7 +50,7 @@ match (x) {
         });
 
         // case 2: x => x
-        assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body: _ } => {
+        assert_node!(parser.tree, arms[2], MatchArm::Expression { pattern, guard, body: _ } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: _ } => {
                 assert_string!(parser, *name, "x");
@@ -58,7 +58,7 @@ match (x) {
         });
 
         // case 3: _ => 0
-        assert_node!(parser.tree, cases[3], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[3], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Wildcard);
             assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -81,11 +81,11 @@ match (shape) {
 
     TestParser::assert_no_errors(&parser);
 
-    assert_node!(parser.tree, match_id, Expression::Match { cases, .. } => {
-        assert_eq!(cases.len(), 2);
+    assert_node!(parser.tree, match_id, Expression::Match { arms, .. } => {
+        assert_eq!(arms.len(), 2);
 
         // { kind: "circle", radius } => radius
-        assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                 assert_eq!(fields.len(), 2);
@@ -94,7 +94,7 @@ match (shape) {
         });
 
         // { kind: "square", size } => size
-        assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[1], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                 assert_eq!(fields.len(), 2);
@@ -116,14 +116,14 @@ match (x) {
     let mut parser = test.prepare();
 
     let match_id = parser.parse_match(Default::default()).unwrap();
-    assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value: _, cases } => {
-        assert_eq!(cases.len(), 1);
+    assert_node!(parser.tree, match_id, Expression::Match { value: _, arms } => {
+        assert_eq!(arms.len(), 1);
 
         // case: 2 if (true) => 20
-        assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, guard, body } => {
             let guard_clause_span = parser
                 .tree
-                .get_side_span(cases[0], NodeSpanType::Region(NodeSpanRegion::Guard))
+                .get_side_span(arms[0], NodeSpanType::Region(NodeSpanRegion::Guard))
                 .expect("expected guard clause span");
             assert_eq!(parser.span_str(guard_clause_span), "if (true)");
 
@@ -155,10 +155,10 @@ match (pair) {
     let mut parser = test.prepare();
 
     let match_id = parser.parse_match(Default::default()).unwrap();
-    assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value: _, cases } => {
-        assert_eq!(cases.len(), 2);
+    assert_node!(parser.tree, match_id, Expression::Match { value: _, arms } => {
+        assert_eq!(arms.len(), 2);
 
-        assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, guard, body } => {
             assert_node!(parser.tree, *pattern, Pattern::Tuple { fields } => {
                 assert_eq!(fields.len(), 2);
 
@@ -180,7 +180,7 @@ match (pair) {
             assert_expression_path!(parser, parser.tree.get(*body), "count");
         });
 
-        assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[1], MatchArm::Expression { pattern, guard, body } => {
             assert_node!(parser.tree, *pattern, Pattern::Wildcard);
             assert!(guard.is_none());
             assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -204,14 +204,14 @@ match (self) {
     let match_id = parser.parse_match(Default::default()).unwrap();
 
     // match (self) { ... }
-    assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value, cases } => {
+    assert_node!(parser.tree, match_id, Expression::Match { value, arms } => {
         // self
         assert_expression_path!(parser, parser.tree.get(*value), "self");
 
-        assert_eq!(cases.len(), 3);
+        assert_eq!(arms.len(), 3);
 
         // TetrisPieceShape.I => Color.Blue
-        assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             // TetrisPieceShape.I
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -222,7 +222,7 @@ match (self) {
         });
 
         // TetrisPieceShape.J => Color.Red
-        assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[1], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             // TetrisPieceShape.J
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -233,7 +233,7 @@ match (self) {
         });
 
         // _ => Color.Gray
-        assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+        assert_node!(parser.tree, arms[2], MatchArm::Expression { pattern, guard, body } => {
             assert!(guard.is_none());
             assert_node!(parser.tree, *pattern, Pattern::Wildcard);
             // Color.Gray
@@ -271,7 +271,7 @@ fn test_parse_switch_keeps_keyword_in_source_span() {
     let test = TestParser::new("switch (value) { default: break }");
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_match(Default::default()).unwrap();
+    let switch_id = parser.parse_switch(Default::default()).unwrap();
     let switch_span = parser.tree.get_span(switch_id);
 
     assert_eq!(
@@ -296,10 +296,10 @@ match (result) {
 
     let match_id = parser.parse_match(Default::default()).unwrap();
 
-    assert_node!(parser.tree, match_id, Expression::Match { cases, .. } => {
-        assert_eq!(cases.len(), 2);
+    assert_node!(parser.tree, match_id, Expression::Match { arms, .. } => {
+        assert_eq!(arms.len(), 2);
 
-        assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+        assert_node!(parser.tree, arms[0], MatchArm::Block { body, .. } => {
             let body_block = parser.tree.get(*body);
             assert!(body_block.leading_expressions.is_empty());
             let if_expression_id = body_block
@@ -324,9 +324,8 @@ match (result) {
     });
 }
 
-/// Parse a switch-case statement.
 #[test]
-fn test_parse_match_from_switch_case() {
+fn test_parse_switch_cases() {
     let test = TestParser::new(
         r###"
 switch (left.type) {
@@ -348,18 +347,15 @@ switch (left.type) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_match(Default::default()).unwrap();
-    assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, value: _, cases } => {
+    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    assert_node!(parser.tree, switch_id, Expression::Switch { value: _, cases } => {
         assert_eq!(cases.len(), 4);
 
         // case "static" block
-        assert_node!(parser.tree, cases[0], MatchCase::Block { selector: MatchSelector::Pattern { pattern, guard }, body } => {
-            assert!(guard.is_none());
+        assert_node!(parser.tree, cases[0], SwitchCase { selector: SwitchSelector::Case(value), body } => {
             // selector
-            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
-                    assert_string!(parser, *literal, "static");
-                });
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+                assert_string!(parser, *literal, "static");
             });
             // body
             assert_node!(parser.tree, *body, Block { .. } => {
@@ -369,13 +365,10 @@ switch (left.type) {
         });
 
         // case "dynamic" block
-        assert_node!(parser.tree, cases[1], MatchCase::Block { selector: MatchSelector::Pattern { pattern, guard }, body } => {
-            assert!(guard.is_none());
+        assert_node!(parser.tree, cases[1], SwitchCase { selector: SwitchSelector::Case(value), body } => {
             // selector
-            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
-                    assert_string!(parser, *literal, "dynamic");
-                });
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+                assert_string!(parser, *literal, "dynamic");
             });
             // body
             assert_node!(parser.tree, *body, Block { .. } => {
@@ -384,23 +377,22 @@ switch (left.type) {
             });
         });
 
-        // case "literal" expression
-        assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
-            assert!(guard.is_none());
+        // case "literal" block
+        assert_node!(parser.tree, cases[2], SwitchCase { selector: SwitchSelector::Case(value), body } => {
             // selector
-            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
-                    assert_string!(parser, *literal, "literal");
-                });
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+                assert_string!(parser, *literal, "literal");
             });
             // body
-            assert_node!(parser.tree, *body, Expression::Call { left, .. } => {
+            let expressions = block_expression_ids(parser.tree.get(*body));
+            assert_eq!(expressions.len(), 1);
+            assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "something");
             });
         });
 
         // case default (block)
-        assert_node!(parser.tree, cases[3], MatchCase::Block { selector: MatchSelector::Default, body } => {
+        assert_node!(parser.tree, cases[3], SwitchCase { selector: SwitchSelector::Default, body } => {
             // body
             assert_node!(parser.tree, *body, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*body));
@@ -422,10 +414,10 @@ switch(a) { case 1: {}
     let mut parser = test.prepare();
 
     // switch(a) { case 1: {} /foo/ }
-    let switch_id = parser.parse_match(Default::default()).unwrap();
-    assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
+    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
-        assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+        assert_node!(parser.tree, cases[0], SwitchCase { body, .. } => {
             assert_node!(parser.tree, *body, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 2);
@@ -450,10 +442,10 @@ switch (tag.injectTo) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_match(Default::default()).unwrap();
-    assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
+    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
-        assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+        assert_node!(parser.tree, cases[0], SwitchCase { body, .. } => {
             assert_node!(parser.tree, *body, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 2);
@@ -502,20 +494,17 @@ switch (tag) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_match(Default::default()).unwrap();
-    assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
+    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 2);
 
         // first case body
-        assert_node!(parser.tree, cases[0], MatchCase::Block { selector, body } => {
+        assert_node!(parser.tree, cases[0], SwitchCase { selector, body } => {
             match selector {
-                MatchSelector::Pattern { pattern, guard } => {
-                    assert!(guard.is_none());
-                    assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                        assert_expression_path!(parser, parser.tree.get(*value), "dataViewTag");
-                    });
+                SwitchSelector::Case(value) => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "dataViewTag");
                 }
-                _ => panic!("expected pattern selector"),
+                SwitchSelector::Default => panic!("expected case selector"),
             };
             assert_node!(parser.tree, *body, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*body));
@@ -529,17 +518,16 @@ switch (tag) {
         });
 
         // second case body
-        assert_node!(parser.tree, cases[1], MatchCase::Expression { selector, body } => {
+        assert_node!(parser.tree, cases[1], SwitchCase { selector, body } => {
             match selector {
-                MatchSelector::Pattern { pattern, guard } => {
-                    assert!(guard.is_none());
-                    assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                        assert_expression_path!(parser, parser.tree.get(*value), "arrayBufferTag");
-                    });
+                SwitchSelector::Case(value) => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "arrayBufferTag");
                 }
-                _ => panic!("expected pattern selector"),
+                SwitchSelector::Default => panic!("expected case selector"),
             };
-            let return_id = parser.unwrap_label_expression(*body);
+            let expressions = block_expression_ids(parser.tree.get(*body));
+            assert_eq!(expressions.len(), 1);
+            let return_id = parser.unwrap_label_expression(expressions[0]);
             assert_node!(parser.tree, return_id, Expression::Return { .. });
         });
     });
@@ -559,10 +547,10 @@ switch (value) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.parse_match(Default::default()).unwrap();
-    assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
+    let switch_id = parser.parse_switch(Default::default()).unwrap();
+    assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
-        assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+        assert_node!(parser.tree, cases[0], SwitchCase { body, .. } => {
             assert_node!(parser.tree, *body, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 2);
@@ -581,18 +569,14 @@ fn test_parse_switch_case_body_recovers_at_eof() {
     let roots = parser.parse();
 
     assert_eq!(roots.len(), 1);
-    assert_node!(parser.tree, roots[0], Expression::Match { form, value, cases } => {
-        assert_eq!(*form, MatchForm::Switch);
+    assert_node!(parser.tree, roots[0], Expression::Switch { value, cases } => {
         assert_expression_path!(parser, parser.tree.get(*value), "cond");
         assert_eq!(cases.len(), 1);
-        assert_node!(parser.tree, cases[0], MatchCase::Expression { selector, body } => {
-            assert_node!(selector, MatchSelector::Pattern { pattern, guard } => {
-                assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
-                });
-            });
-            assert_node!(parser.tree, *body, Expression::Let { kind, export, mutability, declarators, is_ambient, place } => {
+        assert_node!(parser.tree, cases[0], SwitchCase { selector: SwitchSelector::Case(value), body } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
+            let expressions = block_expression_ids(parser.tree.get(*body));
+            assert_eq!(expressions.len(), 1);
+            assert_node!(parser.tree, expressions[0], Expression::Let { kind, export, mutability, declarators, is_ambient, place } => {
                 assert_eq!(*kind, LetKind::Let);
                 assert_eq!(*export, None);
                 assert_eq!(*mutability, Mutability::Mutable);
@@ -614,7 +598,7 @@ fn test_parse_switch_case_body_recovers_at_eof() {
     TestParser::assert_errors(
         &parser,
         &[(
-            Some(NodeType::MatchCase),
+            Some(NodeType::SwitchCase),
             Some(TokenType::End),
             Some(TokenType::CloseBrace),
             "",
@@ -629,15 +613,15 @@ fn test_parse_switch_case_minified_if_continue_then_if() {
         "switch(op[0]){default:if(!(t=_.trys,t=t.length>0&&t[t.length-1])&&(op[0]===6||op[0]===2)){_=0;continue}if(op[0]===3&&(!t||op[1]>t[0]&&op[1]<t[3])){_.label=op[1];break}}",
     );
     let mut parser = test.prepare();
-    let switch_id = parser.parse_match(Default::default()).unwrap();
+    let switch_id = parser.parse_switch(Default::default()).unwrap();
 
     // switch(op[0]) { default: if (...) { _ = 0; continue } if (...) { _.label = op[1]; break } }
-    assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
+    assert_node!(parser.tree, switch_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
 
         // default case body keeps both if statements
-        assert_node!(parser.tree, cases[0], MatchCase::Block { selector, body } => {
-            assert!(matches!(selector, MatchSelector::Default));
+        assert_node!(parser.tree, cases[0], SwitchCase { selector, body } => {
+            assert!(matches!(selector, SwitchSelector::Default));
             assert_node!(parser.tree, *body, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 2);
@@ -671,14 +655,13 @@ fn test_parse_switch_case_boundary_comment_ownership() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_label_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Match { form, cases, .. } => {
-        assert_eq!(*form, MatchForm::Switch);
+    assert_node!(parser.tree, expression_id, Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 2);
 
         let first_case_annotations = parser.tree.get_decorators(cases[0].id);
         assert!(first_case_annotations.is_empty());
 
-        assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+        assert_node!(parser.tree, cases[0], SwitchCase { body, .. } => {
             assert_node!(parser.tree, *body, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 2);
@@ -687,7 +670,7 @@ fn test_parse_switch_case_boundary_comment_ownership() {
             });
         });
 
-        assert_node!(parser.tree, cases[1], MatchCase::Expression { body, .. } => {
+        assert_node!(parser.tree, cases[1], SwitchCase { body, .. } => {
             let default_annotations = parser.tree.get_decorators(body.id);
             assert!(default_annotations.is_empty());
         });

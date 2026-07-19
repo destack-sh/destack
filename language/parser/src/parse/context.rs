@@ -116,12 +116,12 @@ pub(crate) enum ExpressionMode {
 pub(crate) struct ExpressionStops(u8);
 
 impl ExpressionStops {
-    /// A colon owned by an enclosing match case.
-    pub(crate) const MATCH_COLON: Self = Self(1 << 0);
+    /// A colon owned by an enclosing switch selector.
+    pub(crate) const SWITCH_COLON: Self = Self(1 << 0);
     /// An `in` or `of` token owned by an enclosing iteration clause.
     pub(crate) const FOR_EACH: Self = Self(1 << 1);
-    /// A newline owned by an enclosing match case.
-    pub(crate) const MATCH_LINE: Self = Self(1 << 2);
+    /// A newline owned by an enclosing match arm.
+    pub(crate) const MATCH_ARM_LINE: Self = Self(1 << 2);
     /// An angle close owned by an enclosing generic argument list.
     pub(crate) const ANGLE_CLOSE: Self = Self(1 << 3);
     /// A newline call owned by an enclosing statement expression.
@@ -351,8 +351,6 @@ pub(crate) struct PatternContext {
     pub(crate) function: FunctionContext,
     /// Whether `|` ends this pattern operand.
     pub(crate) stops_at_union: bool,
-    /// Whether the pattern belongs to a match case.
-    pub(crate) is_match_case: bool,
     /// Whether the pattern is immediately followed by a type annotation.
     pub(crate) is_before_type: bool,
 }
@@ -362,7 +360,6 @@ impl PatternContext {
     pub(crate) const fn nested(self) -> Self {
         Self {
             function: self.function,
-            is_match_case: self.is_match_case,
             stops_at_union: false,
             is_before_type: false,
         }

@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     Block, BlockContext, BlockForm, CommentKind, Declaration, Expression, FunctionDeclaration,
-    FunctionForm, IfForm, Key, LetKind, MatchCase, Name, NodeType, Property, ScalarLiteral,
+    FunctionForm, IfForm, Key, LetKind, MatchArm, Name, NodeType, Property, ScalarLiteral,
     TokenType, TypeExpression, YieldCardinality,
 };
 
@@ -772,10 +772,10 @@ function apply(result: Result): IteratorResult<number> {
                 let function_block = parser.tree.get(*function_block_id);
                 let tail_expression = function_block.tail_expression.expect("expected match tail");
 
-                assert_node!(parser.tree, tail_expression, Expression::Match { cases, .. } => {
-                    assert_eq!(cases.len(), 2);
-                    for case_id in cases {
-                        assert_node!(parser.tree, *case_id, MatchCase::Block { body: case_block_id, .. } => {
+                assert_node!(parser.tree, tail_expression, Expression::Match { arms, .. } => {
+                    assert_eq!(arms.len(), 2);
+                    for arm_id in arms {
+                        assert_node!(parser.tree, *arm_id, MatchArm::Block { body: case_block_id, .. } => {
                             let case_block = parser.tree.get(*case_block_id);
                             let case_tail = case_block.tail_expression.expect("expected object tail");
 

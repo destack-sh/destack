@@ -59,7 +59,7 @@ impl Parser {
 
     /// Return whether the current colon can continue one consumed label.
     pub(crate) fn peek_label_body(&self, context: ExpressionContext) -> bool {
-        if context.stops.contains(ExpressionStops::MATCH_COLON)
+        if context.stops.contains(ExpressionStops::SWITCH_COLON)
             || context.stops.contains(ExpressionStops::CONDITIONAL_COLON)
             || !self.peek_is(TokenType::Colon)
         {
