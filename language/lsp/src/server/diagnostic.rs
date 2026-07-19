@@ -160,7 +160,7 @@ where
     Some(lsp::Diagnostic {
         range,
         severity,
-        code: Some(lsp::NumberOrString::String(diagnostic.code.clone())),
+        code: Some(lsp::NumberOrString::String(diagnostic.id.clone())),
         code_description: None,
         source: Some("destack".to_string()),
         message: diagnostic.message.clone(),
@@ -175,7 +175,7 @@ pub(super) fn diagnostic_result_id(diagnostics: &[Diagnostic]) -> String {
     let mut hasher = StableHasher::new();
     diagnostics.len().hash(&mut hasher);
     for diagnostic in diagnostics {
-        diagnostic.code.hash(&mut hasher);
+        diagnostic.id.hash(&mut hasher);
         diagnostic.message.hash(&mut hasher);
         let primary = diagnostic.primary_label();
         primary.content.hash(&mut hasher);

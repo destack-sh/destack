@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{
-    Applicability, Diagnostic, DiagnosticLabel, FilePatch, Patch, PatchSet, Span,
+    Applicability, Diagnostic, DiagnosticLabel, FilePatch, ModuleId, Patch, PatchSet, Span,
 };
 use serde::{Deserialize, Serialize};
 
@@ -49,8 +49,8 @@ pub struct CodeAction {
     pub is_preferred: bool,
     /// Whether this action is disabled (with reason).
     pub disabled_reason: Option<String>,
-    /// The diagnostic code this action fixes (if from a diagnostic).
-    pub diagnostic_code: Option<String>,
+    /// The diagnostic id this action fixes (if from a diagnostic).
+    pub diagnostic_id: Option<String>,
 }
 
 impl CodeAction {
@@ -62,7 +62,7 @@ impl CodeAction {
             patches,
             is_preferred: false,
             disabled_reason: None,
-            diagnostic_code: None,
+            diagnostic_id: None,
         }
     }
 
@@ -74,7 +74,7 @@ impl CodeAction {
             patches,
             is_preferred: false,
             disabled_reason: None,
-            diagnostic_code: None,
+            diagnostic_id: None,
         }
     }
 
@@ -90,9 +90,9 @@ impl CodeAction {
         self
     }
 
-    /// Set the diagnostic code this action fixes.
-    pub fn with_diagnostic_code(mut self, code: impl Into<String>) -> Self {
-        self.diagnostic_code = Some(code.into());
+    /// Set the diagnostic id this action fixes.
+    pub fn with_diagnostic_id(mut self, id: impl Into<String>) -> Self {
+        self.diagnostic_id = Some(id.into());
         self
     }
 }
@@ -131,8 +131,8 @@ struct CodeActionOrder {
     preferred_miss: u8,
     /// The action title.
     title: String,
-    /// The diagnostic code when present.
-    diagnostic_code: String,
+    /// The diagnostic id when present.
+    diagnostic_id: Option<String>,
     /// The serialized edit shape.
     patches: String,
 }
@@ -168,10 +168,7 @@ impl CodeActionOrder {
             kind_priority: action.kind.priority(),
             preferred_miss: u8::from(!action.is_preferred),
             title: action.title.clone(),
-            diagnostic_code: match &action.diagnostic_code {
-                Some(code) => code.clone(),
-                None => String::new(),
-            },
+            diagnostic_id: action.diagnostic_id.clone(),
             patches: Self::patch_set_text(&action.patches),
         }
     }
@@ -383,7 +380,7 @@ impl ModuleQueryContext<'_> {
                 }
 
                 let action = CodeAction::quick_fix(&suggestion.message, suggestion.patches.clone())
-                    .with_diagnostic_code(&diagnostic.code)
+                    .with_diagnostic_id(&diagnostic.id)
                     .preferred();
 
                 actions.push(action);
@@ -402,7 +399,7 @@ impl ModuleQueryContext<'_> {
         let file = self.file_id();
         let exclude_module_id = Some(self.module_id());
 
-        // scan diagnostics for unresolved symbol codes in the owning repository
+        // scan unresolved reference diagnostics in the owning repository
         for diagnostic in diagnostics {
             let Some(diagnostic_span) = diagnostic.primary_label().target.span() else {
                 continue;
@@ -419,7 +416,7 @@ impl ModuleQueryContext<'_> {
             }
 
             // only handle unresolved symbol diagnostics
-            if diagnostic.code != "ER100" && diagnostic.code != "ER101" {
+            if diagnostic.id != "unresolved-reference" {
                 continue;
             }
 
@@ -434,7 +431,7 @@ impl ModuleQueryContext<'_> {
                 &symbol_name,
                 exclude_module_id,
                 symbol_use,
-                Some(&diagnostic.code),
+                Some(&diagnostic.id),
                 actions,
             );
         }
@@ -460,9 +457,9 @@ impl ModuleQueryContext<'_> {
         &self,
         program: &ProgramQueryContext<'_>,
         symbol_name: &str,
-        exclude_module_id: Option<destack_source::ModuleId>,
+        exclude_module_id: Option<ModuleId>,
         symbol_use: SymbolUse,
-        diagnostic_code: Option<&str>,
+        diagnostic_id: Option<&str>,
         actions: &mut Vec<CodeAction>,
     ) {
         let repository = self.repository();
@@ -553,8 +550,8 @@ impl ModuleQueryContext<'_> {
             // build the code action entry
             let title = format!("Import {symbol_name} from \"{display_path}\"");
             let mut action = CodeAction::quick_fix(title, batch_edit);
-            if let Some(code) = diagnostic_code {
-                action = action.with_diagnostic_code(code);
+            if let Some(id) = diagnostic_id {
+                action = action.with_diagnostic_id(id);
             }
 
             // prefer the first action for the symbol

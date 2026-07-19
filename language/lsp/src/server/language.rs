@@ -2731,8 +2731,8 @@ impl LanguageServer for DestackLanguageServer {
         };
         let mut actions = response.actions;
 
-        // filter diagnostic linked quick fixes by requested diagnostic codes
-        let diagnostic_codes: HashSet<String> = params
+        // filter diagnostic linked quick fixes by requested diagnostic ids
+        let diagnostic_ids: HashSet<String> = params
             .context
             .diagnostics
             .iter()
@@ -2742,12 +2742,12 @@ impl LanguageServer for DestackLanguageServer {
                 _ => None,
             })
             .collect();
-        if !diagnostic_codes.is_empty() {
+        if !diagnostic_ids.is_empty() {
             actions.retain(|action| {
                 action
-                    .diagnostic_code
+                    .diagnostic_id
                     .as_ref()
-                    .is_none_or(|code| diagnostic_codes.contains(code))
+                    .is_none_or(|id| diagnostic_ids.contains(id))
             });
         }
 

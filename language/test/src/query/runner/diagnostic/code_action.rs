@@ -249,7 +249,7 @@ fn validate_code_action_invariants(
     let mut errors = Vec::new();
 
     // enforce deterministic ordering and deduplication
-    let mut previous: Option<(u8, u8, &str, &str, String)> = None;
+    let mut previous: Option<(u8, u8, &str, Option<&str>, String)> = None;
     for action in actions {
         // require non empty titles
         if action.title.trim().is_empty() {
@@ -324,9 +324,9 @@ fn format_code_action_line(
     index: usize,
     action: &CodeAction,
 ) -> String {
-    // render the action kind and diagnostic code
+    // render the action kind and diagnostic id
     let kind = code_action_kind_name(action.kind);
-    let diagnostic = action.diagnostic_code.as_deref().unwrap_or("<none>");
+    let diagnostic = action.diagnostic_id.as_deref().unwrap_or("<none>");
 
     // render the edit summary for snapshot comparisons
     let patches = format_action_edits(session, &action.patches.files);
@@ -376,12 +376,12 @@ fn format_file_edit(session: &QueryTestSession, file_id: FileId, patches: &[Patc
 }
 
 /// Build a stable key for a code action in tests.
-fn code_action_key(action: &CodeAction) -> (u8, u8, &str, &str, String) {
+fn code_action_key(action: &CodeAction) -> (u8, u8, &str, Option<&str>, String) {
     // extract ranking components for stable comparisons
     let kind_rank = code_action_kind_rank(action.kind);
     let preferred_rank = if action.is_preferred { 0 } else { 1 };
     let title = action.title.as_str();
-    let diagnostic = action.diagnostic_code.as_deref().unwrap_or("");
+    let diagnostic = action.diagnostic_id.as_deref();
     let patches = action_patch_key(&action.patches.files);
 
     (kind_rank, preferred_rank, title, diagnostic, patches)
