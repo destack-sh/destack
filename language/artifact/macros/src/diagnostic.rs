@@ -1,7 +1,8 @@
+use std::collections::HashSet;
+
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use std::collections::HashSet;
 use syn::spanned::Spanned;
 use syn::{
     Data, DeriveInput, Error, Expr, Fields, Ident, Lit, LitStr, Meta, Path, Result, Type,
@@ -14,6 +15,8 @@ struct DiagnosticDeriveOptions {
     severity: Ident,
     /// The provider phase.
     phase: Ident,
+    /// Whether source controls may select this diagnostic family.
+    is_controllable: bool,
     /// The optional aggregate enum to convert into.
     into: Option<Path>,
 }
@@ -57,16 +60,14 @@ impl DiagnosticField {
     }
 }
 
-/// Validated diagnostic variant data.
+/// One validated diagnostic variant.
 struct DiagnosticVariant {
     /// The variant name.
     name: Ident,
-    /// The stable diagnostic code.
-    code: LitStr,
-    /// The doc-comment description.
+    /// The canonical diagnostic id.
+    id: LitStr,
+    /// The documentation description.
     description: String,
-    /// The numeric diagnostic sub-code.
-    sub_code: u16,
     /// The diagnostic message template.
     message: Option<String>,
     /// The optional diagnostic message template.
@@ -84,18 +85,12 @@ impl DiagnosticVariant {
     }
 }
 
-/// Validated diagnostic enum data.
+/// One validated diagnostic enum.
 struct DiagnosticEnum {
     /// The enum name.
     name: Ident,
     /// The derive options.
     options: DiagnosticDeriveOptions,
-    /// The severity name.
-    severity_name: String,
-    /// The phase name.
-    phase: String,
-    /// The phase prefix.
-    phase_letter: char,
     /// The diagnostic variants.
     variants: Vec<DiagnosticVariant>,
 }
@@ -103,94 +98,7 @@ struct DiagnosticEnum {
 impl DiagnosticEnum {
     /// Return whether this diagnostic enum is an error family.
     fn is_error(&self) -> bool {
-        self.severity_name == "Error"
-    }
-}
-
-/// Map a compiler phase name to its single-letter code.
-fn phase_letter(phase: &Ident) -> Result<char> {
-    let letter = match phase.to_string().as_str() {
-        "Bind" => 'B',
-        "Import" => 'I',
-        "Expand" => 'X',
-        "Export" => 'T',
-        "Resolve" => 'R',
-        "Check" => 'C',
-        "Elaborate" => 'E',
-        "Materialize" => 'M',
-        "Lower" => 'L',
-        "Verify" => 'V',
-        "Analyze" => 'A',
-        "Optimize" => 'O',
-        "Generate" | "Emit" => 'G',
-        "Link" => 'K',
-        "Linter" => 'L',
-        other => {
-            return Err(Error::new(
-                phase.span(),
-                format!("unsupported diagnostic phase `{other}`"),
-            ));
-        }
-    };
-
-    Ok(letter)
-}
-
-/// Return the diagnostic code prefix for one severity name.
-fn severity_prefix(severity: &Ident) -> Result<char> {
-    match severity.to_string().as_str() {
-        "Error" => Ok('E'),
-        "Warning" => Ok('W'),
-        other => Err(Error::new(
-            severity.span(),
-            format!("unsupported diagnostic severity `{other}`"),
-        )),
-    }
-}
-
-/// Validate diagnostic code format and extract the numeric part.
-fn parse_diagnostic_code(code: &LitStr, severity: char, phase: char) -> Result<u16> {
-    let code_str = code.value();
-    let chars: Vec<char> = code_str.chars().collect();
-
-    // validate the full code shape
-    if chars.len() != 5 {
-        return Err(Error::new(
-            code.span(),
-            format!("diagnostic code must be exactly 5 characters, got \"{code_str}\""),
-        ));
-    }
-
-    // validate severity prefix
-    if chars[0] != severity {
-        return Err(Error::new(
-            code.span(),
-            format!(
-                "diagnostic code must start with '{severity}', got '{}'",
-                chars[0]
-            ),
-        ));
-    }
-
-    // validate phase prefix
-    if chars[1] != phase {
-        return Err(Error::new(
-            code.span(),
-            format!(
-                "diagnostic code phase letter must be '{phase}', got '{}'",
-                chars[1]
-            ),
-        ));
-    }
-
-    // validate numeric suffix
-    let number: String = chars[2..5].iter().collect();
-    match number.parse::<u16>() {
-        Ok(number) if number < 1000 => Ok(number),
-        _ => Err(Error::new(
-            code.span(),
-            format!("diagnostic code must end with 3 digits, got \"{number}\""),
-        )),
+        self.options.severity == "Error"
     }
 }
 
@@ -313,7 +221,7 @@ fn help_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<Token
         let pattern = variant_pattern(variant);
         return Ok(quote! { #pattern => None });
     };
-    let template = parse_message_template(help, &variant.fields, variant.code.span())?;
+    let template = parse_message_template(help, &variant.fields, variant.id.span())?;
     let format_expr = message_format_expr(&template, formatter_name);
     let used_fields = template
         .fields
@@ -383,22 +291,23 @@ fn optional_message_format_expr(
     })
 }
 
-/// Extract the doc comment from attributes.
-fn extract_doc_comment(attrs: &[syn::Attribute]) -> String {
-    attrs
-        .iter()
-        .filter_map(|attr| {
-            if attr.path().is_ident("doc")
-                && let Meta::NameValue(value) = &attr.meta
-                && let Expr::Lit(expression) = &value.value
-                && let Lit::Str(string) = &expression.lit
-            {
-                return Some(string.value().trim().to_string());
+/// Extract the diagnostic description from the first documentation line.
+fn extract_description(attrs: &[syn::Attribute]) -> Option<String> {
+    attrs.iter().find_map(|attr| {
+        if attr.path().is_ident("doc")
+            && let Meta::NameValue(value) = &attr.meta
+            && let Expr::Lit(expression) = &value.value
+            && let Lit::Str(string) = &expression.lit
+        {
+            let line = string.value();
+            let line = line.trim().to_string();
+            if !line.is_empty() {
+                return Some(line);
             }
-            None
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+        }
+
+        None
+    })
 }
 
 /// Parse the item-level diagnostic attribute.
@@ -411,6 +320,7 @@ fn parse_options(input: &DeriveInput) -> Result<DiagnosticDeriveOptions> {
 
     let mut severity = None;
     let mut phase = None;
+    let mut is_controllable = false;
     let mut into = None;
 
     // parse severity, phase, and optional aggregate target
@@ -419,6 +329,8 @@ fn parse_options(input: &DeriveInput) -> Result<DiagnosticDeriveOptions> {
             severity = Some(meta.value()?.parse()?);
         } else if meta.path.is_ident("phase") {
             phase = Some(meta.value()?.parse()?);
+        } else if meta.path.is_ident("controllable") {
+            is_controllable = true;
         } else if meta.path.is_ident("into") {
             into = Some(meta.value()?.parse()?);
         } else {
@@ -435,33 +347,35 @@ fn parse_options(input: &DeriveInput) -> Result<DiagnosticDeriveOptions> {
     Ok(DiagnosticDeriveOptions {
         severity,
         phase,
+        is_controllable,
         into,
     })
 }
 
 /// Parse one variant-level diagnostic attribute.
-fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<DiagnosticVariant> {
+fn parse_variant(variant: &syn::Variant) -> Result<DiagnosticVariant> {
     let name = variant.ident.clone();
-    let description = extract_doc_comment(&variant.attrs);
+    let description = extract_description(&variant.attrs).ok_or_else(|| {
+        Error::new(
+            name.span(),
+            "diagnostic variant must have a documentation description",
+        )
+    })?;
     let attribute = variant
         .attrs
         .iter()
         .find(|attr| attr.path().is_ident("diagnostic"))
-        .ok_or_else(|| {
-            Error::new(
-                name.span(),
-                "missing #[diagnostic(code = \"...\")] attribute",
-            )
-        })?;
+        .ok_or_else(|| Error::new(name.span(), "missing #[diagnostic(id = \"...\")] attribute"))?;
 
-    let mut code = None;
+    let mut id = None;
     let mut message = None;
     let mut optional_message = None;
     let mut help = None;
-    // parse code and message
+
+    // parse the id and messages
     attribute.parse_nested_meta(|meta| {
-        if meta.path.is_ident("code") {
-            code = Some(meta.value()?.parse()?);
+        if meta.path.is_ident("id") {
+            id = Some(meta.value()?.parse()?);
         } else if meta.path.is_ident("message") {
             let value: LitStr = meta.value()?.parse()?;
             message = Some(value.value());
@@ -478,8 +392,7 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
         Ok(())
     })?;
 
-    let code = code.ok_or_else(|| Error::new(name.span(), "missing diagnostic code"))?;
-    let sub_code = parse_diagnostic_code(&code, severity, phase)?;
+    let id = id.ok_or_else(|| Error::new(name.span(), "missing diagnostic id"))?;
     let fields = match &variant.fields {
         Fields::Named(named) => {
             let mut fields = Vec::new();
@@ -500,9 +413,8 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
 
     Ok(DiagnosticVariant {
         name,
-        code,
+        id,
         description,
-        sub_code,
         message,
         optional_message,
         help,
@@ -550,7 +462,7 @@ fn message_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<To
     let name = &variant.name;
 
     if let Some(message) = &variant.message {
-        let template = parse_message_template(message, &variant.fields, variant.code.span())?;
+        let template = parse_message_template(message, &variant.fields, variant.id.span())?;
         let format_expr = message_format_expr(&template, formatter_name);
         let mut used_fields = template
             .fields
@@ -560,7 +472,7 @@ fn message_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<To
         let optional_format_expr = match &variant.optional_message {
             Some(optional_message) => {
                 let optional_template =
-                    parse_message_template(optional_message, &variant.fields, variant.code.span())?;
+                    parse_message_template(optional_message, &variant.fields, variant.id.span())?;
                 for field in &optional_template.fields {
                     if !used_fields.iter().any(|existing| existing == &field.name) {
                         used_fields.push(field.name.clone());
@@ -569,7 +481,7 @@ fn message_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<To
                 let optional_format_expr = optional_message_format_expr(
                     &optional_template,
                     formatter_name,
-                    variant.code.span(),
+                    variant.id.span(),
                 )?;
 
                 quote! {
@@ -591,44 +503,40 @@ fn message_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<To
             Ok(quote! { Self::#name { #(#used_fields,)* .. } => { #optional_format_expr } })
         }
     } else {
-        Err(Error::new(
-            variant.code.span(),
-            "missing diagnostic message",
-        ))
+        Err(Error::new(variant.id.span(), "missing diagnostic message"))
     }
 }
 
-/// Generate one diagnostic definition expression.
-fn definition_expr(variant: &DiagnosticVariant) -> TokenStream2 {
-    let code = variant.code.value();
-    let name = variant.name.to_string();
+/// Generate one diagnostic definition.
+fn diagnostic_definition(
+    variant: &DiagnosticVariant,
+    is_error: bool,
+    is_controllable: bool,
+) -> TokenStream2 {
+    let id = variant.id.value();
     let description = &variant.description;
-    let sub_code = variant.sub_code;
+    let constructor = if is_error {
+        format_ident!("error")
+    } else if is_controllable {
+        format_ident!("controllable_warning")
+    } else {
+        format_ident!("warning")
+    };
 
     quote! {
-        destack_artifact::DiagnosticDefinition {
-            code: #code,
-            name: #name,
-            description: #description,
-            sub_code: #sub_code,
-        }
+        destack_source::DiagnosticDefinition::#constructor(
+            #id,
+            #description,
+        )
     }
 }
 
-/// Generate one diagnostic code match arm.
-fn code_arm(variant: &DiagnosticVariant) -> TokenStream2 {
-    let code = variant.code.value();
+/// Generate one diagnostic id match arm.
+fn diagnostic_id_arm(variant: &DiagnosticVariant) -> TokenStream2 {
+    let id = variant.id.value();
     let pattern = variant_pattern(variant);
 
-    quote! { #pattern => #code }
-}
-
-/// Generate one diagnostic sub-code match arm.
-fn sub_code_arm(variant: &DiagnosticVariant) -> TokenStream2 {
-    let sub_code = variant.sub_code;
-    let pattern = variant_pattern(variant);
-
-    quote! { #pattern => #sub_code }
+    quote! { #pattern => #id }
 }
 
 /// Generate the result alias for error diagnostics.
@@ -673,11 +581,25 @@ fn aggregate_impl(
 fn parse_diagnostic_enum(input: DeriveInput) -> Result<DiagnosticEnum> {
     let name = input.ident.clone();
     let options = parse_options(&input)?;
-    let severity = severity_prefix(&options.severity)?;
     let severity_name = options.severity.to_string();
     let phase = options.phase.to_string();
-    let phase_letter = phase_letter(&options.phase)?;
     let expected_name = format!("{phase}{severity_name}");
+
+    // accept only final diagnostic severities
+    if severity_name != "Error" && severity_name != "Warning" {
+        return Err(Error::new(
+            options.severity.span(),
+            format!("unsupported diagnostic severity `{severity_name}`"),
+        ));
+    }
+
+    // only warnings may be controlled
+    if options.is_controllable && severity_name != "Warning" {
+        return Err(Error::new(
+            options.severity.span(),
+            "only warning diagnostics may be controllable",
+        ));
+    }
 
     // validate enum naming convention
     if name != expected_name {
@@ -693,16 +615,16 @@ fn parse_diagnostic_enum(input: DeriveInput) -> Result<DiagnosticEnum> {
     };
 
     let mut variants = Vec::new();
-    let mut codes = HashSet::new();
+    let mut ids = HashSet::new();
 
-    // parse variants and validate stable codes
+    // parse variants and validate unique ids
     for variant in &data.variants {
-        let variant = parse_variant(variant, severity, phase_letter)?;
-        let code = variant.code.value();
-        if !codes.insert(code.clone()) {
+        let variant = parse_variant(variant)?;
+        let id = variant.id.value();
+        if !ids.insert(id.clone()) {
             return Err(Error::new(
-                variant.code.span(),
-                format!("duplicate diagnostic code \"{code}\""),
+                variant.id.span(),
+                format!("duplicate diagnostic id \"{id}\""),
             ));
         }
 
@@ -712,45 +634,39 @@ fn parse_diagnostic_enum(input: DeriveInput) -> Result<DiagnosticEnum> {
     Ok(DiagnosticEnum {
         name,
         options,
-        severity_name,
-        phase,
-        phase_letter,
         variants,
     })
 }
 
 /// Derive one provider diagnostic enum.
-pub(crate) fn diagnostic_impl(input: TokenStream) -> TokenStream {
+pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    match diagnostic_inner(input) {
+    match expand_diagnostic(input) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }
 }
 
 /// Derive one provider diagnostic enum.
-fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
+fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
     let diagnostic = parse_diagnostic_enum(input)?;
     let enum_name = &diagnostic.name;
     let options = &diagnostic.options;
     let variants = &diagnostic.variants;
 
-    let result_name = format_ident!("{}Result", diagnostic.phase);
+    let result_name = format_ident!("{}Result", options.phase);
     let is_error = diagnostic.is_error();
-    let phase_letter = diagnostic.phase_letter;
     let severity_ident = &options.severity;
     let context_name = format_ident!("__diagnostic_context");
     let formatter_name = format_ident!("__diagnostic_formatter");
 
-    let all_codes: Vec<String> = variants
+    let diagnostic_definitions: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| variant.code.value())
+        .map(|variant| diagnostic_definition(variant, is_error, options.is_controllable))
         .collect();
-    let diagnostic_defs: Vec<TokenStream2> = variants.iter().map(definition_expr).collect();
 
-    let code_arms: Vec<TokenStream2> = variants.iter().map(code_arm).collect();
-    let sub_code_arms: Vec<TokenStream2> = variants.iter().map(sub_code_arm).collect();
+    let diagnostic_id_arms: Vec<TokenStream2> = variants.iter().map(diagnostic_id_arm).collect();
     let primary_anchor_arms: Vec<TokenStream2> = variants
         .iter()
         .map(primary_anchor_match_arm)
@@ -760,21 +676,12 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
         .map(|variant| message_arm(variant, &formatter_name))
         .collect::<Result<Vec<_>>>()?;
 
-    let sub_code_body = if variants.is_empty() {
+    let id_body = if variants.is_empty() {
         quote! { match *self {} }
     } else {
         quote! {
             match self {
-                #(#sub_code_arms),*
-            }
-        }
-    };
-    let code_body = if variants.is_empty() {
-        quote! { match *self {} }
-    } else {
-        quote! {
-            match self {
-                #(#code_arms),*
+                #(#diagnostic_id_arms),*
             }
         }
     };
@@ -825,9 +732,9 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             let primary_label = #context_name.label(&primary_anchor, None)?;
 
             let __diagnostic = destack_source::Diagnostic::new(
-                self.code(),
+                self.id(),
                 destack_source::DiagnosticSeverity::#severity_ident,
-                message.clone(),
+                message,
                 primary_label,
             );
             let __diagnostic = match self.help_message(&#formatter_name)? {
@@ -846,42 +753,15 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
         use destack_artifact::DiagnosticFormat as _;
 
         impl #enum_name {
-            /// Phase letter for this diagnostic type.
-            pub const PHASE_LETTER: char = #phase_letter;
-
             /// All diagnostic definitions for this phase.
-            pub const ALL: &'static [destack_artifact::DiagnosticDefinition] = &[
-                #(#diagnostic_defs),*
+            pub const ALL: &'static [destack_source::DiagnosticDefinition] = &[
+                #(#diagnostic_definitions),*
             ];
 
-            /// All diagnostic codes for this phase.
-            pub const ALL_CODES: &'static [&'static str] = &[
-                #(#all_codes),*
-            ];
-
-            /// Return whether a code string is valid for this diagnostic type.
+            /// Return the canonical diagnostic id.
             #[inline]
-            pub fn is_valid_code(code: &str) -> bool {
-                Self::ALL_CODES.contains(&code)
-            }
-
-            /// Return the definition for a code, if valid.
-            pub fn definition(
-                code: &str,
-            ) -> Option<&'static destack_artifact::DiagnosticDefinition> {
-                Self::ALL.iter().find(|def| def.code == code)
-            }
-
-            /// Return the numeric sub-code of the diagnostic.
-            #[inline]
-            pub fn sub_code(&self) -> u16 {
-                #sub_code_body
-            }
-
-            /// Return the full diagnostic code.
-            #[inline]
-            pub fn code(&self) -> &'static str {
-                #code_body
+            pub fn id(&self) -> &'static str {
+                #id_body
             }
 
             /// Return the anchor for this diagnostic.
@@ -961,7 +841,7 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
 
         impl std::fmt::Display for #enum_name {
             fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(formatter, "{}", self.code())
+                formatter.write_str(self.id())
             }
         }
 
