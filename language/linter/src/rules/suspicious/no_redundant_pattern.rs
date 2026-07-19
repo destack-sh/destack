@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow patterns that bind nothing.
     pub NO_REDUNDANT_PATTERN {
         id: "no-redundant-pattern",
-        code: "LU026",
         description: "Disallow patterns that bind nothing",
         category: Suspicious,
         level: Warning,

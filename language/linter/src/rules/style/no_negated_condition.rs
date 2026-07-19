@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer positive conditions when both branches are present.
     pub NO_NEGATED_CONDITION {
         id: "no-negated-condition",
-        code: "LY020",
         description: "Prefer positive conditions when both branches are present",
         category: Style,
         level: Warning,

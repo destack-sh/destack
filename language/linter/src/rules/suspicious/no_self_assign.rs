@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow self-assignment.
     pub NO_SELF_ASSIGN {
         id: "no-self-assign",
-        code: "LU028",
         description: "Disallow self-assignment",
         category: Suspicious,
         level: Warning,

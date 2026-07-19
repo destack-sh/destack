@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct LinterOptions {
     /// Whether linting is enabled.
     pub enabled: bool,
-    /// Explicit levels keyed by rule id or diagnostic code.
+    /// Explicit levels keyed by lint id.
     pub rules: IndexMap<String, LintLevel>,
 }
 

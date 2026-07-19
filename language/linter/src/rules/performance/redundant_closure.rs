@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow closures that only forward their arguments to another callable.
     pub REDUNDANT_CLOSURE {
         id: "redundant-closure",
-        code: "LP065",
         description: "Disallow closures that only forward their arguments to another callable",
         category: Performance,
         level: Warning,

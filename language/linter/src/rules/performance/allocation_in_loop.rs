@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when an allocating operation executes on a repeated path.
     pub ALLOCATION_IN_LOOP {
         id: "allocation-in-loop",
-        code: "LP057",
         description: "Warn when an allocating operation executes on a repeated path",
         category: Performance,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer struct literal form.
     pub PREFER_STRUCT_LITERAL {
         id: "prefer-struct-literal",
-        code: "LY056",
         description: "Prefer struct literal form",
         category: Style,
         level: Warning,

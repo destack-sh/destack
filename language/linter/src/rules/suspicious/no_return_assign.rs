@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow assignment within an explicit or implicit return value.
     pub NO_RETURN_ASSIGN {
         id: "no-return-assign",
-        code: "LU027",
         description: "Disallow assignment within an explicit or implicit return value",
         category: Suspicious,
         level: Warning,

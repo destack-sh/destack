@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow credentials and secret material embedded in source values.
     pub HARDCODED_SECRET {
         id: "hardcoded-secret",
-        code: "LS009",
         description: "Disallow credentials and secret material embedded in source values",
         category: Security,
         level: Error,

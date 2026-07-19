@@ -7,7 +7,6 @@ declare_lint! {
     /// Require async functions to suspend or return a Promise directly.
     pub REQUIRE_AWAIT {
         id: "require-await",
-        code: "LU042",
         description: "Require async functions to suspend or return a Promise directly",
         category: Suspicious,
         level: Warning,

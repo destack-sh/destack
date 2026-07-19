@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow assignment in conditions.
     pub NO_COND_ASSIGN {
         id: "no-cond-assign",
-        code: "LU003",
         description: "Disallow assignment in conditions",
         category: Suspicious,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow invalidating a collection while one of its iterators remains live.
     pub NO_ITERATOR_INVALIDATION {
         id: "no-iterator-invalidation",
-        code: "LC021",
         description: "Disallow invalidating a collection while one of its iterators remains live",
         category: Correctness,
         level: Error,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Require every Promise to be awaited, returned, or transferred to a scope.
     pub NO_FLOATING_PROMISES {
         id: "no-floating-promises",
-        code: "LC016",
         description: "Require every Promise to be awaited, returned, or transferred to a scope",
         category: Correctness,
         level: Error,

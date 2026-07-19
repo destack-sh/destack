@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when a large represented value is returned by value.
     pub LARGE_RETURN_BY_VALUE {
         id: "large-return-by-value",
-        code: "LP054",
         description: "Warn when a large represented value is returned by value",
         category: Performance,
         level: Warning,

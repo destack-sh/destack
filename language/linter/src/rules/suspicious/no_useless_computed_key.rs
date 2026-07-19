@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow useless computed keys.
     pub NO_USELESS_COMPUTED_KEY {
         id: "no-useless-computed-key",
-        code: "LU036",
         description: "Disallow useless computed keys",
         category: Suspicious,
         level: Warning,

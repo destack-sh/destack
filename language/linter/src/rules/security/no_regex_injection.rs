@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow untrusted values flowing into dynamic regular expressions.
     pub NO_REGEX_INJECTION {
         id: "no-regex-injection",
-        code: "LS007",
         description: "Disallow untrusted values flowing into dynamic regular expressions",
         category: Security,
         level: Error,

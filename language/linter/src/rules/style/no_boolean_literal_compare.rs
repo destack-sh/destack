@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow comparing to boolean literals.
     pub NO_BOOLEAN_LITERAL_COMPARE {
         id: "no-boolean-literal-compare",
-        code: "LY014",
         description: "Disallow comparing to boolean literals",
         category: Style,
         level: Warning,

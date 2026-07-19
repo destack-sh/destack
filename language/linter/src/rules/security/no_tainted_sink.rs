@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow values carrying a source taint from reaching matching sinks.
     pub NO_TAINTED_SINK {
         id: "no-tainted-sink",
-        code: "LS010",
         description: "Disallow values carrying a source taint from reaching matching sinks",
         category: Security,
         level: Error,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow cloning values whose checked type is Copy.
     pub CLONE_ON_COPY {
         id: "clone-on-copy",
-        code: "LP062",
         description: "Disallow cloning values whose checked type is Copy",
         category: Performance,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn on target symbols unreachable from program roots.
     pub DEAD_TARGET_SYMBOL {
         id: "dead-target-symbol",
-        code: "LU061",
         description: "Warn on target symbols unreachable from program roots",
         category: Suspicious,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow collections built only for immediate consumption.
     pub NEEDLESS_MATERIALIZATION {
         id: "needless-materialization",
-        code: "LP061",
         description: "Disallow collections built only for immediate consumption",
         category: Performance,
         level: Warning,

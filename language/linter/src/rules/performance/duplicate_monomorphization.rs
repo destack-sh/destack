@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when equivalent generic instances duplicate generated program work.
     pub DUPLICATE_MONOMORPHIZATION {
         id: "duplicate-monomorphization",
-        code: "LP070",
         description: "Warn when equivalent generic instances duplicate generated program work",
         category: Performance,
         level: Warning,

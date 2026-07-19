@@ -9,7 +9,6 @@ declare_lint! {
     /// Disallow debugger statements.
     pub NO_DEBUGGER {
         id: "no-debugger",
-        code: "LU008",
         description: "Disallow debugger statements",
         category: Suspicious,
         level: Warning,
@@ -150,7 +149,7 @@ mod tests {
 
         session.assert_diagnostics(
             r#"
-warning LU008: `debugger` statement is not allowed
+warning[no-debugger]: `debugger` statement is not allowed
  ──▶ main.ds:1:11
   │
 1 │ if (true) debugger;
@@ -165,6 +164,19 @@ warning LU008: `debugger` statement is not allowed
 +   1│ if (true) {}
 "#,
         );
+    }
+
+    /// Suppress the lint through its canonical id.
+    #[test]
+    fn test_allows_debugger_by_id() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"@allow("no-debugger")
+debugger;
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 
     /// Remove the debugger statement without changing surrounding source.

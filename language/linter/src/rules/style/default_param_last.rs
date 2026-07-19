@@ -7,7 +7,6 @@ declare_lint! {
     /// Enforce default parameters to be last.
     pub DEFAULT_PARAM_LAST {
         id: "default-param-last",
-        code: "LY008",
         description: "Enforce default parameters to be last",
         category: Style,
         level: Warning,

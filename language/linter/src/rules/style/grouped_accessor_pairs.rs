@@ -7,7 +7,6 @@ declare_lint! {
     /// Require getter and setter pairs to be adjacent.
     pub GROUPED_ACCESSOR_PAIRS {
         id: "grouped-accessor-pairs",
-        code: "LY013",
         description: "Require getter and setter pairs to be adjacent",
         category: Style,
         level: Warning,

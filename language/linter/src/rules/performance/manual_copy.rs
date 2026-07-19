@@ -7,7 +7,6 @@ declare_lint! {
     /// Replace element-by-element copy loops with a bulk copy operation.
     pub MANUAL_COPY {
         id: "manual-copy",
-        code: "LP067",
         description: "Replace element-by-element copy loops with a bulk copy operation",
         category: Performance,
         level: Warning,

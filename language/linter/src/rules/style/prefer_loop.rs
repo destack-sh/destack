@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer explicit `loop` for infinite loops.
     pub PREFER_LOOP {
         id: "prefer-loop",
-        code: "LY043",
         description: "Prefer explicit `loop` for infinite loops",
         category: Style,
         level: Warning,

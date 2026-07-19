@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer match over complex if-else-if or switch statements.
     pub PREFER_MATCH {
         id: "prefer-match",
-        code: "LY044",
         description: "Prefer match over complex if-else-if or switch statements",
         category: Style,
         level: Warning,

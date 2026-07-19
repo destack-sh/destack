@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow cyclic dependencies between source modules.
     pub CYCLIC_DEPENDENCY {
         id: "cyclic-dependency",
-        code: "LU064",
         description: "Disallow cyclic dependencies between source modules",
         category: Suspicious,
         level: Warning,

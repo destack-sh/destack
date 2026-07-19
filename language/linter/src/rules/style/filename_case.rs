@@ -7,7 +7,6 @@ declare_lint! {
     /// Enforce filename case style.
     pub FILENAME_CASE {
         id: "filename-case",
-        code: "LY012",
         description: "Enforce filename case style",
         category: Style,
         level: Warning,

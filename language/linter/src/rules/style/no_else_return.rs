@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow else branches after an unconditional control transfer.
     pub NO_ELSE_RETURN {
         id: "no-else-return",
-        code: "LY017",
         description: "Disallow else branches after an unconditional control transfer",
         category: Style,
         level: Warning,

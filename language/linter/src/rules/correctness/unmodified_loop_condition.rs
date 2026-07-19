@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow loops whose condition dependencies never change.
     pub UNMODIFIED_LOOP_CONDITION {
         id: "unmodified-loop-condition",
-        code: "LC051",
         description: "Disallow loops whose condition dependencies never change",
         category: Correctness,
         level: Error,

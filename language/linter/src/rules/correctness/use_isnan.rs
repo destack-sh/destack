@@ -7,7 +7,6 @@ declare_lint! {
     /// Require the NaN predicate instead of equality comparisons with NaN.
     pub USE_ISNAN {
         id: "use-isnan",
-        code: "LC043",
         description: "Require the NaN predicate instead of equality comparisons with NaN",
         category: Correctness,
         level: Error,

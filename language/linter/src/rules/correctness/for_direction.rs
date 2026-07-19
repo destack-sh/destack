@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow for loops with incorrect direction.
     pub FOR_DIRECTION {
         id: "for-direction",
-        code: "LC001",
         description: "Disallow for loops with incorrect direction",
         category: Correctness,
         level: Error,

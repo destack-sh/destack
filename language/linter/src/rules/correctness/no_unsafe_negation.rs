@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow negation of left operand in relational operators.
     pub NO_UNSAFE_NEGATION {
         id: "no-unsafe-negation",
-        code: "LC034",
         description: "Disallow negation of left operand in relational operators",
         category: Correctness,
         level: Error,

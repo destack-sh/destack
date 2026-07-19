@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow nested ternary expressions.
     pub NO_NESTED_TERNARY {
         id: "no-nested-ternary",
-        code: "LY022",
         description: "Disallow nested ternary expressions",
         category: Style,
         level: Warning,

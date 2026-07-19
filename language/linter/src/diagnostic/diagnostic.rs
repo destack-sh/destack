@@ -9,9 +9,7 @@ use crate::Lint;
 #[derive(Debug, Clone, PartialEq)]
 pub struct LinterDiagnostic {
     /// The lint id.
-    pub(crate) lint_id: Cow<'static, str>,
-    /// The diagnostic code.
-    pub(crate) code: Cow<'static, str>,
+    pub(crate) id: Cow<'static, str>,
     /// The severity.
     pub(crate) severity: Option<DiagnosticSeverity>,
     /// The message.
@@ -28,8 +26,7 @@ impl LinterDiagnostic {
         primary: impl Into<DiagnosticAnchor>,
     ) -> Self {
         Self {
-            lint_id: lint.id.clone(),
-            code: lint.code.clone(),
+            id: lint.id.clone(),
             severity: None,
             message: message.into(),
             primary: primary.into(),
@@ -51,12 +48,12 @@ impl ToDiagnostic for LinterDiagnostic {
         let severity = self
             .severity
             .ok_or_else(|| DiagnosticError::InvalidDiagnostic {
-                message: format!("lint '{}' has no diagnostic severity", self.lint_id,),
+                message: format!("lint '{}' has no diagnostic severity", self.id),
             })?;
         let primary = context.label(&self.primary, None)?;
 
         Ok(Diagnostic::new(
-            self.code.to_string(),
+            self.id.to_string(),
             severity,
             self.message.clone(),
             primary,

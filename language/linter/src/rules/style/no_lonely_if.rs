@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow lonely if in else.
     pub NO_LONELY_IF {
         id: "no-lonely-if",
-        code: "LY019",
         description: "Disallow lonely if in else",
         category: Style,
         level: Warning,

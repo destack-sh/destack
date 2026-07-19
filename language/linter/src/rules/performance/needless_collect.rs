@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow materializing a collection consumed by one streaming operation.
     pub NEEDLESS_COLLECT {
         id: "needless-collect",
-        code: "LP064",
         description: "Disallow materializing a collection consumed by one streaming operation",
         category: Performance,
         level: Warning,

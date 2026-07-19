@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow reading and mutating the same place within one larger expression.
     pub MIXED_READ_WRITE_EXPRESSION {
         id: "mixed-read-write-expression",
-        code: "LU052",
         description: "Disallow reading and mutating the same place within one larger expression",
         category: Suspicious,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow substantial alpha-equivalent checked code.
     pub NO_DUPLICATE_CODE {
         id: "no-duplicate-code",
-        code: "LU060",
         description: "Disallow substantial alpha-equivalent checked code",
         category: Suspicious,
         level: Warning,

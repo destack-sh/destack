@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer struct for field-only classes.
     pub PREFER_STRUCT {
         id: "prefer-struct",
-        code: "LY055",
         description: "Prefer struct for field-only classes",
         category: Style,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow negation in equality checks.
     pub NO_NEGATION_IN_EQUALITY_CHECK {
         id: "no-negation-in-equality-check",
-        code: "LU024",
         description: "Disallow negation in equality checks",
         category: Suspicious,
         level: Warning,

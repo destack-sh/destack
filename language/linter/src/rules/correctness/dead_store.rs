@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow stored values that are never observed.
     pub DEAD_STORE {
         id: "dead-store",
-        code: "LC052",
         description: "Disallow stored values that are never observed",
         category: Correctness,
         level: Error,

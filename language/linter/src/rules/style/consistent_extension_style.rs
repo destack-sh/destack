@@ -7,7 +7,6 @@ declare_lint! {
     /// Require the canonical extension declaration form for its visibility.
     pub CONSISTENT_EXTENSION_STYLE {
         id: "consistent-extension-style",
-        code: "LY005",
         description: "Require the canonical extension declaration form for its visibility",
         category: Style,
         level: Warning,

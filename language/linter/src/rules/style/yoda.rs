@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow Yoda conditions.
     pub YODA {
         id: "yoda",
-        code: "LY066",
         description: "Disallow Yoda conditions",
         category: Style,
         level: Warning,

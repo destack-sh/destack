@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow template interpolation in regular strings.
     pub NO_TEMPLATE_CURLY_IN_STRING {
         id: "no-template-curly-in-string",
-        code: "LU031",
         description: "Disallow template interpolation in regular strings",
         category: Suspicious,
         level: Warning,

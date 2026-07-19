@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow constructors that only repeat implicit construction behavior.
     pub NO_USELESS_CONSTRUCTOR {
         id: "no-useless-constructor",
-        code: "LU038",
         description: "Disallow constructors that only repeat implicit construction behavior",
         category: Suspicious,
         level: Warning,

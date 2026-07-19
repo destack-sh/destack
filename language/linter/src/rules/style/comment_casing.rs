@@ -7,7 +7,6 @@ declare_lint! {
     /// Enforce comment casing.
     pub COMMENT_CASING {
         id: "comment-casing",
-        code: "LY002",
         description: "Enforce comment casing",
         category: Style,
         level: Warning,

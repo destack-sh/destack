@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer expression initialization over staged assignment.
     pub PREFER_EXPRESSION {
         id: "prefer-expression",
-        code: "LY037",
         description: "Prefer expression initialization over staged assignment",
         category: Style,
         level: Warning,

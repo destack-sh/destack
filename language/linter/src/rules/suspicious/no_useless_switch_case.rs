@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow switch cases that reproduce default behavior.
     pub NO_USELESS_SWITCH_CASE {
         id: "no-useless-switch-case",
-        code: "LU048",
         description: "Disallow switch cases that reproduce default behavior",
         category: Suspicious,
         level: Warning,

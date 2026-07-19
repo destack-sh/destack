@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when independent asynchronous operations are awaited sequentially.
     pub INDEPENDENT_AWAIT {
         id: "independent-await",
-        code: "LP066",
         description: "Warn when independent asynchronous operations are awaited sequentially",
         category: Performance,
         level: Warning,

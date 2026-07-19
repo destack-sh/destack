@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow useless string concatenation.
     pub NO_USELESS_CONCAT {
         id: "no-useless-concat",
-        code: "LU037",
         description: "Disallow useless string concatenation",
         category: Suspicious,
         level: Warning,

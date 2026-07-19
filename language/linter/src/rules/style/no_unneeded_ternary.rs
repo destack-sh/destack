@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow unnecessary ternary expressions.
     pub NO_UNNEEDED_TERNARY {
         id: "no-unneeded-ternary",
-        code: "LY025",
         description: "Disallow unnecessary ternary expressions",
         category: Style,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer tuple destructuring over indexed access.
     pub PREFER_TUPLE_DESTRUCTURE {
         id: "prefer-tuple-destructure",
-        code: "LY059",
         description: "Prefer tuple destructuring over indexed access",
         category: Style,
         level: Warning,

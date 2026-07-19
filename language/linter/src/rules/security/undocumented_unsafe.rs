@@ -7,7 +7,6 @@ declare_lint! {
     /// Require a safety rationale for every unsafe declaration and expression.
     pub UNDOCUMENTED_UNSAFE {
         id: "undocumented-unsafe",
-        code: "LS011",
         description: "Require a safety rationale for every unsafe declaration and expression",
         category: Security,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow functions that recurse before every possible return.
     pub UNCONDITIONAL_RECURSION {
         id: "unconditional-recursion",
-        code: "LC050",
         description: "Disallow functions that recurse before every possible return",
         category: Correctness,
         level: Error,

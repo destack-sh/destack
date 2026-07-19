@@ -7,7 +7,6 @@ declare_lint! {
     /// Require an explicit comparison function for generic collection sorting.
     pub REQUIRE_ARRAY_SORT_COMPARE {
         id: "require-array-sort-compare",
-        code: "LC040",
         description: "Require an explicit comparison function for generic collection sorting",
         category: Correctness,
         level: Error,

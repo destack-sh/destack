@@ -7,7 +7,6 @@ declare_lint! {
     /// Require readonly for fields never mutated after initialization.
     pub PREFER_READONLY {
         id: "prefer-readonly",
-        code: "LY078",
         description: "Require readonly for fields never mutated after initialization",
         category: Style,
         level: Warning,

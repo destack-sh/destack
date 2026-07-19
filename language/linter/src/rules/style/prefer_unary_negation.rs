@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer unary negation over multiplying by -1.
     pub PREFER_UNARY_NEGATION {
         id: "prefer-unary-negation",
-        code: "LY061",
         description: "Prefer unary negation over multiplying by -1",
         category: Style,
         level: Warning,

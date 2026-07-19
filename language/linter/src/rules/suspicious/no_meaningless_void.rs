@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow void expressions that accomplish nothing.
     pub NO_MEANINGLESS_VOID {
         id: "no-meaningless-void",
-        code: "LU049",
         description: "Disallow void expressions that accomplish nothing",
         category: Suspicious,
         level: Warning,

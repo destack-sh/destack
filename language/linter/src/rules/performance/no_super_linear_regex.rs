@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow regex with potential catastrophic backtracking.
     pub NO_SUPER_LINEAR_REGEX {
         id: "no-super-linear-regex",
-        code: "LP011",
         description: "Disallow regex with potential catastrophic backtracking",
         category: Performance,
         level: Warning,

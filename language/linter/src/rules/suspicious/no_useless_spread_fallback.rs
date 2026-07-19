@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow fallbacks that cannot affect a spread.
     pub NO_USELESS_SPREAD_FALLBACK {
         id: "no-useless-spread-fallback",
-        code: "LU046",
         description: "Disallow fallbacks that cannot affect a spread",
         category: Suspicious,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow clones proven unnecessary by ownership and liveness.
     pub REDUNDANT_CLONE {
         id: "redundant-clone",
-        code: "LP050",
         description: "Disallow clones proven unnecessary by ownership and liveness",
         category: Performance,
         level: Warning,

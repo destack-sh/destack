@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer fragment shorthand when no fragment properties are present.
     pub PREFER_FRAGMENT_SHORTHAND {
         id: "prefer-fragment-shorthand",
-        code: "LY039",
         description: "Prefer fragment shorthand when no fragment properties are present",
         category: Style,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow length checks duplicated by the guarded operation.
     pub NO_USELESS_LENGTH_CHECK {
         id: "no-useless-length-check",
-        code: "LU047",
         description: "Disallow length checks duplicated by the guarded operation",
         category: Suspicious,
         level: Warning,

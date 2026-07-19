@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow useless regex backreferences.
     pub NO_USELESS_BACKREFERENCE {
         id: "no-useless-backreference",
-        code: "LU034",
         description: "Disallow useless regex backreferences",
         category: Suspicious,
         level: Warning,

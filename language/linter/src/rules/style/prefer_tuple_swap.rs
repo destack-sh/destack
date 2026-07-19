@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer tuple assignment for swaps.
     pub PREFER_TUPLE_SWAP {
         id: "prefer-tuple-swap",
-        code: "LY060",
         description: "Prefer tuple assignment for swaps",
         category: Style,
         level: Warning,

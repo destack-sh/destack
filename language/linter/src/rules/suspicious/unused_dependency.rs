@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn on declared dependencies unused by the target program.
     pub UNUSED_DEPENDENCY {
         id: "unused-dependency",
-        code: "LU063",
         description: "Warn on declared dependencies unused by the target program",
         category: Suspicious,
         level: Warning,

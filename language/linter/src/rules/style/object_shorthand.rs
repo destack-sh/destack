@@ -7,7 +7,6 @@ declare_lint! {
     /// Require object property shorthand where equivalent.
     pub OBJECT_SHORTHAND {
         id: "object-shorthand",
-        code: "LY027",
         description: "Require object property shorthand where equivalent",
         category: Style,
         level: Warning,

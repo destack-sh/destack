@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when a parameter is never consumed or mutated.
     pub NEEDLESS_PASS_BY_VALUE {
         id: "needless-pass-by-value",
-        code: "LP053",
         description: "Warn when a parameter is never consumed or mutated",
         category: Performance,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn on exports unreachable from every target consumer.
     pub UNREACHABLE_EXPORT {
         id: "unreachable-export",
-        code: "LU062",
         description: "Warn on exports unreachable from every target consumer",
         category: Suspicious,
         level: Warning,

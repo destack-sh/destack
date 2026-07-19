@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when one variant disproportionately enlarges an inline union.
     pub LARGE_VARIANT {
         id: "large-variant",
-        code: "LP063",
         description: "Warn when one variant disproportionately enlarges an inline union",
         category: Performance,
         level: Warning,

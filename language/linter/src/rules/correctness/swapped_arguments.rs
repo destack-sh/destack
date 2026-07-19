@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when argument names indicate swapped positional arguments.
     pub SWAPPED_ARGUMENTS {
         id: "swapped-arguments",
-        code: "LC046",
         description: "Warn when argument names indicate swapped positional arguments",
         category: Correctness,
         level: Warning,

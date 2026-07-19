@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow control characters in regex.
     pub NO_CONTROL_REGEX {
         id: "no-control-regex",
-        code: "LC010",
         description: "Disallow control characters in regex",
         category: Correctness,
         level: Error,

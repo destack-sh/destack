@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow identical checked conditional branches.
     pub NO_IDENTICAL_BRANCHES {
         id: "no-identical-branches",
-        code: "LU018",
         description: "Disallow identical checked conditional branches",
         category: Suspicious,
         level: Warning,

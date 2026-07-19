@@ -7,7 +7,6 @@ declare_lint! {
     /// Require explicit types at exported and public API boundaries.
     pub EXPLICIT_PUBLIC_TYPES {
         id: "explicit-public-types",
-        code: "LY011",
         description: "Require explicit types at exported and public API boundaries",
         category: Style,
         level: Warning,

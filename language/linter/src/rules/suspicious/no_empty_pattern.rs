@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow empty destructuring patterns.
     pub NO_EMPTY_PATTERN {
         id: "no-empty-pattern",
-        code: "LU014",
         description: "Disallow empty destructuring patterns",
         category: Suspicious,
         level: Warning,

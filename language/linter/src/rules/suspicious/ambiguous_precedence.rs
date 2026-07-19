@@ -7,7 +7,6 @@ declare_lint! {
     /// Require grouping where operator precedence is easy to misread.
     pub AMBIGUOUS_PRECEDENCE {
         id: "ambiguous-precedence",
-        code: "LU001",
         description: "Require grouping where operator precedence is easy to misread",
         category: Suspicious,
         level: Warning,

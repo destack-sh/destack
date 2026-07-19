@@ -2894,7 +2894,7 @@
           "default": true
         },
         "rules": {
-          "description": "Explicit levels keyed by rule id or diagnostic code.",
+          "description": "Explicit levels keyed by lint id.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/LintLevel"

@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer nullish coalescing when only nullish values select the fallback.
     pub PREFER_NULLISH_COALESCING {
         id: "prefer-nullish-coalescing",
-        code: "LY046",
         description: "Prefer nullish coalescing when only nullish values select the fallback",
         category: Style,
         level: Warning,

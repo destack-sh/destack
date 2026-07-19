@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow suspension while holding a guard or exclusive resource.
     pub SUSPENSION_HOLDING_GUARD {
         id: "suspension-holding-guard",
-        code: "LC053",
         description: "Disallow suspension while holding a guard or exclusive resource",
         category: Correctness,
         level: Error,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow empty functions.
     pub NO_EMPTY_FUNCTION {
         id: "no-empty-function",
-        code: "LU013",
         description: "Disallow empty functions",
         category: Suspicious,
         level: Warning,

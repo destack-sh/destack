@@ -7,7 +7,6 @@ declare_lint! {
     /// Require compound assignment where equivalent.
     pub OPERATOR_ASSIGNMENT {
         id: "operator-assignment",
-        code: "LY028",
         description: "Require compound assignment where equivalent",
         category: Style,
         level: Warning,

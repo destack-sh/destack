@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow template expressions without formatting or conversion.
     pub NO_UNNECESSARY_TEMPLATE_EXPRESSION {
         id: "no-unnecessary-template-expression",
-        code: "LY068",
         description: "Disallow template expressions without formatting or conversion",
         category: Style,
         level: Warning,

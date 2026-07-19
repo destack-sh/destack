@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when a large represented value is passed by value.
     pub LARGE_PASS_BY_VALUE {
         id: "large-pass-by-value",
-        code: "LP052",
         description: "Warn when a large represented value is passed by value",
         category: Performance,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer implicit return for arrow functions.
     pub PREFER_IMPLICIT_RETURN {
         id: "prefer-implicit-return",
-        code: "LY041",
         description: "Prefer implicit return for arrow functions",
         category: Style,
         level: Warning,

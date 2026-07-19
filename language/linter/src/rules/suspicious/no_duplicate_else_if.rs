@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow duplicate or covered else-if conditions.
     pub NO_DUPLICATE_ELSE_IF {
         id: "no-duplicate-else-if",
-        code: "LU010",
         description: "Disallow duplicate or covered else-if conditions",
         category: Suspicious,
         level: Warning,

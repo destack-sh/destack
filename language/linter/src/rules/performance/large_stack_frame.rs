@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when one function requires excessive stack storage.
     pub LARGE_STACK_FRAME {
         id: "large-stack-frame",
-        code: "LP055",
         description: "Warn when one function requires excessive stack storage",
         category: Performance,
         level: Warning,

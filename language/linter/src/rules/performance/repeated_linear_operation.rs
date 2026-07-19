@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when a linear operation is nested in repeated execution.
     pub REPEATED_LINEAR_OPERATION {
         id: "repeated-linear-operation",
-        code: "LP058",
         description: "Warn when a linear operation is nested in repeated execution",
         category: Performance,
         level: Warning,

@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::fmt;
 
 use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder};
-use destack_core::StringId;
 use destack_repository::{LintLevel, ProviderError};
 
 use super::{DirModule, DirProgram, MirModule, MirProgram};
@@ -172,8 +171,6 @@ impl LintCheck {
 pub struct Lint {
     /// The lint id.
     pub id: Cow<'static, str>,
-    /// The diagnostic code.
-    pub code: Cow<'static, str>,
     /// The description.
     pub description: Cow<'static, str>,
     /// The diagnostic category.
@@ -187,14 +184,6 @@ pub struct Lint {
 }
 
 impl Lint {
-    /// Return the accepted diagnostic selectors.
-    pub(crate) fn selectors(&self) -> [StringId; 2] {
-        [
-            StringId::for_text(self.id.as_ref()),
-            StringId::for_text(self.code.as_ref()),
-        ]
-    }
-
     /// Create one diagnostic for this lint.
     pub fn diagnostic(
         &self,

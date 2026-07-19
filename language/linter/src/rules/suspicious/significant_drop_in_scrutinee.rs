@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when significant destruction is extended by a scrutinee.
     pub SIGNIFICANT_DROP_IN_SCRUTINEE {
         id: "significant-drop-in-scrutinee",
-        code: "LU051",
         description: "Warn when significant destruction is extended by a scrutinee",
         category: Suspicious,
         level: Warning,

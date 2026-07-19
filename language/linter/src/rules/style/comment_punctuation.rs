@@ -7,7 +7,6 @@ declare_lint! {
     /// Enforce comment punctuation.
     pub COMMENT_PUNCTUATION {
         id: "comment-punctuation",
-        code: "LY004",
         description: "Enforce comment punctuation",
         category: Style,
         level: Warning,

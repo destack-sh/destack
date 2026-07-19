@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow useless return statements.
     pub NO_USELESS_RETURN {
         id: "no-useless-return",
-        code: "LU041",
         description: "Disallow useless return statements",
         category: Suspicious,
         level: Warning,

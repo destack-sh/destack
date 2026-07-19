@@ -7,7 +7,6 @@ declare_lint! {
     /// Require const for bindings never reassigned after initialization.
     pub PREFER_CONST {
         id: "prefer-const",
-        code: "LY035",
         description: "Require const for bindings never reassigned after initialization",
         category: Style,
         level: Warning,

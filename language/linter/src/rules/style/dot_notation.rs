@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer dot notation for property access.
     pub DOT_NOTATION {
         id: "dot-notation",
-        code: "LY009",
         description: "Prefer dot notation for property access",
         category: Style,
         level: Warning,

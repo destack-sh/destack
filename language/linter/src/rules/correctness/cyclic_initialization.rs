@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow unsafe cycles in target initialization.
     pub CYCLIC_INITIALIZATION {
         id: "cyclic-initialization",
-        code: "LC060",
         description: "Disallow unsafe cycles in target initialization",
         category: Correctness,
         level: Error,

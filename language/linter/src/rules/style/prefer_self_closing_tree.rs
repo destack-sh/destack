@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer self-closing tree tags.
     pub PREFER_SELF_CLOSING_TREE {
         id: "prefer-self-closing-tree",
-        code: "LY053",
         description: "Prefer self-closing tree tags",
         category: Style,
         level: Warning,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Warn when the same regular expression is built repeatedly.
     pub REPEATED_REGEX_CONSTRUCTION {
         id: "repeated-regex-construction",
-        code: "LP059",
         description: "Warn when the same regular expression is built repeatedly",
         category: Performance,
         level: Warning,

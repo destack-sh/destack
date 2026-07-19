@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow direct == comparison of floats.
     pub NO_FLOATING_POINT_EQUALITY {
         id: "no-floating-point-equality",
-        code: "LC015",
         description: "Disallow direct == comparison of floats",
         category: Correctness,
         level: Error,

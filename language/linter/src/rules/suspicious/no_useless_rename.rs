@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow useless renaming.
     pub NO_USELESS_RENAME {
         id: "no-useless-rename",
-        code: "LU040",
         description: "Disallow useless renaming",
         category: Suspicious,
         level: Warning,

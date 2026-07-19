@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow comparisons of a value with itself.
     pub NO_SELF_COMPARE {
         id: "no-self-compare",
-        code: "LC025",
         description: "Disallow comparisons of a value with itself",
         category: Correctness,
         level: Error,

@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow misleading regex character classes.
     pub NO_MISLEADING_CHARACTER_CLASS {
         id: "no-misleading-character-class",
-        code: "LU022",
         description: "Disallow misleading regex character classes",
         category: Suspicious,
         level: Warning,

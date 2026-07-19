@@ -7,7 +7,6 @@ declare_lint! {
     /// Prefer template literals for string concatenation.
     pub PREFER_TEMPLATE {
         id: "prefer-template",
-        code: "LY057",
         description: "Prefer template literals for string concatenation",
         category: Style,
         level: Warning,

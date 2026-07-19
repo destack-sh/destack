@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow empty block statements.
     pub NO_EMPTY {
         id: "no-empty",
-        code: "LU012",
         description: "Disallow empty block statements",
         category: Suspicious,
         level: Warning,

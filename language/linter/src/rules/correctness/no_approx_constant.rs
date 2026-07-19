@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow numeric literals that approximate well-known constants.
     pub NO_APPROX_CONSTANT {
         id: "no-approx-constant",
-        code: "LC002",
         description: "Disallow numeric literals that approximate well-known constants",
         category: Correctness,
         level: Warning,

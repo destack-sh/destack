@@ -7,7 +7,6 @@ declare_lint! {
     /// Disallow borrows that add no required lifetime or capability.
     pub NEEDLESS_BORROW {
         id: "needless-borrow",
-        code: "LP051",
         description: "Disallow borrows that add no required lifetime or capability",
         category: Performance,
         level: Warning,
