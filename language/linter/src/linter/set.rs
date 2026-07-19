@@ -1,83 +1,70 @@
 use std::sync::Arc;
 
-use destack_artifact::DiagnosticAnchor;
+use destack_artifact::{DiagnosticAnchor, DiagnosticControlIndex};
+use destack_core::StringId;
 use destack_repository::{LintLevel, LinterOptions};
 use destack_source::{DiagnosticSeverity, PackageId};
 
 use super::{DirModuleCheck, DirProgramCheck, Lint, LintCheck, MirModuleCheck, MirProgramCheck};
 use crate::LinterError;
 
-/// Lints for one package configuration.
+/// Lints scheduled for one module or program.
 #[derive(Debug)]
 pub(crate) struct LintSet {
-    /// The lints.
-    lints: Arc<[Lint]>,
-    /// The configured severities, or none when lint execution is disabled.
-    severities: Option<Box<[Option<DiagnosticSeverity>]>>,
+    /// The lint registry.
+    registry: Arc<[Lint]>,
+    /// The scheduled lint indices and configured severities.
+    scheduled: Box<[(usize, Option<DiagnosticSeverity>)]>,
 }
 
 impl LintSet {
-    /// Resolve one package configuration.
+    /// Resolve the lints scheduled by one package configuration and its source controls.
     pub(crate) fn resolve(
         package: PackageId,
         options: &LinterOptions,
         lints: Arc<[Lint]>,
+        controls: &DiagnosticControlIndex<'_>,
     ) -> Result<Self, LinterError> {
         let mut levels = lints
             .iter()
             .map(|lint| lint.default_level)
             .collect::<Vec<_>>();
-        let mut configured = vec![None; lints.len()];
 
-        // resolve each sparse override by stable id or diagnostic code
-        for (selector, level) in &options.rules {
+        // resolve each sparse override by exact lint id
+        for (id, level) in &options.rules {
             let index = lints
                 .iter()
-                .position(|lint| lint.id.as_ref() == selector || lint.code.as_ref() == selector)
+                .position(|lint| lint.id.as_ref() == id)
                 .ok_or_else(|| LinterError::UnknownConfiguredLint {
                     anchor: DiagnosticAnchor::Package(package),
-                    selector: selector.clone(),
+                    lint: id.clone(),
                 })?;
-            if let Some(first) = configured[index].replace(selector.as_str()) {
-                return Err(LinterError::DuplicateConfiguredLint {
-                    anchor: DiagnosticAnchor::Package(package),
-                    lint: lints[index].id.to_string(),
-                    first: first.to_string(),
-                    second: selector.clone(),
-                });
-            }
 
             levels[index] = *level;
         }
 
-        // validate disabled configurations without scheduling lint work
-        if !options.enabled {
-            return Ok(Self {
-                lints,
-                severities: None,
-            });
-        }
-
-        // resolve each lint level
-        let mut severities = Vec::with_capacity(lints.len());
-        for level in levels {
+        // schedule configured or source-activated lints
+        let mut scheduled = Vec::new();
+        for (index, level) in levels.into_iter().enumerate() {
             let severity = match level {
                 LintLevel::Off => None,
                 LintLevel::Warning => Some(DiagnosticSeverity::Warning),
                 LintLevel::Error => Some(DiagnosticSeverity::Error),
             };
-            severities.push(severity);
+            let diagnostic = StringId::for_text(lints[index].id.as_ref());
+            let is_activated = controls
+                .iter()
+                .any(|(_, table)| table.activates(diagnostic));
+            let is_scheduled = severity.is_some() || is_activated;
+            if options.enabled && is_scheduled {
+                scheduled.push((index, severity));
+            }
         }
 
         Ok(Self {
-            lints,
-            severities: Some(severities.into_boxed_slice()),
+            registry: lints,
+            scheduled: scheduled.into_boxed_slice(),
         })
-    }
-
-    /// Return the lints in this set.
-    pub(crate) fn lints(&self) -> &[Lint] {
-        &self.lints
     }
 
     /// Iterate checked DIR module lints.
@@ -120,36 +107,35 @@ impl LintSet {
         })
     }
 
-    /// Return whether this configuration contains checked DIR module lints.
+    /// Return whether this set contains checked DIR module lints.
     pub(crate) fn has_dir_modules(&self) -> bool {
         self.dir_modules().next().is_some()
     }
 
-    /// Return whether this configuration contains checked DIR program lints.
+    /// Return whether this set contains checked DIR program lints.
     pub(crate) fn has_dir_programs(&self) -> bool {
         self.dir_programs().next().is_some()
     }
 
-    /// Return whether this configuration contains verified MIR module lints.
+    /// Return whether this set contains verified MIR module lints.
     pub(crate) fn has_mir_modules(&self) -> bool {
         self.mir_modules().next().is_some()
     }
 
-    /// Return whether this configuration contains verified MIR program lints.
+    /// Return whether this set contains verified MIR program lints.
     pub(crate) fn has_mir_programs(&self) -> bool {
         self.mir_programs().next().is_some()
     }
 
-    /// Return whether this configuration contains program lints.
+    /// Return whether this set contains program lints.
     pub(crate) fn has_programs(&self) -> bool {
         self.has_dir_programs() || self.has_mir_programs()
     }
 
-    /// Iterate lints and configured severities when execution is enabled.
+    /// Iterate scheduled lints and configured severities.
     fn iter(&self) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>)> {
-        self.severities
-            .as_deref()
-            .into_iter()
-            .flat_map(|severities| self.lints.iter().zip(severities.iter().copied()))
+        self.scheduled
+            .iter()
+            .map(|(index, severity)| (&self.registry[*index], *severity))
     }
 }

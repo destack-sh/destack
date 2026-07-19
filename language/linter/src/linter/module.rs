@@ -1,9 +1,12 @@
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, ModuleLinted};
+use std::sync::Arc;
+
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, ModuleLinted,
+};
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
 use super::{DirModule, LintSet, Linter, MirModule};
-use crate::{DiagnosticControls, DiagnosticIndex};
 
 impl Linter {
     /// Collect dependencies for one module lint artifact.
@@ -15,7 +18,6 @@ impl Linter {
         target: TargetId,
     ) -> Result<ArtifactDependencySet, ProviderError> {
         let revision = context.revision();
-        let lints = self.resolve_lints(context, target.package_id())?;
         let mut dependencies = ArtifactDependencySet::default();
         self.observe_configuration(context, target.package_id(), &mut dependencies)?;
         let repository_module = self.module(revision, module)?;
@@ -23,8 +25,22 @@ impl Linter {
             return Ok(dependencies);
         }
 
-        // require checking for control validation
+        // require checking before resolving source controls
         dependencies.require(ArtifactKey::dir_checked(module, profile));
+        let artifacts = self.repository.artifact_reader(revision);
+        let checked = match artifacts.dir_checked(module, profile) {
+            Ok(checked) => checked,
+            Err(ProviderError::Blocked { .. }) => {
+                dependencies.mark_partial();
+
+                return Ok(dependencies);
+            }
+            Err(error) => return Err(error),
+        };
+        let control_tables = [checked.controls.clone()];
+        let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let lints = self.resolve_lints(context, target.package_id(), &controls)?;
 
         // require this module's checked DIR
         if lints.has_dir_modules() {
@@ -53,7 +69,6 @@ impl Linter {
         target: TargetId,
     ) -> Result<ArtifactPayload, ProviderError> {
         let revision = context.revision();
-        let lints = self.resolve_lints(context, target.package_id())?;
         let repository_module = self.module(revision, module)?;
         if !repository_module.is_code() {
             return Ok(ModuleLinted.into());
@@ -62,14 +77,10 @@ impl Linter {
         // resolve controls before deciding whether any lint executes
         let artifacts = self.repository.artifact_reader(revision);
         let checked = artifacts.dir_checked(module, profile)?;
-        let strings = self.repository.string_pool();
-        let diagnostics = DiagnosticIndex::new(&self.check_warnings, lints.lints())?;
-        let controls =
-            DiagnosticControls::resolve([checked.controls.clone()], &diagnostics, strings.as_ref());
-        let controls = match controls {
-            Ok(controls) => controls,
-            Err(error) => return self.reject(context, error),
-        };
+        let control_tables = [checked.controls.clone()];
+        let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let lints = self.resolve_lints(context, target.package_id(), &controls)?;
 
         // run DIR and MIR module lints
         self.lint_dir_module(context, &lints, &controls, module, profile, target)?;
@@ -83,7 +94,7 @@ impl Linter {
         &self,
         context: &dyn ProviderContext,
         lints: &LintSet,
-        controls: &DiagnosticControls,
+        controls: &DiagnosticControlIndex<'_>,
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
@@ -110,13 +121,13 @@ impl Linter {
 
         // execute enabled DIR lints
         for (lint, severity, check) in lints.dir_modules() {
-            if !controls.enables(lint, severity) {
-                continue;
-            }
-
             let output = check(&module, lint)?;
-            let (diagnostics, errors) =
-                controls.apply(lint, severity, strings.as_ref(), output.into_diagnostics());
+            let (diagnostics, errors) = lint.apply_controls(
+                controls,
+                severity,
+                strings.as_ref(),
+                output.into_diagnostics(),
+            );
             self.emit(context, diagnostics)?;
             self.emit(context, errors)?;
         }
@@ -129,7 +140,7 @@ impl Linter {
         &self,
         context: &dyn ProviderContext,
         lints: &LintSet,
-        controls: &DiagnosticControls,
+        controls: &DiagnosticControlIndex<'_>,
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
@@ -146,13 +157,13 @@ impl Linter {
 
         // execute enabled MIR lints
         for (lint, severity, check) in lints.mir_modules() {
-            if !controls.enables(lint, severity) {
-                continue;
-            }
-
             let output = check(&module, lint)?;
-            let (diagnostics, errors) =
-                controls.apply(lint, severity, strings.as_ref(), output.into_diagnostics());
+            let (diagnostics, errors) = lint.apply_controls(
+                controls,
+                severity,
+                strings.as_ref(),
+                output.into_diagnostics(),
+            );
             self.emit(context, diagnostics)?;
             self.emit(context, errors)?;
         }

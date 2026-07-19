@@ -2,7 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactFailure, DiagnosticDefinition, DiagnosticLike,
+    ArtifactDependencySet, ArtifactFailure, DiagnosticControlIndex, DiagnosticLike,
 };
 use destack_repository::{
     LinterOptions, Module, ProviderContext, ProviderError, Repository, Revision,
@@ -17,8 +17,6 @@ use crate::{LINTS, Lint};
 pub struct Linter {
     /// The repository.
     pub(super) repository: Arc<Repository>,
-    /// The check warnings.
-    pub(super) check_warnings: Arc<[&'static DiagnosticDefinition]>,
     /// The lints.
     pub(super) lints: Arc<[Lint]>,
 }
@@ -28,7 +26,6 @@ impl fmt::Debug for Linter {
         formatter
             .debug_struct("Linter")
             .field("repository", &"...")
-            .field("check_warnings", &self.check_warnings.len())
             .field("lints", &self.lints.len())
             .finish()
     }
@@ -36,25 +33,21 @@ impl fmt::Debug for Linter {
 
 impl Linter {
     /// Create a linter.
-    pub fn new(
-        repository: Arc<Repository>,
-        check_warnings: impl IntoIterator<Item = &'static DiagnosticDefinition>,
-    ) -> Self {
-        let check_warnings = check_warnings.into_iter().collect::<Vec<_>>();
+    pub fn new(repository: Arc<Repository>) -> Self {
         let lints = LINTS.iter().map(|lint| (*lint).clone()).collect::<Vec<_>>();
 
         Self {
             repository,
-            check_warnings: check_warnings.into(),
             lints: lints.into(),
         }
     }
 
-    /// Resolve one package's linter options.
+    /// Resolve the lints scheduled by one package and its checked source controls.
     pub(super) fn resolve_lints(
         &self,
         context: &dyn ProviderContext,
         package: PackageId,
+        controls: &DiagnosticControlIndex<'_>,
     ) -> Result<LintSet, ProviderError> {
         let revision = context.revision();
         let config = self
@@ -63,7 +56,7 @@ impl Linter {
             .map_err(|error| ProviderError::internal(error.to_string()))?;
         let defaults = LinterOptions::default();
         let options = config.as_ref().map_or(&defaults, |config| &config.linter);
-        let lints = LintSet::resolve(package, options, self.lints.clone());
+        let lints = LintSet::resolve(package, options, self.lints.clone(), controls);
 
         match lints {
             Ok(lints) => Ok(lints),
