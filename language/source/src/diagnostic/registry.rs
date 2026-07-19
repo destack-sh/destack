@@ -12,14 +12,22 @@ impl DiagnosticRegistry {
     pub fn new<'a>(diagnostics: impl IntoIterator<Item = (&'a str, bool)>) -> Self {
         let mut diagnostics = diagnostics
             .into_iter()
-            .map(|(id, is_controllable)| (id.to_string(), is_controllable))
+            .map(|(id, is_controllable)| {
+                // require nonempty kebab-case segments
+                let is_valid = id.split('-').all(|segment| {
+                    !segment.is_empty()
+                        && segment
+                            .bytes()
+                            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+                });
+                assert!(is_valid, "diagnostic id '{id}' is not kebab-case");
+
+                (id.to_string(), is_controllable)
+            })
             .collect::<Vec<_>>();
 
-        // reject empty and duplicate ids
+        // reject duplicate ids
         diagnostics.sort_unstable_by(|left, right| left.0.cmp(&right.0));
-        if let Some((id, _)) = diagnostics.first() {
-            assert!(!id.is_empty(), "diagnostic id is empty");
-        }
         if let Some(pair) = diagnostics.windows(2).find(|pair| pair[0].0 == pair[1].0) {
             panic!("diagnostic id '{}' is registered more than once", pair[0].0);
         }
