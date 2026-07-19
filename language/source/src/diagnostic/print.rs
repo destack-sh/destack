@@ -110,14 +110,14 @@ where
             .clone()
             .with_highlight_color(diagnostic.severity.color());
 
-        // header: severity + code + message
+        // render the severity, canonical id, and message
         let header_preamble = color_bold(
             &options,
             diagnostic.severity.color(),
             &format!(
-                "{} {}",
+                "{}[{}]",
                 diagnostic.severity.family_name().to_ascii_lowercase(),
-                diagnostic.code,
+                diagnostic.id,
             ),
         );
         let header_message = color_bold(&options, Color::BrightWhite, &diagnostic.message);
@@ -217,15 +217,15 @@ where
         }
     }
 
-    // point at the explain command for the reported error codes
-    let mut codes: Vec<&str> = diagnostics
+    // point at the explain command for the reported error ids
+    let mut ids: Vec<&str> = diagnostics
         .iter()
         .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
-        .map(|diagnostic| diagnostic.code.as_str())
+        .map(|diagnostic| diagnostic.id.as_str())
         .collect();
-    codes.sort_unstable();
-    codes.dedup();
-    if let Some(first) = codes.first() {
+    ids.sort_unstable();
+    ids.dedup();
+    if let Some(first) = ids.first() {
         let trailer = format!("for more information about an error, run `destack explain {first}`");
         write_line(&options, &color_text(&options, Color::White, &trailer));
     }
@@ -430,7 +430,7 @@ mod tests {
             "replace `let` with `const`",
         ));
         let diagnostic = Diagnostic::warning(
-            "W001",
+            "prefer-const",
             "variable is never reassigned",
             DiagnosticLabel::message(content, DiagnosticTarget::Span(let_span), "use const"),
         )
@@ -440,7 +440,7 @@ mod tests {
         let rendered = render(diagnostics, file);
 
         let expected = concat!(
-            "warning W001: variable is never reassigned\n",
+            "warning[prefer-const]: variable is never reassigned\n",
             " ──▶ <test>:1:1\n",
             "  │\n",
             "1 │ let value = 1;\n",
@@ -473,7 +473,7 @@ mod tests {
         let value_span = Span::new(file_id, 24, 27);
         let annotation_span = Span::new(file_id, 17, 21);
         let diagnostic = Diagnostic::error(
-            "EC200",
+            "not-assignable",
             "type '300' is not assignable to type 'int8'",
             DiagnosticLabel::message(
                 content,
@@ -493,7 +493,7 @@ mod tests {
         let rendered = render(diagnostics, file);
 
         let expected = concat!(
-            "error EC200: type '300' is not assignable to type 'int8'\n",
+            "error[not-assignable]: type '300' is not assignable to type 'int8'\n",
             " ──▶ <test>:1:25\n",
             "  │\n",
             "1 │ const overflows: int8 = 300;\n",
@@ -504,7 +504,7 @@ mod tests {
             "\n",
             " = note: `int8` holds values in -128..=127\n",
             " = help: widen the annotation or use a fitting value\n",
-            "for more information about an error, run `destack explain EC200`",
+            "for more information about an error, run `destack explain not-assignable`",
         );
         assert_eq!(rendered, expected);
     }

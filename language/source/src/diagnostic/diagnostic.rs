@@ -9,9 +9,9 @@ use crate::{
 /// A final renderable diagnostic.
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Diagnostic {
-    /// The stable identifier of the diagnostic (like `E001` or `W017`).
-    pub code: String,
-    /// The DiagnosticSeverity of the diagnostic.
+    /// The canonical diagnostic id.
+    pub id: String,
+    /// The diagnostic severity.
     pub severity: DiagnosticSeverity,
     /// The message of the diagnostic.
     pub message: String,
@@ -25,20 +25,20 @@ pub struct Diagnostic {
     pub helps: Vec<DiagnosticHelp>,
     /// The suggestions for the diagnostic.
     pub suggestions: Vec<DiagnosticSuggestion>,
-    /// Extra semantic tags.
+    /// Extra diagnostic tags.
     pub tags: Vec<DiagnosticTag>,
 }
 
 impl Diagnostic {
     /// Create one diagnostic.
     pub fn new(
-        code: impl Into<String>,
+        id: impl Into<String>,
         severity: DiagnosticSeverity,
         message: impl Into<String>,
         primary: DiagnosticLabel,
     ) -> Self {
         Self {
-            code: code.into(),
+            id: id.into(),
             severity,
             message: message.into(),
             primary,
@@ -52,20 +52,20 @@ impl Diagnostic {
 
     /// Create one error diagnostic.
     pub fn error(
-        code: impl Into<String>,
+        id: impl Into<String>,
         message: impl Into<String>,
         primary: DiagnosticLabel,
     ) -> Self {
-        Self::new(code, DiagnosticSeverity::Error, message, primary)
+        Self::new(id, DiagnosticSeverity::Error, message, primary)
     }
 
     /// Create one warning diagnostic.
     pub fn warning(
-        code: impl Into<String>,
+        id: impl Into<String>,
         message: impl Into<String>,
         primary: DiagnosticLabel,
     ) -> Self {
-        Self::new(code, DiagnosticSeverity::Warning, message, primary)
+        Self::new(id, DiagnosticSeverity::Warning, message, primary)
     }
 
     /// Return the primary source label.
