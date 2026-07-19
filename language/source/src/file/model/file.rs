@@ -90,6 +90,16 @@ pub enum Content {
     Binary { content: Vec<u8> },
 }
 
+impl Content {
+    /// Return the payload length in bytes.
+    pub fn byte_length(&self) -> usize {
+        match self {
+            Self::Text { content } => content.len(),
+            Self::Binary { content } => content.len(),
+        }
+    }
+}
+
 /// The exact identity of one content payload.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
@@ -149,7 +159,9 @@ impl ContentId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentEntry {
     /// The raw content payload.
-    pub payload: Content,
+    payload: Content,
+    /// The payload length in bytes.
+    length: u32,
     /// Shared line index for text content.
     line_index: Option<Arc<[u32]>>,
 }
@@ -157,6 +169,13 @@ pub struct ContentEntry {
 impl ContentEntry {
     /// Build one shared content entry from one payload.
     pub fn new(payload: Content) -> Self {
+        let length = payload.byte_length();
+        assert!(
+            length <= File::MAX_BYTES,
+            "content length exceeds source coordinate range"
+        );
+
+        // index text lines
         let line_index = match &payload {
             Content::Text { content } => Some(Arc::<[u32]>::from(
                 File::precompute_line_start_offsets(content),
@@ -166,6 +185,7 @@ impl ContentEntry {
 
         Self {
             payload,
+            length: length as u32,
             line_index,
         }
     }
@@ -184,19 +204,12 @@ impl ContentEntry {
     pub fn line_index(&self) -> Option<&[u32]> {
         self.line_index.as_deref()
     }
-
-    /// Return true when this entry has one cached line index.
-    pub fn has_line_index(&self) -> bool {
-        self.line_index.is_some()
-    }
-
-    /// Clear any cached line index on this entry.
-    pub fn clear_line_index(&mut self) {
-        self.line_index = None;
-    }
 }
 
 impl File {
+    /// The greatest representable content length.
+    pub const MAX_BYTES: usize = u32::MAX as usize - 1;
+
     /// Create an empty source in some format.
     pub fn empty_text(ty: FileType) -> Self {
         let file_id = FileId::from_logical_str("<empty>");
@@ -211,12 +224,12 @@ impl File {
         )
     }
 
-    /// Precompute line start byte offsets for O(1) line.
+    /// Precompute line start byte offsets for constant-time line access.
     fn precompute_line_start_offsets(content: &str) -> Vec<u32> {
         let mut line_start_offsets = vec![0];
-        for (i, ch) in content.char_indices() {
-            if ch == '\n' {
-                line_start_offsets.push(i as u32 + 1);
+        for (offset, character) in content.char_indices() {
+            if character == '\n' {
+                line_start_offsets.push(offset as u32 + 1);
             }
         }
         line_start_offsets
@@ -242,10 +255,7 @@ impl File {
         ty: FileType,
         content: Arc<ContentEntry>,
     ) -> Self {
-        let len = match content.payload() {
-            Content::Text { content } => content.len() as u32,
-            Content::Binary { content } => content.len() as u32,
-        };
+        let len = content.length;
 
         Self {
             id,
@@ -268,14 +278,9 @@ impl File {
         content: String,
     ) -> Self {
         let content = Self::normalize_line_endings(content);
-        Self::from_content(
-            id,
-            name,
-            uri,
-            path,
-            ty,
-            Arc::new(ContentEntry::new(Content::Text { content })),
-        )
+        let content = ContentEntry::new(Content::Text { content });
+
+        Self::from_content(id, name, uri, path, ty, Arc::new(content))
     }
 
     /// Create a new binary file from bytes.
@@ -287,14 +292,9 @@ impl File {
         ty: FileType,
         content: Vec<u8>,
     ) -> Self {
-        Self::from_content(
-            id,
-            name,
-            uri,
-            path,
-            ty,
-            Arc::new(ContentEntry::new(Content::Binary { content })),
-        )
+        let content = ContentEntry::new(Content::Binary { content });
+
+        Self::from_content(id, name, uri, path, ty, Arc::new(content))
     }
 
     /// Get the text content of the File (empty if not text).
@@ -314,16 +314,6 @@ impl File {
     /// Return shared line start offsets when present.
     pub fn line_start_offsets(&self) -> Option<&[u32]> {
         self.content.line_index()
-    }
-
-    /// Return true when this file has one cached line index.
-    pub fn has_line_index(&self) -> bool {
-        self.content.has_line_index()
-    }
-
-    /// Clear any cached line index on this file view.
-    pub fn clear_line_index(&mut self) {
-        Arc::make_mut(&mut self.content).clear_line_index();
     }
 
     /// Return whether the file starts with a hashbang line.
@@ -412,81 +402,53 @@ impl File {
 
     /// Check if two byte positions are on the same line.
     #[inline]
-    pub fn is_same_line(&self, pos_a: u32, pos_b: u32) -> bool {
+    pub fn is_same_line(&self, first_position: u32, second_position: u32) -> bool {
         let Some(line_start_offsets) = self.line_start_offsets() else {
             return false;
         };
+        if first_position > self.len || second_position > self.len {
+            return false;
+        }
 
-        // find line for pos_a using binary search
-        let line_idx = match line_start_offsets.binary_search(&pos_a) {
+        // find the first position's line
+        let line_index = match line_start_offsets.binary_search(&first_position) {
             Ok(exact) => exact,
-            Err(insert) => insert.saturating_sub(1),
+            Err(insertion) => insertion.saturating_sub(1),
         };
 
-        // check if pos_b is within the same line
-        let line_start = line_start_offsets[line_idx];
-        let line_end = line_start_offsets
-            .get(line_idx + 1)
-            .copied()
-            .unwrap_or(self.len + 1);
+        // check the lower file and line bounds
+        let line_start = line_start_offsets[line_index];
+        if second_position < line_start {
+            return false;
+        }
 
-        pos_b >= line_start && pos_b < line_end
+        // check the next line bound when present
+        let Some(next_line_start) = line_start_offsets.get(line_index + 1) else {
+            return true;
+        };
+
+        second_position < *next_line_start
     }
 
-    /// Get the byte position for a given line and column.
-    /// Returns the byte index, or None if the position is invalid.
-    /// Uses precomputed line offsets for O(1) performance.
+    /// Return the byte position for one zero-based line and byte column.
     pub fn get_byte_position(&self, line_index: u32, column: u32) -> Option<u32> {
         let line_start_offsets = self.line_start_offsets()?;
         let line_start = *line_start_offsets.get(line_index as usize)?;
-        let byte_pos = line_start + column;
+        let byte_position = line_start.checked_add(column)?;
 
         // check if the position is within bounds
-        if byte_pos > self.len {
+        if byte_position > self.len {
             return None;
         }
 
         // check if the column is within the line bounds
-        let next_line_start = line_start_offsets
-            .get(line_index as usize + 1)
-            .copied()
-            .unwrap_or(self.len + 1); // +1 to account for potential newline
-
-        if byte_pos >= next_line_start {
+        if let Some(next_line_start) = line_start_offsets.get(line_index as usize + 1)
+            && byte_position >= *next_line_start
+        {
             return None;
         }
 
-        Some(byte_pos)
-    }
-
-    /// Compute byte offset from 1-indexed line and column in raw content.
-    ///
-    /// Useful when the file is not loaded but we have content (e.g., from filesystem read).
-    /// Line and column are 1-indexed (as typical from parser error messages).
-    /// Returns the byte offset, clamped to content length if out of bounds.
-    pub fn byte_offset_from_position(content: &str, line: usize, column: usize) -> u32 {
-        let mut current_line = 1;
-        let mut line_start = 0;
-
-        for (i, ch) in content.char_indices() {
-            if current_line == line {
-                // found the target line, compute column offset
-                let col_offset = content[line_start..]
-                    .char_indices()
-                    .take(column.saturating_sub(1))
-                    .last()
-                    .map(|(i, c)| i + c.len_utf8())
-                    .unwrap_or(0);
-                return (line_start + col_offset) as u32;
-            }
-            if ch == '\n' {
-                current_line += 1;
-                line_start = i + 1;
-            }
-        }
-
-        // if line not found, return end of content
-        content.len() as u32
+        Some(byte_position)
     }
 
     /// Get the number of lines in the source (at least 1 for empty content).
