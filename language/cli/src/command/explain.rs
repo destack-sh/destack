@@ -1,15 +1,12 @@
-use clap::{Args, ValueEnum};
-use serde::Serialize;
-use serde_json::Value;
+use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use destack_compiler::{
-    BindError, BindWarning, CheckError, CheckWarning, DiagnosticDefinition, EmitError, EmitWarning,
-    ExpandError, ExpandWarning, ExportError, ExportWarning, ImportError, LinkError, LinkWarning,
-    LowerError, LowerWarning, MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning,
-    VerifyError, VerifyWarning,
-};
+use clap::{Args, ValueEnum};
 use destack_linter as linter;
+use destack_session::diagnostic;
+use destack_source::{DiagnosticDefinition, DiagnosticSeverity};
+use serde::Serialize;
+use serde_json::Value;
 
 use crate::common::{
     CommandReport, ListEntry, ListGroup, ListPrinter, ListSpacing, ReportArgs,
@@ -20,11 +17,11 @@ use crate::console;
 /// Arguments for the explain command.
 #[derive(Args, Debug, Clone)]
 pub struct ExplainArgs {
-    /// Diagnostic code or rule id to explain.
-    #[arg(value_name = "CODE", required_unless_present = "list")]
-    pub code: Option<String>,
+    /// Diagnostic or lint id to explain.
+    #[arg(value_name = "ID", required_unless_present = "list")]
+    pub id: Option<String>,
 
-    /// List compiler diagnostics instead of explaining a single code.
+    /// List diagnostics instead of explaining one id.
     #[arg(long)]
     pub list: bool,
 
@@ -32,7 +29,7 @@ pub struct ExplainArgs {
     #[arg(long, value_enum, default_value = "all")]
     pub kind: DiagnosticKindFilter,
 
-    /// Severity filter for compiler diagnostic listings.
+    /// Severity filter for diagnostic listings.
     #[arg(long, value_enum, default_value = "all")]
     pub severity: DiagnosticSeverityFilter,
 
@@ -41,7 +38,7 @@ pub struct ExplainArgs {
     pub report: ReportArgs,
 }
 
-/// Severity filter for compiler diagnostic listings.
+/// Severity filter for diagnostic listings.
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticSeverityFilter {
     /// List only errors.
@@ -52,474 +49,270 @@ pub enum DiagnosticSeverityFilter {
     All,
 }
 
-/// Diagnostic kind filter for listings.
-#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DiagnosticKindFilter {
-    /// List compiler diagnostics.
-    Compiler,
-    /// List lint rules.
-    Lint,
-    /// List compiler diagnostics and lint rules.
-    All,
-}
-
-impl DiagnosticKindFilter {
-    /// Check whether the filter includes compiler diagnostics.
-    fn includes_compiler(self) -> bool {
-        matches!(self, Self::Compiler | Self::All)
-    }
-
-    /// Check whether the filter includes lint rules.
-    fn includes_lint(self) -> bool {
-        matches!(self, Self::Lint | Self::All)
-    }
-}
-
 impl DiagnosticSeverityFilter {
-    /// Check whether the filter includes the given severity.
-    fn includes(self, severity: CompilerSeverity) -> bool {
-        // match the severity against the filter
+    /// Return whether this filter includes one severity.
+    fn includes(self, severity: DiagnosticSeverity) -> bool {
         match self {
-            Self::Error => matches!(severity, CompilerSeverity::Error),
-            Self::Warning => matches!(severity, CompilerSeverity::Warning),
+            Self::Error => severity == DiagnosticSeverity::Error,
+            Self::Warning => severity == DiagnosticSeverity::Warning,
             Self::All => true,
         }
     }
 }
 
-/// Severity for compiler diagnostics.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CompilerSeverity {
-    /// An error diagnostic.
-    Error,
-    /// A warning diagnostic.
-    Warning,
+/// Diagnostic kind filter for listings.
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticKindFilter {
+    /// List diagnostics.
+    Diagnostic,
+    /// List lint rules.
+    Lint,
+    /// List diagnostics and lint rules.
+    All,
 }
 
-/// Grouping metadata for compiler diagnostics.
-#[derive(Debug, Clone, Copy)]
-struct CompilerDiagnosticGroup {
-    /// Compiler phase for the diagnostics.
-    phase: CompilerPhase,
-    /// Severity for the diagnostics.
-    severity: CompilerSeverity,
-    /// Diagnostics defined in the group.
-    definitions: &'static [DiagnosticDefinition],
+impl DiagnosticKindFilter {
+    /// Return whether this filter includes diagnostics.
+    fn includes_diagnostics(self) -> bool {
+        matches!(self, Self::Diagnostic | Self::All)
+    }
+
+    /// Return whether this filter includes lint rules.
+    fn includes_lints(self) -> bool {
+        matches!(self, Self::Lint | Self::All)
+    }
 }
 
-/// Compiler diagnostic phase.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CompilerPhase {
-    /// Bind module symbols.
-    Bind,
-    /// Import, parse, and bind source into DIR.
-    Import,
-    /// Expand compile-time structural declarations.
-    Expand,
-    /// Export module surface declarations.
-    Export,
-    /// Check declared and exported DIR.
-    Check,
-    /// Materialize checked DIR.
-    Materialize,
-    /// Lower DIR into MIR.
-    Lower,
-    /// Verify MIR invariants.
-    Verify,
-    /// Optimize MIR.
-    Optimize,
-    /// Emit build products.
-    Emit,
-    /// Link build products.
-    Link,
+/// Static diagnostic metadata returned by the explain command.
+#[derive(Serialize)]
+struct DiagnosticEntry {
+    /// The canonical diagnostic id.
+    id: &'static str,
+    /// The diagnostic description.
+    description: &'static str,
+    /// The diagnostic severity.
+    severity: &'static str,
+    /// Whether source controls may select the diagnostic.
+    controllable: bool,
+}
+
+impl From<&'static DiagnosticDefinition> for DiagnosticEntry {
+    /// Build one serializable diagnostic entry.
+    fn from(definition: &'static DiagnosticDefinition) -> Self {
+        Self {
+            id: definition.id,
+            description: definition.description,
+            severity: definition.severity.family_name(),
+            controllable: definition.is_controllable,
+        }
+    }
 }
 
 /// Lint rule metadata returned by the explain command.
 #[derive(Serialize)]
-struct LintExplainEntry {
-    /// Diagnostic code for the rule.
-    code: &'static str,
-    /// Stable rule selector.
+struct LintEntry {
+    /// The canonical lint id.
     id: &'static str,
-    /// Rule category name.
+    /// The rule category.
     category: &'static str,
-    /// Human-readable description.
+    /// The rule description.
     description: &'static str,
     /// Whether the rule provides a fix.
     fixable: bool,
-    /// Standard level before configuration overrides.
+    /// The standard level before configuration overrides.
     level: &'static str,
-    /// Compiler representation inspected by the rule.
+    /// The compiler representation inspected by the rule.
     tier: &'static str,
-    /// Compilation scope inspected by the rule.
+    /// The compilation scope inspected by the rule.
     scope: &'static str,
 }
 
-/// Compiler diagnostic metadata returned by the explain command.
-#[derive(Serialize)]
-struct CompilerExplainEntry {
-    /// Diagnostic code for the compiler issue.
-    code: &'static str,
-    /// Variant name for the diagnostic.
-    name: &'static str,
-    /// Human-readable description.
-    description: &'static str,
-    /// Compiler phase that owns the diagnostic.
-    phase: &'static str,
-    /// Severity label for the diagnostic.
-    severity: &'static str,
-}
-
-/// Compiler diagnostic listing entry.
-#[derive(Serialize)]
-struct CompilerListEntry {
-    /// Diagnostic code for the compiler issue.
-    code: &'static str,
-    /// Variant name for the diagnostic.
-    name: &'static str,
-    /// Human-readable description.
-    description: &'static str,
-    /// Compiler phase that owns the diagnostic.
-    phase: &'static str,
-    /// Severity label for the diagnostic.
-    severity: &'static str,
-}
-
-/// Lint rule listing entry.
-#[derive(Serialize)]
-struct LintListEntry {
-    /// Stable rule selector.
-    id: &'static str,
-    /// Diagnostic code for the rule.
-    code: &'static str,
-    /// Rule category name.
-    category: &'static str,
-    /// Human-readable description.
-    description: &'static str,
-    /// Whether the rule provides a fix.
-    fixable: bool,
-    /// Standard level before configuration overrides.
-    level: &'static str,
-    /// Compiler representation inspected by the rule.
-    tier: &'static str,
-    /// Compilation scope inspected by the rule.
-    scope: &'static str,
-}
-
-/// Categorized diagnostics for JSON output.
+/// One categorized listing group.
 #[derive(Serialize)]
 struct CategoryListing<T> {
-    /// Category label.
+    /// The category name.
     category: String,
-    /// Entries within the category.
+    /// The entries in the category.
     entries: Vec<T>,
 }
 
-/// JSON payload for explain list output.
+/// JSON payload for diagnostic listings.
 #[derive(Serialize)]
 struct ExplainListPayload {
-    /// Compiler diagnostics grouped by category.
-    compiler: Value,
-    /// Lint diagnostics grouped by category.
-    lint: Value,
+    /// Diagnostics grouped by severity.
+    diagnostics: Value,
+    /// Lint rules grouped by category.
+    lints: Value,
 }
 
-/// JSON payload for a single diagnostic entry.
+/// JSON payload for one explained diagnostic or lint rule.
 #[derive(Serialize)]
 struct ExplainDiagnosticPayload {
-    /// The diagnostic payload content.
+    /// The explained diagnostic or lint rule.
     diagnostic: ExplainPayload,
 }
 
-/// Explain payload for JSON output.
+/// One explained diagnostic or lint rule.
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum ExplainPayload {
-    /// Lint rule details.
-    Lint {
-        /// Lint rule entry data.
+    /// One built-in diagnostic.
+    Diagnostic {
+        /// The diagnostic metadata.
         #[serde(flatten)]
-        entry: LintExplainEntry,
+        entry: DiagnosticEntry,
     },
-    /// Compiler diagnostic details.
-    Compiler {
-        /// Compiler diagnostic entry data.
+    /// One lint rule.
+    Lint {
+        /// The lint rule metadata.
         #[serde(flatten)]
-        entry: CompilerExplainEntry,
+        entry: LintEntry,
     },
 }
 
-/// Compiler diagnostics grouped by phase and severity.
-const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Bind,
-        severity: CompilerSeverity::Error,
-        definitions: BindError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Import,
-        severity: CompilerSeverity::Error,
-        definitions: ImportError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Expand,
-        severity: CompilerSeverity::Error,
-        definitions: ExpandError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Export,
-        severity: CompilerSeverity::Error,
-        definitions: ExportError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Check,
-        severity: CompilerSeverity::Error,
-        definitions: CheckError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Materialize,
-        severity: CompilerSeverity::Error,
-        definitions: MaterializeError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Lower,
-        severity: CompilerSeverity::Error,
-        definitions: LowerError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Verify,
-        severity: CompilerSeverity::Error,
-        definitions: VerifyError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Optimize,
-        severity: CompilerSeverity::Error,
-        definitions: OptimizeError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Emit,
-        severity: CompilerSeverity::Error,
-        definitions: EmitError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Link,
-        severity: CompilerSeverity::Error,
-        definitions: LinkError::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Bind,
-        severity: CompilerSeverity::Warning,
-        definitions: BindWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Expand,
-        severity: CompilerSeverity::Warning,
-        definitions: ExpandWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Export,
-        severity: CompilerSeverity::Warning,
-        definitions: ExportWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Check,
-        severity: CompilerSeverity::Warning,
-        definitions: CheckWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Materialize,
-        severity: CompilerSeverity::Warning,
-        definitions: MaterializeWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Lower,
-        severity: CompilerSeverity::Warning,
-        definitions: LowerWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Verify,
-        severity: CompilerSeverity::Warning,
-        definitions: VerifyWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Optimize,
-        severity: CompilerSeverity::Warning,
-        definitions: OptimizeWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Emit,
-        severity: CompilerSeverity::Warning,
-        definitions: EmitWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Link,
-        severity: CompilerSeverity::Warning,
-        definitions: LinkWarning::ALL,
-    },
-];
-
-/// Explain a diagnostic or lint rule.
+/// Explain one diagnostic or lint rule, or list them.
 pub fn run(args: &ExplainArgs) -> i32 {
-    // route to list mode first
     if args.list {
         return list_diagnostics(args);
     }
 
-    // resolve the requested diagnostic code
-    let Some(code) = args.code.as_ref() else {
-        return report_error("explain", &args.report, "diagnostic code is required");
+    // require one exact canonical id
+    let Some(id) = args.id.as_deref() else {
+        return report_error("explain", &args.report, "diagnostic id is required");
     };
-    let needle = code.trim();
-    if needle.is_empty() {
-        return report_error("explain", &args.report, "diagnostic code is required");
+    if id.is_empty() {
+        return report_error("explain", &args.report, "diagnostic id is required");
     }
 
-    // prefer lint rule resolution first
-    if let Some(entry) = find_lint_entry(needle) {
-        return output_lint_entry(args, entry);
+    // resolve one exact built-in id
+    if let Some(definition) = diagnostic::definitions().find(|definition| definition.id == id) {
+        return output_diagnostic(args, definition.into());
+    }
+    if let Some(rule) = linter::LINTS.iter().find(|rule| rule.id.as_ref() == id) {
+        return output_lint(args, lint_entry(rule));
     }
 
-    // fall back to compiler diagnostics
-    if let Some(entry) = find_compiler_entry(needle) {
-        return output_compiler_entry(args, entry);
-    }
-
-    // report missing diagnostics
     report_error(
         "explain",
         &args.report,
-        &format!("unknown diagnostic code or rule id: {needle}"),
+        &format!("unknown diagnostic id: {id}"),
     )
 }
 
-/// List compiler diagnostics and lint rules in text or JSON form.
+/// List all selected diagnostics and lint rules.
 fn list_diagnostics(args: &ExplainArgs) -> i32 {
-    // gather compiler diagnostics when requested
-    let compiler_entries = if args.kind.includes_compiler() {
-        collect_compiler_list_entries(args.severity)
+    let diagnostics = if args.kind.includes_diagnostics() {
+        collect_diagnostics(args, diagnostic::definitions())
     } else {
         Vec::new()
     };
-    let compiler_total = compiler_entries.len();
-
-    // gather lint rules when requested
-    let lint_entries = if args.kind.includes_lint() {
-        collect_lint_list_entries()
+    let lints = if args.kind.includes_lints() {
+        collect_lints()
     } else {
         Vec::new()
     };
-    let lint_total = lint_entries.len();
 
-    // emit json output for tooling
     if args.report.is_json() {
-        let payload = ExplainListPayload {
-            compiler: grouped_list_payload(
-                category_compiler_entries(compiler_entries),
-                compiler_total,
-            ),
-            lint: grouped_list_payload(category_lint_entries(lint_entries), lint_total),
-        };
-        let data = match serde_json::to_value(payload) {
-            Ok(data) => data,
-            Err(error) => {
-                return report_error(
-                    "explain",
-                    &args.report,
-                    &format!("failed to serialize payload: {error}"),
-                );
-            }
-        };
-        let mut report = CommandReport::success("explain", 0);
-        report.data = Some(data);
-        print_report(&report, args.report.format());
-        return 0;
+        return print_json_listing(args, diagnostics, lints);
     }
 
-    // print compiler diagnostics grouped by category
-    if args.kind.includes_compiler() {
-        print_compiler_listing(compiler_entries);
+    if args.kind.includes_diagnostics() {
+        print_diagnostics(diagnostics);
     }
-
-    // print lint diagnostics grouped by category
-    if args.kind.includes_lint() {
-        print_lint_listing(lint_entries);
+    if args.kind.includes_lints() {
+        print_lints(lints);
     }
 
     0
 }
 
-/// Collect compiler diagnostic list entries filtered by severity.
-fn collect_compiler_list_entries(filter: DiagnosticSeverityFilter) -> Vec<CompilerListEntry> {
-    // gather diagnostics from the registry groups
-    let mut entries = Vec::new();
-    for group in COMPILER_DIAGNOSTIC_GROUPS {
-        // skip groups that do not match the filter
-        if !filter.includes(group.severity) {
-            continue;
-        }
+/// Collect selected diagnostic definitions.
+fn collect_diagnostics(
+    args: &ExplainArgs,
+    definitions: impl Iterator<Item = &'static DiagnosticDefinition>,
+) -> Vec<DiagnosticEntry> {
+    let mut definitions = definitions
+        .filter(|definition| args.severity.includes(definition.severity))
+        .collect::<Vec<_>>();
+    definitions.sort_unstable_by_key(|definition| (Reverse(definition.severity), definition.id));
+    definitions.into_iter().map(DiagnosticEntry::from).collect()
+}
 
-        // capture the group labels once
-        let phase = phase_label(group.phase);
-        let severity = severity_label(group.severity);
-
-        // register each definition in the group
-        for definition in group.definitions {
-            entries.push(CompilerListEntry {
-                code: definition.code,
-                name: definition.name,
-                description: definition.description,
-                phase,
-                severity,
-            });
-        }
-    }
+/// Collect every lint rule.
+fn collect_lints() -> Vec<LintEntry> {
+    let mut entries = linter::LINTS
+        .iter()
+        .copied()
+        .map(lint_entry)
+        .collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|entry| (entry.category, entry.id));
 
     entries
 }
 
-/// Collect lint rule list entries.
-fn collect_lint_list_entries() -> Vec<LintListEntry> {
-    // gather lint rule metadata
-    linter::LINTS
-        .iter()
-        .map(|rule| LintListEntry {
-            id: rule.id.as_ref(),
-            code: rule.code.as_ref(),
-            category: rule.category.name(),
-            description: rule.description.as_ref(),
-            fixable: rule.is_fixable(),
-            level: rule.default_level.name(),
-            tier: rule.tier().name(),
-            scope: rule.scope().name(),
-        })
-        .collect()
+/// Build one lint rule entry.
+fn lint_entry(rule: &'static linter::Lint) -> LintEntry {
+    LintEntry {
+        id: rule.id.as_ref(),
+        category: rule.category.name(),
+        description: rule.description.as_ref(),
+        fixable: rule.is_fixable(),
+        level: rule.default_level.name(),
+        tier: rule.tier().name(),
+        scope: rule.scope().name(),
+    }
 }
 
-/// Build categorized compiler diagnostics for JSON output.
-fn category_compiler_entries(
-    entries: Vec<CompilerListEntry>,
-) -> Vec<CategoryListing<CompilerListEntry>> {
-    // bucket diagnostics by category label
-    let mut categories: BTreeMap<String, Vec<CompilerListEntry>> = BTreeMap::new();
+/// Print one JSON diagnostic listing.
+fn print_json_listing(
+    args: &ExplainArgs,
+    diagnostics: Vec<DiagnosticEntry>,
+    lints: Vec<LintEntry>,
+) -> i32 {
+    let diagnostic_total = diagnostics.len();
+    let lint_total = lints.len();
+    let payload = ExplainListPayload {
+        diagnostics: grouped_list_payload(category_diagnostics(diagnostics), diagnostic_total),
+        lints: grouped_list_payload(category_lints(lints), lint_total),
+    };
+    let data = match serde_json::to_value(payload) {
+        Ok(data) => data,
+        Err(error) => {
+            return report_error(
+                "explain",
+                &args.report,
+                &format!("failed to serialize payload: {error}"),
+            );
+        }
+    };
+
+    let mut report = CommandReport::success("explain", 0);
+    report.data = Some(data);
+    print_report(&report, args.report.format());
+
+    0
+}
+
+/// Group diagnostics by severity.
+fn category_diagnostics(entries: Vec<DiagnosticEntry>) -> Vec<CategoryListing<DiagnosticEntry>> {
+    let mut categories = Vec::<CategoryListing<DiagnosticEntry>>::new();
     for entry in entries {
-        let category = compiler_category(entry.phase, entry.severity);
-        categories.entry(category).or_default().push(entry);
+        let category = entry.severity.to_string();
+        match categories.last_mut() {
+            Some(listing) if listing.category == category => listing.entries.push(entry),
+            _ => categories.push(CategoryListing {
+                category,
+                entries: vec![entry],
+            }),
+        }
     }
 
-    // sort entries within each category
     categories
-        .into_iter()
-        .map(|(category, mut entries)| {
-            entries.sort_by(|a, b| a.code.cmp(b.code));
-            CategoryListing { category, entries }
-        })
-        .collect()
 }
 
-/// Build categorized lint diagnostics for JSON output.
-fn category_lint_entries(entries: Vec<LintListEntry>) -> Vec<CategoryListing<LintListEntry>> {
-    // bucket lint rules by category label
-    let mut categories: BTreeMap<String, Vec<LintListEntry>> = BTreeMap::new();
+/// Group lint rules by category.
+fn category_lints(entries: Vec<LintEntry>) -> Vec<CategoryListing<LintEntry>> {
+    let mut categories = BTreeMap::<String, Vec<LintEntry>>::new();
     for entry in entries {
         categories
             .entry(entry.category.to_string())
@@ -527,159 +320,87 @@ fn category_lint_entries(entries: Vec<LintListEntry>) -> Vec<CategoryListing<Lin
             .push(entry);
     }
 
-    // sort entries within each category
     categories
         .into_iter()
-        .map(|(category, mut entries)| {
-            entries.sort_by(|a, b| a.id.cmp(b.id));
-            CategoryListing { category, entries }
-        })
+        .map(|(category, entries)| CategoryListing { category, entries })
         .collect()
 }
 
-/// Print compiler diagnostics grouped by category.
-fn print_compiler_listing(entries: Vec<CompilerListEntry>) {
-    // resolve color support once
-    let color_enabled = console::color_enabled(console::Stream::Stdout);
+/// Print diagnostics grouped by severity.
+fn print_diagnostics(entries: Vec<DiagnosticEntry>) {
+    let is_color_enabled = console::color_enabled(console::Stream::Stdout);
+    let groups = category_diagnostics(entries)
+        .into_iter()
+        .map(|group| {
+            let heading = format_category(&group.category, is_color_enabled);
+            let entries = group
+                .entries
+                .into_iter()
+                .map(|entry| {
+                    let id = format_id(entry.id, entry.severity, is_color_enabled);
+                    ListEntry::new(format!("  {id} - {}", entry.description))
+                })
+                .collect();
 
-    // bucket diagnostics by category label
-    let mut categories: BTreeMap<String, Vec<CompilerListEntry>> = BTreeMap::new();
-    for entry in entries {
-        let category = compiler_category(entry.phase, entry.severity);
-        categories.entry(category).or_default().push(entry);
-    }
-
-    // render category groupings
-    let mut groups = Vec::new();
-    for (category, mut entries) in categories {
-        entries.sort_by(|a, b| a.code.cmp(b.code));
-        let heading = format_category_heading(&category, color_enabled);
-        let list_entries = entries
-            .iter()
-            .map(|entry| {
-                let code = format_compiler_code(entry.code, entry.severity, color_enabled);
-                let summary = format!("  {code} {} - {}", entry.name, entry.description);
-                ListEntry::new(summary)
-            })
-            .collect();
-        groups.push(ListGroup::new(heading, list_entries));
-    }
+            ListGroup::new(heading, entries)
+        })
+        .collect::<Vec<_>>();
     let printer = ListPrinter::plain();
     print_grouped_list_with(&groups, ListSpacing::Spaced, &printer);
 }
 
 /// Print lint rules grouped by category.
-fn print_lint_listing(entries: Vec<LintListEntry>) {
-    // resolve color support once
-    let color_enabled = console::color_enabled(console::Stream::Stdout);
+fn print_lints(entries: Vec<LintEntry>) {
+    let is_color_enabled = console::color_enabled(console::Stream::Stdout);
+    let groups = category_lints(entries)
+        .into_iter()
+        .map(|group| {
+            let heading = format_category(&group.category, is_color_enabled);
+            let entries = group
+                .entries
+                .into_iter()
+                .map(|entry| {
+                    let id = format_id(entry.id, "warning", is_color_enabled);
+                    let fixability = if entry.fixable { "fixable" } else { "no-fix" };
+                    let details = format!(
+                        "{} · {} {} · {fixability}",
+                        entry.level, entry.tier, entry.scope
+                    );
+                    let details = format_details(&details, is_color_enabled);
 
-    // bucket lint rules by category label
-    let mut categories: BTreeMap<String, Vec<LintListEntry>> = BTreeMap::new();
-    for entry in entries {
-        categories
-            .entry(entry.category.to_string())
-            .or_default()
-            .push(entry);
-    }
+                    ListEntry::new(format!("  {id} - {}", entry.description))
+                        .line(format!("  {details}"))
+                })
+                .collect();
 
-    // render category groupings
-    let mut groups = Vec::new();
-    for (category, mut entries) in categories {
-        entries.sort_by(|a, b| a.id.cmp(b.id));
-        let heading = format_category_heading(&category, color_enabled);
-        let list_entries = entries
-            .iter()
-            .map(|entry| {
-                let id = format_rule_id(entry.id, color_enabled);
-                let code = format_rule_code(entry.code, color_enabled);
-                let summary = format!("  {id} ({code}) - {}", entry.description);
-                let fixability = if entry.fixable { "fixable" } else { "no-fix" };
-                let details = format!(
-                    "{} · {} {} · {fixability}",
-                    entry.level, entry.tier, entry.scope
-                );
-                let details = format!("  {}", format_details_line(&details, color_enabled));
-                ListEntry::new(summary).line(details)
-            })
-            .collect();
-        groups.push(ListGroup::new(heading, list_entries));
-    }
+            ListGroup::new(heading, entries)
+        })
+        .collect::<Vec<_>>();
     let printer = ListPrinter::plain();
     print_grouped_list_with(&groups, ListSpacing::Spaced, &printer);
 }
 
-/// Find a lint rule entry matching the given identifier.
-fn find_lint_entry(needle: &str) -> Option<LintExplainEntry> {
-    // search the lint rule registry
-    linter::LINTS
-        .iter()
-        .find(|rule| rule.code.eq_ignore_ascii_case(needle) || rule.id.eq_ignore_ascii_case(needle))
-        .map(|rule| LintExplainEntry {
-            code: rule.code.as_ref(),
-            id: rule.id.as_ref(),
-            category: rule.category.name(),
-            description: rule.description.as_ref(),
-            fixable: rule.is_fixable(),
-            level: rule.default_level.name(),
-            tier: rule.tier().name(),
-            scope: rule.scope().name(),
-        })
-}
-
-/// Find a compiler diagnostic entry matching the given code or name.
-fn find_compiler_entry(needle: &str) -> Option<CompilerExplainEntry> {
-    // scan compiler diagnostics for a matching code
-    for group in COMPILER_DIAGNOSTIC_GROUPS {
-        // resolve group labels once
-        let phase = phase_label(group.phase);
-        let severity = severity_label(group.severity);
-
-        // check each definition for a match
-        for definition in group.definitions {
-            let matches = definition.code.eq_ignore_ascii_case(needle)
-                || definition.name.eq_ignore_ascii_case(needle);
-            if !matches {
-                continue;
-            }
-
-            return Some(CompilerExplainEntry {
-                code: definition.code,
-                name: definition.name,
-                description: definition.description,
-                phase,
-                severity,
-            });
-        }
-    }
-
-    None
-}
-
-/// Output a lint rule entry in the requested format.
-fn output_lint_entry(args: &ExplainArgs, entry: LintExplainEntry) -> i32 {
-    // emit json output for tooling
+/// Output one diagnostic definition.
+fn output_diagnostic(args: &ExplainArgs, entry: DiagnosticEntry) -> i32 {
     if args.report.is_json() {
-        let payload = ExplainDiagnosticPayload {
-            diagnostic: ExplainPayload::Lint { entry },
-        };
-        let data = match serde_json::to_value(payload) {
-            Ok(data) => data,
-            Err(error) => {
-                return report_error(
-                    "explain",
-                    &args.report,
-                    &format!("failed to serialize payload: {error}"),
-                );
-            }
-        };
-        let mut report = CommandReport::success("explain", 0);
-        report.data = Some(data);
-        print_report(&report, args.report.format());
-        return 0;
+        return output_json(args, ExplainPayload::Diagnostic { entry });
     }
 
-    // print the lint rule details
-    console::info(&format!("{} ({})", entry.id, entry.code));
+    console::info(entry.id);
+    console::info(&format!("severity: {}", entry.severity));
+    console::info(&format!("controllable: {}", entry.controllable));
+    console::info(&format!("description: {}", entry.description));
+
+    0
+}
+
+/// Output one lint rule.
+fn output_lint(args: &ExplainArgs, entry: LintEntry) -> i32 {
+    if args.report.is_json() {
+        return output_json(args, ExplainPayload::Lint { entry });
+    }
+
+    console::info(entry.id);
     console::info(&format!("category: {}", entry.category));
     console::info(&format!("level: {}", entry.level));
     console::info(&format!("tier: {}", entry.tier));
@@ -690,122 +411,60 @@ fn output_lint_entry(args: &ExplainArgs, entry: LintExplainEntry) -> i32 {
     0
 }
 
-/// Output a compiler diagnostic entry in the requested format.
-fn output_compiler_entry(args: &ExplainArgs, entry: CompilerExplainEntry) -> i32 {
-    // emit json output for tooling
-    if args.report.is_json() {
-        let payload = ExplainDiagnosticPayload {
-            diagnostic: ExplainPayload::Compiler { entry },
-        };
-        let data = match serde_json::to_value(payload) {
-            Ok(data) => data,
-            Err(error) => {
-                return report_error(
-                    "explain",
-                    &args.report,
-                    &format!("failed to serialize payload: {error}"),
-                );
-            }
-        };
-        let mut report = CommandReport::success("explain", 0);
-        report.data = Some(data);
-        print_report(&report, args.report.format());
-        return 0;
-    }
+/// Output one explained diagnostic or lint rule as JSON.
+fn output_json(args: &ExplainArgs, diagnostic: ExplainPayload) -> i32 {
+    let payload = ExplainDiagnosticPayload { diagnostic };
+    let data = match serde_json::to_value(payload) {
+        Ok(data) => data,
+        Err(error) => {
+            return report_error(
+                "explain",
+                &args.report,
+                &format!("failed to serialize payload: {error}"),
+            );
+        }
+    };
 
-    // print the compiler diagnostic details
-    console::info(&format!("{} ({})", entry.name, entry.code));
-    console::info(&format!("phase: {}", entry.phase));
-    console::info(&format!("severity: {}", entry.severity));
-    console::info(&format!("description: {}", entry.description));
+    let mut report = CommandReport::success("explain", 0);
+    report.data = Some(data);
+    print_report(&report, args.report.format());
 
     0
 }
 
-/// Render a phase label for compiler diagnostics.
-fn phase_label(phase: CompilerPhase) -> &'static str {
-    // map phase enum to its label
-    match phase {
-        CompilerPhase::Bind => "bind",
-        CompilerPhase::Import => "import",
-        CompilerPhase::Expand => "expand",
-        CompilerPhase::Export => "export",
-        CompilerPhase::Check => "check",
-        CompilerPhase::Materialize => "materialize",
-        CompilerPhase::Lower => "lower",
-        CompilerPhase::Verify => "verify",
-        CompilerPhase::Optimize => "optimize",
-        CompilerPhase::Emit => "emit",
-        CompilerPhase::Link => "link",
-    }
-}
-
-/// Render a severity label for compiler diagnostics.
-fn severity_label(severity: CompilerSeverity) -> &'static str {
-    // map severity enum to its label
-    match severity {
-        CompilerSeverity::Error => "error",
-        CompilerSeverity::Warning => "warning",
-    }
-}
-
-/// Build a category label for compiler diagnostics.
-fn compiler_category(phase: &str, severity: &str) -> String {
-    format!("{phase} {severity}")
-}
-
-/// Format a category heading line.
-fn format_category_heading(text: &str, color_enabled: bool) -> String {
-    if color_enabled {
-        let style = if text.ends_with(" error") {
-            ["1", "91"]
-        } else if text.ends_with(" warning") {
-            ["1", "93"]
-        } else {
-            ["1", "32"]
-        };
-        return console::style(text, &style);
+/// Format one diagnostic category heading.
+fn format_category(category: &str, is_color_enabled: bool) -> String {
+    if !is_color_enabled {
+        return category.to_string();
     }
 
-    text.to_string()
+    let color = match category {
+        "error" => "91",
+        "warning" => "93",
+        _ => "32",
+    };
+
+    console::style(category, &["1", color])
 }
 
-/// Format a compiler diagnostic code.
-fn format_compiler_code(code: &str, severity: &str, color_enabled: bool) -> String {
-    if !color_enabled {
-        return code.to_string();
+/// Format one canonical diagnostic id.
+fn format_id(id: &str, severity: &str, is_color_enabled: bool) -> String {
+    if !is_color_enabled {
+        return id.to_string();
     }
 
-    let style = match severity {
+    let color = match severity {
         "error" => "1;91",
         "warning" => "1;93",
         _ => "1;36",
     };
 
-    console::color(code, style)
+    console::color(id, color)
 }
 
-/// Format a lint rule identifier.
-fn format_rule_id(id: &str, color_enabled: bool) -> String {
-    if color_enabled {
-        return console::style(id, &["1", "36"]);
-    }
-
-    id.to_string()
-}
-
-/// Format a lint rule code.
-fn format_rule_code(code: &str, color_enabled: bool) -> String {
-    if color_enabled {
-        return console::dim(code);
-    }
-
-    code.to_string()
-}
-
-/// Format the lint details line.
-fn format_details_line(details: &str, color_enabled: bool) -> String {
-    if color_enabled {
+/// Format one lint detail line.
+fn format_details(details: &str, is_color_enabled: bool) -> String {
+    if is_color_enabled {
         return console::dim(details);
     }
 

@@ -50,7 +50,7 @@ pub struct LintArgs {
     #[arg(long = "max-warnings", value_name = "N")]
     pub max_warnings: Option<usize>,
 
-    /// Show statistics grouped by rule.
+    /// Show statistics grouped by diagnostic id.
     #[arg(long)]
     pub statistics: bool,
 
@@ -101,10 +101,8 @@ pub fn run(args: &LintArgs) -> i32 {
 /// Lint rule metadata for list output.
 #[derive(serde::Serialize)]
 struct LintListEntry {
-    /// Stable rule selector.
+    /// The canonical lint id.
     id: &'static str,
-    /// Diagnostic code for the rule.
-    code: &'static str,
     /// Rule category name.
     category: &'static str,
     /// Standard level before configuration overrides.
@@ -125,7 +123,6 @@ fn list_rules(args: &LintArgs) -> i32 {
         .iter()
         .map(|rule| LintListEntry {
             id: rule.id.as_ref(),
-            code: rule.code.as_ref(),
             category: rule.category.name(),
             description: rule.description.as_ref(),
             fixable: rule.is_fixable(),
@@ -147,13 +144,12 @@ fn list_rules(args: &LintArgs) -> i32 {
     let list_entries = entries
         .into_iter()
         .map(|entry| {
-            let summary = format!("{} ({})", entry.id, entry.code);
             let fixability = if entry.fixable { "fixable" } else { "no-fix" };
             let details = format!(
                 "{} · {} · {} {} · {fixability}",
                 entry.category, entry.level, entry.tier, entry.scope
             );
-            ListEntry::new(summary)
+            ListEntry::new(entry.id)
                 .line(details)
                 .line(entry.description.to_string())
         })

@@ -24,14 +24,14 @@ const wrong: string = 1;
         .check(&test.roots[0], input, None)
         .expect("check command failed");
 
-    let codes: Vec<&str> = output
+    let ids: Vec<&str> = output
         .diagnostics
         .iter()
-        .map(|diagnostic| diagnostic.code.as_str())
+        .map(|diagnostic| diagnostic.id.as_str())
         .collect();
     assert!(
-        codes.contains(&"EC200"),
-        "check errors never reached the command diagnostics: {codes:?}"
+        ids.contains(&"not-assignable"),
+        "check errors never reached the command diagnostics: {ids:?}"
     );
 }
 
@@ -68,7 +68,7 @@ const second = sibling;
     let diagnostic = output
         .diagnostics
         .iter()
-        .find(|diagnostic| diagnostic.code == "EC308")
+        .find(|diagnostic| diagnostic.id == "unresolved-reference")
         .expect("missing the unresolved reference");
     let label = diagnostic
         .labels()
@@ -126,12 +126,12 @@ fn test_check_command_lints_selected_module_and_program() {
         .expect("check command failed");
 
     // lint the explicit module even though it is outside the target graph
-    let diagnostic_codes = output
+    let diagnostic_ids = output
         .diagnostics
         .iter()
-        .map(|diagnostic| diagnostic.code.as_str())
+        .map(|diagnostic| diagnostic.id.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(diagnostic_codes, ["LU008"]);
+    assert_eq!(diagnostic_ids, ["no-debugger"]);
 
     // run target program lints and both required module lint passes
     let mut lint_artifacts = output

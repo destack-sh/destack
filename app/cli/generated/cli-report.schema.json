@@ -60,8 +60,7 @@
     "schema_version",
     "command",
     "status",
-    "exit_code",
-    "data"
+    "exit_code"
   ],
   "$defs": {
     "CommandStatus": {
@@ -95,7 +94,7 @@
           "$ref": "#/$defs/DiagnosticSummaryJson"
         },
         "statistics": {
-          "description": "Optional statistics grouped by rule.",
+          "description": "Optional statistics grouped by diagnostic id.",
           "type": [
             "array",
             "null"
@@ -114,8 +113,8 @@
       "description": "Diagnostic entry serialized in JSON output.",
       "type": "object",
       "properties": {
-        "code": {
-          "description": "The diagnostic code.",
+        "id": {
+          "description": "The canonical diagnostic id.",
           "type": "string"
         },
         "severity": {
@@ -156,7 +155,7 @@
         }
       },
       "required": [
-        "code",
+        "id",
         "severity",
         "message",
         "file",
@@ -199,8 +198,8 @@
       "description": "Diagnostic statistic counts.",
       "type": "object",
       "properties": {
-        "code": {
-          "description": "The code of the diagnostic.",
+        "id": {
+          "description": "The canonical diagnostic id.",
           "type": "string"
         },
         "count": {
@@ -215,7 +214,7 @@
         }
       },
       "required": [
-        "code",
+        "id",
         "count",
         "severity"
       ]

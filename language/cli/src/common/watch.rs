@@ -321,7 +321,8 @@ mod tests {
     use std::sync::Arc;
 
     use destack_source::{
-        Diagnostic, DiagnosticCollection, DiagnosticLabel, File, FileId, FileType, Span, Uri,
+        Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, FileId,
+        FileType, Span, Uri,
     };
     use serde_json::Value;
 
@@ -374,9 +375,9 @@ mod tests {
 
         let span = Span::at(file_id, 0, 1);
         let diagnostic = Diagnostic::error(
-            "E000",
+            "unexpected-syntax",
             "syntax error",
-            DiagnosticLabel::message(content, span, "here"),
+            DiagnosticLabel::message(content, DiagnosticTarget::Span(span), "here"),
         );
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
         let format_options = FormatOptions::default();

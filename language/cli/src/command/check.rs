@@ -110,7 +110,7 @@ pub struct CheckArgs {
     #[arg(long = "max-warnings", value_name = "N")]
     pub max_warnings: Option<usize>,
 
-    /// Show statistics grouped by rule.
+    /// Show statistics grouped by diagnostic id.
     #[arg(long)]
     pub statistics: bool,
 

@@ -382,7 +382,7 @@ fn build_commands_help(color_enabled: bool) -> String {
         },
         CommandEntry {
             name: "explain",
-            example: "ER100",
+            example: "unresolved-reference",
             help: None,
             group: 3,
         },

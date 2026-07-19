@@ -44,8 +44,8 @@ pub struct FormatOptions {
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DiagnosticJson {
-    /// The diagnostic code.
-    code: String,
+    /// The canonical diagnostic id.
+    id: String,
     /// The severity label.
     severity: String,
     /// The diagnostic message.
@@ -70,7 +70,7 @@ pub struct DiagnosticOutputJson {
     diagnostics: Vec<DiagnosticJson>,
     /// Summary counts by severity.
     summary: DiagnosticSummaryJson,
-    /// Optional statistics grouped by rule.
+    /// Optional statistics grouped by diagnostic id.
     #[serde(skip_serializing_if = "Option::is_none")]
     statistics: Option<Vec<DiagnosticStatistic>>,
 }
@@ -309,8 +309,8 @@ where
         };
 
         println!(
-            "::{level} file={file_path},line={line},col={column},endLine={end_line},endColumn={end_column},title={code}::{message}",
-            code = d.code,
+            "::{level} file={file_path},line={line},col={column},endLine={end_line},endColumn={end_column},title={id}::{message}",
+            id = d.id,
             message = d.message
         );
     }
@@ -320,15 +320,15 @@ where
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DiagnosticStatistic {
-    /// The code of the diagnostic.
-    code: String,
+    /// The canonical diagnostic id.
+    id: String,
     /// The count of the diagnostic.
     count: usize,
     /// The severity of the diagnostic.
     severity: String,
 }
 
-/// Print statistics grouped by rule.
+/// Print statistics grouped by diagnostic id.
 fn print_statistics(diagnostics: &[Diagnostic], line_writer: Option<&LineWriter>) {
     // compute summary counts
     let stats = compute_statistics(diagnostics);
@@ -338,19 +338,19 @@ fn print_statistics(diagnostics: &[Diagnostic], line_writer: Option<&LineWriter>
 
     // emit the header
     write_line(line_writer, "");
-    write_line(line_writer, &console::bold("Statistics by rule:"));
+    write_line(line_writer, &console::bold("Statistics by diagnostic:"));
 
-    // emit one line per rule
+    // emit one line per diagnostic id
     for stat in stats {
         let severity_color = match stat.severity.as_str() {
             "error" => "31",   // red
             "warning" => "33", // yellow
             _ => "34",         // blue
         };
-        let colored_code = console::color(&stat.code, severity_color);
+        let colored_id = console::color(&stat.id, severity_color);
         write_line(
             line_writer,
-            &format!("  {}: {} occurrence(s)", colored_code, stat.count),
+            &format!("  {}: {} occurrence(s)", colored_id, stat.count),
         );
     }
 }
@@ -418,7 +418,7 @@ where
 
             // resolve the file label
             DiagnosticJson {
-                code: d.code.clone(),
+                id: d.id.clone(),
                 severity: d.severity.family_name().to_string(),
                 message: d.message.clone(),
                 file: file
@@ -472,22 +472,23 @@ where
     file
 }
 
-/// Compute statistics grouped by rule code.
+/// Compute statistics grouped by diagnostic id.
 fn compute_statistics(diagnostics: &[Diagnostic]) -> Vec<DiagnosticStatistic> {
-    // aggregate counts per rule code
-    let mut by_code: BTreeMap<String, (usize, DiagnosticSeverity)> = BTreeMap::new();
+    // aggregate counts per diagnostic id
+    let mut by_id: BTreeMap<String, (usize, DiagnosticSeverity)> = BTreeMap::new();
     for diagnostic in diagnostics {
-        let entry = by_code
-            .entry(diagnostic.code.clone())
+        let entry = by_id
+            .entry(diagnostic.id.clone())
             .or_insert((0, diagnostic.severity));
         entry.0 += 1;
+        entry.1 = entry.1.max(diagnostic.severity);
     }
 
     // map the counts into statistics entries
-    let mut stats: Vec<DiagnosticStatistic> = by_code
+    let mut stats: Vec<DiagnosticStatistic> = by_id
         .into_iter()
-        .map(|(code, (count, severity))| DiagnosticStatistic {
-            code,
+        .map(|(id, (count, severity))| DiagnosticStatistic {
+            id,
             count,
             severity: severity.family_name().to_string(),
         })

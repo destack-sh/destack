@@ -8,7 +8,7 @@ use crate::common::format::DiagnosticOutputJson;
 use crate::console;
 
 /// Reflect version for command reports.
-pub const REPORT_SCHEMA_VERSION: u32 = 4;
+pub const REPORT_SCHEMA_VERSION: u32 = 5;
 
 /// Output format for command reports.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -119,7 +119,6 @@ pub struct CommandReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<CommandError>,
     /// Command-specific payload.
-    #[cfg_attr(feature = "schema", schemars(schema_with = "schema_any"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
@@ -357,9 +356,4 @@ pub fn print_json_payload_report<T: Serialize>(
     let report = report_from_payload(command, exit_code, Some(data), None, None);
     print_report(&report, report_args.format());
     Ok(())
-}
-
-#[cfg(feature = "schema")]
-fn schema_any(_gen: &mut schemars::SchemaGenerator) -> schemars::Reflect {
-    true.into()
 }
