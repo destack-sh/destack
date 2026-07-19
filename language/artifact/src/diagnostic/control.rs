@@ -23,7 +23,7 @@ pub struct DiagnosticControlTable {
 /// One checked diagnostic control.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticControl {
-    /// The selector source span.
+    /// The diagnostic id source span.
     pub source: Span,
     /// The controlled lexical scope.
     pub scope: DiagnosticControlScope,

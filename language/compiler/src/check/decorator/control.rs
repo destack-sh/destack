@@ -53,9 +53,9 @@ impl CheckState<'_> {
                 ),
             });
         };
-        let (selector, options) = match elements {
-            [selector] => (selector.as_string(), None),
-            [selector, options] => (selector.as_string(), Some(options)),
+        let (diagnostic, options) = match elements {
+            [diagnostic] => (diagnostic.as_string(), None),
+            [diagnostic, options] => (diagnostic.as_string(), Some(options)),
             _ => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -66,13 +66,48 @@ impl CheckState<'_> {
                 });
             }
         };
-        let Some(selector) = selector else {
+        let Some(diagnostic) = diagnostic else {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "diagnostic decorator {:?} has a non-string selector",
+                    "diagnostic decorator {:?} has a non-string id",
                     application.expression.decorator
                 ),
             });
+        };
+
+        // anchor the control to its diagnostic id expression
+        let diagnostic_source = application
+            .expression
+            .arguments
+            .first()
+            .and_then(|argument| self.module_view(module).get(*argument).value())
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "diagnostic decorator {:?} has no diagnostic id expression",
+                    application.expression.decorator
+                ),
+            })?;
+        let source = self
+            .module(module)
+            .source_span(diagnostic_source.into_any())
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("diagnostic control id {diagnostic_source:?} has no source span"),
+            })?;
+
+        // validate the exact diagnostic id
+        let diagnostic_id = self.strings().get(diagnostic).to_string();
+        match self.compiler.diagnostics.is_controllable(&diagnostic_id) {
+            Some(true) => {}
+            Some(false) => {
+                self.report_uncontrollable_diagnostic(module, source, diagnostic_id);
+
+                return Ok(None);
+            }
+            None => {
+                self.report_unknown_diagnostic_control(module, source, diagnostic_id);
+
+                return Ok(None);
+            }
         };
         let options = match options {
             Some(options) => DiagnosticControlOptions::decode(options, self.strings())?,
@@ -88,28 +123,8 @@ impl CheckState<'_> {
             otherwise
         };
 
-        // anchor the control to its selector expression
-        let selector_source = application
-            .expression
-            .arguments
-            .first()
-            .and_then(|argument| self.module_view(module).get(*argument).value())
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "diagnostic decorator {:?} has no selector expression",
-                    application.expression.decorator
-                ),
-            })?;
-        let state = self.module(module);
-        let source = state
-            .source_span(selector_source.into_any())
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "diagnostic control selector {selector_source:?} has no source span"
-                ),
-            })?;
-
         // retain the exact lexical scope controlled by the annotation
+        let state = self.module(module);
         let scope = if application.owner.local_id == state.bound.module_node {
             DiagnosticControlScope::Module
         } else {
@@ -129,7 +144,7 @@ impl CheckState<'_> {
             source,
             scope,
             level,
-            selector,
+            diagnostic,
             reason: options.reason,
         }))
     }

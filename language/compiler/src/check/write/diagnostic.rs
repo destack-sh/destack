@@ -1,8 +1,8 @@
 use destack_artifact::{
-    DiagnosticAnchor, DiagnosticBuilder, DiagnosticControlLevel, DiagnosticControlTable,
-    ToDiagnostic,
+    DiagnosticAnchor, DiagnosticBuilder, DiagnosticControlIndex, DiagnosticControlLevel,
+    DiagnosticControlTable, ToDiagnostic,
 };
-use destack_core::{FxIndexMap, FxIndexSet, StringId, StringPool};
+use destack_core::{FxIndexSet, StringId, StringPool};
 use destack_source::DiagnosticCollection;
 
 use crate::check::{CheckError, CheckState, CheckWarning};
@@ -42,27 +42,18 @@ impl CheckState<'_> {
         }
 
         // index each module and physical file into the control tables
-        let controls = modules
+        let control_tables = modules
             .iter()
             .map(|module| &self.module(*module).controls)
             .collect::<Vec<_>>();
-        let mut module_controls = FxIndexMap::default();
-        let mut file_controls = FxIndexMap::default();
-        for (index, table) in controls.iter().enumerate() {
-            module_controls.insert(table.module, index);
-            for file in &table.files {
-                if let Some(previous) = file_controls.insert(*file, index)
-                    && previous != index
-                {
-                    return Err(CompilerError::Internal {
-                        message: format!("source file {file} belongs to multiple checked modules"),
-                    });
-                }
+        let controls = DiagnosticControlIndex::new(control_tables).map_err(|error| {
+            CompilerError::Internal {
+                message: error.to_string(),
             }
-        }
+        })?;
         let mut matched_controls = controls
             .iter()
-            .map(|table| vec![false; table.len()])
+            .map(|(_, table)| vec![false; table.len()])
             .collect::<Vec<_>>();
 
         // resolve warning controls before checking expectations
@@ -70,25 +61,15 @@ impl CheckState<'_> {
         for warning in warnings {
             let mut diagnostic = warning.to_diagnostic(self.context)?;
             let anchor = warning.diagnostic().anchor();
-            let selectors = [StringId::for_text(warning.diagnostic().code())];
+            let diagnostic_id = StringId::for_text(warning.diagnostic().id());
             let mut is_enabled = true;
 
-            // select the warning's owning control table directly
-            let table_index = match &anchor {
-                DiagnosticAnchor::Span(span) => file_controls.get(&span.file),
-                DiagnosticAnchor::File(file) => file_controls.get(file),
-                DiagnosticAnchor::Module(module) => module_controls.get(module),
-                DiagnosticAnchor::Package(_) => None,
-            };
-
             // apply the effective control from that module
-            if let Some(table_index) = table_index
-                && let Some((index, control)) =
-                    controls[*table_index].effective(&selectors, &anchor)
+            if let Some((table_index, control_index, control)) =
+                controls.effective(diagnostic_id, &anchor)
             {
-                let matched = &mut matched_controls[*table_index];
                 if matches!(control.level, DiagnosticControlLevel::Expect) {
-                    matched[index] = true;
+                    matched_controls[table_index][control_index] = true;
                 }
                 let severity = control.level.severity();
                 if let Some(severity) = severity {
@@ -101,8 +82,8 @@ impl CheckState<'_> {
             }
         }
 
-        // append unmet expectations owned by compiler warning codes
-        for (table, matched) in controls.into_iter().zip(&matched_controls) {
+        // append unmet expectations owned by compiler warnings
+        for ((_, table), matched) in controls.iter().zip(&matched_controls) {
             append_unmet_expectations(table, matched, &mut errors, self.strings());
         }
 
@@ -119,16 +100,16 @@ impl CheckState<'_> {
     }
 }
 
-/// Append unmet expectations that select compiler warning codes.
+/// Append unmet expectations that select check warnings.
 fn append_unmet_expectations(
     table: &DiagnosticControlTable,
     matched: &[bool],
     diagnostics: &mut Vec<DiagnosticBuilder<CheckError>>,
     strings: &StringPool,
 ) {
-    for code in CheckWarning::ALL_CODES {
-        let selectors = [StringId::for_text(code)];
-        for (index, control) in table.expectations(&selectors) {
+    for definition in CheckWarning::ALL {
+        let diagnostic = StringId::for_text(definition.id);
+        for (index, control) in table.expectations(diagnostic) {
             if matched[index] {
                 continue;
             }
@@ -136,7 +117,7 @@ fn append_unmet_expectations(
             let diagnostic = CheckError::UnmetDiagnosticExpectation {
                 anchor: DiagnosticAnchor::Span(control.source),
                 module: table.module,
-                selector: code.to_string(),
+                diagnostic: definition.id.to_string(),
             };
             let diagnostic = match control.reason {
                 Some(reason) => DiagnosticBuilder::new(diagnostic).note(strings.get(reason)),

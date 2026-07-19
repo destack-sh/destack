@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_allow_suppresses_compiler_warning() {
     let session = TestSession::single(
         r#"
-@allow("WC402")
+@allow("constant-condition")
 if (true) {}
 "#,
     );
@@ -17,16 +17,16 @@ if (true) {}
             .with_decorators(),
         r#"
 === annotated ===
-@allow("WC402")
+@allow("constant-condition")
 if (true) {
 }
 
 === checked ===
-@allow("WC402")
-/// @decorator.node source="@allow(\"WC402\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticSelector) arguments=(provided("WC402") as decorator.diagnostic.DiagnosticSelector) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticSelector,) value="allow(\"WC402\")"
+@allow("constant-condition")
+/// @decorator.node source="@allow(\"constant-condition\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"constant-condition\")"
 /// @type.node source=allow type=allow
 /// @resolution.name source=allow target=decorator.diagnostic.allow
-/// @type.node source="\"WC402\"" type="WC402"
+/// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
 /// @type.node source="if (true) {}" type=void
@@ -41,7 +41,7 @@ if (true) {}
 fn test_deny_promotes_compiler_warning() {
     let session = TestSession::single(
         r#"
-@deny("WC402")
+@deny("constant-condition")
 if (true) {}
 "#,
     );
@@ -53,23 +53,23 @@ if (true) {}
             .with_decorators(),
         r#"
 === annotated ===
-@deny("WC402")
+@deny("constant-condition")
 if (true) {
 }
 
 === checked ===
-@deny("WC402")
-/// @decorator.node source="@deny(\"WC402\")" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticSelector) arguments=(provided("WC402") as decorator.diagnostic.DiagnosticSelector) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticSelector,) value="deny(\"WC402\")"
+@deny("constant-condition")
+/// @decorator.node source="@deny(\"constant-condition\")" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticId,) value="deny(\"constant-condition\")"
 /// @type.node source=deny type=deny
 /// @resolution.name source=deny target=decorator.diagnostic.deny
-/// @type.node source="\"WC402\"" type="WC402"
+/// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
 /// @type.node source="if (true) {}" type=void
 /// @type.node source=true type=true
 "#,
         r#"
-/// @diagnostic.error code=WC402 message="condition is always true"
+/// @diagnostic.error id=constant-condition message="condition is always true"
 /// @diagnostic.label line=3 column=5 span="true" line_source="if (true) {}"
 "#,
     );
@@ -80,7 +80,7 @@ if (true) {}
 fn test_expect_accepts_compiler_warning() {
     let session = TestSession::single(
         r#"
-@expect("WC402")
+@expect("constant-condition")
 if (true) {}
 "#,
     );
@@ -92,16 +92,16 @@ if (true) {}
             .with_decorators(),
         r#"
 === annotated ===
-@expect("WC402")
+@expect("constant-condition")
 if (true) {
 }
 
 === checked ===
-@expect("WC402")
-/// @decorator.node source="@expect(\"WC402\")" owner="if (true) {}" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticSelector) arguments=(provided("WC402") as decorator.diagnostic.DiagnosticSelector) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticSelector,) value="expect(\"WC402\")"
+@expect("constant-condition")
+/// @decorator.node source="@expect(\"constant-condition\")" owner="if (true) {}" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticId,) value="expect(\"constant-condition\")"
 /// @type.node source=expect type=expect
 /// @resolution.name source=expect target=decorator.diagnostic.expect
-/// @type.node source="\"WC402\"" type="WC402"
+/// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
 /// @type.node source="if (true) {}" type=void
@@ -116,7 +116,7 @@ if (true) {}
 fn test_expect_requires_compiler_warning() {
     let session = TestSession::single(
         r#"
-@expect("WC402", { reason: "intentional assertion" })
+@expect("constant-condition", { reason: "intentional assertion" })
 const value = 1;
 "#,
     );
@@ -128,15 +128,15 @@ const value = 1;
             .with_decorators(),
         r#"
 === annotated ===
-@expect("WC402", { reason: "intentional assertion" })
+@expect("constant-condition", { reason: "intentional assertion" })
 const value: 1 = 1;
 
 === checked ===
-@expect("WC402", { reason: "intentional assertion" })
-/// @decorator.node source="@expect(\"WC402\", { reason: \"intentional assertion\" })" owner="const value = 1" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticSelector, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("WC402") as decorator.diagnostic.DiagnosticSelector, provided({ reason: "intentional assertion" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticSelector, decorator.diagnostic.DiagnosticControlOptions) value="expect(\"WC402\", { reason: \"intentional assertion\" })"
+@expect("constant-condition", { reason: "intentional assertion" })
+/// @decorator.node source="@expect(\"constant-condition\", { reason: \"intentional assertion\" })" owner="const value = 1" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId, provided({ reason: "intentional assertion" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) value="expect(\"constant-condition\", { reason: \"intentional assertion\" })"
 /// @type.node source=expect type=expect
 /// @resolution.name source=expect target=decorator.diagnostic.expect
-/// @type.node source="\"WC402\"" type="WC402"
+/// @type.node source="\"constant-condition\"" type="constant-condition"
 /// @type.node source={ reason: "intentional assertion" } type={ reason: "intentional assertion" }
 /// @type.node source="\"intentional assertion\"" type="intentional assertion"
 
@@ -145,8 +145,8 @@ const value = 1;
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error code=EC700 message="expected diagnostic 'WC402' did not occur"
-/// @diagnostic.label line=2 column=9 span="\"WC402\"" line_source="@expect(\"WC402\", { reason: \"intentional assertion\" })"
+/// @diagnostic.error id=unmet-diagnostic-expectation message="expected diagnostic 'constant-condition' did not occur"
+/// @diagnostic.label line=2 column=9 span="\"constant-condition\"" line_source="@expect(\"constant-condition\", { reason: \"intentional assertion\" })"
 /// @diagnostic.note message="intentional assertion"
 "#,
     );
@@ -157,7 +157,7 @@ const value = 1;
 fn test_diagnostic_control_applies_otherwise_level() {
     let session = TestSession::single(
         r#"
-@deny("WC402", { if: false, otherwise: "allow" })
+@deny("constant-condition", { if: false, otherwise: "allow" })
 if (true) {}
 "#,
     );
@@ -169,16 +169,16 @@ if (true) {}
             .with_decorators(),
         r#"
 === annotated ===
-@deny("WC402", { if: false, otherwise: "allow" })
+@deny("constant-condition", { if: false, otherwise: "allow" })
 if (true) {
 }
 
 === checked ===
-@deny("WC402", { if: false, otherwise: "allow" })
-/// @decorator.node source="@deny(\"WC402\", { if: false, otherwise: \"allow\" })" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticSelector, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("WC402") as decorator.diagnostic.DiagnosticSelector, provided({ if: false, otherwise: "allow" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticSelector, decorator.diagnostic.DiagnosticControlOptions) value="deny(\"WC402\", { if: false; otherwise: \"allow\" })"
+@deny("constant-condition", { if: false, otherwise: "allow" })
+/// @decorator.node source="@deny(\"constant-condition\", { if: false, otherwise: \"allow\" })" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId, provided({ if: false, otherwise: "allow" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) value="deny(\"constant-condition\", { if: false; otherwise: \"allow\" })"
 /// @type.node source=deny type=deny
 /// @resolution.name source=deny target=decorator.diagnostic.deny
-/// @type.node source="\"WC402\"" type="WC402"
+/// @type.node source="\"constant-condition\"" type="constant-condition"
 /// @type.node source={ if: false, otherwise: "allow" } type={ if: false; otherwise: "allow" }
 /// @type.node source=false type=false
 /// @type.node source="\"allow\"" type="allow"
@@ -196,8 +196,8 @@ if (true) {}
 fn test_forbid_controls_compiler_warning() {
     let session = TestSession::single(
         r#"
-@forbid("WC402")
-@allow("WC402")
+@forbid("constant-condition")
+@allow("constant-condition")
 if (true) {}
 "#,
     );
@@ -209,34 +209,110 @@ if (true) {}
             .with_decorators(),
         r#"
 === annotated ===
-@forbid("WC402")
-@allow("WC402")
+@forbid("constant-condition")
+@allow("constant-condition")
 if (true) {
 }
 
 === checked ===
-@forbid("WC402")
-/// @decorator.node source="@forbid(\"WC402\")" owner="if (true) {}" expression=forbid target=decorator.forbid type=forbid kind=newtype parameters=(decorator.diagnostic.DiagnosticSelector) arguments=(provided("WC402") as decorator.diagnostic.DiagnosticSelector) newtype=decorator.diagnostic.forbid backing=(decorator.diagnostic.DiagnosticSelector,) value="forbid(\"WC402\")"
+@forbid("constant-condition")
+/// @decorator.node source="@forbid(\"constant-condition\")" owner="if (true) {}" expression=forbid target=decorator.forbid type=forbid kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.forbid backing=(decorator.diagnostic.DiagnosticId,) value="forbid(\"constant-condition\")"
 /// @type.node source=forbid type=forbid
 /// @resolution.name source=forbid target=decorator.diagnostic.forbid
-/// @type.node source="\"WC402\"" type="WC402"
+/// @type.node source="\"constant-condition\"" type="constant-condition"
 
-@allow("WC402")
-/// @decorator.node source="@allow(\"WC402\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticSelector) arguments=(provided("WC402") as decorator.diagnostic.DiagnosticSelector) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticSelector,) value="allow(\"WC402\")"
+@allow("constant-condition")
+/// @decorator.node source="@allow(\"constant-condition\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"constant-condition\")"
 /// @type.node source=allow type=allow
 /// @resolution.name source=allow target=decorator.diagnostic.allow
-/// @type.node source="\"WC402\"" type="WC402"
+/// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
 /// @type.node source="if (true) {}" type=void
 /// @type.node source=true type=true
 "#,
         r#"
-/// @diagnostic.error code=EC701 message="diagnostic 'WC402' is forbidden by an enclosing control"
-/// @diagnostic.label line=3 column=8 span="\"WC402\"" line_source="@allow(\"WC402\")"
-/// @diagnostic.related line=2 column=9 span="\"WC402\"" line_source="@forbid(\"WC402\")" message="forbidden here"
-/// @diagnostic.error code=WC402 message="condition is always true"
+/// @diagnostic.error id=forbidden-diagnostic-override message="diagnostic 'constant-condition' is forbidden by an enclosing control"
+/// @diagnostic.label line=3 column=8 span="\"constant-condition\"" line_source="@allow(\"constant-condition\")"
+/// @diagnostic.related line=2 column=9 span="\"constant-condition\"" line_source="@forbid(\"constant-condition\")" message="forbidden here"
+/// @diagnostic.error id=constant-condition message="condition is always true"
 /// @diagnostic.label line=4 column=5 span="true" line_source="if (true) {}"
+"#,
+    );
+}
+
+/// Reject a diagnostic control whose id is not registered.
+#[test]
+fn test_rejects_unknown_diagnostic_id() {
+    let session = TestSession::single(
+        r#"
+@allow("not-a-diagnostic")
+const value = 1;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked()
+            .with_reference_types()
+            .with_decorators(),
+        r#"
+=== annotated ===
+@allow("not-a-diagnostic")
+const value: 1 = 1;
+
+=== checked ===
+@allow("not-a-diagnostic")
+/// @decorator.node source="@allow(\"not-a-diagnostic\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("not-a-diagnostic") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"not-a-diagnostic\")"
+/// @type.node source=allow type=allow
+/// @resolution.name source=allow target=decorator.diagnostic.allow
+/// @type.node source="\"not-a-diagnostic\"" type="not-a-diagnostic"
+
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @type.node source=1 type=1
+"#,
+        r#"
+/// @diagnostic.error id=unknown-diagnostic message="unknown diagnostic 'not-a-diagnostic'"
+/// @diagnostic.label line=2 column=8 span="\"not-a-diagnostic\"" line_source="@allow(\"not-a-diagnostic\")"
+"#,
+    );
+}
+
+/// Reject a diagnostic control whose registered diagnostic is not controllable.
+#[test]
+fn test_rejects_uncontrollable_diagnostic_id() {
+    let session = TestSession::single(
+        r#"
+@allow("not-assignable")
+const value = 1;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked()
+            .with_reference_types()
+            .with_decorators(),
+        r#"
+=== annotated ===
+@allow("not-assignable")
+const value: 1 = 1;
+
+=== checked ===
+@allow("not-assignable")
+/// @decorator.node source="@allow(\"not-assignable\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("not-assignable") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"not-assignable\")"
+/// @type.node source=allow type=allow
+/// @resolution.name source=allow target=decorator.diagnostic.allow
+/// @type.node source="\"not-assignable\"" type="not-assignable"
+
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @type.node source=1 type=1
+"#,
+        r#"
+/// @diagnostic.error id=uncontrollable-diagnostic message="diagnostic 'not-assignable' cannot be controlled"
+/// @diagnostic.label line=2 column=8 span="\"not-assignable\"" line_source="@allow(\"not-assignable\")"
 "#,
     );
 }

@@ -953,16 +953,48 @@ impl CheckState<'_> {
         control: &DiagnosticControl,
         forbidden: &DiagnosticControl,
     ) {
-        let selector = self.strings().get(control.selector).to_string();
+        let diagnostic = self.strings().get(control.diagnostic).to_string();
         let error = CheckError::ForbiddenDiagnosticOverride {
             anchor: DiagnosticAnchor::Span(control.source),
             module,
-            selector,
+            diagnostic,
         };
         let forbidden = DiagnosticAnchor::Span(forbidden.source);
         let diagnostic = DiagnosticBuilder::new(error).label(forbidden, "forbidden here");
 
         self.report(module, diagnostic);
+    }
+
+    /// Report an unknown diagnostic id.
+    pub(in crate::check) fn report_unknown_diagnostic_control(
+        &mut self,
+        module: ModuleId,
+        source: Span,
+        diagnostic: String,
+    ) {
+        let error = CheckError::UnknownDiagnostic {
+            anchor: DiagnosticAnchor::Span(source),
+            module,
+            diagnostic,
+        };
+
+        self.report(module, error);
+    }
+
+    /// Report a diagnostic that cannot be controlled.
+    pub(in crate::check) fn report_uncontrollable_diagnostic(
+        &mut self,
+        module: ModuleId,
+        source: Span,
+        diagnostic: String,
+    ) {
+        let error = CheckError::UncontrollableDiagnostic {
+            anchor: DiagnosticAnchor::Span(source),
+            module,
+            diagnostic,
+        };
+
+        self.report(module, error);
     }
 
     /// Report one call with the wrong argument count.

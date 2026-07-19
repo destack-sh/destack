@@ -12,7 +12,8 @@ use destack_repository::{
     TraceView,
 };
 use destack_source::{
-    Content, ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId, ModuleId,
+    Content, ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticRegistry,
+    DiagnosticTarget, FileId, ModuleId,
 };
 
 use super::module::{parse_module, parsed_dependencies};
@@ -41,7 +42,10 @@ impl TestProvider {
 
     /// Create one test provider.
     pub(crate) fn new(repository: Arc<Repository>, revision: Revision) -> Self {
-        let compiler = Compiler::new(repository.clone());
+        let diagnostics = Compiler::diagnostic_definitions()
+            .map(|definition| (definition.id, definition.is_controllable));
+        let diagnostics = DiagnosticRegistry::new(diagnostics);
+        let compiler = Compiler::new(repository.clone(), Arc::new(diagnostics));
 
         Self {
             repository,

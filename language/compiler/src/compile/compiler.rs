@@ -3,15 +3,18 @@ use std::sync::Arc;
 use destack_artifact::{DiagnosticBuilder, DiagnosticLike};
 use destack_core::StringPool;
 use destack_repository::{ArtifactReader, ProviderContext, Repository, Revision, Target};
+use destack_source::DiagnosticRegistry;
 
 use crate::CompilerResult;
 
-/// Compile files and sources into something (via DIR).
+/// Compile source modules into DIR and MIR artifacts.
 /// #Architecture: should Compiler be per-target? what about comptime though?
 #[allow(clippy::type_complexity)]
 pub struct Compiler {
     /// The repository being compiled.
     pub repository: Arc<Repository>,
+    /// The diagnostics accepted by source controls.
+    pub(crate) diagnostics: Arc<DiagnosticRegistry>,
     /// The shared comptime target configuration.
     pub comptime_target: Target,
 }
@@ -26,11 +29,12 @@ impl std::fmt::Debug for Compiler {
 
 impl Compiler {
     /// Create a new compiler.
-    pub fn new(repository: Arc<Repository>) -> Self {
+    pub fn new(repository: Arc<Repository>, diagnostics: Arc<DiagnosticRegistry>) -> Self {
         let comptime_target = Target::comptime();
 
         Self {
             repository,
+            diagnostics,
             comptime_target,
         }
     }
