@@ -1,17 +1,21 @@
 mod annotate;
 mod collector;
+mod definition;
 mod diagnostic;
 mod error;
 mod label;
 mod print;
+mod registry;
 mod severity;
 mod suggestion;
 
 pub use annotate::*;
 pub use collector::*;
+pub use definition::*;
 pub use diagnostic::*;
 pub use error::*;
 pub use label::*;
 pub use print::*;
+pub use registry::*;
 pub use severity::*;
 pub use suggestion::*;
