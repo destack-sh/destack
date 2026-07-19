@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{DirectChildCollector, Expression, LocalNodeId, LocalNodeIdAny, Node, Tree, TreeStore};
+use crate::{DirectChildCollector, LocalNodeId, LocalNodeIdAny, Node, Tree, TreeStore};
 
 /// Dense structural parent ids keyed by node id.
 ///
@@ -38,41 +38,11 @@ impl NodeParentIndex {
         }
     }
 
-    /// Create a new NodeParentIndex from a Tree.
-    pub fn from_tree(tree: &Tree) -> Self {
-        // build the dense parent lookup from every node's direct children
-        let base = tree.first_global_id();
-        let node_count = tree.node_index_by_node_id.len();
-        let mut index = Self::with_base(base);
-        index
-            .parent_id_by_node_id
-            .resize(node_count, Self::NO_PARENT);
-        let mut children = DirectChildCollector::default();
-        for (node_index, entry) in tree.node_index_by_node_id.iter().enumerate() {
-            let node_id = base + node_index as u32;
-            let node = LocalNodeIdAny::new(node_id, entry.node_type());
-            index.index_children(tree, node, &mut children);
-        }
-
-        // record side-attached decorators against the nodes they decorate
-        for (owner_id, decorator_ids) in tree.get_all_decorators() {
-            for decorator_id in decorator_ids {
-                if let Some(existing_parent) = index.get(*decorator_id) {
-                    assert_eq!(
-                        existing_parent, *owner_id,
-                        "DIR decorator node {} has multiple structural parents",
-                        decorator_id.id
-                    );
-                }
-                index.set(decorator_id.id, Some(*owner_id));
-            }
-        }
-
-        index
-    }
-
-    /// Create a new NodeParentIndex from reachable expression roots.
-    pub fn from_expression_roots(tree: &Tree, roots: &[LocalNodeId<Expression>]) -> Self {
+    /// Build a parent index from reachable structural roots.
+    pub fn from_roots<T>(tree: &Tree, roots: &[LocalNodeId<T>]) -> Self
+    where
+        T: Node,
+    {
         let base = tree.first_global_id();
         let node_count = tree.node_index_by_node_id.len();
         let mut index = Self::with_base(base);
@@ -84,6 +54,12 @@ impl NodeParentIndex {
         let mut pending = roots.iter().map(|root_id| root_id.id).collect::<Vec<_>>();
 
         while let Some(parent_id) = pending.pop() {
+            let parent_type = tree.get_node_type(parent_id);
+            assert!(
+                !tree.is_detached(parent_id),
+                "detached DIR {parent_type:?} node {parent_id} is structurally reachable"
+            );
+
             // skip nodes already indexed
             let node_index = tree.node_index(parent_id);
             if visited[node_index] {
@@ -92,12 +68,17 @@ impl NodeParentIndex {
             visited[node_index] = true;
 
             // index direct children
-            let node_type = tree.get_node_type(parent_id);
-            let parent = LocalNodeIdAny::new(parent_id, node_type);
+            let parent = LocalNodeIdAny::new(parent_id, parent_type);
             let child_ids = index.index_children(tree, parent, &mut children);
 
             // continue through newly discovered children
             pending.extend_from_slice(child_ids);
+
+            // index side-attached decorators as structural children
+            for decorator_id in tree.get_decorators_ref(parent_id) {
+                index.index_child(tree, parent, decorator_id.id);
+                pending.push(decorator_id.id);
+            }
         }
 
         index
@@ -186,15 +167,25 @@ impl NodeParentIndex {
     ) -> &'a [u32] {
         let child_ids = children.collect(tree, parent);
         for child_id in child_ids.iter().copied() {
-            if let Some(existing_parent) = self.get_by_id(child_id) {
-                assert_eq!(
-                    existing_parent, parent.id,
-                    "DIR node {child_id} has multiple structural parents"
-                );
-            }
-            self.set(child_id, Some(parent.id));
+            self.index_child(tree, parent, child_id);
         }
 
         child_ids
+    }
+
+    /// Index one structural child.
+    fn index_child(&mut self, tree: &Tree, parent: LocalNodeIdAny, child_id: u32) {
+        if let Some(existing_parent) = self.get_by_id(child_id) {
+            let child_type = tree.get_node_type(child_id);
+            let existing_parent_type = tree.get_node_type(existing_parent);
+            assert_eq!(
+                existing_parent, parent.id,
+                "DIR {child_type:?} node {child_id} has both {existing_parent_type:?} node \
+                 {existing_parent} and {:?} node {} as structural parents",
+                parent.ty, parent.id,
+            );
+        }
+
+        self.set(child_id, Some(parent.id));
     }
 }

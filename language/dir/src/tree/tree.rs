@@ -650,9 +650,12 @@ impl Tree {
         &self.parents
     }
 
-    /// Build the structural parent index from the finished tree.
-    pub fn index_parents(&mut self) {
-        self.parents = NodeParentIndex::from_tree(self);
+    /// Build the structural parent index from reachable roots.
+    pub fn index_parents<T>(&mut self, roots: &[LocalNodeId<T>])
+    where
+        T: Node,
+    {
+        self.parents = NodeParentIndex::from_roots(self, roots);
     }
 
     /// Get the parent node id for a node id.
