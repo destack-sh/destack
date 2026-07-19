@@ -74,10 +74,10 @@ impl TestParser {
             .iter()
             .map(|error| {
                 (
-                    error.node_type,
-                    error.actual,
-                    error.expected,
-                    parser.range_str(error.range).to_owned(),
+                    error.expected_node(),
+                    error.actual_token(),
+                    error.expected_token(),
+                    parser.range_str(error.range()).to_owned(),
                 )
             })
             .collect();

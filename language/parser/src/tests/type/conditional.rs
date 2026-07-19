@@ -247,7 +247,7 @@ fn test_report_optional_type() {
         })
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "?");
+    assert_eq!(parser.range_str(error.range()), "?");
 }
 
 #[test]

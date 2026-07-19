@@ -279,7 +279,7 @@ impl Parser {
             Ok(member_id) => member_id,
             Err(error) => {
                 let error = error.in_node(NodeType::TypeMember);
-                let recovered_range = self.recover_body(error.range, error);
+                let recovered_range = self.recover_body(error.range(), error);
 
                 self.insert_node(TypeMember::Error, recovered_range)
             }

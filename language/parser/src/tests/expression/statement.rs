@@ -61,7 +61,7 @@ fn test_report_labeled_lexical_declaration() {
         .diagnostics()
         .to_vec()
         .into_iter()
-        .find(|diagnostic| diagnostic.code.starts_with("EP"))
+        .find(|diagnostic| diagnostic.id == "unexpected-token")
         .expect("expected parse diagnostic");
 
     // the label separator rejects the following declaration

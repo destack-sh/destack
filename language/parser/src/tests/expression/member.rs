@@ -294,7 +294,7 @@ fn test_report_decimal_integer_member_access_without_separator() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), ".");
+    assert_eq!(parser.range_str(error.range()), ".");
 }
 
 #[test]

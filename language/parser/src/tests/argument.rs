@@ -651,7 +651,7 @@ fn test_report_generic_arguments_missing_close_angle_in_value_context() {
         .parse_generic_argument_list(Default::default())
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "");
+    assert_eq!(parser.range_str(error.range()), "");
 }
 
 #[test]

@@ -126,7 +126,7 @@ impl Parser {
             Ok(property_id) => property_id,
             Err(error) => {
                 let error = error.in_node(NodeType::Property);
-                let recovered_range = self.recover_body(error.range, error);
+                let recovered_range = self.recover_body(error.range(), error);
 
                 self.insert_node(Property::Error, recovered_range)
             }

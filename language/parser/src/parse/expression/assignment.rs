@@ -29,7 +29,9 @@ impl Parser {
         if operator != AssignOperator::Assign
             && !matches!(self.tree.get(target), AssignPattern::Place { .. })
         {
-            return Err(ParserError::unexpected(self.tree.get_range(target)));
+            return Err(ParserError::invalid_assignment_target(
+                self.tree.get_range(target),
+            ));
         }
 
         Ok(target)
@@ -54,7 +56,9 @@ impl Parser {
             Expression::As { .. } | Expression::Satisfies { .. }
         ) && !has_parentheses
         {
-            return Err(ParserError::unexpected(self.tree.get_range(expression)));
+            return Err(ParserError::invalid_assignment_target(
+                self.tree.get_range(expression),
+            ));
         }
 
         // assignments and destructuring cannot be hidden by parentheses
@@ -67,7 +71,9 @@ impl Parser {
                     | Expression::ObjectExpression { .. }
             )
         {
-            return Err(ParserError::unexpected(self.tree.get_range(expression)));
+            return Err(ParserError::invalid_assignment_target(
+                self.tree.get_range(expression),
+            ));
         }
 
         // lower array destructuring recursively
@@ -104,7 +110,7 @@ impl Parser {
             let range = self.tree.get_range(expression);
 
             if operator != AssignOperator::Assign {
-                return Err(ParserError::unexpected(range));
+                return Err(ParserError::invalid_assignment_target(range));
             }
 
             let pattern = AssignPattern::Default {
@@ -117,7 +123,9 @@ impl Parser {
 
         // every remaining target must denote one writable place
         if !self.is_assignment_place(expression) {
-            return Err(ParserError::unexpected(self.tree.get_range(expression)));
+            return Err(ParserError::invalid_assignment_target(
+                self.tree.get_range(expression),
+            ));
         }
 
         Ok(self.insert_node(
@@ -159,7 +167,7 @@ impl Parser {
                 pattern: Some(self.lower_assignment_pattern(value)?),
             },
             Argument::Named { .. } | Argument::Labeled { .. } | Argument::Error => {
-                return Err(ParserError::unexpected(range));
+                return Err(ParserError::invalid_assignment_target(range));
             }
         };
 
@@ -191,7 +199,7 @@ impl Parser {
         let node = self.tree.get(argument).clone();
         let range = self.tree.get_range(argument);
         let Argument::Positional { value } = node else {
-            return Err(ParserError::unexpected(range));
+            return Err(ParserError::invalid_assignment_target(range));
         };
         let pattern = self.lower_assignment_pattern(value)?;
 
@@ -252,7 +260,7 @@ impl Parser {
                 pattern: Some(self.lower_assignment_pattern(value)?),
             },
             Property::Method { .. } | Property::Error => {
-                return Err(ParserError::unexpected(range));
+                return Err(ParserError::invalid_assignment_target(range));
             }
         };
 
@@ -279,7 +287,7 @@ impl Parser {
         // lower shorthand defaults without copying the value expression
         if let Some((operator, left, right)) = assignment {
             if operator != AssignOperator::Assign {
-                return Err(ParserError::unexpected(range));
+                return Err(ParserError::invalid_assignment_target(range));
             }
 
             let pattern = AssignPattern::Default {
@@ -300,7 +308,7 @@ impl Parser {
         range: ByteRange,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
         let Name::Identifier(name) = name else {
-            return Err(ParserError::unexpected(range));
+            return Err(ParserError::invalid_assignment_target(range));
         };
         let expression = self.insert_node(Expression::Identifier { name }, range);
 

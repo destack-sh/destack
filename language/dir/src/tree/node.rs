@@ -43,19 +43,19 @@ pub enum NodeType {
 }
 
 impl NodeType {
-    /// Get the name of the node type.
+    /// Return the name of this node type.
     #[inline]
     pub fn name(&self) -> &'static str {
         match self {
             NodeType::Expression => "expression",
             NodeType::TypeExpression => "type expression",
             NodeType::Block => "block",
-            NodeType::Catch => "catch",
+            NodeType::Catch => "catch clause",
             NodeType::Declaration => "declaration",
             NodeType::Declarator => "declarator",
             NodeType::Property => "property",
             NodeType::TypeMember => "type member",
-            NodeType::TypeMappedParameter => "type mapped parameter",
+            NodeType::TypeMappedParameter => "mapped type parameter",
             NodeType::Member => "member",
             NodeType::EnumField => "enum field",
             NodeType::WhereClause => "where clause",
@@ -70,8 +70,8 @@ impl NodeType {
             NodeType::MatchCase => "match case",
             NodeType::Pattern => "pattern",
             NodeType::PatternField => "pattern field",
-            NodeType::AssignPattern => "assign pattern",
-            NodeType::AssignPatternField => "assign pattern field",
+            NodeType::AssignPattern => "assignment pattern",
+            NodeType::AssignPatternField => "assignment pattern field",
             NodeType::Decorator => "decorator",
         }
     }

@@ -1729,7 +1729,7 @@ fn test_report_unparenthesized_arrow_call() {
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
     // (
-    assert_eq!(parser.range_str(error.range), "(");
+    assert_eq!(parser.range_str(error.range()), "(");
 
     // source: a => {}()
     let test = TestParser::new("a => {}()");
@@ -1737,7 +1737,7 @@ fn test_report_unparenthesized_arrow_call() {
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
     // (
-    assert_eq!(parser.range_str(error.range), "(");
+    assert_eq!(parser.range_str(error.range()), "(");
 }
 
 /// Parse direct calls on parenthesized arrow functions.

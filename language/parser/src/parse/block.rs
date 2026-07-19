@@ -283,7 +283,7 @@ impl Parser {
             Ok(expression) => expression,
             Err(error) => {
                 let error = error.in_node(NodeType::Expression);
-                let range = self.recover_statement(error.range, error);
+                let range = self.recover_statement(error.range(), error);
 
                 return BlockItem::Statement(self.insert_node(Expression::Error, range));
             }

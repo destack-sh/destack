@@ -48,7 +48,7 @@ extension of Foo {
         .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range()), ",");
 }
 
 #[test]

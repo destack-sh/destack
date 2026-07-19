@@ -1065,7 +1065,7 @@ fn test_report_pattern_object_readonly_modifier_with_name() {
     let mut parser = test.prepare();
     let error = parser.parse_pattern(Default::default()).unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "value");
+    assert_eq!(parser.range_str(error.range()), "value");
 }
 
 #[test]

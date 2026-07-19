@@ -239,7 +239,7 @@ fn test_recover_where_implements_separator() {
     let clauses = parser.parse_where(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.range_str(parser.errors[0].range), "implements");
+    assert_eq!(parser.range_str(parser.errors[0].range()), "implements");
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
@@ -255,7 +255,7 @@ fn test_recover_where_extends_separator() {
     let clauses = parser.parse_where(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.range_str(parser.errors[0].range), "extends");
+    assert_eq!(parser.range_str(parser.errors[0].range()), "extends");
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {

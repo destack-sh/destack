@@ -845,7 +845,7 @@ fn test_report_let_else_without_initializer() {
         .unwrap_err();
 
     // let x else { return }
-    assert_eq!(parser.range_str(error.range), "else");
+    assert_eq!(parser.range_str(error.range()), "else");
 }
 
 #[test]
@@ -858,7 +858,7 @@ fn test_report_let_else_without_block_branch() {
         .unwrap_err();
 
     // let x = value else return
-    assert_eq!(parser.range_str(error.range), "return");
+    assert_eq!(parser.range_str(error.range()), "return");
 }
 
 #[test]
@@ -871,7 +871,7 @@ fn test_report_indexed_declarator_target() {
         .parse_let(&start, DeclarationHeader::default(), Default::default())
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "[");
+    assert_eq!(parser.range_str(error.range()), "[");
 }
 
 #[test]

@@ -606,7 +606,7 @@ fn test_report_export_path_expression() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "foo");
+    assert_eq!(parser.range_str(error.range()), "foo");
 }
 
 /// Parse `import { bar, baz } from foo`.
@@ -674,5 +674,5 @@ fn test_report_import_expression_items_without_target() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "");
+    assert_eq!(parser.range_str(error.range()), "");
 }

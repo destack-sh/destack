@@ -333,7 +333,7 @@ fn test_report_regex_unicode_escape_out_of_range() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(error.range.start, 0);
+    assert_eq!(error.range().start, 0);
 }
 
 /// Report unicode regex decimal escapes without matching capture groups.
@@ -344,7 +344,7 @@ fn test_report_regex_unicode_invalid_decimal_escape() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(error.range.start, 0);
+    assert_eq!(error.range().start, 0);
 }
 
 /// Report unicode regex literals with lone quantifier opening braces.
@@ -355,7 +355,7 @@ fn test_report_regex_unicode_lone_opening_quantifier_brace() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(error.range.start, 0);
+    assert_eq!(error.range().start, 0);
 }
 
 /// Report unicode regex literals with invalid quantified lookaheads.
@@ -366,7 +366,7 @@ fn test_report_regex_unicode_quantified_lookahead() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(error.range.start, 0);
+    assert_eq!(error.range().start, 0);
 }
 
 /// Report unicode regex literals with lone quantifier closing braces.
@@ -377,7 +377,7 @@ fn test_report_regex_unicode_lone_closing_quantifier_brace() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(error.range.start, 0);
+    assert_eq!(error.range().start, 0);
 }
 
 /// Parse unicode regex property escapes.

@@ -5,6 +5,7 @@ use destack_dir::{
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, NodeType, Parameter,
     ScalarLiteral, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
+use destack_source::DiagnosticSeverity;
 
 /// Type casts bind to the full addition expression on the left.
 #[test]
@@ -180,9 +181,7 @@ fn test_parse_if_condition_with_parenthesized_cast_comparison() {
     // if (i < 0 || i >= (this.length as number)) { ... }
     let has_parse_error = parser
         .diagnostics()
-        .to_vec()
-        .into_iter()
-        .any(|diagnostic| diagnostic.code.starts_with("EP"));
+        .has_diagnostics_of_severity(DiagnosticSeverity::Error);
     assert!(!has_parse_error);
 }
 
@@ -433,7 +432,7 @@ fn test_parse_as_cast_missing_type_target() {
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.range_str(parser.errors[0].range), "");
+    assert_eq!(parser.range_str(parser.errors[0].range()), "");
 
     // value as
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -450,7 +449,7 @@ fn test_parse_satisfies_missing_type_target() {
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.range_str(parser.errors[0].range), "");
+    assert_eq!(parser.range_str(parser.errors[0].range()), "");
 
     // value satisfies
     assert_node!(parser.tree, expr_id, Expression::Satisfies { expression, target_type } => {
@@ -843,7 +842,7 @@ fn test_report_type_assertion_in_new_receiver() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "<");
+    assert_eq!(parser.range_str(error.range()), "<");
 }
 
 /// Report unparenthesized cast assignment targets.
@@ -853,7 +852,7 @@ fn test_report_unparenthesized_cast_assignment_target() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "value as number");
+    assert_eq!(parser.range_str(error.range()), "value as number");
 }
 
 /// Report unparenthesized satisfies assignment targets.
@@ -863,7 +862,7 @@ fn test_report_unparenthesized_satisfies_assignment_target() {
     let mut parser = test.prepare();
     let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "value satisfies number");
+    assert_eq!(parser.range_str(error.range()), "value satisfies number");
 }
 
 /// Parse parenthesized cast assignment targets.

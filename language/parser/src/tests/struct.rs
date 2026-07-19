@@ -29,7 +29,7 @@ struct { public x: int32, readonly y: boolean }
         )
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "{");
+    assert_eq!(parser.range_str(error.range()), "{");
 }
 
 #[test]
@@ -51,7 +51,7 @@ class {}
         )
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), "{");
+    assert_eq!(parser.range_str(error.range()), "{");
 }
 
 #[test]
@@ -74,7 +74,7 @@ class Foo { x: int32, y: int32 }
         )
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range()), ",");
 }
 
 #[test]
@@ -97,7 +97,7 @@ struct Foo { x: int32, y: int32 }
         )
         .unwrap_err();
 
-    assert_eq!(parser.range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range()), ",");
 }
 
 #[test]
@@ -220,7 +220,7 @@ struct Foo extends Bar implements Baz {
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.range_str(parser.errors[0].range), "extends");
+    assert_eq!(parser.range_str(parser.errors[0].range()), "extends");
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, members, .. }) => {
         assert_eq!(implements_types.len(), 1);
         assert_eq!(members.len(), 1);
@@ -247,7 +247,7 @@ class Combined extends First, Second {}
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.range_str(parser.errors[0].range), "Second");
+    assert_eq!(parser.range_str(parser.errors[0].range()), "Second");
     assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_type: Some(extends_type), .. }) => {
         assert_string!(parser, name.expect("expected class name").string(), "Combined");
         assert_expression_path!(parser, parser.tree.get(*extends_type), "First");

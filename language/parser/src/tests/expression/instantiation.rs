@@ -1,6 +1,9 @@
 use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::tests::TestParser;
-use crate::{CommentRetention, assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{
+    CommentRetention, ParserErrorKind, assert_expression_path, assert_node, assert_path,
+    assert_string,
+};
 use destack_dir::{
     Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Key, Name,
     Pattern, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
@@ -15,10 +18,9 @@ fn assert_instantiation_assignment_reports_at(input: &str, expected_leaf: &str) 
     let error = parser
         .parse_expression(Default::default())
         .expect_err("expected instantiation assignment target to fail");
-    let error_text = parser.range_str(error.range);
+    let error_text = parser.range_str(error.range());
 
-    assert_eq!(error.node_type, None);
-    assert_eq!(error.expected, None);
+    assert_eq!(error.kind(), ParserErrorKind::InvalidAssignmentTarget);
     assert_eq!(error_text, expected_leaf);
 }
 

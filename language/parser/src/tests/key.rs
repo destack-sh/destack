@@ -12,7 +12,7 @@ fn test_report_key_named_type_expression_with_multiline_type() {
     );
     let mut parser = test.prepare();
     let error = parser.eat_key_with_range(Default::default()).unwrap_err();
-    assert_eq!(parser.range_str(error.range), ":");
+    assert_eq!(parser.range_str(error.range()), ":");
 }
 
 #[test]
@@ -25,7 +25,7 @@ string
     );
     let mut parser = test.prepare();
     let error = parser.eat_key_with_range(Default::default()).unwrap_err();
-    assert_eq!(parser.range_str(error.range), ":");
+    assert_eq!(parser.range_str(error.range()), ":");
 }
 
 /// Report computed keys with comma expressions.
@@ -37,7 +37,7 @@ fn test_report_key_computed_comma_expression() {
     let error = parser.eat_key_with_range(Default::default()).unwrap_err();
 
     // ,
-    assert_eq!(parser.range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range()), ",");
 }
 
 /// Report legacy octal numeric keys.
@@ -49,7 +49,7 @@ fn test_report_legacy_octal_numeric_key() {
     let error = parser.eat_key_with_range(Default::default()).unwrap_err();
 
     // 021
-    assert_eq!(parser.range_str(error.range), "021");
+    assert_eq!(parser.range_str(error.range()), "021");
 }
 
 /// Parse finite integer property keys as static index keys.
