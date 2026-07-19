@@ -2,14 +2,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use destack_artifact::ArtifactOutcome;
-use destack_compiler::{CheckWarning, Compiler};
+use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Indexer;
 use destack_repository::{Repository, Trace};
 use parking_lot::Mutex;
 
-use crate::SessionError;
 use crate::executor::{ArtifactRunId, Task};
+use crate::{SessionError, diagnostic};
 
 use super::{SessionEvent, SessionEventHandler};
 
@@ -51,8 +51,11 @@ impl SessionState {
         repository: Arc<Repository>,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
-        let compiler = Compiler::new(repository.clone());
-        let linter = Linter::new(repository.clone(), CheckWarning::ALL);
+        let diagnostics = diagnostic::registry();
+
+        // initialize repository consumers with the shared diagnostic registry
+        let compiler = Compiler::new(repository.clone(), Arc::new(diagnostics));
+        let linter = Linter::new(repository.clone());
         let indexer = Indexer::new(repository.clone());
 
         Self {

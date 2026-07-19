@@ -1,3 +1,4 @@
+pub mod diagnostic;
 mod executor;
 mod loader;
 mod session;
