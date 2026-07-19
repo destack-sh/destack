@@ -526,6 +526,23 @@ fn format_single_file(
         }
     };
 
+    // reject content outside source coordinates
+    let length = content.len();
+    if length > File::MAX_BYTES {
+        if !suppress_output {
+            output.push_stderr(
+                format!(
+                    "error formatting '{}': content is {length} bytes, maximum is {}\n",
+                    path.display(),
+                    File::MAX_BYTES,
+                )
+                .into_bytes(),
+            );
+        }
+
+        return Ok(FormatResult::Error);
+    }
+
     let formatted = match file_type {
         FileType::Json => match format_json_content(&content, formatting_options) {
             Ok(f) => f,
