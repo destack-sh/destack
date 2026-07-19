@@ -21,7 +21,7 @@ pub struct Predicate {
     /// The narrowed value type after the predicate succeeds.
     pub narrowed: Option<GlobalTypeId>,
     /// The projected value available after the predicate succeeds.
-    pub projection: Option<Projection>,
+    pub projection: Option<Box<Projection>>,
 }
 
 impl Predicate {
@@ -36,10 +36,10 @@ impl Predicate {
 
     /// Create a unary predicate.
     pub fn unary(input: PredicateOperand, condition: PredicateCondition) -> Self {
-        Self::new(PredicateTest::Unary(PredicateUnaryTest {
+        Self::new(PredicateTest::Unary(Box::new(PredicateUnaryTest {
             input,
             condition,
-        }))
+        })))
     }
 
     /// Set the narrowed type available after this predicate succeeds.
@@ -51,7 +51,7 @@ impl Predicate {
 
     /// Set the projected value available after this predicate succeeds.
     pub fn with_projection(mut self, projection: Projection) -> Self {
-        self.projection = Some(projection);
+        self.projection = Some(Box::new(projection));
 
         self
     }
@@ -59,11 +59,8 @@ impl Predicate {
     /// Return whether this predicate always rejects.
     pub fn is_never(&self) -> bool {
         matches!(
-            self.test,
-            PredicateTest::Unary(PredicateUnaryTest {
-                condition: PredicateCondition::Never,
-                ..
-            })
+            &self.test,
+            PredicateTest::Unary(test) if matches!(test.condition, PredicateCondition::Never)
         )
     }
 
@@ -87,35 +84,37 @@ impl Predicate {
 /// dynamic.type   // projection: DynamicType
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct PredicateOperand {
-    /// The operand value type.
-    pub ty: GlobalTypeId,
-    /// The projection used to compute the tested value, when one is needed.
-    pub projection: Option<Projection>,
+pub enum PredicateOperand {
+    /// Direct input value.
+    Direct(GlobalTypeId),
+    /// Value computed by one projection.
+    Projected(Box<Projection>),
 }
 
 impl PredicateOperand {
-    /// Create a predicate operand from an unprojected value type.
-    pub fn new(ty: GlobalTypeId) -> Self {
-        Self {
-            ty,
-            projection: None,
-        }
+    /// Create a direct predicate operand.
+    pub fn direct(ty: GlobalTypeId) -> Self {
+        Self::Direct(ty)
     }
 
     /// Create a predicate operand from a selected projection.
     pub fn projected(projection: Projection) -> Self {
-        Self {
-            ty: projection.ty(),
-            projection: Some(projection),
+        Self::Projected(Box::new(projection))
+    }
+
+    /// Return the tested value type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::Direct(ty) => *ty,
+            Self::Projected(projection) => projection.ty(),
         }
     }
 
     /// Apply one mapping to every type id stored in this operand.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
-        if let Some(projection) = &mut self.projection {
-            projection.map_type_ids(map);
+        match self {
+            Self::Direct(ty) => *ty = map(*ty),
+            Self::Projected(projection) => projection.map_type_ids(map),
         }
     }
 }
@@ -137,14 +136,14 @@ pub enum PredicateTest {
     /// value is string
     /// match value { "ready" => true }
     /// ```
-    Unary(PredicateUnaryTest),
+    Unary(Box<PredicateUnaryTest>),
     /// Structural membership test over a receiver and key.
     ///
     /// Examples:
     /// ```ds
     /// "name" in value
     /// ```
-    Membership(PredicateMembershipTest),
+    Membership(Box<PredicateMembershipTest>),
     /// Predicate that accepts when any alternative accepts.
     ///
     /// Examples:

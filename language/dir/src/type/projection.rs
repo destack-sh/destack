@@ -49,7 +49,7 @@ pub enum Projection {
     /// ```
     PropertyGet {
         /// The selected getter member.
-        read: MemberResolution,
+        read: Box<MemberResolution>,
         /// The projected value type.
         ty: GlobalTypeId,
     },
@@ -63,7 +63,7 @@ pub enum Projection {
         /// The source node providing the subscript key.
         index: GlobalNodeIdAny,
         /// The selected subscript operation.
-        read: SubscriptOperation,
+        read: Box<SubscriptOperation>,
         /// The projected value type.
         ty: GlobalTypeId,
     },
@@ -74,12 +74,7 @@ pub enum Projection {
     /// const [head] = values; // selected Sequence.index call
     /// const [head, ...tail] = values; // selected Sequence.rest call
     /// ```
-    Call {
-        /// The selected call operation.
-        call: CallResolution,
-        /// The returned value type.
-        ty: GlobalTypeId,
-    },
+    Call(Box<CallResolution>),
     /// Materialize one object rest value from selected fields.
     ///
     /// Examples:
@@ -222,7 +217,6 @@ impl Projection {
             Self::FieldGet { ty, .. }
             | Self::PropertyGet { ty, .. }
             | Self::SubscriptGet { ty, .. }
-            | Self::Call { ty, .. }
             | Self::ObjectRest { ty, .. }
             | Self::SliceLength { ty }
             | Self::DynamicPayload { ty }
@@ -234,6 +228,7 @@ impl Projection {
             | Self::Move { ty, .. }
             | Self::Dereference { ty, .. }
             | Self::Copy { ty } => *ty,
+            Self::Call(call) => call.return_type,
         }
     }
 
@@ -249,9 +244,8 @@ impl Projection {
                 read.map_type_ids(map);
                 *ty = map(*ty);
             }
-            Self::Call { call, ty } => {
+            Self::Call(call) => {
                 call.map_type_ids(map);
-                *ty = map(*ty);
             }
             Self::ObjectRest { fields, ty } => {
                 for field in fields {
@@ -326,7 +320,7 @@ pub enum DereferenceOperation {
     /// Direct dereference of a physical reference or pointer form.
     Direct,
     /// Protocol-backed dereference call.
-    Call(CallResolution),
+    Call(Box<CallResolution>),
 }
 
 impl DereferenceOperation {

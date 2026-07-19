@@ -414,18 +414,18 @@ pub enum Storage {
     /// Accessor-backed property storage.
     Property {
         /// The selected getter member, when the source operator reads first.
-        read: Option<MemberResolution>,
+        read: Option<Box<MemberResolution>>,
         /// The selected setter member.
-        write: MemberResolution,
+        write: Box<MemberResolution>,
     },
     /// Subscript-selected storage.
     Subscript {
         /// The source node providing the subscript key.
         index: GlobalNodeIdAny,
         /// The selected subscript operation, when the source operator reads first.
-        read: Option<SubscriptOperation>,
+        read: Option<Box<SubscriptOperation>>,
         /// The selected write operation.
-        write: SubscriptOperation,
+        write: Box<SubscriptOperation>,
     },
     /// Dereferenced storage.
     Dereference {
@@ -926,21 +926,21 @@ pub enum PatternResolution {
     /// ```ds
     /// match value { "ready" => true }
     /// ```
-    Test(PatternPredicateResolution),
+    Test(Box<PatternPredicateResolution>),
     /// Pattern that projects the input before matching, like `*Point { x, y }`.
     ///
     /// Examples:
     /// ```ds
     /// match box { *Point { x, y } => x + y }
     /// ```
-    Project(PatternProjectionResolution),
+    Project(Box<PatternProjectionResolution>),
     /// Pattern that destructures projected child values.
     ///
     /// Examples:
     /// ```ds
     /// const Point { x, y } = point;
     /// ```
-    Destructure(PatternDestructureResolution),
+    Destructure(Box<PatternDestructureResolution>),
     /// Pattern that accepts one of several branches, like `0 | 1 | 2`.
     ///
     /// Examples:
@@ -1089,7 +1089,7 @@ pub enum PatternDestructureResolution {
     /// ```ds
     /// match status { Status.Ok(value) => value }
     /// ```
-    Variant(PatternVariantDestructureResolution),
+    Variant(Box<PatternVariantDestructureResolution>),
 }
 
 impl PatternDestructureResolution {
@@ -1137,7 +1137,7 @@ pub struct PatternObjectDestructureResolution {
     /// The object fields in source order.
     pub fields: Vec<PatternFieldResolution>,
     /// The rest field, when present.
-    pub rest: Option<PatternFieldResolution>,
+    pub rest: Option<Box<PatternFieldResolution>>,
 }
 
 impl PatternObjectDestructureResolution {
@@ -1167,7 +1167,7 @@ pub struct PatternNominalDestructureResolution {
     /// The nominal fields in source order.
     pub fields: Vec<PatternFieldResolution>,
     /// The rest field, when present.
-    pub rest: Option<PatternFieldResolution>,
+    pub rest: Option<Box<PatternFieldResolution>>,
 }
 
 impl PatternNominalDestructureResolution {
@@ -1198,7 +1198,7 @@ pub struct PatternSequenceDestructureResolution {
     /// The fixed fields in source order.
     pub fields: Vec<PatternFieldResolution>,
     /// The rest field, when present.
-    pub rest: Option<PatternFieldResolution>,
+    pub rest: Option<Box<PatternFieldResolution>>,
 }
 
 impl PatternSequenceDestructureResolution {
@@ -1336,7 +1336,7 @@ pub struct AssignPatternSequenceResolution {
     /// The fixed fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
     /// The rest target, when present.
-    pub rest: Option<AssignPatternFieldResolution>,
+    pub rest: Option<Box<AssignPatternFieldResolution>>,
 }
 
 impl AssignPatternSequenceResolution {
@@ -1373,7 +1373,7 @@ pub struct AssignPatternObjectResolution {
     /// The named fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
     /// The rest target, when present.
-    pub rest: Option<AssignPatternRestResolution>,
+    pub rest: Option<Box<AssignPatternRestResolution>>,
 }
 
 impl AssignPatternObjectResolution {
