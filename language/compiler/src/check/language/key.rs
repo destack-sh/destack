@@ -30,10 +30,7 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
         let module = site.node.module_id;
-        answer!(
-            self.body(site.node.module_id)
-                .infer_node_type(site, PlaceUse::Read)?
-        );
+        answer!(self.body().infer_node_type(site, PlaceUse::Read)?);
 
         self.select_expression_static_key(module, expression)
     }
@@ -191,7 +188,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        if !self.is_symbol_constructor_expression(module, *left) {
+        if !self.is_symbol_constructor_expression(module, *left)? {
             return Ok(None);
         }
 
@@ -216,12 +213,12 @@ impl CheckState<'_> {
         &self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
+    ) -> CompilerResult<bool> {
         let source = expression.into_global_any(module);
         let Some(symbol) = self.reference_symbol(source) else {
-            return false;
+            return Ok(false);
         };
 
-        symbol == self.language_symbol(dir::LanguageItem::Symbol)
+        Ok(symbol == self.language_symbol(dir::LanguageItem::Symbol)?)
     }
 }

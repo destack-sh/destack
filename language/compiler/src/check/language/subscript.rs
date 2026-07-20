@@ -1,6 +1,7 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{CheckState, Protocol};
 
 /// Protocol method selected by a subscript expression.
@@ -18,7 +19,7 @@ impl SubscriptProtocol {
         self,
         state: &CheckState<'_>,
         arguments: Vec<dir::GlobalTypeId>,
-    ) -> Protocol {
+    ) -> CompilerResult<Protocol> {
         state.language_protocol(self.item(), arguments)
     }
 

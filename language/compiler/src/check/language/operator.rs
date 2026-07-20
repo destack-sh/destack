@@ -4,7 +4,7 @@ use destack_core::StringPool;
 use smallvec::{SmallVec, smallvec};
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Origin, Protocol};
+use crate::check::{Answer, CheckState, Origin, Protocol, answer};
 
 /// Result produced by one operator expression protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,6 +136,45 @@ impl OperatorProtocol {
 }
 
 impl CheckState<'_> {
+    /// Return whether one type supports builtin strict equality.
+    pub(in crate::check) fn supports_strict_equality(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let root = answer!(self.reduce_type_head(origin, ty)?);
+
+        // compare transparent newtypes through their backing representation
+        if let Some(instance) = self.newtype_instance(origin, root)? {
+            return self.supports_strict_equality(origin, instance.backing);
+        }
+
+        // require builtin equality for every possible union member
+        if let dir::Type::Union(union) = self.ty(root)? {
+            let elements = self.type_ids(root.module_id, union.elements)?.to_vec();
+            for element in elements {
+                if !answer!(self.supports_strict_equality(origin, element)?) {
+                    return Ok(Answer::Ready(false));
+                }
+            }
+
+            return Ok(Answer::Ready(true));
+        }
+
+        // scalar values compare by value
+        if answer!(self.scalar_families(origin, root)?).is_some()
+            || matches!(
+                self.ty(root)?,
+                dir::Type::Null | dir::Type::Undefined | dir::Type::Never
+            )
+        {
+            return Ok(Answer::Ready(true));
+        }
+
+        // reference values compare by address
+        self.type_is_reference(origin, root)
+    }
+
     /// Return one operator protocol interface instance.
     pub(in crate::check) fn operator_protocol(
         &mut self,
@@ -157,7 +196,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(self.language_protocol(protocol.item, arguments))
+        self.language_protocol(protocol.item, arguments)
     }
 }
 
