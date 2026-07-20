@@ -23,7 +23,7 @@ impl ObligationId {
     }
 }
 
-/// Selector for one active match case.
+/// One active match arm used for coverage.
 ///
 /// Examples:
 /// ```ds
@@ -31,16 +31,11 @@ impl ObligationId {
 /// match (value) { Some(item) => item }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum MatchCase {
-    /// Default selector.
-    Default,
-    /// Pattern selector with an optional guard.
-    Pattern {
-        /// The pattern checked for this case.
-        pattern: dir::GlobalNodeId<dir::Pattern>,
-        /// Whether the selector has a guard expression.
-        is_guarded: bool,
-    },
+pub(in crate::check) struct PatternArm {
+    /// The selected pattern.
+    pub pattern: dir::GlobalNodeId<dir::Pattern>,
+    /// Whether the arm has a guard expression.
+    pub is_guarded: bool,
 }
 
 /// User-facing check that runs once its inputs solve.
@@ -448,10 +443,10 @@ pub(in crate::check) struct PatternCoverageObligation {
 /// A pattern-bearing site whose coverage must be checked.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum PatternCoverage {
-    /// A match expression whose active cases must be exhaustive.
+    /// A match expression whose active arms must be exhaustive.
     Match {
-        /// The active match cases in source order.
-        cases: Vec<MatchCase>,
+        /// The active match arms in source order.
+        arms: Vec<PatternArm>,
     },
     /// A binding pattern in a non-matching position that must be irrefutable.
     Binding {
@@ -761,8 +756,8 @@ impl CheckState<'_> {
         };
 
         match &obligation.coverage {
-            PatternCoverage::Match { cases } => {
-                self.check_match_exhaustive(origin, obligation.source, value, cases)
+            PatternCoverage::Match { arms } => {
+                self.check_match_exhaustive(origin, obligation.source, value, arms)
             }
             PatternCoverage::Binding { pattern } => self.check_irrefutable_pattern(
                 origin,

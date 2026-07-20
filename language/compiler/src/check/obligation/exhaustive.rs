@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, CheckState, DecisionKind, MatchCase, ObligationCheck, ObligationFailure, Origin,
-    UncoveredValue, answer,
+    Answer, CheckState, DecisionKind, ObligationCheck, ObligationFailure, Origin, PatternArm,
+    answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -13,46 +13,29 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
-        cases: &[MatchCase],
+        arms: &[PatternArm],
     ) -> CompilerResult<Answer<ObligationCheck>> {
         // collect unguarded patterns with valid pattern decisions
         let mut patterns = Vec::new();
-        for case in cases {
-            match case {
-                MatchCase::Default => return Ok(Answer::Ready(ObligationCheck::holds())),
-                MatchCase::Pattern {
-                    pattern,
-                    is_guarded: false,
-                } => match self.decision_kind(pattern.into_any()) {
-                    Some(DecisionKind::Pattern) => patterns.push(*pattern),
-                    // rejected patterns already reported and hold vacuously
-                    Some(DecisionKind::Rejected) => {
-                        return Ok(Answer::Ready(ObligationCheck::holds()));
-                    }
-                    decision => {
-                        let label = self.node_label(pattern.into_any());
-                        return Err(CompilerError::Internal {
-                            message: format!(
-                                "match coverage pattern {label} decided as {decision:?}"
-                            ),
-                        });
-                    }
-                },
-                // guarded cases cannot guarantee coverage
-                MatchCase::Pattern {
-                    is_guarded: true, ..
-                } => {}
+        for arm in arms {
+            // guarded cases cannot guarantee coverage
+            if arm.is_guarded {
+                continue;
             }
-        }
 
-        // reject empty active case sets
-        if patterns.is_empty() {
-            let failure = ObligationFailure::NonExhaustivePattern {
-                source,
-                missing: UncoveredValue::Type(value),
-            };
-
-            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+            match self.decision_kind(arm.pattern.into_any()) {
+                Some(DecisionKind::Pattern) => patterns.push(arm.pattern),
+                // rejected patterns already reported and hold vacuously
+                Some(DecisionKind::Rejected) => {
+                    return Ok(Answer::Ready(ObligationCheck::holds()));
+                }
+                decision => {
+                    let label = self.node_label(arm.pattern.into_any());
+                    return Err(CompilerError::Internal {
+                        message: format!("match coverage pattern {label} decided as {decision:?}"),
+                    });
+                }
+            }
         }
 
         // accept any covering pattern alternative

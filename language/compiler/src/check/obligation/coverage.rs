@@ -70,9 +70,9 @@ impl CheckState<'_> {
         // untagged newtypes match through their backing, like the
         //  narrowing family they belong to
         if answer!(self.variant_discriminant_domain(origin, value)?).is_none()
-            && let Some(backing) =
-                answer!(self.body(origin.module()).newtype_backing(origin, value)?)
+            && let Some(projection) = self.project_newtype(origin, value)?
         {
+            let backing = projection.ty();
             return self.decide_patterns_cover(origin, patterns, backing);
         }
 
@@ -106,11 +106,12 @@ impl CheckState<'_> {
         }
 
         // cover finite scalar domains value by value
-        if let Some(domain) = self.finite_scalar_domain(value)? {
+        if let Some(domain) = self.ty(value)?.finite_literals() {
             let mut decision = Answer::Ready(true);
             for literal in domain {
                 let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
-                decision = decision.and(self.decide_patterns_cover(origin, patterns, element)?);
+                decision =
+                    decision.and(self.decide_patterns_cover_value(origin, patterns, element)?);
                 if decision.is_ready_false() {
                     return Ok(decision);
                 }
@@ -124,17 +125,7 @@ impl CheckState<'_> {
             return self.decide_patterns_cover_range(origin, patterns, &domain);
         }
 
-        let mut decision = Answer::Ready(false);
-
-        // accept any covering pattern alternative
-        for pattern in patterns {
-            decision = decision.or(self.decide_pattern_node_covers(origin, *pattern, value)?);
-            if decision.is_ready_true() {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
+        self.decide_patterns_cover_value(origin, patterns, value)
     }
 
     /// Return one uncovered value for a failed coverage check.
@@ -151,9 +142,9 @@ impl CheckState<'_> {
 
         // untagged newtypes witness through their backing
         if let Answer::Ready(None) = self.variant_discriminant_domain(origin, value)?
-            && let Answer::Ready(Some(backing)) =
-                self.body(origin.module()).newtype_backing(origin, value)?
+            && let Some(projection) = self.project_newtype(origin, value)?
         {
+            let backing = projection.ty();
             return self.uncovered_value(origin, patterns, backing);
         }
 
@@ -201,7 +192,7 @@ impl CheckState<'_> {
         }
 
         // name the first uncovered finite scalar value
-        if let Some(domain) = self.finite_scalar_domain(value)? {
+        if let Some(domain) = self.ty(value)?.finite_literals() {
             for literal in domain {
                 let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
                 if self
@@ -243,6 +234,24 @@ impl CheckState<'_> {
         self.decide_patterns_cover(origin, &[pattern], value)
     }
 
+    /// Decide whether any pattern alternative covers one closed value.
+    fn decide_patterns_cover_value(
+        &mut self,
+        origin: Origin,
+        patterns: &[dir::GlobalNodeId<dir::Pattern>],
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let mut decision = Answer::Ready(false);
+        for pattern in patterns {
+            decision = decision.or(self.decide_pattern_node_covers(origin, *pattern, value)?);
+            if decision.is_ready_true() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
     /// Decide whether any pattern alternative covers one tagged discriminant.
     fn decide_patterns_cover_variant_case(
         &mut self,
@@ -251,7 +260,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let mut decision = Answer::Ready(false);
         for pattern in patterns {
-            decision = decision.or(self.decide_pattern_covers_variant_case(*pattern, discriminant)?);
+            decision =
+                decision.or(self.decide_pattern_covers_variant_case(*pattern, discriminant)?);
             if decision.is_ready_true() {
                 return Ok(decision);
             }
@@ -286,28 +296,32 @@ impl CheckState<'_> {
             })) => true,
 
             // variant destructures cover their selected discriminant
-            Some(dir::PatternResolution::Destructure(
-                dir::PatternDestructureResolution::Variant(resolution),
-            )) => match &resolution.projection {
-                dir::Projection::VariantPayload {
-                    discriminant: selected,
-                    ..
-                } => *selected == discriminant,
+            Some(dir::PatternResolution::Destructure(resolution)) => match resolution.as_ref() {
+                dir::PatternDestructureResolution::Variant(resolution) => {
+                    match &resolution.projection {
+                        dir::Projection::VariantPayload {
+                            discriminant: selected,
+                            ..
+                        } => *selected == discriminant,
+                        _ => false,
+                    }
+                }
                 _ => false,
             },
 
             // discriminant tests cover their tested literal
-            Some(dir::PatternResolution::Test(resolution)) => match &resolution.predicate.test {
-                dir::PredicateTest::Unary(dir::PredicateUnaryTest {
-                    input:
-                        dir::PredicateOperand {
-                            projection: Some(dir::Projection::VariantTag { .. }),
-                            ..
-                        },
-                    condition: dir::PredicateCondition::Literal(selected),
-                }) => *selected == discriminant,
-                _ => false,
-            },
+            Some(dir::PatternResolution::Test(resolution)) => matches!(
+                &resolution.predicate.test,
+                dir::PredicateTest::Unary(test)
+                    if matches!(
+                        &test.input,
+                        dir::PredicateOperand::Projected(projection)
+                            if matches!(projection.as_ref(), dir::Projection::VariantTag { .. })
+                    ) && matches!(
+                        test.condition,
+                        dir::PredicateCondition::Literal(selected) if selected == discriminant
+                    )
+            ),
 
             // defaulted patterns cover through their inner pattern
             Some(dir::PatternResolution::Default(resolution)) => {
@@ -441,7 +455,12 @@ impl CheckState<'_> {
                 }
 
                 // project the newtype payload behind the tag when present
-                let payload = answer!(self.newtype_payload(origin, value)?);
+                let payload = match self.project_newtype(origin, value)? {
+                    Some(projection) => {
+                        answer!(self.reduce_type_head(origin, projection.ty())?)
+                    }
+                    None => value,
+                };
 
                 self.decide_fields_cover(origin, module, &fields, payload)
             }
@@ -605,44 +624,6 @@ impl CheckState<'_> {
         }
 
         Ok(decision)
-    }
-
-    /// Project the substituted newtype payload behind one nominal value.
-    fn newtype_payload(
-        &mut self,
-        origin: Origin,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let instance = match self.ty(value)? {
-            dir::Type::Instance(instance) => instance,
-            _ => return Ok(Answer::Ready(value)),
-        };
-        let backing = match self.definition(instance.symbol)? {
-            Some(dir::Definition::Newtype(definition)) => definition.backing,
-            _ => return Ok(Answer::Ready(value)),
-        };
-
-        // substitute applied arguments through the backing
-        let substitution = self.instance_substitution(value.module_id, &instance)?;
-        let backing = self.substitute_type(origin.module(), backing, &substitution)?;
-
-        self.reduce_type_head(origin, backing)
-    }
-
-    /// Return the finite scalar domain of one closed type when it has one.
-    fn finite_scalar_domain(
-        &self,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
-        let domain = match self.ty(value)?.scalar_domain() {
-            Some(dir::ScalarDomain::Boolean) => vec![
-                dir::ScalarLiteral::Boolean(false),
-                dir::ScalarLiteral::Boolean(true),
-            ],
-            _ => return Ok(None),
-        };
-
-        Ok(Some(domain))
     }
 
     /// Decide whether pattern alternatives cover one scalar interval.

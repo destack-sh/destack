@@ -2588,6 +2588,20 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Two enum variants use the same runtime value.
+    #[diagnostic(
+        id = "duplicate-enum-variant-value",
+        message = "enum variant value '{value}' is already declared"
+    )]
+    DuplicateEnumVariantValue {
+        /// Report the repeated enum value.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The repeated scalar value.
+        value: String,
+    },
+
     /// An implicit enum variant follows a string value.
     #[diagnostic(
         id = "implicit-string-enum-variant",

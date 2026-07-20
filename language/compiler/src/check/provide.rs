@@ -1,4 +1,4 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::FxIndexMap;
 use std::iter;
 use std::sync::Arc;
 
@@ -254,15 +254,9 @@ fn external_components(
 ) -> CompilerResult<ExternalComponents> {
     let mut components = FxIndexMap::default();
     let mut modules = FxIndexMap::default();
-    let mut seen = FxIndexSet::default();
-    let mut pending = graph.dependencies(component).to_vec();
 
     // walk component dependencies transitively
-    while let Some(dependency) = pending.pop() {
-        if !seen.insert(dependency) {
-            continue;
-        }
-
+    for dependency in graph.transitive_dependencies(component) {
         let entry = graph
             .entry(dependency)
             .ok_or_else(|| CompilerError::Internal {
@@ -278,7 +272,6 @@ fn external_components(
         for module in graph.members(dependency) {
             modules.insert(*module, key);
         }
-        pending.extend(graph.dependencies(dependency).iter().copied());
     }
 
     Ok(ExternalComponents {
