@@ -1,6 +1,7 @@
-function atomicManagedHeapAddLoop(v0: int32): int64 {
+export function atomicFrameAddLoop(v0: int32): int64 {
+    local l0: atomic<int64>
 entry(v0: int32):
-    v1: ref<atomic<int64>, managed> = new.zeroed atomic<int64>
+    v1: ref<atomic<int64>, raw, space(frame)> = local.address l0
     v2: int64 = 0
     v3: int64 = 1
     atomic.store v1, v2, relaxed

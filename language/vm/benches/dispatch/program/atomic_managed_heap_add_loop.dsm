@@ -1,6 +1,6 @@
-function atomicSharedOwnedHeapAddLoop(v0: int32): int64 {
+export function atomicManagedHeapAddLoop(v0: int32): int64 {
 entry(v0: int32):
-    v1: ref<atomic<int64>, unique, space(shared)> = new.zeroed atomic<int64>
+    v1: ref<atomic<int64>, managed> = new.zeroed atomic<int64>
     v2: int64 = 0
     v3: int64 = 1
     atomic.store v1, v2, relaxed
@@ -18,6 +18,5 @@ b2(v7: int64):
 
 b3:
     v10: int64 = atomic.load v1, relaxed
-    free v1
     return v10
 }
