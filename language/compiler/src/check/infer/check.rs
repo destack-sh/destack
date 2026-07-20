@@ -85,8 +85,7 @@ impl BodyState<'_, '_> {
             }
         }
         if self.node_type_maybe(site.node).is_some() {
-            let (_, check) =
-                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+            let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
             return Ok(Answer::Ready(check));
         }
@@ -120,8 +119,7 @@ impl BodyState<'_, '_> {
             CheckAttempt::Checked(check) => Ok(Answer::Ready(check)),
             CheckAttempt::NotApplicable => {
                 answer!(self.infer_node(site, PlaceUse::Read)?);
-                let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
                 Ok(Answer::Ready(check))
             }
@@ -145,7 +143,7 @@ impl BodyState<'_, '_> {
             .view()
             .get(node.local_id)
             .clone();
-        let target_value = self.check.value_beneath_forms(origin, target_head)?;
+        let target_value = answer!(self.check.value_beneath_forms(origin, target_head)?);
 
         match expression {
             dir::Expression::ScalarLiteral(_) | dir::Expression::TemplateExpression { .. } => {
@@ -185,15 +183,25 @@ impl BodyState<'_, '_> {
                     use_,
                 )
             }
-            dir::Expression::Match { value, cases, .. } => self.check_match_expression(
+            dir::Expression::Match { value, arms } => self.check_match_expression(
                 site,
                 value,
-                &cases.into_iter().collect::<SmallVec<[_; 4]>>(),
+                &arms.into_iter().collect::<SmallVec<[_; 4]>>(),
                 target,
                 relation,
                 cause,
                 use_,
             ),
+            dir::Expression::Switch { value, cases } => {
+                answer!(self.infer_switch_statement(
+                    site,
+                    value,
+                    &cases.into_iter().collect::<SmallVec<[_; 4]>>(),
+                )?);
+                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
+
+                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+            }
             dir::Expression::ArrayExpression { elements } => self.check_array_expression(
                 site,
                 &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
@@ -244,8 +252,7 @@ impl BodyState<'_, '_> {
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(construct_target),
                 )?);
-                let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(field_check.and(check))))
             }
@@ -264,13 +271,8 @@ impl BodyState<'_, '_> {
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(target),
                 )?);
-                if matches!(selected, CheckOutcome::Fails(_)) {
-                    return Ok(Answer::Ready(CheckAttempt::Checked(selected)));
-                }
-                let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
 
-                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+                Ok(Answer::Ready(CheckAttempt::Checked(selected)))
             }
             dir::Expression::New { ty, arguments } => {
                 answer!(self.select_construct(
@@ -280,8 +282,7 @@ impl BodyState<'_, '_> {
                     ConstructResult::Direct,
                     Some(target),
                 )?);
-                let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
@@ -293,8 +294,7 @@ impl BodyState<'_, '_> {
                     ConstructResult::Fallible,
                     Some(target),
                 )?);
-                let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }

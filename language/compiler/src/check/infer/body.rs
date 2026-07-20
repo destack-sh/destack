@@ -1,16 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
-use destack_dir as dir;
-use destack_source::ModuleId;
-
+use crate::CompilerResult;
 use crate::check::{
-    Answer, Cause, CauseKind, CheckState, Checked, Expectation, ExpectedType, PlaceUse, TaskScope,
-    ValueUse, Widening,
+    Answer, Cause, CauseKind, CheckState, Expectation, FlowSite, PlaceUse, ValueUse,
 };
-use crate::{CompilerError, CompilerResult};
+use destack_dir as dir;
 
 /// Yield targets for one generator body.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct GeneratorTargets {
     /// The type of values the body yields.
     pub(in crate::check) yielded: dir::GlobalTypeId,
@@ -18,69 +15,29 @@ pub(in crate::check) struct GeneratorTargets {
     pub(in crate::check) resumed: dir::GlobalTypeId,
 }
 
-/// One checked body position.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum BodyTarget {
-    /// One source node owns the body.
-    Node(dir::LocalNodeIdAny),
-    /// The module's top-level statements are the body.
-    Module,
-}
-
-impl BodyTarget {
-    /// Return the owning node when one exists.
-    pub(in crate::check) fn node(self) -> Option<dir::LocalNodeIdAny> {
-        match self {
-            Self::Node(node) => Some(node),
-            Self::Module => None,
-        }
-    }
-}
-
-/// When one recorded body runs during solving.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum BodyPhase {
-    /// Runs in source order with every regular body.
-    Main,
-    /// Runs after regular bodies, reading completed failure unions.
-    Handler,
-}
-
-/// One checked body recorded by the binder, in source order.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) struct BodyOwner {
-    /// The solve phase running this body.
-    pub(in crate::check) phase: BodyPhase,
-    /// The module owning the body.
-    pub(in crate::check) module: ModuleId,
-    /// The checked body position.
-    pub(in crate::check) body: BodyTarget,
-    /// The type the body's completion value must satisfy, when checked.
-    pub(in crate::check) ret: Option<ExpectedType>,
-    /// The value use the completion satisfies its target as.
-    pub(in crate::check) ret_use: ValueUse,
+/// One function body with its return and yield types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct FunctionBody {
+    /// The function body source use.
+    pub(in crate::check) site: FlowSite,
+    /// The type the body completion must satisfy, except for constructors.
+    pub(in crate::check) return_type: Option<dir::GlobalTypeId>,
     /// The yield targets when the body is a generator.
     pub(in crate::check) generator: Option<GeneratorTargets>,
-    /// The symbol bound from the body's value, its widening, and its written place.
-    pub(in crate::check) binds: Option<(dir::GlobalSymbolId, Widening, Option<dir::GlobalTypeId>)>,
     /// Whether the body constructs its own receiver.
-    pub(in crate::check) constructs: bool,
+    pub(in crate::check) is_constructor: bool,
 }
 
 /// Checking state for one function body.
 pub(in crate::check) struct BodyState<'check, 'state> {
     /// The component check state.
     pub(in crate::check) check: &'check mut CheckState<'state>,
-    /// The module owning the body.
-    pub(in crate::check) module: ModuleId,
     /// The return target, when the body returns a value.
-    pub(in crate::check) ret: Option<dir::GlobalTypeId>,
-    /// The value use the completion satisfies its target as.
-    pub(in crate::check) ret_use: ValueUse,
+    pub(in crate::check) return_type: Option<dir::GlobalTypeId>,
     /// The yield targets, when the body is a generator.
     pub(in crate::check) generator: Option<GeneratorTargets>,
     /// Whether the body constructs its own receiver.
-    pub(in crate::check) constructs: bool,
+    pub(in crate::check) is_constructor: bool,
 }
 
 impl<'state> Deref for BodyState<'_, 'state> {
@@ -99,107 +56,41 @@ impl DerefMut for BodyState<'_, '_> {
 
 impl<'state> CheckState<'state> {
     /// Enter a body-less checking context.
-    pub(in crate::check) fn body(&mut self, module: ModuleId) -> BodyState<'_, 'state> {
+    pub(in crate::check) fn body(&mut self) -> BodyState<'_, 'state> {
         BodyState {
             check: self,
-            module,
-            ret: None,
-            ret_use: ValueUse::Output,
+            return_type: None,
             generator: None,
-            constructs: false,
+            is_constructor: false,
         }
     }
 }
 
-impl<'check, 'state> BodyState<'check, 'state> {
-    /// Check one recorded body, returning whether every judgment held.
-    pub(in crate::check) fn run(
-        check: &'check mut CheckState<'state>,
-        owner: BodyOwner,
-    ) -> CompilerResult<bool> {
-        // resolve the declared target before entering the body
-        let ret = match owner.ret {
-            Some(ExpectedType::Type(ty)) => Some(ty),
-            Some(ExpectedType::Node(site)) => {
-                let ty = check.require_node_type(site.node)?;
-                match check.flow_type_at(site, ty)? {
-                    Answer::Ready(ty) => Some(ty),
-                    Answer::Pending(_) => None,
-                }
-            }
-            None => None,
-        };
+impl FunctionBody {
+    /// Check this function body once.
+    pub(in crate::check) fn check(
+        self,
+        check: &mut CheckState<'_>,
+    ) -> CompilerResult<Answer<bool>> {
         let mut state = BodyState {
             check,
-            module: owner.module,
-            ret,
-            ret_use: owner.ret_use,
-            generator: owner.generator,
-            constructs: owner.constructs,
+            return_type: self.return_type,
+            generator: self.generator,
+            is_constructor: self.is_constructor,
         };
-        let checked = match owner.body {
-            BodyTarget::Node(body) => state.check_body(body)?,
-            BodyTarget::Module => state.check_module_body()?,
-        };
-
-        // settle the body's obligations before committing its inferred type
-        state.check.drain(TaskScope::Inference)?;
-
-        // bind the produced symbol from the body's value
-        if let Some((symbol, widening, place)) = owner.binds {
-            let ty = match widening {
-                Widening::Never => checked.ty,
-                Widening::Always | Widening::WhenWritten => state.check.widen_type(checked.ty)?,
-            };
-            let origin = match owner.body {
-                BodyTarget::Node(body) => state.node_site(body.into_global(owner.module))?.origin(),
-                BodyTarget::Module => {
-                    return Err(CompilerError::Internal {
-                        message: "module body cannot initialize one binding".to_string(),
-                    });
-                }
-            };
-            // a written binding place qualifies the inferred value type
-            let ty = match place {
-                Some(place) => state.check.placed_type(origin, ty, place)?,
-                None => ty,
-            };
-            state.check.bind_symbol_type(symbol, ty)?;
-        }
-
-        Ok(checked.holds)
-    }
-
-    /// Check the module's top-level statements as one body.
-    fn check_module_body(&mut self) -> CompilerResult<Checked> {
-        let module = self.module;
-        let roots = self.check.module(module).expanded.roots.clone();
-        let mut holds = true;
-        for root in roots {
-            let node = root.into_global_any(module);
-            if !self.check.module(module).node_flows.contains_key(&node) {
-                continue;
-            }
-            let site = self.check.node_site(node)?;
-            holds &= self.check_node(site, PlaceUse::Read, None)?.holds;
-        }
-        let ty = self.check.intern_type(module, dir::Type::Void)?;
-
-        Ok(Checked { ty, holds })
-    }
-
-    /// Check one body expression against the return target.
-    fn check_body(&mut self, body: dir::LocalNodeIdAny) -> CompilerResult<Checked> {
-        let site = self.node_site(body.into_global(self.module))?;
-        let expectation = self.ret.map(|ret| {
-            let cause = self.check.intern_cause(Cause::root(
-                site.origin(),
+        let expectation = self.return_type.map(|return_type| {
+            let cause = state.check.intern_cause(Cause::root(
+                self.site.origin(),
                 CauseKind::Return { annotation: None },
             ));
 
-            Expectation::assignable(ret, cause, self.ret_use)
+            Expectation::assignable(return_type, cause, ValueUse::Output)
         });
+        let checked = state.attempt_node(self.site, PlaceUse::Read, expectation)?;
 
-        self.check_node(site, PlaceUse::Read, expectation)
+        Ok(match checked {
+            Answer::Ready(checked) => Answer::Ready(checked.holds),
+            Answer::Pending(blockers) => Answer::Pending(blockers),
+        })
     }
 }

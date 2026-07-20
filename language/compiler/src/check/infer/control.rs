@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::check::{
     Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Expectation,
     ExpectedType, FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation,
-    ValueUse, answer,
+    StaticGate, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -133,8 +133,7 @@ impl BodyState<'_, '_> {
 
         // relate the result when branch checks did not cover every arm
         if should_relate_result {
-            let (_, result_check) =
-                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+            let (_, result_check) = answer!(self.check_node_value(site, relation, target, cause)?);
             check = check.and(result_check);
         }
 
@@ -174,42 +173,18 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
-        cases: &[dir::LocalNodeId<dir::MatchCase>],
+        arms: &[dir::LocalNodeId<dir::MatchArm>],
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
+        let arms = self.present_match_arms(module, arms)?;
+        answer!(self.infer_match_patterns(module, value, &arms)?);
+
+        // join every arm body into the match value
         let mut values = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-
-        // type the matched value before its patterns
-        let value_site = self.check.node_site(value.into_global_any(module))?;
-        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-
-        // check every case pattern and guard against the matched value
-        for case in cases {
-            let selector = self.module(module).view().get(*case).selector().clone();
-            if let dir::MatchSelector::Pattern { pattern, guard } = selector {
-                let pattern_site = self.check.node_site(pattern.into_global_any(module))?;
-                answer!(self.check_pattern(
-                    pattern.into_global(module),
-                    pattern_site.flow,
-                    pattern_site.scope,
-                    scrutinee,
-                )?);
-                if let Some(guard) = guard {
-                    self.check_match_guard(module, guard)?;
-                }
-            }
+        for arm in &arms {
+            values.push(answer!(self.infer_match_arm_body(module, *arm)?));
         }
-
-        for case in cases {
-            let body = match self.module(module).view().get(*case) {
-                dir::MatchCase::Expression { body, .. } => body.into_global_any(module),
-                dir::MatchCase::Block { body, .. } => body.into_global_any(module),
-            };
-            let body_site = self.node_site(body)?;
-            values.push(answer!(self.infer_node_type(body_site, PlaceUse::Read)?));
-        }
-
         let result = if values.is_empty() {
             self.intern_type(module, dir::Type::Never)?
         } else {
@@ -220,28 +195,143 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(()))
     }
 
+    /// Infer one switch statement and its case bodies.
+    pub(in crate::check) fn infer_switch_statement(
+        &mut self,
+        site: FlowSite,
+        value: dir::LocalNodeId<dir::Expression>,
+        cases: &[dir::LocalNodeId<dir::SwitchCase>],
+    ) -> CompilerResult<Answer<()>> {
+        let node = site.node.into_typed::<dir::Expression>();
+        let module = node.module_id;
+        let cases = self.present_switch_cases(module, cases)?;
+        answer!(self.infer_switch_selectors(module, value, &cases)?);
+
+        // infer case bodies in source order without joining their values
+        for case in &cases {
+            let body = self.module(module).view().get(*case).body;
+            let site = self.node_site(body.into_global_any(module))?;
+            answer!(self.infer_node_type(site, PlaceUse::Read)?);
+        }
+        let result = self.end_type(module, node.local_id.into_any())?;
+        self.commit_node_type(node.into_any(), result)?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Infer match patterns against one selected value.
+    fn infer_match_patterns(
+        &mut self,
+        module: ModuleId,
+        value: dir::LocalNodeId<dir::Expression>,
+        arms: &[dir::LocalNodeId<dir::MatchArm>],
+    ) -> CompilerResult<Answer<()>> {
+        let value_site = self.check.node_site(value.into_global_any(module))?;
+        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+
+        // check every pattern and guard against the selected value
+        for arm in arms {
+            let arm = self.module(module).view().get(*arm);
+            let pattern = arm.pattern();
+            let guard = arm.guard();
+            answer!(self.infer_match_pattern(module, pattern, scrutinee)?);
+            if let Some(guard) = guard {
+                answer!(self.check_match_guard(module, guard)?);
+            }
+        }
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Infer switch selectors against one selected value.
+    fn infer_switch_selectors(
+        &mut self,
+        module: ModuleId,
+        value: dir::LocalNodeId<dir::Expression>,
+        cases: &[dir::LocalNodeId<dir::SwitchCase>],
+    ) -> CompilerResult<Answer<()>> {
+        let value_site = self.check.node_site(value.into_global_any(module))?;
+        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+        let mut selectors = Vec::new();
+
+        // infer every selected case before choosing their shared carrier
+        for case in cases {
+            let dir::SwitchSelector::Case(selected) =
+                self.module(module).view().get(*case).selector
+            else {
+                continue;
+            };
+            let selected_site = self.node_site(selected.into_global_any(module))?;
+            let selected_type = answer!(self.infer_node_type(selected_site, PlaceUse::Read)?);
+            selectors.push((
+                case.into_global_any(module),
+                selected.into_global_any(module),
+                selected_type,
+            ));
+        }
+
+        answer!(self.select_switch_equality(
+            value.into_global_any(module),
+            scrutinee,
+            &selectors,
+        )?);
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Infer one match pattern against its selected value.
+    fn infer_match_pattern(
+        &mut self,
+        module: ModuleId,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+        scrutinee: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let pattern_site = self.check.node_site(pattern.into_global_any(module))?;
+
+        self.check_pattern(
+            pattern.into_global(module),
+            pattern_site.flow,
+            pattern_site.scope,
+            scrutinee,
+        )
+    }
+
+    /// Infer one match arm body.
+    fn infer_match_arm_body(
+        &mut self,
+        module: ModuleId,
+        arm: dir::LocalNodeId<dir::MatchArm>,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let body = match self.module(module).view().get(arm) {
+            dir::MatchArm::Expression { body, .. } => body.into_global_any(module),
+            dir::MatchArm::Block { body, .. } => body.into_global_any(module),
+        };
+        let body_site = self.node_site(body)?;
+
+        self.infer_node_type(body_site, PlaceUse::Read)
+    }
+
     /// Check one match expression under an expected result type.
     pub(in crate::check) fn check_match_expression(
         &mut self,
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
-        cases: &[dir::LocalNodeId<dir::MatchCase>],
+        arms: &[dir::LocalNodeId<dir::MatchArm>],
         target: dir::GlobalTypeId,
         relation: Relation,
         cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
+        let arms = self.present_match_arms(module, arms)?;
 
         // type the matched value and its patterns like the inferred form
         let value_site = self.check.node_site(value.into_global_any(module))?;
         let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        for case in cases {
-            let dir::MatchSelector::Pattern { pattern, guard } =
-                *self.module(module).view().get(*case).selector()
-            else {
-                continue;
-            };
+        for arm in &arms {
+            let arm = self.module(module).view().get(*arm);
+            let pattern = arm.pattern();
+            let guard = arm.guard();
             let pattern_site = self.check.node_site(pattern.into_global_any(module))?;
             answer!(self.check_pattern(
                 pattern.into_global(module),
@@ -250,16 +340,15 @@ impl BodyState<'_, '_> {
                 scrutinee,
             )?);
             if let Some(guard) = guard {
-                self.check_match_guard(module, guard)?;
+                answer!(self.check_match_guard(module, guard)?);
             }
         }
 
         // empty matches produce never and relate it directly
-        if cases.is_empty() {
+        if arms.is_empty() {
             let never = self.intern_type(module, dir::Type::Never)?;
             self.commit_node_type(site.node, never)?;
-            let (_, check) =
-                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+            let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
             return Ok(Answer::Ready(CheckAttempt::Checked(check)));
         }
@@ -267,10 +356,10 @@ impl BodyState<'_, '_> {
         // check every arm body against the incoming expectation
         let mut values = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut check = CheckOutcome::Holds;
-        for case in cases {
-            let body = match self.module(module).view().get(*case) {
-                dir::MatchCase::Expression { body, .. } => body.into_global_any(module),
-                dir::MatchCase::Block { body, .. } => body.into_global_any(module),
+        for arm in &arms {
+            let body = match self.module(module).view().get(*arm) {
+                dir::MatchArm::Expression { body, .. } => body.into_global_any(module),
+                dir::MatchArm::Block { body, .. } => body.into_global_any(module),
             };
             let body_site = self.node_site(body)?;
             check = answer!(self.check_node_expected(body_site, target, relation, cause, use_)?)
@@ -285,12 +374,46 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(CheckAttempt::Checked(check)))
     }
 
+    /// Return the statically present arms of one match expression.
+    fn present_match_arms(
+        &self,
+        module: ModuleId,
+        arms: &[dir::LocalNodeId<dir::MatchArm>],
+    ) -> CompilerResult<Vec<dir::LocalNodeId<dir::MatchArm>>> {
+        let mut present = Vec::new();
+        for arm in arms {
+            let node = arm.into_global_any(module);
+            if self.check.static_gate(node)? == StaticGate::Present {
+                present.push(*arm);
+            }
+        }
+
+        Ok(present)
+    }
+
+    /// Return the statically present cases of one switch statement.
+    fn present_switch_cases(
+        &self,
+        module: ModuleId,
+        cases: &[dir::LocalNodeId<dir::SwitchCase>],
+    ) -> CompilerResult<Vec<dir::LocalNodeId<dir::SwitchCase>>> {
+        let mut present = Vec::new();
+        for case in cases {
+            let node = case.into_global_any(module);
+            if self.check.static_gate(node)? == StaticGate::Present {
+                present.push(*case);
+            }
+        }
+
+        Ok(present)
+    }
+
     /// Check one match guard against boolean.
     fn check_match_guard(
         &mut self,
         module: ModuleId,
         guard: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let site = self.check.node_site(guard.into_global_any(module))?;
         let boolean = self
             .check
@@ -304,9 +427,9 @@ impl BodyState<'_, '_> {
             )),
             use_: ValueUse::Condition,
         };
-        self.check_node(site, PlaceUse::Read, Some(expectation))?;
+        answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
 
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 
     /// Infer one for-in or for-of expression.
@@ -342,7 +465,7 @@ impl BodyState<'_, '_> {
 
         // check the loop body under the bound pattern
         let body_site = self.node_site(body.into_global_any(module))?;
-        self.check_node(body_site, PlaceUse::Read, None)?;
+        answer!(self.attempt_node(body_site, PlaceUse::Read, None)?);
 
         // for-in and for-of evaluate to void
         let void = self.intern_type(module, dir::Type::Void)?;
@@ -395,7 +518,7 @@ impl BodyState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let protocol = self.language_symbol(dir::LanguageItem::Iterable);
+        let protocol = self.language_symbol(dir::LanguageItem::Iterable)?;
         let anchored = self.origin_at(origin, source)?;
         let implementation = answer!(self.select_protocol_implementation(
             anchored,

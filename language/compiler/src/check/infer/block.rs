@@ -3,7 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CauseId, CheckOutcome, FlowSite, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, CauseId, CheckOutcome, FlowSite, PlaceUse, Relation, StaticGate, ValueUse,
+    answer,
 };
 
 impl BodyState<'_, '_> {
@@ -15,14 +16,14 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<()>> {
         let node = site.node;
         let module = node.module_id;
-        self.check_block_statements(module, block)?;
-        let tail = self.module(module).view().get(block).value_expression();
+        answer!(self.check_block_statements(module, block)?);
+        let tail = self.block_value(module, block)?;
         let ty = match tail {
             Some(tail) => {
                 let tail_site = self.node_site(tail.into_global_any(module))?;
                 answer!(self.infer_node_type(tail_site, PlaceUse::Read)?)
             }
-            None => self.block_end_type(module, block)?,
+            None => self.end_type(module, block.into_any())?,
         };
         self.commit_node_type(node, ty)?;
 
@@ -34,7 +35,7 @@ impl BodyState<'_, '_> {
         &mut self,
         module: ModuleId,
         block: dir::LocalNodeId<dir::Block>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let statements = self
             .module(module)
             .view()
@@ -42,30 +43,24 @@ impl BodyState<'_, '_> {
             .leading_expressions
             .clone();
         for statement in statements {
-            // the binder records no flow site for statically absent nodes
             let node = statement.into_global_any(module);
-            if !self.check.module(module).node_flows.contains_key(&node) {
+            if self.check.static_gate(node)? == StaticGate::Absent {
                 continue;
             }
             let site = self.check.node_site(node)?;
-            self.check_node(site, PlaceUse::Read, None)?;
+            answer!(self.attempt_node(site, PlaceUse::Read, None)?);
         }
 
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 
-    /// Return the value type of one block that ends without a tail.
-    fn block_end_type(
+    /// Return the implicit value type at one source node's end.
+    pub(in crate::check) fn end_type(
         &mut self,
         module: ModuleId,
-        block: dir::LocalNodeId<dir::Block>,
+        node: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = match self
-            .check
-            .module(module)
-            .unreachable_ends
-            .contains(&block.into_any())
-        {
+        let ty = match self.check.module(module).unreachable_ends.contains(&node) {
             true => dir::Type::Never,
             false => dir::Type::Void,
         };
@@ -84,8 +79,8 @@ impl BodyState<'_, '_> {
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckOutcome>> {
         let module = site.node.module_id;
-        self.check_block_statements(module, block)?;
-        let value = self.module(module).view().get(block).value_expression();
+        answer!(self.check_block_statements(module, block)?);
+        let value = self.block_value(module, block)?;
         let check = match value {
             Some(value) => {
                 let value_site = self.node_site(value.into_global_any(module))?;
@@ -97,15 +92,34 @@ impl BodyState<'_, '_> {
                 check
             }
             None => {
-                let value = self.block_end_type(module, block)?;
+                let value = self.end_type(module, block.into_any())?;
                 self.commit_node_type(site.node, value)?;
-                let (_, check) =
-                    answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
                 check
             }
         };
 
         Ok(Answer::Ready(check))
+    }
+
+    /// Return the statically present value expression of one block.
+    fn block_value(
+        &self,
+        module: ModuleId,
+        block: dir::LocalNodeId<dir::Block>,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Expression>>> {
+        let value = self.module(module).view().get(block).value_expression();
+        let value = match value {
+            Some(value)
+                if self.check.static_gate(value.into_global_any(module))?
+                    == StaticGate::Present =>
+            {
+                Some(value)
+            }
+            Some(_) | None => None,
+        };
+
+        Ok(value)
     }
 }

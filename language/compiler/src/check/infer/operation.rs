@@ -83,10 +83,7 @@ impl BodyState<'_, '_> {
         // a cast onto the operand's own settled type has no effect
         let value_root = self.check.settled_root(value_type)?;
         let target_root = self.check.settled_root(target)?;
-        if value_root == target_root
-            && self.check.type_variables(value_root)?.is_empty()
-            && !self.check.solver.is_probing()
-        {
+        if value_root == target_root && self.check.type_variables(value_root)?.is_empty() {
             self.check.report_redundant_cast(
                 node.into_any(),
                 value.into_global_any(module),
@@ -203,7 +200,9 @@ impl BodyState<'_, '_> {
                 ));
             }
             TryPropagationTarget::Return { ty: Some(ret) } => {
-                let symbol = self.check.language_symbol(dir::LanguageItem::FromResidual);
+                let symbol = self
+                    .check
+                    .language_symbol(dir::LanguageItem::FromResidual)?;
                 let arguments = self.check.intern_type_ids(module, &[residual])?;
                 let target = self.intern_type(
                     module,

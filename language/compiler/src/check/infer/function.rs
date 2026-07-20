@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, Origin};
+use crate::check::{Answer, BodyState, Origin, answer};
 
 impl BodyState<'_, '_> {
     /// Return the callable payload of one owned or placed target for a fresh function value.
@@ -57,23 +57,16 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeIdAny,
         target: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(owner) = self.check.lambdas.get(&node).copied() else {
+        let Some(body) = self.check.lambdas.get(&node).copied() else {
             return Ok(Answer::Ready(true));
         };
 
-        // deduce open signature holes from the contextual callable; an
-        //  unresolved context deduces nothing and never waits
+        // deduce open signature holes from the contextual callable
         if let Some(target) = target {
             let origin = self.check.node_site(node)?.origin();
             let value = self.check.require_node_type(node)?;
-            let value_signature = match self.callable_signature_type(origin, value)? {
-                Answer::Ready(signature) => signature,
-                Answer::Pending(_) => None,
-            };
-            let target_signature = match self.callable_signature_type(origin, target)? {
-                Answer::Ready(signature) => signature,
-                Answer::Pending(_) => None,
-            };
+            let value_signature = answer!(self.callable_signature_type(origin, value)?);
+            let target_signature = answer!(self.callable_signature_type(origin, target)?);
             if let (Some((value_type, value_function)), Some((target_type, target_function))) =
                 (value_signature, target_signature)
             {
@@ -109,11 +102,10 @@ impl BodyState<'_, '_> {
         }
 
         // check the body under the deduced signature
-        let mut holds = true;
-        if self.check.node_type_maybe_body(owner).is_none() {
-            holds = BodyState::run(self.check, owner)?;
+        if self.check.node_type_maybe(body.site.node).is_some() {
+            return Ok(Answer::Ready(true));
         }
 
-        Ok(Answer::Ready(holds))
+        body.check(self.check)
     }
 }

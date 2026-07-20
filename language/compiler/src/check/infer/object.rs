@@ -235,8 +235,7 @@ impl BodyState<'_, '_> {
         let source = answer!(self.materialize_fresh_value(origin, source, Some(target))?);
         self.commit_node_type(node.into_any(), source)?;
         if should_relate_result {
-            let (_, result_check) =
-                answer!(self.check_node_value(site, relation, target, cause, Some(use_))?);
+            let (_, result_check) = answer!(self.check_node_value(site, relation, target, cause)?);
             check = check.and(result_check);
         }
 

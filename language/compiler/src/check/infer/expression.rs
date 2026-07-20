@@ -54,7 +54,7 @@ impl BodyState<'_, '_> {
                         )),
                         ValueUse::Output,
                     );
-                    self.check_node(body_site, PlaceUse::Read, Some(expectation))?;
+                    answer!(self.attempt_node(body_site, PlaceUse::Read, Some(expectation))?);
                     self.commit_node_type(node.into_any(), result)?;
 
                     return Ok(Answer::Ready(()));
@@ -134,7 +134,12 @@ impl BodyState<'_, '_> {
 
                 Ok(Answer::Ready(()))
             }
-            dir::Expression::Match { value, cases, .. } => self.infer_match_expression(
+            dir::Expression::Match { value, arms } => self.infer_match_expression(
+                site,
+                value,
+                &arms.into_iter().collect::<SmallVec<[_; 4]>>(),
+            ),
+            dir::Expression::Switch { value, cases } => self.infer_switch_statement(
                 site,
                 value,
                 &cases.into_iter().collect::<SmallVec<[_; 4]>>(),
@@ -289,13 +294,15 @@ impl BodyState<'_, '_> {
                 self.infer_try_projection_expression(site, left)
             }
             dir::Expression::Await { expression } => self.infer_await_expression(site, expression),
-            dir::Expression::Debugger | dir::Expression::Missing | dir::Expression::Error => {
+            dir::Expression::Missing | dir::Expression::Error => {
                 self.commit_error_node(node.into_any())?;
 
                 Ok(Answer::Ready(()))
             }
             expression @ (dir::Expression::Let { .. }
+            | dir::Expression::Using { .. }
             | dir::Expression::LetElse { .. }
+            | dir::Expression::Debugger
             | dir::Expression::Return { .. }
             | dir::Expression::Yield { .. }
             | dir::Expression::While { .. }

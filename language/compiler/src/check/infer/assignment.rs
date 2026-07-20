@@ -72,11 +72,9 @@ impl BodyState<'_, '_> {
                 )?;
             }
             let value = answer!(self.node_type_at(right_site)?);
-            if !self.check.solver.is_probing() {
-                let origin = Origin::Node(right_node, site.scope);
-                self.check
-                    .push_solved_constraint(origin, cause, ValueUse::Store, value, target)?;
-            }
+            let origin = Origin::Node(right_node, site.scope);
+            self.check
+                .push_solved_constraint(origin, cause, ValueUse::Store, value, target)?;
             let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
             self.commit_node_type(left_node.into_any(), value)?;
 

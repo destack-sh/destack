@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, BoundMode, Cause, CauseId, CheckFailure, CheckOutcome, Constraint,
-    DecisionKind, Dependency, FlowSite, Origin, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseId, CheckFailure, CheckOutcome, DecisionKind, FlowSite, Origin,
+    Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -19,7 +19,7 @@ pub(in crate::check) enum PlaceUse {
 }
 
 /// Type expected by one checked expression position.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum ExpectedType {
     /// A concrete expected type.
     Type(dir::GlobalTypeId),
@@ -28,7 +28,7 @@ pub(in crate::check) enum ExpectedType {
 }
 
 /// Type expected for one checked expression position.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct Expectation {
     /// The type expected by this check.
     pub(in crate::check) expected: ExpectedType,
@@ -66,49 +66,6 @@ pub(in crate::check) struct Checked {
 }
 
 impl BodyState<'_, '_> {
-    /// Check one source node and return its type at its flow site.
-    pub(in crate::check) fn check_node(
-        &mut self,
-        site: FlowSite,
-        use_: PlaceUse,
-        expectation: Option<Expectation>,
-    ) -> CompilerResult<Checked> {
-        match self.attempt_node(site, use_, expectation)? {
-            Answer::Ready(checked) => return Ok(checked),
-            Answer::Pending(blockers) => {
-                // defer judgments blocked on open inference to a fulfillment constraint
-                if !self.check.solver.is_probing()
-                    && blockers
-                        .iter()
-                        .all(|blocker| matches!(blocker, Dependency::Variable(_)))
-                    && let Some(expectation) = expectation
-                    && let Some(ty) = self.node_type_maybe(site.node)
-                    && let Answer::Ready(target) = self.expected_type(expectation.expected)?
-                {
-                    let value_origin = self.check.intern_origin(site.origin());
-                    self.check.push_constraint(Constraint::value(
-                        expectation.relation,
-                        ty,
-                        target,
-                        value_origin,
-                        expectation.cause,
-                        Some(expectation.use_),
-                    ));
-
-                    return Ok(Checked { ty, holds: true });
-                }
-            }
-        }
-
-        // the node's judgment has no further inference to wait for
-        let origin = site.origin();
-        self.report_cannot_infer_node(site.node)?;
-        self.commit_error_node(site.node)?;
-        let ty = self.intern_type(origin.module(), dir::Type::Error)?;
-
-        Ok(Checked { ty, holds: false })
-    }
-
     /// Reduce one type head, solving an open root from its bounds first.
     pub(in crate::check) fn reduce_type_head(
         &mut self,
@@ -117,10 +74,9 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let ty = self.check.settled_root(ty)?;
         if let Some(variable) = self.check.root_variable(ty)? {
-            match self.check.solve_variable(variable, BoundMode::Strong)? {
-                Answer::Ready(_) => {}
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            }
+            let dependency = self.check.variable_dependency(variable)?;
+
+            return Ok(Answer::pending([dependency]));
         }
 
         self.check.reduce_type_head(origin, ty)
@@ -133,11 +89,10 @@ impl BodyState<'_, '_> {
         relation: Relation,
         target: dir::GlobalTypeId,
         cause: CauseId,
-        use_: Option<ValueUse>,
     ) -> CompilerResult<Answer<(dir::GlobalTypeId, CheckOutcome)>> {
         let source = answer!(self.node_type_at(site)?);
 
-        // park undecidable checks for fulfillment outside probes
+        // require the enclosing task to wait for undecidable checks
         match self.check.constrain_type(cause, relation, source, target)? {
             Answer::Ready(holds) => {
                 // literal freshness completes against the value expression
@@ -153,27 +108,12 @@ impl BodyState<'_, '_> {
 
                 Ok(Answer::Ready((source, check)))
             }
-            Answer::Pending(blockers) if self.check.solver.is_probing() => {
-                Ok(Answer::Pending(blockers))
-            }
-            Answer::Pending(_) => {
-                let value_origin = self.check.intern_origin(site.origin());
-                self.check.push_constraint(Constraint::value(
-                    relation,
-                    source,
-                    target,
-                    value_origin,
-                    cause,
-                    use_,
-                ));
-
-                Ok(Answer::Ready((source, CheckOutcome::Holds)))
-            }
+            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
     }
 
     /// Attempt one node's judgment once.
-    fn attempt_node(
+    pub(in crate::check) fn attempt_node(
         &mut self,
         site: FlowSite,
         use_: PlaceUse,
@@ -205,10 +145,6 @@ impl BodyState<'_, '_> {
         expectation: &Expectation,
         check: CheckOutcome,
     ) -> CompilerResult<Answer<()>> {
-        if self.check.solver.is_probing() {
-            return Ok(Answer::Ready(()));
-        }
-
         // accepted committed judgments record their coercion pair
         if matches!(check, CheckOutcome::Holds)
             && expectation.relation == Relation::Assignable
@@ -350,9 +286,7 @@ impl BodyState<'_, '_> {
 
         // enclosing judgments stay silent above a reported failure
         let check = match check {
-            CheckOutcome::Fails(_) if !self.check.solver.is_probing() => {
-                CheckOutcome::Fails(CheckFailure::Reported)
-            }
+            CheckOutcome::Fails(_) => CheckOutcome::Fails(CheckFailure::Reported),
             check => check,
         };
 
