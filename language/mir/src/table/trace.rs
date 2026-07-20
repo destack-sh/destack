@@ -1,7 +1,6 @@
-use std::num::NonZeroU32;
-
 use serde::{Deserialize, Serialize};
 
+use destack_core::SectionEntry;
 use destack_serde::Reflect;
 
 use crate::{Discriminant, VariantEncoding};
@@ -150,17 +149,25 @@ pub struct VariantTrace {
 /// Stable non-zero identifier for one trace map.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
-pub struct TraceId(NonZeroU32);
+pub struct TraceId(u32);
 
 impl TraceId {
     /// Create a trace identifier when the raw id is non-zero.
     pub const fn from_raw(raw: u32) -> Option<Self> {
-        match NonZeroU32::new(raw) {
-            Some(raw) => Some(Self(raw)),
-            None => None,
-        }
+        if raw == 0 { None } else { Some(Self(raw)) }
     }
 
     /// Create a trace identifier from one raw table id.
@@ -174,7 +181,7 @@ impl TraceId {
     /// Return the raw non-zero trace identifier value.
     #[inline]
     pub const fn raw(self) -> u32 {
-        self.0.get()
+        self.0
     }
 
     /// Return the zero-based trace table index.

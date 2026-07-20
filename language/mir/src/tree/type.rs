@@ -18,7 +18,10 @@ pub enum Mutability {
 }
 
 /// Access exposed by a reference-like value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[repr(u32)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum Access {
     /// Readonly access.
     Readonly,
@@ -43,7 +46,9 @@ impl Access {
 
 /// Space for a reference.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum Space {
     /// Local runtime storage.
     #[default]
@@ -93,9 +98,6 @@ impl Space {
         }
     }
 }
-
-// SAFETY: space tags are fixed-width section entries.
-unsafe impl SectionEntry for Space {}
 
 /// Kind of reference in MIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -186,7 +188,10 @@ impl Copy {
 }
 
 /// Dimension order for dense tensor storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(u32)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum TensorDimensionOrder {
     /// Last dimension is contiguous.
     RowMajor,
@@ -195,7 +200,10 @@ pub enum TensorDimensionOrder {
 }
 
 /// Format for an owning tensor value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(C, u32)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum TensorFormat {
     /// Dense contiguous format.
     Dense {
@@ -214,7 +222,10 @@ impl TensorFormat {
 }
 
 /// Format descriptor for a tensor view.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(C, u32)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum TensorViewFormat {
     /// Dense contiguous view.
     Dense {
@@ -279,7 +290,10 @@ pub enum TensorShardingAxis {
 }
 
 /// Reduction used when partial tensor shards are combined.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(u32)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum TensorReduction {
     /// Add partial values.
     Add,
@@ -865,7 +879,10 @@ fn byte_width(width: u16) -> Option<u64> {
 }
 
 /// A concrete MIR floating-point type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(u32)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum FloatType {
     /// A 16-bit IEEE-754 binary16 float.
     Float16,

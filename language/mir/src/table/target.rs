@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use destack_core::SectionEntry;
 use destack_serde::Reflect;
 
 /// Byte order for target scalar memory operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum Endian {
     /// Least significant byte first.
     Little,
@@ -11,8 +13,16 @@ pub enum Endian {
     Big,
 }
 
+impl Endian {
+    /// Return whether this byte order stores the least significant byte first.
+    pub const fn is_little(self) -> bool {
+        matches!(self, Self::Little)
+    }
+}
+
 /// Pointer representation on the target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct PointerLayout {
     /// Pointer size in bytes.
     pub size_bytes: u8,
@@ -29,7 +39,8 @@ impl PointerLayout {
 }
 
 /// ABI layout facts for one target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TargetLayout {
     /// Target byte order.
     pub endian: Endian,

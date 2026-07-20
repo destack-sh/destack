@@ -3,7 +3,7 @@ use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::StringId;
+use destack_core::{SectionEntry, StringId};
 use destack_serde::Reflect;
 
 use crate::{LocalNodeId, TensorFormat, TensorSharding, TensorViewFormat, TraceMap, Type};
@@ -328,7 +328,9 @@ pub struct VariantLayout<T = LocalNodeId<Type>> {
 
 /// Physical scalar field carrying a variant discriminant.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct DiscriminantField {
     /// The byte offset from the variant base.
     pub offset: u32,
@@ -342,7 +344,9 @@ pub struct DiscriminantField {
 
 /// Target-independent logical variant discriminant bits.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct Discriminant {
     /// Low 64 bits.
     pub low: u64,
@@ -427,7 +431,9 @@ impl DiscriminantField {
 
 /// Physical encoding for one variant discriminant.
 #[repr(C, u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum VariantEncoding {
     /// Store the logical discriminant directly.
     Direct {
