@@ -6,14 +6,14 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 impl SnapshotTable for dir::CoercionSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         for (node_id, coercion) in self.coercions() {
-            let mut row = SnapshotRow::new(builder.anchor_node(node_id), "coercion", "node")
+            let row = SnapshotRow::new(builder.anchor_node(node_id), "coercion", "node")
                 .optional_field("source", builder.node_source(node_id))
                 .type_field("from", builder.global_type_label(coercion.source))
-                .type_field("to", builder.global_type_label(coercion.target));
-            if let Some(member) = coercion.member {
-                row = row.type_field("member", builder.global_type_label(member));
-            }
-            let row = row.field("origin", cast_origin_label(coercion.origin));
+                .verbatim_field(
+                    "adjustments",
+                    coercion_adjustments_label(builder, &coercion.adjustments),
+                )
+                .field("origin", cast_origin_label(coercion.origin));
 
             builder.push(row);
         }
@@ -27,6 +27,22 @@ impl SnapshotTable for dir::CoercionSegment {
             .count_field("nodes", count);
         builder.push(row);
     }
+}
+
+/// Return one coercion adjustment list label.
+fn coercion_adjustments_label(
+    builder: &DirSnapshotBuilder<'_>,
+    adjustments: &[dir::CoercionAdjustment],
+) -> String {
+    let adjustments = adjustments.iter().map(|adjustment| {
+        let kind = adjustment.kind.as_str();
+        let target = builder.global_type_label(adjustment.target);
+
+        format!("{{ kind: {kind}, target: {target} }}")
+    });
+    let adjustments = adjustments.collect::<Vec<_>>().join(", ");
+
+    format!("[{adjustments}]")
 }
 
 /// Return the snapshot label for one cast origin.

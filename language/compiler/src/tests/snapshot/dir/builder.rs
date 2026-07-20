@@ -961,6 +961,7 @@ impl<'a> DirSnapshotBuilder<'a> {
                 | dir::Expression::Loop { .. }
                 | dir::Expression::Try { .. }
                 | dir::Expression::Match { .. }
+                | dir::Expression::Switch { .. }
         )
     }
 
@@ -1006,35 +1007,6 @@ impl<'a> DirSnapshotBuilder<'a> {
             }
 
             current = self.tree.get_parent(node_id.id);
-        }
-
-        self.node_span_is_inside_type_context(node_id)
-    }
-
-    /// Return whether one node span is nested inside type-only syntax.
-    fn node_span_is_inside_type_context(&self, node_id: dir::LocalNodeIdAny) -> bool {
-        let Some(span) = self.tree.get_span_by_id(node_id.id) else {
-            return false;
-        };
-
-        // detect detached static argument expressions by source containment
-        for context in self.tree.iter_node_ids() {
-            if !matches!(
-                context.ty,
-                dir::NodeType::TypeExpression | dir::NodeType::GenericArgument
-            ) {
-                continue;
-            }
-            if context.id == node_id.id {
-                continue;
-            }
-
-            let Some(context_span) = self.tree.get_span_by_id(context.id) else {
-                continue;
-            };
-            if context_span.start <= span.start && span.end <= context_span.end {
-                return true;
-            }
         }
 
         false

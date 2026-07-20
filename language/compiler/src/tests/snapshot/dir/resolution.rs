@@ -25,6 +25,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_member_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, resolution) in self.operator_entries() {
+            add_operator_resolution_row(builder, node_id, resolution);
+        }
+
         for (node_id, resolution) in self.call_entries() {
             add_call_resolution_row(builder, node_id, resolution);
         }
@@ -54,6 +58,7 @@ impl SnapshotTable for dir::ResolutionSegment {
         let label_count = self.label_entries().count();
         let receiver_count = self.receiver_entries().count();
         let member_count = self.member_entries().count();
+        let operator_count = self.operator_entries().count();
         let call_count = self.call_entries().count();
         let place_count = self.place_entries().count();
         let guard_count = self.guard_entries().count();
@@ -65,6 +70,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             && label_count == 0
             && receiver_count == 0
             && member_count == 0
+            && operator_count == 0
             && call_count == 0
             && place_count == 0
             && guard_count == 0
@@ -81,6 +87,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             .count_field("labels", label_count)
             .count_field("receivers", receiver_count)
             .count_field("members", member_count)
+            .count_field("operators", operator_count)
             .count_field("calls", call_count)
             .count_field("places", place_count)
             .count_field("guards", guard_count)
@@ -88,6 +95,45 @@ impl SnapshotTable for dir::ResolutionSegment {
             .count_field("patterns", pattern_count)
             .count_field("assign_patterns", assign_pattern_count);
         builder.push(row);
+    }
+}
+
+/// Add one operator resolution row.
+fn add_operator_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::OperatorResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "operator")
+        .optional_field("source", builder.node_source(node_id));
+    let row = match resolution {
+        dir::OperatorResolution::Builtin => row.field("kind", "builtin"),
+        dir::OperatorResolution::Call(call) => {
+            let row = add_call_resolution_fields(builder, row.field("kind", "call"), call);
+
+            match &call.target {
+                dir::CallTarget::Expression { generic_arguments } => {
+                    row.field("target", "expression").optional_field(
+                        "generic_arguments",
+                        builder.generic_arguments_label(generic_arguments),
+                    )
+                }
+                dir::CallTarget::Symbol(candidate) => {
+                    add_call_candidate_fields(builder, row, candidate)
+                }
+                dir::CallTarget::Universal(candidates) => row.list_field(
+                    "targets",
+                    candidates
+                        .iter()
+                        .map(|candidate| builder.call_candidate_label(candidate)),
+                ),
+            }
+        }
+    };
+
+    builder.push(row);
+    if let dir::OperatorResolution::Call(call) = resolution {
+        add_call_target_generic_instances(builder, node_id, &call.target);
     }
 }
 
@@ -234,24 +280,10 @@ fn add_call_resolution_row(
     resolution: &dir::CallResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "call")
-        .optional_field("source", builder.node_source(node_id))
-        .type_tuple_field(
-            "parameters",
-            resolution
-                .arguments
-                .iter()
-                .map(|argument| builder.global_type_label(argument.ty)),
-        )
-        .optional_field(
-            "arguments",
-            builder.argument_bindings_label(&resolution.arguments),
-        )
-        .type_field("return", builder.global_type_label(resolution.return_type));
+        .optional_field("source", builder.node_source(node_id));
+    let row = add_call_resolution_fields(builder, row, resolution);
 
     let row = match &resolution.target {
-        dir::CallTarget::Builtin(builtin) => row
-            .field("kind", "builtin")
-            .field("builtin", builtin_call_label(*builtin)),
         dir::CallTarget::Expression { generic_arguments } => {
             row.field("kind", "expression").optional_field(
                 "generic_arguments",
@@ -271,6 +303,26 @@ fn add_call_resolution_row(
 
     builder.push(row);
     add_call_target_generic_instances(builder, node_id, &resolution.target);
+}
+
+/// Add fields shared by call and operator resolutions.
+fn add_call_resolution_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    resolution: &dir::CallResolution,
+) -> SnapshotRow {
+    row.type_tuple_field(
+        "parameters",
+        resolution
+            .arguments
+            .iter()
+            .map(|argument| builder.global_type_label(argument.ty)),
+    )
+    .optional_field(
+        "arguments",
+        builder.argument_bindings_label(&resolution.arguments),
+    )
+    .type_field("return", builder.global_type_label(resolution.return_type))
 }
 
 /// Add one place resolution row.
@@ -381,10 +433,10 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
             subscript_operation_label(builder, read),
             builder.global_type_label(*ty)
         ),
-        dir::Projection::Call { call, ty } => format!(
+        dir::Projection::Call(call) => format!(
             "call({}, {})",
             call_target_label(builder, &call.target),
-            builder.global_type_label(*ty)
+            builder.global_type_label(call.return_type)
         ),
         dir::Projection::ObjectRest { fields, ty } => {
             let fields = fields
@@ -653,16 +705,15 @@ fn predicate_operand_label(
     builder: &DirSnapshotBuilder<'_>,
     operand: &dir::PredicateOperand,
 ) -> String {
-    match &operand.projection {
-        Some(projection) => projection_label(builder, projection),
-        None => builder.global_type_label(operand.ty),
+    match operand {
+        dir::PredicateOperand::Direct(ty) => builder.global_type_label(*ty),
+        dir::PredicateOperand::Projected(projection) => projection_label(builder, projection),
     }
 }
 
 /// Return one call target snapshot label.
 fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallTarget) -> String {
     match target {
-        dir::CallTarget::Builtin(builtin) => builtin_call_label(*builtin),
         dir::CallTarget::Expression { .. } => "expression".to_string(),
         dir::CallTarget::Symbol(candidate) => builder.call_candidate_label(candidate),
         dir::CallTarget::Universal(candidates) => candidates
@@ -824,18 +875,6 @@ fn receiver_kind_label(kind: dir::ReceiverKind) -> &'static str {
     }
 }
 
-/// Return one builtin call label.
-fn builtin_call_label(builtin: dir::BuiltinCall) -> String {
-    match builtin {
-        dir::BuiltinCall::UnaryOperator { operator } => {
-            format!("unary.{}", DirSnapshotBuilder::variant_label(operator))
-        }
-        dir::BuiltinCall::BinaryOperator { operator } => {
-            format!("binary.{}", DirSnapshotBuilder::variant_label(operator))
-        }
-    }
-}
-
 /// Return one pattern resolution label.
 fn pattern_resolution_label(resolution: &dir::PatternResolution) -> &'static str {
     match resolution {
@@ -971,7 +1010,7 @@ fn add_pattern_destructure_fields(
                 &sequence.arity,
             ),
             &sequence.fields,
-            sequence.rest.as_ref(),
+            sequence.rest.as_deref(),
         ),
         dir::PatternDestructureResolution::Variant(variant) => {
             let row = row
@@ -1022,7 +1061,7 @@ fn add_assign_pattern_resolution_row(
                 &sequence.arity,
             ),
             &sequence.fields,
-            sequence.rest.as_ref(),
+            sequence.rest.as_deref(),
         ),
         dir::AssignPatternResolution::Tuple(tuple) => row.tuple_field(
             "fields",
@@ -1197,7 +1236,7 @@ fn add_call_target_generic_instances(
                 add_call_candidate_generic_instance(builder, anchor, source.clone(), candidate);
             }
         }
-        dir::CallTarget::Builtin(_) | dir::CallTarget::Expression { .. } => {}
+        dir::CallTarget::Expression { .. } => {}
     }
 }
 
@@ -1306,7 +1345,7 @@ fn add_predicate_operand_generic_instance(
     source: Option<String>,
     operand: &dir::PredicateOperand,
 ) {
-    if let Some(projection) = &operand.projection {
+    if let dir::PredicateOperand::Projected(projection) = operand {
         add_projection_generic_instance(builder, anchor, source, projection);
     }
 }
