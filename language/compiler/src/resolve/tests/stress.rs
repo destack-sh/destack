@@ -147,7 +147,7 @@ fn test_resolve_stats_cache_repeated_namespace_paths() {
 resolve.stats.expressions={}\n\
 resolve.stats.types=0\n\
 resolve.stats.clauses=import:1,reexport:0\n\
-resolve.stats.language=uses:5\n\
+resolve.stats.language=uses:6\n\
 resolve.stats.exports=miss:1,hit:{},cycle:0\n\
 resolve.stats.lookups.local={ITEMS}\n\
 resolve.stats.lookups.import_items=1\n\
@@ -188,7 +188,7 @@ fn test_resolve_stats_cache_repeated_nested_namespace_paths() {
 resolve.stats.expressions={}\n\
 resolve.stats.types=0\n\
 resolve.stats.clauses=import:1,reexport:0\n\
-resolve.stats.language=uses:5\n\
+resolve.stats.language=uses:6\n\
 resolve.stats.exports=miss:2,hit:{},cycle:0\n\
 resolve.stats.lookups.local={ITEMS}\n\
 resolve.stats.lookups.import_items=1\n\

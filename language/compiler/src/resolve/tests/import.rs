@@ -93,11 +93,12 @@ dep.value;
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
 /// @import.language item=string.String symbol=string.string.String
 
-/// @import.summary symbols=1 language=5
-/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 language=uses:5 exports=miss:1,hit:0,cycle:0
+/// @import.summary symbols=1 language=6
+/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=2
 "#,
     );
@@ -143,11 +144,12 @@ dep.api.value;
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
 /// @import.language item=string.String symbol=string.string.String
 
-/// @import.summary symbols=1 language=5
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:5 exports=miss:2,hit:0,cycle:0
+/// @import.summary symbols=1 language=6
+/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=3
 "#,
     );
@@ -194,11 +196,12 @@ dep.api.value;
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
 /// @import.language item=string.String symbol=string.string.String
 
-/// @import.summary symbols=1 language=5
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:5 exports=miss:2,hit:0,cycle:0
+/// @import.summary symbols=1 language=6
+/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=3
 "#,
     );

@@ -45,15 +45,10 @@ impl ResolveState<'_> {
     }
 
     /// Use language items needed by apparent member lookup.
-    ///
-    /// Check reads primitive and collection members through these declarations.
-    /// Resolve imports them before component partitioning.
     pub(in crate::resolve) fn use_apparent_member_language_items(&mut self) {
-        self.use_language_item(dir::LanguageItem::String);
-        self.use_language_item(dir::LanguageItem::Number);
-        self.use_language_item(dir::LanguageItem::Array);
-        self.use_language_item(dir::LanguageItem::Slice);
-        self.use_language_item(dir::LanguageItem::FixedArray);
+        for item in dir::Type::member_owner_items() {
+            self.use_language_item(item);
+        }
     }
 
     /// Use language items needed by sequence patterns.

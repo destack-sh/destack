@@ -31,11 +31,12 @@ declare const point: { x: int32; y: string };
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
 /// @import.language item=string.String symbol=string.string.String
 
-/// @import.summary language=5
-/// @resolve.stats roots=4 expressions=9 types=5 language=uses:5
+/// @import.summary language=6
+/// @resolve.stats roots=4 expressions=9 types=5 language=uses:6
 /// @reference.summary references=3
 "#,
     );
