@@ -340,42 +340,17 @@ impl ModuleLowerer<'_> {
     /// Lower one switch case into JS AST.
     fn lower_switch_case(
         &mut self,
-        case_id: dir::LocalNodeId<dir::MatchCase>,
+        case_id: dir::LocalNodeId<dir::SwitchCase>,
     ) -> Result<js::LocalNodeId<js::SwitchCase>, EmitError> {
         let switch_case = self.dir_tree.get(case_id);
-        let (selector, body) = match switch_case {
-            dir::MatchCase::Expression { selector, body } => (selector, Err(*body)),
-            dir::MatchCase::Block { selector, body } => (selector, Ok(*body)),
-        };
 
-        let value = match selector {
-            dir::MatchSelector::Default => None,
-            dir::MatchSelector::Pattern { pattern, guard } => {
-                if guard.is_some() {
-                    return Err(self.unsupported_construct(
-                        case_id.into_global_any(self.module.id),
-                        Some("guarded switch cases should be rejected before JS emit".to_string()),
-                    ));
-                }
-
-                let dir::Pattern::Expression { value } = self.dir_tree.get(*pattern) else {
-                    return Err(self.unsupported_construct(
-                        pattern.into_global_any(self.module.id),
-                        Some(
-                            "switch patterns should be expression selectors before JS emit"
-                                .to_string(),
-                        ),
-                    ));
-                };
-
-                Some(self.lower_expression_as::<js::Expression>(*value)?)
+        let value = match switch_case.selector {
+            dir::SwitchSelector::Default => None,
+            dir::SwitchSelector::Case(value) => {
+                Some(self.lower_expression_as::<js::Expression>(value)?)
             }
         };
-
-        let body = match body {
-            Ok(block_id) => self.lower_block(block_id)?,
-            Err(expression_id) => self.lower_expression_as_block(expression_id)?,
-        };
+        let body = self.lower_block(switch_case.body)?;
         let switch_case = js::SwitchCase { value, body };
 
         Ok(self
@@ -1127,14 +1102,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::Match { form, value, cases } => {
-                if *form != dir::MatchForm::Switch {
-                    return Err(self.unsupported_construct(
-                        expression_id.into_global_any(self.module.id),
-                        Some("non-switch match expressions are not lowered to JS yet".to_string()),
-                    ));
-                }
-
+            dir::Expression::Switch { value, cases } => {
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
                 let cases = cases
                     .iter()
@@ -1144,6 +1112,12 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
+            }
+            dir::Expression::Match { .. } => {
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("match expressions are not lowered to JS yet".to_string()),
+                ));
             }
             dir::Expression::Try {
                 body,

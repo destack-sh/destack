@@ -62,11 +62,8 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // skip bodies demanded out of order by symbol reads
-            let already_bound = owner
-                .binds
-                .is_some_and(|(symbol, _, _)| self.symbol_type_maybe(symbol).is_some());
-            if !already_bound {
+            // skip judgments already demanded by an enclosing check
+            if self.node_type_maybe_body(owner).is_none() {
                 BodyState::run(self, owner)?;
             }
         }
@@ -80,31 +77,6 @@ impl CheckState<'_> {
                 BodyState::run(self, owner)?;
             }
         }
-
-        Ok(())
-    }
-
-    /// Run one symbol's recorded initializer body from a symbol read.
-    pub(in crate::check) fn run_initializer(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        let Some(index) = self.initializers.get(&symbol).copied() else {
-            return Ok(());
-        };
-
-        // cut initializer cycles with an error binding
-        if !self.initializing.insert(symbol) {
-            let error = self.circular_type_error(Origin::Symbol(symbol))?;
-            self.report(symbol.module_id, error);
-            let poisoned = self.intern_type(symbol.module_id, dir::Type::Error)?;
-            self.bind_symbol_type(symbol, poisoned)?;
-
-            return Ok(());
-        }
-        let owner = self.bodies[index];
-        BodyState::run(self, owner)?;
-        self.initializing.swap_remove(&symbol);
 
         Ok(())
     }

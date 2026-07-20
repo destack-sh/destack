@@ -17,7 +17,9 @@ pub(in crate::check) enum Decision {
     Receiver(dir::ReceiverResolution),
     /// Resolved member access.
     Member(dir::MemberResolution),
-    /// Resolved call, including builtin operator applications.
+    /// Resolved operator application.
+    Operator(dir::OperatorResolution),
+    /// Resolved call.
     Call(dir::CallResolution),
     /// Resolved writable place expression.
     Place(dir::PlaceResolution),
@@ -41,6 +43,7 @@ impl Decision {
             Self::Instantiation(_) => DecisionKind::Instantiation,
             Self::Receiver(_) => DecisionKind::Receiver,
             Self::Member(_) => DecisionKind::Member,
+            Self::Operator(_) => DecisionKind::Operator,
             Self::Call(_) => DecisionKind::Call,
             Self::Place(_) => DecisionKind::Place,
             Self::Guard(_) => DecisionKind::Guard,
@@ -63,6 +66,8 @@ pub(in crate::check) enum DecisionKind {
     Receiver,
     /// Resolved member access.
     Member,
+    /// Resolved operator application.
+    Operator,
     /// Resolved call.
     Call,
     /// Resolved writable place expression.
@@ -146,6 +151,7 @@ impl CheckState<'_> {
             }
             Decision::Receiver(resolution) => resolutions.set_receiver_resolution(node, resolution),
             Decision::Member(resolution) => resolutions.set_member_resolution(node, resolution),
+            Decision::Operator(resolution) => resolutions.set_operator_resolution(node, resolution),
             Decision::Call(resolution) => resolutions.set_call_resolution(node, resolution),
             Decision::Place(resolution) => resolutions.set_place_resolution(node, resolution),
             Decision::Guard(resolution) => resolutions.set_guard_resolution(node, resolution),
@@ -176,6 +182,9 @@ impl CheckState<'_> {
                 resolutions.receiver_resolution(node) == Some(resolution)
             }
             Decision::Member(resolution) => resolutions.member_resolution(node) == Some(resolution),
+            Decision::Operator(resolution) => {
+                resolutions.operator_resolution(node) == Some(resolution)
+            }
             Decision::Call(resolution) => resolutions.call_resolution(node) == Some(resolution),
             Decision::Place(resolution) => resolutions.place_resolution(node) == Some(resolution),
             Decision::Guard(resolution) => resolutions.guard_resolution(node) == Some(resolution),

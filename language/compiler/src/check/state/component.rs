@@ -83,12 +83,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) solver: Solver,
     /// Obligation steps run so far, for trace numbering.
     pub(in crate::check) solve_steps: usize,
-    /// Module-level bindings whose initializers are checking, for cycles.
-    pub(in crate::check) initializing: FxIndexSet<dir::GlobalSymbolId>,
     /// Checked bodies recorded by the binder, in source order.
     pub(in crate::check) bodies: Vec<BodyOwner>,
-    /// Body indexes by their bound symbol, for on-demand initializer reads.
-    pub(in crate::check) initializers: FxIndexMap<dir::GlobalSymbolId, usize>,
     /// Function value bodies keyed by their value expression.
     pub(in crate::check) lambdas: FxIndexMap<dir::GlobalNodeIdAny, BodyOwner>,
     /// Catch result holes keyed by their catch node.
@@ -146,9 +142,7 @@ impl<'a> CheckState<'a> {
             reduced_types: FxIndexMap::default(),
             solver: Solver::new(),
             solve_steps: 0,
-            initializing: FxIndexSet::default(),
             bodies: Vec::new(),
-            initializers: FxIndexMap::default(),
             lambdas: FxIndexMap::default(),
             catch_results: FxIndexMap::default(),
             try_propagations: FxIndexMap::default(),
@@ -239,10 +233,16 @@ impl<'a> CheckState<'a> {
     }
 
     /// Return one language symbol resolved for one module.
-    pub(in crate::check) fn language_symbol(&self, item: dir::LanguageItem) -> dir::GlobalSymbolId {
-        self.global.language.symbol(item).unwrap_or_else(|| {
-            unreachable!("language item {item} is missing from the global environment")
-        })
+    pub(in crate::check) fn language_symbol(
+        &self,
+        item: dir::LanguageItem,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
+        self.global
+            .language
+            .symbol(item)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("global environment is missing language item {item}"),
+            })
     }
 
     /// Return the language item named by one resolved symbol.
@@ -805,7 +805,7 @@ impl CheckState<'_> {
         item: dir::LanguageItem,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let symbol = self.language_symbol(item);
+        let symbol = self.language_symbol(item)?;
         let arguments = self.intern_type_ids(module, arguments)?;
         let ty = dir::Type::Instance(dir::GenericInstance { symbol, arguments });
 

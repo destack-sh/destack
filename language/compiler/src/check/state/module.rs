@@ -74,7 +74,7 @@ pub(in crate::check) struct CheckModuleState {
     /// Entry flow point for each walked source node occurrence.
     pub(in crate::check) node_flows:
         FxIndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
-    /// Blocks whose end no control path reaches.
+    /// Source nodes whose end no control path reaches.
     pub(in crate::check) unreachable_ends: FxIndexSet<dir::LocalNodeIdAny>,
 
     // statically false gates
@@ -658,12 +658,6 @@ impl CheckState<'_> {
             self.import_external_module(symbol.module_id)?;
         }
 
-        if let Some(ty) = self.symbol_type_maybe(symbol) {
-            return Ok(Answer::Ready(ty));
-        }
-
-        // run the symbol's recorded initializer body first
-        self.run_initializer(symbol)?;
         if let Some(ty) = self.symbol_type_maybe(symbol) {
             return Ok(Answer::Ready(ty));
         }
