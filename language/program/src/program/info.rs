@@ -1,5 +1,5 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
 };
 use destack_mir::{Access, FloatType, Space};
@@ -10,14 +10,15 @@ use serde::{Deserialize, Serialize};
 use super::{BindingId, EntryPoint, FunctionId, LayoutId, TypeId};
 
 /// Reflected view of one program.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct ProgramInfo {
     /// Reflected modules in this program.
     modules: SectionSlice<ModuleInfo>,
     /// Reflected types keyed by program type id.
     types: SectionSlice<TypeInfo>,
     /// Reflected functions keyed by program function id.
-    functions: SectionSlice<Optional<FunctionInfo>>,
+    functions: SectionSlice<FunctionInfo>,
     /// Reflected runtime bindings.
     bindings: SectionSlice<BindingInfo>,
     /// Reflected frame layouts keyed by frame layout id.
@@ -46,18 +47,91 @@ pub struct ProgramInfo {
     frame_slots: SectionSlice<FrameSlotInfo>,
 }
 
-impl ProgramInfo {
-    /// Pack one reflected program view.
-    pub fn pack(
-        sections: &mut SectionPacker,
-        modules: Vec<ModuleInfo>,
-        types: Vec<TypeInfoBuilder>,
-        functions: Vec<Option<FunctionInfo>>,
-        bindings: Vec<BindingInfoBuilder>,
-        frames: Vec<FrameInfoBuilder>,
-        globals: Vec<GlobalInfo>,
-        entries: Vec<EntryInfo>,
-    ) -> Self {
+/// Build-time reflected program table.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ProgramInfoBuilder {
+    /// Reflected modules.
+    modules: Vec<ModuleInfo>,
+    /// Reflected types.
+    types: Vec<TypeInfoBuilder>,
+    /// Reflected functions.
+    functions: Vec<FunctionInfo>,
+    /// Reflected runtime bindings.
+    bindings: Vec<BindingInfoBuilder>,
+    /// Reflected frame layouts.
+    frames: Vec<FrameInfoBuilder>,
+    /// Reflected globals.
+    globals: Vec<GlobalInfo>,
+    /// Reflected entrypoints.
+    entries: Vec<EntryInfo>,
+}
+
+impl ProgramInfoBuilder {
+    /// Create an empty reflected program builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set reflected modules.
+    pub fn modules(mut self, modules: impl IntoIterator<Item = ModuleInfo>) -> Self {
+        self.modules = modules.into_iter().collect();
+
+        self
+    }
+
+    /// Set reflected types.
+    pub fn types(mut self, types: impl IntoIterator<Item = TypeInfoBuilder>) -> Self {
+        self.types = types.into_iter().collect();
+
+        self
+    }
+
+    /// Set reflected functions.
+    pub fn functions(mut self, functions: impl IntoIterator<Item = FunctionInfo>) -> Self {
+        self.functions = functions.into_iter().collect();
+
+        self
+    }
+
+    /// Set reflected runtime bindings.
+    pub fn bindings(mut self, bindings: impl IntoIterator<Item = BindingInfoBuilder>) -> Self {
+        self.bindings = bindings.into_iter().collect();
+
+        self
+    }
+
+    /// Set reflected frame layouts.
+    pub fn frames(mut self, frames: impl IntoIterator<Item = FrameInfoBuilder>) -> Self {
+        self.frames = frames.into_iter().collect();
+
+        self
+    }
+
+    /// Set reflected globals.
+    pub fn globals(mut self, globals: impl IntoIterator<Item = GlobalInfo>) -> Self {
+        self.globals = globals.into_iter().collect();
+
+        self
+    }
+
+    /// Set reflected entrypoints.
+    pub fn entries(mut self, entries: impl IntoIterator<Item = EntryInfo>) -> Self {
+        self.entries = entries.into_iter().collect();
+
+        self
+    }
+
+    /// Build this reflection table into program sections.
+    pub(crate) fn build(self, sections: &mut SectionBuilder) -> ProgramInfo {
+        let Self {
+            modules,
+            types,
+            functions,
+            bindings,
+            frames,
+            globals,
+            entries,
+        } = self;
         let mut type_operands = EntryStore::new();
         let mut fields = EntryStore::new();
         let mut tuple_elements = EntryStore::new();
@@ -121,10 +195,10 @@ impl ProgramInfo {
             })
             .collect::<Vec<_>>();
 
-        Self {
+        ProgramInfo {
             modules: sections.insert(modules),
             types: sections.insert(types),
-            functions: sections.insert(functions.into_iter().map(Into::into).collect::<Vec<_>>()),
+            functions: sections.insert(functions),
             bindings: sections.insert(bindings),
             frames: sections.insert(frames),
             globals: sections.insert(globals),
@@ -140,7 +214,9 @@ impl ProgramInfo {
             frame_slots: sections.insert(frame_slots.into_entries()),
         }
     }
+}
 
+impl ProgramInfo {
     /// Return reflected modules.
     pub fn modules<'a>(&self, sections: SectionImage<'a>) -> &'a [ModuleInfo] {
         sections.entries(self.modules)
@@ -152,7 +228,7 @@ impl ProgramInfo {
     }
 
     /// Return reflected functions.
-    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<FunctionInfo>] {
+    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [FunctionInfo] {
         sections.entries(self.functions)
     }
 
@@ -262,20 +338,53 @@ impl ProgramInfo {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeInfoBuilder {
     /// Type display name when one exists.
-    pub name: Option<StringId>,
+    name: Option<StringId>,
     /// Source module containing the type when one exists.
-    pub module: Option<source::ModuleId>,
+    module: Option<source::ModuleId>,
     /// Transparent program representation.
-    pub representation: TypeId,
+    representation: TypeId,
     /// Concrete program layout when one exists.
-    pub layout: Option<LayoutId>,
+    layout: Option<LayoutId>,
     /// Normalized reflected program type tag.
-    pub tag: TypeTag,
+    tag: TypeTag,
     /// Normalized reflected program type payload.
-    pub payload: TypePayloadBuilder,
+    payload: TypePayloadBuilder,
 }
 
 impl TypeInfoBuilder {
+    /// Create one reflected type builder.
+    pub fn new(representation: TypeId, tag: TypeTag, payload: TypePayloadBuilder) -> Self {
+        Self {
+            name: None,
+            module: None,
+            representation,
+            layout: None,
+            tag,
+            payload,
+        }
+    }
+
+    /// Set the type display name.
+    pub fn name(mut self, name: StringId) -> Self {
+        self.name = Some(name);
+
+        self
+    }
+
+    /// Set the source module containing this type.
+    pub fn module(mut self, module: source::ModuleId) -> Self {
+        self.module = Some(module);
+
+        self
+    }
+
+    /// Set the concrete program layout.
+    pub fn layout(mut self, layout: LayoutId) -> Self {
+        self.layout = Some(layout);
+
+        self
+    }
+
     /// Build one section entry.
     fn build(
         self,
@@ -308,7 +417,7 @@ impl TypeInfoBuilder {
 
 /// Reflected module in one program.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct ModuleInfo {
     /// Source module id.
     pub id: ModuleId,
@@ -328,7 +437,7 @@ impl ModuleInfo {
 
 /// Section-safe source module id.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct ModuleId {
     /// Stable source package id.
     pub package: u64,
@@ -348,7 +457,7 @@ impl From<source::ModuleId> for ModuleId {
 
 /// Reflected type in one program.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypeInfo {
     /// Type display name when one exists.
     pub name: Optional<StringId>,
@@ -366,7 +475,7 @@ pub struct TypeInfo {
 
 /// Normalized program type tag visible through program reflection.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum TypeTag {
     /// Never type.
     Never,
@@ -430,7 +539,7 @@ pub enum TypeTag {
 
 /// Normalized program type payload.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypePayload {
     /// Primitive payload.
     pub primitive: PrimitiveType,
@@ -568,7 +677,7 @@ impl TypePayloadBuilder {
 
 /// Reflected primitive program type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct PrimitiveType {
     /// Primitive tag.
     pub tag: PrimitiveTag,
@@ -582,7 +691,7 @@ pub struct PrimitiveType {
 
 /// Reflected primitive tag.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum PrimitiveTag {
     /// Boolean primitive.
     Boolean,
@@ -606,7 +715,7 @@ pub enum PrimitiveTag {
 
 /// Reflected scalar literal program type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct ScalarLiteral {
     /// Literal tag.
     pub tag: ScalarLiteralTag,
@@ -622,7 +731,7 @@ pub struct ScalarLiteral {
 
 /// Reflected literal tag.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum ScalarLiteralTag {
     /// Boolean false literal.
     False,
@@ -642,7 +751,7 @@ pub enum ScalarLiteralTag {
 
 /// Reflected memory singleton program type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct MemoryLiteral {
     /// Memory singleton tag.
     pub tag: MemoryLiteralTag,
@@ -658,7 +767,7 @@ pub struct MemoryLiteral {
 
 /// Reflected memory singleton tag.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum MemoryLiteralTag {
     /// Reference access singleton.
     Access,
@@ -672,7 +781,7 @@ pub enum MemoryLiteralTag {
 
 /// Reflected placement singleton.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Place {
     /// Placement tag.
     pub tag: PlaceTag,
@@ -682,7 +791,7 @@ pub struct Place {
 
 /// Reflected placement tag.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum PlaceTag {
     /// Ambient placement.
     Ambient,
@@ -692,7 +801,7 @@ pub enum PlaceTag {
 
 /// Reflected lifetime singleton.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Lifetime {
     /// Lifetime tag.
     pub tag: LifetimeTag,
@@ -702,7 +811,7 @@ pub struct Lifetime {
 
 /// Reflected lifetime tag.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum LifetimeTag {
     /// Static storage lifetime.
     Static,
@@ -714,7 +823,7 @@ pub enum LifetimeTag {
 
 /// Reflected ownership or access form.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FormType {
     /// Form tag.
     pub tag: Form,
@@ -730,7 +839,7 @@ pub struct FormType {
 
 /// Reflected ownership or access form tag.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum Form {
     /// Managed value.
     Managed,
@@ -748,7 +857,7 @@ pub enum Form {
 
 /// Reflected erased dynamic value type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct DynamicType {
     /// Erased constraint type.
     pub constraint: TypeId,
@@ -756,7 +865,7 @@ pub struct DynamicType {
 
 /// Reflected homogeneous array type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct ArrayType {
     /// Element type.
     pub element: TypeId,
@@ -764,7 +873,7 @@ pub struct ArrayType {
 
 /// Reflected fixed-length array type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FixedArrayType {
     /// Element type.
     pub element: TypeId,
@@ -774,7 +883,7 @@ pub struct FixedArrayType {
 
 /// Reflected scalar interval type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct RangeType {
     /// Inclusive lower bound.
     pub start: Optional<ScalarLiteral>,
@@ -786,7 +895,7 @@ pub struct RangeType {
 
 /// Reflected runtime-length homogeneous view type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct SliceType {
     /// Element type.
     pub element: TypeId,
@@ -794,7 +903,7 @@ pub struct SliceType {
 
 /// Reflected fat callable value type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FunctionType {
     /// Function signature type.
     pub signature: TypeId,
@@ -804,7 +913,7 @@ pub struct FunctionType {
 
 /// Reflected thin callable value type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FunctionPointerType {
     /// Function signature type.
     pub signature: TypeId,
@@ -812,7 +921,7 @@ pub struct FunctionPointerType {
 
 /// Reflected transparent nominal type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct NewtypeType {
     /// Backing type.
     pub backing: TypeId,
@@ -820,7 +929,7 @@ pub struct NewtypeType {
 
 /// Reflected static object key.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct StaticKey {
     /// Static key tag.
     pub tag: StaticKeyTag,
@@ -852,7 +961,7 @@ impl StaticKey {
 
 /// Reflected static object key tag.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum StaticKeyTag {
     /// String-like object key.
     Name,
@@ -862,7 +971,7 @@ pub enum StaticKeyTag {
 
 /// Reflected object-like type field.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypeField {
     /// Field key.
     pub key: StaticKey,
@@ -876,7 +985,7 @@ pub struct TypeField {
 
 /// Reflected tuple element.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypeElement {
     /// Element label when one exists.
     pub label: Optional<StringId>,
@@ -892,7 +1001,7 @@ pub struct TypeElement {
 
 /// Reflected index signature in an object-like type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypeIndexSignature {
     /// Parameter name.
     pub name: StringId,
@@ -908,7 +1017,7 @@ pub struct TypeIndexSignature {
 
 /// Reflected class or interface member.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct MemberType {
     /// Owner type.
     pub owner: TypeId,
@@ -920,7 +1029,7 @@ pub struct MemberType {
 
 /// Reflected runtime parameter in a function type.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FunctionParameterType {
     /// Parameter type.
     pub ty: TypeId,
@@ -932,7 +1041,7 @@ pub struct FunctionParameterType {
 
 /// Reflected variant case.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct VariantCase {
     /// Case name when one exists.
     pub name: Optional<StringId>,
@@ -942,7 +1051,7 @@ pub struct VariantCase {
 
 /// Reflected program function.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FunctionInfo {
     /// Function display name.
     pub name: StringId,
@@ -985,30 +1094,83 @@ impl FunctionInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BindingInfoBuilder {
     /// Stable runtime binding id.
-    pub id: BindingId,
+    id: BindingId,
     /// Stable runtime binding name.
-    pub name: StringId,
+    name: StringId,
     /// Binding effect category.
-    pub effect: BindingEffect,
+    effect: BindingEffect,
     /// Provider that implements this binding.
-    pub provider: BindingProvider,
+    provider: BindingProvider,
     /// Replay policy for this binding.
-    pub replay: BindingReplay,
+    replay: BindingReplay,
     /// Execution context required by this binding.
-    pub affinity: BindingAffinity,
+    affinity: BindingAffinity,
     /// Required runtime actions.
-    pub requires: Vec<StringId>,
+    requires: Vec<StringId>,
     /// Supported platforms.
-    pub platforms: Vec<StringId>,
+    platforms: Vec<StringId>,
     /// Supported platform families.
-    pub families: Vec<StringId>,
+    families: Vec<StringId>,
     /// Supported host families.
-    pub hosts: Vec<StringId>,
+    hosts: Vec<StringId>,
+}
+
+impl BindingInfoBuilder {
+    /// Create one reflected runtime binding builder.
+    pub fn new(
+        id: BindingId,
+        name: StringId,
+        effect: BindingEffect,
+        provider: BindingProvider,
+        replay: BindingReplay,
+        affinity: BindingAffinity,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            effect,
+            provider,
+            replay,
+            affinity,
+            requires: Vec::new(),
+            platforms: Vec::new(),
+            families: Vec::new(),
+            hosts: Vec::new(),
+        }
+    }
+
+    /// Set required runtime actions.
+    pub fn requires(mut self, requires: impl IntoIterator<Item = StringId>) -> Self {
+        self.requires = requires.into_iter().collect();
+
+        self
+    }
+
+    /// Set supported platforms.
+    pub fn platforms(mut self, platforms: impl IntoIterator<Item = StringId>) -> Self {
+        self.platforms = platforms.into_iter().collect();
+
+        self
+    }
+
+    /// Set supported platform families.
+    pub fn families(mut self, families: impl IntoIterator<Item = StringId>) -> Self {
+        self.families = families.into_iter().collect();
+
+        self
+    }
+
+    /// Set supported host families.
+    pub fn hosts(mut self, hosts: impl IntoIterator<Item = StringId>) -> Self {
+        self.hosts = hosts.into_iter().collect();
+
+        self
+    }
 }
 
 /// Reflected runtime binding declaration.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct BindingInfo {
     /// Stable runtime binding id.
     pub id: BindingId,
@@ -1034,7 +1196,7 @@ pub struct BindingInfo {
 
 /// Binding effect category.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum BindingEffect {
     /// Binding is pure.
     Pure = 0,
@@ -1046,7 +1208,7 @@ pub enum BindingEffect {
 
 /// Binding implementation owner.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum BindingProvider {
     /// Binding is implemented by the host.
     Host = 0,
@@ -1056,7 +1218,7 @@ pub enum BindingProvider {
 
 /// Binding replay policy.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum BindingReplay {
     /// Binding may be recorded and replayed.
     Recordable = 0,
@@ -1066,7 +1228,7 @@ pub enum BindingReplay {
 
 /// Binding execution context.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum BindingAffinity {
     /// Binding has no execution context requirement.
     None = 0,
@@ -1080,14 +1242,31 @@ pub enum BindingAffinity {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameInfoBuilder {
     /// Function owning this frame.
-    pub function: FunctionId,
+    function: FunctionId,
     /// Frame slots.
-    pub slots: Vec<FrameSlotInfo>,
+    slots: Vec<FrameSlotInfo>,
+}
+
+impl FrameInfoBuilder {
+    /// Create one reflected frame layout builder.
+    pub fn new(function: FunctionId) -> Self {
+        Self {
+            function,
+            slots: Vec::new(),
+        }
+    }
+
+    /// Set reflected frame slots.
+    pub fn slots(mut self, slots: impl IntoIterator<Item = FrameSlotInfo>) -> Self {
+        self.slots = slots.into_iter().collect();
+
+        self
+    }
 }
 
 /// Reflected program frame layout.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameInfo {
     /// Function owning this frame.
     pub function: FunctionId,
@@ -1097,7 +1276,7 @@ pub struct FrameInfo {
 
 /// Reflected program frame slot.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameSlotInfo {
     /// Slot type.
     pub ty: TypeId,
@@ -1109,7 +1288,7 @@ pub struct FrameSlotInfo {
 
 /// Reflected global in one program.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct GlobalInfo {
     /// Global display name when one exists.
     pub name: Optional<StringId>,
@@ -1129,53 +1308,8 @@ impl GlobalInfo {
 
 /// Reflected entry point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct EntryInfo {
     /// Entry point.
     pub entry: EntryPoint,
 }
-
-// SAFETY: program reflection entries contain only fixed-width ids, flags, and section ranges.
-unsafe impl SectionEntry for ModuleId {}
-unsafe impl SectionEntry for ModuleInfo {}
-unsafe impl SectionEntry for TypeInfo {}
-unsafe impl SectionEntry for TypeTag {}
-unsafe impl SectionEntry for TypePayload {}
-unsafe impl SectionEntry for PrimitiveType {}
-unsafe impl SectionEntry for PrimitiveTag {}
-unsafe impl SectionEntry for ScalarLiteral {}
-unsafe impl SectionEntry for ScalarLiteralTag {}
-unsafe impl SectionEntry for MemoryLiteral {}
-unsafe impl SectionEntry for MemoryLiteralTag {}
-unsafe impl SectionEntry for Place {}
-unsafe impl SectionEntry for PlaceTag {}
-unsafe impl SectionEntry for Lifetime {}
-unsafe impl SectionEntry for LifetimeTag {}
-unsafe impl SectionEntry for FormType {}
-unsafe impl SectionEntry for Form {}
-unsafe impl SectionEntry for DynamicType {}
-unsafe impl SectionEntry for ArrayType {}
-unsafe impl SectionEntry for FixedArrayType {}
-unsafe impl SectionEntry for RangeType {}
-unsafe impl SectionEntry for SliceType {}
-unsafe impl SectionEntry for FunctionType {}
-unsafe impl SectionEntry for FunctionPointerType {}
-unsafe impl SectionEntry for NewtypeType {}
-unsafe impl SectionEntry for StaticKey {}
-unsafe impl SectionEntry for StaticKeyTag {}
-unsafe impl SectionEntry for TypeField {}
-unsafe impl SectionEntry for TypeElement {}
-unsafe impl SectionEntry for TypeIndexSignature {}
-unsafe impl SectionEntry for MemberType {}
-unsafe impl SectionEntry for FunctionParameterType {}
-unsafe impl SectionEntry for VariantCase {}
-unsafe impl SectionEntry for FunctionInfo {}
-unsafe impl SectionEntry for BindingInfo {}
-unsafe impl SectionEntry for BindingEffect {}
-unsafe impl SectionEntry for BindingProvider {}
-unsafe impl SectionEntry for BindingReplay {}
-unsafe impl SectionEntry for BindingAffinity {}
-unsafe impl SectionEntry for FrameInfo {}
-unsafe impl SectionEntry for FrameSlotInfo {}
-unsafe impl SectionEntry for GlobalInfo {}
-unsafe impl SectionEntry for EntryInfo {}

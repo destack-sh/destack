@@ -56,10 +56,10 @@ pub enum StopReason {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BreakpointId(u64);
 
-/// One executable instruction stop point.
+/// One program instruction stop point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InstructionStop {
-    /// The executable point that can stop.
+    /// The program point that can stop.
     pub point: ProgramPoint,
     /// The reason execution stops at this point.
     pub reason: StopReason,
@@ -74,7 +74,7 @@ pub struct ResumeSkip {
     pub reason: StopReason,
 }
 
-/// Active executable stops sorted by program point.
+/// Active program stops sorted by program point.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StopSet {
     /// Active instruction stop points.
@@ -113,7 +113,7 @@ impl StopSet {
         self.instructions.is_empty()
     }
 
-    /// Return the stop reason at one executable point.
+    /// Return the stop reason at one program point.
     pub fn reason_at(
         &self,
         point: ProgramPoint,
@@ -141,7 +141,7 @@ impl StopSet {
 }
 
 impl StopReason {
-    /// Return the executable point that produced this stop.
+    /// Return the program point that produced this stop.
     pub const fn point(self) -> ProgramPoint {
         match self {
             Self::Instruction { point }

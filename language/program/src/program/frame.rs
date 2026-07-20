@@ -1,29 +1,62 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::TypeId;
+use super::{ProgramPoint, TypeId};
 
-/// Logical frame state id at a resumable program point.
+/// One executable frame state at a program point.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct FrameStateId(pub u32);
 
 /// One physical frame layout.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct FrameLayoutId(pub u32);
 
 /// One physical frame slot.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct FrameSlotId(pub u32);
 
@@ -91,84 +124,25 @@ impl FrameImage {
     }
 }
 
-/// Physical execution frame layout and materialization tables.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+/// Program frame layouts and state tables.
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct FrameTable {
-    /// Frame materializations by frame state id.
-    materializations: SectionSlice<FrameMaterialization>,
+    /// Frame states by frame state id.
+    states: SectionSlice<FrameState>,
     /// Frame layouts by id.
     layouts: SectionSlice<FrameLayout>,
     /// Flattened frame slots.
     slots: SectionSlice<FrameSlot>,
-    /// Flattened copied materialization slots.
-    copied_slots: SectionSlice<FrameSlotId>,
+    /// Flattened live frame slots.
+    live_slots: SectionSlice<FrameSlotId>,
+    /// Frame state ids sorted by program point.
+    points: SectionSlice<FramePoint>,
 }
 
 impl FrameTable {
-    /// Create one frame table from final entry sections.
-    pub fn from_entries(
-        sections: &mut SectionPacker,
-        layouts: &[FrameLayout],
-        materializations: &[FrameMaterialization],
-        slots: &[FrameSlot],
-        copied_slots: &[FrameSlotId],
-    ) -> Self {
-        let materializations = sections.insert(materializations);
-        let layouts = sections.insert(layouts);
-        let slots = sections.insert(slots);
-        let copied_slots = sections.insert(copied_slots);
-
-        Self {
-            materializations,
-            layouts,
-            slots,
-            copied_slots,
-        }
-    }
-
-    /// Pack one frame table from build-time frame entries.
-    pub fn pack(
-        sections: &mut SectionPacker,
-        layouts: Vec<FrameLayoutBuilder>,
-        materializations: Vec<FrameMaterializationBuilder>,
-    ) -> Self {
-        let mut layout_entries = Vec::with_capacity(layouts.len());
-        let mut slots = EntryStore::new();
-        let mut materialization_entries = Vec::with_capacity(materializations.len());
-        let mut copied_slots = EntryStore::new();
-
-        // flatten frame slot payloads
-        for layout in layouts {
-            let slot_range = slots.append(layout.slots);
-
-            layout_entries.push(FrameLayout {
-                slots: slot_range,
-                value_count: layout.value_count,
-                local_count: layout.local_count,
-                environment_slot: layout.environment_slot.into(),
-                byte_len: layout.byte_len,
-            });
-        }
-
-        // flatten materialization payloads
-        for materialization in materializations {
-            let copied_slot_range = copied_slots.append(materialization.copied_slots);
-
-            materialization_entries.push(FrameMaterialization {
-                frame_layout: materialization.frame_layout,
-                copied_slots: copied_slot_range,
-            });
-        }
-
-        Self::from_entries(
-            sections,
-            &layout_entries,
-            &materialization_entries,
-            slots.entries(),
-            copied_slots.entries(),
-        )
-    }
-
     /// Return one frame layout by id.
     pub fn layout<'a>(
         &self,
@@ -178,15 +152,13 @@ impl FrameTable {
         sections.entries(self.layouts).get(layout.0 as usize)
     }
 
-    /// Return one frame materialization by state id.
-    pub fn materialization<'a>(
+    /// Return one frame state by state id.
+    pub fn state<'a>(
         &self,
         sections: SectionImage<'a>,
         state: FrameStateId,
-    ) -> Option<&'a FrameMaterialization> {
-        sections
-            .entries(self.materializations)
-            .get(state.0 as usize)
+    ) -> Option<&'a FrameState> {
+        sections.entries(self.states).get(state.0 as usize)
     }
 
     /// Return one frame slot by id.
@@ -204,21 +176,112 @@ impl FrameTable {
         layout.slots(sections.entries(self.slots))
     }
 
-    /// Return copied slots for one materialization.
-    pub fn copied_slots<'a>(
+    /// Return live slots for one state.
+    pub fn live_slots<'a>(
         &self,
         sections: SectionImage<'a>,
-        materialization: &FrameMaterialization,
+        state: &FrameState,
     ) -> &'a [FrameSlotId] {
-        materialization
-            .copied_slots
-            .slice(sections.entries(self.copied_slots))
+        state.live_slots.slice(sections.entries(self.live_slots))
+    }
+
+    /// Return one frame state id by program point.
+    pub fn state_at(
+        &self,
+        sections: SectionImage<'_>,
+        point: ProgramPoint,
+    ) -> Option<FrameStateId> {
+        let points = sections.entries(self.points);
+        let index = points
+            .binary_search_by_key(&point, |entry| entry.point)
+            .ok()?;
+
+        Some(points[index].frame_state)
+    }
+}
+
+/// Build-time frame layouts and states.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FrameTableBuilder {
+    /// Physical frame layouts by Program frame layout id.
+    layouts: Vec<FrameLayoutBuilder>,
+    /// Frame states by Program frame state id.
+    states: Vec<FrameStateBuilder>,
+}
+
+impl FrameTableBuilder {
+    /// Create an empty frame table builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set physical frame layouts.
+    pub fn layouts(mut self, layouts: impl IntoIterator<Item = FrameLayoutBuilder>) -> Self {
+        self.layouts = layouts.into_iter().collect();
+
+        self
+    }
+
+    /// Set resumable frame states.
+    pub fn states(mut self, states: impl IntoIterator<Item = FrameStateBuilder>) -> Self {
+        self.states = states.into_iter().collect();
+
+        self
+    }
+
+    /// Build this frame table into final program sections.
+    pub(crate) fn build(self, sections: &mut SectionBuilder) -> FrameTable {
+        let mut layouts = Vec::with_capacity(self.layouts.len());
+        let mut slots = EntryStore::new();
+        let mut states = Vec::with_capacity(self.states.len());
+        let mut live_slots = EntryStore::new();
+        let mut points = Vec::with_capacity(self.states.len());
+
+        // flatten frame slot payloads
+        for layout in self.layouts {
+            let slot_range = slots.append(layout.slots);
+
+            layouts.push(FrameLayout {
+                slots: slot_range,
+                value_count: layout.value_count,
+                local_count: layout.local_count,
+                environment_slot: layout.environment_slot.into(),
+                byte_len: layout.byte_len,
+            });
+        }
+
+        // flatten state payloads
+        for (index, state) in self.states.into_iter().enumerate() {
+            let live_slot_range = live_slots.append(state.live_slots);
+            let frame_state = FrameStateId(index as u32);
+
+            states.push(FrameState {
+                point: state.point,
+                frame_layout: state.frame_layout,
+                live_slots: live_slot_range,
+            });
+            points.push(FramePoint {
+                point: state.point,
+                frame_state,
+            });
+        }
+
+        // sort the point index for binary search
+        points.sort_unstable_by_key(|entry| entry.point);
+
+        FrameTable {
+            states: sections.insert(states),
+            layouts: sections.insert(layouts),
+            slots: sections.insert(slots.into_entries()),
+            live_slots: sections.insert(live_slots.into_entries()),
+            points: sections.insert(points),
+        }
     }
 }
 
 /// Physical storage slot inside one frame.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameSlot {
     /// The byte offset from the frame base.
     pub offset: u32,
@@ -239,7 +302,7 @@ impl FrameSlot {
 
 /// Physical byte layout for one frame.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameLayout {
     /// Slots in frame order.
     pub slots: EntryRange<FrameSlot>,
@@ -290,7 +353,7 @@ impl FrameLayout {
     }
 
     /// Return the SSA value addressed by one slot id.
-    pub fn value_for_slot(&self, id: FrameSlotId) -> Option<u32> {
+    pub fn slot_value(&self, id: FrameSlotId) -> Option<u32> {
         if id.0 < self.value_count {
             Some(id.0)
         } else {
@@ -299,7 +362,7 @@ impl FrameLayout {
     }
 
     /// Return the local addressed by one slot id.
-    pub fn local_for_slot(&self, id: FrameSlotId) -> Option<u32> {
+    pub fn slot_local(&self, id: FrameSlotId) -> Option<u32> {
         if id.0 < self.value_count {
             return None;
         }
@@ -353,54 +416,105 @@ impl FrameLayout {
     }
 }
 
-/// Plan for reconstructing one execution frame.
+/// Live frame slots at one program point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FrameMaterialization {
-    /// The reconstructed frame layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct FrameState {
+    /// The program point represented by this state.
+    pub point: ProgramPoint,
+    /// The frame layout.
     pub frame_layout: FrameLayoutId,
-    /// Frame slots copied into the materialized frame.
-    pub copied_slots: EntryRange<FrameSlotId>,
+    /// The live frame slots.
+    pub live_slots: EntryRange<FrameSlotId>,
 }
 
-// SAFETY: frame ids, slots, layouts, and materializations are fixed-width entries.
-unsafe impl SectionEntry for FrameStateId {}
-unsafe impl SectionEntry for FrameLayoutId {}
-unsafe impl SectionEntry for FrameSlotId {}
-unsafe impl SectionEntry for FrameSlot {}
-unsafe impl SectionEntry for FrameLayout {}
-unsafe impl SectionEntry for FrameMaterialization {}
+/// Dense frame state lookup entry.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct FramePoint {
+    /// The indexed program point.
+    pub point: ProgramPoint,
+    /// The frame state at that point.
+    pub frame_state: FrameStateId,
+}
 
-impl FrameMaterialization {
-    /// Return each source frame slot once.
-    pub fn copied_slots<'a>(
+impl FrameState {
+    /// Return each live frame slot once.
+    pub fn live_slots<'a>(
         &self,
         slots: &'a [FrameSlotId],
     ) -> impl Iterator<Item = FrameSlotId> + 'a {
-        self.copied_slots.slice(slots).iter().copied()
+        self.live_slots.slice(slots).iter().copied()
     }
 }
 
 /// Build-time physical byte layout for one frame.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameLayoutBuilder {
     /// Slots in frame order.
-    pub slots: Vec<FrameSlot>,
+    slots: Vec<FrameSlot>,
     /// Number of SSA value slots.
-    pub value_count: u32,
+    value_count: u32,
     /// Number of local slots.
-    pub local_count: u32,
+    local_count: u32,
     /// Callable environment slot.
-    pub environment_slot: Option<FrameSlotId>,
+    environment_slot: Option<FrameSlotId>,
     /// The frame byte length.
-    pub byte_len: u32,
+    byte_len: u32,
 }
 
-/// Build-time plan for reconstructing one execution frame.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FrameMaterializationBuilder {
-    /// The reconstructed frame layout.
-    pub frame_layout: FrameLayoutId,
-    /// Frame slots copied into the materialized frame.
-    pub copied_slots: Vec<FrameSlotId>,
+impl FrameLayoutBuilder {
+    /// Create one physical frame layout builder.
+    pub fn new(value_count: u32, local_count: u32, byte_len: u32) -> Self {
+        Self {
+            slots: Vec::new(),
+            value_count,
+            local_count,
+            environment_slot: None,
+            byte_len,
+        }
+    }
+
+    /// Set frame slots in physical order.
+    pub fn slots(mut self, slots: impl IntoIterator<Item = FrameSlot>) -> Self {
+        self.slots = slots.into_iter().collect();
+
+        self
+    }
+
+    /// Set the callable environment slot.
+    pub fn environment_slot(mut self, environment_slot: FrameSlotId) -> Self {
+        self.environment_slot = Some(environment_slot);
+
+        self
+    }
+}
+
+/// Build-time live frame slots at one program point.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FrameStateBuilder {
+    /// The program point represented by this state.
+    point: ProgramPoint,
+    /// The frame layout.
+    frame_layout: FrameLayoutId,
+    /// The live frame slots.
+    live_slots: Vec<FrameSlotId>,
+}
+
+impl FrameStateBuilder {
+    /// Create one live frame state builder.
+    pub fn new(point: ProgramPoint, frame_layout: FrameLayoutId) -> Self {
+        Self {
+            point,
+            frame_layout,
+            live_slots: Vec::new(),
+        }
+    }
+
+    /// Set live frame slots.
+    pub fn live_slots(mut self, live_slots: impl IntoIterator<Item = FrameSlotId>) -> Self {
+        self.live_slots = live_slots.into_iter().collect();
+
+        self
+    }
 }

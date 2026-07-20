@@ -1,13 +1,14 @@
+use destack_bytecode::Word;
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::vm::Error;
+use crate::Error;
 
-use super::{BindingId, TypeId};
+use super::{BindingId, FrameLayoutId, TypeId};
 
 /// Durable runtime function id inside one program.
 #[repr(transparent)]
@@ -24,6 +25,7 @@ use super::{BindingId, TypeId};
     Serialize,
     Deserialize,
     Reflect,
+    SectionEntry,
 )]
 pub struct FunctionId(pub u32);
 
@@ -48,70 +50,69 @@ impl From<FunctionId> for u32 {
     }
 }
 
+impl From<Word> for FunctionId {
+    /// Decode one function pointer word.
+    fn from(word: Word) -> Self {
+        Self(word.bits() as u32)
+    }
+}
+
+impl From<FunctionId> for Word {
+    /// Encode one function pointer word.
+    fn from(function: FunctionId) -> Self {
+        Self::from_bits(function.0 as u64)
+    }
+}
+
 /// Function table carried by one durable program.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct FunctionTable {
+    /// Dense signature entries keyed by signature id.
+    signatures: SectionSlice<SignatureEntry>,
     /// Dense function entries keyed by program function id.
-    functions: SectionSlice<Optional<Function>>,
+    functions: SectionSlice<Function>,
     /// Flattened function parameter types.
     parameters: SectionSlice<TypeId>,
     /// Exported function names.
     exports: SectionSlice<FunctionExport>,
+    /// Functions backed by runtime bindings.
+    bindings: SectionSlice<FunctionBinding>,
 }
 
 impl FunctionTable {
-    /// Pack one function table.
-    pub fn pack(
-        sections: &mut SectionPacker,
-        functions: Vec<Option<FunctionBuilder>>,
-        exports: Vec<FunctionExport>,
-    ) -> Self {
-        let mut entries = Vec::with_capacity(functions.len());
-        let mut parameters = EntryStore::new();
-
-        // flatten variable function payloads
-        for function in functions {
-            let entry = match function {
-                Some(function) => {
-                    let parameters = parameters.append(function.signature.parameters);
-                    let function = Function {
-                        name: function.name,
-                        signature: FunctionSignature {
-                            parameters,
-                            result: function.signature.result,
-                        },
-                        environment: function.environment.into(),
-                        binding: function.binding.into(),
-                    };
-
-                    Optional::some(function)
-                }
-                None => Optional::none(),
-            };
-
-            entries.push(entry);
-        }
-
-        let functions = sections.insert(entries);
-        let parameters = sections.insert(parameters.into_entries());
-        let exports = sections.insert(exports);
-
-        Self {
-            functions,
-            parameters,
-            exports,
-        }
-    }
-
-    /// Return one function record.
+    /// Return one function entry.
     pub fn get<'a>(
         &self,
         sections: SectionImage<'a>,
         function: FunctionId,
     ) -> Option<&'a Function> {
-        self.entries(sections)
-            .get(function.index())
-            .and_then(Optional::as_ref)
+        self.entries(sections).get(function.index())
+    }
+
+    /// Return one callable signature entry.
+    pub fn signature<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        signature: SignatureId,
+    ) -> Option<&'a SignatureEntry> {
+        sections.entries(self.signatures).get(signature.index())
+    }
+
+    /// Expand one callable signature into its owned form.
+    pub fn expand_signature(
+        &self,
+        sections: SectionImage<'_>,
+        signature: SignatureId,
+    ) -> Option<Signature> {
+        let signature = self.signature(sections, signature)?;
+
+        Some(Signature {
+            parameters: self.parameters(sections, signature).to_vec(),
+            result: signature.result,
+        })
     }
 
     /// Resolve one exported function id by name.
@@ -122,57 +123,48 @@ impl FunctionTable {
             .find_map(|export| (export.name == name).then_some(export.function))
     }
 
-    /// Check that one function matches one bare signature type.
-    pub fn check_signature(
-        &self,
-        sections: SectionImage<'_>,
-        function: FunctionId,
-        signature: &Signature,
-    ) -> Result<(), Error> {
-        let function_id = function;
-        let function = self
-            .get(sections, function)
-            .ok_or_else(|| Error::undefined_function(function))?;
+    /// Return the runtime binding attached to one function.
+    pub fn binding(&self, sections: SectionImage<'_>, function: FunctionId) -> Option<BindingId> {
+        let bindings = sections.entries(self.bindings);
+        let index = bindings
+            .binary_search_by_key(&function, |entry| entry.function)
+            .ok()?;
 
-        if function.matches_signature(signature, sections.entries(self.parameters)) {
-            return Ok(());
-        }
-
-        let actual = function.signature(sections.entries(self.parameters));
-
-        Err(Error::function_signature_mismatch(
-            function_id,
-            signature.clone(),
-            actual,
-        ))
+        Some(bindings[index].binding)
     }
 
-    /// Check that one function matches one packed signature entry.
-    pub fn check_signature_entry(
+    /// Check that one function matches one call signature.
+    pub fn check_signature<I>(
         &self,
         sections: SectionImage<'_>,
         function: FunctionId,
-        signature: FunctionSignature,
-        signature_parameters: &[TypeId],
-    ) -> Result<(), Error> {
+        result: TypeId,
+        parameters: I,
+    ) -> Result<(), Error>
+    where
+        I: Clone + Iterator<Item = TypeId>,
+    {
         let function_id = function;
         let function = self
             .get(sections, function)
             .ok_or_else(|| Error::undefined_function(function))?;
+        let signature = self
+            .signature(sections, function.signature)
+            .ok_or_else(|| Error::undefined_signature(function.signature))?;
+        let actual_parameters = self.parameters(sections, signature);
 
-        if function.matches_signature_entry(
-            signature,
-            signature_parameters,
-            sections.entries(self.parameters),
-        ) {
+        if signature.result == result && actual_parameters.iter().copied().eq(parameters.clone()) {
             return Ok(());
         }
 
         let expected = Signature {
-            parameters: signature_parameters.to_vec(),
+            parameters: parameters.collect(),
+            result,
+        };
+        let actual = Signature {
+            parameters: actual_parameters.to_vec(),
             result: signature.result,
         };
-        let actual = function.signature(sections.entries(self.parameters));
 
         Err(Error::function_signature_mismatch(
             function_id,
@@ -182,14 +174,17 @@ impl FunctionTable {
     }
 
     /// Return all function entries.
-    pub fn entries<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Function>] {
+    pub fn entries<'a>(&self, sections: SectionImage<'a>) -> &'a [Function] {
         sections.entries(self.functions)
     }
 
-    /// Return this function's parameter types.
-    pub fn parameters<'a>(&self, sections: SectionImage<'a>, function: &Function) -> &'a [TypeId] {
-        function
-            .signature
+    /// Return one signature's parameter types.
+    pub fn parameters<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        signature: &SignatureEntry,
+    ) -> &'a [TypeId] {
+        signature
             .parameters
             .slice(sections.entries(self.parameters))
     }
@@ -197,78 +192,105 @@ impl FunctionTable {
 
 /// Exported function name.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FunctionExport {
     /// Exported function name.
     pub name: StringId,
     /// Exported function id.
     pub function: FunctionId,
+    /// Reserved export word.
+    reserved: u32,
 }
 
-/// Program function record.
+impl FunctionExport {
+    /// Create one exported function name.
+    pub const fn new(name: StringId, function: FunctionId) -> Self {
+        Self {
+            name,
+            function,
+            reserved: 0,
+        }
+    }
+}
+
+/// Runtime binding attached to one function.
+#[repr(C, align(16))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct FunctionBinding {
+    /// Stable runtime binding id.
+    pub binding: BindingId,
+    /// The bound function.
+    pub function: FunctionId,
+    /// Reserved binding words.
+    reserved: [u32; 3],
+}
+
+impl FunctionBinding {
+    /// Create one function binding entry.
+    pub const fn new(function: FunctionId, binding: BindingId) -> Self {
+        Self {
+            binding,
+            function,
+            reserved: [0; 3],
+        }
+    }
+}
+
+/// Program function entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Function {
     /// The source-facing function name.
     pub name: StringId,
-    /// Function call signature.
-    pub signature: FunctionSignature,
     /// Captured closure environment type when one exists.
     pub environment: Optional<TypeId>,
-    /// Runtime binding id attached to this function when one exists.
-    pub binding: Optional<BindingId>,
+    /// Function call signature.
+    pub signature: SignatureId,
+    /// Physical runtime frame layout when this function has one.
+    pub frame_layout: Optional<FrameLayoutId>,
+    /// Reserved function word.
+    reserved: u32,
 }
 
 impl Function {
-    /// Return this function's expanded signature.
-    pub fn signature(&self, parameters: &[TypeId]) -> Signature {
-        Signature {
-            parameters: self.signature.parameters.slice(parameters).to_vec(),
-            result: self.signature.result,
-        }
-    }
-
-    /// Return whether this function matches one function signature type.
-    fn matches_signature(&self, signature: &Signature, parameters: &[TypeId]) -> bool {
-        let actual = self.signature(parameters);
-
-        actual == *signature
-    }
-
-    /// Return whether this function matches one packed signature entry.
-    fn matches_signature_entry(
-        &self,
-        signature: FunctionSignature,
-        expected_parameters: &[TypeId],
-        parameters: &[TypeId],
-    ) -> bool {
-        let actual = self.signature(parameters);
-
-        actual.parameters == expected_parameters && actual.result == signature.result
-    }
-
     /// Return the closure environment type when one exists.
     pub fn environment(&self) -> Option<TypeId> {
         self.environment.get()
     }
 
-    /// Return this function's runtime binding id when one exists.
-    pub fn binding_id(&self) -> Option<BindingId> {
-        self.binding.get()
+    /// Return the physical frame layout when this function has one.
+    pub fn frame_layout(&self) -> Option<FrameLayoutId> {
+        self.frame_layout.get()
     }
 }
 
-/// Packed function signature entry.
+/// Durable id for one callable signature.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct SignatureId(pub u32);
+
+impl SignatureId {
+    /// Return this id as a dense table index.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// Packed callable signature entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FunctionSignature {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct SignatureEntry {
     /// Parameter types.
     pub parameters: EntryRange<TypeId>,
     /// Return type.
     pub result: TypeId,
+    /// Reserved signature word.
+    reserved: u32,
 }
 
-/// Build-time callable signature.
+/// Owned logical runtime signature.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Signature {
     /// Parameter types.
@@ -277,21 +299,138 @@ pub struct Signature {
     pub result: TypeId,
 }
 
-/// Build-time function record.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FunctionBuilder {
-    /// The source-facing function name.
-    pub name: StringId,
-    /// Function call signature.
-    pub signature: Signature,
-    /// Captured closure environment type when one exists.
-    pub environment: Option<TypeId>,
-    /// Runtime binding id attached to this function when one exists.
-    pub binding: Option<BindingId>,
+/// Build-time function table.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FunctionTableBuilder {
+    /// Callable signatures in dense id order.
+    signatures: Vec<Signature>,
+    /// Function entries in dense id order.
+    functions: Vec<FunctionBuilder>,
+    /// Exported function names.
+    exports: Vec<FunctionExport>,
 }
 
-// SAFETY: function ids, exports, signatures, and entries are fixed-width.
-unsafe impl SectionEntry for FunctionId {}
-unsafe impl SectionEntry for FunctionExport {}
-unsafe impl SectionEntry for Function {}
-unsafe impl SectionEntry for FunctionSignature {}
+impl FunctionTableBuilder {
+    /// Create an empty function table builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set callable signatures in dense id order.
+    pub fn signatures(mut self, signatures: impl IntoIterator<Item = Signature>) -> Self {
+        self.signatures = signatures.into_iter().collect();
+
+        self
+    }
+
+    /// Set function entries in dense id order.
+    pub fn functions(mut self, functions: impl IntoIterator<Item = FunctionBuilder>) -> Self {
+        self.functions = functions.into_iter().collect();
+
+        self
+    }
+
+    /// Set exported function names.
+    pub fn exports(mut self, exports: impl IntoIterator<Item = FunctionExport>) -> Self {
+        self.exports = exports.into_iter().collect();
+
+        self
+    }
+
+    /// Build this function table into program sections.
+    pub(crate) fn build(self, sections: &mut SectionBuilder) -> FunctionTable {
+        let mut signatures = Vec::with_capacity(self.signatures.len());
+        let mut functions = Vec::with_capacity(self.functions.len());
+        let mut bindings = Vec::new();
+        let mut parameters = EntryStore::new();
+
+        // flatten variable signature payloads
+        for signature in self.signatures {
+            signatures.push(SignatureEntry {
+                parameters: parameters.append(signature.parameters),
+                result: signature.result,
+                reserved: 0,
+            });
+        }
+
+        // build fixed function entries
+        for function in self.functions {
+            let function_id = FunctionId(functions.len() as u32);
+            if let Some(binding) = function.binding {
+                bindings.push(FunctionBinding::new(function_id, binding));
+            }
+
+            functions.push(Function {
+                name: function.name,
+                environment: function.environment.into(),
+                signature: function.signature,
+                frame_layout: function.frame_layout.into(),
+                reserved: 0,
+            });
+        }
+
+        FunctionTable {
+            signatures: sections.insert(signatures),
+            functions: sections.insert(functions),
+            parameters: sections.insert(parameters.into_entries()),
+            exports: sections.insert(self.exports),
+            bindings: sections.insert(bindings),
+        }
+    }
+}
+
+const _: () = assert!(size_of::<FunctionTable>() == 80);
+const _: () = assert!(size_of::<FunctionExport>() == 16);
+const _: () = assert!(size_of::<FunctionBinding>() == 32);
+const _: () = assert!(size_of::<Function>() == 32);
+const _: () = assert!(size_of::<SignatureId>() == 4);
+const _: () = assert!(size_of::<SignatureEntry>() == 16);
+
+/// Build-time function entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionBuilder {
+    /// The source-facing function name.
+    name: StringId,
+    /// Function call signature.
+    signature: SignatureId,
+    /// Captured closure environment type when one exists.
+    environment: Option<TypeId>,
+    /// Physical runtime frame layout when this function has one.
+    frame_layout: Option<FrameLayoutId>,
+    /// Runtime binding id attached to this function when one exists.
+    binding: Option<BindingId>,
+}
+
+impl FunctionBuilder {
+    /// Create one function entry builder.
+    pub fn new(name: StringId, signature: SignatureId) -> Self {
+        Self {
+            name,
+            signature,
+            environment: None,
+            frame_layout: None,
+            binding: None,
+        }
+    }
+
+    /// Set the captured closure environment type.
+    pub fn environment(mut self, environment: TypeId) -> Self {
+        self.environment = Some(environment);
+
+        self
+    }
+
+    /// Set the physical frame layout used to execute this function.
+    pub fn frame_layout(mut self, frame_layout: FrameLayoutId) -> Self {
+        self.frame_layout = Some(frame_layout);
+
+        self
+    }
+
+    /// Set the attached runtime binding.
+    pub fn binding(mut self, binding: BindingId) -> Self {
+        self.binding = Some(binding);
+
+        self
+    }
+}

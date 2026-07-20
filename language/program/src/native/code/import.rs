@@ -1,22 +1,46 @@
-use destack_core::{Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice, StringId};
+use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Native imports required by one native code payload.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct ImportTable {
     /// Native imports in linker order.
     import: SectionSlice<Import>,
 }
 
-impl ImportTable {
-    /// Pack one native import table.
-    pub fn pack(sections: &mut SectionPacker, import: Vec<Import>) -> Self {
-        Self {
-            import: sections.insert(import),
-        }
+/// Build-time native import table.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportTableBuilder {
+    /// Native imports in linker order.
+    imports: Vec<Import>,
+}
+
+impl ImportTableBuilder {
+    /// Create an empty native import table builder.
+    pub fn new() -> Self {
+        Self::default()
     }
 
+    /// Set native imports in linker order.
+    pub fn imports(mut self, imports: impl IntoIterator<Item = Import>) -> Self {
+        self.imports = imports.into_iter().collect();
+
+        self
+    }
+
+    /// Build this import table into program sections.
+    pub(super) fn build(self, sections: &mut SectionBuilder) -> ImportTable {
+        ImportTable {
+            import: sections.insert(self.imports),
+        }
+    }
+}
+
+impl ImportTable {
     /// Create one empty native import table.
     pub fn empty() -> Self {
         Self::default()
@@ -30,7 +54,7 @@ impl ImportTable {
 
 /// One native import required by generated native code.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Import {
     /// Import kind.
     kind: ImportKind,
@@ -80,7 +104,7 @@ impl Import {
 
 /// Native import kind.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum ImportKind {
     /// Fixed runtime binding import.
     Runtime = 0,
@@ -90,7 +114,7 @@ pub enum ImportKind {
 
 /// External linker-visible symbol import.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct SymbolImport {
     /// The imported native symbol.
     pub symbol: StringId,
@@ -105,7 +129,9 @@ impl SymbolImport {
 
 /// Fixed Destack runtime ABI binding imported by generated native code.
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum RuntimeBinding {
     /// Heap object allocation through the runtime.
     Allocate,
@@ -125,7 +151,7 @@ pub enum RuntimeBinding {
     Yield,
     /// Stop execution for host inspection.
     Stop,
-    /// Native to VM deoptimization.
+    /// Native to bytecode deoptimization.
     Deopt,
     /// Native trap exit.
     Trap,
@@ -176,9 +202,3 @@ impl RuntimeBinding {
         }
     }
 }
-
-// SAFETY: native import entries are fixed-width program entries.
-unsafe impl SectionEntry for Import {}
-unsafe impl SectionEntry for ImportKind {}
-unsafe impl SectionEntry for SymbolImport {}
-unsafe impl SectionEntry for RuntimeBinding {}

@@ -1,5 +1,5 @@
 use destack_core::{
-    EntryRange, EntryStore, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
 };
 use destack_heap::DropId;
 use destack_serde::Reflect;
@@ -9,7 +9,9 @@ use super::LayoutId;
 
 /// Durable 32-bit runtime type id inside one program.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct TypeId(pub u32);
 
 impl TypeId {
@@ -34,7 +36,8 @@ impl From<TypeId> for u32 {
 }
 
 /// Runtime type table carried by one durable program.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypeTable {
     /// Dense runtime type descriptors keyed by program type id.
     descriptors: SectionSlice<TypeDescriptor>,
@@ -44,7 +47,10 @@ pub struct TypeTable {
 
 impl TypeTable {
     /// Pack one runtime type table.
-    pub fn pack(sections: &mut SectionPacker, descriptors: Vec<TypeDescriptorBuilder>) -> Self {
+    pub(crate) fn pack(
+        sections: &mut SectionBuilder,
+        descriptors: Vec<TypeDescriptorBuilder>,
+    ) -> Self {
         let mut entries = Vec::with_capacity(descriptors.len());
         let mut supertypes = EntryStore::new();
 
@@ -55,7 +61,7 @@ impl TypeTable {
             entries.push(TypeDescriptor {
                 layout: descriptor.layout,
                 supertypes: supertype_range,
-                drop: descriptor.drop,
+                drop: descriptor.drop.into(),
             });
         }
 
@@ -88,16 +94,16 @@ impl TypeTable {
         sections: SectionImage<'_>,
         concrete: TypeId,
         expected: TypeId,
-    ) -> Option<bool> {
-        self.descriptor(sections, expected)?;
+    ) -> Result<bool, TypeId> {
+        self.descriptor(sections, expected).ok_or(expected)?;
 
         if concrete == expected {
-            return Some(true);
+            return Ok(true);
         }
 
-        let descriptor = self.descriptor(sections, concrete)?;
+        let descriptor = self.descriptor(sections, concrete).ok_or(concrete)?;
 
-        Some(self.supertypes(sections, descriptor).contains(&expected))
+        Ok(self.supertypes(sections, descriptor).contains(&expected))
     }
 
     /// Return flattened runtime supertypes for one descriptor.
@@ -114,34 +120,55 @@ impl TypeTable {
 
 /// Runtime type descriptor required by program code.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypeDescriptor {
     /// The resolved runtime storage layout.
     pub layout: LayoutId,
     /// Flattened runtime supertypes satisfied by this type.
     pub supertypes: EntryRange<TypeId>,
     /// Destructor when this type requires cleanup.
-    pub drop: Option<DropId>,
+    pub drop: Optional<DropId>,
 }
 
 impl TypeDescriptor {
     /// Return the complete drop identity when this type requires cleanup.
     pub const fn drop_id(self) -> Option<DropId> {
-        self.drop
+        self.drop.get()
     }
 }
 
 /// Build-time runtime type descriptor.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeDescriptorBuilder {
     /// The resolved runtime storage layout.
-    pub layout: LayoutId,
+    layout: LayoutId,
     /// Flattened runtime supertypes satisfied by this type.
-    pub supertypes: Vec<TypeId>,
+    supertypes: Vec<TypeId>,
     /// Complete drop identity when this type requires cleanup.
-    pub drop: Option<DropId>,
+    drop: Option<DropId>,
 }
 
-// SAFETY: type ids and descriptors are fixed-width program entries.
-unsafe impl SectionEntry for TypeId {}
-unsafe impl SectionEntry for TypeDescriptor {}
+impl TypeDescriptorBuilder {
+    /// Create one runtime type descriptor builder.
+    pub fn new(layout: LayoutId) -> Self {
+        Self {
+            layout,
+            supertypes: Vec::new(),
+            drop: None,
+        }
+    }
+
+    /// Set runtime supertypes satisfied by this type.
+    pub fn supertypes(mut self, supertypes: impl IntoIterator<Item = TypeId>) -> Self {
+        self.supertypes = supertypes.into_iter().collect();
+
+        self
+    }
+
+    /// Set the destructor required by this type.
+    pub fn drop(mut self, drop: DropId) -> Self {
+        self.drop = Some(drop);
+
+        self
+    }
+}

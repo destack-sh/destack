@@ -1,5 +1,5 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 use crate::{FrameStateId, FunctionId, TypeId};
 
 /// Native code map for entries, safepoints, roots, and deoptimization.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct CodeMap {
     /// Native function code ranges.
     function: SectionSlice<FunctionCode>,
@@ -19,29 +22,67 @@ pub struct CodeMap {
     root: SectionSlice<NativeRoot>,
 }
 
-impl CodeMap {
-    /// Pack one native code map.
-    pub fn pack(
-        sections: &mut SectionPacker,
-        function: Vec<FunctionCode>,
-        resume: Vec<ResumeCode>,
-        safepoint: Vec<Option<SafepointBuilder>>,
+/// Build-time native code map.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CodeMapBuilder {
+    /// Native function code ranges.
+    functions: Vec<FunctionCode>,
+    /// Native continuation resume code ranges.
+    resumes: Vec<ResumeCode>,
+    /// Native safepoints keyed by safepoint id.
+    safepoints: Vec<Option<SafepointBuilder>>,
+}
+
+impl CodeMapBuilder {
+    /// Create an empty native code map builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set native function code ranges.
+    pub fn functions(mut self, functions: impl IntoIterator<Item = FunctionCode>) -> Self {
+        self.functions = functions.into_iter().collect();
+
+        self
+    }
+
+    /// Set native continuation resume code ranges.
+    pub fn resumes(mut self, resumes: impl IntoIterator<Item = ResumeCode>) -> Self {
+        self.resumes = resumes.into_iter().collect();
+
+        self
+    }
+
+    /// Set native safepoints in dense id order.
+    pub fn safepoints(
+        mut self,
+        safepoints: impl IntoIterator<Item = Option<SafepointBuilder>>,
     ) -> Self {
+        self.safepoints = safepoints.into_iter().collect();
+
+        self
+    }
+
+    /// Build this code map into program sections.
+    pub(super) fn build(self, sections: &mut SectionBuilder) -> CodeMap {
         let mut roots = EntryStore::<NativeRoot>::new();
-        let safepoint = safepoint
+        let safepoints = self
+            .safepoints
             .into_iter()
             .map(|safepoint| safepoint.map(|safepoint| safepoint.build(&mut roots)))
             .map(Optional::from)
             .collect::<Vec<_>>();
 
-        Self {
-            function: sections.insert(function),
-            resume: sections.insert(resume),
-            safepoint: sections.insert(safepoint),
+        CodeMap {
+            function: sections.insert(self.functions),
+            resume: sections.insert(self.resumes),
+            safepoint: sections.insert(safepoints),
             root: sections.insert(roots.into_entries()),
         }
     }
+}
 
+impl CodeMap {
     /// Create one empty native code map.
     pub fn empty() -> Self {
         Self::default()
@@ -78,7 +119,9 @@ impl CodeMap {
 
 /// One native function code range.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct FunctionCode {
     /// The function covered by this range.
     pub function: FunctionId,
@@ -95,7 +138,7 @@ impl FunctionCode {
 
 /// One native resume entry code range.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct ResumeCode {
     /// The frame state resumed by this range.
     pub frame_state: FrameStateId,
@@ -112,7 +155,9 @@ impl ResumeCode {
 
 /// One native image byte range.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct CodeRange {
     /// The byte offset from the native image base.
     pub offset: u32,
@@ -129,7 +174,7 @@ impl CodeRange {
 
 /// One native safepoint.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Safepoint {
     /// The safepoint id passed through the native ABI.
     pub id: u32,
@@ -137,7 +182,7 @@ pub struct Safepoint {
     pub function: FunctionId,
     /// The byte offset from the native image base.
     pub offset: u32,
-    /// The VM frame state corresponding to this safepoint.
+    /// The runtime frame state corresponding to this safepoint.
     pub frame_state: FrameStateId,
     /// Native roots live at this safepoint.
     pub roots: EntryRange<NativeRoot>,
@@ -146,40 +191,47 @@ pub struct Safepoint {
 }
 
 /// Mutable native safepoint before section flattening.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SafepointBuilder {
     /// The safepoint id passed through the native ABI.
-    pub id: u32,
+    id: u32,
     /// The function containing this safepoint.
-    pub function: FunctionId,
+    function: FunctionId,
     /// The byte offset from the native image base.
-    pub offset: u32,
-    /// The VM frame state corresponding to this safepoint.
-    pub frame_state: FrameStateId,
+    offset: u32,
+    /// The runtime frame state corresponding to this safepoint.
+    frame_state: FrameStateId,
     /// Native roots live at this safepoint.
-    pub roots: Vec<NativeRoot>,
+    roots: Vec<NativeRoot>,
     /// Materialization target when this safepoint can deoptimize.
-    pub deopt: Option<FrameStateId>,
+    deopt: Option<FrameStateId>,
 }
 
 impl SafepointBuilder {
     /// Create one native safepoint.
-    pub fn new(
-        id: u32,
-        function: FunctionId,
-        offset: u32,
-        frame_state: FrameStateId,
-        roots: Vec<NativeRoot>,
-        deopt: Option<FrameStateId>,
-    ) -> Self {
+    pub fn new(id: u32, function: FunctionId, offset: u32, frame_state: FrameStateId) -> Self {
         Self {
             id,
             function,
             offset,
             frame_state,
-            roots,
-            deopt,
+            roots: Vec::new(),
+            deopt: None,
         }
+    }
+
+    /// Set native roots live at this safepoint.
+    pub fn roots(mut self, roots: impl IntoIterator<Item = NativeRoot>) -> Self {
+        self.roots = roots.into_iter().collect();
+
+        self
+    }
+
+    /// Set the materialization target.
+    pub fn deopt(mut self, deopt: FrameStateId) -> Self {
+        self.deopt = Some(deopt);
+
+        self
     }
 
     /// Build this safepoint into one section entry.
@@ -199,20 +251,13 @@ impl SafepointBuilder {
 
 /// One native root location at one safepoint.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct NativeRoot {
     /// Signed byte offset from the native frame base.
     pub offset: i32,
     /// The root value type.
     pub ty: TypeId,
 }
-
-// SAFETY: native code map entries contain only fixed-width ids, offsets, and section ranges.
-unsafe impl SectionEntry for FunctionCode {}
-unsafe impl SectionEntry for ResumeCode {}
-unsafe impl SectionEntry for CodeRange {}
-unsafe impl SectionEntry for Safepoint {}
-unsafe impl SectionEntry for NativeRoot {}
 
 impl NativeRoot {
     /// Create one native root location.

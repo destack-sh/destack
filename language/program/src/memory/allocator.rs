@@ -1,4 +1,4 @@
-use destack_core::SectionPacker;
+use destack_core::SectionBuilder;
 
 use crate::StaticImage;
 
@@ -28,7 +28,7 @@ impl GlobalAllocator {
     }
 
     /// Finish static memory.
-    pub fn finish(self, sections: &mut SectionPacker) -> StaticImage {
+    pub fn finish(self, sections: &mut SectionBuilder) -> StaticImage {
         StaticImage::pack(sections, self.bytes)
     }
 }

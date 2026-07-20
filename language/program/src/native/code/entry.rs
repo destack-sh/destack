@@ -1,11 +1,12 @@
-use destack_core::{Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice, StringId};
+use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{FrameStateId, FunctionId};
 
 /// Native entry table keyed by program ids.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct EntryTable {
     /// Native function entries keyed by program function id.
     pub(super) function: SectionSlice<Optional<Entry>>,
@@ -13,22 +14,56 @@ pub struct EntryTable {
     pub(super) resume: SectionSlice<Optional<Resume>>,
 }
 
-impl EntryTable {
-    /// Pack one native entry table.
-    pub fn pack(
-        sections: &mut SectionPacker,
-        function: Vec<Option<Entry>>,
-        resume: Vec<Option<Resume>>,
-    ) -> Self {
-        let function = function.into_iter().map(Optional::from).collect::<Vec<_>>();
-        let resume = resume.into_iter().map(Optional::from).collect::<Vec<_>>();
+/// Build-time native entry table.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EntryTableBuilder {
+    /// Function entries in dense program function id order.
+    functions: Vec<Option<Entry>>,
+    /// Resume entries in dense frame state id order.
+    resumes: Vec<Option<Resume>>,
+}
 
-        Self {
-            function: sections.insert(function),
-            resume: sections.insert(resume),
-        }
+impl EntryTableBuilder {
+    /// Create an empty native entry table builder.
+    pub fn new() -> Self {
+        Self::default()
     }
 
+    /// Set function entries in dense program function id order.
+    pub fn functions(mut self, functions: impl IntoIterator<Item = Option<Entry>>) -> Self {
+        self.functions = functions.into_iter().collect();
+
+        self
+    }
+
+    /// Set resume entries in dense frame state id order.
+    pub fn resumes(mut self, resumes: impl IntoIterator<Item = Option<Resume>>) -> Self {
+        self.resumes = resumes.into_iter().collect();
+
+        self
+    }
+
+    /// Build this entry table into program sections.
+    pub(super) fn build(self, sections: &mut SectionBuilder) -> EntryTable {
+        let functions = self
+            .functions
+            .into_iter()
+            .map(Optional::from)
+            .collect::<Vec<_>>();
+        let resumes = self
+            .resumes
+            .into_iter()
+            .map(Optional::from)
+            .collect::<Vec<_>>();
+
+        EntryTable {
+            function: sections.insert(functions),
+            resume: sections.insert(resumes),
+        }
+    }
+}
+
+impl EntryTable {
     /// Return one native function entry.
     pub fn function(&self, sections: SectionImage<'_>, function: FunctionId) -> Option<Entry> {
         sections
@@ -58,7 +93,7 @@ impl EntryTable {
 
 /// Native function entry resolved by symbol name.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Entry {
     /// The function implemented by this entry.
     pub function: FunctionId,
@@ -75,19 +110,13 @@ impl Entry {
 
 /// Native continuation resume entry resolved by symbol name.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Resume {
     /// The frame state resumed by this entry.
     pub frame_state: FrameStateId,
     /// The native symbol exported by the linked image.
     pub symbol: StringId,
 }
-
-// SAFETY: native entries are fixed-width program entries.
-unsafe impl SectionEntry for Entry {}
-
-// SAFETY: native resume entries are fixed-width program entries.
-unsafe impl SectionEntry for Resume {}
 
 impl Resume {
     /// Create one native resume entry.

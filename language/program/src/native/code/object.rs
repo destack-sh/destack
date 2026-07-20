@@ -1,17 +1,19 @@
+use destack_core::{Optional, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use destack_source::ContentId;
 
 /// Relocatable native object image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Object {
     /// The object file format.
     pub format: ObjectFormat,
     /// The object file bytes.
     pub content: ContentId,
     /// Native unwind tables bytes.
-    pub unwind: Option<ContentId>,
+    pub unwind: Optional<ContentId>,
 }
 
 impl Object {
@@ -20,7 +22,7 @@ impl Object {
         Self {
             format,
             content,
-            unwind,
+            unwind: unwind.into(),
         }
     }
 
@@ -29,7 +31,7 @@ impl Object {
         let mut ids = Vec::with_capacity(2);
         ids.push(self.content);
 
-        if let Some(unwind) = self.unwind {
+        if let Some(unwind) = self.unwind.get() {
             ids.push(unwind);
         }
 
@@ -38,7 +40,8 @@ impl Object {
 }
 
 /// Native object file format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum ObjectFormat {
     /// Executable and Linkable Format object.
     Elf,

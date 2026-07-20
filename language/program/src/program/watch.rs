@@ -15,7 +15,7 @@ pub struct WatchpointId(u64);
 pub enum MemoryTarget {
     /// Any memory target.
     Any,
-    /// Executable memory operation point.
+    /// Program memory operation point.
     Point(ProgramPoint),
     /// Program type.
     Type(TypeId),
@@ -62,7 +62,7 @@ pub struct GlobalRange {
     pub range: ByteRange,
 }
 
-/// One executable memory stop.
+/// One program memory stop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemoryStop {
     /// Watchpoint that owns this stop.
@@ -73,7 +73,7 @@ pub struct MemoryStop {
     pub target: MemoryTarget,
 }
 
-/// Active executable watchpoints.
+/// Active program watchpoints.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WatchSet {
     /// Active memory stops.

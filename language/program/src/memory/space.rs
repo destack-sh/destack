@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::{SectionImage, SectionPacker, SectionSlice};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,10 @@ pub struct NativeStaticSpace {
 }
 
 /// Section-backed static memory image carried by a program.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct StaticImage {
     /// Static bytes.
     bytes: SectionSlice<u8>,
@@ -36,7 +39,7 @@ pub struct StaticImage {
 
 impl StaticImage {
     /// Pack one static image.
-    pub(crate) fn pack(sections: &mut SectionPacker, bytes: Vec<u8>) -> Self {
+    pub(crate) fn pack(sections: &mut SectionBuilder, bytes: Vec<u8>) -> Self {
         let bytes = sections.insert(bytes);
 
         Self { bytes }

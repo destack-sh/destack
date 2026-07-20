@@ -1,12 +1,16 @@
-use destack_core::{Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice};
+use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_heap::AllocationPlan;
 use destack_mir::Space;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{FrameStateId, FunctionId, LayoutId, ProgramPoint, TypeId};
 
-/// Executable program sites used by debugging, probes, and observations.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+/// Program sites used by debugging, probes, and observations.
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct SiteTable {
     /// Heap allocation operation sites sorted by program point.
     allocations: SectionSlice<AllocationSite>,
@@ -25,46 +29,7 @@ pub struct SiteTable {
 }
 
 impl SiteTable {
-    /// Pack executable site rows.
-    pub fn pack(
-        sections: &mut SectionPacker,
-        mut allocations: Vec<AllocationSite>,
-        mut memory: Vec<MemorySite>,
-        mut calls: Vec<CallSite>,
-        mut edges: Vec<EdgeSite>,
-        mut continuations: Vec<ContinuationSite>,
-        mut counters: Vec<CounterSite>,
-        mut samples: Vec<SampleSite>,
-    ) -> Self {
-        allocations.sort_unstable_by_key(|site| site.point);
-        memory.sort_unstable_by_key(|site| site.point);
-        calls.sort_unstable_by_key(|site| site.point);
-        edges.sort_unstable_by_key(|site| (site.source, site.target));
-        edges.dedup_by_key(|site| (site.source, site.target));
-        continuations.sort_unstable_by_key(|site| site.frame_state);
-        counters.sort_unstable_by_key(|site| site.point);
-        samples.sort_unstable_by_key(|site| site.point);
-
-        let allocations = sections.insert(allocations);
-        let memory = sections.insert(memory);
-        let calls = sections.insert(calls);
-        let edges = sections.insert(edges);
-        let continuations = sections.insert(continuations);
-        let counters = sections.insert(counters);
-        let samples = sections.insert(samples);
-
-        Self {
-            allocations,
-            memory,
-            calls,
-            edges,
-            continuations,
-            counters,
-            samples,
-        }
-    }
-
-    /// Return the allocation site at one executable point.
+    /// Return the allocation site at one program point.
     pub fn allocation<'a>(
         &self,
         sections: SectionImage<'a>,
@@ -78,6 +43,16 @@ impl SiteTable {
         Some((AllocationSiteId(index as u32), &allocations[index]))
     }
 
+    /// Return one allocation site by dense id.
+    #[inline(always)]
+    pub fn allocation_by_id<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        id: AllocationSiteId,
+    ) -> Option<&'a AllocationSite> {
+        self.allocations(sections).get(id.index())
+    }
+
     /// Return all allocation site rows.
     pub fn allocations<'a>(&self, sections: SectionImage<'a>) -> &'a [AllocationSite] {
         sections.entries(self.allocations)
@@ -88,7 +63,7 @@ impl SiteTable {
         self.allocations(sections).len()
     }
 
-    /// Return memory sites at one executable point.
+    /// Return memory sites at one program point.
     pub fn memory<'a>(&self, sections: SectionImage<'a>, point: ProgramPoint) -> &'a [MemorySite] {
         let memory = self.memory_sites(sections);
         let start = memory.partition_point(|site| site.point < point);
@@ -102,7 +77,7 @@ impl SiteTable {
         sections.entries(self.memory)
     }
 
-    /// Return the call site at one executable point.
+    /// Return the call site at one program point.
     pub fn call<'a>(
         &self,
         sections: SectionImage<'a>,
@@ -173,7 +148,7 @@ impl SiteTable {
         self.continuations(sections).len()
     }
 
-    /// Return the counter site at one executable point.
+    /// Return the counter site at one program point.
     pub fn counter<'a>(
         &self,
         sections: SectionImage<'a>,
@@ -203,10 +178,10 @@ impl SiteTable {
             .iter()
             .map(|site| site.counter.index() + 1);
 
-        counters.chain(samples).max().unwrap_or(0)
+        counters.chain(samples).fold(0, usize::max)
     }
 
-    /// Return the sample site at one executable point.
+    /// Return the sample site at one program point.
     pub fn sample<'a>(
         &self,
         sections: SectionImage<'a>,
@@ -226,44 +201,192 @@ impl SiteTable {
     }
 }
 
+/// Build-time program sites used by debugging, probes, and observations.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SiteTableBuilder {
+    /// Heap allocation operation sites.
+    allocations: Vec<AllocationSite>,
+    /// Addressable memory operation sites.
+    memory: Vec<MemorySite>,
+    /// Function call operation sites.
+    calls: Vec<CallSite>,
+    /// Control-flow edge sites.
+    edges: Vec<EdgeSite>,
+    /// Continuation capture sites.
+    continuations: Vec<ContinuationSite>,
+    /// Explicit counter sites.
+    counters: Vec<CounterSite>,
+    /// Explicit sample sites.
+    samples: Vec<SampleSite>,
+}
+
+impl SiteTableBuilder {
+    /// Create an empty program site table builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set heap allocation operation sites.
+    pub fn allocations(mut self, allocations: impl IntoIterator<Item = AllocationSite>) -> Self {
+        self.allocations = allocations.into_iter().collect();
+
+        self
+    }
+
+    /// Set addressable memory operation sites.
+    pub fn memory(mut self, memory: impl IntoIterator<Item = MemorySite>) -> Self {
+        self.memory = memory.into_iter().collect();
+
+        self
+    }
+
+    /// Set function call operation sites.
+    pub fn calls(mut self, calls: impl IntoIterator<Item = CallSite>) -> Self {
+        self.calls = calls.into_iter().collect();
+
+        self
+    }
+
+    /// Set control flow edge sites.
+    pub fn edges(mut self, edges: impl IntoIterator<Item = EdgeSite>) -> Self {
+        self.edges = edges.into_iter().collect();
+
+        self
+    }
+
+    /// Set continuation capture sites.
+    pub fn continuations(
+        mut self,
+        continuations: impl IntoIterator<Item = ContinuationSite>,
+    ) -> Self {
+        self.continuations = continuations.into_iter().collect();
+
+        self
+    }
+
+    /// Set explicit counter sites.
+    pub fn counters(mut self, counters: impl IntoIterator<Item = CounterSite>) -> Self {
+        self.counters = counters.into_iter().collect();
+
+        self
+    }
+
+    /// Set explicit sample sites.
+    pub fn samples(mut self, samples: impl IntoIterator<Item = SampleSite>) -> Self {
+        self.samples = samples.into_iter().collect();
+
+        self
+    }
+
+    /// Build this site table into final program sections.
+    pub(crate) fn build(mut self, sections: &mut SectionBuilder) -> SiteTable {
+        self.allocations.sort_unstable_by_key(|site| site.point);
+        self.memory.sort_unstable_by_key(|site| site.point);
+        self.calls.sort_unstable_by_key(|site| site.point);
+        self.edges
+            .sort_unstable_by_key(|site| (site.source, site.target));
+        self.edges.dedup_by_key(|site| (site.source, site.target));
+        self.continuations
+            .sort_unstable_by_key(|site| site.frame_state);
+        self.counters.sort_unstable_by_key(|site| site.point);
+        self.samples.sort_unstable_by_key(|site| site.point);
+
+        SiteTable {
+            allocations: sections.insert(self.allocations),
+            memory: sections.insert(self.memory),
+            calls: sections.insert(self.calls),
+            edges: sections.insert(self.edges),
+            continuations: sections.insert(self.continuations),
+            counters: sections.insert(self.counters),
+            samples: sections.insert(self.samples),
+        }
+    }
+}
+
 /// Dense allocation site identifier within one program.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct AllocationSiteId(pub u32);
 
 /// Dense call site identifier within one program.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct CallSiteId(pub u32);
 
 /// Dense control-flow edge site identifier within one program.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct EdgeSiteId(pub u32);
 
 /// Dense continuation site identifier within one program.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct ContinuationSiteId(pub u32);
 
-/// Dense executable profile counter identifier within one program.
+/// Dense program profile counter identifier within one program.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct CounterId(pub u32);
 
-/// Executable heap allocation operation.
+/// Heap allocation operation at one program point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct AllocationSite {
-    /// The executable point that performs the allocation.
+    /// The program point that performs the allocation.
     pub point: ProgramPoint,
     /// The allocation operation family.
     pub operation: AllocationOperation,
@@ -277,21 +400,27 @@ pub struct AllocationSite {
     pub storage_type: TypeId,
     /// The layout used for the allocated storage.
     pub storage_layout: LayoutId,
+    /// The executable heap allocation plan.
+    pub plan: AllocationPlan,
 }
 
-/// Executable allocation operation family.
+/// Heap allocation operation family.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum AllocationOperation {
-    /// Allocate one typed object.
-    Object,
+    /// Allocate one typed value.
+    Value,
     /// Allocate repeated typed storage.
     Slice,
 }
 
 /// Allocation byte initialization mode.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum AllocationInitialization {
     /// Initialize the allocated bytes to zero.
     Zeroed,
@@ -299,11 +428,13 @@ pub enum AllocationInitialization {
     Uninit,
 }
 
-/// Executable addressable memory operation.
+/// Addressable memory operation at one program point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct MemorySite {
-    /// The executable point that performs the access.
+    /// The program point that performs the access.
     pub point: ProgramPoint,
     /// The memory operation performed at the site.
     pub access: MemoryAccess,
@@ -313,9 +444,11 @@ pub struct MemorySite {
     pub value_type: TypeId,
 }
 
-/// Executable memory access operation.
+/// Memory access operation.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum MemoryAccess {
     /// Read addressable storage.
     Read,
@@ -325,11 +458,11 @@ pub enum MemoryAccess {
     ReadWrite,
 }
 
-/// Executable function call operation.
+/// Function call operation at one program point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct CallSite {
-    /// The executable point that performs the call.
+    /// The program point that performs the call.
     pub point: ProgramPoint,
     /// Whether the call returns to the caller frame.
     pub mode: CallMode,
@@ -347,25 +480,27 @@ pub struct CallSite {
     pub slot: Optional<u32>,
 }
 
-/// Executable control-flow edge.
+/// Control-flow edge between program points.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct EdgeSite {
-    /// The executable point producing the transfer.
+    /// The program point producing the transfer.
     pub source: ProgramPoint,
-    /// The executable point entered after the transfer.
+    /// The program point entered after the transfer.
     pub target: ProgramPoint,
 }
 
-/// Executable continuation capture point.
+/// Continuation capture operation at one program point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct ContinuationSite {
-    /// The executable point that captures the continuation.
+    /// The program point that captures the continuation.
     pub point: ProgramPoint,
-    /// The executable point entered by normal resume.
+    /// The program point entered by normal resume.
     pub resume: ProgramPoint,
-    /// The executable point entered by panic unwinding.
+    /// The program point entered by panic unwinding.
     pub unwind: Optional<ProgramPoint>,
     /// The captured frame state.
     pub frame_state: FrameStateId,
@@ -373,21 +508,25 @@ pub struct ContinuationSite {
     pub yielded_type: TypeId,
 }
 
-/// Executable explicit counter operation.
+/// Explicit counter operation at one program point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct CounterSite {
-    /// The executable point that increments the counter.
+    /// The program point that increments the counter.
     pub point: ProgramPoint,
     /// The counter incremented at this site.
     pub counter: CounterId,
 }
 
-/// Executable explicit sample operation.
+/// Explicit sample operation at one program point.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct SampleSite {
-    /// The executable point that records the sample.
+    /// The program point that records the sample.
     pub point: ProgramPoint,
     /// The counter receiving samples at this site.
     pub counter: CounterId,
@@ -395,9 +534,11 @@ pub struct SampleSite {
     pub value_type: TypeId,
 }
 
-/// Executable call continuation mode.
+/// Call continuation mode.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum CallMode {
     /// Return to the caller after the callee finishes.
     Return,
@@ -405,9 +546,11 @@ pub enum CallMode {
     Tail,
 }
 
-/// Executable call dispatch mechanism.
+/// Call dispatch mechanism.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum CallDispatch {
     /// Call a known function.
     Direct,
@@ -465,22 +608,3 @@ impl CounterId {
         self.0 as usize
     }
 }
-
-// SAFETY: site rows are fixed-width program section entries.
-unsafe impl SectionEntry for AllocationSite {}
-unsafe impl SectionEntry for AllocationSiteId {}
-unsafe impl SectionEntry for AllocationOperation {}
-unsafe impl SectionEntry for AllocationInitialization {}
-unsafe impl SectionEntry for MemorySite {}
-unsafe impl SectionEntry for MemoryAccess {}
-unsafe impl SectionEntry for CallSite {}
-unsafe impl SectionEntry for CallSiteId {}
-unsafe impl SectionEntry for CallMode {}
-unsafe impl SectionEntry for CallDispatch {}
-unsafe impl SectionEntry for EdgeSite {}
-unsafe impl SectionEntry for EdgeSiteId {}
-unsafe impl SectionEntry for ContinuationSite {}
-unsafe impl SectionEntry for ContinuationSiteId {}
-unsafe impl SectionEntry for CounterSite {}
-unsafe impl SectionEntry for SampleSite {}
-unsafe impl SectionEntry for CounterId {}

@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 
 /// Stable identifier for a runtime binding name.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct BindingId(pub u128);
 
 impl BindingId {
@@ -18,6 +20,3 @@ impl BindingId {
         Self(fnv1a_128(name.as_bytes()))
     }
 }
-
-// SAFETY: binding ids are fixed-width stable integers.
-unsafe impl SectionEntry for BindingId {}

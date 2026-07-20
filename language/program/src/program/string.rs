@@ -1,9 +1,12 @@
-use destack_core::{SectionEntry, SectionImage, SectionPacker, SectionSlice, StringId, StringPool};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Section-backed program string table.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct StringTable {
     /// String entries sorted by stable string id.
     entries: SectionSlice<StringEntry>,
@@ -12,28 +15,12 @@ pub struct StringTable {
 }
 
 impl StringTable {
-    /// Build program strings from one compiler string pool.
-    pub fn from_pool(sections: &mut SectionPacker, pool: &StringPool) -> Self {
-        let mut entries = Vec::with_capacity(pool.len());
-        let mut bytes = Vec::new();
-        let mut strings = pool
-            .iter()
-            .into_iter()
-            .map(|(id, text)| (id, text.to_owned()))
-            .collect::<Vec<_>>();
-        strings.sort_by_key(|(id, _)| *id);
-
-        for (id, text) in strings {
-            let offset = bytes.len() as u32;
-            let byte_len = text.len() as u32;
-            bytes.extend_from_slice(text.as_bytes());
-            entries.push(StringEntry {
-                id,
-                offset,
-                byte_len,
-            });
-        }
-
+    /// Pack prepared string entries and bytes into program sections.
+    pub(crate) fn pack(
+        sections: &mut SectionBuilder,
+        entries: Vec<StringEntry>,
+        bytes: Vec<u8>,
+    ) -> Self {
         Self {
             entries: sections.insert(entries),
             bytes: sections.insert(bytes),
@@ -67,7 +54,7 @@ impl StringTable {
 
 /// One program string table entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct StringEntry {
     /// Stable string identity.
     pub id: StringId,
@@ -76,6 +63,3 @@ pub struct StringEntry {
     /// UTF-8 byte length.
     pub byte_len: u32,
 }
-
-// SAFETY: StringEntry is a plain entry containing stable ids and byte offsets.
-unsafe impl SectionEntry for StringEntry {}

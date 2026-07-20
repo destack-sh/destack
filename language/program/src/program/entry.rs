@@ -1,10 +1,14 @@
+use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::FunctionId;
 
 /// One program entrypoint id.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct EntryPoint(FunctionId);
 
 impl EntryPoint {

@@ -1,23 +1,21 @@
-use destack_core::{SectionEntry, SectionImage, SectionPacker, SectionSlice};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_heap::DropId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionId;
 
-/// One executable destructor.
+/// One program destructor.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct DropEntry {
     /// The destructor function.
     pub function: FunctionId,
 }
 
-// SAFETY: drop entries contain fixed-width section values.
-unsafe impl SectionEntry for DropEntry {}
-
 /// Destructors carried by one program.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct DropTable {
     /// Complete drop entries indexed by DropId.
     entries: SectionSlice<DropEntry>,
@@ -25,7 +23,7 @@ pub struct DropTable {
 
 impl DropTable {
     /// Pack destructors into one program table.
-    pub fn pack(sections: &mut SectionPacker, entries: Vec<DropEntry>) -> Self {
+    pub(crate) fn pack(sections: &mut SectionBuilder, entries: Vec<DropEntry>) -> Self {
         Self {
             entries: sections.insert(entries),
         }

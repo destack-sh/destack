@@ -1,22 +1,26 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use destack_core::StringId;
+use destack_core::{Optional, SectionEntry, StringId};
 use destack_source::ContentId;
 
 /// Loadable native library image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Library {
     /// The native library location.
     pub source: LibrarySource,
     /// Native unwind tables bytes.
-    pub unwind: Option<ContentId>,
+    pub unwind: Optional<ContentId>,
 }
 
 impl Library {
     /// Create one native library image.
     pub fn new(source: LibrarySource, unwind: Option<ContentId>) -> Self {
-        Self { source, unwind }
+        Self {
+            source,
+            unwind: unwind.into(),
+        }
     }
 
     /// Return all content ids referenced by this library image.
@@ -27,7 +31,7 @@ impl Library {
             ids.push(content);
         }
 
-        if let Some(unwind) = self.unwind {
+        if let Some(unwind) = self.unwind.get() {
             ids.push(unwind);
         }
 
@@ -36,7 +40,8 @@ impl Library {
 }
 
 /// Native library source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C, u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum LibrarySource {
     /// Library is loaded from a process or platform search path.
     Name(StringId),

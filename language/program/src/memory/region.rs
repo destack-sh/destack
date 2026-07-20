@@ -1,4 +1,4 @@
-use destack_core::{Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +6,9 @@ use crate::TypeId;
 
 /// Dense program global id.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct GlobalId(pub u32);
 
 impl GlobalId {
@@ -32,7 +34,9 @@ impl From<GlobalId> for u32 {
 
 /// Storage location for one program global.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum GlobalLocation {
     /// Immutable program constant storage.
     Constant = 0,
@@ -42,9 +46,9 @@ pub enum GlobalLocation {
     LocalStatic = 2,
 }
 
-/// Program global record.
+/// Program global entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Global {
     /// Static storage location for this global.
     pub location: GlobalLocation,
@@ -93,35 +97,31 @@ impl Global {
 }
 
 /// Global table carried by one program.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct GlobalTable {
-    /// Global records keyed by dense global id.
-    globals: SectionSlice<Optional<Global>>,
+    /// Global entries keyed by dense global id.
+    globals: SectionSlice<Global>,
 }
 
 impl GlobalTable {
     /// Pack one global table.
-    pub fn pack(sections: &mut SectionPacker, globals: Vec<Option<Global>>) -> Self {
-        let globals = globals.into_iter().map(Optional::from).collect::<Vec<_>>();
-        let globals = sections.insert(globals);
-
-        Self { globals }
+    pub(crate) fn pack(sections: &mut SectionBuilder, globals: Vec<Global>) -> Self {
+        Self {
+            globals: sections.insert(globals),
+        }
     }
 
     /// Return one global by id.
     pub fn get<'a>(&self, sections: SectionImage<'a>, global: GlobalId) -> Option<&'a Global> {
-        sections
-            .entries(self.globals)
-            .get(global.index())
-            .and_then(Optional::as_ref)
+        sections.entries(self.globals).get(global.index())
     }
 
     /// Return all defined globals.
     pub fn iter<'a>(&'a self, sections: SectionImage<'a>) -> impl Iterator<Item = &'a Global> + 'a {
-        sections
-            .entries(self.globals)
-            .iter()
-            .filter_map(Optional::as_ref)
+        sections.entries(self.globals).iter()
     }
 
     /// Return defined globals in one storage location.
@@ -135,14 +135,7 @@ impl GlobalTable {
             .iter()
             .enumerate()
             .filter_map(move |(index, global)| {
-                let global = global.as_ref()?;
-
                 (global.location == location).then_some((GlobalId(index as u32), global))
             })
     }
 }
-
-// SAFETY: global ids and records are fixed-width program entries.
-unsafe impl SectionEntry for GlobalId {}
-unsafe impl SectionEntry for GlobalLocation {}
-unsafe impl SectionEntry for Global {}

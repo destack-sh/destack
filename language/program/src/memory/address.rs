@@ -1,3 +1,4 @@
+use destack_bytecode::Word;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +26,7 @@ impl GlobalAddress {
         Self(id | byte_offset)
     }
 
-    /// Create a global address from raw cell bits.
+    /// Create a global address from raw word bits.
     #[inline]
     pub const fn from_bits(bits: u64) -> Self {
         Self(bits)
@@ -43,7 +44,7 @@ impl GlobalAddress {
         (self.0 & Self::BYTE_OFFSET_MASK) as usize
     }
 
-    /// Return raw cell bits.
+    /// Return raw word bits.
     #[inline]
     pub const fn bits(self) -> u64 {
         self.0
@@ -56,5 +57,19 @@ impl GlobalAddress {
         let byte_offset = u32::try_from(byte_offset).ok()?;
 
         Some(Self::new(self.global(), byte_offset))
+    }
+}
+
+impl From<Word> for GlobalAddress {
+    /// Decode one global address word.
+    fn from(word: Word) -> Self {
+        Self::from_bits(word.bits())
+    }
+}
+
+impl From<GlobalAddress> for Word {
+    /// Encode one global address word.
+    fn from(address: GlobalAddress) -> Self {
+        Self::from_bits(address.bits())
     }
 }

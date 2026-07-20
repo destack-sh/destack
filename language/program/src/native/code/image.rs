@@ -1,3 +1,4 @@
+use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,8 @@ use destack_source::ContentId;
 use super::{Library, Object};
 
 /// Durable native image payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C, u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum Image {
     /// Native functions are already linked into the current process.
     Resident,

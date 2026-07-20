@@ -1,10 +1,12 @@
-use std::error::Error;
 use std::fmt;
 
+use destack_bytecode::Word;
 use destack_core::{FloatFormat, float_to_bits};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
+use super::Error;
 
 /// One value passed into or out of program execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -186,6 +188,39 @@ impl Value {
     }
 }
 
+impl TryFrom<&Value> for Word {
+    type Error = crate::Error;
+
+    /// Encode one word-sized program value for bytecode execution.
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        let word = match value {
+            Value::Void => Self::ZERO,
+            Value::Bool(value) => Self::boolean(*value),
+            Value::Int { value, width } if *width <= Self::BIT_LEN as u16 => {
+                Self::int(*value as i64, *width as u8)
+            }
+            Value::UInt { value, width } if *width <= Self::BIT_LEN as u16 => {
+                Self::uint(*value as u64, *width as u8)
+            }
+            Value::Float16 { bits } | Value::Bfloat16 { bits } => Self::from_bits(u64::from(*bits)),
+            Value::Float32 { bits } => Self::from_bits(u64::from(*bits)),
+            Value::Float64 { bits } => Self::from_bits(*bits),
+            Value::Char(value) => Self::character(*value),
+            Value::HeapReference(reference) => Self::from_bits(reference.bits() as u64),
+            Value::SharedHeapReference(reference) => Self::from_bits(reference.bits() as u64),
+            Value::Address(address) => Self::from_bits(*address as u64),
+            Value::Int { width, .. } | Value::UInt { width, .. } => {
+                return Err(Error::type_mismatch(
+                    "bytecode word value",
+                    format!("{width}-bit integer"),
+                ));
+            }
+        };
+
+        Ok(word)
+    }
+}
+
 /// One value discriminant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ValueTag {
@@ -241,7 +276,7 @@ impl fmt::Display for ValueMismatch {
     }
 }
 
-impl Error for ValueMismatch {}
+impl std::error::Error for ValueMismatch {}
 
 /// One signed integer value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]

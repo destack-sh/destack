@@ -6,17 +6,17 @@ use serde::{Deserialize, Serialize};
 use crate::GlobalAddress;
 
 use super::{
-    AllocationSiteId, CallSiteId, CellLayout, ContinuationSiteId, CounterId, EdgeSiteId, Program,
+    AllocationSiteId, CallSiteId, ContinuationSiteId, CounterId, EdgeSiteId, Program, WordLayout,
 };
 
 const STANDARD_SAMPLE_BUCKET_LIMIT: u32 = 32;
 
-/// Runtime profile aggregated by executable program sites.
+/// Runtime profile aggregated by program sites.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Profile {
     /// Runtime profile recording options.
     pub options: ProfileOptions,
-    /// Explicit counter profiles indexed by executable counter id.
+    /// Explicit counter profiles indexed by program counter id.
     pub counters: Vec<CounterProfile>,
     /// Heap allocation site profiles.
     pub allocations: Vec<AllocationProfile>,
@@ -26,7 +26,7 @@ pub struct Profile {
     pub edges: Vec<EdgeProfile>,
     /// Continuation site profiles.
     pub continuations: Vec<ContinuationProfile>,
-    /// Explicit sample profiles indexed by executable counter id.
+    /// Explicit sample profiles indexed by program counter id.
     pub samples: Vec<SampleProfile>,
 }
 
@@ -97,12 +97,12 @@ pub struct SampleBucket {
     pub count: u64,
 }
 
-/// One exact sampled executable cell key.
+/// One exact sampled word key.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct SampleKey(u64);
 
-/// One decoded sampled executable cell value.
+/// One decoded sampled word value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum SampleValue {
     /// Void value.
@@ -220,7 +220,7 @@ impl Profile {
         self.continuations[site.index()].resumed += 1;
     }
 
-    /// Record one sampled cell value key.
+    /// Record one sampled word key.
     #[inline]
     pub fn record_sample(&mut self, counter: CounterId, key: u64) {
         self.samples[counter.index()].record(SampleKey::new(key), self.options.sample_bucket_limit);
@@ -228,58 +228,58 @@ impl Profile {
 }
 
 impl SampleKey {
-    /// Create one sample key from executable cell bits.
+    /// Create one sample key from word bits.
     pub const fn new(bits: u64) -> Self {
         Self(bits)
     }
 
-    /// Return the raw executable sample key.
+    /// Return the raw sample key.
     pub const fn raw(self) -> u64 {
         self.0
     }
 
-    /// Decode this key using one executable cell layout.
-    pub const fn decode(self, layout: CellLayout) -> SampleValue {
+    /// Decode this key using one Program word layout.
+    pub const fn decode(self, layout: WordLayout) -> SampleValue {
         match layout {
-            CellLayout::Void => SampleValue::Void,
-            CellLayout::Boolean => SampleValue::Boolean(self.0 != 0),
-            CellLayout::Int { width } => SampleValue::Int {
+            WordLayout::Void => SampleValue::Void,
+            WordLayout::Boolean => SampleValue::Boolean(self.0 != 0),
+            WordLayout::Int { width } => SampleValue::Int {
                 value: self.signed(width),
                 width,
             },
-            CellLayout::Uint { width } => SampleValue::Uint {
+            WordLayout::Uint { width } => SampleValue::Uint {
                 value: self.unsigned(width),
                 width,
             },
-            CellLayout::Float16 => SampleValue::Float {
+            WordLayout::Float16 => SampleValue::Float {
                 bits: self.unsigned(16),
                 format: FloatType::Float16,
             },
-            CellLayout::Bfloat16 => SampleValue::Float {
+            WordLayout::Bfloat16 => SampleValue::Float {
                 bits: self.unsigned(16),
                 format: FloatType::Bfloat16,
             },
-            CellLayout::Float32 => SampleValue::Float {
+            WordLayout::Float32 => SampleValue::Float {
                 bits: self.unsigned(32),
                 format: FloatType::Float32,
             },
-            CellLayout::Float64 => SampleValue::Float {
+            WordLayout::Float64 => SampleValue::Float {
                 bits: self.0,
                 format: FloatType::Float64,
             },
-            CellLayout::HeapReference => {
+            WordLayout::HeapReference => {
                 SampleValue::HeapReference(HeapReference::from_bits(self.0 as usize))
             }
-            CellLayout::SharedHeapReference => {
+            WordLayout::SharedHeapReference => {
                 SampleValue::SharedHeapReference(SharedHeapReference::from_bits(self.0 as usize))
             }
-            CellLayout::Address => SampleValue::Address(self.0),
-            CellLayout::StackPointer => SampleValue::StackPointer(self.0),
-            CellLayout::FramePointer => SampleValue::FramePointer(self.0),
-            CellLayout::GlobalAddress => {
+            WordLayout::Address => SampleValue::Address(self.0),
+            WordLayout::StackPointer => SampleValue::StackPointer(self.0),
+            WordLayout::FramePointer => SampleValue::FramePointer(self.0),
+            WordLayout::GlobalAddress => {
                 SampleValue::GlobalAddress(GlobalAddress::from_bits(self.0))
             }
-            CellLayout::FunctionPointer => SampleValue::FunctionPointer(self.0),
+            WordLayout::FunctionPointer => SampleValue::FunctionPointer(self.0),
         }
     }
 
