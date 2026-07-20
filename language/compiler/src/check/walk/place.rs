@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use crate::check::{AssignedPlace, PlaceUse, WalkState};
+use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Walk one assignment target and return the flow place it assigns.
@@ -15,43 +15,80 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
+        if !self.walk_decorators(id.into_any())? {
+            return Ok(None);
+        }
         self.enter_node(id)?;
+        let expression = self.tree.get(id).clone();
 
-        match self.tree.get(id) {
+        match expression {
             // x
             dir::Expression::Identifier { .. } => {
-                return self.walk_named_assigned_place(id.into_any(), access);
+                self.walk_named_assigned_place(id.into_any(), access)
             }
             // value.member
-            dir::Expression::Member { left, .. } => {
+            dir::Expression::Member { left, name, .. } => {
                 if self.has_name_reference(id) {
                     return self.walk_name_path_assigned_place(id, access);
                 }
 
-                self.walk_expression(*left, self.tree.get(*left))?;
+                self.walk_expression(left, self.tree.get(left))?;
+                let place = match (self.tree.get(left), name, self.assigned_receiver_type()) {
+                    (dir::Expression::This, Some(name), Some(receiver)) => {
+                        let key = dir::StaticKey::Name(name);
+
+                        Some(AssignedPlace::Member { receiver, key })
+                    }
+                    _ => None,
+                };
+
+                Ok(place)
             }
             // value[index]
             dir::Expression::Index { left, index, .. } => {
-                self.walk_expression(*left, self.tree.get(*left))?;
+                self.walk_expression(left, self.tree.get(left))?;
 
-                if let Some(index) = *index {
+                if let Some(index) = index {
                     self.walk_expression(index, self.tree.get(index))?;
                 }
+
+                Ok(None)
             }
             // *value
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
                 right,
             } => {
-                self.walk_expression(*right, self.tree.get(*right))?;
-            }
-            // check non place expression normally
-            _ => {
-                self.walk_expression(id, self.tree.get(id))?;
-            }
-        }
+                self.walk_expression(right, self.tree.get(right))?;
 
-        self.assigned_member_place(id)
+                Ok(None)
+            }
+            // (place as T)
+            dir::Expression::As {
+                expression,
+                target_type,
+            } => {
+                if !matches!(self.tree.get(target_type), dir::TypeExpression::Const) {
+                    self.walk_type_expression(target_type)?;
+                }
+
+                self.walk_assigned_place(expression, access)
+            }
+            // (place satisfies T)
+            dir::Expression::Satisfies {
+                expression,
+                target_type,
+            } => {
+                self.walk_frame_type_expression(target_type)?;
+
+                self.walk_assigned_place(expression, access)
+            }
+            // place!
+            dir::Expression::Must { left, .. } => self.walk_assigned_place(left, access),
+            other => Err(CompilerError::Internal {
+                message: format!("assignment place {id:?} has invalid expression {other:?}"),
+            }),
+        }
     }
 
     /// Return whether one expression has a resolved name reference.
@@ -80,10 +117,6 @@ impl WalkState<'_, '_> {
         access: PlaceUse,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let source = id.into_global_any(self.module);
-        if let dir::Expression::Identifier { .. } = self.tree.get(id) {
-            return self.walk_named_assigned_place(id.into_any(), access);
-        };
-
         let Some(symbol) = self.check.reference_symbol(source) else {
             return Ok(None);
         };
@@ -94,57 +127,6 @@ impl WalkState<'_, '_> {
         }
 
         Ok(self.assigned_symbol_place(symbol))
-    }
-
-    /// Return the receiver field assigned by one member expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// this.name
-    /// ```
-    fn assigned_member_place(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Option<AssignedPlace>> {
-        let module = self.module;
-
-        match self.tree.get(id) {
-            // this.member
-            dir::Expression::Member {
-                left,
-                name: Some(name),
-                ..
-            } => {
-                if !matches!(self.tree.get(*left), dir::Expression::This) {
-                    return Ok(None);
-                };
-                let Some(receiver) = self.assigned_receiver_type() else {
-                    return Ok(None);
-                };
-                let key = dir::StaticKey::Name(*name);
-
-                Ok(Some(AssignedPlace::Member { receiver, key }))
-            }
-
-            // dereference writes do not update definite assignment
-            dir::Expression::Unary {
-                operator: dir::UnaryOperator::Dereference,
-                ..
-            } => Ok(None),
-
-            // other writes do not affect local definite assignment
-            dir::Expression::Identifier { .. }
-            | dir::Expression::Member { .. }
-            | dir::Expression::Index { .. } => Ok(None),
-
-            // reject expressions that cannot be written
-            _ => {
-                self.check
-                    .report_invalid_assignment_target(module, id.into_any());
-
-                Ok(None)
-            }
-        }
     }
 
     /// Walk one identifier assignment target.

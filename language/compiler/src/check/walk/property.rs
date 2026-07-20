@@ -2,13 +2,12 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, CauseKind, ExpectedType, FlowBranch, FlowState,
-    GenericTemplateId, InducedParameterOwner, Origin, Receiver, ReceiverBinding, Relation,
-    ValueUse, WalkState, Widening,
+    CauseKind, FlowBranch, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
+    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// Declaration member and body yielded by one member header.
+/// One member definition and its optional method body.
 pub(in crate::check) struct MemberHeader {
     /// The member installed into the containing definition.
     pub(in crate::check) definition: Option<dir::DefinitionMember>,
@@ -16,12 +15,12 @@ pub(in crate::check) struct MemberHeader {
     pub(in crate::check) body: Option<MethodBody>,
 }
 
-/// Checked method body context.
+/// Inputs required to check one method body.
 #[derive(Clone)]
 pub(in crate::check) struct MethodBody {
     /// The receiver binding visible inside the method body.
     pub(in crate::check) receiver: Option<ReceiverBinding>,
-    /// The checked result type expected from the method body.
+    /// The result type expected from the method body.
     pub(in crate::check) result: dir::GlobalTypeId,
 }
 
@@ -115,7 +114,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Property>,
         property: &dir::Property,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(());
         }
 
@@ -196,24 +195,21 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// field: string = "value"
     /// ```
-    pub(in crate::check) fn walk_member_declaration(
+    pub(in crate::check) fn walk_member_header(
         &mut self,
         id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
         receiver_scope: Option<Receiver>,
         induced_owner: Option<InducedParameterOwner>,
         is_ambient_scope: bool,
-    ) -> CompilerResult<MemberHeader> {
-        if !self.decide_decorated_presence(id.into_any())? {
-            return Ok(MemberHeader {
-                definition: None,
-                body: None,
-            });
+    ) -> CompilerResult<Option<MemberHeader>> {
+        if !self.walk_decorators(id.into_any())? {
+            return Ok(None);
         }
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
-        match member {
+        let header: CompilerResult<MemberHeader> = match member {
             // type Item = T
             dir::Member::AssociatedType {
                 name,
@@ -263,10 +259,10 @@ impl WalkState<'_, '_> {
                 }
 
                 let Some(symbol) = symbol else {
-                    return Ok(MemberHeader {
+                    return Ok(Some(MemberHeader {
                         definition: None,
                         body: None,
-                    });
+                    }));
                 };
 
                 Ok(MemberHeader {
@@ -336,10 +332,10 @@ impl WalkState<'_, '_> {
                 }
 
                 let (Some(symbol), Some(_)) = (symbol, declared) else {
-                    return Ok(MemberHeader {
+                    return Ok(Some(MemberHeader {
                         definition: None,
                         body: None,
-                    });
+                    }));
                 };
 
                 Ok(MemberHeader {
@@ -384,13 +380,13 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_key);
                 }
 
-                // resolve the field symbol before inferred storage opens its slot
+                // resolve the field symbol
                 let symbol = self
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
 
-                // derive the declared field type
+                // derive the field type
                 let field_type = match declared_type {
                     Some(declared_type) => {
                         let written = self.walk_type_expression(declared_type)?;
@@ -398,31 +394,12 @@ impl WalkState<'_, '_> {
 
                         Some(written)
                     }
-                    None => {
-                        if let (Some(symbol), Some(default)) = (symbol, default) {
-                            let before_default = self.fork_flow();
-                            self.walk_expression(default, self.tree.get(default))?;
-                            self.restore_flow(before_default);
-
-                            let index = self.check.bodies.len();
-                            self.check.bodies.push(BodyOwner {
-                                phase: BodyPhase::Main,
-                                module: self.module,
-                                body: BodyTarget::Node(default.into_any()),
-                                ret: None,
-                                generator: None,
-                                ret_use: ValueUse::Store,
-                                binds: Some((symbol, Widening::Always, None)),
-                                constructs: false,
-                            });
-                            self.check.initializers.insert(symbol, index);
-                        }
-
-                        None
-                    }
+                    None => symbol
+                        .map(|symbol| self.binding_type_slot(symbol, Widening::Always))
+                        .transpose()?,
                 };
 
-                // write the field symbol type
+                // commit the field type
                 if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
                     if let Some(induction) = induced_owner {
                         self.push_induced_parameter_site(induction, field_type);
@@ -430,28 +407,26 @@ impl WalkState<'_, '_> {
                     self.bind_symbol_type(symbol, field_type)?;
                 }
 
-                // check defaults after the field type is known
+                // check the default against the field type
                 if let (Some(field_type), Some(default)) = (field_type, default) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
-                    self.check.bodies.push(BodyOwner {
-                        phase: BodyPhase::Main,
-                        module: self.module,
-                        body: BodyTarget::Node(default.into_any()),
-                        ret: Some(ExpectedType::Type(field_type)),
-                        generator: None,
-                        ret_use: ValueUse::Store,
-                        binds: None,
-                        constructs: false,
-                    });
+                    let annotation =
+                        declared_type.map(|annotation| annotation.into_global_any(self.module));
+                    self.queue_assignable(
+                        default,
+                        field_type,
+                        CauseKind::Initializer { annotation },
+                        ValueUse::Store,
+                    )?;
                     self.restore_flow(before_default);
                 }
 
                 let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
-                    return Ok(MemberHeader {
+                    return Ok(Some(MemberHeader {
                         definition: None,
                         body: None,
-                    });
+                    }));
                 };
 
                 Ok(MemberHeader {
@@ -500,10 +475,10 @@ impl WalkState<'_, '_> {
                     _ => match (*key).and_then(dir::Key::direct_static_key) {
                         Some(key) => dir::MemberSlot::Key(key),
                         None => {
-                            return Ok(MemberHeader {
+                            return Ok(Some(MemberHeader {
                                 definition: None,
                                 body: None,
-                            });
+                            }));
                         }
                     },
                 };
@@ -560,9 +535,10 @@ impl WalkState<'_, '_> {
                     (Some(_), false) => {
                         let this = self.intern_type(dir::Type::This)?;
                         let this = match receiver_form {
-                            Some(form) => {
-                                self.intern_type(dir::Type::Form(dir::FormType { form, value: this }))?
-                            }
+                            Some(form) => self.intern_type(dir::Type::Form(dir::FormType {
+                                form,
+                                value: this,
+                            }))?,
                             None => this,
                         };
 
@@ -636,7 +612,10 @@ impl WalkState<'_, '_> {
                 definition: None,
                 body: None,
             }),
-        }
+        };
+        let header = header?;
+
+        Ok(Some(header))
     }
 
     /// Walk one declaration member body after its containing definition exists.
@@ -648,9 +627,6 @@ impl WalkState<'_, '_> {
         is_ambient_scope: bool,
         method_body: Option<MethodBody>,
     ) -> CompilerResult<Option<FlowBranch>> {
-        if !self.decide_decorated_presence(id.into_any())? {
-            return Ok(None);
-        }
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
@@ -727,7 +703,7 @@ impl WalkState<'_, '_> {
         receiver_scope: Option<Receiver>,
         induced_owner: Option<InducedParameterOwner>,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(None);
         }
         let _receiver = self.enter_receiver_scope(receiver_scope);

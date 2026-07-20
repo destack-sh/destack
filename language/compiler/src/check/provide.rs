@@ -116,7 +116,6 @@ impl Compiler {
         check.walk()?;
         check.propagate_induced_parameters()?;
         check.check_decorators()?;
-        check.check_bodies()?;
         check.settle()?;
         check.report_constant_conditions()?;
 

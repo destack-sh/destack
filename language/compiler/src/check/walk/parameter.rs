@@ -1,9 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, ExpectedType, GenericParameterId, GenericTemplateId,
-    ValueUse, WalkState,
-};
+use crate::check::{CauseKind, GenericParameterId, GenericTemplateId, ValueUse, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -19,7 +16,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
     ) -> CompilerResult<Option<GenericParameterId>> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.decide_static_presence(id.into_any())? {
             return Ok(None);
         }
         let symbol = self.generic_parameter_symbol(id)?;
@@ -81,7 +78,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(());
         }
         let Some(parameter) = self.open_generic_parameter(template, id, generic_parameter)? else {
@@ -178,7 +175,7 @@ impl WalkState<'_, '_> {
         is_annotation_required: bool,
         represents_open_type: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(None);
         }
 
@@ -216,16 +213,14 @@ impl WalkState<'_, '_> {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     if let Some(parameter_type) = parameter_type {
-                        self.check.bodies.push(BodyOwner {
-                            phase: BodyPhase::Main,
-                            module: self.module,
-                            body: BodyTarget::Node(default.into_any()),
-                            ret: Some(ExpectedType::Type(parameter_type)),
-                            generator: None,
-                            ret_use: ValueUse::Store,
-                            binds: None,
-                            constructs: false,
-                        });
+                        let annotation =
+                            declared_type.map(|annotation| annotation.into_global_any(self.module));
+                        self.queue_assignable(
+                            default,
+                            parameter_type,
+                            CauseKind::Initializer { annotation },
+                            ValueUse::Store,
+                        )?;
                     }
                     self.restore_flow(before_default);
                 }
@@ -273,19 +268,17 @@ impl WalkState<'_, '_> {
                 }
 
                 // constrain pattern type from the parameter type
-                self.walk_pattern(pattern, self.tree.get(pattern))?;
+                self.walk_pattern(pattern, self.tree.get(pattern), None)?;
                 let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
                 if let Some(parameter_type) = parameter_type {
-                    self.check.bodies.push(BodyOwner {
-                        phase: BodyPhase::Main,
-                        module: self.module,
-                        body: BodyTarget::Node(pattern.into_any()),
-                        ret: Some(ExpectedType::Type(parameter_type)),
-                        generator: None,
-                        ret_use: ValueUse::Store,
-                        binds: None,
-                        constructs: false,
-                    });
+                    self.queue_assignable(
+                        pattern,
+                        parameter_type,
+                        CauseKind::Pattern {
+                            pattern: pattern.into_global_any(self.module),
+                        },
+                        ValueUse::Store,
+                    )?;
                 }
 
                 // check default after the parameter type is known
@@ -293,16 +286,14 @@ impl WalkState<'_, '_> {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     if let Some(parameter_type) = parameter_type {
-                        self.check.bodies.push(BodyOwner {
-                            phase: BodyPhase::Main,
-                            module: self.module,
-                            body: BodyTarget::Node(default.into_any()),
-                            ret: Some(ExpectedType::Type(parameter_type)),
-                            generator: None,
-                            ret_use: ValueUse::Store,
-                            binds: None,
-                            constructs: false,
-                        });
+                        let annotation =
+                            declared_type.map(|annotation| annotation.into_global_any(self.module));
+                        self.queue_assignable(
+                            default,
+                            parameter_type,
+                            CauseKind::Initializer { annotation },
+                            ValueUse::Store,
+                        )?;
                     }
                     self.restore_flow(before_default);
                 }
@@ -323,18 +314,16 @@ impl WalkState<'_, '_> {
                 }
 
                 // constrain pattern type from the parameter type
-                self.walk_pattern(pattern, self.tree.get(pattern))?;
+                self.walk_pattern(pattern, self.tree.get(pattern), None)?;
                 if let Some(parameter_type) = self.walk_parameter_type(id, represents_open_type)? {
-                    self.check.bodies.push(BodyOwner {
-                        phase: BodyPhase::Main,
-                        module: self.module,
-                        body: BodyTarget::Node(pattern.into_any()),
-                        ret: Some(ExpectedType::Type(parameter_type)),
-                        generator: None,
-                        ret_use: ValueUse::Store,
-                        binds: None,
-                        constructs: false,
-                    });
+                    self.queue_assignable(
+                        pattern,
+                        parameter_type,
+                        CauseKind::Pattern {
+                            pattern: pattern.into_global_any(self.module),
+                        },
+                        ValueUse::Store,
+                    )?;
                     result = Some(parameter_type);
                 }
             }

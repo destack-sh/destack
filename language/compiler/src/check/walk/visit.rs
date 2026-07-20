@@ -4,9 +4,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, CheckState, TemplatePass, ValueUse, WalkState,
-};
+use crate::check::{CheckState, PlaceUse, Task, TemplatePass, WalkState};
 
 impl CheckState<'_> {
     /// Declare every declaration template in one module.
@@ -69,21 +67,46 @@ impl CheckState<'_> {
 
         let mut walk = WalkState::new(module, tree, self);
 
-        // walk expanded roots; module statements are the module's body
+        // walk and queue expanded module roots
         for root in &expanded.roots {
             walk.walk_expression(*root, tree.get(*root))?;
+            walk.queue_module_expression(*root)?;
         }
-        walk.check.bodies.push(BodyOwner {
-            phase: BodyPhase::Main,
-            module,
-            body: BodyTarget::Module,
-            ret: None,
-            generator: None,
-            ret_use: ValueUse::Store,
-            binds: None,
-            constructs: false,
-        });
         walk.commit();
+
+        Ok(())
+    }
+}
+
+impl WalkState<'_, '_> {
+    /// Queue one module-scope expression for inference.
+    fn queue_module_expression(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let expressions = match self.tree.get(expression) {
+            dir::Expression::Declaration(declaration) => match self.tree.get(*declaration) {
+                dir::Declaration::Global(declaration) => Some(declaration.expressions.clone()),
+                dir::Declaration::Module(declaration) => Some(declaration.expressions.clone()),
+                _ => None,
+            },
+            _ => None,
+        };
+
+        // queue expressions nested by global and module declarations
+        if let Some(expressions) = expressions {
+            for expression in expressions {
+                self.queue_module_expression(expression)?;
+            }
+
+            return Ok(());
+        }
+
+        let site = self.node_site(expression)?;
+        self.check.queue_task(Task::Infer {
+            site,
+            use_: PlaceUse::Read,
+        });
 
         Ok(())
     }

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::WalkState;
+use crate::check::{WalkState, Widening};
+use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Walk one pattern.
@@ -17,8 +17,9 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Pattern>,
         pattern: &dir::Pattern,
+        binding_widening: Option<Widening>,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(());
         }
         self.enter_node(id)?;
@@ -34,11 +35,11 @@ impl WalkState<'_, '_> {
             | dir::Pattern::MoveOf { right: pattern, .. }
             // *pattern
             | dir::Pattern::DereferenceOf { right: pattern } => {
-                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern), binding_widening)?;
             }
             // pattern = value
             dir::Pattern::Default { pattern, value } => {
-                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern), binding_widening)?;
 
                 // check pattern default in selector context
                 let before_value = self.fork_flow();
@@ -50,10 +51,17 @@ impl WalkState<'_, '_> {
                 pattern: Some(pattern),
                 ..
             } => {
-                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
+                if let Some(widening) = binding_widening {
+                    self.allocate_pattern_binding(id.into_any(), widening)?;
+                }
+                self.walk_pattern(*pattern, self.tree.get(*pattern), binding_widening)?;
             }
             // name
-            dir::Pattern::Binding { pattern: None, .. } => {}
+            dir::Pattern::Binding { pattern: None, .. } => {
+                if let Some(widening) = binding_widening {
+                    self.allocate_pattern_binding(id.into_any(), widening)?;
+                }
+            }
             // value
             dir::Pattern::Expression { value } => {
                 // check value pattern in selector context
@@ -82,7 +90,7 @@ impl WalkState<'_, '_> {
             | dir::Pattern::Object { fields } => {
                 let fields = fields.clone();
                 for field in fields {
-                    self.walk_pattern_field(field, self.tree.get(field))?;
+                    self.walk_pattern_field(field, self.tree.get(field), binding_widening)?;
                 }
             }
             // T(a, b), T { name }
@@ -90,14 +98,14 @@ impl WalkState<'_, '_> {
                 let fields = fields.clone();
                 self.walk_construct_type_expression(*ty)?;
                 for field in fields {
-                    self.walk_pattern_field(field, self.tree.get(field))?;
+                    self.walk_pattern_field(field, self.tree.get(field), binding_widening)?;
                 }
             }
             // a | b
             dir::Pattern::Union { patterns } => {
                 let patterns = patterns.clone();
                 for pattern in patterns {
-                    self.walk_pattern(pattern, self.tree.get(pattern))?;
+                    self.walk_pattern(pattern, self.tree.get(pattern), binding_widening)?;
                 }
             }
         }
@@ -115,8 +123,9 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::PatternField>,
         field: &dir::PatternField,
+        binding_widening: Option<Widening>,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(());
         }
 
@@ -124,7 +133,9 @@ impl WalkState<'_, '_> {
             // { name: pattern }, { name }
             dir::PatternField::Named { pattern, .. } => {
                 if let Some(pattern) = *pattern {
-                    self.walk_pattern(pattern, self.tree.get(pattern))?;
+                    self.walk_pattern(pattern, self.tree.get(pattern), binding_widening)?;
+                } else if let Some(widening) = binding_widening {
+                    self.allocate_pattern_binding(id.into_any(), widening)?;
                 }
             }
             // { [key]: pattern }
@@ -134,21 +145,39 @@ impl WalkState<'_, '_> {
                 self.walk_expression(*key, self.tree.get(*key))?;
                 self.restore_flow(before_key);
 
-                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern), binding_widening)?;
             }
             // [pattern]
             dir::PatternField::Positional { pattern } => {
-                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
+                self.walk_pattern(*pattern, self.tree.get(*pattern), binding_widening)?;
             }
             // { ...pattern }
             dir::PatternField::Rest { pattern } => {
                 if let Some(pattern) = *pattern {
-                    self.walk_pattern(pattern, self.tree.get(pattern))?;
+                    self.walk_pattern(pattern, self.tree.get(pattern), binding_widening)?;
                 }
             }
             // [,]
             dir::PatternField::Elision => {}
         }
+
+        Ok(())
+    }
+
+    /// Allocate the type slot for one declaration pattern binding.
+    fn allocate_pattern_binding(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        widening: Widening,
+    ) -> CompilerResult<()> {
+        let symbol = self
+            .check
+            .module(self.module)
+            .declaration_symbol(source)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("declaration pattern {source:?} has no symbol"),
+            })?;
+        self.binding_type_slot(symbol, widening)?;
 
         Ok(())
     }

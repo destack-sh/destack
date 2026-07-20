@@ -1,12 +1,11 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, CauseKind, ExpectedType, FlowBranch, GeneratorTargets,
-    GenericTemplateId, InducedParameterOwner, Origin, ReceiverBinding, Relation, ValueUse,
-    VariableRole, WalkState, Widening,
+    CauseKind, FlowBranch, FunctionBody, GeneratorTargets, GenericTemplateId,
+    InducedParameterOwner, Origin, ReceiverBinding, Relation, VariableRole, WalkState, Widening,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Runtime parameter types produced by one function signature header.
 #[derive(Debug, Clone, PartialEq)]
@@ -500,34 +499,35 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // walk the body structurally; the checker owns its judgments
-        let body_node = match self.tree.get(body) {
+        let body_site = match self.tree.get(body) {
             dir::Expression::Block(block) => {
                 self.walk_block(*block, self.tree.get(*block))?;
 
-                block.into_any()
+                self.node_site(*block)?
             }
             _ => {
                 self.walk_expression(body, self.tree.get(body))?;
 
-                body.into_any()
+                self.node_site(body)?
             }
         };
 
-        // record the body for the checker, in source order
-        let ret = (!signature.is_constructor()).then_some(return_target);
+        // record the body under its declaration identity
+        let return_type = (!signature.is_constructor()).then_some(return_target);
         let generator = yield_target
             .zip(resume_target)
             .map(|(yielded, resumed)| GeneratorTargets { yielded, resumed });
-        self.check.bodies.push(BodyOwner {
-            phase: BodyPhase::Main,
-            module: self.module,
-            body: BodyTarget::Node(body_node),
-            ret: ret.map(ExpectedType::Type),
+        let body = FunctionBody {
+            site: body_site,
+            return_type,
             generator,
-            ret_use: ValueUse::Output,
-            binds: None,
-            constructs: signature.is_constructor(),
-        });
+            is_constructor: signature.is_constructor(),
+        };
+        if self.check.functions.insert(symbol, body).is_some() {
+            return Err(CompilerError::Internal {
+                message: format!("function {symbol:?} has multiple checked bodies"),
+            });
+        }
 
         Ok(self.leave_function_frame())
     }
@@ -620,15 +620,5 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.commit_node_type(id, ty)?;
 
         Ok(Some(ty))
-    }
-
-    /// Return the canonical place type for one concrete space.
-    pub(in crate::check) fn place_type(
-        &mut self,
-        space: dir::Space,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-            dir::Place::Space(space),
-        )))
     }
 }

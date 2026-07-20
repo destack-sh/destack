@@ -18,7 +18,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(());
         }
         self.enter_node(id)?;

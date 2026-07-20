@@ -1,10 +1,10 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use crate::check::{
-    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowPath, FlowPredicate, Obligation, Origin,
-    PatternCoverage, PatternCoverageObligation, ValueUse, WalkState, Widening,
+    ExpectedType, FlowPath, FlowPredicate, Obligation, PatternCoverage, PatternCoverageObligation,
+    WalkState, Widening,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Walk one declarator.
@@ -18,149 +18,53 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
-        place: Option<dir::PlaceModifier>,
         is_ambient: bool,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(());
         }
 
-        if let Some(symbol) = self.direct_declarator_symbol(declarator) {
-            self.walk_direct_declarator(id, symbol, declarator, binding_kind, place, is_ambient)?;
-        } else {
-            self.walk_pattern_declarator(id, declarator)?;
-        }
+        let widening = self.declarator_widening(declarator, binding_kind);
+        self.walk_pattern(
+            declarator.pattern,
+            self.tree.get(declarator.pattern),
+            Some(widening),
+        )?;
 
-        Ok(())
-    }
+        // walk the declared pattern type
+        let matched = declarator
+            .ty
+            .map(|ty| match is_ambient {
+                true => self.walk_static_type_expression(ty),
+                false => self.walk_type_expression(ty),
+            })
+            .transpose()?;
 
-    /// Qualify one binding type with its written place modifier.
-    fn place_written_binding(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        ty: dir::GlobalTypeId,
-        place: dir::PlaceModifier,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let origin = Origin::Node(
-            source.into_global(self.module),
-            self.flow().template_scope(),
-        );
-        let place = self.place_type(place.space())?;
-
-        self.check.placed_type(origin, ty, place)
-    }
-
-    /// Walk one declarator that binds one symbol directly.
-    ///
-    /// Example:
-    /// ```ds
-    /// value = 1
-    /// ```
-    fn walk_direct_declarator(
-        &mut self,
-        id: dir::LocalNodeId<dir::Declarator>,
-        symbol: dir::GlobalSymbolId,
-        declarator: &dir::Declarator,
-        binding_kind: Option<dir::LetKind>,
-        place: Option<dir::PlaceModifier>,
-        is_ambient: bool,
-    ) -> CompilerResult<()> {
-        // bind annotated declarators before checking their initializers
-        if let Some(ty) = declarator.ty {
-            let written = match is_ambient {
-                true => self.walk_static_type_expression(ty)?,
-                false => self.walk_type_expression(ty)?,
-            };
-            let written = match place {
-                Some(place) => self.place_written_binding(id.into_any(), written, place)?,
-                None => written,
-            };
-            self.bind_symbol_type(symbol, written)?;
-
-            // const unique symbols carry their declaration identity as a static value
-            if binding_kind == Some(dir::LetKind::Const)
-                && matches!(
-                    self.check.ty(written)?,
-                    dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
-                )
-            {
-                let arguments = self.intern_type_ids(&[])?;
-                let value = self.intern_type(dir::Type::Instance(dir::GenericInstance {
-                    symbol,
-                    arguments,
-                }))?;
-                self.commit_static_value(symbol, value)?;
-            }
-
-            // record annotated initializers against their written type
-            if let Some(value) = declarator.value {
-                self.walk_expression(value, self.tree.get(value))?;
-                self.check.bodies.push(BodyOwner {
-                    phase: BodyPhase::Main,
-                    module: self.module,
-                    body: BodyTarget::Node(value.into_any()),
-                    ret: Some(ExpectedType::Type(written)),
-                    generator: None,
-                    ret_use: ValueUse::Store,
-                    binds: None,
-                    constructs: false,
-                });
-            }
-
-            return Ok(());
-        }
-
-        // choose the initializer widening rule before walking the value
-        let widening = self.declarator_initializer_widening(symbol, declarator.value);
-
-        // walk the initializer as its own expression
-        if let Some(value) = declarator.value {
-            self.walk_expression(value, self.tree.get(value))?;
-        }
-
-        // bind inferred declarations from their initializer
-        if let Some(value) = declarator.value {
-            let place = place
-                .map(|place| self.place_type(place.space()))
-                .transpose()?;
-            let index = self.check.bodies.len();
-            self.check.bodies.push(BodyOwner {
-                phase: BodyPhase::Main,
-                module: self.module,
-                body: BodyTarget::Node(value.into_any()),
-                ret: None,
-                generator: None,
-                ret_use: ValueUse::Store,
-                binds: Some((symbol, widening, place)),
-                constructs: false,
-            });
-            self.check.initializers.insert(symbol, index);
-
-            return Ok(());
-        }
-
-        // uninitialized bindings keep a variable for their writes
-        self.binding_type_slot(symbol, widening)?;
-
-        Ok(())
-    }
-
-    /// Walk one declarator that destructures or matches a value.
-    ///
-    /// Example:
-    /// ```ds
-    /// { name } = user
-    /// ```
-    fn walk_pattern_declarator(
-        &mut self,
-        id: dir::LocalNodeId<dir::Declarator>,
-        declarator: &dir::Declarator,
-    ) -> CompilerResult<()> {
-        self.walk_pattern(declarator.pattern, self.tree.get(declarator.pattern))?;
-
-        // walk declared type
-        if let Some(ty) = declarator.ty {
-            self.walk_type_expression(ty)?;
+        // create declaration identity for const unique symbols
+        if binding_kind == Some(dir::LetKind::Const)
+            && let Some(matched) = matched
+            && matches!(
+                self.check.ty(matched)?,
+                dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
+            )
+            && matches!(
+                self.tree.get(declarator.pattern),
+                dir::Pattern::Binding { .. }
+            )
+        {
+            let symbol = self
+                .check
+                .module(self.module)
+                .declaration_symbol(declarator.pattern.into_any())
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("declaration pattern {:?} has no symbol", declarator.pattern),
+                })?;
+            let arguments = self.intern_type_ids(&[])?;
+            let value = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+                symbol,
+                arguments,
+            }))?;
+            self.commit_static_value(symbol, value)?;
         }
 
         // walk matched value
@@ -171,27 +75,6 @@ impl WalkState<'_, '_> {
         // record pattern checking from the initializer or annotation
         if let Some(value) = declarator.value {
             let value_site = self.node_site(value)?;
-            self.check.bodies.push(BodyOwner {
-                phase: BodyPhase::Main,
-                module: self.module,
-                body: BodyTarget::Node(value.into_any()),
-                ret: None,
-                generator: None,
-                ret_use: ValueUse::Store,
-                binds: None,
-                constructs: false,
-            });
-            self.check.bodies.push(BodyOwner {
-                phase: BodyPhase::Main,
-                module: self.module,
-                body: BodyTarget::Node(declarator.pattern.into_any()),
-                ret: Some(ExpectedType::Node(value_site)),
-                generator: None,
-                ret_use: ValueUse::Store,
-                binds: None,
-                constructs: false,
-            });
-
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
                 self.check.push_obligation(
@@ -205,19 +88,7 @@ impl WalkState<'_, '_> {
                     self.flow().template_scope(),
                 );
             }
-        } else if let Some(ty) = declarator.ty {
-            let matched = self.walk_type_expression(ty)?;
-            self.check.bodies.push(BodyOwner {
-                phase: BodyPhase::Main,
-                module: self.module,
-                body: BodyTarget::Node(declarator.pattern.into_any()),
-                ret: Some(ExpectedType::Type(matched)),
-                generator: None,
-                ret_use: ValueUse::Store,
-                binds: None,
-                constructs: false,
-            });
-
+        } else if let Some(matched) = matched {
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
                 self.check.push_obligation(
@@ -236,31 +107,18 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Return the single symbol bound directly by one declarator.
-    fn direct_declarator_symbol(
+    /// Return the widening policy for one inferred declarator initializer.
+    fn declarator_widening(
         &self,
         declarator: &dir::Declarator,
-    ) -> Option<dir::GlobalSymbolId> {
-        match self.tree.get(declarator.pattern) {
-            dir::Pattern::Binding { pattern: None, .. } => self
-                .check
-                .module(self.module)
-                .declaration_symbol(declarator.pattern.into_any()),
-            _ => None,
-        }
-    }
-
-    /// Return the widening policy for one inferred declarator initializer.
-    fn declarator_initializer_widening(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        value: Option<dir::LocalNodeId<dir::Expression>>,
+        binding_kind: Option<dir::LetKind>,
     ) -> Widening {
-        let Some(value) = value else {
+        if declarator.ty.is_some() {
+            return Widening::Never;
+        }
+        let Some(value) = declarator.value else {
             return Widening::Never;
         };
-        let bindings = self.check.module(symbol.module_id).binding_table();
-        let binding = bindings.get_symbol(symbol.local_id);
 
         match self.tree.get(value) {
             // value satisfies T
@@ -272,7 +130,7 @@ impl WalkState<'_, '_> {
                 Widening::Never
             }
             // mutable bindings widen initializers
-            _ if binding.binding_mutability != Some(dir::Mutability::Immutable) => Widening::Always,
+            _ if binding_kind != Some(dir::LetKind::Const) => Widening::Always,
             // immutable aggregate bindings keep mutable contents usable
             dir::Expression::ArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }

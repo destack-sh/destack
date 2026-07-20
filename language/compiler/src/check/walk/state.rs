@@ -5,8 +5,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Cause, CauseKind, CheckState, Constraint, FlowPointId, FlowSite, FlowState, Origin, Relation,
-    ValueUse, VariableRole, Widening,
+    Cause, CauseKind, CheckState, Constraint, Expectation, FlowPointId, FlowSite, FlowState,
+    Origin, Relation, Task, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -126,15 +126,20 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let node = id.into_global_any(self.module);
         let flow = self.flow().point();
         let scope = self.flow().template_scope();
-        if let Some((previous, _)) = self.node_flows.insert(node, (flow, scope))
-            && previous != flow
-        {
-            let node = self.check.node_label(node);
+
+        // reject repeated node walks
+        if let Some((previous, _)) = self.node_flows.get(&node) {
+            let label = self.check.node_label(node);
 
             return Err(CompilerError::Internal {
-                message: format!("check node {node} was walked under two flow sites"),
+                message: format!(
+                    "check node {label} was walked more than once at flow {previous:?} and {flow:?}"
+                ),
             });
         }
+
+        // record the node's flow site
+        self.node_flows.insert(node, (flow, scope));
 
         Ok(FlowSite { node, flow, scope })
     }
@@ -154,6 +159,22 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         Ok(FlowSite { node, flow, scope })
+    }
+
+    /// Queue one source node to satisfy an assignable target.
+    pub(in crate::check) fn queue_assignable<T: dir::Node>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        target: dir::GlobalTypeId,
+        kind: CauseKind,
+        use_: ValueUse,
+    ) -> CompilerResult<()> {
+        let site = self.node_site(id)?;
+        let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
+        let expectation = Expectation::assignable(target, cause, use_);
+        self.check.queue_task(Task::Check { site, expectation });
+
+        Ok(())
     }
 
     /// Walk one return type while tracking elided borrow lifetimes.
@@ -447,6 +468,29 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(origin, widening, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
+        let space = {
+            let bindings = self.check.module(symbol.module_id).binding_table();
+
+            bindings.get_symbol(symbol.local_id).binding_space
+        };
+        let place = space
+            .map(|space| {
+                self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
+                    dir::Place::Space(space),
+                )))
+            })
+            .transpose()?;
+
+        // keep declared storage outside the inferred payload
+        let ty = place
+            .map(|place| {
+                self.intern_type(dir::Type::Form(dir::FormType {
+                    form: dir::Form::Placed { place },
+                    value: ty,
+                }))
+            })
+            .transpose()?
+            .unwrap_or(ty);
         self.check.commit_binding_type(symbol, ty)?;
 
         Ok(ty)

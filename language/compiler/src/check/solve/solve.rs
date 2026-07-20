@@ -43,7 +43,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Settle every remaining obligation after all bodies checked.
+    /// Check named function bodies and settle every remaining task.
     pub(in crate::check) fn settle(&mut self) -> CompilerResult<()> {
         // queue every named function body
         for body in self.functions.values().copied().collect::<Vec<_>>() {

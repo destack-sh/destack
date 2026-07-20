@@ -102,7 +102,7 @@ impl WalkState<'_, '_> {
         declaration: &dir::Declaration,
         pass: TemplatePass,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.decide_static_presence(id.into_any())? {
             return Ok(());
         }
 
@@ -315,7 +315,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(());
         }
 
@@ -523,13 +523,16 @@ impl WalkState<'_, '_> {
         let mut members = Vec::new();
         let mut member_headers = Vec::new();
         for member in &declaration.members {
-            let header = self.walk_member_declaration(
+            let Some(header) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?;
+            )?
+            else {
+                continue;
+            };
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
@@ -643,13 +646,16 @@ impl WalkState<'_, '_> {
         let mut members = Vec::new();
         let mut member_headers = Vec::new();
         for member in &declaration.members {
-            let header = self.walk_member_declaration(
+            let Some(header) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?;
+            )?
+            else {
+                continue;
+            };
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
@@ -913,13 +919,16 @@ impl WalkState<'_, '_> {
         }
         let mut member_headers = Vec::new();
         for member in &declaration.members {
-            let header = self.walk_member_declaration(
+            let Some(header) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?;
+            )?
+            else {
+                continue;
+            };
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
@@ -1118,13 +1127,16 @@ impl WalkState<'_, '_> {
         let mut members = Vec::new();
         let mut member_headers = Vec::new();
         for member in &declaration.members {
-            let header = self.walk_member_declaration(
+            let Some(header) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?;
+            )?
+            else {
+                continue;
+            };
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
@@ -1353,7 +1365,7 @@ impl WalkState<'_, '_> {
         enum_field: &dir::EnumField,
         implicit: Option<Result<dir::EnumVariantValue, dir::EnumVariantIncrementError>>,
     ) -> CompilerResult<WalkedEnumVariant> {
-        if !self.decide_decorated_presence(id.into_any())? {
+        if !self.walk_decorators(id.into_any())? {
             return Ok(WalkedEnumVariant::Absent);
         }
         let (name, value) = (enum_field.name, enum_field.value);
