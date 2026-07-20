@@ -205,7 +205,7 @@ if (let { left: value } | { right: value } = packet) {
 /// @binding.node node=pattern scope=scope2@0 source={ left: value } | { right: value }
 /// @binding.node node=pattern scope=scope2@1 source={ left: value }
 /// @binding.node node=pattern_field scope=scope2@1 source="left: value"
-/// @binding.symbol symbol=value role=local kind=variable scope=scope2@0
+/// @binding.symbol symbol=value role=local kind=variable scope=scope2@0 mutability=mutable
 /// @binding.node node=pattern scope=scope2@1 source=value
 /// @binding.node node=pattern scope=scope2@1 source={ right: value }
 /// @binding.node node=pattern_field scope=scope2@1 source="right: value"
@@ -260,8 +260,8 @@ declare const packet: { left: int32 } | { right: int32 };
 
 if (let { left: value } | { right: other } = packet) {
 /// @binding.scope scope=scope2 kind=block parent=<module>@6
-/// @binding.symbol symbol=value role=local kind=variable scope=scope2@0
-/// @binding.symbol symbol=other role=local kind=variable scope=scope2@1
+/// @binding.symbol symbol=value role=local kind=variable scope=scope2@0 mutability=mutable
+/// @binding.symbol symbol=other role=local kind=variable scope=scope2@1 mutability=mutable
 /// @binding.scope scope=scope3 kind=block parent=scope2@2
 
     value;

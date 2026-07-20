@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
-use super::super::state::{BindState, BindingContext};
+use super::super::state::{BindState, BindingModifiers};
 
 use crate::Compiler;
 
@@ -251,13 +251,7 @@ impl Compiler {
         };
 
         // declare parameter symbol
-        let symbol_id = state.insert_symbol(
-            dir::SymbolRole::Local,
-            dir::SymbolKind::Variable,
-            Some(key),
-            None,
-            dir::SymbolVisibility::Forward,
-        );
+        let symbol_id = state.insert_binding_symbol(key, BindingModifiers::default());
 
         state.declare_symbol(symbol_id, node_id);
     }
@@ -270,9 +264,9 @@ impl Compiler {
         pattern_id: dir::LocalNodeId<dir::Pattern>,
     ) {
         // bind pattern in parameter context
-        state.push_binding(BindingContext::default());
+        state.push_binding_modifiers(BindingModifiers::default());
         let pattern = tree.get(pattern_id);
         state.visit_pattern(tree, pattern_id, pattern);
-        state.pop_binding();
+        state.pop_binding_modifiers();
     }
 }

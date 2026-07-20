@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
-use super::super::state::{BindState, BindingContext};
+use super::super::state::{BindState, BindingModifiers};
 
 use crate::Compiler;
 
@@ -13,7 +13,7 @@ impl Compiler {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
-        binding: BindingContext,
+        modifiers: BindingModifiers,
     ) {
         state.bind_node(id.into_any());
 
@@ -30,9 +30,9 @@ impl Compiler {
         }
 
         // bind pattern after type and value
-        state.push_binding(binding);
+        state.push_binding_modifiers(modifiers);
         let pattern = tree.get(declarator.pattern);
         state.visit_pattern(tree, declarator.pattern, pattern);
-        state.pop_binding();
+        state.pop_binding_modifiers();
     }
 }

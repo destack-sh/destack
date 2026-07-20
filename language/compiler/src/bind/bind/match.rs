@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
-use super::super::state::{BindState, BindingContext};
+use super::super::state::{BindState, BindingModifiers};
 
 use crate::Compiler;
 
@@ -19,9 +19,9 @@ impl Compiler {
 
         // bind the selected pattern without inheriting declaration context
         let pattern_node = tree.get(pattern);
-        state.push_binding(BindingContext::default());
+        state.push_binding_modifiers(BindingModifiers::default());
         state.visit_pattern(tree, pattern, pattern_node);
-        state.pop_binding();
+        state.pop_binding_modifiers();
 
         // bind the optional guard
         if let Some(guard) = arm.guard() {

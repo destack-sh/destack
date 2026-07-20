@@ -9,13 +9,15 @@ use indexmap::IndexMap;
 use crate::Compiler;
 use crate::bind::stats::BindStats;
 
-/// Symbol context applied while binding declaration patterns.
+/// Source modifiers inherited by one binding symbol.
 #[derive(Debug, Clone, Copy, Default)]
-pub(in crate::bind) struct BindingContext {
+pub(in crate::bind) struct BindingModifiers {
     /// The export attached to introduced symbols.
     pub(in crate::bind) export: Option<dir::ExportKind>,
     /// The mutability attached to introduced value symbols.
     pub(in crate::bind) mutability: Option<dir::Mutability>,
+    /// The explicit storage space attached to introduced value symbols.
+    pub(in crate::bind) space: Option<dir::Space>,
 }
 
 /// State for one bind phase provider run.
@@ -31,8 +33,8 @@ pub(in crate::bind) struct BindState<'a> {
     pub(in crate::bind) scope_stack: Vec<dir::LocalScopeId>,
     /// The conditional type scopes that own active `infer` binders.
     pub(in crate::bind) infer_scope_stack: Vec<dir::LocalScopeId>,
-    /// The active binding context stack.
-    pub(in crate::bind) binding_stack: Vec<BindingContext>,
+    /// The active binding modifier stack.
+    binding_modifier_stack: Vec<BindingModifiers>,
     /// Shared binding symbols for active union patterns.
     pub(in crate::bind) union_pattern_symbols: Vec<IndexMap<dir::StaticKey, dir::LocalSymbolId>>,
     /// Shared symbols for repeated `infer` binders per conditional scope.
@@ -85,10 +87,7 @@ impl<'a> BindState<'a> {
             scope_stack: vec![namespace_scope],
             infer_scope_stack: Vec::new(),
             infer_symbols: IndexMap::new(),
-            binding_stack: vec![BindingContext {
-                export: None,
-                mutability: None,
-            }],
+            binding_modifier_stack: vec![BindingModifiers::default()],
             union_pattern_symbols: Vec::new(),
             bindings,
             types: dir::TypeSegment::new(module),
@@ -203,24 +202,24 @@ impl<'a> BindState<'a> {
         self.infer_scope_stack.last().copied()
     }
 
-    /// Push one binding context while visiting a pattern subtree.
-    pub(in crate::bind) fn push_binding(&mut self, binding: BindingContext) {
-        self.binding_stack.push(binding);
+    /// Push binding modifiers while visiting a pattern subtree.
+    pub(in crate::bind) fn push_binding_modifiers(&mut self, modifiers: BindingModifiers) {
+        self.binding_modifier_stack.push(modifiers);
     }
 
-    /// Pop one binding context after visiting a pattern subtree.
-    pub(in crate::bind) fn pop_binding(&mut self) {
-        self.binding_stack
+    /// Pop binding modifiers after visiting a pattern subtree.
+    pub(in crate::bind) fn pop_binding_modifiers(&mut self) {
+        self.binding_modifier_stack
             .pop()
-            .expect("bind binding stack underflow");
+            .expect("bind binding modifier stack underflow");
     }
 
-    /// Return the current binding context.
-    pub(in crate::bind) fn binding(&self) -> BindingContext {
+    /// Return the current binding modifiers.
+    pub(in crate::bind) fn binding_modifiers(&self) -> BindingModifiers {
         *self
-            .binding_stack
+            .binding_modifier_stack
             .last()
-            .expect("bind binding stack is empty")
+            .expect("bind binding modifier stack is empty")
     }
 
     /// Push shared symbols for one union pattern.
@@ -274,6 +273,39 @@ impl<'a> BindState<'a> {
         symbol_id
     }
 
+    /// Insert one source binding symbol in the current lexical scope.
+    pub(in crate::bind) fn insert_binding_symbol(
+        &mut self,
+        key: dir::StaticKey,
+        modifiers: BindingModifiers,
+    ) -> dir::LocalSymbolId {
+        let scope = self.bindings.get_scope_by_id(self.current_scope_id());
+        let visibility = match scope.kind {
+            dir::ScopeKind::Module | dir::ScopeKind::Global | dir::ScopeKind::Namespace => {
+                dir::SymbolVisibility::Scope
+            }
+            dir::ScopeKind::Function
+            | dir::ScopeKind::Type
+            | dir::ScopeKind::TypeConditional
+            | dir::ScopeKind::Label
+            | dir::ScopeKind::Block => dir::SymbolVisibility::Forward,
+        };
+        let symbol_id = self.insert_symbol(
+            dir::SymbolRole::Local,
+            dir::SymbolKind::Variable,
+            Some(key),
+            modifiers.export,
+            visibility,
+        );
+
+        // retain source modifiers on the durable symbol
+        let symbol = self.bindings.get_symbol_mut(symbol_id);
+        symbol.binding_mutability = modifiers.mutability;
+        symbol.binding_space = modifiers.space;
+
+        symbol_id
+    }
+
     /// Insert one symbol in the given lexical scope.
     pub(in crate::bind) fn insert_symbol_in_scope(
         &mut self,
@@ -322,20 +354,6 @@ impl<'a> BindState<'a> {
         node_id: dir::LocalNodeId<T>,
     ) {
         self.bindings.declare_symbol(symbol_id, node_id);
-    }
-
-    /// Attach binding mutability to one symbol.
-    pub(in crate::bind) fn set_binding_mutability(
-        &mut self,
-        symbol_id: dir::LocalSymbolId,
-        mutability: Option<dir::Mutability>,
-    ) {
-        // ignore unqualified bindings
-        let Some(mutability) = mutability else {
-            return;
-        };
-
-        self.bindings.get_symbol_mut(symbol_id).binding_mutability = Some(mutability);
     }
 
     /// Return the current scope id.

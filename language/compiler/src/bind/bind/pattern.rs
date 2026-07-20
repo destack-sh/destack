@@ -43,20 +43,12 @@ impl PatternBindingSet {
 
     /// Declare each binding key as one shared symbol.
     fn declare(self, state: &mut BindState<'_>) -> IndexMap<dir::StaticKey, dir::LocalSymbolId> {
-        let binding = state.binding();
+        let modifiers = state.binding_modifiers();
         let mut symbols = IndexMap::new();
 
         // allocate one logical symbol per shared binding key
         for key in self.keys {
-            let symbol_id = state.insert_symbol(
-                dir::SymbolRole::Local,
-                dir::SymbolKind::Variable,
-                Some(key),
-                binding.export,
-                dir::SymbolVisibility::Forward,
-            );
-
-            state.set_binding_mutability(symbol_id, binding.mutability);
+            let symbol_id = state.insert_binding_symbol(key, modifiers);
             symbols.insert(key, symbol_id);
         }
 
@@ -183,16 +175,8 @@ impl Compiler {
         }
 
         // declare pattern symbol
-        let binding = state.binding();
-        let symbol_id = state.insert_symbol(
-            dir::SymbolRole::Local,
-            dir::SymbolKind::Variable,
-            Some(dir::StaticKey::Name(*name)),
-            binding.export,
-            dir::SymbolVisibility::Forward,
-        );
-
-        state.set_binding_mutability(symbol_id, binding.mutability);
+        let modifiers = state.binding_modifiers();
+        let symbol_id = state.insert_binding_symbol(dir::StaticKey::Name(*name), modifiers);
         state.declare_symbol(symbol_id, node_id);
     }
 
@@ -220,16 +204,8 @@ impl Compiler {
                 return;
             }
 
-            let binding = state.binding();
-            let symbol_id = state.insert_symbol(
-                dir::SymbolRole::Local,
-                dir::SymbolKind::Variable,
-                Some(name.static_key()),
-                binding.export,
-                dir::SymbolVisibility::Forward,
-            );
-
-            state.set_binding_mutability(symbol_id, binding.mutability);
+            let modifiers = state.binding_modifiers();
+            let symbol_id = state.insert_binding_symbol(name.static_key(), modifiers);
             state.declare_symbol(symbol_id, node_id);
         }
 

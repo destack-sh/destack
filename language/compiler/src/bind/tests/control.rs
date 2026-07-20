@@ -163,7 +163,7 @@ for (let index: number = 0; index < 10; index = index + 1) {
 let output: number = if (let Some(value) = maybe) {
 /// @binding.symbol symbol=output role=local kind=variable scope=<module>@1 mutability=mutable
 /// @binding.scope scope=scope4 kind=block parent=<module>@1
-/// @binding.symbol symbol=value role=local kind=variable scope=scope4@0
+/// @binding.symbol symbol=value role=local kind=variable scope=scope4@0 mutability=mutable
 /// @binding.scope scope=scope5 kind=block parent=scope4@1
 
     value

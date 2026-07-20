@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
-use super::super::state::{BindState, BindingContext};
+use super::super::state::{BindState, BindingModifiers};
 
 use crate::Compiler;
 
@@ -47,16 +47,18 @@ impl Compiler {
             dir::Expression::Let {
                 export,
                 mutability,
+                place,
                 declarators,
                 ..
             } => {
                 // bind let declarators
                 state.bind_node(id.into_any());
-                let binding = BindingContext {
+                let modifiers = BindingModifiers {
                     export: *export,
                     mutability: Some(*mutability),
+                    space: place.map(dir::PlaceModifier::space),
                 };
-                self.bind_declarators(state, tree, declarators, binding);
+                self.bind_declarators(state, tree, declarators, modifiers);
             }
             dir::Expression::LetElse {
                 mutability,
@@ -66,11 +68,12 @@ impl Compiler {
             } => {
                 // bind guard declarator
                 state.bind_node(id.into_any());
-                let binding = BindingContext {
+                let modifiers = BindingModifiers {
                     export: None,
                     mutability: Some(*mutability),
+                    space: None,
                 };
-                self.bind_declarators(state, tree, &[*declarator], binding);
+                self.bind_declarators(state, tree, &[*declarator], modifiers);
                 self.visit_expression_by_id(state, tree, *else_branch);
             }
             dir::Expression::Using {
@@ -80,11 +83,12 @@ impl Compiler {
             } => {
                 // bind resource declarators
                 state.bind_node(id.into_any());
-                let binding = BindingContext {
+                let modifiers = BindingModifiers {
                     export: *export,
                     mutability: None,
+                    space: None,
                 };
-                self.bind_declarators(state, tree, declarators, binding);
+                self.bind_declarators(state, tree, declarators, modifiers);
             }
             dir::Expression::If {
                 condition,
@@ -161,18 +165,18 @@ impl Compiler {
         state.visit_dependency_item(tree, id, item);
     }
 
-    /// Bind declarators under one binding context.
+    /// Bind declarators under one set of source modifiers.
     fn bind_declarators(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
-        binding: BindingContext,
+        modifiers: BindingModifiers,
     ) {
-        // visit declarators with binding context scoped to their patterns
+        // visit declarators with modifiers scoped to their patterns
         for declarator_id in declarators {
             let declarator = tree.get(*declarator_id);
-            self.bind_declarator(state, tree, *declarator_id, declarator, binding);
+            self.bind_declarator(state, tree, *declarator_id, declarator, modifiers);
         }
     }
 
@@ -217,11 +221,6 @@ impl Compiler {
         tree: &dir::Tree,
         operands: &[dir::ConditionOperand],
     ) {
-        let binding = BindingContext {
-            export: None,
-            mutability: None,
-        };
-
         for operand in operands {
             match operand {
                 // boolean condition
@@ -229,8 +228,17 @@ impl Compiler {
                     self.visit_expression_by_id(state, tree, *condition);
                 }
                 // pattern binding condition
-                dir::ConditionOperand::Binding { declarator, .. } => {
-                    self.bind_declarators(state, tree, &[*declarator], binding);
+                dir::ConditionOperand::Binding {
+                    mutability,
+                    declarator,
+                    ..
+                } => {
+                    let modifiers = BindingModifiers {
+                        export: None,
+                        mutability: Some(*mutability),
+                        space: None,
+                    };
+                    self.bind_declarators(state, tree, &[*declarator], modifiers);
                 }
             }
         }
@@ -256,11 +264,12 @@ impl Compiler {
 
         // bind loop pattern
         state.push_scope(scope_id);
-        let binding_context = BindingContext {
+        let modifiers = BindingModifiers {
             export: None,
             mutability: None,
+            space: None,
         };
-        state.push_binding(binding_context);
+        state.push_binding_modifiers(modifiers);
         match binding {
             dir::ForEachBinding::Pattern { pattern, .. }
             | dir::ForEachBinding::Using { pattern, .. } => {
@@ -268,7 +277,7 @@ impl Compiler {
                 state.visit_pattern(tree, *pattern, pattern_node);
             }
         }
-        state.pop_binding();
+        state.pop_binding_modifiers();
 
         // visit loop body
         self.visit_block_by_id(state, tree, body);
@@ -392,12 +401,13 @@ impl Compiler {
         // bind catch pattern before the catch body
         if let Some(pattern) = catch.pattern {
             let pattern_node = tree.get(pattern);
-            state.push_binding(BindingContext {
+            state.push_binding_modifiers(BindingModifiers {
                 export: None,
                 mutability: Some(dir::Mutability::Mutable),
+                space: None,
             });
             state.visit_pattern(tree, pattern, pattern_node);
-            state.pop_binding();
+            state.pop_binding_modifiers();
         }
 
         // bind catch match failure before the catch body
@@ -406,15 +416,12 @@ impl Compiler {
             && let dir::Expression::Match { value, .. } = tree.get(catch.body)
             && let dir::Expression::Identifier { name } = tree.get(*value)
         {
-            let symbol_id = state.insert_symbol(
-                dir::SymbolRole::Local,
-                dir::SymbolKind::Variable,
-                Some(dir::StaticKey::Name(*name)),
-                None,
-                dir::SymbolVisibility::Forward,
-            );
-
-            state.set_binding_mutability(symbol_id, Some(dir::Mutability::Mutable));
+            let modifiers = BindingModifiers {
+                export: None,
+                mutability: Some(dir::Mutability::Mutable),
+                space: None,
+            };
+            let symbol_id = state.insert_binding_symbol(dir::StaticKey::Name(*name), modifiers);
             state.declare_symbol(symbol_id, *value);
         }
 

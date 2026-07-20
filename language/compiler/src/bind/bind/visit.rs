@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::super::state::{BindState, BindingContext};
+use super::super::state::{BindState, BindingModifiers};
 
 impl dir::NodeVisitor for BindState<'_> {
     fn options(&self) -> &dir::NodeVisitorOptions {
@@ -213,7 +213,7 @@ impl dir::NodeVisitor for BindState<'_> {
         declarator: &dir::Declarator,
     ) {
         self.compiler
-            .bind_declarator(self, tree, id, declarator, BindingContext::default());
+            .bind_declarator(self, tree, id, declarator, BindingModifiers::default());
     }
 
     fn visit_catch(
