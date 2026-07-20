@@ -1,5 +1,4 @@
-use std::num::NonZeroU32;
-
+use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -10,32 +9,49 @@ use crate::{
 /// Dense identity for one allocation drop function.
 #[repr(transparent)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
-pub struct DropId(NonZeroU32);
+pub struct DropId(u32);
 
 impl DropId {
     /// Create one drop identity from its dense index.
     pub const fn from_index(index: u32) -> Self {
-        match NonZeroU32::new(index + 1) {
-            Some(raw) => Self(raw),
-            None => unreachable!(),
-        }
+        Self(index)
     }
 
     /// Return the zero-based drop table index.
     pub const fn index(self) -> usize {
-        self.0.get() as usize - 1
+        self.0 as usize
     }
 }
 
 const _: () = assert!(std::mem::size_of::<DropId>() == std::mem::size_of::<u32>());
-const _: () = assert!(std::mem::size_of::<Option<DropId>>() == std::mem::size_of::<u32>());
-
 /// The number of adjacent values covered by one allocation drop.
 #[repr(u32)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub enum DropCardinality {
     /// Drop exactly one value.
@@ -47,7 +63,18 @@ pub enum DropCardinality {
 /// Destruction required by one managed allocation.
 #[repr(C)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub struct DropPlan {
     /// Drop function identity.
@@ -100,8 +127,6 @@ impl DropPlan {
 }
 
 const _: () = assert!(std::mem::size_of::<DropPlan>() == 3 * std::mem::size_of::<u32>());
-const _: () = assert!(std::mem::size_of::<Option<DropPlan>>() == 3 * std::mem::size_of::<u32>());
-
 /// Heap value selected for one drop function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DropReference {
@@ -172,19 +197,20 @@ impl DropCursor {
     ) -> HeapResult<Self> {
         // derive exact value cardinality from the allocation shape
         let stride = plan.stride();
-        let remaining = match plan.cardinality {
-            DropCardinality::One if stride > 0 && byte_len >= stride => 1,
-            DropCardinality::Repeated
-                if stride > 0 && byte_len >= stride && byte_len.is_multiple_of(stride) =>
+        let remaining =
+            if plan.cardinality == DropCardinality::One && stride > 0 && byte_len >= stride {
+                1
+            } else if plan.cardinality == DropCardinality::Repeated
+                && stride > 0
+                && byte_len >= stride
+                && byte_len.is_multiple_of(stride)
             {
                 byte_len / stride
-            }
-            DropCardinality::One | DropCardinality::Repeated => {
+            } else {
                 return Err(HeapError::representation(
                     HeapRepresentationError::InvalidDropLayout { byte_len, stride },
                 ));
-            }
-        };
+            };
 
         Ok(Self {
             collector,

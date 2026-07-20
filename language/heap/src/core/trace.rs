@@ -2,7 +2,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use destack_core::{
-    EntryRange, EntryStore, SectionEntry, SectionImage, SectionPacker, SectionSlice,
+    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
 };
 use destack_mir as mir;
 use destack_mir::{
@@ -23,7 +23,10 @@ const VARIANT_DIRECT: u32 = 0;
 const VARIANT_NICHE: u32 = 1;
 
 /// Compact heap trace table stored in program sections.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct TraceTable {
     /// Top-level trace roots indexed by TraceId.
     roots: SectionSlice<u32>,
@@ -49,7 +52,7 @@ pub struct TraceTable {
 
 impl TraceTable {
     /// Pack one heap trace table from compiler trace maps.
-    pub fn pack(sections: &mut SectionPacker, source: &mir::TraceTable) -> Self {
+    pub fn pack(sections: &mut SectionBuilder, source: &mir::TraceTable) -> Self {
         let mut builder = TraceTableBuilder::new();
 
         // preserve TraceId order for all top-level roots
@@ -477,7 +480,7 @@ impl std::error::Error for TraceTableError {}
 
 /// Flat compact trace entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 struct TraceEntry {
     /// Trace payload tag.
     tag: u32,
@@ -489,7 +492,7 @@ const _: () = assert!(std::mem::size_of::<TraceEntry>() == 8);
 
 /// Fixed reference offsets for one trace entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 struct FixedTrace {
     /// Local reference byte offsets.
     local_offsets: EntryRange<u32>,
@@ -501,7 +504,7 @@ struct FixedTrace {
 
 /// One nested trace entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 struct NestedTrace {
     /// Nested payload byte offset.
     byte_offset: u32,
@@ -511,7 +514,7 @@ struct NestedTrace {
 
 /// Multiple nested trace entries.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 struct CompositeTrace {
     /// Nested trace entry ids.
     children: EntryRange<u32>,
@@ -519,7 +522,7 @@ struct CompositeTrace {
 
 /// Repeated elements sharing one trace entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 struct RepeatedTrace {
     /// Element count.
     count: u32,
@@ -531,7 +534,7 @@ struct RepeatedTrace {
 
 /// Discriminant-selected trace entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 struct VariantTraceEntry {
     /// Variant encoding tag.
     tag: u32,
@@ -600,7 +603,7 @@ impl VariantTraceEntry {
 
 /// Flat compact trace variant entry.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 struct VariantTraceCase {
     /// Logical variant discriminant value.
     discriminant: Discriminant,
@@ -757,7 +760,7 @@ impl TraceTableBuilder {
     }
 
     /// Pack one section-backed compact trace table.
-    fn pack(self, sections: &mut SectionPacker) -> TraceTable {
+    fn pack(self, sections: &mut SectionBuilder) -> TraceTable {
         let roots = sections.insert(self.roots);
         let entries = sections.insert(self.entries);
         let fixed = sections.insert(self.fixed);
@@ -784,18 +787,9 @@ impl TraceTableBuilder {
     }
 }
 
-// SAFETY: trace entries are fixed-width program entries containing only integers and ranges.
-unsafe impl SectionEntry for TraceEntry {}
-unsafe impl SectionEntry for FixedTrace {}
-unsafe impl SectionEntry for NestedTrace {}
-unsafe impl SectionEntry for CompositeTrace {}
-unsafe impl SectionEntry for RepeatedTrace {}
-unsafe impl SectionEntry for VariantTraceEntry {}
-unsafe impl SectionEntry for VariantTraceCase {}
-
 #[cfg(test)]
 mod tests {
-    use destack_core::{SectionImage, SectionPacker};
+    use destack_core::{SectionBuilder, SectionImage};
     use destack_mir as mir;
     use destack_mir::{DiscriminantField, VariantEncoding};
 
@@ -840,11 +834,10 @@ mod tests {
         let mut source = mir::TraceTable::new();
         let direct_id = source.insert(direct.clone());
         let niche_id = source.insert(niche.clone());
-        let mut sections = SectionPacker::new();
+        let mut sections = SectionBuilder::new();
         let table = TraceTable::pack(&mut sections, &source);
-        let (directory, storage) = sections.finish();
-        let sections =
-            SectionImage::load(&directory, &storage).expect("trace sections should load");
+        let storage = sections.build();
+        let sections = SectionImage::new(&storage);
         let view = table.view(sections);
 
         assert_eq!(view.trace_map(direct_id), Ok(direct));

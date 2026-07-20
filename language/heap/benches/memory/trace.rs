@@ -1,10 +1,8 @@
-use destack_core::{SectionDirectory, SectionImage, SectionPacker, SectionStorage};
+use destack_core::{SectionBuilder, SectionImage, SectionStorage};
 use destack_heap::{TraceTable, TraceView};
 
 /// Section-backed trace table used by heap benchmarks.
 pub(crate) struct BenchTraceTable {
-    /// Packed section directory.
-    sections: SectionDirectory,
     /// Packed section storage.
     storage: SectionStorage,
     /// Packed heap trace table.
@@ -21,13 +19,12 @@ impl BenchTraceTable {
 
     /// Build one benchmark trace table from MIR traces.
     pub(crate) fn from_mir(source: &destack_mir::TraceTable) -> Self {
-        let mut sections = SectionPacker::new();
+        let mut sections = SectionBuilder::new();
         let trace_count = source.traces().len();
         let traces = TraceTable::pack(&mut sections, source);
-        let (sections, storage) = sections.finish();
+        let storage = sections.build();
 
         Self {
-            sections,
             storage,
             traces,
             trace_count,
@@ -36,8 +33,7 @@ impl BenchTraceTable {
 
     /// Return one borrowed trace view.
     pub(crate) fn view(&self) -> TraceView<'_> {
-        let sections = SectionImage::load(&self.sections, &self.storage)
-            .expect("benchmark trace sections should load");
+        let sections = SectionImage::new(&self.storage);
 
         self.traces.view(sections)
     }

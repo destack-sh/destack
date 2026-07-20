@@ -1,6 +1,6 @@
 use std::sync::{Arc, OnceLock};
 
-use destack_core::{SectionDirectory, SectionImage, SectionPacker, SectionStorage};
+use destack_core::{SectionBuilder, SectionImage, SectionStorage};
 use destack_memory::MemoryMap;
 
 use crate::{TraceTable, TraceView};
@@ -15,8 +15,6 @@ static TRACE_TABLE: OnceLock<TestTraceTable> = OnceLock::new();
 
 /// Section-backed trace table used by shared heap tests.
 pub(crate) struct TestTraceTable {
-    /// Packed section directory.
-    sections: SectionDirectory,
     /// Packed section storage.
     storage: SectionStorage,
     /// Packed heap trace table.
@@ -90,21 +88,16 @@ impl TestTraceTable {
 
     /// Build one section-backed trace table from MIR traces.
     pub(crate) fn from_mir(source: &destack_mir::TraceTable) -> Self {
-        let mut sections = SectionPacker::new();
+        let mut sections = SectionBuilder::new();
         let traces = TraceTable::pack(&mut sections, source);
-        let (sections, storage) = sections.finish();
+        let storage = sections.build();
 
-        Self {
-            sections,
-            storage,
-            traces,
-        }
+        Self { storage, traces }
     }
 
     /// Return the packed trace view.
     pub(crate) fn view(&self) -> TraceView<'_> {
-        let sections = SectionImage::load(&self.sections, &self.storage)
-            .expect("test trace sections should load");
+        let sections = SectionImage::new(&self.storage);
 
         self.traces.view(sections)
     }
