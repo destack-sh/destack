@@ -532,6 +532,7 @@ impl BindingSegment {
             kind,
             visibility,
             binding_mutability: None,
+            binding_space: None,
             origin: SymbolOrigin::Module,
             key,
             scope,

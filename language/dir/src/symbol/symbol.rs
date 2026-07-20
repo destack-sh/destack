@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, StaticKey, StringId};
+use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, Space, StaticKey, StringId};
 
 /// A bindable item or local in a scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -16,6 +16,8 @@ pub struct Symbol {
     pub visibility: SymbolVisibility,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
+    /// The explicit storage space for value bindings when known.
+    pub binding_space: Option<Space>,
 
     /// Where this symbol was introduced.
     pub origin: SymbolOrigin,
