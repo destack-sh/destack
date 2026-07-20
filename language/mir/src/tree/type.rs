@@ -5,7 +5,7 @@ use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
     Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, SignatureParameter,
-    StorageSet, TypeId,
+    StorageSet, Tree, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -565,6 +565,27 @@ impl Type {
     pub const BFLOAT16: Type = Type::Float(FloatType::Bfloat16);
     pub const FLOAT32: Type = Type::Float(FloatType::Float32);
     pub const FLOAT64: Type = Type::Float(FloatType::Float64);
+
+    /// Return one structural field type.
+    pub fn field_type(&self, index: u32, tree: &Tree) -> Option<TypeId> {
+        match self {
+            Type::Struct { fields, .. } => {
+                fields.get(index as usize).map(|field| tree.get(*field).ty)
+            }
+            Type::Tuple { elements, .. } => elements.get(index as usize).copied(),
+            Type::Newtype { inner, .. } if index == 0 => Some(*inner),
+            Type::Variant {
+                discriminant,
+                storage,
+                ..
+            } => match index {
+                0 => Some(*discriminant),
+                1 => Some(*storage),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
 
     /// Return integer width and signedness for concrete integer types.
     pub fn int_info(&self) -> Option<(u16, bool)> {

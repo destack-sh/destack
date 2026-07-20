@@ -37,17 +37,12 @@ pub enum BuildError {
         /// The builder operation requesting the type.
         context: String,
     },
-    /// A field index does not exist on an aggregate type.
+    /// A field index does not exist on a type.
     InvalidFieldIndex {
-        /// The aggregate type being indexed.
+        /// The type being indexed.
         aggregate: LocalNodeId<Type>,
         /// The requested field index.
         index: u32,
-    },
-    /// A field operation was applied to a non-field aggregate type.
-    InvalidFieldOwner {
-        /// The type being accessed.
-        ty: LocalNodeId<Type>,
     },
     /// A case index does not exist on a variant type.
     InvalidCaseIndex {
@@ -176,13 +171,7 @@ impl std::fmt::Display for BuildError {
             Self::InvalidFieldIndex { aggregate, index } => {
                 write!(
                     formatter,
-                    "field index {index} is out of bounds for aggregate type {aggregate:?}"
-                )
-            }
-            Self::InvalidFieldOwner { ty } => {
-                write!(
-                    formatter,
-                    "field access expects an aggregate type, got {ty:?}"
+                    "field index {index} does not exist on type {aggregate:?}"
                 )
             }
             Self::InvalidCaseIndex { variant, case } => {
