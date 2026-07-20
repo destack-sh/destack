@@ -71,10 +71,9 @@ impl CheckState<'_> {
                 } => {
                     conditions.insert(*condition);
                 }
-                dir::Expression::Match { cases, .. } => {
-                    for case in cases {
-                        let case = view.get(*case);
-                        if let Some(guard) = case.selector().guard_expression_id() {
+                dir::Expression::Match { arms, .. } => {
+                    for arm in arms {
+                        if let Some(guard) = view.get(*arm).guard() {
                             conditions.insert(guard);
                         }
                     }

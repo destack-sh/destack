@@ -329,6 +329,37 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report decorator arguments that do not prove one unique backing.
+    pub(in crate::check) fn report_ambiguous_decorator(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let diagnostic = CheckError::AmbiguousDecorator { anchor, module };
+
+        self.report(module, diagnostic);
+
+        Ok(())
+    }
+
+    /// Report decorator arguments rejected by every backing alternative.
+    pub(in crate::check) fn report_no_matching_decorator(
+        &mut self,
+        origin: Origin,
+        rejections: &[String],
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::NoMatchingDecorator { anchor, module };
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        for rejection in rejections {
+            diagnostic = diagnostic.note(rejection.clone());
+        }
+
+        self.report(module, diagnostic);
+
+        Ok(())
+    }
+
     /// Report an intrinsic marker outside a compiler-recognized language item.
     pub(in crate::check) fn report_invalid_intrinsic_type(
         &mut self,
@@ -814,18 +845,13 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one value that is not a registered derive provider.
+    /// Report one argument that does not name a registered derive provider.
     pub(in crate::check) fn report_invalid_derive_provider(
         &mut self,
         origin: Origin,
-        provider: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidDeriveProvider {
-            anchor,
-            module,
-            provider: self.format_type(provider),
-        };
+        let error = CheckError::InvalidDeriveProvider { anchor, module };
         self.report(module, error);
 
         Ok(())
@@ -1047,10 +1073,7 @@ impl CheckState<'_> {
             } => {
                 let origin = arguments
                     .get(index)
-                    .and_then(|argument| {
-                        self.body(origin.module())
-                            .argument_expression(module, *argument)
-                    })
+                    .and_then(|argument| self.body().argument_expression(module, *argument))
                     .map(|node| self.origin_at(origin, node))
                     .transpose()?
                     .unwrap_or(origin);
@@ -1382,6 +1405,25 @@ impl CheckState<'_> {
             key,
         };
         let diagnostic = DiagnosticBuilder::new(error).label(first, "first matched here");
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report one repeated enum runtime value.
+    pub(in crate::check) fn report_duplicate_enum_variant_value(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        previous: dir::GlobalNodeIdAny,
+        value: String,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let (_, previous) = self.source_anchor(previous);
+        let error = CheckError::DuplicateEnumVariantValue {
+            anchor,
+            module,
+            value,
+        };
+        let diagnostic = DiagnosticBuilder::new(error).label(previous, "first declared here");
 
         self.report(module, diagnostic);
     }

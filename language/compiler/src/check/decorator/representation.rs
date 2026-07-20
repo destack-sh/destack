@@ -1,5 +1,5 @@
 use destack_artifact::DiagnosticBuilder;
-use destack_core::{FxIndexMap, FxIndexSet, StringPool};
+use destack_core::{FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -21,7 +21,6 @@ impl CheckState<'_> {
         module: ModuleId,
         application: &DecoratorApplication,
         value: &dir::StaticTerm,
-        sources: &mut FxIndexMap<dir::GlobalSymbolId, dir::GlobalNodeId<dir::Decorator>>,
     ) -> CompilerResult<()> {
         let decorator = application.expression.decorator.into_global(module);
         let source = decorator.into_any();
@@ -35,7 +34,22 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        let previous = sources.get(&symbol).copied();
+        let previous = self
+            .module(module)
+            .decorators
+            .iter_applications()
+            .map(|(_, application)| application)
+            .find(|previous| {
+                previous.owner == application.owner
+                    && matches!(
+                        previous.resolution.target,
+                        dir::DecoratorTarget::LanguageItem {
+                            item: dir::LanguageItem::ReprDecorator,
+                            ..
+                        }
+                    )
+            })
+            .map(|application| application.source);
         if let Some(previous) = previous {
             let anchor = self.diagnostic_anchor(module, source.local_id);
             let error = CheckError::DuplicateRepresentationDecorator { anchor, module };
@@ -46,7 +60,6 @@ impl CheckState<'_> {
 
             return Ok(());
         }
-        sources.insert(symbol, decorator);
         let definition =
             self.definition(symbol)?
                 .cloned()
