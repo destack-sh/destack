@@ -6,5 +6,6 @@ mod function;
 mod r#match;
 mod pattern;
 mod property;
+mod switch;
 mod r#type;
 mod visit;

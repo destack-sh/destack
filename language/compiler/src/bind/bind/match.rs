@@ -6,53 +6,39 @@ use super::super::state::{BindState, BindingContext};
 use crate::Compiler;
 
 impl Compiler {
-    /// Bind one match case inside its case scope.
-    pub(in crate::bind) fn bind_match_case(
+    /// Bind one match arm inside its arm scope.
+    pub(in crate::bind) fn bind_match_arm(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::MatchCase>,
-        match_case: &dir::MatchCase,
+        id: dir::LocalNodeId<dir::MatchArm>,
+        arm: &dir::MatchArm,
     ) {
         state.bind_node(id.into_any());
+        let pattern = arm.pattern();
 
-        match match_case {
-            dir::MatchCase::Expression { selector, body } => {
-                self.bind_match_selector(state, tree, selector);
-                let body_id = *body;
-                let body = tree.get(body_id);
-                state.visit_expression(tree, body_id, body);
-            }
-            dir::MatchCase::Block { selector, body } => {
-                self.bind_match_selector(state, tree, selector);
-                let body_id = *body;
-                let body = tree.get(body_id);
-                state.visit_block(tree, body_id, body);
-            }
-        }
-    }
-
-    /// Bind one match selector pattern.
-    fn bind_match_selector(
-        &self,
-        state: &mut BindState<'_>,
-        tree: &dir::Tree,
-        selector: &dir::MatchSelector,
-    ) {
-        let dir::MatchSelector::Pattern { pattern, guard } = selector else {
-            return;
-        };
-
-        // bind selected pattern without inheriting declaration context
-        let pattern_node = tree.get(*pattern);
+        // bind the selected pattern without inheriting declaration context
+        let pattern_node = tree.get(pattern);
         state.push_binding(BindingContext::default());
-        state.visit_pattern(tree, *pattern, pattern_node);
+        state.visit_pattern(tree, pattern, pattern_node);
         state.pop_binding();
 
-        // visit pattern guard
-        if let Some(guard_expr) = guard {
-            let guard = tree.get(*guard_expr);
-            state.visit_expression(tree, *guard_expr, guard);
+        // bind the optional guard
+        if let Some(guard) = arm.guard() {
+            let expression = tree.get(guard);
+            state.visit_expression(tree, guard, expression);
+        }
+
+        // bind the arm body
+        match arm {
+            dir::MatchArm::Expression { body, .. } => {
+                let expression = tree.get(*body);
+                state.visit_expression(tree, *body, expression);
+            }
+            dir::MatchArm::Block { body, .. } => {
+                let block = tree.get(*body);
+                state.visit_block(tree, *body, block);
+            }
         }
     }
 }

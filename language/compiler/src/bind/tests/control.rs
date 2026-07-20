@@ -1,6 +1,133 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_bind_match_arm_pattern_in_guard_and_body() {
+    let compiler = TestSession::single(
+        r#"
+declare const packet: { value: int32 };
+
+const result = match (packet) {
+    { value } if (value > 0) => value
+    _ => 0
+};
+"#,
+    );
+
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding().with_binding_nodes(),
+        r#"
+declare const packet: { value: int32 };
+/// @binding.node node=expression scope=<module>@1 source="declare const packet: { value: int32 }"
+/// @binding.symbol symbol=packet role=local kind=variable scope=<module>@3 mutability=immutable
+/// @binding.node node=declarator scope=<module>@1 source="packet: { value: int32 }"
+/// @binding.node node=pattern scope=<module>@4 source=packet
+/// @binding.node node=type_expression scope=<module>@1 source={ value: int32 }
+/// @binding.symbol symbol=value#1 role=item kind=variable scope=<module>@1 visibility=member
+/// @binding.node node=type_member scope=<module>@1 source="value: int32"
+/// @binding.receiver node=type_member symbol=symbol2
+/// @binding.node node=type_expression scope=<module>@3 source=int32
+
+const result = match (packet) {
+/// @binding.node node=expression scope=<module>@4
+/// @binding.symbol symbol=result role=local kind=variable scope=<module>@4 mutability=immutable
+/// @binding.node node=declarator scope=<module>@4
+/// @binding.node node=pattern scope=<module>@5 source=result
+/// @binding.node node=expression scope=<module>@4
+/// @binding.node node=expression scope=<module>@4 source=packet
+
+    { value } if (value > 0) => value
+    /// @binding.scope scope=scope2 kind=block parent=<module>@4
+    /// @binding.node node=match_arm scope=scope2@0 source="{ value } if (value > 0) => value"
+    /// @binding.node node=pattern scope=scope2@0 source={ value }
+    /// @binding.symbol symbol=value#2 role=local kind=variable scope=scope2@0
+    /// @binding.node node=pattern_field scope=scope2@1 source=value
+    /// @binding.node node=expression scope=scope2@1 source="value > 0"
+    /// @binding.node node=expression scope=scope2@1 source=value
+    /// @binding.node node=expression scope=scope2@1 source=0
+    /// @binding.node node=expression scope=scope2@1 source=value
+
+    _ => 0
+    /// @binding.scope scope=scope3 kind=block parent=<module>@4
+    /// @binding.node node=match_arm scope=scope3@0 source="_ => 0"
+    /// @binding.node node=pattern scope=scope3@0 source=_
+    /// @binding.node node=expression scope=scope3@0 source=0
+
+};
+
+/// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
+/// @binding.symbol symbol=symbol2 role=local kind=variable scope=<module>@2
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+"#,
+    );
+}
+
+#[test]
+fn test_bind_switch_selector_outside_case_body() {
+    let compiler = TestSession::single(
+        r#"
+declare const selected: int32;
+
+switch (selected) {
+    case selected:
+        let value = selected;
+        break;
+    default:
+        break;
+}
+"#,
+    );
+
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding().with_binding_nodes(),
+        r#"
+declare const selected: int32;
+/// @binding.node node=expression scope=<module>@1 source="declare const selected: int32"
+/// @binding.symbol symbol=selected role=local kind=variable scope=<module>@1 mutability=immutable
+/// @binding.node node=declarator scope=<module>@1 source="selected: int32"
+/// @binding.node node=pattern scope=<module>@2 source=selected
+/// @binding.node node=type_expression scope=<module>@1 source=int32
+
+switch (selected) {
+/// @binding.node node=expression scope=<module>@2
+/// @binding.node node=expression scope=<module>@2 source=selected
+
+    case selected:
+    /// @binding.node node=switch_case scope=<module>@2
+    /// @binding.node node=expression scope=<module>@2 source=selected
+
+        let value = selected;
+        /// @binding.scope scope=scope2 kind=block parent=<module>@2
+        /// @binding.node node=block scope=scope2@0
+        /// @binding.node node=expression scope=scope2@0 source="let value = selected"
+        /// @binding.symbol symbol=value role=local kind=variable scope=scope2@0 mutability=mutable
+        /// @binding.node node=declarator scope=scope2@0 source="value = selected"
+        /// @binding.node node=pattern scope=scope2@1 source=value
+        /// @binding.node node=expression scope=scope2@0 source=selected
+
+        break;
+        /// @binding.node node=expression scope=scope2@1 source=break
+
+    default:
+    /// @binding.node node=switch_case scope=<module>@2
+
+        break;
+        /// @binding.scope scope=scope3 kind=block parent=<module>@2
+        /// @binding.node node=block scope=scope3@0 source=break;
+        /// @binding.node node=expression scope=scope3@0 source=break
+
+}
+
+/// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+"#,
+    );
+}
+
+#[test]
 fn test_bind_loop_and_if_let_scopes() {
     let compiler = TestSession::builder()
         .module(

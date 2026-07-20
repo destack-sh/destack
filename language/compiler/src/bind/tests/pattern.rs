@@ -89,13 +89,13 @@ declare const point: { x: int32; y: string };
 /// @binding.node node=type_expression scope=<module>@7 source=string
 
 ({ x, y: label } = point);
-/// @binding.node node=assign_pattern scope=<module>@8 source={ x, y: label }
+/// @binding.node node=assignment_pattern scope=<module>@8 source={ x, y: label }
 /// @binding.node node=expression scope=<module>@8 source="{ x, y: label } = point"
-/// @binding.node node=assign_pattern scope=<module>@8 source=x
-/// @binding.node node=assign_pattern_field scope=<module>@8 source=x
+/// @binding.node node=assignment_pattern scope=<module>@8 source=x
+/// @binding.node node=assignment_pattern_field scope=<module>@8 source=x
 /// @binding.node node=expression scope=<module>@8 source=x
-/// @binding.node node=assign_pattern_field scope=<module>@8 source="y: label"
-/// @binding.node node=assign_pattern scope=<module>@8 source=label
+/// @binding.node node=assignment_pattern_field scope=<module>@8 source="y: label"
+/// @binding.node node=assignment_pattern scope=<module>@8 source=label
 /// @binding.node node=expression scope=<module>@8 source=label
 /// @binding.node node=expression scope=<module>@8 source=point
 

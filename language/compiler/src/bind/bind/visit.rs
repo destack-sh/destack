@@ -181,20 +181,29 @@ impl dir::NodeVisitor for BindState<'_> {
         self.compiler.bind_property(self, tree, id, property);
     }
 
-    fn visit_match_case(
+    fn visit_match_arm(
         &mut self,
         tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::MatchCase>,
-        match_case: &dir::MatchCase,
+        id: dir::LocalNodeId<dir::MatchArm>,
+        arm: &dir::MatchArm,
     ) {
-        // create match case scope
+        // create the arm's binding scope
         let scope_id = self.insert_child_scope(dir::ScopeKind::Block);
         self.bind_node_to_scope(id.into_any(), scope_id);
 
-        // visit case body
+        // bind the pattern, guard, and body
         self.push_scope(scope_id);
-        self.compiler.bind_match_case(self, tree, id, match_case);
+        self.compiler.bind_match_arm(self, tree, id, arm);
         self.pop_scope();
+    }
+
+    fn visit_switch_case(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::SwitchCase>,
+        case: &dir::SwitchCase,
+    ) {
+        self.compiler.bind_switch_case(self, tree, id, case);
     }
 
     fn visit_declarator(
