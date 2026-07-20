@@ -1,181 +1,233 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use crate::check::{
-    ConditionBranch, ExpectedType, FlowPath, FlowPredicate, MatchCase, Obligation, PatternCoverage,
-    PatternCoverageObligation, StaticGate, WalkState,
+    ConditionBranch, ControlTargetForm, ExpectedType, FlowBranch, FlowPath, FlowPredicate,
+    Obligation, PatternArm, PatternCoverage, PatternCoverageObligation, WalkState,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
-    /// Walk one match expression with isolated case flow.
-    ///
-    /// Example:
-    /// ```ds
-    /// match value { case Some(item) => item }
-    /// ```
+    /// Walk one match expression with isolated arm flow.
     pub(in crate::check) fn walk_match_expression(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
-        cases: &[dir::LocalNodeId<dir::MatchCase>],
+        arms: &[dir::LocalNodeId<dir::MatchArm>],
     ) -> CompilerResult<()> {
-        let (value_expectation, value_path) = self.walk_match_scrutinee(value)?;
-        let active_cases = self.active_match_cases(cases)?;
-        let coverage_cases = self.walk_active_match_cases(&active_cases, &value_path)?;
-
-        self.queue_match_coverage(id, value_expectation, coverage_cases);
+        let (value_expectation, value_path) = self.walk_selected_value(value)?;
+        let arms = self.present_match_arms(arms)?;
+        let coverage = self.walk_match_arms(&arms, &value_path)?;
+        self.queue_match_coverage(id, value_expectation, coverage);
 
         Ok(())
     }
 
-    /// Walk one match scrutinee and return its pattern input.
-    fn walk_match_scrutinee(
+    /// Walk one switch statement with ordered selection and fallthrough.
+    pub(in crate::check) fn walk_switch_statement(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        value: dir::LocalNodeId<dir::Expression>,
+        cases: &[dir::LocalNodeId<dir::SwitchCase>],
+    ) -> CompilerResult<()> {
+        let (_, value_path) = self.walk_selected_value(value)?;
+        let cases = self.present_switch_cases(cases)?;
+        let before = self.fork_flow();
+        self.enter_control_target(None, ControlTargetForm::Switch);
+
+        // evaluate selectors in source order and retain each equality branch
+        let mut direct = vec![None; cases.len()];
+        let mut default_index = None;
+        for (index, case) in cases.iter().enumerate() {
+            let selector = self.tree.get(*case).selector;
+            match selector {
+                dir::SwitchSelector::Case(selector) => {
+                    self.walk_expression(selector, self.tree.get(selector))?;
+                    let after_selector = self.fork_flow();
+
+                    if let Some(path) = &value_path {
+                        self.apply_switch_equality(path.clone(), selector, true);
+                    }
+                    direct[index] = Some(self.collect_flow_branch(before));
+
+                    self.restore_flow(after_selector);
+                    if let Some(path) = &value_path {
+                        self.apply_switch_equality(path.clone(), selector, false);
+                    }
+                }
+                dir::SwitchSelector::Default => default_index = Some(index),
+            }
+        }
+        let unmatched = self.collect_flow_branch(before);
+        let unmatched = match default_index {
+            Some(index) => {
+                direct[index] = Some(unmatched);
+
+                None
+            }
+            None => Some(unmatched),
+        };
+
+        // execute bodies in source order and join adjacent fallthrough
+        let mut fallthrough: Option<FlowBranch> = None;
+        for (index, case) in cases.iter().enumerate() {
+            let Some(selected) = direct[index].as_ref() else {
+                return Err(CompilerError::Internal {
+                    message: format!("switch case {case:?} has no selection entry"),
+                });
+            };
+            if let Some(previous) = &fallthrough {
+                self.merge_flow_branches(before, selected, previous);
+            } else {
+                self.restore_flow_branch(before, selected);
+            }
+
+            let body = self.tree.get(*case).body;
+            self.walk_block(body, self.tree.get(body))?;
+            fallthrough = self
+                .block_can_complete_normally(self.tree.get(body))
+                .then(|| self.collect_flow_branch(before));
+        }
+
+        // join explicit breaks, final fallthrough, and an unmatched value
+        let mut exits = self.leave_control_target();
+        exits.extend(fallthrough);
+        exits.extend(unmatched);
+        if exits.is_empty() {
+            self.check
+                .module_mut(self.module)
+                .unreachable_ends
+                .insert(id.into_any());
+        }
+        self.merge_flow_branches_from(before, &exits);
+
+        Ok(())
+    }
+
+    /// Walk one selected value and return its pattern input.
+    fn walk_selected_value(
         &mut self,
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<(ExpectedType, Option<FlowPath>)> {
         self.walk_expression(value, self.tree.get(value))?;
 
-        let value_site = self.node_site(value)?;
-        let value_expectation = ExpectedType::Node(value_site);
-        let value_path = self.flow_path(value);
+        let expected = ExpectedType::Node(value.into_global_any(self.module));
+        let path = self.flow_path(value);
 
-        Ok((value_expectation, value_path))
+        Ok((expected, path))
     }
 
-    /// Return match cases included by their static gates.
-    fn active_match_cases(
+    /// Return match arms included by their static gates.
+    fn present_match_arms(
         &mut self,
-        cases: &[dir::LocalNodeId<dir::MatchCase>],
-    ) -> CompilerResult<Vec<dir::LocalNodeId<dir::MatchCase>>> {
-        let mut active_cases = Vec::new();
-        for case in cases {
-            match self.decorated_static_gate(case.into_any())? {
-                StaticGate::Absent => {}
-                StaticGate::Present => active_cases.push(*case),
+        arms: &[dir::LocalNodeId<dir::MatchArm>],
+    ) -> CompilerResult<Vec<dir::LocalNodeId<dir::MatchArm>>> {
+        let mut present = Vec::new();
+        for arm in arms {
+            if self.walk_decorators(arm.into_any())? {
+                self.enter_node(*arm)?;
+                present.push(*arm);
             }
         }
 
-        Ok(active_cases)
+        Ok(present)
     }
 
-    /// Walk present match cases with isolated branch flow.
-    fn walk_active_match_cases(
+    /// Return switch cases included by their static gates.
+    fn present_switch_cases(
         &mut self,
-        cases: &[dir::LocalNodeId<dir::MatchCase>],
+        cases: &[dir::LocalNodeId<dir::SwitchCase>],
+    ) -> CompilerResult<Vec<dir::LocalNodeId<dir::SwitchCase>>> {
+        let mut present = Vec::new();
+        for case in cases {
+            if self.walk_decorators(case.into_any())? {
+                self.enter_node(*case)?;
+                present.push(*case);
+            }
+        }
+
+        Ok(present)
+    }
+
+    /// Walk present match arms with isolated branch flow.
+    fn walk_match_arms(
+        &mut self,
+        arms: &[dir::LocalNodeId<dir::MatchArm>],
         value_path: &Option<FlowPath>,
-    ) -> CompilerResult<Vec<MatchCase>> {
+    ) -> CompilerResult<Vec<PatternArm>> {
         let before = self.fork_flow();
-        let mut coverage_cases = Vec::new();
-        let mut excluded_patterns = Vec::new();
+        let mut coverage = Vec::new();
+        let mut excluded = Vec::new();
         let mut merged = None;
 
-        for case in cases {
-            // replay exclusions from previous cases
+        for arm in arms {
+            // replay exclusions from previous arms
             self.restore_flow(before);
             if let Some(path) = value_path {
-                for pattern in &excluded_patterns {
+                for pattern in &excluded {
                     self.exclude_match_pattern(path.clone(), *pattern);
                 }
             }
 
-            // walk the arm under the current narrowed scrutinee
-            self.walk_match_case(self.tree.get(*case), value_path.clone())?;
-
-            // record the arm for exhaustiveness and later exclusions
-            coverage_cases.extend(self.match_case_coverage(*case)?);
-            if let Some(pattern) = self.match_case_exclusion_pattern(*case) {
-                excluded_patterns.push(pattern);
+            // walk this arm under the narrowed selected value
+            let arm_node = self.tree.get(*arm).clone();
+            self.walk_match_arm(&arm_node, value_path.clone())?;
+            coverage.push(self.match_arm_coverage(*arm));
+            if let Some(pattern) = self.match_arm_exclusion_pattern(*arm) {
+                excluded.push(pattern);
             }
 
-            // merge completing branches into the post-match flow
-            if self.match_case_can_complete_normally(self.tree.get(*case)) {
-                let case_flow = self.collect_flow_branch(before);
+            // merge completing arms into the post-match flow
+            if self.match_arm_can_complete_normally(&arm_node) {
+                let branch = self.collect_flow_branch(before);
                 merged = match merged.take() {
                     Some(previous) => {
-                        self.merge_flow_branches(before, &previous, &case_flow);
+                        self.merge_flow_branches(before, &previous, &branch);
 
                         Some(self.collect_flow_branch(before))
                     }
-                    None => Some(case_flow),
+                    None => Some(branch),
                 };
             }
         }
 
-        // restore the merged branch output, or the pre-match input if no case completes
+        // restore the merged output or the pre-match input
         if let Some(merged) = merged {
             self.restore_flow_branch(before, &merged);
         } else {
             self.restore_flow(before);
         }
 
-        Ok(coverage_cases)
+        Ok(coverage)
     }
 
-    /// Walk one match case.
-    ///
-    /// Example:
-    /// ```ds
-    /// case Some(value) if value > 0 => value
-    /// ```
-    fn walk_match_case(
+    /// Walk one match arm.
+    fn walk_match_arm(
         &mut self,
-        match_case: &dir::MatchCase,
+        arm: &dir::MatchArm,
         value_path: Option<FlowPath>,
     ) -> CompilerResult<()> {
-        match match_case {
-            // case pattern if guard => expression
-            dir::MatchCase::Expression { selector, body } => {
-                // enter selector flow before the body
-                self.walk_match_selector(selector, value_path)?;
+        let pattern = arm.pattern();
+        self.walk_pattern(pattern, self.tree.get(pattern), None)?;
+        if let Some(path) = value_path {
+            self.narrow_pattern(path, pattern, true)?;
+        }
+        self.mark_bindings_assigned(pattern.into_any());
 
+        // apply the optional arm guard
+        if let Some(guard) = arm.guard() {
+            self.walk_expression(guard, self.tree.get(guard))?;
+            self.narrow_expression(guard, ConditionBranch::True)?;
+        }
+
+        // walk the selected body
+        match arm {
+            dir::MatchArm::Expression { body, .. } => {
                 self.walk_expression(*body, self.tree.get(*body))?;
             }
-            // case pattern if guard { ... }
-            dir::MatchCase::Block { selector, body } => {
-                // enter selector flow before the body
-                self.walk_match_selector(selector, value_path)?;
-
+            dir::MatchArm::Block { body, .. } => {
                 self.walk_block(*body, self.tree.get(*body))?;
             }
-        };
-
-        Ok(())
-    }
-
-    /// Walk one match selector into arm-local flow state.
-    ///
-    /// Example:
-    /// ```ds
-    /// case Some(value) if value > 0
-    /// ```
-    fn walk_match_selector(
-        &mut self,
-        selector: &dir::MatchSelector,
-        value_path: Option<FlowPath>,
-    ) -> CompilerResult<()> {
-        match selector {
-            // case pattern if guard
-            dir::MatchSelector::Pattern { pattern, guard } => {
-                // constrain pattern type from the matched value
-                self.walk_pattern(*pattern, self.tree.get(*pattern))?;
-
-                // narrow the scrutinee path by the matched pattern
-                if let Some(path) = value_path {
-                    self.narrow_pattern(path, *pattern, true)?;
-                }
-
-                // pattern bindings are assigned in the matching arm
-                self.mark_bindings_assigned(pattern.into_any());
-
-                // if guard
-                if let Some(guard) = guard {
-                    self.walk_expression(*guard, self.tree.get(*guard))?;
-                    self.narrow_expression(*guard, ConditionBranch::True)?;
-                }
-            }
-            // default
-            dir::MatchSelector::Default => {}
-        };
+        }
 
         Ok(())
     }
@@ -185,77 +237,60 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         value: ExpectedType,
-        cases: Vec<MatchCase>,
+        arms: Vec<PatternArm>,
     ) {
         self.check.push_obligation(
             Obligation::PatternCoverage(PatternCoverageObligation {
                 source: id.into_global_any(self.module),
                 value,
-                coverage: PatternCoverage::Match { cases },
+                coverage: PatternCoverage::Match { arms },
             }),
             self.flow().template_scope(),
         );
     }
 
     /// Return the coverage case for one match arm.
-    fn match_case_coverage(
-        &mut self,
-        case: dir::LocalNodeId<dir::MatchCase>,
-    ) -> CompilerResult<Option<MatchCase>> {
-        let selector = match self.tree.get(case) {
-            dir::MatchCase::Expression { selector, .. }
-            | dir::MatchCase::Block { selector, .. } => selector,
-        };
+    fn match_arm_coverage(&self, arm: dir::LocalNodeId<dir::MatchArm>) -> PatternArm {
+        let arm = self.tree.get(arm);
 
-        match selector {
-            // default
-            dir::MatchSelector::Default => Ok(Some(MatchCase::Default)),
-            // case pattern if guard
-            dir::MatchSelector::Pattern { pattern, guard } => {
-                let (pattern, guard) = (*pattern, *guard);
-
-                Ok(Some(MatchCase::Pattern {
-                    pattern: pattern.into_global(self.module),
-                    is_guarded: guard.is_some(),
-                }))
-            }
+        PatternArm {
+            pattern: arm.pattern().into_global(self.module),
+            is_guarded: arm.guard().is_some(),
         }
     }
 
-    /// Return the unguarded pattern that later match arms can exclude.
-    pub(in crate::check) fn match_case_exclusion_pattern(
+    /// Return the unguarded pattern excluded from later match arms.
+    fn match_arm_exclusion_pattern(
         &self,
-        case: dir::LocalNodeId<dir::MatchCase>,
+        arm: dir::LocalNodeId<dir::MatchArm>,
     ) -> Option<dir::GlobalNodeId<dir::Pattern>> {
-        let selector = match self.tree.get(case) {
-            dir::MatchCase::Expression { selector, .. }
-            | dir::MatchCase::Block { selector, .. } => selector,
-        };
+        let arm = self.tree.get(arm);
 
-        match selector {
-            // unguarded patterns remove matched values from later arms
-            dir::MatchSelector::Pattern {
-                pattern,
-                guard: None,
-            } => Some(pattern.into_global(self.module)),
-            // guarded arms and defaults leave later arms unchanged
-            dir::MatchSelector::Pattern { guard: Some(_), .. } | dir::MatchSelector::Default => {
-                None
-            }
-        }
+        arm.guard()
+            .is_none()
+            .then(|| arm.pattern().into_global(self.module))
+    }
+
+    /// Apply one switch equality branch to a stable selected path.
+    fn apply_switch_equality(
+        &mut self,
+        path: FlowPath,
+        value: dir::LocalNodeId<dir::Expression>,
+        is_positive: bool,
+    ) {
+        let predicate = FlowPredicate::Equality {
+            value: value.into_global(self.module),
+            is_positive,
+        };
+        self.apply_flow_predicate(path, predicate);
     }
 
     /// Exclude one previously matched pattern from a flow path.
-    pub(in crate::check) fn exclude_match_pattern(
-        &mut self,
-        path: FlowPath,
-        pattern: dir::GlobalNodeId<dir::Pattern>,
-    ) {
+    fn exclude_match_pattern(&mut self, path: FlowPath, pattern: dir::GlobalNodeId<dir::Pattern>) {
         let predicate = FlowPredicate::Pattern {
             pattern,
             is_positive: false,
         };
-
         self.apply_flow_predicate(path, predicate);
     }
 }
