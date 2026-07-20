@@ -271,6 +271,19 @@ impl Type {
         }
     }
 
+    /// Iterate over language declarations that may own built-in type members.
+    pub fn member_owner_items() -> impl Iterator<Item = LanguageItem> {
+        [
+            LanguageItem::Number,
+            LanguageItem::BigInt,
+            LanguageItem::String,
+            LanguageItem::Array,
+            LanguageItem::Slice,
+            LanguageItem::FixedArray,
+        ]
+        .into_iter()
+    }
+
     /// Return every inhabitant when this type has a finite literal set.
     pub fn finite_literals(&self) -> Option<SmallVec<[ScalarLiteral; 2]>> {
         match self {
