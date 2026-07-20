@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
@@ -11,7 +12,7 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::source::TokenType;
 use crate::{
-    Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node, NodeType,
+    Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
     TargetLayout, Tree, TreeImpl, Type, TypeAlias, Value,
 };
 
@@ -371,7 +372,7 @@ pub fn format_mir(
     let allocator = Allocator::default();
 
     // format all globals and functions
-    let document = destack_fir::format!(&allocator, context, [FormatAllItems])?;
+    let document = destack_fir::format!(&allocator, context, [FormatItems])?;
 
     // print the formatted document
     let printed = document.print()?;
@@ -406,17 +407,17 @@ where
 }
 
 /// Return the source start used to order one top level item.
-fn top_level_item_start<T>(tree: &Tree, id: LocalNodeId<T>) -> u32
+fn top_level_item_start<T>(tree: &Tree, id: LocalNodeId<T>) -> Option<u32>
 where
     T: Node,
 {
     // prefer leading trivia so leading comments stay attached to the item order
     if let Some(span) = tree.leading_comment_span(id) {
-        return span.start;
+        return Some(span.start);
     }
 
     // fall back to the node enclosing span
-    tree.get_span(id).map(|span| span.start).unwrap_or(u32::MAX)
+    tree.get_span(id).map(|span| span.start)
 }
 
 /// Collect normalized comments between byte offsets.
@@ -636,60 +637,79 @@ where
     write_comments_after_separator(tree, span.end, scope_end, f)
 }
 
-/// Helper to format all module items.
-struct FormatAllItems;
+/// One MIR item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Item {
+    /// One named type alias.
+    TypeAlias(LocalNodeId<TypeAlias>),
+    /// One global variable or constant.
+    Global(LocalNodeId<Global>),
+    /// One function definition.
+    Function(LocalNodeId<Function>),
+}
 
-impl<'a> Format<'a, MirFormatContext<'a>> for FormatAllItems {
+impl Item {
+    /// Return the item node id.
+    fn node_id(self) -> u32 {
+        match self {
+            Self::TypeAlias(id) => id.id,
+            Self::Global(id) => id.id,
+            Self::Function(id) => id.id,
+        }
+    }
+}
+
+/// Formatter for all MIR items.
+struct FormatItems;
+
+impl<'a> Format<'a, MirFormatContext<'a>> for FormatItems {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         let tree = f.context().tree;
         let mut has_output = false;
 
         // explicit top level items
-        let mut item_ids = Vec::new();
+        let mut items = Vec::new();
 
         for (id, _) in tree.iter_nodes::<TypeAlias>() {
             let start = top_level_item_start(tree, id);
-            item_ids.push((start, id.id, NodeType::TypeAlias));
+            items.push((start, Item::TypeAlias(id)));
         }
 
         for (id, _) in tree.iter_nodes::<Global>() {
             let start = top_level_item_start(tree, id);
-            item_ids.push((start, id.id, NodeType::Global));
+            items.push((start, Item::Global(id)));
         }
 
         for (id, _) in tree.iter_nodes::<Function>() {
             let start = top_level_item_start(tree, id);
-            item_ids.push((start, id.id, NodeType::Function));
+            items.push((start, Item::Function(id)));
         }
 
-        item_ids.sort_by_key(|(start, node_id, _)| (*start, *node_id));
+        // preserve source order, then group generated items by item kind
+        items.sort_by(
+            |(left_start, left), (right_start, right)| match (left_start, right_start) {
+                (Some(left_start), Some(right_start)) => left_start
+                    .cmp(right_start)
+                    .then_with(|| left.node_id().cmp(&right.node_id())),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => left.cmp(right),
+            },
+        );
 
-        for (index, (_, node_id, node_type)) in item_ids.iter().enumerate() {
-            let next_boundary = item_ids.get(index + 1).map(|(start, _, _)| *start);
+        for (index, (_, item)) in items.iter().enumerate() {
+            let next_boundary = items.get(index + 1).and_then(|(start, _)| *start);
 
-            match node_type {
-                NodeType::TypeAlias => format_top_level_item(
-                    tree,
-                    LocalNodeId::<TypeAlias>::new(*node_id),
-                    next_boundary,
-                    has_output,
-                    f,
-                )?,
-                NodeType::Global => format_top_level_item(
-                    tree,
-                    LocalNodeId::<Global>::new(*node_id),
-                    next_boundary,
-                    has_output,
-                    f,
-                )?,
-                NodeType::Function => format_top_level_item(
-                    tree,
-                    LocalNodeId::<Function>::new(*node_id),
-                    next_boundary,
-                    has_output,
-                    f,
-                )?,
-                _ => unreachable!(),
+            match item {
+                Item::TypeAlias(id) => {
+                    format_top_level_item(tree, *id, next_boundary, has_output, f)?;
+                }
+                Item::Global(id) => {
+                    format_top_level_item(tree, *id, next_boundary, has_output, f)?;
+                }
+                Item::Function(id) => {
+                    format_top_level_item(tree, *id, next_boundary, has_output, f)?;
+                }
             }
 
             has_output = true;
