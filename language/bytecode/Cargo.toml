@@ -1,0 +1,22 @@
+[package]
+name = "destack_bytecode"
+description = "Destack bytecode"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+destack_core = { workspace = true }
+destack_fir = { workspace = true }
+destack_serde = { workspace = true }
+destack_source = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

@@ -4,8 +4,8 @@ members = [
 	# language
 	"language/artifact",
 	"language/artifact/macros",
+	"language/bytecode",
 	"language/compiler",
-	"language/compiler/native",
 	"language/compiler/native/cranelift/assembler-x64",
 	"language/compiler/native/cranelift/bforest",
 	"language/compiler/native/cranelift/bitset",
@@ -75,7 +75,7 @@ rust-version = "1.93.0"
 # language
 destack_artifact = { path = "language/artifact" }
 destack_artifact_macros = { path = "language/artifact/macros" }
-destack_codegen_native = { path = "language/compiler/native" }
+destack_bytecode = { path = "language/bytecode" }
 destack_compiler = { path = "language/compiler", default-features = false }
 destack_core = { path = "language/core" }
 destack_dir = { path = "language/dir" }

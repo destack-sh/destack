@@ -856,6 +856,7 @@ version = "0.55.4"
 dependencies = [
  "blake3",
  "dashmap",
+ "destack_bytecode",
  "destack_core",
  "destack_dir",
  "destack_js",
@@ -886,6 +887,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_bytecode"
+version = "0.55.4"
+dependencies = [
+ "destack_core",
+ "destack_fir",
+ "destack_serde",
+ "destack_source",
+ "serde",
+]
+
+[[package]]
 name = "destack_cli"
 version = "0.55.4"
 dependencies = [
@@ -911,10 +923,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_codegen_native"
-version = "0.55.4"
-
-[[package]]
 name = "destack_compiler"
 version = "0.55.4"
 dependencies = [
@@ -924,6 +932,7 @@ dependencies = [
  "dashmap",
  "destack_artifact",
  "destack_artifact_macros",
+ "destack_bytecode",
  "destack_core",
  "destack_dir",
  "destack_fir",
@@ -937,7 +946,6 @@ dependencies = [
  "destack_repository",
  "destack_session",
  "destack_source",
- "destack_vm",
  "filetime",
  "indexmap",
  "mime_guess",
@@ -1244,6 +1252,7 @@ dependencies = [
 name = "destack_program"
 version = "0.55.4"
 dependencies = [
+ "destack_bytecode",
  "destack_core",
  "destack_heap",
  "destack_memory",
@@ -1443,6 +1452,8 @@ version = "0.55.4"
 dependencies = [
  "clap",
  "criterion",
+ "destack_artifact",
+ "destack_bytecode",
  "destack_compiler",
  "destack_core",
  "destack_heap",
