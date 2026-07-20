@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::StableHasher;
+use destack_core::{SectionEntry, StableHasher};
 use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
@@ -14,7 +14,9 @@ const CONTENT_DOMAIN: &[u8] = b"destack.content.v1";
 
 /// The id of a File.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 #[serde(transparent)]
 pub struct FileId(pub u64);
 
@@ -102,7 +104,9 @@ impl Content {
 
 /// The exact identity of one content payload.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 #[serde(transparent)]
 pub struct ContentId(pub u128);
 
