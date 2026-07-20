@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    BoundMode, CauseId, CheckFailure, ConstraintId, ObligationFailure, ObligationId, Relation,
-    ValueUse,
+    BoundMode, CauseId, CheckFailure, ConstraintId, Expectation, FlowSite, FunctionBody,
+    ObligationFailure, ObligationId, PlaceUse, Relation, ValueUse,
 };
 
 /// Failed judgments returned by one solver task run.
@@ -36,13 +36,29 @@ pub(in crate::check) struct ConstraintFailure {
     pub(in crate::check) failure: CheckFailure,
 }
 
-const TASK_PRIORITY_COUNT: usize = 4;
+const TASK_PRIORITY_COUNT: usize = 6;
 
 /// One scheduled solver task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Task {
     /// Solve one type relation constraint.
     Relate(ConstraintId),
+    /// Check one source use against its expected type.
+    Check {
+        /// The checked source use.
+        site: FlowSite,
+        /// The expected type judgment.
+        expectation: Expectation,
+    },
+    /// Infer one source use.
+    Infer {
+        /// The inferred source use.
+        site: FlowSite,
+        /// The syntactic place use.
+        use_: PlaceUse,
+    },
+    /// Check one function declaration body.
+    CheckBody(FunctionBody),
     /// Check one deferred obligation.
     Oblige(ObligationId),
     /// Solve one variable from its bounds.
@@ -59,6 +75,8 @@ impl Task {
     fn priority(&self) -> TaskPriority {
         match self {
             Self::Relate(_) => TaskPriority::Relate,
+            Self::Check { .. } | Self::CheckBody(_) => TaskPriority::Check,
+            Self::Infer { .. } => TaskPriority::Infer,
             Self::Solve {
                 mode: BoundMode::Strong,
                 ..
@@ -77,6 +95,10 @@ impl Task {
 enum TaskPriority {
     /// Relation constraints run first.
     Relate,
+    /// Context-sensitive source checks run before unconstrained inference.
+    Check,
+    /// Unconstrained source inference runs after contextual checks.
+    Infer,
     /// Variable solving runs after relations.
     Solve,
     /// Obligations run after solving.
@@ -87,13 +109,14 @@ enum TaskPriority {
 
 impl TaskPriority {
     /// Every priority in scheduler order.
-    const ALL: [Self; TASK_PRIORITY_COUNT] =
-        [Self::Relate, Self::Solve, Self::Oblige, Self::WeakSolve];
-
-    /// Return whether tasks at this priority judge completed bodies.
-    fn is_settlement(self) -> bool {
-        matches!(self, Self::Oblige)
-    }
+    const ALL: [Self; TASK_PRIORITY_COUNT] = [
+        Self::Relate,
+        Self::Check,
+        Self::Infer,
+        Self::Solve,
+        Self::Oblige,
+        Self::WeakSolve,
+    ];
 
     /// Return the dense array index for this priority.
     fn index(self) -> usize {
@@ -132,14 +155,6 @@ impl WorkQueue {
         }
     }
 
-    /// Pop the next inference task, leaving settlement judgments queued.
-    pub(in crate::check) fn pop_inference(&mut self) -> Option<Task> {
-        TaskPriority::ALL
-            .into_iter()
-            .filter(|priority| !priority.is_settlement())
-            .find_map(|priority| self.pop_at(priority))
-    }
-
     /// Pop the next task in priority order.
     pub(in crate::check) fn pop(&mut self) -> Option<Task> {
         TaskPriority::ALL
@@ -173,12 +188,13 @@ impl WorkQueue {
         self.active.swap_remove(task);
     }
 
+    /// Return whether one task completed successfully.
+    pub(in crate::check) fn is_finished(&self, task: &Task) -> bool {
+        self.finished.contains(task)
+    }
+
     /// Return the total number of queued tasks.
     pub(in crate::check) fn len(&self) -> usize {
-        self.entries
-            .iter()
-            .enumerate()
-            .map(|(index, entries)| entries.len().saturating_sub(self.heads[index]))
-            .sum()
+        self.active.len()
     }
 }

@@ -18,7 +18,6 @@ pub(in crate::check) use constraint::*;
 pub(in crate::check) use decision::*;
 pub(in crate::check) use probe::*;
 pub(in crate::check) use relation::*;
-pub(in crate::check) use solve::TaskScope;
 pub(in crate::check) use solver::*;
 pub(in crate::check) use task::*;
 pub(in crate::check) use variable::*;

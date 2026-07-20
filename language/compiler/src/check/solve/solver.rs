@@ -377,22 +377,28 @@ impl Solver {
 
     /// Drain every parked dependency, leaving the waiter table empty.
     pub(in crate::check) fn drain_waiters(&mut self) -> Vec<(Dependency, SmallVec<[Task; 2]>)> {
-        self.waiters.drain(..).collect()
+        self.waiters
+            .drain(..)
+            .filter_map(|(dependency, mut tasks)| {
+                tasks.retain(|task| !self.queue.is_finished(task));
+
+                (!tasks.is_empty()).then_some((dependency, tasks))
+            })
+            .collect()
     }
 
     /// Return the dependencies parked tasks currently wait on.
     pub(in crate::check) fn waiting_dependencies(&self) -> Vec<Dependency> {
-        self.waiters.keys().copied().collect()
+        self.waiters
+            .iter()
+            .filter(|(_, tasks)| tasks.iter().any(|task| !self.queue.is_finished(task)))
+            .map(|(dependency, _)| *dependency)
+            .collect()
     }
 
     /// Pop one solver task.
     pub(in crate::check) fn pop_task(&mut self) -> Option<Task> {
         self.queue.pop()
-    }
-
-    /// Pop one inference task, leaving obligations for settlement.
-    pub(in crate::check) fn pop_inference_task(&mut self) -> Option<Task> {
-        self.queue.pop_inference()
     }
 
     /// Record one undo entry if a snapshot is active.

@@ -12,9 +12,8 @@ use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyOwner, Capture, Cause, CauseId, CauseKind, CheckError, CheckOutcome, CheckState,
-    CheckWarning, Constraint, Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation,
-    StaticGate, answer,
+    Answer, Capture, Cause, CauseId, CauseKind, CheckError, CheckOutcome, CheckState, CheckWarning,
+    Constraint, Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticGate, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -401,16 +400,6 @@ impl CheckState<'_> {
         self.modules
             .swap_remove(&module)
             .unwrap_or_else(|| unreachable!("check module {module:?} was not loaded"))
-    }
-
-    /// Return one body target's committed type, when its node has one.
-    pub(in crate::check) fn node_type_maybe_body(
-        &self,
-        owner: BodyOwner,
-    ) -> Option<dir::GlobalTypeId> {
-        let node = owner.body.node()?;
-
-        self.node_type_maybe(node.into_global(owner.module))
     }
 
     /// Return one source node type without flow narrowing, if present.

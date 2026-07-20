@@ -8,8 +8,8 @@ use destack_source::{ComponentId, ModuleId, ProfileId, StringId};
 use smallvec::SmallVec;
 
 use crate::check::{
-    BodyOwner, Cause, CauseId, CheckEvent, CheckExternalModuleState, CheckModuleState,
-    DecisionTable, DecoratorApplication, GenericIndex, GenericScope, GenericTemplateId, Origin,
+    Cause, CauseId, CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable,
+    DecoratorApplication, FunctionBody, GenericIndex, GenericScope, GenericTemplateId, Origin,
     OriginId, Solver, TryPropagationTarget, VarianceContext, VarianceState,
     should_stream_check_events,
 };
@@ -83,10 +83,10 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) solver: Solver,
     /// Obligation steps run so far, for trace numbering.
     pub(in crate::check) solve_steps: usize,
-    /// Checked bodies recorded by the binder, in source order.
-    pub(in crate::check) bodies: Vec<BodyOwner>,
-    /// Function value bodies keyed by their value expression.
-    pub(in crate::check) lambdas: FxIndexMap<dir::GlobalNodeIdAny, BodyOwner>,
+    /// Named function bodies keyed by their declaration symbol.
+    pub(in crate::check) functions: FxIndexMap<dir::GlobalSymbolId, FunctionBody>,
+    /// Lambda bodies keyed by their value expression.
+    pub(in crate::check) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
     /// Catch result holes keyed by their catch node.
     pub(in crate::check) catch_results: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     /// Try propagation targets keyed by their fallible source node.
@@ -142,7 +142,7 @@ impl<'a> CheckState<'a> {
             reduced_types: FxIndexMap::default(),
             solver: Solver::new(),
             solve_steps: 0,
-            bodies: Vec::new(),
+            functions: FxIndexMap::default(),
             lambdas: FxIndexMap::default(),
             catch_results: FxIndexMap::default(),
             try_propagations: FxIndexMap::default(),
