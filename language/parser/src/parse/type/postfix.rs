@@ -112,7 +112,19 @@ impl Parser {
         &mut self,
         ty: LocalNodeId<TypeExpression>,
     ) -> Option<TypeValueHead> {
-        // copy only fields from promotable type heads
+        let mark = self.tree.mark();
+        let Some(head) = self.build_type_value_head(ty) else {
+            self.tree.restore_to_mark(mark);
+
+            return None;
+        };
+
+        Some(head)
+    }
+
+    /// Build one value head.
+    fn build_type_value_head(&mut self, ty: LocalNodeId<TypeExpression>) -> Option<TypeValueHead> {
+        // capture fields from promotable type heads
         let (head, generic_arguments) = match self.tree.get(ty) {
             TypeExpression::Reference {
                 path,
@@ -140,7 +152,7 @@ impl Parser {
         let expression = match head {
             TypeGenericHead::Reference(path) => self.insert_path_expression(&path, range)?,
             TypeGenericHead::Member { left, name } => {
-                let owner = self.promote_type_value(left)?;
+                let owner = self.build_type_value(left)?;
                 self.insert_node(
                     Expression::Member {
                         left: owner,
@@ -158,12 +170,12 @@ impl Parser {
         })
     }
 
-    /// Promote one complete static type head into value space.
-    fn promote_type_value(
+    /// Build one complete static type head in value space.
+    fn build_type_value(
         &mut self,
         ty: LocalNodeId<TypeExpression>,
     ) -> Option<LocalNodeId<Expression>> {
-        let head = self.promote_type_value_head(ty)?;
+        let head = self.build_type_value_head(ty)?;
         if head.generic_arguments.is_empty() {
             return Some(head.expression);
         }

@@ -2,9 +2,9 @@ use crate::{Parser, ParserError, ParserResult};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, Expression, Key, LocalNodeId,
-    Name, Property, UnaryOperator,
+    Property, UnaryOperator,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Lower one value expression into an assignment target.
@@ -19,19 +19,29 @@ impl Parser {
                 | Expression::TupleExpression { .. }
                 | Expression::ObjectExpression { .. }
         );
+        let mark = self.tree.mark();
         let target = if is_destructuring {
-            ensure_sufficient_stack(|| self.lower_assignment_pattern(expression))?
+            ensure_sufficient_stack(|| self.lower_assignment_pattern(expression))
         } else {
-            self.lower_assignment_pattern(expression)?
+            self.lower_assignment_pattern(expression)
+        };
+        let target = match target {
+            Ok(target) => target,
+            Err(error) => {
+                self.tree.restore_to_mark(mark);
+
+                return Err(error);
+            }
         };
 
         // compound assignment requires one writable place
         if operator != AssignOperator::Assign
             && !matches!(self.tree.get(target), AssignPattern::Place { .. })
         {
-            return Err(ParserError::invalid_assignment_target(
-                self.tree.get_range(target),
-            ));
+            let range = self.tree.get_range(target);
+            self.tree.restore_to_mark(mark);
+
+            return Err(ParserError::invalid_assignment_target(range));
         }
 
         Ok(target)
@@ -144,11 +154,9 @@ impl Parser {
             .into_iter()
             .map(|argument| self.lower_sequence_assignment_field(argument))
             .collect::<ParserResult<Vec<_>>>()?;
+        let range = self.tree.get_range(expression);
 
-        Ok(self.insert_node(
-            AssignPattern::Sequence { fields },
-            self.tree.get_range(expression),
-        ))
+        Ok(self.insert_node(AssignPattern::Sequence { fields }, range))
     }
 
     /// Lower one array element into a sequence assignment field.
@@ -184,11 +192,9 @@ impl Parser {
             .into_iter()
             .map(|argument| self.lower_tuple_assignment_field(argument))
             .collect::<ParserResult<Vec<_>>>()?;
+        let range = self.tree.get_range(expression);
 
-        Ok(self.insert_node(
-            AssignPattern::Tuple { fields },
-            self.tree.get_range(expression),
-        ))
+        Ok(self.insert_node(AssignPattern::Tuple { fields }, range))
     }
 
     /// Lower one tuple element into a tuple assignment field.
@@ -216,11 +222,9 @@ impl Parser {
             .into_iter()
             .map(|property| self.lower_object_assignment_field(property))
             .collect::<ParserResult<Vec<_>>>()?;
+        let range = self.tree.get_range(expression);
 
-        Ok(self.insert_node(
-            AssignPattern::Object { fields },
-            self.tree.get_range(expression),
-        ))
+        Ok(self.insert_node(AssignPattern::Object { fields }, range))
     }
 
     /// Lower one object property into an object assignment field.
@@ -236,11 +240,7 @@ impl Parser {
                 value,
                 is_shorthand,
             } => {
-                let pattern = if is_shorthand {
-                    self.lower_shorthand_assignment(name, value)?
-                } else {
-                    self.lower_assignment_pattern(value)?
-                };
+                let pattern = self.lower_assignment_pattern(value)?;
 
                 AssignPatternField::Named {
                     name,
@@ -265,54 +265,6 @@ impl Parser {
         };
 
         Ok(self.insert_node(field, range))
-    }
-
-    /// Lower one shorthand object assignment field.
-    fn lower_shorthand_assignment(
-        &mut self,
-        name: Name,
-        value: LocalNodeId<Expression>,
-    ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let range = self.tree.get_range(value);
-
-        let assignment = match self.tree.get(value) {
-            Expression::Assign {
-                operator,
-                left,
-                right,
-            } => Some((*operator, *left, *right)),
-            _ => None,
-        };
-
-        // lower shorthand defaults without copying the value expression
-        if let Some((operator, left, right)) = assignment {
-            if operator != AssignOperator::Assign {
-                return Err(ParserError::invalid_assignment_target(range));
-            }
-
-            let pattern = AssignPattern::Default {
-                pattern: left,
-                value: right,
-            };
-
-            return Ok(self.insert_node(pattern, range));
-        }
-
-        self.lower_shorthand_assignment_place(name, range)
-    }
-
-    /// Create one shorthand assignment place.
-    fn lower_shorthand_assignment_place(
-        &mut self,
-        name: Name,
-        range: ByteRange,
-    ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let Name::Identifier(name) = name else {
-            return Err(ParserError::invalid_assignment_target(range));
-        };
-        let expression = self.insert_node(Expression::Identifier { name }, range);
-
-        Ok(self.insert_node(AssignPattern::Place { expression }, range))
     }
 
     /// Return whether one expression denotes a writable place.

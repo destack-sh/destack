@@ -399,12 +399,27 @@ impl Parser {
         &mut self,
         expression: LocalNodeId<Expression>,
     ) -> Option<LocalNodeId<TypeExpression>> {
-        // return an existing type expression without rebuilding it
+        let mark = self.tree.mark();
+        let Some(ty) = self.build_static_type_head(expression) else {
+            self.tree.restore_to_mark(mark);
+
+            return None;
+        };
+
+        Some(ty)
+    }
+
+    /// Build one static type head.
+    fn build_static_type_head(
+        &mut self,
+        expression: LocalNodeId<Expression>,
+    ) -> Option<LocalNodeId<TypeExpression>> {
+        // unwrap an expression already carrying a type
         if let Expression::Type { value } = self.tree.get(expression) {
             return Some(*value);
         }
 
-        // copy only fields from promotable value heads
+        // capture fields from promotable value heads
         let head = match self.tree.get(expression) {
             Expression::Identifier { name } => StaticTypeHead::Identifier(*name),
             Expression::Member {
@@ -427,8 +442,8 @@ impl Parser {
         let range = self.tree.get_range(expression);
 
         // promote the complete head into type space
-        match head {
-            StaticTypeHead::Identifier(name) => Some(self.insert_node(
+        let ty = match head {
+            StaticTypeHead::Identifier(name) => self.insert_node(
                 TypeExpression::Reference {
                     path: Path {
                         segments: smallvec![name],
@@ -436,9 +451,9 @@ impl Parser {
                     generic_arguments: Vec::new(),
                 },
                 range,
-            )),
+            ),
             StaticTypeHead::Member { left, name } => {
-                let left = self.promote_static_type_head(left)?;
+                let left = self.build_static_type_head(left)?;
                 let type_expression = match self.tree.get(left) {
                     TypeExpression::Reference {
                         path,
@@ -459,29 +474,38 @@ impl Parser {
                     },
                 };
 
-                Some(self.insert_node(type_expression, range))
+                self.insert_node(type_expression, range)
             }
             StaticTypeHead::Instantiation {
                 left,
                 generic_arguments,
-            } => self.promote_static_type_instantiation(range, left, generic_arguments),
-        }
+            } => self.build_static_type_instantiation(range, left, generic_arguments)?,
+        };
+
+        Some(ty)
     }
 
-    /// Create one instantiated static type head.
-    fn promote_static_type_instantiation(
+    /// Build one instantiated static type head.
+    fn build_static_type_instantiation(
         &mut self,
         range: ByteRange,
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     ) -> Option<LocalNodeId<TypeExpression>> {
-        let ty = self.promote_static_type_head(left)?;
+        let ty = self.build_static_type_head(left)?;
         let node = match self.tree.get(ty) {
-            TypeExpression::Reference { path, .. } => TypeExpression::Reference {
+            TypeExpression::Reference {
+                path,
+                generic_arguments: existing,
+            } if existing.is_empty() => TypeExpression::Reference {
                 path: path.clone(),
                 generic_arguments,
             },
-            TypeExpression::Member { left, name, .. } => TypeExpression::Member {
+            TypeExpression::Member {
+                left,
+                name,
+                generic_arguments: existing,
+            } if existing.is_empty() => TypeExpression::Member {
                 left: *left,
                 name: *name,
                 generic_arguments,
