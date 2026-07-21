@@ -261,6 +261,7 @@ impl SymbolMangler {
                 self.hasher.write_u8(26);
                 self.write_type(*signature, tree);
             }
+            Type::Character => self.hasher.write_u8(27),
         }
     }
 

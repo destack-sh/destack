@@ -338,6 +338,8 @@ pub enum Type {
     Void,
     /// Boolean (1 bit logical, typically 1 byte).
     Boolean,
+    /// Unicode scalar value.
+    Character,
     /// Integer with explicit width and signedness.
     Int { width: u16, is_signed: bool },
     /// Pointer-sized signed integer.
@@ -640,6 +642,7 @@ impl Type {
             self,
             Type::Void
                 | Type::Boolean
+                | Type::Character
                 | Type::Int { .. }
                 | Type::Isize
                 | Type::Usize
@@ -832,6 +835,7 @@ impl Type {
             // primitives are always trivially copyable
             Type::Void
             | Type::Boolean
+            | Type::Character
             | Type::Int { .. }
             | Type::Isize
             | Type::Usize

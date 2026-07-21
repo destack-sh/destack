@@ -248,6 +248,7 @@ fn format_type_inner<'a>(
         Type::Never => write!(f, [token("never")]),
         Type::Void => write!(f, [token("void")]),
         Type::Boolean => write!(f, [token("boolean")]),
+        Type::Character => write!(f, [token("char")]),
         Type::Int {
             width,
             is_signed: signed,

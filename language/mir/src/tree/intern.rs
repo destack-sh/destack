@@ -147,6 +147,7 @@ impl Tree {
             | Type::Never
             | Type::Void
             | Type::Boolean
+            | Type::Character
             | Type::Int { .. }
             | Type::Isize
             | Type::Usize
@@ -341,6 +342,7 @@ impl Tree {
             | Type::Never
             | Type::Void
             | Type::Boolean
+            | Type::Character
             | Type::Int { .. }
             | Type::Isize
             | Type::Usize

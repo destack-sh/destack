@@ -87,6 +87,19 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Insert a character constant.
+    pub fn char_const(&mut self, value: char) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::Char { value },
+        });
+        let ty = self.tree.intern_type(Type::Character);
+        self.define_value(destination, ty);
+
+        destination
+    }
+
     /// Insert a floating point constant.
     pub fn fconst(&mut self, value: f64, float_type: FloatType) -> Value {
         let destination = self.allocate_value();

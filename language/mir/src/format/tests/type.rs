@@ -33,6 +33,20 @@ entry(v0: float16, v1: bfloat16, v2: float32, v3: float64):
     );
 }
 
+/// Formats the character type and constants without integer erasure.
+#[test]
+fn test_format_character_type() {
+    assert_format(
+        r#"
+function character(): char {
+entry:
+    v0: char = 'A'
+    return v0
+}
+"#,
+    );
+}
+
 /// Formats reference kinds and nullability canonically.
 #[test]
 fn test_format_reference_kinds_and_nullability() {

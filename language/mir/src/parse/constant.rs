@@ -113,13 +113,7 @@ impl Parser {
                 Ok(Constant::Boolean { value })
             }
             TokenType::Character => {
-                if !matches!(
-                    expected,
-                    Type::Int {
-                        width: 32,
-                        is_signed: false
-                    }
-                ) {
+                if !matches!(expected, Type::Character) {
                     return Err(ParseError::invalid("char constant type", token_start));
                 }
                 self.bump();
@@ -324,6 +318,7 @@ impl Parser {
                 width: 256,
                 is_signed: false,
             },
+            "char" => Type::Character,
             "isize" => Type::Isize,
             "usize" => Type::Usize,
             "float16" => Type::FLOAT16,

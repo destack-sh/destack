@@ -85,13 +85,7 @@ pub fn constant_matches_type(
             width == ty_width && signed == ty_signed
         }
         (ConstantType::Float { format }, mir::Type::Float(float_type)) => format == *float_type,
-        (
-            ConstantType::Char,
-            mir::Type::Int {
-                width,
-                is_signed: signed,
-            },
-        ) => *width == 32 && !*signed,
+        (ConstantType::Char, mir::Type::Character) => true,
         _ => false,
     }
 }

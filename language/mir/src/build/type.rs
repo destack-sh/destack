@@ -19,6 +19,11 @@ impl ModuleBuilder {
         self.tree.intern_type(Type::Boolean)
     }
 
+    /// Create a character type.
+    pub fn type_character(&mut self) -> LocalNodeId<Type> {
+        self.tree.intern_type(Type::Character)
+    }
+
     /// Create an integer type.
     pub fn type_int(&mut self, width: u16, signed: bool) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Int {

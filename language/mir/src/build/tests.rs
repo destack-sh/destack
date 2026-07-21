@@ -732,6 +732,7 @@ fn test_type_construction() {
     // create various types
     let void_type = module.type_void();
     let bool_type = module.type_boolean();
+    let character_type = module.type_character();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
     let f32_type = module.type_f32();
@@ -748,6 +749,7 @@ fn test_type_construction() {
     let (tree, _strings) = module.finish_tree();
     assert!(matches!(tree.get(void_type), Type::Void));
     assert!(matches!(tree.get(bool_type), Type::Boolean));
+    assert!(matches!(tree.get(character_type), Type::Character));
     assert!(matches!(
         tree.get(i32_type),
         Type::Int {

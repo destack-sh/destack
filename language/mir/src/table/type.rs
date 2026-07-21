@@ -70,6 +70,7 @@ impl TypeTable {
         match ty {
             Type::Void => Some(PrimitiveType::Void),
             Type::Boolean => Some(PrimitiveType::Boolean),
+            Type::Character => Some(PrimitiveType::Character),
             Type::TypeDescriptor => Some(PrimitiveType::TypeDescriptor),
             Type::TypeId => Some(PrimitiveType::TypeId),
             Type::Isize => Some(PrimitiveType::Isize),
@@ -100,6 +101,11 @@ impl TypeTable {
     /// Return the indexed boolean type id.
     pub fn boolean_type(&self) -> Option<LocalNodeId<Type>> {
         self.primitive_types.get(&PrimitiveType::Boolean).copied()
+    }
+
+    /// Return the indexed character type id.
+    pub fn character_type(&self) -> Option<LocalNodeId<Type>> {
+        self.primitive_types.get(&PrimitiveType::Character).copied()
     }
 
     /// Return the indexed void type id.
@@ -193,6 +199,8 @@ pub(crate) enum PrimitiveType {
     Void,
     /// Boolean primitive type.
     Boolean,
+    /// Unicode scalar value primitive type.
+    Character,
     /// Runtime type descriptor type.
     TypeDescriptor,
     /// Runtime type id type.

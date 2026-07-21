@@ -750,6 +750,15 @@ impl Tree {
         unreachable!("missing boolean type id in MIR tree");
     }
 
+    /// Return the character type id.
+    pub fn character_type(&self) -> LocalNodeId<Type> {
+        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Character)) {
+            return type_id;
+        }
+
+        unreachable!("missing character type id in MIR tree");
+    }
+
     /// Return the void type id.
     pub fn void_type(&self) -> LocalNodeId<Type> {
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
