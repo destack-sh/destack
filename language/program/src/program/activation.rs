@@ -2,9 +2,7 @@ use std::ffi::c_void;
 use std::fmt;
 use std::ptr::NonNull;
 
-use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
-
-use crate::{StaticImage, StaticSpace};
+use crate::ProgramStorage;
 
 /// One call from the runtime into a program machine.
 pub struct ProgramActivation<'a> {
@@ -30,54 +28,6 @@ impl fmt::Debug for ProgramActivation<'_> {
             .debug_struct("ProgramActivation")
             .field("state", &true)
             .field("storage", &self.storage)
-            .finish()
-    }
-}
-
-/// Memory available to one runtime call.
-pub struct ProgramStorage<'a> {
-    /// Worker heap.
-    pub heap: &'a mut Heap,
-    /// Runtime heap.
-    pub shared_heap: &'a SharedHeap,
-    /// Worker-local shared allocation cache.
-    pub shared_cache: &'a mut AllocationCache,
-    /// Shared heap mark worker.
-    pub shared_mark_worker: &'a SharedMarkWorker,
-    /// Local static memory.
-    pub local_static: &'a mut StaticSpace,
-    /// Shared static memory.
-    pub shared_static: &'a mut StaticSpace,
-    /// Program constant memory.
-    pub constant_space: &'a StaticImage,
-}
-
-impl ProgramStorage<'_> {
-    /// Reborrow this storage for one nested machine call.
-    pub fn reborrow(&mut self) -> ProgramStorage<'_> {
-        ProgramStorage {
-            heap: self.heap,
-            shared_heap: self.shared_heap,
-            shared_cache: self.shared_cache,
-            shared_mark_worker: self.shared_mark_worker,
-            local_static: self.local_static,
-            shared_static: self.shared_static,
-            constant_space: self.constant_space,
-        }
-    }
-}
-
-impl fmt::Debug for ProgramStorage<'_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("ProgramStorage")
-            .field("heap", &"<heap>")
-            .field("shared_heap", &"<shared heap>")
-            .field("shared_cache", &"<shared allocation cache>")
-            .field("shared_mark_worker", &"<shared mark worker>")
-            .field("local_static", &self.local_static.byte_len())
-            .field("shared_static", &self.shared_static.byte_len())
-            .field("constant_space", &"<constant image>")
             .finish()
     }
 }
