@@ -275,6 +275,12 @@ impl SharedHeap {
         self.storage.reserve_small_from_cache(cache, small)
     }
 
+    /// Zero one byte range in a live shared heap allocation.
+    #[inline(always)]
+    pub fn zero(&self, reference: SharedHeapReference, byte_len: usize) -> HeapResult<()> {
+        self.storage.zero(reference, byte_len)
+    }
+
     /// Allocate one zeroed payload from one allocation plan.
     #[cold]
     #[inline(never)]

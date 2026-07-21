@@ -9,6 +9,14 @@ use crate::{
 };
 
 impl HeapStorage {
+    /// Zero one byte range in a live shared heap allocation.
+    pub(crate) fn zero(&self, reference: SharedHeapReference, byte_len: usize) -> HeapResult<()> {
+        let (extent, byte_offset) = self.resolve_range(reference, 0, byte_len)?;
+        let offset = extent.base.offset() + byte_offset;
+
+        self.memory.zero(offset, byte_len).map_err(HeapError::from)
+    }
+
     /// Return the trace map for one shared heap reference.
     pub(crate) fn trace_map(
         &self,

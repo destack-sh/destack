@@ -245,6 +245,16 @@ pub enum HeapEdge {
     Shared(SharedHeapReference),
 }
 
+impl HeapEdge {
+    /// Return the stable space-relative reference bits.
+    pub const fn bits(self) -> usize {
+        match self {
+            Self::Local(reference) => reference.bits(),
+            Self::Shared(reference) => reference.bits(),
+        }
+    }
+}
+
 /// Visit exact reference offsets for one payload-independent trace map.
 pub(crate) fn visit_static_reference_offsets<R: ReferenceClass>(
     trace_map: &TraceMap,

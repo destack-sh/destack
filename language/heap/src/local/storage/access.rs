@@ -18,6 +18,14 @@ impl HeapStorage {
         self.resolve_extent(reference).is_some()
     }
 
+    /// Zero one byte range in a live heap allocation.
+    pub(crate) fn zero(&self, reference: HeapReference, byte_len: usize) -> HeapResult<()> {
+        let (extent, byte_offset) = self.resolve_range(reference, 0, byte_len)?;
+        let offset = extent.base.offset() + byte_offset;
+
+        self.memory.zero(offset, byte_len).map_err(HeapError::from)
+    }
+
     /// Return whether one heap reference currently refers to young space.
     #[cfg(test)]
     pub(crate) fn is_young(&self, reference: HeapReference) -> bool {
@@ -116,7 +124,7 @@ impl HeapStorage {
         )?;
 
         // publish only real shared references
-        edges.retain(|reference| !reference.is_null());
+        edges.retain(|reference| !reference.is_nullish());
 
         Ok(edges)
     }

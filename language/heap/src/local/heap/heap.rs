@@ -351,6 +351,12 @@ impl Heap {
         Some(reference)
     }
 
+    /// Zero one byte range in a live heap allocation.
+    #[inline(always)]
+    pub fn zero(&self, reference: HeapReference, byte_len: usize) -> HeapResult<()> {
+        self.storage.zero(reference, byte_len)
+    }
+
     /// Allocate one zeroed payload from one allocation plan.
     #[cold]
     #[inline(never)]
