@@ -126,7 +126,7 @@ impl Parser {
     }
 
     /// Return whether the current source token matches one token type.
-    pub(super) fn peek_token(&self, ty: TokenType) -> bool {
+    pub(super) fn peek_is(&self, ty: TokenType) -> bool {
         self.peek()
             .is_some_and(|token| self.token_type(token) == ty)
     }
@@ -146,8 +146,8 @@ impl Parser {
     }
 
     /// Consume one source token when it matches one token type.
-    pub(super) fn eat_token_maybe(&mut self, ty: TokenType) -> bool {
-        if self.peek_token(ty) {
+    pub(super) fn eat_token_if(&mut self, ty: TokenType) -> bool {
+        if self.peek_is(ty) {
             self.bump();
             true
         } else {
@@ -156,7 +156,7 @@ impl Parser {
     }
 
     /// Consume the current identifier when it matches the expected text.
-    pub(super) fn eat_identifier_text(&mut self, expected: &str) -> bool {
+    pub(super) fn eat_name_if(&mut self, expected: &str) -> bool {
         let Some(token) = self.peek() else {
             return false;
         };
@@ -177,7 +177,7 @@ impl Parser {
     /// Parse an instruction opcode.
     ///
     /// Opcodes can be identifiers or reserved opcode keywords that also have dedicated token kinds.
-    pub(super) fn eat_opcode(&mut self) -> ParseResult<(String, usize)> {
+    pub(super) fn parse_opcode(&mut self) -> ParseResult<(String, usize)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;

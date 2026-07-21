@@ -176,10 +176,10 @@ impl Parser {
 
         self.eat_token(TokenType::LessThan)?;
         let mut lifetimes = Vec::new();
-        while !self.peek_token(TokenType::GreaterThan) {
+        while !self.peek_is(TokenType::GreaterThan) {
             lifetimes.push(self.parse_lifetime_union()?);
 
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -204,7 +204,7 @@ impl Parser {
 
     /// Return whether the next tokens start type lifetime arguments.
     fn peek_type_lifetime_arguments(&self) -> bool {
-        if !self.peek_token(TokenType::LessThan) {
+        if !self.peek_is(TokenType::LessThan) {
             return false;
         }
 
@@ -520,7 +520,7 @@ impl Parser {
     fn parse_parenthesized_type(&mut self) -> ParseResult<Type> {
         let parameters = self.parse_parenthesized_type_parameters()?;
 
-        if self.eat_token_maybe(TokenType::FatArrow) {
+        if self.eat_token_if(TokenType::FatArrow) {
             let signature = self.parse_signature_result(Vec::new(), parameters)?;
             let environment = self.tree.ensure_function_environment_type();
 
@@ -562,12 +562,12 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut parameters = Vec::new();
 
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let (ty, _) = self.parse_type_use_part()?;
             let obligations = self.parse_borrow_obligations()?;
             parameters.push(SignatureParameter { ty, obligations });
 
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -634,7 +634,7 @@ impl Parser {
         let mut fields = Vec::new();
         let mut field_spans = Vec::new();
 
-        while !self.peek_token(TokenType::CloseBrace) {
+        while !self.peek_is(TokenType::CloseBrace) {
             let field_start = self.pos();
 
             // field attributes
@@ -644,7 +644,7 @@ impl Parser {
             let mut name = None;
             let mut name_span = None;
             let mut type_anchor = None;
-            if self.peek_token(TokenType::At)
+            if self.peek_is(TokenType::At)
                 && self
                     .peek_nth_token(1)
                     .is_some_and(|token| self.token_type(token) == TokenType::Identifier)
@@ -662,7 +662,7 @@ impl Parser {
                 type_anchor = Some(self.eat_token(TokenType::Colon)?);
                 name = Some(self.strings.intern(&display_name));
                 name_span = Some(span);
-            } else if self.peek_token(TokenType::Identifier)
+            } else if self.peek_is(TokenType::Identifier)
                 && let Some(next_token) = self.peek_nth_token(1)
                 && self.token_type(next_token) == TokenType::Colon
             {
@@ -691,8 +691,7 @@ impl Parser {
             fields.push(self.tree.intern_field(field, attributes));
 
             // field delimiter
-            if self.eat_token_maybe(TokenType::Semicolon) || self.eat_token_maybe(TokenType::Comma)
-            {
+            if self.eat_token_if(TokenType::Semicolon) || self.eat_token_if(TokenType::Comma) {
                 let field_span = self.span_from_parse_start(field_start);
                 field_spans.push(FieldSpan::new(
                     field_span,
@@ -714,7 +713,7 @@ impl Parser {
                 continue;
             }
 
-            if self.peek_token(TokenType::CloseBrace) {
+            if self.peek_is(TokenType::CloseBrace) {
                 let field_span = self.span_from_parse_start(field_start);
                 field_spans.push(FieldSpan::new(
                     field_span,
@@ -807,18 +806,17 @@ impl Parser {
         self.eat_token(TokenType::OpenBrace)?;
 
         let mut cases = Vec::new();
-        while !self.peek_token(TokenType::CloseBrace) {
+        while !self.peek_is(TokenType::CloseBrace) {
             let discriminant = self.parse_constant_for_type(discriminant)?;
             self.eat_token(TokenType::Equal)?;
             let (ty, _) = self.parse_type_use_part()?;
             cases.push(VariantCase { discriminant, ty });
 
-            if self.eat_token_maybe(TokenType::Semicolon) || self.eat_token_maybe(TokenType::Comma)
-            {
+            if self.eat_token_if(TokenType::Semicolon) || self.eat_token_if(TokenType::Comma) {
                 continue;
             }
 
-            if self.peek_token(TokenType::CloseBrace) {
+            if self.peek_is(TokenType::CloseBrace) {
                 break;
             }
 
@@ -864,7 +862,7 @@ impl Parser {
         let mut qualifiers = ReferenceQualifiers::new(nullability);
         self.parse_reference_qualifier(&mut qualifiers)?;
 
-        while self.peek_token(TokenType::Comma) {
+        while self.peek_is(TokenType::Comma) {
             if self
                 .peek_nth_token(1)
                 .is_some_and(|token| self.token_type(token) == TokenType::OpenParenthesis)
@@ -885,7 +883,7 @@ impl Parser {
     ) -> ParseResult<(ReferenceKind, Lifetime, Space, Access, Nullability)> {
         let mut qualifiers = ReferenceQualifiers::new(Nullability::None);
 
-        while self.peek_token(TokenType::Comma) {
+        while self.peek_is(TokenType::Comma) {
             if self
                 .peek_nth_token(1)
                 .is_some_and(|token| self.token_type(token) == TokenType::OpenParenthesis)
@@ -918,17 +916,17 @@ impl Parser {
             return Ok(());
         }
 
-        if self.eat_token_maybe(TokenType::Readonly) {
+        if self.eat_token_if(TokenType::Readonly) {
             qualifiers.access = Some(Access::Readonly);
             return Ok(());
         }
 
-        if self.eat_identifier_text("mutable") {
+        if self.eat_name_if("mutable") {
             qualifiers.access = Some(Access::Mutable);
             return Ok(());
         }
 
-        if self.eat_identifier_text("exclusive") {
+        if self.eat_name_if("exclusive") {
             qualifiers.access = Some(Access::Exclusive);
             return Ok(());
         }
@@ -946,7 +944,7 @@ impl Parser {
             return Ok(());
         }
 
-        if self.eat_token_maybe(TokenType::Space) {
+        if self.eat_token_if(TokenType::Space) {
             qualifiers.space = self.parse_space_group()?;
             return Ok(());
         }
@@ -1033,7 +1031,7 @@ impl Parser {
     /// Parse one tick lifetime union.
     pub(super) fn parse_lifetime_union(&mut self) -> ParseResult<Lifetime> {
         let mut terms = vec![self.parse_lifetime_term()?];
-        while self.eat_token_maybe(TokenType::Pipe) {
+        while self.eat_token_if(TokenType::Pipe) {
             terms.push(self.parse_lifetime_term()?);
         }
 
@@ -1079,7 +1077,7 @@ impl Parser {
 
     /// Return whether the next tokens start a borrow obligation.
     fn peek_borrow_obligation(&self) -> bool {
-        if !self.peek_token(TokenType::At) {
+        if !self.peek_is(TokenType::At) {
             return false;
         }
 
@@ -1093,7 +1091,7 @@ impl Parser {
     fn parse_tensor_shape(&mut self) -> ParseResult<Vec<TensorDimension>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut shape = Vec::new();
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("tensor shape", self.pos()))?;
@@ -1121,7 +1119,7 @@ impl Parser {
                     ));
                 }
             }
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1136,7 +1134,7 @@ impl Parser {
         mut view_format: Option<&mut TensorViewFormat>,
         sharding: &mut TensorSharding,
     ) -> ParseResult<()> {
-        while self.eat_token_maybe(TokenType::Comma) {
+        while self.eat_token_if(TokenType::Comma) {
             let token = self.eat_token(TokenType::Identifier)?;
             match self.tree.source_text(token.span) {
                 "format" => {
@@ -1198,7 +1196,7 @@ impl Parser {
             "unsharded" => Ok(TensorSharding::Unsharded),
             _ => {
                 let mut axes = vec![self.parse_tensor_sharding_axis_after(token)?];
-                while self.eat_token_maybe(TokenType::Comma) {
+                while self.eat_token_if(TokenType::Comma) {
                     axes.push(self.parse_tensor_sharding_axis()?);
                 }
 

@@ -17,7 +17,7 @@ impl Parser {
         self.register_placeholders();
 
         // items
-        while !self.peek_token(TokenType::End) {
+        while !self.peek_is(TokenType::End) {
             let recovery_pos = self.pos;
             let lifetime_scope_count = self.lifetime_scopes.len();
             if let Err(error) = self.parse_module_item() {
@@ -35,23 +35,23 @@ impl Parser {
         let (attributes, attribute_spans) = self.parse_attributes()?;
 
         // declaration modifiers
-        let linkage = if self.peek_token(TokenType::External) {
+        let linkage = if self.peek_is(TokenType::External) {
             self.bump();
             Linkage::Import
-        } else if self.peek_token(TokenType::Export) {
+        } else if self.peek_is(TokenType::Export) {
             self.bump();
             Linkage::Export
         } else {
             Linkage::Local
         };
-        let mutability = if self.eat_token_maybe(TokenType::Readonly) {
+        let mutability = if self.eat_token_if(TokenType::Readonly) {
             Mutability::Immutable
         } else {
             Mutability::Mutable
         };
 
         // item grammar
-        if self.peek_token(TokenType::Type) {
+        if self.peek_is(TokenType::Type) {
             if linkage != Linkage::Local {
                 return Err(ParseError::new(
                     "type declarations cannot be external or export",
@@ -66,9 +66,9 @@ impl Parser {
             }
 
             self.parse_type_declaration(item_start, attributes, attribute_spans)?;
-        } else if self.peek_token(TokenType::Global) {
+        } else if self.peek_is(TokenType::Global) {
             self.parse_global(item_start, linkage, mutability, attributes, attribute_spans)?;
-        } else if self.peek_token(TokenType::Function) {
+        } else if self.peek_is(TokenType::Function) {
             if mutability == Mutability::Immutable {
                 return Err(ParseError::new("functions cannot be readonly", self.pos()));
             }
@@ -91,14 +91,14 @@ impl Parser {
             self.bump();
         }
 
-        while !self.peek_token(TokenType::End) {
-            if self.peek_token(TokenType::At)
-                || self.peek_token(TokenType::External)
-                || self.peek_token(TokenType::Export)
-                || self.peek_token(TokenType::Readonly)
-                || self.peek_token(TokenType::Type)
-                || self.peek_token(TokenType::Global)
-                || self.peek_token(TokenType::Function)
+        while !self.peek_is(TokenType::End) {
+            if self.peek_is(TokenType::At)
+                || self.peek_is(TokenType::External)
+                || self.peek_is(TokenType::Export)
+                || self.peek_is(TokenType::Readonly)
+                || self.peek_is(TokenType::Type)
+                || self.peek_is(TokenType::Global)
+                || self.peek_is(TokenType::Function)
             {
                 return;
             }
@@ -113,21 +113,21 @@ impl Parser {
         let saved_function = self.current_function;
 
         // first pass: item placeholders
-        while !self.peek_token(TokenType::End) {
+        while !self.peek_is(TokenType::End) {
             self.skip_attribute_tokens();
 
             // item linkage
-            if self.peek_token(TokenType::External) || self.peek_token(TokenType::Export) {
+            if self.peek_is(TokenType::External) || self.peek_is(TokenType::Export) {
                 self.bump();
             }
 
             // item mutability
-            if self.peek_token(TokenType::Readonly) {
+            if self.peek_is(TokenType::Readonly) {
                 self.bump();
             }
 
             // function placeholders
-            if self.peek_token(TokenType::Function) {
+            if self.peek_is(TokenType::Function) {
                 self.bump();
                 if let Some(name) = self.scan_symbol_name()
                     && !self.function_map.contains_key(&name)
@@ -144,7 +144,7 @@ impl Parser {
             }
 
             // type placeholders
-            if self.peek_token(TokenType::Type) {
+            if self.peek_is(TokenType::Type) {
                 self.bump();
                 if let Some(name) = self.scan_symbol_name()
                     && !self.type_declaration_map.contains_key(&name)
@@ -163,23 +163,23 @@ impl Parser {
 
         // second pass: function signatures
         self.pos = 0;
-        while !self.peek_token(TokenType::End) {
+        while !self.peek_is(TokenType::End) {
             self.skip_attribute_tokens();
 
-            let linkage = if self.peek_token(TokenType::External) {
+            let linkage = if self.peek_is(TokenType::External) {
                 self.bump();
                 Linkage::Import
-            } else if self.peek_token(TokenType::Export) {
+            } else if self.peek_is(TokenType::Export) {
                 self.bump();
                 Linkage::Export
             } else {
                 Linkage::Local
             };
-            if self.peek_token(TokenType::Readonly) {
+            if self.peek_is(TokenType::Readonly) {
                 self.bump();
             }
 
-            if self.peek_token(TokenType::Function) {
+            if self.peek_is(TokenType::Function) {
                 let lifetime_scope_count = self.lifetime_scopes.len();
                 let _ = self.seed_function_signature(linkage);
                 self.restore_lifetime_scopes(lifetime_scope_count);
@@ -195,17 +195,17 @@ impl Parser {
 
     /// Skip attributes during the placeholder scan.
     fn skip_attribute_tokens(&mut self) {
-        while self.peek_token(TokenType::At) {
+        while self.peek_is(TokenType::At) {
             self.bump();
-            let _ = self.eat_token_maybe(TokenType::Identifier);
+            let _ = self.eat_token_if(TokenType::Identifier);
 
-            if self.peek_token(TokenType::OpenParenthesis) {
+            if self.peek_is(TokenType::OpenParenthesis) {
                 self.bump();
                 let mut depth = 1usize;
-                while depth > 0 && !self.peek_token(TokenType::End) {
-                    if self.peek_token(TokenType::OpenParenthesis) {
+                while depth > 0 && !self.peek_is(TokenType::End) {
+                    if self.peek_is(TokenType::OpenParenthesis) {
                         depth += 1;
-                    } else if self.peek_token(TokenType::CloseParenthesis) {
+                    } else if self.peek_is(TokenType::CloseParenthesis) {
                         depth -= 1;
                     }
 
@@ -227,7 +227,7 @@ impl Parser {
 
         // imports stop at the signature
         if linkage.is_import() {
-            self.eat_token_maybe(TokenType::Semicolon);
+            self.eat_token_if(TokenType::Semicolon);
             return Ok(());
         }
 
@@ -239,15 +239,15 @@ impl Parser {
 
     /// Skip one braced body when present.
     fn skip_optional_braced_body(&mut self) {
-        if !self.eat_token_maybe(TokenType::OpenBrace) {
+        if !self.eat_token_if(TokenType::OpenBrace) {
             return;
         }
 
         let mut depth = 1usize;
-        while depth > 0 && !self.peek_token(TokenType::End) {
-            if self.peek_token(TokenType::OpenBrace) {
+        while depth > 0 && !self.peek_is(TokenType::End) {
+            if self.peek_is(TokenType::OpenBrace) {
                 depth += 1;
-            } else if self.peek_token(TokenType::CloseBrace) {
+            } else if self.peek_is(TokenType::CloseBrace) {
                 depth -= 1;
             }
 
@@ -291,25 +291,25 @@ impl Parser {
         };
 
         // declaration target type
-        let (ty, type_span, field_spans, declaration_spans) =
-            if self.peek_token(TokenType::OpenBrace) {
-                let type_start = self.pos();
-                let (ty, field_spans, declaration_spans) = self.parse_struct_type()?;
-                let type_span = self.span_from_parse_start(type_start);
-                (ty, type_span, field_spans, declaration_spans)
-            } else {
-                let equals_token = self.eat_token(TokenType::Equal)?;
-                let equals_start = equals_token.start();
-                let equals_length = self.tree.source_text(equals_token.span).len();
-                let equals_span = self.span_at(equals_start, equals_length);
-                let (ty, type_span) = self.parse_type_part()?;
-                (
-                    ty,
-                    type_span,
-                    Vec::new(),
-                    TypeDeclarationSpans::new(Some(equals_span), None, None),
-                )
-            };
+        let (ty, type_span, field_spans, declaration_spans) = if self.peek_is(TokenType::OpenBrace)
+        {
+            let type_start = self.pos();
+            let (ty, field_spans, declaration_spans) = self.parse_struct_type()?;
+            let type_span = self.span_from_parse_start(type_start);
+            (ty, type_span, field_spans, declaration_spans)
+        } else {
+            let equals_token = self.eat_token(TokenType::Equal)?;
+            let equals_start = equals_token.start();
+            let equals_length = self.tree.source_text(equals_token.span).len();
+            let equals_span = self.span_at(equals_start, equals_length);
+            let (ty, type_span) = self.parse_type_part()?;
+            (
+                ty,
+                type_span,
+                Vec::new(),
+                TypeDeclarationSpans::new(Some(equals_span), None, None),
+            )
+        };
 
         // reject direct self definitions
         if ty == placeholder_id {
@@ -361,7 +361,7 @@ impl Parser {
         self.pop_lifetime_scope();
 
         // optional declaration terminator
-        self.eat_token_maybe(TokenType::Semicolon);
+        self.eat_token_if(TokenType::Semicolon);
 
         // record attributes
         if !attributes.is_empty() {
@@ -435,8 +435,8 @@ impl Parser {
 
         // trailing qualifiers
         let mut space = crate::Space::Local;
-        while self.eat_token_maybe(TokenType::Comma) {
-            if self.eat_token_maybe(TokenType::Space) {
+        while self.eat_token_if(TokenType::Comma) {
+            if self.eat_token_if(TokenType::Space) {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let token = self
                     .peek()
@@ -469,7 +469,7 @@ impl Parser {
         }
 
         // initializer
-        let initializer = if linkage.is_import() || !self.peek_token(TokenType::Equal) {
+        let initializer = if linkage.is_import() || !self.peek_is(TokenType::Equal) {
             None
         } else {
             self.eat_token(TokenType::Equal)?;
@@ -498,7 +498,7 @@ impl Parser {
         self.global_map.insert(name, id);
 
         // optional declaration terminator
-        self.eat_token_maybe(TokenType::Semicolon);
+        self.eat_token_if(TokenType::Semicolon);
 
         // record attributes
         if !attributes.is_empty() {
@@ -580,10 +580,10 @@ impl Parser {
             TokenType::OpenBrace => {
                 self.bump();
                 let mut elements = Vec::new();
-                while !self.peek_token(TokenType::CloseBrace) {
+                while !self.peek_is(TokenType::CloseBrace) {
                     let element_type = self.data_init_element_type(expected_type, elements.len());
                     elements.push(self.parse_data_init(element_type)?);
-                    if !self.eat_token_maybe(TokenType::Comma) {
+                    if !self.eat_token_if(TokenType::Comma) {
                         break;
                     }
                 }

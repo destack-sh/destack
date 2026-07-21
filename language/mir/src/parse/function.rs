@@ -256,7 +256,7 @@ impl Parser {
             }
 
             // optional declaration terminator
-            self.eat_token_maybe(TokenType::Semicolon);
+            self.eat_token_if(TokenType::Semicolon);
 
             return Ok(function_id);
         }
@@ -313,7 +313,7 @@ impl Parser {
 
         // locals
         let mut locals = Vec::new();
-        while self.peek_token(TokenType::Local) {
+        while self.peek_is(TokenType::Local) {
             let recovery_pos = self.pos();
             match self.parse_local() {
                 Ok(local) => locals.push(local),
@@ -331,7 +331,7 @@ impl Parser {
 
         // blocks
         let mut blocks = Vec::new();
-        while !self.peek_token(TokenType::CloseBrace) && !self.peek_token(TokenType::End) {
+        while !self.peek_is(TokenType::CloseBrace) && !self.peek_is(TokenType::End) {
             // block headers
             if self.is_block_label_start() {
                 blocks.push(self.parse_block_recovering());
@@ -391,7 +391,7 @@ impl Parser {
         let (parameters, parameter_spans) = if linkage.is_import() {
             let mut parameters = Vec::new();
             let mut parameter_spans = Vec::new();
-            while !self.peek_token(TokenType::CloseParenthesis) {
+            while !self.peek_is(TokenType::CloseParenthesis) {
                 let parameter_start = self.pos();
                 let (ty, type_span) = self.parse_type_use_part()?;
                 let obligations = self.parse_borrow_obligations()?;
@@ -403,7 +403,7 @@ impl Parser {
                     obligations,
                 });
                 parameter_spans.push(TypedValueSpan::new(parameter_span, None, type_span));
-                if !self.eat_token_maybe(TokenType::Comma) {
+                if !self.eat_token_if(TokenType::Comma) {
                     break;
                 }
             }
@@ -435,7 +435,7 @@ impl Parser {
                     Some(name_span),
                     type_span,
                 ));
-                if !self.eat_token_maybe(TokenType::Comma) {
+                if !self.eat_token_if(TokenType::Comma) {
                     break;
                 }
             }
@@ -482,7 +482,7 @@ impl Parser {
         }
 
         // placeholder scanning must not treat a body brace as a return type
-        if self.peek_token(TokenType::OpenBrace) && !self.is_return_structural_type_start() {
+        if self.peek_is(TokenType::OpenBrace) && !self.is_return_structural_type_start() {
             let start = colon_token.span.end as usize;
             let span = self.span_at(start, 0);
             let ty = self.error_type();
@@ -559,9 +559,9 @@ impl Parser {
 
         // local annotations
         let mut mutability = Mutability::Mutable;
-        while self.eat_token_maybe(TokenType::Comma) {
+        while self.eat_token_if(TokenType::Comma) {
             // mutability
-            if self.eat_token_maybe(TokenType::Readonly) {
+            if self.eat_token_if(TokenType::Readonly) {
                 mutability = Mutability::Immutable;
             }
             // reject unknown local qualifiers
@@ -619,7 +619,7 @@ impl Parser {
         };
 
         // block parameters
-        let parameters = if self.eat_token_maybe(TokenType::OpenParenthesis) {
+        let parameters = if self.eat_token_if(TokenType::OpenParenthesis) {
             let params = if self.is_entry_block_parameter_list() {
                 self.parse_entry_block_parameters()?
             } else {
@@ -647,8 +647,8 @@ impl Parser {
         let mut is_broken = false;
 
         while !self.is_block_label_start()
-            && !self.peek_token(TokenType::CloseBrace)
-            && !self.peek_token(TokenType::End)
+            && !self.peek_is(TokenType::CloseBrace)
+            && !self.peek_is(TokenType::End)
         {
             // terminators
             if self
@@ -680,7 +680,7 @@ impl Parser {
             // instruction
             let instruction_start = self.pos();
             let recovery_index = self.pos;
-            match self.eat_instruction() {
+            match self.parse_instruction() {
                 Ok(inst) => instructions.push(inst),
                 Err(error) => {
                     self.diagnostics
@@ -808,7 +808,7 @@ impl Parser {
             self.bump();
         }
 
-        while !self.peek_token(TokenType::CloseBrace) && !self.peek_token(TokenType::End) {
+        while !self.peek_is(TokenType::CloseBrace) && !self.peek_is(TokenType::End) {
             if self.is_block_label_start() {
                 return;
             }
@@ -824,8 +824,8 @@ impl Parser {
         while self.pos < self.tree.tokens().len() {
             self.skip_raw_trivia_except_newline();
 
-            if self.peek_token(TokenType::CloseBrace)
-                || self.peek_token(TokenType::End)
+            if self.peek_is(TokenType::CloseBrace)
+                || self.peek_is(TokenType::End)
                 || self.is_block_label_start()
             {
                 return false;
@@ -839,8 +839,8 @@ impl Parser {
                 self.pos += 1;
                 self.skip_raw_trivia_except_newline();
 
-                return !(self.peek_token(TokenType::CloseBrace)
-                    || self.peek_token(TokenType::End)
+                return !(self.peek_is(TokenType::CloseBrace)
+                    || self.peek_is(TokenType::End)
                     || self.is_block_label_start());
             }
 
@@ -1008,7 +1008,7 @@ impl Parser {
                 let default = self.parse_block_target()?;
 
                 let mut cases = Vec::new();
-                while self.eat_token_maybe(TokenType::Comma) {
+                while self.eat_token_if(TokenType::Comma) {
                     let case_value = self.parse_int_literal()?;
                     self.eat_token(TokenType::FatArrow)?;
                     let target = self.parse_block_target()?;
@@ -1144,7 +1144,7 @@ impl Parser {
         // parse indexed cases and one optional trailing else target
         let mut cases = Vec::new();
         let mut default = None;
-        while self.eat_token_maybe(TokenType::Comma) {
+        while self.eat_token_if(TokenType::Comma) {
             // one trailing else target names the non-exhaustive default
             let is_else = self
                 .peek()
@@ -1474,7 +1474,7 @@ impl Parser {
 
     /// Parse optional block arguments like `(v0, v1)`.
     fn parse_optional_block_arguments(&mut self) -> ParseResult<Vec<Value>> {
-        if self.eat_token_maybe(TokenType::OpenParenthesis) {
+        if self.eat_token_if(TokenType::OpenParenthesis) {
             let arguments = self.parse_value_list()?;
             self.eat_token(TokenType::CloseParenthesis)?;
             Ok(arguments)
@@ -1498,7 +1498,7 @@ impl Parser {
         let target = self.parse_block_target()?;
 
         // the unwind alternative
-        if !self.eat_token_maybe(TokenType::Pipe) {
+        if !self.eat_token_if(TokenType::Pipe) {
             return Ok((target, None));
         }
 

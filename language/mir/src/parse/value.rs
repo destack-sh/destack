@@ -221,7 +221,7 @@ impl Parser {
         let mut values = Vec::new();
         while self.is_value_reference_start() {
             values.push(self.parse_value()?);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -236,7 +236,7 @@ impl Parser {
         let mut values = Vec::new();
         while self.is_value_reference_start() {
             values.push(self.parse_value_segment(segment_spans)?);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -258,7 +258,7 @@ impl Parser {
             let value_span = self.span_from_parse_start(value_start);
             values.push(BlockParameter { value, ty });
             spans.push(TypedValueSpan::new(value_span, Some(name_span), type_span));
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }

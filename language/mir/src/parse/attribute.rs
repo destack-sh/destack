@@ -16,7 +16,7 @@ impl Parser {
         let mut attributes = Vec::new();
         let mut spans = Vec::new();
 
-        while self.peek_token(TokenType::At) {
+        while self.peek_is(TokenType::At) {
             let attribute_start = self.pos();
             let attribute = self.parse_attribute()?;
             let attribute_span = self.span_from_parse_start(attribute_start);
@@ -33,7 +33,7 @@ impl Parser {
         self.eat_token(TokenType::At)?;
 
         // name and arguments
-        let name_token = if self.peek_token(TokenType::Ownership) {
+        let name_token = if self.peek_is(TokenType::Ownership) {
             self.eat_token(TokenType::Ownership)?
         } else {
             self.eat_token(TokenType::Identifier)?
@@ -42,7 +42,7 @@ impl Parser {
         let name = AttributeIdentifier::Identifier(self.strings.intern(&name_text));
 
         // optional argument payload
-        let args = if self.eat_token_maybe(TokenType::OpenParenthesis) {
+        let args = if self.eat_token_if(TokenType::OpenParenthesis) {
             let args = self.parse_attribute_args()?;
             self.eat_token(TokenType::CloseParenthesis)?;
             args
@@ -56,12 +56,12 @@ impl Parser {
     /// Parse a single attribute argument list.
     fn parse_attribute_args(&mut self) -> ParseResult<AttributeArgs> {
         // empty list
-        if self.peek_token(TokenType::CloseParenthesis) {
+        if self.peek_is(TokenType::CloseParenthesis) {
             return Ok(AttributeArgs::None);
         }
 
         // key value list
-        if self.peek_token(TokenType::Identifier)
+        if self.peek_is(TokenType::Identifier)
             && self
                 .peek_nth_token(1)
                 .is_some_and(|token| self.token_type(token) == TokenType::Equal)
@@ -75,7 +75,7 @@ impl Parser {
                 let value = self.parse_attribute_value()?;
                 pairs.push(AttributeKeyValue { key, value });
 
-                if !self.eat_token_maybe(TokenType::Comma) {
+                if !self.eat_token_if(TokenType::Comma) {
                     break;
                 }
             }
@@ -85,7 +85,7 @@ impl Parser {
 
         // single value or list
         let first = self.parse_attribute_value()?;
-        if !self.eat_token_maybe(TokenType::Comma) {
+        if !self.eat_token_if(TokenType::Comma) {
             return Ok(AttributeArgs::Value(first));
         }
 
@@ -94,7 +94,7 @@ impl Parser {
         loop {
             let value = self.parse_attribute_value()?;
             values.push(value);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -150,9 +150,9 @@ impl Parser {
                 // list literal
                 self.eat_token(TokenType::OpenBracket)?;
                 let mut values = Vec::new();
-                while !self.peek_token(TokenType::CloseBracket) {
+                while !self.peek_is(TokenType::CloseBracket) {
                     values.push(self.parse_attribute_value()?);
-                    if !self.eat_token_maybe(TokenType::Comma) {
+                    if !self.eat_token_if(TokenType::Comma) {
                         break;
                     }
                 }

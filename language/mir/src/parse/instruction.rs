@@ -19,7 +19,7 @@ use super::parser::Parser;
 #[allow(clippy::type_complexity)]
 impl Parser {
     /// Parse an instruction.
-    pub(super) fn eat_instruction(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
+    pub(super) fn parse_instruction(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
         // whole instruction
         let instruction_start = self.pos();
 
@@ -81,7 +81,7 @@ impl Parser {
             .peek()
             .cloned()
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
-        let (opcode_text, opcode_start) = self.eat_opcode()?;
+        let (opcode_text, opcode_start) = self.parse_opcode()?;
         let opcode_text = opcode_text.as_str();
         let opcode_span = opcode.span;
         segment_spans.push(opcode_span);
@@ -522,7 +522,7 @@ impl Parser {
                         let case = self.parse_int_segment(&mut segment_spans)?;
                         let case = u32::try_from(case)
                             .map_err(|_| ParseError::invalid("case index", self.pos()))?;
-                        let payload = match self.peek_token(TokenType::Comma) {
+                        let payload = match self.peek_is(TokenType::Comma) {
                             true => {
                                 self.eat_token(TokenType::Comma)?;
 
@@ -746,7 +746,7 @@ impl Parser {
                     }
                     "tensor.reshape" => {
                         let tensor = self.parse_value()?;
-                        let shape = if self.eat_token_maybe(TokenType::Comma) {
+                        let shape = if self.eat_token_if(TokenType::Comma) {
                             let values = self.parse_named_value_group("shape")?;
                             self.tree.add_values(&values)
                         } else {
@@ -1208,9 +1208,9 @@ impl Parser {
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseBracket) {
+        while !self.peek_is(TokenType::CloseBracket) {
             values.push(self.parse_value()?);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1227,9 +1227,9 @@ impl Parser {
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseBracket) {
+        while !self.peek_is(TokenType::CloseBracket) {
             values.push(self.parse_value_segment(segment_spans)?);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1271,9 +1271,9 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             values.push(self.parse_value()?);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1322,10 +1322,10 @@ impl Parser {
         let mut values = Vec::new();
 
         // read values
-        while !self.peek_token(TokenType::CloseBracket) {
+        while !self.peek_is(TokenType::CloseBracket) {
             let value = self.parse_int_literal()?;
             values.push(value);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1340,10 +1340,10 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let value = self.parse_int_literal()?;
             values.push(value);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1357,11 +1357,11 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let token = self.eat_token(TokenType::BooleanLiteral)?;
             let value = self.tree.source_text(token.span) == "true";
             values.push(value);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1469,7 +1469,7 @@ impl Parser {
     /// Parse an optional tensor scatter mode.
     fn parse_optional_scatter_mode(&mut self) -> ParseResult<Option<TensorScatterMode>> {
         // check for a comma followed by the mode
-        if !self.peek_token(TokenType::Comma) {
+        if !self.peek_is(TokenType::Comma) {
             return Ok(None);
         }
         self.eat_token(TokenType::Comma)?;
@@ -1492,7 +1492,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<Option<TensorIndexTieBreak>> {
         // check for a comma followed by the tie break
-        if !self.peek_token(TokenType::Comma) {
+        if !self.peek_is(TokenType::Comma) {
             return Ok(None);
         }
         self.eat_token(TokenType::Comma)?;
@@ -1526,7 +1526,7 @@ impl Parser {
         let mut rhs_batch = None;
         let mut lhs_contracting = None;
         let mut rhs_contracting = None;
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             let key_text = self.tree.source_text(key_token.span).to_string();
             let key_start = key_token.start();
@@ -1538,7 +1538,7 @@ impl Parser {
                 "rhsContract" => rhs_contracting = Some(list),
                 _ => return Err(ParseError::invalid("dot dimension key", key_start)),
             }
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1581,7 +1581,7 @@ impl Parser {
         let mut output_batch = None;
         let mut output_feature = None;
         let mut output_spatial = None;
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             match self.tree.source_text(key_token.span) {
                 "inputBatch" => {
@@ -1624,7 +1624,7 @@ impl Parser {
                     ));
                 }
             }
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1683,14 +1683,14 @@ impl Parser {
         let mut rhs_dilation = None;
         let mut window_reversal = None;
 
-        if self.eat_token_maybe(TokenType::Comma) {
+        if self.eat_token_if(TokenType::Comma) {
             let token = self.eat_token(TokenType::Identifier)?;
             if self.tree.source_text(token.span) != "window" {
                 return Err(ParseError::invalid("window", token.start()));
             }
             self.eat_token(TokenType::OpenParenthesis)?;
 
-            while !self.peek_token(TokenType::CloseParenthesis) {
+            while !self.peek_is(TokenType::CloseParenthesis) {
                 let key_token = self.eat_token(TokenType::Identifier)?;
                 match self.tree.source_text(key_token.span) {
                     "strides" => strides = Some(self.parse_u64_paren_list()?),
@@ -1707,7 +1707,7 @@ impl Parser {
                     }
                 }
 
-                if !self.eat_token_maybe(TokenType::Comma) {
+                if !self.eat_token_if(TokenType::Comma) {
                     break;
                 }
             }
@@ -1731,14 +1731,14 @@ impl Parser {
         let mut feature_group_count = None;
         let mut batch_group_count = None;
 
-        if self.eat_token_maybe(TokenType::Comma) {
+        if self.eat_token_if(TokenType::Comma) {
             let token = self.eat_token(TokenType::Identifier)?;
             if self.tree.source_text(token.span) != "groups" {
                 return Err(ParseError::invalid("groups", token.start()));
             }
             self.eat_token(TokenType::OpenParenthesis)?;
 
-            while !self.peek_token(TokenType::CloseParenthesis) {
+            while !self.peek_is(TokenType::CloseParenthesis) {
                 let key_token = self.eat_token(TokenType::Identifier)?;
                 let key_text = self.tree.source_text(key_token.span).to_string();
                 let key_start = key_token.start();
@@ -1755,7 +1755,7 @@ impl Parser {
                     _ => return Err(ParseError::invalid("convolution group key", key_start)),
                 }
 
-                if !self.eat_token_maybe(TokenType::Comma) {
+                if !self.eat_token_if(TokenType::Comma) {
                     break;
                 }
             }
@@ -1783,7 +1783,7 @@ impl Parser {
         let mut collapsed_slice_dims = None;
         let mut start_index_map = None;
         let mut index_vector_dim = None;
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             match self.tree.source_text(key_token.span) {
                 "offsetDims" => offset_dims = Some(self.parse_u32_paren_list()?),
@@ -1801,7 +1801,7 @@ impl Parser {
                     ));
                 }
             }
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -1839,7 +1839,7 @@ impl Parser {
         let mut inserted_window_dims = None;
         let mut scatter_dims_to_operand_dims = None;
         let mut index_vector_dim = None;
-        while !self.peek_token(TokenType::CloseParenthesis) {
+        while !self.peek_is(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             match self.tree.source_text(key_token.span) {
                 "updateWindowDims" => update_window_dims = Some(self.parse_u32_paren_list()?),
@@ -1859,7 +1859,7 @@ impl Parser {
                     ));
                 }
             }
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -2008,7 +2008,7 @@ impl Parser {
         let ordering = self.parse_memory_ordering()?;
         let mut access = AtomicAccess::ordered(ordering);
 
-        while self.eat_token_maybe(TokenType::Comma) {
+        while self.eat_token_if(TokenType::Comma) {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("atomic access", self.pos()))?;
@@ -2032,7 +2032,7 @@ impl Parser {
         let mut success = AtomicAccess::ordered(ordering);
         let mut failure_ordering = CompareExchangeAccess::default_failure_ordering(ordering);
 
-        while self.eat_token_maybe(TokenType::Comma) {
+        while self.eat_token_if(TokenType::Comma) {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("atomic compare exchange", self.pos()))?;
@@ -2061,7 +2061,7 @@ impl Parser {
         let ordering = self.parse_memory_ordering()?;
         let mut access = FenceAccess::ordered(ordering);
 
-        while self.eat_token_maybe(TokenType::Comma) {
+        while self.eat_token_if(TokenType::Comma) {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("atomic fence", self.pos()))?;
@@ -2124,7 +2124,7 @@ impl Parser {
         let mut storage = StorageSet::NONE;
         let mut has_storage = false;
         let mut is_space_locked = false;
-        let is_list = self.eat_token_maybe(TokenType::OpenBracket);
+        let is_list = self.eat_token_if(TokenType::OpenBracket);
 
         // parse one or more storage names
         loop {
@@ -2177,7 +2177,7 @@ impl Parser {
             }
 
             // lists stop before the closing bracket
-            if !self.eat_token_maybe(TokenType::Comma) || self.peek_token(TokenType::CloseBracket) {
+            if !self.eat_token_if(TokenType::Comma) || self.peek_is(TokenType::CloseBracket) {
                 break;
             }
         }

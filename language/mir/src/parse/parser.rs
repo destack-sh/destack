@@ -299,14 +299,14 @@ impl Parser {
 
     /// Parse optional lifetime parameters after a declaration name.
     pub(super) fn parse_lifetime_parameters(&mut self) -> ParseResult<Vec<LifetimeParameter>> {
-        if !self.eat_token_maybe(TokenType::LessThan) {
+        if !self.eat_token_if(TokenType::LessThan) {
             self.lifetime_scopes.push(Vec::new());
             return Ok(Vec::new());
         }
 
         let mut lifetimes = Vec::new();
         let mut scope = Vec::new();
-        while !self.peek_token(TokenType::GreaterThan) {
+        while !self.peek_is(TokenType::GreaterThan) {
             let name_token = self.eat_token(TokenType::Lifetime)?;
             let name = self.tree.source_text(name_token.span).to_string();
             if scope.iter().any(|(candidate, _)| candidate == &name) {
@@ -315,12 +315,11 @@ impl Parser {
                     name_token.start(),
                 ));
             }
-
             let slot = LifetimeSlot(scope.len() as u32);
             scope.push((name.clone(), slot));
             lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
 
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -345,7 +344,7 @@ impl Parser {
             self.eat_token(TokenType::Colon)?;
             let right = self.parse_scope_lifetime()?;
             lifetimes[left.0 as usize].outlives.push(right);
-            if !self.eat_token_maybe(TokenType::Comma) {
+            if !self.eat_token_if(TokenType::Comma) {
                 break;
             }
         }
@@ -487,7 +486,7 @@ impl Parser {
 
     /// Return whether the current token starts a value reference.
     pub(super) fn is_value_reference_start(&self) -> bool {
-        self.peek_token(TokenType::Identifier)
+        self.peek_is(TokenType::Identifier)
     }
 
     /// Return whether the current token starts a block label.
