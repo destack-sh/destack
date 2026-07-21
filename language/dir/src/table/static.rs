@@ -2,11 +2,12 @@ use destack_serde::Reflect;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalStaticId, SegmentView, StaticTerm,
+    Arena, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalNodeIdAny, LocalStaticId,
+    SegmentView, StaticTerm,
 };
 
 /// Cumulative static values for one DIR module.
@@ -108,6 +109,13 @@ impl<'a> StaticTable<'a> {
         None
     }
 
+    /// Return whether one node roots a subtree removed by a closed static condition.
+    pub fn contains_absent_root(&self, node: LocalNodeIdAny) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.contains_absent_root(node))
+    }
+
     /// Find one exact static value by shape.
     pub fn find_static(&self, expected: &StaticTerm) -> Option<LocalStaticId> {
         self.iter_static_ids()
@@ -157,6 +165,8 @@ pub struct StaticSegment {
     pub(crate) statics: Arena<StaticTerm>,
     /// Checked static value keyed by symbol.
     pub(crate) static_by_symbol_id: IndexMap<GlobalSymbolId, GlobalStaticId>,
+    /// Subtree roots removed by closed static conditions.
+    pub(crate) absent_roots: IndexSet<LocalNodeIdAny>,
 }
 
 impl StaticSegment {
@@ -167,6 +177,7 @@ impl StaticSegment {
             first_static_id: 0,
             statics: Arena::new(),
             static_by_symbol_id: IndexMap::new(),
+            absent_roots: IndexSet::new(),
         }
     }
 
@@ -177,6 +188,7 @@ impl StaticSegment {
             first_static_id: base.static_count(),
             statics: Arena::new(),
             static_by_symbol_id: IndexMap::new(),
+            absent_roots: IndexSet::new(),
         }
     }
 
@@ -191,6 +203,16 @@ impl StaticSegment {
     /// Set the static value for a symbol.
     pub fn set_symbol_static(&mut self, symbol_id: GlobalSymbolId, static_id: GlobalStaticId) {
         self.static_by_symbol_id.insert(symbol_id, static_id);
+    }
+
+    /// Insert one subtree root removed by a closed static condition.
+    pub fn insert_absent_root(&mut self, node: LocalNodeIdAny) {
+        self.absent_roots.insert(node);
+    }
+
+    /// Return whether one node roots a subtree removed by a closed static condition.
+    pub fn contains_absent_root(&self, node: LocalNodeIdAny) -> bool {
+        self.absent_roots.contains(&node)
     }
 
     /// Iterate static values keyed by symbol.
@@ -238,7 +260,9 @@ impl StaticSegment {
 
     /// Return true when this segment has no entries.
     pub fn is_empty(&self) -> bool {
-        self.statics.is_empty() && self.static_by_symbol_id.is_empty()
+        self.statics.is_empty()
+            && self.static_by_symbol_id.is_empty()
+            && self.absent_roots.is_empty()
     }
 
     /// Apply one mapping to every type id stored in this segment.
