@@ -1,6 +1,7 @@
 use std::num::NonZeroU32;
 
-use destack_bytecode::{self as bytecode, Word};
+use destack_bytecode as bytecode;
+use destack_bytecode::Word;
 use destack_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::GlobalAddress;
 
-use super::{SignatureId, TypeId};
+use super::{SignatureId, TypeId, ValueTag};
 
 /// Shared layout table for runtime values.
 #[repr(C)]
@@ -152,7 +153,7 @@ impl LayoutId {
     }
 }
 
-/// Scalar storage format for vector and tensor element operations.
+/// Scalar storage format.
 #[repr(C, u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum ScalarFormat {
@@ -170,6 +171,8 @@ pub enum ScalarFormat {
     },
     /// Boolean values.
     Boolean,
+    /// Unicode scalar values.
+    Character,
 }
 
 impl ScalarFormat {
@@ -221,6 +224,8 @@ pub enum WordLayout {
     Void,
     /// Boolean value.
     Boolean,
+    /// Unicode scalar value.
+    Character,
     /// Signed integer value.
     Int { width: u8 },
     /// Unsigned integer value.
@@ -250,6 +255,28 @@ pub enum WordLayout {
 }
 
 impl WordLayout {
+    /// Return the program value tag accepted by this word layout.
+    pub(crate) const fn value_tag(self) -> ValueTag {
+        match self {
+            Self::Void => ValueTag::Void,
+            Self::Boolean => ValueTag::Bool,
+            Self::Character => ValueTag::Char,
+            Self::Int { .. } => ValueTag::Int,
+            Self::Uint { .. } => ValueTag::UInt,
+            Self::Float16 => ValueTag::Float16,
+            Self::Bfloat16 => ValueTag::Bfloat16,
+            Self::Float32 => ValueTag::Float32,
+            Self::Float64 => ValueTag::Float64,
+            Self::HeapReference => ValueTag::HeapReference,
+            Self::SharedHeapReference => ValueTag::SharedHeapReference,
+            Self::Address
+            | Self::StackPointer
+            | Self::FramePointer
+            | Self::GlobalAddress
+            | Self::FunctionPointer => ValueTag::Address,
+        }
+    }
+
     /// Return the word layout for one reference.
     #[inline(always)]
     pub fn reference(space: Space, kind: ReferenceKind) -> Self {
@@ -268,6 +295,7 @@ impl WordLayout {
         match self {
             Self::Void => 0,
             Self::Boolean => 1,
+            Self::Character => 4,
             Self::Int { width } | Self::Uint { width } => (width as usize).div_ceil(8),
             Self::Float16 | Self::Bfloat16 => 2,
             Self::Float32 => 4,
@@ -288,6 +316,7 @@ impl WordLayout {
         match self {
             Self::Void => Word::ZERO,
             Self::Boolean => Word::boolean(raw != 0),
+            Self::Character => Word::from_bits(raw),
             Self::Int { width } => Word::int(raw as i64, width),
             Self::Uint { width } => Word::uint(raw, width),
             Self::Float16 | Self::Bfloat16 => Word::from_bits(raw),
@@ -311,6 +340,7 @@ impl WordLayout {
             Self::Boolean => u64::from(value.as_boolean()),
             Self::Int { .. }
             | Self::Uint { .. }
+            | Self::Character
             | Self::Float16
             | Self::Bfloat16
             | Self::Float32
@@ -516,6 +546,7 @@ impl Layout {
         match &self.shape {
             LayoutShape::None => Some(WordLayout::Void),
             LayoutShape::Scalar(ScalarFormat::Boolean) => Some(WordLayout::Boolean),
+            LayoutShape::Scalar(ScalarFormat::Character) => Some(WordLayout::Character),
             LayoutShape::Scalar(ScalarFormat::Int {
                 width,
                 is_signed: 1,

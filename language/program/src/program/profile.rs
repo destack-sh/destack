@@ -110,6 +110,8 @@ pub enum SampleValue {
     Void,
     /// Boolean value.
     Boolean(bool),
+    /// Unicode scalar value.
+    Character(char),
     /// Signed integer value.
     Int {
         /// The integer payload.
@@ -241,10 +243,11 @@ impl SampleKey {
     }
 
     /// Decode this key using one Program word layout.
-    pub const fn decode(self, layout: WordLayout) -> SampleValue {
-        match layout {
+    pub fn decode(self, layout: WordLayout) -> Option<SampleValue> {
+        let value = match layout {
             WordLayout::Void => SampleValue::Void,
             WordLayout::Boolean => SampleValue::Boolean(self.0 != 0),
+            WordLayout::Character => SampleValue::Character(char::from_u32(self.0 as u32)?),
             WordLayout::Int { width } => SampleValue::Int {
                 value: self.signed(width),
                 width,
@@ -282,7 +285,9 @@ impl SampleKey {
                 SampleValue::GlobalAddress(GlobalAddress::from_bits(self.0))
             }
             WordLayout::FunctionPointer => SampleValue::FunctionPointer(self.0),
-        }
+        };
+
+        Some(value)
     }
 
     /// Decode this key as a truncated signed integer.

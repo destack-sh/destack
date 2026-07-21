@@ -6,7 +6,7 @@ use destack_heap::{HeapReference, SharedHeapReference};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::Error;
+use super::{Error, WordLayout};
 
 /// One value passed into or out of program execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -186,38 +186,108 @@ impl Value {
             Self::Address(_) => ValueTag::Address,
         }
     }
-}
 
-impl TryFrom<&Value> for Word {
-    type Error = crate::Error;
+    /// Encode this value through one runtime word layout.
+    pub(crate) fn encode(&self, layout: WordLayout) -> super::Result<Option<Word>> {
+        let word = match (layout, self) {
+            (WordLayout::Void, Self::Void) => return Ok(None),
+            (WordLayout::Boolean, Self::Bool(value)) => Word::boolean(*value),
+            (
+                WordLayout::Int { width },
+                Self::Int {
+                    value,
+                    width: actual,
+                },
+            ) => {
+                if u16::from(width) != *actual {
+                    return Err(Error::IntegerWidthMismatch {
+                        expected: width,
+                        actual: *actual,
+                    });
+                }
 
-    /// Encode one word-sized program value for bytecode execution.
-    fn try_from(value: &Value) -> Result<Self, Self::Error> {
-        let word = match value {
-            Value::Void => Self::ZERO,
-            Value::Bool(value) => Self::boolean(*value),
-            Value::Int { value, width } if *width <= Self::BIT_LEN as u16 => {
-                Self::int(*value as i64, *width as u8)
+                Word::int(*value as i64, width)
             }
-            Value::UInt { value, width } if *width <= Self::BIT_LEN as u16 => {
-                Self::uint(*value as u64, *width as u8)
+            (
+                WordLayout::Uint { width },
+                Self::UInt {
+                    value,
+                    width: actual,
+                },
+            ) => {
+                if u16::from(width) != *actual {
+                    return Err(Error::IntegerWidthMismatch {
+                        expected: width,
+                        actual: *actual,
+                    });
+                }
+
+                Word::uint(*value as u64, width)
             }
-            Value::Float16 { bits } | Value::Bfloat16 { bits } => Self::from_bits(u64::from(*bits)),
-            Value::Float32 { bits } => Self::from_bits(u64::from(*bits)),
-            Value::Float64 { bits } => Self::from_bits(*bits),
-            Value::Char(value) => Self::character(*value),
-            Value::HeapReference(reference) => Self::from_bits(reference.bits() as u64),
-            Value::SharedHeapReference(reference) => Self::from_bits(reference.bits() as u64),
-            Value::Address(address) => Self::from_bits(*address as u64),
-            Value::Int { width, .. } | Value::UInt { width, .. } => {
-                return Err(Error::type_mismatch(
-                    "bytecode word value",
-                    format!("{width}-bit integer"),
-                ));
+            (WordLayout::Character, Self::Char(value)) => Word::character(*value),
+            (WordLayout::Float16, Self::Float16 { bits })
+            | (WordLayout::Bfloat16, Self::Bfloat16 { bits }) => Word::from_bits(u64::from(*bits)),
+            (WordLayout::Float32, Self::Float32 { bits }) => Word::from_bits(u64::from(*bits)),
+            (WordLayout::Float64, Self::Float64 { bits }) => Word::from_bits(*bits),
+            (WordLayout::HeapReference, Self::HeapReference(reference)) => {
+                Word::from_bits(reference.bits() as u64)
+            }
+            (WordLayout::SharedHeapReference, Self::SharedHeapReference(reference)) => {
+                Word::from_bits(reference.bits() as u64)
+            }
+            (
+                WordLayout::Address
+                | WordLayout::StackPointer
+                | WordLayout::FramePointer
+                | WordLayout::GlobalAddress
+                | WordLayout::FunctionPointer,
+                Self::Address(address),
+            ) => Word::from_bits(*address as u64),
+            (layout, value) => {
+                let expected = layout.value_tag();
+                let mismatch = ValueMismatch::new(expected, value.tag());
+
+                return Err(Error::value_mismatch(mismatch));
             }
         };
 
-        Ok(word)
+        Ok(Some(word))
+    }
+
+    /// Decode one bytecode word through one runtime word layout.
+    pub(crate) fn decode(layout: WordLayout, word: Word) -> super::Result<Self> {
+        let value = match layout {
+            WordLayout::Void => Self::Void,
+            WordLayout::Boolean => Self::bool(word.as_boolean()),
+            WordLayout::Character => {
+                let code_point = word.bits() as u32;
+                let value =
+                    char::from_u32(code_point).ok_or(Error::InvalidCharacter { code_point })?;
+
+                Self::char(value)
+            }
+            WordLayout::Int { width } => Self::int(word.as_i64() as i128, width.into()),
+            WordLayout::Uint { width } => Self::uint(word.as_u64() as u128, width.into()),
+            WordLayout::Float16 => Self::float16_bits(word.bits() as u16),
+            WordLayout::Bfloat16 => Self::bfloat16_bits(word.bits() as u16),
+            WordLayout::Float32 => Self::Float32 {
+                bits: word.bits() as u32,
+            },
+            WordLayout::Float64 => Self::Float64 { bits: word.bits() },
+            WordLayout::HeapReference => {
+                Self::heap_reference(HeapReference::from_bits(word.bits() as usize))
+            }
+            WordLayout::SharedHeapReference => {
+                Self::shared_heap_reference(SharedHeapReference::from_bits(word.bits() as usize))
+            }
+            WordLayout::Address
+            | WordLayout::StackPointer
+            | WordLayout::FramePointer
+            | WordLayout::GlobalAddress
+            | WordLayout::FunctionPointer => Self::address(word.bits() as usize),
+        };
+
+        Ok(value)
     }
 }
 
@@ -412,5 +482,30 @@ impl TryFrom<&Value> for usize {
             Value::Address(address) => Ok(*address),
             value => Err(ValueMismatch::new(ValueTag::Address, value.tag())),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Preserves character identity and rejects invalid Unicode code points.
+    #[test]
+    fn test_encode_decode_character() {
+        let value = Value::char('🦀');
+        let word = value.encode(WordLayout::Character).unwrap().unwrap();
+        let decoded = Value::decode(WordLayout::Character, word).unwrap();
+
+        assert_eq!(decoded, value);
+
+        let invalid = Word::from_bits(0x11_0000);
+        let error = Value::decode(WordLayout::Character, invalid).unwrap_err();
+
+        assert_eq!(
+            error,
+            Error::InvalidCharacter {
+                code_point: 0x11_0000,
+            }
+        );
     }
 }

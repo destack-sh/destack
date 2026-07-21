@@ -3,7 +3,7 @@ use destack_mir::Space;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{FrameStateId, FunctionId, LayoutId, ProgramPoint, TypeId};
+use super::{FrameStateId, FunctionId, ProgramPoint, TypeId};
 
 /// Program sites used by debugging, probes, and observations.
 #[repr(C)]
@@ -406,8 +406,6 @@ pub struct AllocationSite {
     pub result_type: TypeId,
     /// The type used for the allocated storage.
     pub storage_type: TypeId,
-    /// The layout used for the allocated storage.
-    pub storage_layout: LayoutId,
 }
 
 /// Heap allocation operation family.
@@ -512,6 +510,8 @@ pub struct ContinuationSite {
     pub frame_state: FrameStateId,
     /// The type yielded to the coroutine owner.
     pub yielded_type: TypeId,
+    /// The type received from the coroutine owner.
+    pub resumed_type: TypeId,
 }
 
 /// Explicit counter operation at one program point.

@@ -1,24 +1,25 @@
 use std::sync::Arc;
 
-use destack_bytecode::{self as bytecode, Word};
+use destack_bytecode as bytecode;
+use destack_bytecode::Word;
 use destack_core::{SectionImage, SectionStorage, StringId};
 use destack_heap::{
-    AllocationShape, DropId, HeapEdge, HeapReference, HeapResult, ReferenceRange, RootSlot,
-    SharedHeapReference, TraceTable, TraceView, visit_heap_root_slots,
+    AllocationShape, DropId, HeapResult, ReferenceRange, RootSlot, TraceTable, TraceView,
+    visit_heap_root_slots,
 };
 use destack_memory::{MemoryMap, MemoryResult};
-use destack_mir::{ReferenceKind, Space, TargetLayout, TraceId, TraceMap};
+use destack_mir::{TargetLayout, TraceId, TraceMap};
 use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingId, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId,
-    FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId, FrameState, FrameStateId, FrameTable,
-    Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId, GlobalLocation,
-    GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo,
+    BindingId, Continuation, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
+    DynamicTableId, FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId, FrameState, FrameStateId,
+    FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
+    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutTable, ProgramInfo,
     ProgramPoint, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry,
-    SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable,
+    SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable, Value,
     VariantCaseLayout, VariantLayout, WordLayout, native, wasm,
 };
 
@@ -132,6 +133,15 @@ impl Program {
         Some(self.functions.parameters(sections, signature))
     }
 
+    /// Return the result type for one program function.
+    pub fn function_result(&self, function: FunctionId) -> Option<TypeId> {
+        let sections = self.sections();
+        let function = self.functions.get(sections, function)?;
+        let signature = self.functions.signature(sections, function.signature)?;
+
+        Some(signature.result)
+    }
+
     /// Return one callable signature entry.
     pub fn signature(&self, signature: SignatureId) -> Option<&SignatureEntry> {
         self.functions.signature(self.sections(), signature)
@@ -184,7 +194,7 @@ impl Program {
     pub fn sample_value(&self, site: &SampleSite, key: SampleKey) -> Option<SampleValue> {
         let layout = self.word_layout(site.value_type)?;
 
-        Some(key.decode(layout))
+        key.decode(layout)
     }
 
     /// Return whether one concrete type satisfies one runtime type.
@@ -197,6 +207,11 @@ impl Program {
     /// Return one program global by id.
     pub fn global(&self, global: GlobalId) -> Option<&Global> {
         self.globals.get(self.sections(), global)
+    }
+
+    /// Return globals stored in one static location.
+    pub fn globals(&self, location: GlobalLocation) -> impl Iterator<Item = (GlobalId, &Global)> {
+        self.globals.iter_location(self.sections(), location)
     }
 
     /// Return immutable constant storage owned by this program.
@@ -281,22 +296,51 @@ impl Program {
         &self.drops
     }
 
-    /// Return the heap allocation shape for one layout id.
-    pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<AllocationShape> {
+    /// Return the destructor for one concrete type when it requires cleanup.
+    pub fn destructor(&self, ty: TypeId) -> Result<Option<FunctionId>> {
+        let descriptor = self
+            .types()
+            .descriptor(self.sections(), ty)
+            .ok_or_else(|| Error::undefined_type(ty))?;
+
+        // return types without destructors directly
+        let Some(drop) = descriptor.drop_id() else {
+            return Ok(None);
+        };
+
+        // resolve the destructor through the program drop table
+        let entry = self
+            .drop_entry(drop)
+            .ok_or_else(|| Error::undefined_drop(drop))?;
+
+        Ok(Some(entry.function))
+    }
+
+    /// Return the heap allocation shape for one concrete type.
+    pub fn allocation_shape(&self, ty: TypeId) -> Result<AllocationShape> {
         let sections = self.sections();
+        let descriptor = self
+            .types()
+            .descriptor(sections, ty)
+            .ok_or_else(|| Error::undefined_type(ty))?;
+        let layout_id = descriptor.layout;
         let Some(layout) = self.layouts().get(sections, layout_id) else {
             return Err(Error::undefined_layout(layout_id));
         };
 
         let trace_map = self.trace_map(layout.trace)?;
         let trace_id = trace_map.has_heap_reference().then_some(layout.trace);
-
-        Ok(AllocationShape::new(
+        let shape = AllocationShape::new(
             layout.size as usize,
             layout.alignment as usize,
             trace_id,
             trace_map,
-        ))
+        );
+
+        match descriptor.drop_id() {
+            Some(drop) => shape.with_drop(drop).map_err(Error::from),
+            None => Ok(shape),
+        }
     }
 
     /// Decode one program trace map.
@@ -438,6 +482,49 @@ impl Program {
         layout.word_layout()
     }
 
+    /// Encode one program value through its runtime layout.
+    pub fn encode_value(&self, ty: TypeId, value: &Value) -> Result<Option<Word>> {
+        let Some(layout) = self.layout(ty) else {
+            return Err(Error::undefined_type(ty));
+        };
+
+        // accept only values represented by one bytecode word
+        let Some(layout) = layout.word_layout() else {
+            return Err(Error::UnsupportedValue { ty });
+        };
+
+        value.encode(layout)
+    }
+
+    /// Decode one program value from its bytecode result words.
+    pub fn decode_value(&self, ty: TypeId, words: &[Word]) -> Result<Value> {
+        let Some(layout) = self.layout(ty) else {
+            return Err(Error::undefined_type(ty));
+        };
+
+        // accept only values represented by one bytecode word
+        let Some(layout) = layout.word_layout() else {
+            return Err(Error::UnsupportedValue { ty });
+        };
+
+        // require exactly the words implied by the selected layout
+        let expected = usize::from(layout != WordLayout::Void);
+        if words.len() != expected {
+            return Err(Error::ValueWordCountMismatch {
+                ty,
+                expected,
+                actual: words.len(),
+            });
+        }
+
+        // decode void without indexing the empty result range
+        if layout == WordLayout::Void {
+            return Ok(Value::Void);
+        }
+
+        Value::decode(layout, words[0])
+    }
+
     /// Return the scalar layout for one type.
     pub fn scalar_format(&self, ty: TypeId) -> Option<ScalarFormat> {
         let layout = self.layout(ty)?;
@@ -466,22 +553,6 @@ impl Program {
         }
 
         self.layout(ty).map(|layout| layout.size as usize)
-    }
-
-    /// Return whether one scalar type carries a worker heap root.
-    pub fn is_local_root_type(&self, ty: TypeId) -> Result<bool> {
-        Ok(matches!(
-            self.scalar_heap_edge(ty, Word::ZERO)?,
-            Some(HeapEdge::Local(_))
-        ))
-    }
-
-    /// Return whether one scalar type carries a shared heap root.
-    pub fn is_shared_root_type(&self, ty: TypeId) -> Result<bool> {
-        Ok(matches!(
-            self.scalar_heap_edge(ty, Word::ZERO)?,
-            Some(HeapEdge::Shared(_))
-        ))
     }
 
     /// Visit mutable heap root slots from one byte range.
@@ -532,34 +603,62 @@ impl Program {
         Ok(())
     }
 
-    /// Return the heap edge carried by one scalar value.
-    fn scalar_heap_edge(&self, ty: TypeId, value: Word) -> Result<Option<HeapEdge>> {
-        if !self.is_word_type(ty) {
-            return Ok(None);
+    /// Visit mutable heap root slots retained by one continuation.
+    pub fn visit_continuation_root_slots(
+        &self,
+        continuation: &mut Continuation,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<()> {
+        for frame_index in 0..continuation.frames.len() {
+            let frame = continuation.frames[frame_index];
+            let state = self
+                .frame_state(frame.frame_state)
+                .ok_or(Error::UndefinedFrameState {
+                    frame_state: frame.frame_state,
+                })?;
+            let layout =
+                self.frame_layout_by_id(state.frame_layout)
+                    .ok_or(Error::UndefinedFrameLayout {
+                        frame_layout: state.frame_layout,
+                    })?;
+            let bytes =
+                continuation
+                    .frame_bytes_mut(frame_index)
+                    .ok_or(Error::InvalidFrameRange {
+                        frame_state: frame.frame_state,
+                    })?;
+
+            // reject frame bytes that do not match the linked frame layout
+            if bytes.len() != layout.byte_len() as usize {
+                return Err(Error::FrameByteLengthMismatch {
+                    frame_state: frame.frame_state,
+                    expected: layout.byte_len() as usize,
+                    actual: bytes.len(),
+                });
+            }
+
+            // visit only values live at the captured program point
+            for slot_id in self.frame_live_slots(state) {
+                let slot = self
+                    .frame_slot(layout, *slot_id)
+                    .ok_or(Error::UndefinedFrameSlot {
+                        frame_layout: state.frame_layout,
+                        slot: *slot_id,
+                    })?;
+                let start = slot.offset as usize;
+                let end = start + slot.byte_len as usize;
+                let bytes = bytes
+                    .get_mut(start..end)
+                    .ok_or(Error::FrameSlotOutOfBounds {
+                        frame_state: frame.frame_state,
+                        slot: *slot_id,
+                    })?;
+
+                self.visit_byte_root_slots(slot.ty, bytes, visit)?;
+            }
         }
 
-        let bits = value.bits() as usize;
-
-        let Some(LayoutShape::Reference(reference)) = self.layout(ty).map(|layout| &layout.shape)
-        else {
-            return Ok(None);
-        };
-        let Some(ReferenceKind::Managed | ReferenceKind::Unique | ReferenceKind::Borrowed) =
-            reference.flags.kind()
-        else {
-            return Ok(None);
-        };
-
-        // null references are not roots
-        if bits == 0 {
-            return Ok(None);
-        }
-
-        match reference.heap_space() {
-            Some(Space::Local) => Ok(Some(HeapEdge::Local(HeapReference::from_bits(bits)))),
-            Some(Space::Shared) => Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits)))),
-            _ => Ok(None),
-        }
+        Ok(())
     }
 
     /// Return the program point for one resume state.
@@ -570,6 +669,44 @@ impl Program {
     /// Return one resume state id for one program point.
     pub fn frame_state_at(&self, point: ProgramPoint) -> Option<FrameStateId> {
         self.frames.state_at(self.sections(), point)
+    }
+
+    /// Return the function containing the innermost continuation frame.
+    pub fn continuation_function(&self, continuation: &Continuation) -> Result<FunctionId> {
+        let frame = continuation.innermost().ok_or(Error::EmptyContinuation)?;
+        let state = self
+            .frame_state(frame.frame_state)
+            .ok_or(Error::UndefinedFrameState {
+                frame_state: frame.frame_state,
+            })?;
+
+        Ok(state.point.function)
+    }
+
+    /// Return the value type yielded by one suspended continuation.
+    pub fn continuation_yield_type(&self, continuation: &Continuation) -> Result<TypeId> {
+        let frame = continuation.innermost().ok_or(Error::EmptyContinuation)?;
+        let (_, site) = self
+            .sites
+            .continuation_state(self.sections(), frame.frame_state)
+            .ok_or(Error::UndefinedContinuationSite {
+                frame_state: frame.frame_state,
+            })?;
+
+        Ok(site.yielded_type)
+    }
+
+    /// Return the value type received by one suspended continuation.
+    pub fn continuation_resume_type(&self, continuation: &Continuation) -> Result<TypeId> {
+        let frame = continuation.innermost().ok_or(Error::EmptyContinuation)?;
+        let (_, site) = self
+            .sites
+            .continuation_state(self.sections(), frame.frame_state)
+            .ok_or(Error::UndefinedContinuationSite {
+                frame_state: frame.frame_state,
+            })?;
+
+        Ok(site.resumed_type)
     }
 
     /// Return the frame layout for one function when present.

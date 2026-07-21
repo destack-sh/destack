@@ -1,9 +1,10 @@
 use std::fmt;
 
-use destack_bytecode::{self as bytecode, CodeBuilder};
+use destack_bytecode::{Code, CodeBuilder};
 use destack_core::{Optional, SectionBuilder, SectionEntry, SectionStorage, StringId, StringPool};
 use destack_heap::TraceTable;
-use destack_mir::{TargetLayout, TraceTable as MirTraceTable};
+use destack_mir as mir;
+use destack_mir::TargetLayout;
 
 use super::Program;
 use crate::{
@@ -76,7 +77,7 @@ pub struct ProgramBuilder {
     /// Program instrumentation sites.
     sites: SiteTableBuilder,
     /// Compiler trace maps.
-    traces: MirTraceTable,
+    traces: mir::TraceTable,
     /// Program globals.
     globals: Vec<Global>,
     /// Optional program reflection.
@@ -144,7 +145,7 @@ struct Root {
     local_static_space: StaticImage,
 
     /// Linked bytecode.
-    bytecode: Optional<bytecode::Code>,
+    bytecode: Optional<Code>,
     /// Optional native code.
     native: Optional<native::Code>,
     /// Optional WebAssembly code.
@@ -195,7 +196,7 @@ impl ProgramBuilder {
             functions: FunctionTableBuilder::default(),
             dispatch: DispatchTableBuilder::default(),
             sites: SiteTableBuilder::default(),
-            traces: MirTraceTable::default(),
+            traces: mir::TraceTable::default(),
             globals: Vec::new(),
             info: None,
             constant_space: Vec::new(),
@@ -286,7 +287,7 @@ impl ProgramBuilder {
     }
 
     /// Set the heap trace table.
-    pub fn traces(mut self, traces: MirTraceTable) -> Self {
+    pub fn traces(mut self, traces: mir::TraceTable) -> Self {
         self.traces = traces;
 
         self
@@ -427,7 +428,7 @@ impl Program {
     }
 
     /// Create one Program from its fixed root and retained section storage.
-    fn from_root(root: Root, bytecode: bytecode::Code, storage: SectionStorage) -> Self {
+    fn from_root(root: Root, bytecode: Code, storage: SectionStorage) -> Self {
         Self {
             target_layout: root.target_layout,
             strings: root.strings,
@@ -456,8 +457,8 @@ const _: () = assert!(align_of::<Root>() == 16);
 
 #[cfg(test)]
 mod tests {
-    use destack_bytecode as bytecode;
-    use destack_core::{StringId, StringPool};
+    use destack_bytecode::CodeBuilder;
+    use destack_core::{SectionStorage, StringId, StringPool};
     use destack_mir::{TargetLayout, TraceTable};
 
     use crate::{
@@ -470,7 +471,7 @@ mod tests {
     fn test_load_program_image() {
         let (program, name) = empty_program();
         let bytes = program.bytes().to_vec();
-        let storage = destack_core::SectionStorage::from_bytes(&bytes);
+        let storage = SectionStorage::from_bytes(&bytes);
 
         // SAFETY: bytes came from ProgramBuilder in this test.
         let loaded = unsafe { Program::load(storage) }.expect("program should load");
@@ -485,7 +486,7 @@ mod tests {
         let strings = StringPool::new();
         let name = strings.intern("main");
         let traces = TraceTable::new();
-        let bytecode = bytecode::CodeBuilder::new();
+        let bytecode = CodeBuilder::new();
 
         let program = ProgramBuilder::new(TargetLayout::default(), bytecode)
             .strings(&strings, [name])
