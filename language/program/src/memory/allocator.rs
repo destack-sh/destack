@@ -1,7 +1,3 @@
-use destack_core::SectionBuilder;
-
-use crate::StaticImage;
-
 /// Construction-time allocator for static global bytes.
 #[derive(Debug, Default)]
 pub struct GlobalAllocator {
@@ -27,9 +23,9 @@ impl GlobalAllocator {
         (offset, bytes.len())
     }
 
-    /// Finish static memory.
-    pub fn finish(self, sections: &mut SectionBuilder) -> StaticImage {
-        StaticImage::pack(sections, self.bytes)
+    /// Build the initialized static bytes.
+    pub fn build(self) -> Vec<u8> {
+        self.bytes
     }
 }
 
