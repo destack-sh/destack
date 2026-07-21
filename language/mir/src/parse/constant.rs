@@ -85,7 +85,7 @@ impl Parser {
         // validate the literal against the expected type
         match kind {
             TokenType::Identifier if token_text == "null" => {
-                let Type::Reference { nullability, .. } = expected else {
+                let Some(nullability) = expected.nullability() else {
                     return Err(ParseError::invalid("null constant type", token_start));
                 };
                 if !nullability.allows_null() {
@@ -95,7 +95,7 @@ impl Parser {
                 Ok(Constant::Null)
             }
             TokenType::Identifier if token_text == "undefined" => {
-                let Type::Reference { nullability, .. } = expected else {
+                let Some(nullability) = expected.nullability() else {
                     return Err(ParseError::invalid("undefined constant type", token_start));
                 };
                 if !nullability.allows_undefined() {

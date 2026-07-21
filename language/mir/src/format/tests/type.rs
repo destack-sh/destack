@@ -33,14 +33,18 @@ entry(v0: float16, v1: bfloat16, v2: float32, v3: float64):
     );
 }
 
-/// Formats managed and unique reference kinds canonically.
+/// Formats reference kinds and nullability canonically.
 #[test]
-fn test_format_managed_and_unique_references() {
+fn test_format_reference_kinds_and_nullability() {
     assert_format(
         r#"
 function refs(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonly>): ref<int32, managed, mutable, nullable> {
 entry(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonly>):
-    return v0
+    v2: ref<int32, managed, mutable, nullable> = null
+    v3: ref<int32, managed, mutable, undefined> = undefined
+    v4: slice<int32, managed, mutable, nullish> = undefined
+    v5: tensorView<int32, managed, mutable, nullish, (2, 2)> = null
+    return v2
 }
 "#,
     );

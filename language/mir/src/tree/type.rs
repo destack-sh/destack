@@ -756,6 +756,16 @@ impl Type {
         }
     }
 
+    /// Return the nullish values accepted by one reference-like type.
+    pub fn nullability(&self) -> Option<Nullability> {
+        match self {
+            Type::Reference { nullability, .. }
+            | Type::Slice { nullability, .. }
+            | Type::TensorView { nullability, .. } => Some(*nullability),
+            _ => None,
+        }
+    }
+
     /// Return the hidden storage types for one slice value.
     pub fn slice(
         kind: ReferenceKind,

@@ -550,7 +550,9 @@ impl Parser {
                 Ok(GlobalInitializer::Bytes(value.into_bytes()))
             }
             // scalar constant
-            TokenType::Identifier if self.tree.source_text(token.span) == "null" => {
+            TokenType::Identifier
+                if matches!(self.tree.source_text(token.span), "null" | "undefined") =>
+            {
                 let constant = if let Some(expected_type) = expected_type {
                     self.parse_constant_for_type(expected_type)?
                 } else {

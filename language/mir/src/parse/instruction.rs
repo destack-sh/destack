@@ -54,7 +54,7 @@ impl Parser {
                 ) || (self.token_type(token) == TokenType::Identifier
                     && (matches!(
                         self.tree.source_text(token.span),
-                        "null" | "inf" | "-inf" | "NaN"
+                        "null" | "undefined" | "inf" | "-inf" | "NaN"
                     ) || self
                         .parse_float_constant(self.tree.source_text(token.span))
                         .is_some())))

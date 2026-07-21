@@ -72,14 +72,10 @@ pub fn constant_matches_type(
     let destination_type = destination_type.into();
 
     match (constant_type, tree.get(destination_type)) {
-        (ConstantType::Null, mir::Type::Reference { nullability, .. })
-        | (ConstantType::Null, mir::Type::TensorView { nullability, .. }) => {
-            nullability.allows_null()
-        }
-        (ConstantType::Undefined, mir::Type::Reference { nullability, .. })
-        | (ConstantType::Undefined, mir::Type::TensorView { nullability, .. }) => {
-            nullability.allows_undefined()
-        }
+        (ConstantType::Null, ty) => ty.nullability().is_some_and(mir::Nullability::allows_null),
+        (ConstantType::Undefined, ty) => ty
+            .nullability()
+            .is_some_and(mir::Nullability::allows_undefined),
         (ConstantType::Boolean, mir::Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)

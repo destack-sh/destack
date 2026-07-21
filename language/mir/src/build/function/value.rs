@@ -16,13 +16,12 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Insert a null reference constant.
     pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::Const {
-            destination,
-            value: Constant::Null,
-        });
-        self.define_value(destination, reference_type);
-        destination
+        self.constant(Constant::Null, reference_type)
+    }
+
+    /// Insert an undefined reference constant.
+    pub fn undefined(&mut self, reference_type: LocalNodeId<Type>) -> Value {
+        self.constant(Constant::Undefined, reference_type)
     }
 
     /// Insert an integer constant.

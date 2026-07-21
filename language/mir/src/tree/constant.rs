@@ -55,6 +55,11 @@ impl Constant {
         Self::Null
     }
 
+    /// Create an undefined constant.
+    pub fn undefined() -> Self {
+        Self::Undefined
+    }
+
     /// Create a new integer constant.
     pub fn int8(value: i8) -> Self {
         Self::Int {
