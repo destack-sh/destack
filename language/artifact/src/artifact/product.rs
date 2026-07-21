@@ -1,5 +1,5 @@
 use destack_serde::Reflect;
-use destack_source::{ContentId, TargetId};
+use destack_source::TargetId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -19,11 +19,6 @@ impl Product {
     pub fn new(name: String, targets: IndexMap<String, ProductTarget>) -> Self {
         Self { name, targets }
     }
-
-    /// Return all content ids referenced by this product.
-    pub fn content_ids(&self) -> Vec<ContentId> {
-        Vec::new()
-    }
 }
 
 /// One linked target assembled into a product.
@@ -33,7 +28,7 @@ pub struct ProductTarget {
     pub name: String,
     /// The repository target assembled into this product.
     pub target: TargetId,
-    /// The runtime contract this target expects.
+    /// The runtime selected by this target.
     pub runtime: Runtime,
     /// The host environment this target expects.
     pub host: Host,
@@ -43,7 +38,7 @@ pub struct ProductTarget {
     pub includes_build: bool,
     /// Whether this product target includes its linked bundle.
     pub includes_bundle: bool,
-    /// Whether this product target includes its executable program.
+    /// Whether this product target includes its linked Program.
     pub includes_program: bool,
 }
 
@@ -85,7 +80,7 @@ impl ProductTarget {
             keys.push(ArtifactKey::bundle(self.target.package_id(), self.target));
         }
 
-        // include executable programs
+        // include the linked Program
         if self.includes_program {
             keys.push(ArtifactKey::program(self.target.package_id(), self.target));
         }

@@ -48,9 +48,9 @@ pub enum ArtifactPayload {
     MirLowered(Arc<MirLowered>),
     /// Verified MIR marker after required semantic verification.
     MirVerified(Arc<MirVerified>),
-    /// MIR after required executable elaboration.
+    /// MIR after required elaboration.
     MirElaborated(Arc<MirElaborated>),
-    /// Per-module link summary for whole-program analysis.
+    /// Per-module link graph for whole-program analysis.
     MirAnalyzed(Arc<MirAnalyzed>),
     /// Optimized MIR.
     MirOptimized(Arc<MirOptimized>),
@@ -66,7 +66,7 @@ pub enum ArtifactPayload {
     ProgramLinted(Arc<ProgramLinted>),
     /// One structured linker input for one target.
     Script(Arc<Script>),
-    /// One compiled-code linker input for one target.
+    /// One optimized module object for one target.
     Object(Arc<Object>),
     /// One opaque linker input for one target.
     Asset(Arc<Asset>),
@@ -131,7 +131,7 @@ pub enum ArtifactPayloadRef<'a> {
     ProgramLinted(&'a ProgramLinted),
     /// One structured linker input for one target.
     Script(&'a Script),
-    /// One compiled-code linker input for one target.
+    /// One optimized module object for one target.
     Object(&'a Object),
     /// One opaque linker input for one target.
     Asset(&'a Asset),
@@ -316,12 +316,10 @@ impl ArtifactPayload {
     /// Return all content ids referenced by this payload.
     pub fn content_ids(&self) -> Vec<ContentId> {
         match self {
-            Self::Object(payload) => payload.content_ids(),
             Self::Asset(payload) => payload.content_ids(),
             Self::Build(payload) => payload.content_ids(),
             Self::Bundle(payload) => payload.content_ids(),
             Self::Program(payload) => payload.content_ids(),
-            Self::Product(payload) => payload.content_ids(),
             _ => Vec::new(),
         }
     }

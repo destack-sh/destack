@@ -56,7 +56,7 @@ impl Default for MirLowered {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
 pub struct MirVerified;
 
-/// MIR after required executable elaboration.
+/// MIR after required elaboration.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirElaborated {
     /// The elaborated MIR tree.

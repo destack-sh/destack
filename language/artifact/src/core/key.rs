@@ -95,7 +95,7 @@ pub enum ArtifactKey {
         profile: ProfileId,
         target: TargetId,
     },
-    /// MIR after required executable elaboration.
+    /// MIR after required elaboration.
     MirElaborated {
         module: ModuleId,
         profile: ProfileId,
@@ -143,7 +143,7 @@ pub enum ArtifactKey {
 
     /// One structured linker input for one target.
     Script { module: ModuleId, target: TargetId },
-    /// One compiled-code linker input for one target.
+    /// One optimized module object for one target.
     Object { module: ModuleId, target: TargetId },
     /// One opaque linker input for one target.
     Asset { module: ModuleId, target: TargetId },
@@ -184,7 +184,7 @@ pub enum ArtifactStage {
     Check,
     /// MIR lowering, verification, analysis, and optimization.
     Lower,
-    /// Target code emission per module.
+    /// Per-module artifact emission.
     Emit,
     /// Final program assembly across modules.
     Link,
@@ -411,7 +411,7 @@ impl ArtifactKey {
         Self::Script { module, target }
     }
 
-    /// Build one compiled-code object key.
+    /// Build one optimized module object key.
     pub fn object(module: ModuleId, target: TargetId) -> Self {
         Self::Object { module, target }
     }
