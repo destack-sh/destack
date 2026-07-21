@@ -1,4 +1,3 @@
-mod allocation;
 mod builder;
 mod code;
 mod constant;
@@ -8,6 +7,7 @@ mod function;
 mod global;
 mod instruction;
 mod memory;
+mod new;
 mod object;
 mod opcode;
 mod operand;
@@ -21,7 +21,6 @@ mod value;
 mod vector;
 mod word;
 
-pub use allocation::*;
 pub use builder::*;
 pub use code::*;
 pub use constant::*;
@@ -31,6 +30,7 @@ pub use function::*;
 pub use global::*;
 pub use instruction::*;
 pub use memory::*;
+pub use new::*;
 pub use object::*;
 pub use opcode::*;
 pub use operand::*;

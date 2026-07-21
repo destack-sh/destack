@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::Scalar;
+use crate::{Scalar, ValueType};
 
 /// One memory operation.
 #[repr(u8)]
@@ -58,8 +58,8 @@ pub enum AtomicOperation {
 }
 
 impl AtomicOperation {
-    /// Parse one canonical atomic operation name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the atomic operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "load" => Some(Self::Load),
             "store" => Some(Self::Store),
@@ -160,6 +160,20 @@ impl AtomicOperation {
             | Self::FetchMaximum => true,
         }
     }
+
+    /// Return whether this is one strong or weak compare exchange.
+    pub const fn is_compare_exchange(self) -> bool {
+        matches!(self, Self::CompareExchange | Self::CompareExchangeWeak)
+    }
+
+    /// Return the logical result type for this operation and scalar.
+    pub const fn result_type(self, scalar: Scalar) -> ValueType {
+        if matches!(self, Self::Wait | Self::WaitTimed) {
+            ValueType::scalar(Scalar::Uint32)
+        } else {
+            ValueType::scalar(scalar)
+        }
+    }
 }
 
 /// One atomic memory order.
@@ -179,8 +193,8 @@ pub enum AtomicOrder {
 }
 
 impl AtomicOrder {
-    /// Parse one canonical memory order name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the memory order with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "relaxed" => Some(Self::Relaxed),
             "acquire" => Some(Self::Acquire),
@@ -213,6 +227,21 @@ impl AtomicOrder {
             _ => None,
         }
     }
+
+    /// Return whether this success order permits one failure order.
+    pub const fn permits_failure(self, failure: Self) -> bool {
+        match self {
+            Self::Relaxed => matches!(failure, Self::Relaxed),
+            Self::Acquire | Self::AcquireRelease => {
+                matches!(failure, Self::Relaxed | Self::Acquire)
+            }
+            Self::Release => matches!(failure, Self::Relaxed),
+            Self::SequentiallyConsistent => matches!(
+                failure,
+                Self::Relaxed | Self::Acquire | Self::SequentiallyConsistent
+            ),
+        }
+    }
 }
 
 /// One accelerated execution scope.
@@ -232,8 +261,8 @@ pub enum ExecutionScope {
 }
 
 impl ExecutionScope {
-    /// Parse one canonical execution scope name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the execution scope with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "invocation" => Some(Self::Invocation),
             "subgroup" => Some(Self::Subgroup),
@@ -360,11 +389,6 @@ impl AtomicAccess {
     pub const fn bits(self) -> u16 {
         self.order as u16 | ((self.scope as u16) << 3)
     }
-
-    /// Return whether this access is valid for one atomic operation.
-    pub const fn is_valid(self, operation: AtomicOperation) -> bool {
-        operation.accepts(self.order)
-    }
 }
 
 /// Ordering and visibility for one atomic compare exchange.
@@ -406,21 +430,6 @@ impl CompareExchangeAccess {
     pub const fn bits(self) -> u16 {
         self.success as u16 | ((self.failure as u16) << 3) | ((self.scope as u16) << 6)
     }
-
-    /// Return whether the failure order is valid for the success order.
-    pub const fn is_valid(self) -> bool {
-        match self.success {
-            AtomicOrder::Relaxed => matches!(self.failure, AtomicOrder::Relaxed),
-            AtomicOrder::Acquire | AtomicOrder::AcquireRelease => {
-                matches!(self.failure, AtomicOrder::Relaxed | AtomicOrder::Acquire)
-            }
-            AtomicOrder::Release => matches!(self.failure, AtomicOrder::Relaxed),
-            AtomicOrder::SequentiallyConsistent => matches!(
-                self.failure,
-                AtomicOrder::Relaxed | AtomicOrder::Acquire | AtomicOrder::SequentiallyConsistent
-            ),
-        }
-    }
 }
 
 /// Ordering, visibility, and storage for one atomic fence.
@@ -461,12 +470,5 @@ impl FenceAccess {
     /// Encode this access into one stable instruction operand.
     pub const fn bits(self) -> u32 {
         self.order as u32 | ((self.scope as u32) << 3) | ((self.storage.0 as u32) << 8)
-    }
-
-    /// Return whether this fence has a valid order and storage set.
-    pub const fn is_valid(self) -> bool {
-        !matches!(self.order, AtomicOrder::Relaxed)
-            && self.storage.0 != 0
-            && self.storage.is_defined()
     }
 }

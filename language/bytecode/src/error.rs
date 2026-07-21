@@ -13,13 +13,6 @@ pub enum Error {
     InstructionTooLarge(usize),
     /// The instruction opcode is not defined by the bytecode ISA.
     InvalidOpcode(u16),
-    /// The encoded operands do not match the opcode layout.
-    InvalidOperands {
-        /// The instruction opcode.
-        opcode: u16,
-        /// The first invalid operand byte.
-        byte_offset: usize,
-    },
     /// One function exceeds the bytecode branch displacement range.
     FunctionTooLarge(usize),
 }
@@ -45,13 +38,6 @@ impl fmt::Display for Error {
                 )
             }
             Self::InvalidOpcode(opcode) => write!(formatter, "invalid bytecode opcode {opcode}"),
-            Self::InvalidOperands {
-                opcode,
-                byte_offset,
-            } => write!(
-                formatter,
-                "invalid bytecode operands for opcode {opcode} at byte {byte_offset}"
-            ),
             Self::FunctionTooLarge(byte_len) => {
                 write!(
                     formatter,

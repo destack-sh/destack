@@ -1,4 +1,7 @@
-use crate::{CodeOffset, Error, Opcode, Result};
+use crate::{
+    CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, RegisterId, RegisterRange,
+    Result, SamplerId,
+};
 
 const OPCODE_MASK: u16 = 0x0fff;
 const CODE_UNIT_COUNT_SHIFT: u16 = 12;
@@ -10,14 +13,6 @@ const EXTENDED_HEADER_BYTE_LEN: usize = COMPACT_HEADER_BYTE_LEN + size_of::<u16>
 const FUNCTION_BYTE_LEN_MAX: usize = i32::MAX as usize;
 
 /// One borrowed instruction in a bytecode stream.
-///
-/// Every instruction stores operands in the exact order defined by its opcode layout.
-/// Registers and inline counts are unsigned 16-bit integers.
-/// Object symbols are unsigned 32-bit indices and control targets are signed 32-bit displacements
-/// from the end of the containing instruction.
-/// Scalar immediates occupy eight bytes and 128-bit integer immediates occupy sixteen.
-/// Variable lists begin with one unsigned 16-bit element count.
-/// Every multi-byte value is little-endian and every instruction ends on a two-byte boundary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Instruction<'a> {
     /// The complete encoded instruction bytes.
@@ -27,11 +22,6 @@ pub struct Instruction<'a> {
 }
 
 /// One encoded instruction header.
-///
-/// The low twelve bits hold the opcode.
-/// The high four bits hold the total 16-bit code-unit count for instructions of at most fifteen
-/// code units.
-/// Zero selects an extended header whose second code unit holds the complete count.
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct InstructionHeader(u16);
@@ -176,59 +166,68 @@ impl<'a> Instruction<'a> {
     }
 
     /// Return the encoded operand bytes.
-    pub fn operands(self) -> &'a [u8] {
+    pub fn operand_bytes(self) -> &'a [u8] {
         &self.bytes[self.operand_offset as usize..]
+    }
+
+    /// Read this instruction's operands from the beginning.
+    pub fn operands(self) -> Operands<'a> {
+        Operands::new(self.operand_bytes())
     }
 
     /// Read one little-endian 16-bit operand.
     pub fn read_u16(self, byte_offset: usize) -> Result<u16> {
-        Self::decode_u16(self.operands(), byte_offset)
+        Self::decode_u16(self.operand_bytes(), byte_offset)
     }
 
     /// Read one little-endian 32-bit operand.
     pub fn read_u32(self, byte_offset: usize) -> Result<u32> {
-        let bytes = Self::decode_bytes::<4>(self.operands(), byte_offset)?;
+        let bytes = Self::decode_bytes::<4>(self.operand_bytes(), byte_offset)?;
 
         Ok(u32::from_le_bytes(bytes))
     }
 
     /// Read one little-endian 64-bit operand.
     pub fn read_u64(self, byte_offset: usize) -> Result<u64> {
-        let bytes = Self::decode_bytes::<8>(self.operands(), byte_offset)?;
+        let bytes = Self::decode_bytes::<8>(self.operand_bytes(), byte_offset)?;
 
         Ok(u64::from_le_bytes(bytes))
     }
 
-    /// Validate this instruction against its opcode's exact operand layout.
-    pub fn validate(self) -> Result<()> {
-        let opcode = self.opcode();
-        let Some(layout) = opcode.layout() else {
-            return Err(Error::InvalidOpcode(opcode.code()));
-        };
-        let operands = self.operands();
-        let mut byte_offset = 0;
+    /// Return every branch displacement byte offset in this instruction.
+    pub(crate) fn branch_offsets(self, layout: InstructionLayout) -> Result<Vec<usize>> {
+        let mut branch_offsets = Vec::new();
+        let mut operand_offset = 0;
 
-        // consume each encoded operand in schema order
+        // visit each encoded operand in schema order
         for operand in layout.operands() {
-            let bytes = &operands[byte_offset..];
-            let byte_len = operand
-                .byte_len(bytes)
-                .map_err(|_| Error::InvalidOperands {
-                    opcode: opcode.code(),
-                    byte_offset,
-                })?;
-            byte_offset += byte_len;
+            let bytes = self
+                .operand_bytes()
+                .get(operand_offset..)
+                .ok_or(Error::TruncatedInstruction)?;
+            let byte_len = operand.byte_len(bytes)?;
+
+            // collect direct and switch branch displacements
+            match operand {
+                Operand::Branch => branch_offsets.push(operand_offset),
+                Operand::Switch => {
+                    let count = self.read_u16(operand_offset)? as usize;
+                    let entry_byte_len = size_of::<u64>() + size_of::<i32>();
+                    for index in 0..count {
+                        let branch_offset = operand_offset
+                            + size_of::<u16>()
+                            + index * entry_byte_len
+                            + size_of::<u64>();
+                        branch_offsets.push(branch_offset);
+                    }
+                }
+                _ => {}
+            }
+
+            operand_offset += byte_len;
         }
 
-        // reject trailing bytes not owned by the opcode
-        if byte_offset != operands.len() {
-            return Err(Error::InvalidOperands {
-                opcode: opcode.code(),
-                byte_offset,
-            });
-        }
-
-        Ok(())
+        Ok(branch_offsets)
     }
 
     /// Read one little-endian 16-bit value.
@@ -247,6 +246,140 @@ impl<'a> Instruction<'a> {
         result.copy_from_slice(bytes);
 
         Ok(result)
+    }
+}
+
+/// One cursor over an instruction's encoded operands.
+#[derive(Clone, Copy, Debug)]
+pub struct Operands<'a> {
+    /// The complete encoded operand bytes.
+    bytes: &'a [u8],
+    /// The first unread operand byte.
+    byte_offset: usize,
+}
+
+impl<'a> Operands<'a> {
+    /// Create one cursor at the first encoded operand.
+    const fn new(bytes: &'a [u8]) -> Self {
+        Self {
+            bytes,
+            byte_offset: 0,
+        }
+    }
+
+    /// Return the first unread operand byte offset.
+    pub const fn byte_offset(self) -> usize {
+        self.byte_offset
+    }
+
+    /// Return whether every encoded operand byte has been read.
+    pub const fn is_empty(self) -> bool {
+        self.byte_offset == self.bytes.len()
+    }
+
+    /// Read one register id.
+    pub fn register(&mut self) -> Result<RegisterId> {
+        Ok(RegisterId(self.u16()?))
+    }
+
+    /// Read one counted list of register ids.
+    pub fn registers(&mut self) -> Result<Vec<RegisterId>> {
+        let count = self.u16()? as usize;
+        let mut registers = Vec::with_capacity(count);
+
+        // decode the exact register sequence
+        for _ in 0..count {
+            registers.push(self.register()?);
+        }
+
+        Ok(registers)
+    }
+
+    /// Read one contiguous register range.
+    pub fn range(&mut self) -> Result<RegisterRange> {
+        let start = self.register()?;
+        let word_count = self.u16()?;
+
+        Ok(RegisterRange::new(start, word_count))
+    }
+
+    /// Read one function-local profile counter.
+    pub fn counter(&mut self) -> Result<CounterId> {
+        Ok(CounterId(self.u32()?))
+    }
+
+    /// Read one function-local profile sampler.
+    pub fn sampler(&mut self) -> Result<SamplerId> {
+        Ok(SamplerId(self.u32()?))
+    }
+
+    /// Read one counted list of unsigned 16-bit values.
+    pub fn u16s(&mut self) -> Result<Vec<u16>> {
+        let count = self.u16()? as usize;
+        let mut values = Vec::with_capacity(count);
+
+        // decode the exact value sequence
+        for _ in 0..count {
+            values.push(self.u16()?);
+        }
+
+        Ok(values)
+    }
+
+    /// Read one counted list of unsigned 64-bit values.
+    pub fn u64s(&mut self) -> Result<Vec<u64>> {
+        let count = self.u16()? as usize;
+        let mut values = Vec::with_capacity(count);
+
+        // decode the exact value sequence
+        for _ in 0..count {
+            values.push(self.u64()?);
+        }
+
+        Ok(values)
+    }
+
+    /// Read one unsigned 16-bit value.
+    pub fn u16(&mut self) -> Result<u16> {
+        let bytes = self.take::<2>()?;
+
+        Ok(u16::from_le_bytes(bytes))
+    }
+
+    /// Read one unsigned 32-bit value.
+    pub fn u32(&mut self) -> Result<u32> {
+        let bytes = self.take::<4>()?;
+
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    /// Read one signed 32-bit value.
+    pub fn i32(&mut self) -> Result<i32> {
+        let bytes = self.take::<4>()?;
+
+        Ok(i32::from_le_bytes(bytes))
+    }
+
+    /// Read one unsigned 64-bit value.
+    pub fn u64(&mut self) -> Result<u64> {
+        let bytes = self.take::<8>()?;
+
+        Ok(u64::from_le_bytes(bytes))
+    }
+
+    /// Read one unsigned 128-bit value.
+    pub fn u128(&mut self) -> Result<u128> {
+        let bytes = self.take::<16>()?;
+
+        Ok(u128::from_le_bytes(bytes))
+    }
+
+    /// Read one exact fixed-width byte array.
+    pub fn take<const N: usize>(&mut self) -> Result<[u8; N]> {
+        let bytes = Instruction::decode_bytes::<N>(self.bytes, self.byte_offset)?;
+        self.byte_offset += N;
+
+        Ok(bytes)
     }
 }
 

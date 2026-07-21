@@ -24,6 +24,8 @@ pub struct Function {
     pub function_type: FunctionTypeId,
     /// The number of function-local profile counters.
     pub counter_count: u32,
+    /// The number of function-local profile samplers.
+    pub sampler_count: u32,
     /// The number of 64-bit words in the register file.
     pub register_count: u16,
     /// The function linkage.
@@ -44,6 +46,7 @@ impl Function {
         frame_slots: EntryRange<FrameSlot>,
         code: Optional<CodeRange>,
         counter_count: u32,
+        sampler_count: u32,
         code_hash: u64,
     ) -> Self {
         Self {
@@ -55,6 +58,7 @@ impl Function {
             code,
             function_type,
             counter_count,
+            sampler_count,
             register_count,
             linkage,
             reserved: 0,
@@ -132,6 +136,20 @@ impl RegisterId {
 pub struct CounterId(pub u32);
 
 impl CounterId {
+    /// Return this id as a dense function-local index.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// One function-local profile sampler id.
+#[repr(transparent)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct SamplerId(pub u32);
+
+impl SamplerId {
     /// Return this id as a dense function-local index.
     pub const fn index(self) -> usize {
         self.0 as usize
@@ -232,11 +250,12 @@ impl FunctionType {
     }
 }
 
-const _: () = assert!(size_of::<Function>() == 72);
+const _: () = assert!(size_of::<Function>() == 80);
 const _: () = assert!(size_of::<FunctionId>() == 4);
 const _: () = assert!(size_of::<FunctionTypeId>() == 4);
 const _: () = assert!(size_of::<RegisterId>() == 2);
 const _: () = assert!(size_of::<CounterId>() == 4);
+const _: () = assert!(size_of::<SamplerId>() == 4);
 const _: () = assert!(size_of::<RegisterRange>() == 4);
 const _: () = assert!(size_of::<Linkage>() == 1);
 const _: () = assert!(size_of::<FunctionType>() == 32);

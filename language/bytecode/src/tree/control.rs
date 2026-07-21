@@ -26,8 +26,8 @@ pub enum ScalarCheck {
 }
 
 impl ScalarCheck {
-    /// Parse one canonical scalar check name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the scalar check with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "nonzero" => Some(Self::Nonzero),
             "shift" => Some(Self::Shift),
@@ -104,8 +104,8 @@ pub enum Comparison {
 }
 
 impl Comparison {
-    /// Parse one canonical comparison name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the comparison with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "eq" => Some(Self::Equal),
             "ne" => Some(Self::NotEqual),
@@ -174,8 +174,8 @@ pub enum Trap {
 }
 
 impl Trap {
-    /// Parse one canonical trap name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the trap with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "abort" => Some(Self::Abort),
             "bounds" => Some(Self::Bounds),

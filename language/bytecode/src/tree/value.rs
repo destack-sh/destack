@@ -39,8 +39,8 @@ impl ReferenceKind {
     /// Non-owning checked access.
     pub const BORROWED: Self = Self(2);
 
-    /// Parse one canonical bytecode ownership name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the reference kind with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "managed" => Some(Self::MANAGED),
             "unique" => Some(Self::UNIQUE),
@@ -78,8 +78,8 @@ impl Space {
     /// Runtime-shared storage.
     pub const SHARED: Self = Self(1);
 
-    /// Parse one canonical bytecode space name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the space with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "local" => Some(Self::LOCAL),
             "shared" => Some(Self::SHARED),
@@ -295,6 +295,19 @@ impl ValueType {
     /// Return the contiguous register word count.
     pub const fn word_count(self) -> u16 {
         self.word_count
+    }
+
+    /// Return whether this value has one runtime profile key.
+    pub const fn is_profile_value(self) -> bool {
+        matches!(
+            self.tag,
+            ValueTag::SCALAR
+                | ValueTag::TYPE_ID
+                | ValueTag::REFERENCE
+                | ValueTag::ADDRESS
+                | ValueTag::FUNCTION_POINTER
+                | ValueTag::TENSOR
+        )
     }
 
     /// Return the scalar representation for a scalar value.

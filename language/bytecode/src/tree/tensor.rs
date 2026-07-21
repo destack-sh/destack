@@ -56,8 +56,8 @@ pub enum TensorOperation {
 }
 
 impl TensorOperation {
-    /// Parse one canonical tensor operation name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the tensor operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "compare" => Some(Self::Compare),
             "select" => Some(Self::Select),
@@ -159,8 +159,8 @@ pub enum IndexReduceOperation {
 }
 
 impl IndexReduceOperation {
-    /// Parse one canonical index reduction name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the index reduction with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "min" => Some(Self::Minimum),
             "max" => Some(Self::Maximum),
@@ -197,8 +197,8 @@ pub enum TieBreak {
 }
 
 impl TieBreak {
-    /// Parse one canonical tie-breaking name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the tie break with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "first" => Some(Self::First),
             "last" => Some(Self::Last),
@@ -247,8 +247,8 @@ pub enum ScatterOperation {
 }
 
 impl ScatterOperation {
-    /// Parse one canonical scatter operation name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the scatter operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "replace" => Some(Self::Replace),
             "add" => Some(Self::Add),

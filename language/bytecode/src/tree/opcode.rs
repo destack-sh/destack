@@ -2,15 +2,14 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationInitialization, AllocationOperation, AtomicOperation, BooleanOperation,
-    CastOperation, Comparison, FloatOperation, InstructionLayout, IntegerOperation,
-    MemoryOperation, Operand, ReferenceKind, Scalar, ScalarCheck, Space, TensorOperation,
-    VectorOperation,
+    AtomicOperation, BooleanOperation, CastOperation, Comparison, FloatOperation, Initialization,
+    InstructionLayout, IntegerOperation, MemoryOperation, New, NewKind, Operand, ReferenceKind,
+    Scalar, ScalarCheck, Space, TensorOperation, ValueType, VectorOperation,
 };
 
 const OPCODE_MAX: u16 = 0x0fff;
 
-const FIXED_END: u16 = Opcode::CONSTANT_UINT128.0;
+const FIXED_END: u16 = Opcode::BREAKPOINT.0;
 const CONSTANT_BASE: u16 = 80;
 const CONSTANT_END: u16 = CONSTANT_BASE + SCALAR_COUNT;
 const BOOLEAN_BASE: u16 = 96;
@@ -37,8 +36,8 @@ const MEMORY_BASE: u16 = 1200;
 const MEMORY_END: u16 = MEMORY_BASE + MEMORY_OPERATION_COUNT * SCALAR_COUNT;
 const ATOMIC_BASE: u16 = 1296;
 const ATOMIC_END: u16 = ATOMIC_BASE + ATOMIC_OPERATION_COUNT * SCALAR_COUNT;
-const ALLOCATION_BASE: u16 = 1488;
-const ALLOCATION_END: u16 = ALLOCATION_BASE + 32;
+const NEW_BASE: u16 = 1488;
+const NEW_END: u16 = NEW_BASE + 32;
 const CHECK_BASE: u16 = 1520;
 const CHECK_END: u16 = CHECK_BASE + CHECK_COUNT * SCALAR_COUNT;
 const BRANCH_BASE: u16 = 1632;
@@ -48,10 +47,10 @@ const VECTOR_END: u16 = VECTOR_BASE + VECTOR_OPERATION_COUNT;
 const TENSOR_BASE: u16 = 1728;
 const TENSOR_END: u16 = TENSOR_BASE + TENSOR_OPERATION_COUNT;
 
-const ALLOCATION_OWNERSHIP_SHIFT: u16 = 1;
-const ALLOCATION_OPERATION_SHIFT: u16 = 2;
-const ALLOCATION_INITIALIZATION_SHIFT: u16 = 3;
-const ALLOCATION_FALLIBILITY_SHIFT: u16 = 4;
+const NEW_OWNERSHIP_SHIFT: u16 = 1;
+const NEW_KIND_SHIFT: u16 = 2;
+const NEW_INITIALIZATION_SHIFT: u16 = 3;
+const NEW_FALLIBILITY_SHIFT: u16 = 4;
 
 const SCALAR_COUNT: u16 = 13;
 const INTEGER_COUNT: u16 = 8;
@@ -77,167 +76,200 @@ pub struct Opcode(u16);
 impl Opcode {
     /// The reserved invalid opcode.
     pub const INVALID: Self = Self(0);
+
+    // values
     /// Copy one register word.
     pub const MOVE: Self = Self(1);
+    /// Copy one logical value spanning a register range.
+    pub const MOVE_RANGE: Self = Self(2);
     /// Select one of two register words.
-    pub const SELECT: Self = Self(2);
-    /// Materialize one immutable byte sequence.
-    pub const CONSTANT_BYTES: Self = Self(3);
-    /// Materialize one 128-bit integer constant.
-    pub const CONSTANT_INT128: Self = Self(4);
-    /// Materialize one null address.
-    pub const CONSTANT_NULL: Self = Self(5);
+    pub const SELECT: Self = Self(3);
+    /// Select one of two logical values spanning register ranges.
+    pub const SELECT_RANGE: Self = Self(4);
+    /// Compare two matching one-register values for exact equality.
+    pub const EQUAL: Self = Self(5);
     /// Materialize one linked runtime type id.
     pub const TYPE_ID: Self = Self(6);
 
+    // constants
+    /// Materialize one immutable byte sequence.
+    pub const CONSTANT_BYTES: Self = Self(7);
+    /// Materialize one 128-bit integer constant.
+    pub const CONSTANT_INT128: Self = Self(8);
+    /// Materialize one unsigned 128-bit integer constant.
+    pub const CONSTANT_UINT128: Self = Self(9);
+    /// Materialize one null address.
+    pub const CONSTANT_NULL: Self = Self(10);
+
+    // addresses
     /// Materialize one linked global address.
-    pub const GLOBAL_ADDRESS: Self = Self(7);
-    /// Add one byte offset to an address.
-    pub const ADDRESS_OFFSET: Self = Self(8);
-    /// Add one scaled element offset to an address.
-    pub const ADDRESS_ELEMENT: Self = Self(9);
-    /// Compute the signed byte distance between two addresses.
-    pub const ADDRESS_DISTANCE: Self = Self(10);
-    /// Copy non-overlapping bytes.
-    pub const MEMORY_COPY: Self = Self(11);
-    /// Move possibly overlapping bytes.
-    pub const MEMORY_MOVE: Self = Self(12);
-    /// Fill one byte range.
-    pub const MEMORY_FILL: Self = Self(13);
-    /// Compare two byte ranges.
-    pub const MEMORY_COMPARE: Self = Self(14);
-    /// Prefetch memory for reading.
-    pub const MEMORY_PREFETCH_READ: Self = Self(15);
-    /// Prefetch memory for writing.
-    pub const MEMORY_PREFETCH_WRITE: Self = Self(16);
-
+    pub const GLOBAL_ADDRESS: Self = Self(11);
     /// Materialize one frame slot address.
-    pub const FRAME_ADDRESS: Self = Self(17);
-    /// Complete one uninitialized allocation.
-    pub const NEW_COMPLETE: Self = Self(18);
-    /// Pin one managed allocation.
-    pub const PIN: Self = Self(19);
-    /// Unpin one managed allocation.
-    pub const UNPIN: Self = Self(20);
-    /// Release one unique allocation.
-    pub const FREE: Self = Self(21);
-    /// Destroy one initialized value.
-    pub const DROP: Self = Self(22);
-    /// Publish one managed reference write.
-    pub const BARRIER_WRITE: Self = Self(23);
+    pub const FRAME_ADDRESS: Self = Self(12);
+    /// Add one byte offset to an address.
+    pub const ADDRESS_OFFSET: Self = Self(13);
+    /// Add one scaled element offset to an address.
+    pub const ADDRESS_ELEMENT: Self = Self(14);
+    /// Compute the signed byte distance between two addresses.
+    pub const ADDRESS_DISTANCE: Self = Self(15);
 
+    // byte ranges
+    /// Copy non-overlapping bytes.
+    pub const COPY_BYTES: Self = Self(16);
+    /// Move possibly overlapping bytes.
+    pub const MOVE_BYTES: Self = Self(17);
+    /// Fill one byte range.
+    pub const FILL_BYTES: Self = Self(18);
+    /// Compare two byte ranges.
+    pub const COMPARE_BYTES: Self = Self(19);
+
+    // prefetch
+    /// Prefetch memory for reading.
+    pub const PREFETCH_READ: Self = Self(20);
+    /// Prefetch memory for writing.
+    pub const PREFETCH_WRITE: Self = Self(21);
+
+    // memory
+    /// Load one reference.
+    pub const LOAD: Self = Self(22);
+    /// Store one reference.
+    pub const STORE: Self = Self(23);
+
+    // function values
     /// Materialize one function pointer.
     pub const FUNCTION_ADDRESS: Self = Self(24);
-    /// Bind one payload to its dynamic dispatch table.
-    pub const DYNAMIC_BIND: Self = Self(25);
-    /// Read one dynamic value's concrete runtime type.
-    pub const DYNAMIC_TYPE: Self = Self(26);
-    /// Call one direct function without a local unwind edge.
-    pub const CALL: Self = Self(27);
-    /// Call one function value without a local unwind edge.
-    pub const CALL_INDIRECT: Self = Self(28);
-    /// Call one virtual slot without a local unwind edge.
-    pub const CALL_VIRTUAL: Self = Self(29);
-    /// Call one dynamic slot without a local unwind edge.
-    pub const CALL_DYNAMIC: Self = Self(30);
-    /// Invoke one direct function with explicit normal and unwind edges.
-    pub const INVOKE: Self = Self(31);
-    /// Invoke one function value with explicit normal and unwind edges.
-    pub const INVOKE_INDIRECT: Self = Self(32);
-    /// Invoke one virtual slot with explicit normal and unwind edges.
-    pub const INVOKE_VIRTUAL: Self = Self(33);
-    /// Invoke one dynamic slot with explicit normal and unwind edges.
-    pub const INVOKE_DYNAMIC: Self = Self(34);
-    /// Tail call one direct function.
-    pub const TAIL_CALL: Self = Self(35);
-    /// Tail call one function value.
-    pub const TAIL_CALL_INDIRECT: Self = Self(36);
-    /// Tail call one virtual slot.
-    pub const TAIL_CALL_VIRTUAL: Self = Self(37);
-    /// Tail call one dynamic slot.
-    pub const TAIL_CALL_DYNAMIC: Self = Self(38);
-
-    /// Jump to one relative instruction offset.
-    pub const JUMP: Self = Self(39);
-    /// Branch on one boolean word.
-    pub const BRANCH: Self = Self(40);
-    /// Select one relative instruction offset from inline integer cases.
-    pub const SWITCH: Self = Self(41);
-    /// Suspend and yield one value.
-    pub const YIELD: Self = Self(42);
-    /// Return from the current function.
-    pub const RETURN: Self = Self(43);
-    /// Terminate execution with one trap.
-    pub const TRAP: Self = Self(44);
-    /// Mark one impossible control flow path.
-    pub const UNREACHABLE: Self = Self(45);
-
-    /// Materialize the active panic value.
-    pub const CATCH: Self = Self(46);
-    /// Begin panic unwinding without a payload.
-    pub const PANIC: Self = Self(47);
-    /// Begin panic unwinding with a payload.
-    pub const PANIC_VALUE: Self = Self(48);
-    /// Continue the active panic unwind.
-    pub const UNWIND_RESUME: Self = Self(49);
-
-    /// Stop at one debugger breakpoint.
-    pub const BREAKPOINT: Self = Self(50);
-    /// Publish one explicit managed safepoint.
-    pub const SAFEPOINT: Self = Self(51);
-
-    /// Establish one atomic fence.
-    pub const ATOMIC_FENCE: Self = Self(52);
-    /// Wake waiters at one atomic address.
-    pub const ATOMIC_WAKE: Self = Self(53);
-
-    /// Require one non-null address.
-    pub const CHECK_NULL: Self = Self(54);
-    /// Require one exact runtime type.
-    pub const CHECK_TYPE: Self = Self(55);
-    /// Require one runtime subtype relation.
-    pub const CHECK_SUBTYPE: Self = Self(56);
-    /// Convert one address to an unsigned integer.
-    pub const CAST_ADDRESS_TO_INT: Self = Self(57);
-    /// Convert one unsigned integer to an address.
-    pub const CAST_INT_TO_ADDRESS: Self = Self(58);
-    /// Increment one explicit profile counter.
-    pub const PROFILE_INCREMENT: Self = Self(59);
-    /// Record one explicit profile sample.
-    pub const PROFILE_SAMPLE: Self = Self(60);
-    /// Compare two register words for exact bit equality.
-    pub const WORD_EQUAL: Self = Self(61);
-    /// Wake every waiter at one atomic address.
-    pub const ATOMIC_WAKE_ALL: Self = Self(62);
-    /// Copy one logical value spanning multiple register words.
-    pub const MOVE_WORDS: Self = Self(63);
     /// Bind one captured environment to a function.
-    pub const FUNCTION_BIND: Self = Self(64);
+    pub const FUNCTION_BIND: Self = Self(25);
     /// Read the function pointer from one function value.
-    pub const FUNCTION_POINTER: Self = Self(65);
+    pub const FUNCTION_POINTER: Self = Self(26);
     /// Read the captured environment from one function value.
-    pub const FUNCTION_ENVIRONMENT: Self = Self(66);
+    pub const FUNCTION_ENVIRONMENT: Self = Self(27);
     /// Read the current function's captured environment.
-    pub const FUNCTION_ENVIRONMENT_CURRENT: Self = Self(67);
-    /// Form one slice over a contiguous subrange.
-    pub const SLICE_VIEW: Self = Self(68);
-    /// Read one slice's element count.
-    pub const SLICE_LENGTH: Self = Self(69);
-    /// Read the erased payload from one dynamic value.
-    pub const DYNAMIC_PAYLOAD: Self = Self(70);
-    /// Call one bare function pointer without a local unwind edge.
-    pub const CALL_FUNCTION_POINTER: Self = Self(71);
-    /// Invoke one bare function pointer with explicit normal and unwind edges.
-    pub const INVOKE_FUNCTION_POINTER: Self = Self(72);
-    /// Tail call one bare function pointer.
-    pub const TAIL_CALL_FUNCTION_POINTER: Self = Self(73);
-    /// Materialize one unsigned 128-bit integer constant.
-    pub const CONSTANT_UINT128: Self = Self(74);
+    pub const FUNCTION_ENVIRONMENT_CURRENT: Self = Self(28);
 
-    /// Load one reference word.
-    pub const LOAD_REFERENCE: Self = Self(1248);
-    /// Store one reference word.
-    pub const STORE_REFERENCE: Self = Self(1249);
+    // slices
+    /// Form one slice over a contiguous subrange.
+    pub const SLICE_VIEW: Self = Self(29);
+    /// Read one slice's element count.
+    pub const SLICE_LENGTH: Self = Self(30);
+
+    // dynamic values
+    /// Bind one payload to its dynamic dispatch table.
+    pub const DYNAMIC_BIND: Self = Self(31);
+    /// Read the erased payload from one dynamic value.
+    pub const DYNAMIC_PAYLOAD: Self = Self(32);
+    /// Read one dynamic value's concrete runtime type.
+    pub const DYNAMIC_TYPE: Self = Self(33);
+
+    // allocation and destruction
+    /// Complete one uninitialized allocation.
+    pub const NEW_COMPLETE: Self = Self(34);
+    /// Release one unique allocation.
+    pub const FREE: Self = Self(35);
+    /// Destroy one initialized value.
+    pub const DROP: Self = Self(36);
+
+    // address stability
+    /// Pin one managed allocation.
+    pub const PIN: Self = Self(37);
+    /// Unpin one managed allocation.
+    pub const UNPIN: Self = Self(38);
+
+    // collector protocol
+    /// Publish one managed reference write.
+    pub const BARRIER: Self = Self(39);
+    /// Publish one explicit managed safepoint.
+    pub const SAFEPOINT: Self = Self(40);
+
+    // calls
+    /// Call one direct function without a local unwind edge.
+    pub const CALL: Self = Self(41);
+    /// Call one function value without a local unwind edge.
+    pub const CALL_INDIRECT: Self = Self(42);
+    /// Call one bare function pointer without a local unwind edge.
+    pub const CALL_FUNCTION_POINTER: Self = Self(43);
+    /// Call one virtual slot without a local unwind edge.
+    pub const CALL_VIRTUAL: Self = Self(44);
+    /// Call one dynamic slot without a local unwind edge.
+    pub const CALL_DYNAMIC: Self = Self(45);
+    /// Invoke one direct function with explicit normal and unwind edges.
+    pub const INVOKE: Self = Self(46);
+    /// Invoke one function value with explicit normal and unwind edges.
+    pub const INVOKE_INDIRECT: Self = Self(47);
+    /// Invoke one bare function pointer with explicit normal and unwind edges.
+    pub const INVOKE_FUNCTION_POINTER: Self = Self(48);
+    /// Invoke one virtual slot with explicit normal and unwind edges.
+    pub const INVOKE_VIRTUAL: Self = Self(49);
+    /// Invoke one dynamic slot with explicit normal and unwind edges.
+    pub const INVOKE_DYNAMIC: Self = Self(50);
+    /// Tail call one direct function.
+    pub const TAIL_CALL: Self = Self(51);
+    /// Tail call one function value.
+    pub const TAIL_CALL_INDIRECT: Self = Self(52);
+    /// Tail call one bare function pointer.
+    pub const TAIL_CALL_FUNCTION_POINTER: Self = Self(53);
+    /// Tail call one virtual slot.
+    pub const TAIL_CALL_VIRTUAL: Self = Self(54);
+    /// Tail call one dynamic slot.
+    pub const TAIL_CALL_DYNAMIC: Self = Self(55);
+
+    // control flow
+    /// Jump to one relative instruction offset.
+    pub const JUMP: Self = Self(56);
+    /// Branch on one boolean word.
+    pub const BRANCH: Self = Self(57);
+    /// Select one relative instruction offset from inline integer cases.
+    pub const SWITCH: Self = Self(58);
+    /// Suspend and yield one value.
+    pub const YIELD: Self = Self(59);
+    /// Return from the current function.
+    pub const RETURN: Self = Self(60);
+    /// Terminate execution with one trap.
+    pub const TRAP: Self = Self(61);
+    /// Mark one impossible control flow path.
+    pub const UNREACHABLE: Self = Self(62);
+
+    // panic and unwind
+    /// Materialize the active panic value.
+    pub const CATCH: Self = Self(63);
+    /// Begin panic unwinding without a payload.
+    pub const PANIC: Self = Self(64);
+    /// Begin panic unwinding with a payload.
+    pub const PANIC_VALUE: Self = Self(65);
+    /// Continue the active panic unwind.
+    pub const UNWIND_RESUME: Self = Self(66);
+
+    // atomic memory
+    /// Establish one atomic fence.
+    pub const ATOMIC_FENCE: Self = Self(67);
+    /// Wake waiters at one atomic address.
+    pub const ATOMIC_WAKE: Self = Self(68);
+    /// Wake every waiter at one atomic address.
+    pub const ATOMIC_WAKE_ALL: Self = Self(69);
+
+    // runtime checks
+    /// Require one non-null address.
+    pub const CHECK_NULL: Self = Self(70);
+    /// Require one exact runtime type.
+    pub const CHECK_EXACT_TYPE: Self = Self(71);
+    /// Require one runtime subtype relation.
+    pub const CHECK_SUBTYPE: Self = Self(72);
+
+    // casts
+    /// Convert one address to an unsigned integer.
+    pub const CAST_ADDRESS_TO_INT: Self = Self(73);
+    /// Convert one unsigned integer to an address.
+    pub const CAST_INT_TO_ADDRESS: Self = Self(74);
+
+    // profile instrumentation
+    /// Increment one explicit profile counter.
+    pub const PROFILE_INCREMENT: Self = Self(75);
+    /// Record one explicit profile sample.
+    pub const PROFILE_SAMPLE: Self = Self(76);
+
+    // debug control
+    /// Stop at one debugger breakpoint.
+    pub const BREAKPOINT: Self = Self(77);
 
     /// Create one exact scalar constant opcode.
     pub const fn constant(scalar: Scalar) -> Self {
@@ -272,12 +304,30 @@ impl Opcode {
         }
     }
 
-    /// Create one exact scalar cast opcode.
-    pub const fn cast(operation: CastOperation, source: Scalar, target: Scalar) -> Option<Self> {
-        let source_integer = source.integer_index();
-        let target_integer = target.integer_index();
-        let source_float = source.float_index();
-        let target_float = target.float_index();
+    /// Create one exact value conversion opcode.
+    pub const fn cast(
+        operation: CastOperation,
+        source: ValueType,
+        target: ValueType,
+    ) -> Option<Self> {
+        let source_scalar = source.scalar_type();
+        let target_scalar = target.scalar_type();
+        let source_integer = match source_scalar {
+            Some(source) => source.integer_index(),
+            None => None,
+        };
+        let target_integer = match target_scalar {
+            Some(target) => target.integer_index(),
+            None => None,
+        };
+        let source_float = match source_scalar {
+            Some(source) => source.float_index(),
+            None => None,
+        };
+        let target_float = match target_scalar {
+            Some(target) => target.float_index(),
+            None => None,
+        };
 
         match operation {
             CastOperation::Truncate
@@ -321,14 +371,25 @@ impl Opcode {
                 }
                 _ => None,
             },
-            CastOperation::Bit
-                if source.code() != target.code() && source.bit_width() == target.bit_width() =>
-            {
-                let conversion = source.code() as u16 * SCALAR_COUNT + target.code() as u16;
+            CastOperation::Bit => match (source_scalar, target_scalar) {
+                (Some(source), Some(target))
+                    if source.code() != target.code()
+                        && source.bit_width() == target.bit_width() =>
+                {
+                    let conversion = source.code() as u16 * SCALAR_COUNT + target.code() as u16;
 
-                Some(Self(CAST_BIT_BASE + conversion))
-            }
-            CastOperation::Bit => None,
+                    Some(Self(CAST_BIT_BASE + conversion))
+                }
+                _ => None,
+            },
+            CastOperation::AddressToInt => match target_scalar {
+                Some(Scalar::Uint64) if source.is_address() => Some(Self::CAST_ADDRESS_TO_INT),
+                _ => None,
+            },
+            CastOperation::IntToAddress => match source_scalar {
+                Some(Scalar::Uint64) if target.is_address() => Some(Self::CAST_INT_TO_ADDRESS),
+                _ => None,
+            },
         }
     }
 
@@ -348,31 +409,25 @@ impl Opcode {
         }
     }
 
-    /// Create one exact allocation opcode.
-    pub const fn allocation(
-        space: Space,
-        ownership: ReferenceKind,
-        operation: AllocationOperation,
-        initialization: AllocationInitialization,
-        is_fallible: bool,
-    ) -> Option<Self> {
-        let space = match space {
+    /// Create one exact `new` opcode.
+    pub const fn new(operation: New) -> Option<Self> {
+        let space = match operation.space {
             Space::LOCAL => 0,
             Space::SHARED => 1,
             _ => return None,
         };
-        let ownership = match ownership {
+        let ownership = match operation.ownership {
             ReferenceKind::MANAGED => 0,
             ReferenceKind::UNIQUE => 1,
             _ => return None,
         };
         let bits = space
-            | (ownership << ALLOCATION_OWNERSHIP_SHIFT)
-            | ((operation as u16) << ALLOCATION_OPERATION_SHIFT)
-            | ((initialization as u16) << ALLOCATION_INITIALIZATION_SHIFT)
-            | ((is_fallible as u16) << ALLOCATION_FALLIBILITY_SHIFT);
+            | (ownership << NEW_OWNERSHIP_SHIFT)
+            | ((operation.kind as u16) << NEW_KIND_SHIFT)
+            | ((operation.initialization as u16) << NEW_INITIALIZATION_SHIFT)
+            | ((operation.is_fallible as u16) << NEW_FALLIBILITY_SHIFT);
 
-        Some(Self(ALLOCATION_BASE + bits))
+        Some(Self(NEW_BASE + bits))
     }
 
     /// Create one exact scalar runtime check opcode.
@@ -412,51 +467,81 @@ impl Opcode {
         Self(code)
     }
 
-    /// Parse one fixed opcode by its canonical text name.
-    pub fn parse_fixed(name: &str) -> Option<Self> {
+    /// Return the fixed opcode with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         (1..=FIXED_END)
             .map(Self)
-            .chain([Self::LOAD_REFERENCE, Self::STORE_REFERENCE])
             .find(|opcode| opcode.fixed_name() == Some(name))
     }
 
     /// Return this fixed opcode's canonical text name.
     pub const fn fixed_name(self) -> Option<&'static str> {
         match self {
+            // values
             Self::MOVE => Some("move"),
+            Self::MOVE_RANGE => Some("move"),
             Self::SELECT => Some("select"),
+            Self::SELECT_RANGE => Some("select"),
+            Self::EQUAL => Some("equal"),
+            Self::TYPE_ID => Some("type.id"),
+
+            // constants
             Self::CONSTANT_BYTES => Some("constant.bytes"),
             Self::CONSTANT_INT128 => Some("constant.int128"),
             Self::CONSTANT_UINT128 => Some("constant.uint128"),
             Self::CONSTANT_NULL => Some("constant.null"),
-            Self::TYPE_ID => Some("type.id"),
+
+            // addresses
             Self::GLOBAL_ADDRESS => Some("global.address"),
+            Self::FRAME_ADDRESS => Some("frame.address"),
             Self::ADDRESS_OFFSET => Some("address.offset"),
             Self::ADDRESS_ELEMENT => Some("address.element"),
             Self::ADDRESS_DISTANCE => Some("address.distance"),
-            Self::MEMORY_COPY => Some("memory.copy"),
-            Self::MEMORY_MOVE => Some("memory.move"),
-            Self::MEMORY_FILL => Some("memory.fill"),
-            Self::MEMORY_COMPARE => Some("memory.compare"),
-            Self::MEMORY_PREFETCH_READ => Some("memory.prefetch.read"),
-            Self::MEMORY_PREFETCH_WRITE => Some("memory.prefetch.write"),
-            Self::FRAME_ADDRESS => Some("frame.address"),
-            Self::NEW_COMPLETE => Some("new.complete"),
-            Self::PIN => Some("pin"),
-            Self::UNPIN => Some("unpin"),
-            Self::FREE => Some("free"),
-            Self::DROP => Some("drop"),
-            Self::BARRIER_WRITE => Some("barrier.write"),
+
+            // byte ranges
+            Self::COPY_BYTES => Some("copyBytes"),
+            Self::MOVE_BYTES => Some("moveBytes"),
+            Self::FILL_BYTES => Some("fillBytes"),
+            Self::COMPARE_BYTES => Some("compareBytes"),
+
+            // prefetch
+            Self::PREFETCH_READ => Some("prefetchRead"),
+            Self::PREFETCH_WRITE => Some("prefetchWrite"),
+
+            // memory
+            Self::LOAD => Some("load"),
+            Self::STORE => Some("store"),
+
+            // function values
             Self::FUNCTION_ADDRESS => Some("function.address"),
             Self::FUNCTION_BIND => Some("function.bind"),
             Self::FUNCTION_POINTER => Some("function.pointer"),
             Self::FUNCTION_ENVIRONMENT => Some("function.environment"),
             Self::FUNCTION_ENVIRONMENT_CURRENT => Some("function.environment.current"),
+
+            // slices
             Self::SLICE_VIEW => Some("slice.view"),
             Self::SLICE_LENGTH => Some("slice.length"),
+
+            // dynamic values
             Self::DYNAMIC_BIND => Some("dynamic.bind"),
             Self::DYNAMIC_PAYLOAD => Some("dynamic.payload"),
             Self::DYNAMIC_TYPE => Some("dynamic.type"),
+
+            // allocation and destruction
+            Self::NEW_COMPLETE => Some("new.complete"),
+            Self::FREE => Some("free"),
+            Self::DROP => Some("drop"),
+
+            // address stability
+            Self::PIN => Some("pin"),
+            Self::UNPIN => Some("unpin"),
+
+            // collector protocol
+            Self::BARRIER => Some("barrier"),
+            Self::SAFEPOINT => Some("safepoint"),
+
+            // calls
             Self::CALL => Some("call"),
             Self::CALL_INDIRECT => Some("call.indirect"),
             Self::CALL_FUNCTION_POINTER => Some("call.indirect"),
@@ -472,6 +557,8 @@ impl Opcode {
             Self::TAIL_CALL_FUNCTION_POINTER => Some("tail.call.indirect"),
             Self::TAIL_CALL_VIRTUAL => Some("tail.call.virtual"),
             Self::TAIL_CALL_DYNAMIC => Some("tail.call.dynamic"),
+
+            // control flow
             Self::JUMP => Some("jump"),
             Self::BRANCH => Some("branch"),
             Self::SWITCH => Some("switch"),
@@ -479,26 +566,33 @@ impl Opcode {
             Self::RETURN => Some("return"),
             Self::TRAP => Some("trap"),
             Self::UNREACHABLE => Some("unreachable"),
+
+            // panic and unwind
             Self::CATCH => Some("catch"),
             Self::PANIC => Some("panic"),
             Self::PANIC_VALUE => Some("panic"),
             Self::UNWIND_RESUME => Some("unwind.resume"),
-            Self::BREAKPOINT => Some("breakpoint"),
-            Self::SAFEPOINT => Some("safepoint"),
+
+            // atomic memory
             Self::ATOMIC_FENCE => Some("atomic.fence"),
             Self::ATOMIC_WAKE => Some("atomic.wake"),
+            Self::ATOMIC_WAKE_ALL => Some("atomic.wakeAll"),
+
+            // runtime checks
             Self::CHECK_NULL => Some("check.null"),
-            Self::CHECK_TYPE => Some("check.type"),
+            Self::CHECK_EXACT_TYPE => Some("check.type"),
             Self::CHECK_SUBTYPE => Some("check.subtype"),
+
+            // casts
             Self::CAST_ADDRESS_TO_INT => Some("cast.addressToInt"),
             Self::CAST_INT_TO_ADDRESS => Some("cast.intToAddress"),
+
+            // profile instrumentation
             Self::PROFILE_INCREMENT => Some("profile.increment"),
             Self::PROFILE_SAMPLE => Some("profile.sample"),
-            Self::WORD_EQUAL => Some("word.eq"),
-            Self::ATOMIC_WAKE_ALL => Some("atomic.wakeAll"),
-            Self::MOVE_WORDS => Some("move"),
-            Self::LOAD_REFERENCE => Some("load.reference"),
-            Self::STORE_REFERENCE => Some("store.reference"),
+
+            // debug control
+            Self::BREAKPOINT => Some("breakpoint"),
             _ => None,
         }
     }
@@ -565,9 +659,24 @@ impl Opcode {
         }
     }
 
-    /// Decode one scalar cast opcode.
-    pub const fn cast_operation(self) -> Option<(CastOperation, Scalar, Scalar)> {
+    /// Decode one value conversion opcode.
+    pub const fn cast_operation(self) -> Option<(CastOperation, ValueType, ValueType)> {
         let code = self.0;
+
+        if self.0 == Self::CAST_ADDRESS_TO_INT.0 {
+            return Some((
+                CastOperation::AddressToInt,
+                ValueType::address(),
+                ValueType::scalar(Scalar::Uint64),
+            ));
+        }
+        if self.0 == Self::CAST_INT_TO_ADDRESS.0 {
+            return Some((
+                CastOperation::IntToAddress,
+                ValueType::scalar(Scalar::Uint64),
+                ValueType::address(),
+            ));
+        }
 
         if code >= CAST_INTEGER_BASE && code < CAST_INTEGER_END {
             let code = code - CAST_INTEGER_BASE;
@@ -578,7 +687,11 @@ impl Opcode {
             let target = Scalar::from_code((conversion % INTEGER_COUNT + 1) as u8);
 
             return match (operation, source, target) {
-                (Some(operation), Some(source), Some(target)) => Some((operation, source, target)),
+                (Some(operation), Some(source), Some(target)) => Some((
+                    operation,
+                    ValueType::scalar(source),
+                    ValueType::scalar(target),
+                )),
                 _ => None,
             };
         }
@@ -593,7 +706,11 @@ impl Opcode {
             let target = Scalar::from_code((conversion % INTEGER_COUNT + 1) as u8);
 
             return match (operation, source, target) {
-                (Some(operation), Some(source), Some(target)) => Some((operation, source, target)),
+                (Some(operation), Some(source), Some(target)) => Some((
+                    operation,
+                    ValueType::scalar(source),
+                    ValueType::scalar(target),
+                )),
                 _ => None,
             };
         }
@@ -604,7 +721,11 @@ impl Opcode {
             let target = Scalar::from_code((conversion % FLOAT_COUNT + 9) as u8);
 
             return match (source, target) {
-                (Some(source), Some(target)) => Some((CastOperation::IntToFloat, source, target)),
+                (Some(source), Some(target)) => Some((
+                    CastOperation::IntToFloat,
+                    ValueType::scalar(source),
+                    ValueType::scalar(target),
+                )),
                 _ => None,
             };
         }
@@ -615,9 +736,11 @@ impl Opcode {
             let target = Scalar::from_code((conversion % FLOAT_COUNT + 9) as u8);
 
             return match (source, target) {
-                (Some(source), Some(target)) if source.code() != target.code() => {
-                    Some((CastOperation::FloatConvert, source, target))
-                }
+                (Some(source), Some(target)) if source.code() != target.code() => Some((
+                    CastOperation::FloatConvert,
+                    ValueType::scalar(source),
+                    ValueType::scalar(target),
+                )),
                 _ => None,
             };
         }
@@ -632,7 +755,11 @@ impl Opcode {
                     if source.code() != target.code()
                         && source.bit_width() == target.bit_width() =>
                 {
-                    Some((CastOperation::Bit, source, target))
+                    Some((
+                        CastOperation::Bit,
+                        ValueType::scalar(source),
+                        ValueType::scalar(target),
+                    ))
                 }
                 _ => None,
             };
@@ -677,44 +804,42 @@ impl Opcode {
         }
     }
 
-    /// Decode one allocation opcode.
-    pub const fn allocation_operation(
-        self,
-    ) -> Option<(
-        Space,
-        ReferenceKind,
-        AllocationOperation,
-        AllocationInitialization,
-        bool,
-    )> {
-        if self.0 < ALLOCATION_BASE || self.0 >= ALLOCATION_END {
+    /// Decode one `new` opcode.
+    pub const fn new_operation(self) -> Option<New> {
+        if self.0 < NEW_BASE || self.0 >= NEW_END {
             return None;
         }
 
-        let bits = self.0 - ALLOCATION_BASE;
+        let bits = self.0 - NEW_BASE;
         let space = if bits & 1 == 0 {
             Space::LOCAL
         } else {
             Space::SHARED
         };
-        let ownership = if bits & (1 << ALLOCATION_OWNERSHIP_SHIFT) == 0 {
+        let ownership = if bits & (1 << NEW_OWNERSHIP_SHIFT) == 0 {
             ReferenceKind::MANAGED
         } else {
             ReferenceKind::UNIQUE
         };
-        let operation = if bits & (1 << ALLOCATION_OPERATION_SHIFT) == 0 {
-            AllocationOperation::Value
+        let kind = if bits & (1 << NEW_KIND_SHIFT) == 0 {
+            NewKind::Value
         } else {
-            AllocationOperation::Slice
+            NewKind::Slice
         };
-        let initialization = if bits & (1 << ALLOCATION_INITIALIZATION_SHIFT) == 0 {
-            AllocationInitialization::Zeroed
+        let initialization = if bits & (1 << NEW_INITIALIZATION_SHIFT) == 0 {
+            Initialization::Zeroed
         } else {
-            AllocationInitialization::Uninit
+            Initialization::Uninit
         };
-        let is_fallible = bits & (1 << ALLOCATION_FALLIBILITY_SHIFT) != 0;
+        let is_fallible = bits & (1 << NEW_FALLIBILITY_SHIFT) != 0;
 
-        Some((space, ownership, operation, initialization, is_fallible))
+        Some(New {
+            space,
+            ownership,
+            kind,
+            initialization,
+            is_fallible,
+        })
     }
 
     /// Decode one scalar runtime check opcode.
@@ -775,7 +900,7 @@ impl Opcode {
 
         let code = self.0;
         if code <= FIXED_END {
-            Self::fixed_layout(self)
+            self.fixed_layout()
         } else if code >= CONSTANT_BASE && code < CONSTANT_END {
             Some(InstructionLayout::new(&[Operand::Result, Operand::Bits64]))
         } else if code >= BOOLEAN_BASE && code < BOOLEAN_END {
@@ -793,21 +918,10 @@ impl Opcode {
             ]))
         } else if code >= MEMORY_BASE && code < MEMORY_END {
             Self::memory_layout(code)
-        } else if code == Self::LOAD_REFERENCE.0 {
-            Some(InstructionLayout::new(&[
-                Operand::Result,
-                Operand::Register,
-                Operand::Reference,
-            ]))
-        } else if code == Self::STORE_REFERENCE.0 {
-            Some(InstructionLayout::new(&[
-                Operand::Register,
-                Operand::Register,
-            ]))
         } else if code >= ATOMIC_BASE && code < ATOMIC_END {
             Self::atomic_layout(code)
-        } else if code >= ALLOCATION_BASE && code < ALLOCATION_END {
-            Self::allocation_layout(code)
+        } else if code >= NEW_BASE && code < NEW_END {
+            Self::new_layout(code)
         } else if code >= CHECK_BASE && code < CHECK_END {
             Self::check_layout(code)
         } else if code >= BRANCH_BASE && code < BRANCH_END {
@@ -830,7 +944,7 @@ impl Opcode {
     pub const fn is_defined(self) -> bool {
         let code = self.0;
 
-        (code > 0 && code <= FIXED_END)
+        self.is_fixed()
             || (code >= CONSTANT_BASE && code < CONSTANT_END)
             || (code >= BOOLEAN_BASE && code < BOOLEAN_END)
             || (code >= INTEGER_BASE && code < INTEGER_END)
@@ -841,14 +955,17 @@ impl Opcode {
             || Self::is_float_cast(code)
             || Self::is_bit_cast(code)
             || (code >= MEMORY_BASE && code < MEMORY_END)
-            || code == Self::LOAD_REFERENCE.0
-            || code == Self::STORE_REFERENCE.0
             || Self::is_atomic(code)
-            || (code >= ALLOCATION_BASE && code < ALLOCATION_END)
+            || (code >= NEW_BASE && code < NEW_END)
             || Self::is_check(code)
             || Self::is_branch(code)
             || (code >= VECTOR_BASE && code < VECTOR_END)
             || (code >= TENSOR_BASE && code < TENSOR_END)
+    }
+
+    /// Return whether this opcode belongs to a fixed ISA family.
+    pub const fn is_fixed(self) -> bool {
+        self.0 > Self::INVALID.0 && self.0 <= FIXED_END
     }
 
     /// Return whether this instruction ends control flow without a successor.
@@ -973,23 +1090,36 @@ impl Opcode {
     }
 
     /// Return the operand layout for one fixed opcode.
-    fn fixed_layout(opcode: Self) -> Option<InstructionLayout> {
-        let layout = match opcode {
+    fn fixed_layout(self) -> Option<InstructionLayout> {
+        let layout = match self {
+            // values
             Self::MOVE => &[Operand::Result, Operand::Register][..],
+            Self::MOVE_RANGE => &[Operand::ResultRange, Operand::RegisterRange],
             Self::SELECT => &[
                 Operand::Result,
                 Operand::Register,
                 Operand::Register,
                 Operand::Register,
             ],
+            Self::SELECT_RANGE => &[
+                Operand::ResultRange,
+                Operand::Register,
+                Operand::RegisterRange,
+                Operand::RegisterRange,
+            ],
+            Self::EQUAL => &[Operand::Result, Operand::Register, Operand::Register],
+            Self::TYPE_ID => &[Operand::Result, Operand::Type],
+
+            // constants
             Self::CONSTANT_BYTES => &[Operand::ResultRange, Operand::Constant],
             Self::CONSTANT_INT128 | Self::CONSTANT_UINT128 => {
                 &[Operand::ResultRange, Operand::Bits128]
             }
             Self::CONSTANT_NULL => &[Operand::Result],
-            Self::TYPE_ID => &[Operand::Result, Operand::Type],
 
+            // addresses
             Self::GLOBAL_ADDRESS => &[Operand::Result, Operand::Global],
+            Self::FRAME_ADDRESS => &[Operand::Result, Operand::FrameSlot],
             Self::ADDRESS_OFFSET => &[Operand::Result, Operand::Register, Operand::Signed32],
             Self::ADDRESS_ELEMENT => &[
                 Operand::Result,
@@ -998,31 +1128,66 @@ impl Opcode {
                 Operand::Unsigned32,
             ],
             Self::ADDRESS_DISTANCE => &[Operand::Result, Operand::Register, Operand::Register],
-            Self::MEMORY_COPY | Self::MEMORY_MOVE | Self::MEMORY_FILL => {
+
+            // byte ranges
+            Self::COPY_BYTES | Self::MOVE_BYTES | Self::FILL_BYTES => {
                 &[Operand::Register, Operand::Register, Operand::Register]
             }
-            Self::MEMORY_COMPARE => &[
+            Self::COMPARE_BYTES => &[
                 Operand::Result,
                 Operand::Register,
                 Operand::Register,
                 Operand::Register,
             ],
-            Self::MEMORY_PREFETCH_READ | Self::MEMORY_PREFETCH_WRITE => &[Operand::Register],
 
-            Self::FRAME_ADDRESS => &[Operand::Result, Operand::FrameSlot],
-            Self::NEW_COMPLETE => &[Operand::ResultRange, Operand::RegisterRange],
-            Self::PIN | Self::UNPIN | Self::FREE => &[Operand::Register],
-            Self::DROP => &[Operand::Register, Operand::Type],
-            Self::BARRIER_WRITE => &[Operand::Register, Operand::Register, Operand::Register],
+            // prefetch
+            Self::PREFETCH_READ | Self::PREFETCH_WRITE => &[Operand::Register],
 
+            // memory
+            Self::LOAD => &[Operand::Result, Operand::Register, Operand::Reference],
+            Self::STORE => &[Operand::Register, Operand::Register],
+
+            // function values
             Self::FUNCTION_ADDRESS => &[Operand::Result, Operand::Function],
+            Self::FUNCTION_BIND => &[Operand::ResultRange, Operand::Function, Operand::Register],
+            Self::FUNCTION_POINTER => &[Operand::Result, Operand::RegisterRange],
+            Self::FUNCTION_ENVIRONMENT => {
+                &[Operand::Result, Operand::ValueType, Operand::RegisterRange]
+            }
+            Self::FUNCTION_ENVIRONMENT_CURRENT => &[Operand::Result],
+
+            // slices
+            Self::SLICE_VIEW => &[
+                Operand::ResultRange,
+                Operand::RegisterRange,
+                Operand::Register,
+                Operand::Register,
+            ],
+            Self::SLICE_LENGTH => &[Operand::Result, Operand::RegisterRange],
+
+            // dynamic values
             Self::DYNAMIC_BIND => &[
                 Operand::ResultRange,
                 Operand::Register,
                 Operand::Type,
                 Operand::Type,
             ],
+            Self::DYNAMIC_PAYLOAD => &[Operand::Result, Operand::RegisterRange],
             Self::DYNAMIC_TYPE => &[Operand::Result, Operand::RegisterRange],
+
+            // allocation and destruction
+            Self::NEW_COMPLETE => &[Operand::ResultRange, Operand::RegisterRange],
+            Self::FREE => &[Operand::Register],
+            Self::DROP => &[Operand::Register, Operand::Type],
+
+            // address stability
+            Self::PIN | Self::UNPIN => &[Operand::Register],
+
+            // collector protocol
+            Self::BARRIER => &[Operand::Register, Operand::Register, Operand::Register],
+            Self::SAFEPOINT => &[],
+
+            // calls
             Self::CALL => &[
                 Operand::ResultRange,
                 Operand::Function,
@@ -1032,6 +1197,12 @@ impl Opcode {
                 Operand::ResultRange,
                 Operand::FunctionType,
                 Operand::RegisterRange,
+                Operand::RegisterRange,
+            ],
+            Self::CALL_FUNCTION_POINTER => &[
+                Operand::ResultRange,
+                Operand::FunctionType,
+                Operand::Register,
                 Operand::RegisterRange,
             ],
             Self::CALL_VIRTUAL => &[
@@ -1063,6 +1234,14 @@ impl Opcode {
                 Operand::Branch,
                 Operand::Branch,
             ],
+            Self::INVOKE_FUNCTION_POINTER => &[
+                Operand::ResultRange,
+                Operand::FunctionType,
+                Operand::Register,
+                Operand::RegisterRange,
+                Operand::Branch,
+                Operand::Branch,
+            ],
             Self::INVOKE_VIRTUAL => &[
                 Operand::ResultRange,
                 Operand::FunctionType,
@@ -1087,6 +1266,11 @@ impl Opcode {
                 Operand::RegisterRange,
                 Operand::RegisterRange,
             ],
+            Self::TAIL_CALL_FUNCTION_POINTER => &[
+                Operand::FunctionType,
+                Operand::Register,
+                Operand::RegisterRange,
+            ],
             Self::TAIL_CALL_VIRTUAL => &[
                 Operand::FunctionType,
                 Operand::Register,
@@ -1099,7 +1283,7 @@ impl Opcode {
                 Operand::Unsigned16,
                 Operand::RegisterRange,
             ],
-
+            // control flow
             Self::JUMP => &[Operand::Branch],
             Self::BRANCH => &[Operand::Register, Operand::Branch, Operand::Branch],
             Self::SWITCH => &[Operand::Register, Operand::Switch, Operand::Branch],
@@ -1113,12 +1297,13 @@ impl Opcode {
             Self::TRAP => &[Operand::Unsigned16],
             Self::UNREACHABLE => &[],
 
+            // panic and unwind
             Self::CATCH => &[Operand::Result],
             Self::PANIC => &[],
             Self::PANIC_VALUE => &[Operand::Register],
             Self::UNWIND_RESUME => &[],
 
-            Self::BREAKPOINT | Self::SAFEPOINT => &[],
+            // atomic memory
             Self::ATOMIC_FENCE => &[Operand::FenceAccess],
             Self::ATOMIC_WAKE => &[
                 Operand::Result,
@@ -1126,53 +1311,25 @@ impl Opcode {
                 Operand::Register,
                 Operand::Unsigned16,
             ],
+            Self::ATOMIC_WAKE_ALL => &[Operand::Result, Operand::Register, Operand::Unsigned16],
 
+            // runtime checks
             Self::CHECK_NULL => &[Operand::Register, Operand::Branch],
-            Self::CHECK_TYPE | Self::CHECK_SUBTYPE => {
+            Self::CHECK_EXACT_TYPE | Self::CHECK_SUBTYPE => {
                 &[Operand::Register, Operand::Type, Operand::Branch]
             }
+
+            // casts
             Self::CAST_ADDRESS_TO_INT | Self::CAST_INT_TO_ADDRESS => {
                 &[Operand::Result, Operand::Register]
             }
+
+            // profile instrumentation
             Self::PROFILE_INCREMENT => &[Operand::Counter],
-            Self::PROFILE_SAMPLE => &[Operand::Counter, Operand::Register],
-            Self::WORD_EQUAL => &[Operand::Result, Operand::Register, Operand::Register],
-            Self::ATOMIC_WAKE_ALL => &[Operand::Result, Operand::Register, Operand::Unsigned16],
-            Self::MOVE_WORDS => &[Operand::ResultRange, Operand::RegisterRange],
-            Self::FUNCTION_BIND => &[Operand::ResultRange, Operand::Function, Operand::Register],
-            Self::FUNCTION_POINTER => &[Operand::Result, Operand::RegisterRange],
-            Self::FUNCTION_ENVIRONMENT => {
-                &[Operand::Result, Operand::ValueType, Operand::RegisterRange]
-            }
-            Self::FUNCTION_ENVIRONMENT_CURRENT => &[Operand::Result],
-            Self::SLICE_VIEW => &[
-                Operand::ResultRange,
-                Operand::RegisterRange,
-                Operand::Register,
-                Operand::Register,
-            ],
-            Self::SLICE_LENGTH | Self::DYNAMIC_PAYLOAD => {
-                &[Operand::Result, Operand::RegisterRange]
-            }
-            Self::CALL_FUNCTION_POINTER => &[
-                Operand::ResultRange,
-                Operand::FunctionType,
-                Operand::Register,
-                Operand::RegisterRange,
-            ],
-            Self::INVOKE_FUNCTION_POINTER => &[
-                Operand::ResultRange,
-                Operand::FunctionType,
-                Operand::Register,
-                Operand::RegisterRange,
-                Operand::Branch,
-                Operand::Branch,
-            ],
-            Self::TAIL_CALL_FUNCTION_POINTER => &[
-                Operand::FunctionType,
-                Operand::Register,
-                Operand::RegisterRange,
-            ],
+            Self::PROFILE_SAMPLE => &[Operand::Sampler, Operand::Register],
+
+            // debug control
+            Self::BREAKPOINT => &[],
             _ => return None,
         };
 
@@ -1352,11 +1509,11 @@ impl Opcode {
         }
     }
 
-    /// Return the operand layout for one allocation opcode.
-    fn allocation_layout(code: u16) -> Option<InstructionLayout> {
-        let bits = code - ALLOCATION_BASE;
-        let is_slice = bits & (1 << ALLOCATION_OPERATION_SHIFT) != 0;
-        let is_fallible = bits & (1 << ALLOCATION_FALLIBILITY_SHIFT) != 0;
+    /// Return the operand layout for one `new` opcode.
+    fn new_layout(code: u16) -> Option<InstructionLayout> {
+        let bits = code - NEW_BASE;
+        let is_slice = bits & (1 << NEW_KIND_SHIFT) != 0;
+        let is_fallible = bits & (1 << NEW_FALLIBILITY_SHIFT) != 0;
 
         if is_slice && is_fallible {
             Some(InstructionLayout::new(&[
@@ -1699,10 +1856,9 @@ const _: () = {
     assert!(INTEGER128_END <= FLOAT_BASE);
     assert!(FLOAT_END <= CAST_INTEGER_BASE);
     assert!(CAST_BIT_END <= MEMORY_BASE);
-    assert!(MEMORY_END <= Opcode::LOAD_REFERENCE.0);
-    assert!(Opcode::STORE_REFERENCE.0 < ATOMIC_BASE);
-    assert!(ATOMIC_END <= ALLOCATION_BASE);
-    assert!(ALLOCATION_END <= CHECK_BASE);
+    assert!(MEMORY_END <= ATOMIC_BASE);
+    assert!(ATOMIC_END <= NEW_BASE);
+    assert!(NEW_END <= CHECK_BASE);
     assert!(CHECK_END <= BRANCH_BASE);
     assert!(BRANCH_END <= VECTOR_BASE);
     assert!(VECTOR_END <= TENSOR_BASE);

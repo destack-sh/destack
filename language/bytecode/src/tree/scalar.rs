@@ -1,6 +1,8 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use crate::ValueType;
+
 /// One scalar machine representation selected by an opcode.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -34,8 +36,8 @@ pub enum Scalar {
 }
 
 impl Scalar {
-    /// Parse one scalar name from bytecode text.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the scalar with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "boolean" => Some(Self::Boolean),
             "int8" => Some(Self::Int8),
@@ -150,8 +152,8 @@ pub enum BooleanOperation {
 }
 
 impl BooleanOperation {
-    /// Parse one canonical boolean operation name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the boolean operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "and" => Some(Self::And),
             "or" => Some(Self::Or),
@@ -255,8 +257,8 @@ pub enum IntegerOperation {
 }
 
 impl IntegerOperation {
-    /// Parse one canonical integer operation name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the integer operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "add" => Some(Self::Add),
             "sub" => Some(Self::Subtract),
@@ -471,8 +473,8 @@ pub enum FloatOperation {
 }
 
 impl FloatOperation {
-    /// Parse one canonical floating-point operation name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the floating-point operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "add" => Some(Self::Add),
             "sub" => Some(Self::Subtract),
@@ -631,37 +633,68 @@ pub enum CastOperation {
     FloatConvert = 7,
     /// Preserve bits while changing their interpretation.
     Bit = 8,
+    /// Convert one address to an unsigned integer.
+    AddressToInt = 9,
+    /// Convert one unsigned integer to an address.
+    IntToAddress = 10,
 }
 
 impl CastOperation {
-    /// Parse one canonical bytecode text name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the cast operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "truncate" => Some(Self::Truncate),
             "saturate" => Some(Self::Saturate),
             "extend.s" => Some(Self::SignExtend),
             "extend.u" => Some(Self::ZeroExtend),
-            "floatToInt" => Some(Self::FloatToInt),
-            "floatToIntSaturating" => Some(Self::FloatToIntSaturating),
-            "intToFloat" => Some(Self::IntToFloat),
-            "floatConvert" => Some(Self::FloatConvert),
+            "floatToInt.s" | "floatToInt.u" => Some(Self::FloatToInt),
+            "floatToIntSaturating.s" | "floatToIntSaturating.u" => Some(Self::FloatToIntSaturating),
+            "intToFloat.s" | "intToFloat.u" => Some(Self::IntToFloat),
+            "floatTruncate" | "floatExtend" | "floatConvert" => Some(Self::FloatConvert),
             "bit" => Some(Self::Bit),
+            "addressToInt" => Some(Self::AddressToInt),
+            "intToAddress" => Some(Self::IntToAddress),
             _ => None,
         }
     }
 
-    /// Return the canonical bytecode text name.
-    pub const fn name(self) -> &'static str {
+    /// Return the canonical bytecode text name for one exact conversion.
+    pub const fn name(self, source: ValueType, target: ValueType) -> Option<&'static str> {
         match self {
-            Self::Truncate => "truncate",
-            Self::Saturate => "saturate",
-            Self::SignExtend => "extend.s",
-            Self::ZeroExtend => "extend.u",
-            Self::FloatToInt => "floatToInt",
-            Self::FloatToIntSaturating => "floatToIntSaturating",
-            Self::IntToFloat => "intToFloat",
-            Self::FloatConvert => "floatConvert",
-            Self::Bit => "bit",
+            Self::Truncate => Some("truncate"),
+            Self::Saturate => Some("saturate"),
+            Self::SignExtend => Some("extend.s"),
+            Self::ZeroExtend => Some("extend.u"),
+            Self::FloatToInt if target.is_signed_integer() => Some("floatToInt.s"),
+            Self::FloatToInt if target.is_unsigned_integer() => Some("floatToInt.u"),
+            Self::FloatToIntSaturating if target.is_signed_integer() => {
+                Some("floatToIntSaturating.s")
+            }
+            Self::FloatToIntSaturating if target.is_unsigned_integer() => {
+                Some("floatToIntSaturating.u")
+            }
+            Self::IntToFloat if source.is_signed_integer() => Some("intToFloat.s"),
+            Self::IntToFloat if source.is_unsigned_integer() => Some("intToFloat.u"),
+            Self::FloatConvert => {
+                let Some(source) = source.scalar_type() else {
+                    return None;
+                };
+                let Some(target) = target.scalar_type() else {
+                    return None;
+                };
+
+                if target.bit_width() < source.bit_width() {
+                    Some("floatTruncate")
+                } else if target.bit_width() > source.bit_width() {
+                    Some("floatExtend")
+                } else {
+                    Some("floatConvert")
+                }
+            }
+            Self::Bit => Some("bit"),
+            Self::AddressToInt => Some("addressToInt"),
+            Self::IntToAddress => Some("intToAddress"),
+            _ => None,
         }
     }
 
@@ -677,6 +710,8 @@ impl CastOperation {
             6 => Some(Self::IntToFloat),
             7 => Some(Self::FloatConvert),
             8 => Some(Self::Bit),
+            9 => Some(Self::AddressToInt),
+            10 => Some(Self::IntToAddress),
             _ => None,
         }
     }
@@ -694,7 +729,9 @@ impl CastOperation {
             | Self::FloatToIntSaturating
             | Self::IntToFloat
             | Self::FloatConvert
-            | Self::Bit => false,
+            | Self::Bit
+            | Self::AddressToInt
+            | Self::IntToAddress => false,
         }
     }
 }

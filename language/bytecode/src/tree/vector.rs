@@ -107,8 +107,8 @@ pub enum ReduceOperation {
 }
 
 impl ReduceOperation {
-    /// Parse one canonical reduction operation name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the reduction operation with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "add" => Some(Self::Add),
             "mul" => Some(Self::Multiply),
@@ -168,8 +168,8 @@ pub enum ConvertMode {
 }
 
 impl ConvertMode {
-    /// Parse one canonical vector or tensor conversion mode name.
-    pub fn parse(name: &str) -> Option<Self> {
+    /// Return the conversion mode with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "exact" => Some(Self::Exact),
             "roundTiesEven" => Some(Self::RoundTiesEven),

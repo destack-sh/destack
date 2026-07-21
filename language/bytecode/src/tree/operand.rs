@@ -1,24 +1,5 @@
 use crate::{Error, ReferenceType, Result, ValueType};
 
-const COUNT_BYTE_LEN: usize = size_of::<u16>();
-const REGISTER_BYTE_LEN: usize = size_of::<u16>();
-const AXIS_BYTE_LEN: usize = size_of::<u16>();
-const BRANCH_BYTE_LEN: usize = size_of::<i32>();
-const SYMBOL_BYTE_LEN: usize = size_of::<u32>();
-const BITS64_BYTE_LEN: usize = size_of::<u64>();
-const SWITCH_ENTRY_BYTE_LEN: usize = BITS64_BYTE_LEN + BRANCH_BYTE_LEN;
-const CONVOLUTION_GROUP_BYTE_LEN: usize = size_of::<u32>() * 2;
-const CONTRACTION_AXIS_LISTS: [usize; 4] = [AXIS_BYTE_LEN; 4];
-const WINDOW_LISTS: [usize; 6] = [
-    BITS64_BYTE_LEN,
-    BITS64_BYTE_LEN,
-    BITS64_BYTE_LEN,
-    BITS64_BYTE_LEN,
-    BITS64_BYTE_LEN,
-    AXIS_BYTE_LEN,
-];
-const INDEX_AXIS_LISTS: [usize; 3] = [AXIS_BYTE_LEN; 3];
-
 /// One encoded instruction operand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Operand {
@@ -50,6 +31,8 @@ pub enum Operand {
     FunctionType,
     /// One function-local profile counter.
     Counter,
+    /// One function-local profile sampler.
+    Sampler,
     /// One function-local frame slot.
     FrameSlot,
 
@@ -104,103 +87,65 @@ pub enum Operand {
 impl Operand {
     /// Return this operand's encoded byte length at the start of one byte slice.
     pub fn byte_len(self, bytes: &[u8]) -> Result<usize> {
-        let byte_len = match self {
+        let mut cursor = OperandCursor::new(bytes);
+
+        // consume the exact encoded shape of this operand
+        match self {
             Self::Result
             | Self::Register
             | Self::Scalar
             | Self::Operator
             | Self::AtomicAccess
             | Self::CompareExchangeAccess
-            | Self::Unsigned16 => size_of::<u16>(),
-            Self::Reference => size_of::<ReferenceType>(),
-            Self::ValueType => ValueType::BYTE_LEN,
-            Self::ResultRange | Self::RegisterRange => REGISTER_BYTE_LEN * 2,
+            | Self::Unsigned16 => cursor.take::<u16>()?,
+            Self::Reference => cursor.take::<ReferenceType>()?,
+            Self::ValueType => cursor.take_bytes(ValueType::BYTE_LEN)?,
+            Self::ResultRange | Self::RegisterRange => cursor.take::<[u16; 2]>()?,
             Self::Branch
             | Self::Signed32
             | Self::Unsigned32
             | Self::FrameSlot
             | Self::FenceAccess
-            | Self::VectorType => size_of::<u32>(),
-            Self::ConvolutionGroups => CONVOLUTION_GROUP_BYTE_LEN,
+            | Self::VectorType => cursor.take::<u32>()?,
+            Self::ConvolutionGroups => cursor.take::<[u32; 2]>()?,
             Self::Type | Self::Function | Self::Global | Self::Constant | Self::FunctionType => {
-                SYMBOL_BYTE_LEN
+                cursor.take::<u32>()?
             }
-            Self::Counter => size_of::<u32>(),
-            Self::Bits64 => BITS64_BYTE_LEN,
-            Self::Bits128 => size_of::<u128>(),
-            Self::RegisterList | Self::Unsigned16List => {
-                COUNT_BYTE_LEN + Self::count(bytes)? * REGISTER_BYTE_LEN
+            Self::Counter | Self::Sampler => cursor.take::<u32>()?,
+            Self::Bits64 => cursor.take::<u64>()?,
+            Self::Bits128 => cursor.take::<u128>()?,
+            Self::RegisterList | Self::Unsigned16List => cursor.take_list::<u16>()?,
+            Self::Unsigned32List => cursor.take_list::<u32>()?,
+            Self::Bits64List => cursor.take_list::<u64>()?,
+            Self::Switch => {
+                cursor.take_list_bytes(size_of::<u64>() + size_of::<i32>())?;
             }
-            Self::Unsigned32List => COUNT_BYTE_LEN + Self::count(bytes)? * size_of::<u32>(),
-            Self::Bits64List => COUNT_BYTE_LEN + Self::count(bytes)? * BITS64_BYTE_LEN,
-            Self::Switch => COUNT_BYTE_LEN + Self::count(bytes)? * SWITCH_ENTRY_BYTE_LEN,
-            Self::ContractionAxes => Self::lists_byte_len(bytes, &CONTRACTION_AXIS_LISTS)?,
-            Self::ConvolutionAxes => Self::convolution_axes_byte_len(bytes)?,
-            Self::Window => Self::lists_byte_len(bytes, &WINDOW_LISTS)?,
+            Self::ContractionAxes => {
+                for _ in 0..4 {
+                    cursor.take_list::<u16>()?;
+                }
+            }
+            Self::ConvolutionAxes => {
+                for _ in 0..3 {
+                    cursor.take::<[u16; 2]>()?;
+                    cursor.take_list::<u16>()?;
+                }
+            }
+            Self::Window => {
+                for _ in 0..5 {
+                    cursor.take_list::<u64>()?;
+                }
+                cursor.take_list::<u16>()?;
+            }
             Self::GatherAxes | Self::ScatterAxes => {
-                Self::lists_byte_len(bytes, &INDEX_AXIS_LISTS)? + size_of::<u16>()
+                for _ in 0..3 {
+                    cursor.take_list::<u16>()?;
+                }
+                cursor.take::<u16>()?;
             }
-        };
-
-        if bytes.len() < byte_len {
-            Err(Error::TruncatedInstruction)
-        } else {
-            Ok(byte_len)
-        }
-    }
-
-    /// Read the leading element count of one variable-length operand.
-    fn count(bytes: &[u8]) -> Result<usize> {
-        let Some(bytes) = bytes.get(..COUNT_BYTE_LEN) else {
-            return Err(Error::TruncatedInstruction);
-        };
-        let bytes = [bytes[0], bytes[1]];
-
-        Ok(u16::from_le_bytes(bytes) as usize)
-    }
-
-    /// Return the encoded byte length of consecutive counted lists.
-    fn lists_byte_len(bytes: &[u8], element_byte_lens: &[usize]) -> Result<usize> {
-        let mut byte_offset = 0;
-
-        // consume each counted list in field order
-        for element_byte_len in element_byte_lens {
-            let bytes = bytes
-                .get(byte_offset..)
-                .ok_or(Error::TruncatedInstruction)?;
-            let count = Self::count(bytes)?;
-            let byte_len = COUNT_BYTE_LEN + count * element_byte_len;
-            byte_offset += byte_len;
         }
 
-        Ok(byte_offset)
-    }
-
-    /// Return the encoded byte length of one convolution axis descriptor.
-    fn convolution_axes_byte_len(bytes: &[u8]) -> Result<usize> {
-        let mut byte_offset = AXIS_BYTE_LEN * 2;
-
-        // consume input spatial axes
-        let input = bytes
-            .get(byte_offset..)
-            .ok_or(Error::TruncatedInstruction)?;
-        byte_offset += Self::lists_byte_len(input, &[AXIS_BYTE_LEN])?;
-
-        // consume kernel feature and spatial axes
-        byte_offset += AXIS_BYTE_LEN * 2;
-        let kernel = bytes
-            .get(byte_offset..)
-            .ok_or(Error::TruncatedInstruction)?;
-        byte_offset += Self::lists_byte_len(kernel, &[AXIS_BYTE_LEN])?;
-
-        // consume output feature and spatial axes
-        byte_offset += AXIS_BYTE_LEN * 2;
-        let output = bytes
-            .get(byte_offset..)
-            .ok_or(Error::TruncatedInstruction)?;
-        byte_offset += Self::lists_byte_len(output, &[AXIS_BYTE_LEN])?;
-
-        Ok(byte_offset)
+        Ok(cursor.byte_len())
     }
 }
 
@@ -220,5 +165,67 @@ impl InstructionLayout {
     /// Return the encoded operands in byte order.
     pub const fn operands(self) -> &'static [Operand] {
         self.operands
+    }
+}
+
+/// One cursor over a variable-width encoded operand.
+struct OperandCursor<'a> {
+    /// The complete available operand bytes.
+    bytes: &'a [u8],
+    /// The first unread byte.
+    byte_offset: usize,
+}
+
+impl<'a> OperandCursor<'a> {
+    /// Create one cursor at the start of an operand.
+    const fn new(bytes: &'a [u8]) -> Self {
+        Self {
+            bytes,
+            byte_offset: 0,
+        }
+    }
+
+    /// Return the consumed operand byte length.
+    const fn byte_len(&self) -> usize {
+        self.byte_offset
+    }
+
+    /// Consume one fixed-width value.
+    fn take<T>(&mut self) -> Result<()> {
+        self.take_bytes(size_of::<T>())
+    }
+
+    /// Consume one counted list of fixed-width values.
+    fn take_list<T>(&mut self) -> Result<()> {
+        self.take_list_bytes(size_of::<T>())
+    }
+
+    /// Consume one counted list with an exact element width.
+    fn take_list_bytes(&mut self, element_byte_len: usize) -> Result<()> {
+        let count = self.read_u16()? as usize;
+        self.take_bytes(size_of::<u16>() + count * element_byte_len)
+    }
+
+    /// Consume one exact byte range.
+    fn take_bytes(&mut self, byte_len: usize) -> Result<()> {
+        let byte_offset = self.byte_offset + byte_len;
+        if self.bytes.len() < byte_offset {
+            return Err(Error::TruncatedInstruction);
+        }
+        self.byte_offset = byte_offset;
+
+        Ok(())
+    }
+
+    /// Read one unsigned 16-bit value at the current position.
+    fn read_u16(&self) -> Result<u16> {
+        let Some(bytes) = self
+            .bytes
+            .get(self.byte_offset..self.byte_offset + size_of::<u16>())
+        else {
+            return Err(Error::TruncatedInstruction);
+        };
+
+        Ok(u16::from_le_bytes([bytes[0], bytes[1]]))
     }
 }
