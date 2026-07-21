@@ -114,7 +114,7 @@ fn format_expressions(
     // build formatter context
     let side_span = parser.tree.decorator_span();
     let strings = parser.publish_strings();
-    let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
+    let parents = NodeParentIndex::from_roots(&parser.tree, expressions);
 
     // convert options and format
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);

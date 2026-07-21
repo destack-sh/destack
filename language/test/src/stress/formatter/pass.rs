@@ -65,7 +65,7 @@ pub(super) fn format_pass(
 
     // build parent index
     let parents_start = Instant::now();
-    parser.tree.index_parents();
+    parser.tree.index_parents(&expressions);
     let parents_elapsed = parents_start.elapsed();
 
     // convert formatter options
