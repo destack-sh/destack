@@ -84,6 +84,11 @@ impl WalkState<'_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        let node = expression.into_global_any(self.module);
+        if self.check.is_absent(node) {
+            return Ok(());
+        }
+
         let expressions = match self.tree.get(expression) {
             dir::Expression::Declaration(declaration) => match self.tree.get(*declaration) {
                 dir::Declaration::Global(declaration) => Some(declaration.expressions.clone()),

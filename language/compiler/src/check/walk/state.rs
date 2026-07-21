@@ -5,8 +5,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Cause, CauseKind, CheckState, Constraint, Expectation, FlowPointId, FlowSite, FlowState,
-    Origin, Relation, Task, ValueUse, VariableRole, Widening,
+    Cause, CauseKind, CheckState, Constraint, FlowPointId, FlowSite, FlowState, Origin, Relation,
+    ValueSource, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -25,8 +25,9 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     /// Flow state for the current module walk.
     flow: FlowState,
     /// Entry flow point for each source node occurrence walked in this module.
-    node_flows:
-        FxIndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
+    node_flows: FxIndexMap<dir::GlobalNodeIdAny, FlowPointId>,
+    /// Generic template assumed by each checked source node.
+    node_scopes: FxIndexMap<dir::GlobalNodeIdAny, Option<dir::GlobalGenericTemplateId>>,
 }
 
 /// How elided borrow lifetimes are handled while walking types.
@@ -52,6 +53,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let state = check.module_mut(module);
         let flow = FlowState::from_points(take(&mut state.flows));
         let node_flows = take(&mut state.node_flows);
+        let node_scopes = take(&mut state.node_scopes);
 
         Self {
             check,
@@ -61,6 +63,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_borrow_lifetimes: Vec::new(),
             flow,
             node_flows,
+            node_scopes,
         }
     }
 
@@ -79,10 +82,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let module = self.module;
         let flows = self.flow.into_points();
         let node_flows = self.node_flows;
+        let node_scopes = self.node_scopes;
 
         let state = self.check.module_mut(module);
         state.flows = flows;
         state.node_flows = node_flows;
+        state.node_scopes = node_scopes;
     }
 
     /// Return whether one declaration's implementation is a compiler intrinsic.
@@ -128,7 +133,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let scope = self.flow().template_scope();
 
         // reject repeated node walks
-        if let Some((previous, _)) = self.node_flows.get(&node) {
+        if let Some(previous) = self.node_flows.get(&node) {
             let label = self.check.node_label(node);
 
             return Err(CompilerError::Internal {
@@ -139,7 +144,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // record the node's flow site
-        self.node_flows.insert(node, (flow, scope));
+        self.node_flows.insert(node, flow);
+        self.node_scopes.insert(node, scope);
 
         Ok(FlowSite { node, flow, scope })
     }
@@ -150,15 +156,43 @@ impl<'check, 'state> WalkState<'check, 'state> {
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<FlowSite> {
         let node = id.into_global_any(self.module);
-        let Some((flow, scope)) = self.node_flows.get(&node).copied() else {
+        let Some(flow) = self.node_flows.get(&node).copied() else {
             let node = self.check.node_label(node);
 
             return Err(CompilerError::Internal {
-                message: format!("check node {node} has no recorded flow site"),
+                message: format!("walk node {node} has no recorded runtime flow"),
+            });
+        };
+        let Some(scope) = self.node_scopes.get(&node).copied() else {
+            let node = self.check.node_label(node);
+
+            return Err(CompilerError::Internal {
+                message: format!("check node {node} has no recorded origin"),
             });
         };
 
         Ok(FlowSite { node, flow, scope })
+    }
+
+    /// Commit the generic template active at one source node.
+    pub(in crate::check) fn commit_node_scope<T: dir::Node>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+    ) -> CompilerResult<()> {
+        let node = id.into_global_any(self.module);
+        let scope = self.flow().template_scope();
+        if let Some(previous) = self.node_scopes.insert(node, scope)
+            && previous != scope
+        {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "check node {} received two generic scopes",
+                    self.check.node_label(node)
+                ),
+            });
+        }
+
+        Ok(())
     }
 
     /// Queue one source node to satisfy an assignable target.
@@ -171,8 +205,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<()> {
         let site = self.node_site(id)?;
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
-        let expectation = Expectation::assignable(target, cause, use_);
-        self.check.queue_task(Task::Check { site, expectation });
+        let constraint = Constraint::value(
+            Relation::Assignable,
+            ValueSource::Node(site.node),
+            target,
+            cause,
+            use_,
+        );
+        self.check.push_constraint(constraint);
 
         Ok(())
     }
@@ -323,6 +363,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         id: dir::LocalNodeId<T>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        self.commit_node_scope(id)?;
+
         let node = id.into_global_any(self.module);
         self.check.commit_node_type(node, ty)?;
 
@@ -353,15 +395,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) {
-        let value_origin = self.check.intern_origin(origin);
         let cause = self.check.intern_cause(Cause::root(origin, kind));
         self.check.push_constraint(Constraint::value(
             relation,
-            source,
+            ValueSource::Type(source),
             target,
-            value_origin,
             cause,
-            Some(use_),
+            use_,
         ));
     }
 

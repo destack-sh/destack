@@ -12,8 +12,8 @@ use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Capture, Cause, CauseId, CauseKind, CheckError, CheckOutcome, CheckState, CheckWarning,
-    Constraint, Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticGate, answer,
+    Answer, Capture, Cause, CauseId, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
+    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticGate, ValueCheck, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -71,8 +71,10 @@ pub(in crate::check) struct CheckModuleState {
     /// Durable flow states discovered while walking this module.
     pub(in crate::check) flows: Vec<FlowPoint>,
     /// Entry flow point for each walked source node occurrence.
-    pub(in crate::check) node_flows:
-        FxIndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
+    pub(in crate::check) node_flows: FxIndexMap<dir::GlobalNodeIdAny, FlowPointId>,
+    /// Generic template assumed by each checked source node.
+    pub(in crate::check) node_scopes:
+        FxIndexMap<dir::GlobalNodeIdAny, Option<dir::GlobalGenericTemplateId>>,
     /// Source nodes whose end no control path reaches.
     pub(in crate::check) unreachable_ends: FxIndexSet<dir::LocalNodeIdAny>,
 
@@ -90,7 +92,7 @@ pub(in crate::check) struct CheckModuleState {
 }
 
 impl CheckModuleState {
-    /// Create module state from loaded inputs and empty working state.
+    /// Create module state from loaded inputs and empty checked state.
     pub(in crate::check) fn new(
         module: Arc<Module>,
         package: Arc<Package>,
@@ -144,6 +146,7 @@ impl CheckModuleState {
             captures: Vec::new(),
             flows: Vec::new(),
             node_flows: FxIndexMap::default(),
+            node_scopes: FxIndexMap::default(),
             unreachable_ends: FxIndexSet::default(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
@@ -379,6 +382,22 @@ impl CheckState<'_> {
             .is_some_and(|module| module.absent_symbols.contains(&symbol))
     }
 
+    /// Return whether one source node is inside a statically absent subtree.
+    pub(in crate::check) fn is_absent(&self, node: dir::GlobalNodeIdAny) -> bool {
+        let module = self.module(node.module_id);
+        let view = module.view();
+        let mut current = Some(node.local_id);
+        while let Some(local) = current {
+            let global = local.into_global(node.module_id);
+            if module.statics.is_absent(global) {
+                return true;
+            }
+            current = view.get_parent_any(local);
+        }
+
+        false
+    }
+
     /// Return loaded state for one in-component module.
     pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
         match self.modules.get(&module) {
@@ -403,7 +422,7 @@ impl CheckState<'_> {
     }
 
     /// Return one source node type without flow narrowing, if present.
-    pub(in crate::check) fn node_type_maybe(
+    pub(in crate::check) fn committed_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
@@ -436,7 +455,7 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(ty) = self.node_type_maybe(node) else {
+        let Some(ty) = self.committed_node_type(node) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "required node has no checked type: {}",
@@ -454,7 +473,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if let Some(previous) = self.node_type_maybe(node) {
+        if let Some(previous) = self.committed_node_type(node) {
             if previous == ty {
                 return Ok(());
             }
@@ -478,7 +497,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.node_type_maybe(node) {
+        if let Some(ty) = self.committed_node_type(node) {
             return Ok(ty);
         }
 
@@ -495,8 +514,10 @@ impl CheckState<'_> {
         relation: Relation,
         target: dir::GlobalTypeId,
         cause: CauseId,
-    ) -> CompilerResult<Answer<(dir::GlobalTypeId, CheckOutcome)>> {
+    ) -> CompilerResult<Answer<(dir::GlobalTypeId, ValueCheck)>> {
         let source = answer!(self.node_type_at(site)?);
+        let cause = self.solver.cause(cause).with_origin(site.origin());
+        let cause = self.intern_cause(cause);
         let check = answer!(self.check_value_relation(cause, relation, source, target)?);
 
         Ok(Answer::Ready((source, check)))
@@ -507,15 +528,35 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<FlowSite> {
-        let Some((flow, scope)) = self.module(node.module_id).node_flows.get(&node).copied() else {
+        let Some(flow) = self.module(node.module_id).node_flows.get(&node).copied() else {
             let node = self.node_label(node);
 
             return Err(CompilerError::Internal {
-                message: format!("check node {node} has no recorded flow site"),
+                message: format!("check node {node} has no recorded runtime flow"),
             });
+        };
+        let origin = self.node_origin(node)?;
+        let Origin::Node(_, scope) = origin else {
+            unreachable!("node origin must name a source node")
         };
 
         Ok(FlowSite { node, flow, scope })
+    }
+
+    /// Return the work origin for one checked source node.
+    pub(in crate::check) fn node_origin(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Origin> {
+        let Some(scope) = self.module(node.module_id).node_scopes.get(&node).copied() else {
+            let node = self.node_label(node);
+
+            return Err(CompilerError::Internal {
+                message: format!("check node {node} has no recorded origin"),
+            });
+        };
+
+        Ok(Origin::Node(node, scope))
     }
 
     /// Return one component declaration type, if present.
