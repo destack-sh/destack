@@ -77,6 +77,14 @@ pub(in crate::check) struct CheckState<'a> {
     /// Memoized closed reduced types keyed by source type.
     pub(in crate::check) reduced_types:
         FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
+    /// Memoized closed reduced type graphs keyed by source type.
+    pub(in crate::check) reduced_type_graphs:
+        FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
+    /// Memoized common places for closed contextual types.
+    pub(in crate::check) contextual_places: FxIndexMap<
+        (dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>),
+        Option<dir::GlobalTypeId>,
+    >,
 
     // solver state
     /// Active component solver state.
@@ -140,6 +148,8 @@ impl<'a> CheckState<'a> {
             variances: FxIndexMap::default(),
             body_inferred_parameters: FxIndexSet::default(),
             reduced_types: FxIndexMap::default(),
+            reduced_type_graphs: FxIndexMap::default(),
+            contextual_places: FxIndexMap::default(),
             solver: Solver::new(),
             solve_steps: 0,
             functions: FxIndexMap::default(),
@@ -326,8 +336,8 @@ impl CheckState<'_> {
         visit: impl FnMut(dir::GlobalTypeId),
     ) -> CompilerResult<()> {
         // resolve payload lists through the owning module's tables
-        if let Some(working) = self.modules.get(&module) {
-            working.type_table().for_each_child(ty, visit);
+        if let Some(module) = self.modules.get(&module) {
+            module.type_table().for_each_child(ty, visit);
         } else if let Some(external) = self.external_modules.get(&module) {
             external.types.for_each_child(ty, visit);
         } else {
@@ -362,7 +372,7 @@ impl CheckState<'_> {
         }
 
         let local = self
-            .working_module_mut(module)?
+            .module_mut(module)
             .types_tail
             .intern_type(ty, child_flags);
 
@@ -428,7 +438,7 @@ impl CheckState<'_> {
         access: dir::GlobalTypeId,
     ) -> CompilerResult<dir::Form> {
         let id = self
-            .working_module_mut(module)?
+            .module_mut(module)
             .types_tail
             .intern_borrow(dir::BorrowForm { lifetime, access });
 
@@ -470,10 +480,7 @@ impl CheckState<'_> {
         module: ModuleId,
         member: dir::MemberType,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let id = self
-            .working_module_mut(module)?
-            .types_tail
-            .intern_member(member);
+        let id = self.module_mut(module).types_tail.intern_member(member);
 
         self.intern_type(module, dir::Type::Member(id))
     }
@@ -513,10 +520,7 @@ impl CheckState<'_> {
         module: ModuleId,
         refined: dir::RefinedType,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let id = self
-            .working_module_mut(module)?
-            .types_tail
-            .intern_refined(refined);
+        let id = self.module_mut(module).types_tail.intern_refined(refined);
 
         self.intern_type(module, dir::Type::Refined(id))
     }
@@ -559,7 +563,7 @@ impl CheckState<'_> {
         signature: dir::FunctionSignatureType,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let id = self
-            .working_module_mut(module)?
+            .module_mut(module)
             .types_tail
             .intern_signature(signature);
 
@@ -586,7 +590,7 @@ impl CheckState<'_> {
         operation: dir::TypeOperation,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let id = self
-            .working_module_mut(module)?
+            .module_mut(module)
             .types_tail
             .intern_operation(operation);
 
@@ -599,10 +603,7 @@ impl CheckState<'_> {
         module: ModuleId,
         values: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::TypeListId> {
-        Ok(self
-            .working_module_mut(module)?
-            .types_tail
-            .intern_type_ids(values))
+        Ok(self.module_mut(module).types_tail.intern_type_ids(values))
     }
 
     /// Intern one tuple element list into a module's working segment.
@@ -611,10 +612,7 @@ impl CheckState<'_> {
         module: ModuleId,
         values: &[dir::TypeElement],
     ) -> CompilerResult<dir::TypeListId> {
-        Ok(self
-            .working_module_mut(module)?
-            .types_tail
-            .intern_elements(values))
+        Ok(self.module_mut(module).types_tail.intern_elements(values))
     }
 
     /// Intern one shape field list into a module's working segment.
@@ -623,10 +621,7 @@ impl CheckState<'_> {
         module: ModuleId,
         values: &[dir::TypeField],
     ) -> CompilerResult<dir::TypeListId> {
-        Ok(self
-            .working_module_mut(module)?
-            .types_tail
-            .intern_fields(values))
+        Ok(self.module_mut(module).types_tail.intern_fields(values))
     }
 
     /// Intern one function parameter list into a module's working segment.
@@ -635,10 +630,7 @@ impl CheckState<'_> {
         module: ModuleId,
         values: &[dir::FunctionParameterType],
     ) -> CompilerResult<dir::TypeListId> {
-        Ok(self
-            .working_module_mut(module)?
-            .types_tail
-            .intern_parameters(values))
+        Ok(self.module_mut(module).types_tail.intern_parameters(values))
     }
 
     /// Intern one index signature list into a module's working segment.
@@ -648,7 +640,7 @@ impl CheckState<'_> {
         values: &[dir::TypeIndexSignature],
     ) -> CompilerResult<dir::TypeListId> {
         Ok(self
-            .working_module_mut(module)?
+            .module_mut(module)
             .types_tail
             .intern_index_signatures(values))
     }
@@ -659,10 +651,7 @@ impl CheckState<'_> {
         module: ModuleId,
         values: &[StringId],
     ) -> CompilerResult<dir::TypeListId> {
-        Ok(self
-            .working_module_mut(module)?
-            .types_tail
-            .intern_strings(values))
+        Ok(self.module_mut(module).types_tail.intern_strings(values))
     }
 
     /// Return one type id list owned by a module.
@@ -789,15 +778,6 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return one loaded working module mutably.
-    fn working_module_mut(&mut self, module: ModuleId) -> CompilerResult<&mut CheckModuleState> {
-        self.modules
-            .get_mut(&module)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("check module {module:?} has no working types"),
-            })
-    }
-
     /// Intern one applied reference type for a language item.
     pub(in crate::check) fn language_type(
         &mut self,
@@ -912,7 +892,7 @@ impl CheckState<'_> {
             self.modules
                 .get_mut(&symbol.module_id)
                 .ok_or_else(|| CompilerError::Internal {
-                    message: format!("nominal declaration {symbol:?} is not in a working module"),
+                    message: format!("nominal declaration {symbol:?} is not in a component module"),
                 })?;
         let definition =
             module
@@ -993,10 +973,7 @@ impl CheckState<'_> {
                 let mut refined = self.type_refined(source, refined)?;
                 refined.base = map(self, refined.base)?;
                 refined.value = map(self, refined.value)?;
-                let refined = self
-                    .working_module_mut(target)?
-                    .types_tail
-                    .intern_refined(refined);
+                let refined = self.module_mut(target).types_tail.intern_refined(refined);
 
                 dir::Type::Refined(refined)
             }
@@ -1008,10 +985,7 @@ impl CheckState<'_> {
                     .qualifier
                     .map(|qualifier| map(self, qualifier))
                     .transpose()?;
-                let member = self
-                    .working_module_mut(target)?
-                    .types_tail
-                    .intern_member(member);
+                let member = self.module_mut(target).types_tail.intern_member(member);
 
                 dir::Type::Member(member)
             }
@@ -1029,10 +1003,7 @@ impl CheckState<'_> {
                         let mut resolved = self.type_borrow(source, *borrow)?;
                         resolved.lifetime = map(self, resolved.lifetime)?;
                         resolved.access = map(self, resolved.access)?;
-                        *borrow = self
-                            .working_module_mut(target)?
-                            .types_tail
-                            .intern_borrow(resolved);
+                        *borrow = self.module_mut(target).types_tail.intern_borrow(resolved);
                     }
                     dir::Form::Placed { place } => *place = map(self, *place)?,
                     dir::Form::Managed
@@ -1140,7 +1111,7 @@ impl CheckState<'_> {
                     }
                 };
                 let operation = self
-                    .working_module_mut(target)?
+                    .module_mut(target)
                     .types_tail
                     .intern_operation(operation);
 
@@ -1219,7 +1190,7 @@ impl CheckState<'_> {
                     *return_type = map(self, *return_type)?;
                 }
                 let function = self
-                    .working_module_mut(target)?
+                    .module_mut(target)
                     .types_tail
                     .intern_signature(function);
 

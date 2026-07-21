@@ -13,18 +13,17 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        ensure_sufficient_stack(|| self.decide_relation_inner(origin, relation, source, target))
+        ensure_sufficient_stack(|| self.decide_relation_recursive(origin, relation, source, target))
     }
 
-    /// Decide one relation on the grown stack.
-    fn decide_relation_inner(
+    /// Decide one relation recursively on the grown stack.
+    fn decide_relation_recursive(
         &mut self,
         origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // reduce both operands before structural comparison
         let source = answer!(self.reduce_type(origin, source)?);
         let target = answer!(self.reduce_type(origin, target)?);
         if source == target {
@@ -85,11 +84,15 @@ impl CheckState<'_> {
             false => None,
         };
 
-        // reuse memoized answers, treating in-flight pairs as recursive cycles
-        if let Some(holds) = self.relations().lookup(relation, source, target, scope) {
+        // reuse memoized answers, treating active pairs as recursive cycles
+        if let Some(holds) = self
+            .solver
+            .relations
+            .lookup(relation, source, target, scope)
+        {
             return Ok(Answer::Ready(holds));
         }
-        let frame = self.relations().enter(relation, source, target, scope);
+        let attempt = self.solver.relations.enter(relation, source, target, scope);
 
         // dispatch to the relation's decider
         let decision = match relation {
@@ -108,9 +111,9 @@ impl CheckState<'_> {
         // memoize settled decisions, forget pending or failed attempts
         match &decision {
             Ok(Answer::Ready(holds)) => {
-                self.relations().finish(frame, *holds);
+                self.solver.relations.finish(attempt, *holds);
             }
-            _ => self.relations().cancel(frame),
+            _ => self.solver.relations.cancel(attempt),
         }
 
         decision

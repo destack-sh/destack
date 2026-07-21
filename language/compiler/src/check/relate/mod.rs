@@ -1,6 +1,6 @@
 mod assign;
 mod cast;
-mod closed;
+mod decide;
 mod decompose;
 mod equal;
 mod form;

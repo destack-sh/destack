@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, Cause, CauseKind, CheckState, Constraint, GenericParameterId, Origin, Relation,
-    TypeSubstitution, answer,
+    Answer, Cause, CauseKind, CheckState, GenericParameterId, Origin, Relation, TypeSubstitution,
+    answer,
 };
 
 /// Applied generic argument that violates its declared parameter bound.
@@ -417,24 +417,7 @@ impl CheckState<'_> {
                         bound,
                     })));
                 }
-                Answer::Pending(blockers) if self.solver.is_probing() => {
-                    return Ok(Answer::Pending(blockers));
-                }
-                // park composite undecidable arguments, as bare variables
-                //  discharge their bound at solution
-                Answer::Pending(_) => {
-                    if matches!(self.ty(argument)?, dir::Type::Variable(_)) {
-                        continue;
-                    }
-                    let cause =
-                        self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
-                    self.push_constraint(Constraint::r#type(
-                        Relation::Satisfies,
-                        argument,
-                        bound,
-                        cause,
-                    ));
-                }
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             }
         }
 

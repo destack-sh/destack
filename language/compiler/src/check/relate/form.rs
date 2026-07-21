@@ -2,8 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, BoundMode, Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceContext,
-    answer,
+    Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation, VarianceContext, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -32,10 +31,7 @@ impl CheckState<'_> {
             // borrows view readonly payloads and match writable or open ones exactly
             dir::Form::Borrowed(borrow) => {
                 let access = self.type_borrow(module, borrow)?.access;
-                match self
-                    .body(origin.module())
-                    .access_is_readonly(origin, access)?
-                {
+                match self.body().access_is_readonly(origin, access)? {
                     Answer::Ready(true) => PayloadVariance::Context(VarianceContext::View),
                     Answer::Ready(false) | Answer::Pending(_) => PayloadVariance::Exact,
                 }
@@ -559,10 +555,7 @@ impl CheckState<'_> {
 
         // infer borrow provenance from the related source expression
         if let Some(expression) = origin.expression() {
-            let lifetime = match self
-                .body(origin.module())
-                .expression_lifetime(expression, source)?
-            {
+            let lifetime = match self.body().expression_lifetime(expression, source)? {
                 Answer::Ready(lifetime) => lifetime,
                 Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
             };
@@ -589,13 +582,8 @@ impl CheckState<'_> {
             dir::Type::EnumMember(member) => member.owner,
             _ => target_value,
         };
-        let payload = self.constrain_form_payload(
-            cause,
-            relation,
-            variance,
-            source_value,
-            target_value,
-        )?;
+        let payload =
+            self.constrain_form_payload(cause, relation, variance, source_value, target_value)?;
 
         Ok(Some(payload))
     }
@@ -710,13 +698,7 @@ impl CheckState<'_> {
 
         if let Some(variable) = self.root_variable(target)? {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_lower_bound(
-                variable,
-                cause,
-                source,
-                Relation::Assignable,
-                BoundMode::Strong,
-            )?;
+            self.push_lower_bound(variable, cause, source, Relation::Assignable)?;
         }
 
         Ok(())

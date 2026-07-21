@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
 impl CheckState<'_> {
     /// Decide whether one type is a fixed point of `readonly`.
@@ -34,9 +34,7 @@ impl CheckState<'_> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         match self.ty(ty)? {
-            dir::Type::Variable(variable) => {
-                Ok(Answer::pending([self.variable_dependency(variable)?]))
-            }
+            dir::Type::Variable(variable) => Ok(Answer::pending([Dependency::Variable(variable)])),
             // valueless and scalar types carry no capability at all
             dir::Type::Error
             | dir::Type::Never
@@ -56,8 +54,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    self.body(origin.module())
-                        .access_is_readonly(origin, access)
+                    self.body().access_is_readonly(origin, access)
                 }
                 dir::Form::Owned => self.type_is_immutable(origin, form.value, active),
                 dir::Form::Raw | dir::Form::Managed | dir::Form::Placed { .. } => {

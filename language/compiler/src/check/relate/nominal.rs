@@ -53,46 +53,6 @@ impl HeritageClosure {
 }
 
 impl CheckState<'_> {
-    /// Return the substituted backing type for one newtype instance.
-    pub(in crate::check) fn newtype_backing_type(
-        &mut self,
-        origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericInstance,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
-            return Ok(None);
-        };
-        let backing = definition.backing;
-        let substitution = self.instance_substitution(instance_module, instance)?;
-        let backing = self.substitute_type(origin.module(), backing, &substitution)?;
-
-        Ok(Some(backing))
-    }
-
-    /// Re-root one instance's argument list into the origin module.
-    pub(in crate::check) fn origin_instance(
-        &mut self,
-        origin: Origin,
-        instance_module: ModuleId,
-        instance: dir::GenericInstance,
-    ) -> CompilerResult<dir::GenericInstance> {
-        let module = origin.module();
-        if instance_module == module || instance.arguments.is_empty() {
-            return Ok(instance);
-        }
-
-        let arguments = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
-            self.type_ids(instance_module, instance.arguments)?,
-        );
-        let arguments = self.intern_type_ids(module, &arguments)?;
-
-        Ok(dir::GenericInstance {
-            symbol: instance.symbol,
-            arguments,
-        })
-    }
-
     /// Decide one check-only constraint relation between closed roots.
     pub(in crate::check) fn decide_satisfies(
         &mut self,
@@ -240,7 +200,7 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(false));
                 };
                 let module = origin.module();
-                let implemented = self.body(module).decide_extension_implementation(
+                let implemented = self.body().decide_extension_implementation(
                     origin,
                     module,
                     target.module_id,
@@ -311,9 +271,7 @@ impl CheckState<'_> {
 
         // a sole conforming extension binds open arguments through its clause
         let module = origin.module();
-        let extensions = self
-            .body(module)
-            .visible_receiver_extensions(module, source)?;
+        let extensions = self.body().visible_receiver_extensions(module, source)?;
         let mut sole = None;
         for extension_symbol in extensions {
             let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
@@ -345,12 +303,12 @@ impl CheckState<'_> {
 
         // bind the extension pattern to the open source
         let template = self.symbol_template(extension_symbol)?;
-        let Some(substitution) = answer!(self.body(module).match_extension_target(
-            origin,
-            source,
-            template,
-            target_type
-        )?) else {
+        let Some(substitution) =
+            answer!(
+                self.body()
+                    .match_extension_target(origin, source, template, target_type)?
+            )
+        else {
             return Ok(Answer::Ready(false));
         };
 
@@ -480,7 +438,7 @@ impl CheckState<'_> {
             Some(dir::Definition::Interface(_))
         ) {
             let module = origin.module();
-            let implemented = self.body(module).decide_extension_implementation(
+            let implemented = self.body().decide_extension_implementation(
                 origin,
                 module,
                 target.module_id,
@@ -583,7 +541,7 @@ impl CheckState<'_> {
         let module = origin.module();
         let mut decision = Answer::Ready(true);
         for (key, has_initializer) in self.nominal_instance_fields(target_instance.symbol)? {
-            let lookup = answer!(self.body(module).lookup_member(
+            let lookup = answer!(self.body().lookup_member(
                 origin,
                 module,
                 target,
@@ -658,7 +616,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let lookup = match self.body(module).lookup_member(
+            let lookup = match self.body().lookup_member(
                 origin,
                 module,
                 target,
@@ -913,7 +871,7 @@ impl CheckState<'_> {
         let source = self.reference_type(origin, source_module, source_instance)?;
         let mut decision = Answer::Ready(true);
         for (key, field_type, is_optional) in fields {
-            let lookup = answer!(self.body(module).lookup_member(
+            let lookup = answer!(self.body().lookup_member(
                 origin,
                 module,
                 source,
@@ -1139,7 +1097,12 @@ impl CheckState<'_> {
         instance_module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let instance = self.origin_instance(origin, instance_module, *instance)?;
+        let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
+        let arguments = self.intern_type_ids(origin.module(), &arguments)?;
+        let instance = dir::GenericInstance {
+            symbol: instance.symbol,
+            arguments,
+        };
 
         self.intern_type(origin.module(), dir::Type::Instance(instance))
     }

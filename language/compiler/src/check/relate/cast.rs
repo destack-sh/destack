@@ -41,9 +41,8 @@ impl CheckState<'_> {
         }
 
         // concrete newtypes project explicitly to their backing type
-        if let dir::Type::Instance(instance) = self.ty(source)?
-            && let Some(backing) = self.newtype_backing_type(origin, source.module_id, &instance)?
-        {
+        if let Some(instance) = self.decompose_newtype(origin, source)? {
+            let backing = instance.backing;
             let projected = self.decide_relation(origin, Relation::Castable, backing, target)?;
             if !matches!(projected, Answer::Ready(false)) {
                 return Ok(projected);

@@ -127,9 +127,7 @@ impl CheckState<'_> {
             // rigid projections assign through their declared constraint
             (dir::Type::Member(member), _) => {
                 let member = self.type_member(source.module_id, member)?;
-                let constraint = self
-                    .body(origin.module())
-                    .projection_constraint(origin, &member)?;
+                let constraint = self.body().projection_constraint(origin, &member)?;
                 let decision = match constraint {
                     Answer::Ready(Some(constraint)) => {
                         self.decide_relation(origin, relation, constraint, target)?
@@ -343,7 +341,7 @@ impl CheckState<'_> {
                 .to_vec();
             let mut targets = Vec::with_capacity(elements.len());
             for element in elements {
-                targets.push(self.replace_beneath_forms(origin, target, element)?);
+                targets.push(answer!(self.replace_form_value(origin, target, element)?));
             }
 
             return self.decide_any_target(origin, Relation::Writable, source, &targets);
@@ -354,7 +352,7 @@ impl CheckState<'_> {
                 .to_vec();
             let mut targets = Vec::with_capacity(elements.len());
             for element in elements {
-                targets.push(self.replace_beneath_forms(origin, target, element)?);
+                targets.push(answer!(self.replace_form_value(origin, target, element)?));
             }
 
             return self.decide_all_targets(origin, Relation::Writable, source, &targets);

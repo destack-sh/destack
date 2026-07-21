@@ -1,8 +1,5 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
-use smallvec::SmallVec;
-
-use crate::check::CheckState;
 
 /// One type relation kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -70,7 +67,7 @@ impl Relation {
 }
 
 /// One relation pair identity over two reduced roots.
-pub(in crate::check) type RelationKey = (
+type RelationKey = (
     Relation,
     dir::GlobalTypeId,
     dir::GlobalTypeId,
@@ -80,9 +77,9 @@ pub(in crate::check) type RelationKey = (
 /// One memoized relation decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RelationDecision {
-    /// The pair is being decided at one active frame index.
+    /// The pair is being decided at one active stack index.
     InProgress(usize),
-    /// The pair held under the still-active cycle frame at one index.
+    /// The pair held provisionally through the active cycle at one stack index.
     Provisional(usize),
     /// The pair holds unconditionally.
     Holds,
@@ -90,21 +87,21 @@ enum RelationDecision {
     Fails,
 }
 
-/// One active relation decision frame.
+/// One active relation decision attempt.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::check) struct RelationFrame {
+pub(in crate::check) struct RelationAttempt {
     /// The decided pair.
     key: RelationKey,
-    /// The frame's position on the decision stack.
+    /// The attempt's position on the decision stack.
     index: usize,
 }
 
-/// One stack entry tracking cycle use during a frame.
+/// One stack entry tracking cycle use during an attempt.
 #[derive(Debug, Clone)]
 struct RelationStackEntry {
     /// The decided pair.
     key: RelationKey,
-    /// The outermost cycle frame this frame's result depends on.
+    /// The outermost stack index this attempt's result depends on.
     dependency: usize,
 }
 
@@ -113,9 +110,9 @@ struct RelationStackEntry {
 pub(in crate::check) struct RelationCache {
     /// The decisions keyed by relation pair.
     decisions: FxIndexMap<RelationKey, RelationDecision>,
-    /// The active decision frames, outermost first.
+    /// The active decision attempts, outermost first.
     stack: Vec<RelationStackEntry>,
-    /// Provisional holds with the cycle frame they depend on.
+    /// Provisional holds with the cycle attempt they depend on.
     provisional: Vec<(RelationKey, usize)>,
     /// Decision map entries to undo when a snapshot rolls back.
     undo: Vec<DecisionUndo>,
@@ -202,7 +199,7 @@ impl RelationCache {
         match verdict {
             RelationDecision::Holds => Some(true),
             RelationDecision::Fails => Some(false),
-            // cycle hits make the consuming frame provisional
+            // make the consuming attempt depend on the encountered cycle
             RelationDecision::InProgress(index) | RelationDecision::Provisional(index) => {
                 if let Some(top) = self.stack.last_mut() {
                     top.dependency = top.dependency.min(index);
@@ -213,14 +210,14 @@ impl RelationCache {
         }
     }
 
-    /// Open one decision frame for an undecided pair.
+    /// Begin one decision attempt for an undecided pair.
     pub(in crate::check) fn enter(
         &mut self,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         scope: Option<dir::GlobalGenericTemplateId>,
-    ) -> RelationFrame {
+    ) -> RelationAttempt {
         let key = (relation, source, target, scope);
         let index = self.stack.len();
 
@@ -230,72 +227,54 @@ impl RelationCache {
             dependency: index,
         });
 
-        RelationFrame { key, index }
+        RelationAttempt { key, index }
     }
 
-    /// Close one frame with its decided answer.
-    pub(in crate::check) fn finish(
-        &mut self,
-        frame: RelationFrame,
-        holds: bool,
-    ) -> SmallVec<[RelationKey; 2]> {
-        let entry = self.pop(frame);
-        let mut settled = SmallVec::new();
+    /// Finish one attempt with its decided answer.
+    pub(in crate::check) fn finish(&mut self, attempt: RelationAttempt, holds: bool) {
+        let entry = self.pop(attempt);
 
         // failure is robust: cycle hypotheses only widen relations,
         //  so a failure reached under one holds without it
         if !holds {
-            self.resolve_dependents(frame.index, None, &mut settled);
-            self.set_decision(frame.key, RelationDecision::Fails);
-            settled.push(frame.key);
+            self.resolve_dependents(attempt.index, None);
+            self.set_decision(attempt.key, RelationDecision::Fails);
         }
-        // hold through an outer cycle: stay provisional and pass
-        //  the dependency on to both dependents and the parent frame
-        else if entry.dependency < frame.index {
-            self.resolve_dependents(frame.index, Some(entry.dependency), &mut settled);
-            self.set_decision(frame.key, RelationDecision::Provisional(entry.dependency));
-            self.provisional.push((frame.key, entry.dependency));
+        // pass provisional holds through the outer cycle
+        else if entry.dependency < attempt.index {
+            self.resolve_dependents(attempt.index, Some(entry.dependency));
+            self.set_decision(attempt.key, RelationDecision::Provisional(entry.dependency));
+            self.provisional.push((attempt.key, entry.dependency));
             if let Some(top) = self.stack.last_mut() {
                 top.dependency = top.dependency.min(entry.dependency);
             }
         }
-        // holds on its own: the hypothesis this frame provided is
-        //  justified, settling every dependent along with it
+        // settle holds justified by this attempt
         else {
-            self.resolve_dependents(frame.index, Some(frame.index), &mut settled);
-            self.set_decision(frame.key, RelationDecision::Holds);
-            settled.push(frame.key);
+            self.resolve_dependents(attempt.index, Some(attempt.index));
+            self.set_decision(attempt.key, RelationDecision::Holds);
         }
-
-        settled
     }
 
-    /// Close one frame without an answer, forgetting its dependents.
-    pub(in crate::check) fn cancel(&mut self, frame: RelationFrame) {
-        self.pop(frame);
+    /// Cancel one attempt without an answer, forgetting its dependents.
+    pub(in crate::check) fn cancel(&mut self, attempt: RelationAttempt) {
+        self.pop(attempt);
 
-        let mut settled = SmallVec::new();
-        self.resolve_dependents(frame.index, None, &mut settled);
-        debug_assert!(settled.is_empty());
-        self.remove_decision(frame.key);
+        self.resolve_dependents(attempt.index, None);
+        self.remove_decision(attempt.key);
     }
 
-    /// Pop one frame off the stack, requiring LIFO closing.
-    fn pop(&mut self, frame: RelationFrame) -> RelationStackEntry {
+    /// Pop one attempt off the stack, requiring LIFO closing.
+    fn pop(&mut self, attempt: RelationAttempt) -> RelationStackEntry {
         let entry = self.stack.pop();
         match entry {
-            Some(entry) if entry.key == frame.key && self.stack.len() == frame.index => entry,
-            _ => unreachable!("check relation frames must close in LIFO order"),
+            Some(entry) if entry.key == attempt.key && self.stack.len() == attempt.index => entry,
+            _ => unreachable!("check relation attempts must close in LIFO order"),
         }
     }
 
-    /// Resolve every provisional decision depending on one closing frame.
-    fn resolve_dependents(
-        &mut self,
-        index: usize,
-        outcome: Option<usize>,
-        settled: &mut SmallVec<[RelationKey; 2]>,
-    ) {
+    /// Resolve every provisional decision depending on one closing attempt.
+    fn resolve_dependents(&mut self, index: usize, outcome: Option<usize>) {
         let mut position = 0;
         while position < self.provisional.len() {
             let (key, dependency) = self.provisional[position];
@@ -309,10 +288,9 @@ impl RelationCache {
                 // the cycle settled true on its own
                 Some(target) if target == index => {
                     self.set_decision(key, RelationDecision::Holds);
-                    settled.push(key);
                     self.provisional.swap_remove(position);
                 }
-                // the cycle itself depends on an outer frame
+                // pass the dependency to the outer attempt
                 Some(target) => {
                     self.set_decision(key, RelationDecision::Provisional(target));
                     self.provisional[position] = (key, target);
@@ -349,12 +327,5 @@ impl RelationCache {
             key,
             previous: self.decisions.get(&key).copied(),
         });
-    }
-}
-
-impl CheckState<'_> {
-    /// Return the active relation cache.
-    pub(in crate::check) fn relations(&mut self) -> &mut RelationCache {
-        &mut self.solver.relations
     }
 }

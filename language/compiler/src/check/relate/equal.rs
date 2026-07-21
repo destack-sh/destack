@@ -14,7 +14,7 @@ impl CheckState<'_> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types poison silently instead of cascading
             (dir::Type::Error, _) | (_, dir::Type::Error) => Answer::Ready(true),
-            // unit atoms compare by kind
+            // unit types compare by kind
             (dir::Type::Null, dir::Type::Null)
             | (dir::Type::Undefined, dir::Type::Undefined)
             | (dir::Type::Void, dir::Type::Void)
@@ -30,8 +30,11 @@ impl CheckState<'_> {
             {
                 Answer::Ready(true)
             }
-            // atoms compare structurally
+            // scalar types compare structurally
             (dir::Type::Literal(source), dir::Type::Literal(target)) => {
+                Answer::Ready(source == target)
+            }
+            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => {
                 Answer::Ready(source == target)
             }
             // nullish literals equal their canonical unit types
@@ -40,9 +43,6 @@ impl CheckState<'_> {
             | (dir::Type::Undefined, dir::Type::Literal(dir::ScalarLiteral::Undefined))
             | (dir::Type::Literal(dir::ScalarLiteral::Undefined), dir::Type::Undefined) => {
                 Answer::Ready(true)
-            }
-            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => {
-                Answer::Ready(source == target)
             }
             // memory singleton values compare against their authored string text
             (dir::Type::Memory(memory), dir::Type::Literal(dir::ScalarLiteral::String(text)))

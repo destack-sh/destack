@@ -749,7 +749,7 @@ impl CheckState<'_> {
 
         // require each target field from the static declaration
         for field in target_fields {
-            let lookup = answer!(self.body(module).lookup_member(
+            let lookup = answer!(self.body().lookup_member(
                 origin,
                 module,
                 source,
@@ -779,7 +779,7 @@ impl CheckState<'_> {
         // require each target constructor from the class constructor set
         for target_signature in target_constructs {
             let mut satisfied = Answer::Ready(false);
-            for candidate in self.reference_construct_signatures(reference)? {
+            for candidate in self.reference_construct_signatures(origin, reference)? {
                 satisfied = satisfied.or(self.decide_relation(
                     origin,
                     Relation::Assignable,
@@ -808,6 +808,7 @@ impl CheckState<'_> {
     /// Return constructor signatures exposed by one static declaration reference.
     pub(in crate::check) fn reference_construct_signatures(
         &mut self,
+        origin: Origin,
         source: dir::TypeReference,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
         let constructors: SmallVec<[dir::GlobalTypeId; 2]> = match self.definition(source.symbol)? {
@@ -820,16 +821,13 @@ impl CheckState<'_> {
         };
 
         // constructors return the declared instance in place of `this`
-        let instance = self.declaration_instance(source.symbol.module_id, source.symbol)?;
-        let instance = self.intern_type(source.symbol.module_id, dir::Type::Instance(instance))?;
+        let module = origin.module();
+        let instance = self.declaration_instance(module, source.symbol)?;
+        let instance = self.intern_type(module, dir::Type::Instance(instance))?;
         let substitution = TypeSubstitution::default().with_receiver(instance);
         let mut signatures = SmallVec::new();
         for constructor in constructors {
-            signatures.push(self.substitute_type(
-                source.symbol.module_id,
-                constructor,
-                &substitution,
-            )?);
+            signatures.push(self.substitute_type(module, constructor, &substitution)?);
         }
 
         Ok(signatures)
@@ -849,7 +847,7 @@ impl CheckState<'_> {
                 self.decide_shape_index_signature_satisfied(origin, source.module_id, shape, target)
             }
             _ => self
-                .body(origin.module())
+                .body()
                 .decide_subscript_index_signature_satisfied(origin, source, target),
         }
     }

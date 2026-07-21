@@ -53,7 +53,7 @@ impl CheckState<'_> {
         // require each member from the source
         let mut decision = Answer::Ready(true);
         for member in requirements.members {
-            let lookup = answer!(self.body(module).lookup_member(
+            let lookup = answer!(self.body().lookup_member(
                 origin,
                 module,
                 source,

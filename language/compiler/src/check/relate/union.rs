@@ -1,9 +1,34 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation};
+use crate::check::{Answer, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
+    /// Return the members of one union target with its enclosing forms.
+    pub(in crate::check) fn union_arms(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<SmallVec<[dir::GlobalTypeId; 4]>>>> {
+        let chain = self.form_chain(origin, target)?;
+        let base = chain.base();
+        let dir::Type::Union(union) = self.ty(base)? else {
+            return Ok(Answer::Ready(None));
+        };
+
+        // retain enclosing forms while exposing each stored union member
+        let members =
+            SmallVec::<[_; 4]>::from_slice(self.type_ids(base.module_id, union.elements)?);
+        let mut arms = SmallVec::with_capacity(members.len());
+        for member in members {
+            let target = answer!(self.replace_form_value(origin, target, member)?);
+            arms.push(target);
+        }
+
+        Ok(Answer::Ready(Some(arms)))
+    }
+
     /// Decide a union target by membership when direct proof fell short.
     pub(in crate::check) fn decide_union_membership(
         &mut self,
@@ -102,6 +127,15 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         targets: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
+        // exact singleton keys prove membership without candidate relations
+        if let Some(source_key) = self.static_key_from_type(source)? {
+            for target in targets {
+                if self.static_key_from_type(*target)? == Some(source_key) {
+                    return Ok(Answer::Ready(true));
+                }
+            }
+        }
+
         let mut decision = Answer::Ready(false);
         for target in targets {
             decision = decision.or(self.decide_relation(origin, relation, source, *target)?);
