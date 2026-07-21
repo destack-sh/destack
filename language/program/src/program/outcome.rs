@@ -27,6 +27,29 @@ pub enum Outcome<C, O, Y = O> {
     },
 }
 
+impl<C, O, Y> Outcome<C, O, Y> {
+    /// Transform the continuation carried by a suspended outcome.
+    pub fn map_continuation<T>(self, map: impl FnOnce(C) -> T) -> Outcome<T, O, Y> {
+        match self {
+            Self::Completed { value } => Outcome::Completed { value },
+            Self::Yielded {
+                continuation,
+                value,
+            } => Outcome::Yielded {
+                continuation: map(continuation),
+                value,
+            },
+            Self::Stopped {
+                continuation,
+                reason,
+            } => Outcome::Stopped {
+                continuation: map(continuation),
+                reason,
+            },
+        }
+    }
+}
+
 /// Reason execution stopped before completion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum StopReason {

@@ -3,7 +3,7 @@ use std::fmt;
 
 use destack_core::Optional;
 
-use crate::{Continuation, ContinuationFrame, FrameStateId};
+use crate::{Continuation, ContinuationBuilder, FrameStateId};
 
 /// Native frame captured with one continuation.
 #[repr(C)]
@@ -17,8 +17,6 @@ pub struct NativeFrame {
     pub unwind_state: Optional<FrameStateId>,
     /// The captured frame bytes in durable continuation encoding.
     pub bytes: *const u8,
-    /// The byte offset inside the world stack range.
-    pub stack_offset: usize,
     /// The captured frame byte length.
     pub byte_len: usize,
 }
@@ -53,27 +51,26 @@ impl NativeContinuation {
     ///
     /// The frame pointer must point at `frame_count` immutable frames for the duration of this call.
     pub unsafe fn to_continuation(self) -> Result<Continuation, NativeContinuationError> {
+        // reject continuations without captured frames
         if self.frame_count == 0 {
             return Err(NativeContinuationError::Empty);
         }
 
+        // reject non-empty continuations without frame storage
         if self.frames.is_null() {
             return Err(NativeContinuationError::NullFrames);
         }
 
         // SAFETY: guaranteed by the caller and checked for a null pointer above
         let frames = unsafe { std::slice::from_raw_parts(self.frames, self.frame_count) };
-        let mut continuation = Continuation::empty();
+        let mut continuation = ContinuationBuilder::new();
 
         // copy native frame bytes into the continuation byte store
         for frame in frames {
-            let frame = unsafe { frame.to_continuation_frame(&mut continuation) }
-                .map_err(NativeContinuationError::Frame)?;
-
-            continuation.frames.push(frame);
+            unsafe { frame.push(&mut continuation) }.map_err(NativeContinuationError::Frame)?;
         }
 
-        Ok(continuation)
+        Ok(continuation.build())
     }
 }
 
@@ -83,28 +80,33 @@ impl NativeFrame {
     /// # Safety
     ///
     /// The byte pointer must point at `byte_len` immutable bytes for the duration of this call.
-    pub unsafe fn to_continuation_frame(
+    pub unsafe fn push(
         self,
-        continuation: &mut Continuation,
-    ) -> Result<ContinuationFrame, NativeFrameError> {
+        continuation: &mut ContinuationBuilder,
+    ) -> Result<(), NativeFrameError> {
+        // accept empty frames without dereferencing their byte pointer
         let bytes = if self.byte_len == 0 {
             &[][..]
-        } else if self.bytes.is_null() {
+        }
+        // reject non-empty frames without byte storage
+        else if self.bytes.is_null() {
             return Err(NativeFrameError::NullFrameBytes);
-        } else {
+        }
+        // borrow the frame bytes for immediate copying
+        else {
             // SAFETY: guaranteed by the caller and checked for a null pointer above
             unsafe { std::slice::from_raw_parts(self.bytes, self.byte_len) }
         };
-        let byte_offset = continuation.push_frame_bytes(bytes);
 
-        Ok(ContinuationFrame {
-            frame_state: self.frame_state,
-            normal_state: self.normal_state.get(),
-            unwind_state: self.unwind_state.get(),
-            byte_offset,
-            stack_offset: self.stack_offset,
-            byte_len: self.byte_len,
-        })
+        // append this frame to the durable continuation
+        continuation.push(
+            self.frame_state,
+            self.normal_state.get(),
+            self.unwind_state.get(),
+            bytes,
+        );
+
+        Ok(())
     }
 }
 
