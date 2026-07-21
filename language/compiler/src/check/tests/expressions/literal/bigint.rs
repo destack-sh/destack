@@ -138,7 +138,6 @@ const value: bigint | string = 42n;
 #[test]
 fn test_bigint_literal_resolves_extension_member() {
     let session = TestSession::builder()
-        .target("native")
         .module(
             "main.ds",
             r#"
@@ -177,7 +176,6 @@ isZero satisfies boolean;
 #[test]
 fn test_bigint_alias_resolves_extension_member() {
     let session = TestSession::builder()
-        .target("native")
         .module(
             "main.ds",
             r#"

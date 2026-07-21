@@ -140,7 +140,6 @@ const value: number = "hello";
 #[test]
 fn test_string_literal_resolves_class_member() {
     let session = TestSession::builder()
-        .target("native")
         .module(
             "main.ds",
             r#"
@@ -179,7 +178,6 @@ isEmpty satisfies boolean;
 #[test]
 fn test_string_alias_resolves_class_member() {
     let session = TestSession::builder()
-        .target("native")
         .module(
             "main.ds",
             r#"
