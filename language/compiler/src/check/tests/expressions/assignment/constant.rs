@@ -20,6 +20,7 @@ value = 2;
 === checked ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value = 2;
@@ -28,7 +29,7 @@ value = 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=5 constraints=2 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -59,16 +60,17 @@ value += 2;
 === checked ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value += 2;
 /// @type.node source="value += 2" type=int32
 /// @type.node source=value type=int32
-/// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
+/// @resolution.operator source="value += 2" kind=builtin
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=5 constraints=3 obligations=2 solutions=1 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -99,6 +101,7 @@ state.count = 1;
 === checked ===
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ count: int32 }
+/// @resolution.pattern source=state kind=binding target=state
 /// @type.node source={ count: 0 } type={ count: 0 }
 /// @type.node source=0 type=0
 
@@ -110,7 +113,7 @@ state.count = 1;
 /// @resolution.pattern.assign source=state.count kind=place place=field(count) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=7 constraints=3 obligations=2 solutions=1 bounds=0 decisions=3
 "#,
     );
 }

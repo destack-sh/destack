@@ -26,6 +26,7 @@ let ok: ValueType = 42;
 === checked ===
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
+/// @resolution.pattern source=value kind=binding target=value
 
 type ValueType = typeof value;
 /// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=typeof value reduced=42
@@ -34,6 +35,7 @@ type ValueType = typeof value;
 
 let ok: ValueType = 42;
 /// @type.symbol symbol=ok source=ok type=ValueType reduced=42
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=ValueType target=ValueType
 "#,
     );
@@ -65,6 +67,7 @@ let bad: ValueType = "no";
 === checked ===
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
+/// @resolution.pattern source=value kind=binding target=value
 
 type ValueType = typeof value;
 /// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=typeof value reduced=42
@@ -73,11 +76,13 @@ type ValueType = typeof value;
 
 let bad: ValueType = "no";
 /// @type.symbol symbol=bad source=bad type=ValueType reduced=42
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=ValueType target=ValueType
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'ValueType'"
 /// @diagnostic.label line=6 column=22 span="\"no\"" line_source="let bad: ValueType = \"no\";"
+/// @diagnostic.related line=6 column=10 span="ValueType" line_source="let bad: ValueType = \"no\";" message="expected due to this annotation"
 /// @diagnostic.note message="'ValueType' reduces to '42'"
 "#,
     );
@@ -169,6 +174,7 @@ takesCounter(Counter);
 
 let version: CounterCtor["version"] = 1;
 /// @type.symbol symbol=version source=version type=CounterCtor["version"] reduced=int32
+/// @resolution.pattern source=version kind=binding target=version
 /// @resolution.name source=CounterCtor target=CounterCtor
 "#,
     );

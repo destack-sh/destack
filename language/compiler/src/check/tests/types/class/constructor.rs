@@ -37,6 +37,7 @@ class Counter {
 
 const counter = new Counter();
 /// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source="new Counter()" type=Counter
 /// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=default
 /// @resolution.name source=Counter target=Counter
@@ -113,6 +114,7 @@ class Derived extends Base {}
 
 const derived = new Derived(1);
 /// @type.symbol symbol=derived source=derived type=Derived
+/// @resolution.pattern source=derived kind=binding target=derived
 /// @type.node source="new Derived(1)" type=Derived
 /// @resolution.construct source="new Derived(1)" parameters=(int32) arguments=(provided(1) as int32) return=Derived kind=class target=Derived constructor=forwarded:Base.constructor
 /// @resolution.name source=Derived target=Derived
@@ -180,6 +182,7 @@ class Counter {
 
 const counter = new Counter(1);
 /// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source="new Counter(1)" type=Counter
 /// @resolution.construct source="new Counter(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=class target=Counter constructor=Counter.constructor
 /// @resolution.name source=Counter target=Counter
@@ -273,6 +276,7 @@ class Box {
 
 const text = new Box("x");
 /// @type.symbol symbol=text source=text type=Box
+/// @resolution.pattern source=text kind=binding target=text
 /// @type.node source="new Box(\"x\")" type=Box
 /// @resolution.construct source="new Box(\"x\")" parameters=(string) arguments=(provided("x") as string) return=Box kind=class target=Box constructor=Box.constructor#1
 /// @resolution.name source=Box target=Box
@@ -280,6 +284,7 @@ const text = new Box("x");
 
 const number = new Box(1);
 /// @type.symbol symbol=number source=number type=Box
+/// @resolution.pattern source=number kind=binding target=number
 /// @type.node source="new Box(1)" type=Box
 /// @resolution.construct source="new Box(1)" parameters=(int32) arguments=(provided(1) as int32) return=Box kind=class target=Box constructor=Box.constructor#2
 /// @resolution.name source=Box target=Box

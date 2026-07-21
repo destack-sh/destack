@@ -54,6 +54,7 @@ interface Person {
 
 declare const person: Omit<Person, "age">;
 /// @type.symbol symbol=person source=person type=Omit<Person, "age"> reduced={ name: string; active: boolean }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
@@ -120,11 +121,13 @@ interface Person {
 
 declare const person: Omit<Person, "age">;
 /// @type.symbol symbol=person source=person type=Omit<Person, "age"> reduced={ name: string; active: boolean }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const age = person.age;
 /// @type.symbol symbol=age source=age type=<error>
+/// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
 
 /// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
@@ -190,6 +193,7 @@ type WithoutAge = Omit<Person, "age">;
 
 const person: WithoutAge = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=WithoutAge reduced={ name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 
 person satisfies WithoutAge;
@@ -253,6 +257,7 @@ type WithoutAge = Omit<Person, "age">;
 
 const person: WithoutAge = { name: "Ada", age: 42 };
 /// @type.symbol symbol=person source=person type=WithoutAge reduced={ name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 
 /// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
@@ -260,6 +265,7 @@ const person: WithoutAge = { name: "Ada", age: 42 };
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'age' in object literal for type 'WithoutAge'"
 /// @diagnostic.label line=9 column=28 span="{ name: \"Ada\", age: 42 }" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };"
+/// @diagnostic.related line=9 column=15 span="WithoutAge" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
@@ -317,6 +323,7 @@ type WithoutAll = Omit<Person, "name" | "age">;
 
 const person: WithoutAll = {};
 /// @type.symbol symbol=person source=person type=WithoutAll reduced={}
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAll target=WithoutAll
 
 /// @generic.instance id="Omit<Person, \"name\" | \"age\">" template=types.object.Omit arguments=(Person, "name" | "age")
@@ -378,6 +385,7 @@ type Same = Omit<Person, "missing">;
 
 const person: Same = { name: "Ada", age: 42 };
 /// @type.symbol symbol=person source=person type=Same reduced={ name: string; age: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Same target=Same
 
 person satisfies Person;
@@ -443,6 +451,7 @@ type NameOnly = Omit<Person, "age">;
 
 const person: NameOnly = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=NameOnly reduced={ readonly name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=NameOnly target=NameOnly
 
 person.name = "Grace";

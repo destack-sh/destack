@@ -97,7 +97,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 /// @resolution.name source=T target=unwrapOr.T
 
     match (outcome) {
-    /// @type.node type=T#3 | T#3 reduced=T#3
+    /// @type.node type=T#3
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrapOr.outcome
     /// @generic.instance source=outcome id="Outcome<T#3, E#3>"
@@ -407,11 +407,13 @@ newtype Edge<T> =
 
 declare const edge: Edge<string> | Edge<int32>;
 /// @type.symbol symbol=edge source=edge type=Edge<string> | Edge<int32>
+/// @resolution.pattern source=edge kind=binding target=edge
 /// @resolution.name source=Edge target=Edge
 /// @resolution.name source=Edge target=Edge
 
 const value: string = match (edge) {
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node type=string | int32
 /// @type.node source=edge type=Edge<string> | Edge<int32>
 /// @resolution.name source=edge target=edge
@@ -443,6 +445,7 @@ const value: string = match (edge) {
         r#"
 /// @diagnostic.error id=not-assignable message="type 'string | int32' is not assignable to type 'string'"
 /// @diagnostic.label line=9 column=23 span="match (edge) {\n    Edge.Bounded { limit } => limit\n    Edge.Open => \"\"\n}" line_source="const value: string = match (edge) {"
+/// @diagnostic.related line=9 column=14 span="string" line_source="const value: string = match (edge) {" message="expected due to this annotation"
 /// @diagnostic.note message="expected 'string', found 'int32'"
 "#,
     );

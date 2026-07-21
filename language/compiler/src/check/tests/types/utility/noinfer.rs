@@ -38,6 +38,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
 const ok = choose(["red", "blue"], "red");
 /// @type.symbol symbol=ok source=ok type="red" | "blue"
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=(Array<"red" | "blue">, NoInfer<"red" | "blue"> | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("red") as NoInfer<"red" | "blue"> | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instance source="choose([\"red\", \"blue\"], \"red\")" id="choose<\"red\" | \"blue\">"
@@ -96,12 +97,14 @@ declare function make<T>(): T[];
 
 const values = make();
 /// @type.symbol symbol=values source=values type=Array<"red">
+/// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
 /// @generic.instance source=make() id="make<\"red\">"
 
 const picked = choose(values, "green");
 /// @type.symbol symbol=picked source=picked type="red"
+/// @resolution.pattern source=picked kind=binding target=picked
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose(values, \"green\")" parameters=(Array<"red">, NoInfer<"red">) arguments=(provided(values) as Array<"red">, provided("green") as NoInfer<"red">) return="red" kind=symbol target=choose instance="choose<\"red\">"
 /// @generic.instance source="choose(values, \"green\")" id="choose<\"red\">"
@@ -109,6 +112,7 @@ const picked = choose(values, "green");
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
 
 /// @generic.instance id="choose<\"red\">" template=choose arguments=("red")
@@ -168,12 +172,14 @@ declare function make<T>(): T[];
 
 const values = make();
 /// @type.symbol symbol=values source=values type=Array<"red">
+/// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
 /// @generic.instance source=make() id="make<\"red\">"
 
 const kept = keep(values, ["green"]);
 /// @type.symbol symbol=kept source=kept type="red"
+/// @resolution.pattern source=kept kind=binding target=kept
 /// @resolution.name source=keep target=keep
 /// @resolution.call source="keep(values, [\"green\"])" parameters=(Array<"red">, NoInfer<Array<"red">>) arguments=(provided(values) as Array<"red">, provided(["green"]) as NoInfer<Array<"red">>) return="red" kind=symbol target=keep instance="keep<\"red\">"
 /// @generic.instance source="keep(values, [\"green\"])" id="keep<\"red\">"
@@ -181,6 +187,7 @@ const kept = keep(values, ["green"]);
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
 
 /// @generic.instance id="keep<\"red\">" template=keep arguments=("red")
@@ -188,10 +195,11 @@ const reds: "red"[] = values;
 /// @generic.instance id=NoInfer<Array<C>> template=types.object.NoInfer arguments=(Array<C>)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'Array<\"green\">' is not assignable to parameter of type 'Array<\"red\">'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
+/// @diagnostic.label line=6 column=28 span="\"green\"" line_source="const kept = keep(values, [\"green\"]);"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Array<\"red\">' is not assignable to parameter of type 'Array<\"red\">'"
 /// @diagnostic.label line=6 column=27 span="[\"green\"]" line_source="const kept = keep(values, [\"green\"]);"
 /// @diagnostic.related line=6 column=14 span="keep(values, [\"green\"])" line_source="const kept = keep(values, [\"green\"]);" message="in this call"
-/// @diagnostic.note message="the mismatch is in the element type: expected '\"red\"', found '\"green\"'"
 "#,
     );
 }
@@ -240,6 +248,7 @@ declare function make<T>(): T[];
 
 const seeds = make();
 /// @type.symbol symbol=seeds source=seeds type=Array<"red">
+/// @resolution.pattern source=seeds kind=binding target=seeds
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
 /// @generic.instance source=make() id="make<\"red\">"
@@ -254,6 +263,7 @@ on(seeds, (value) => {});
 
 const reds: "red"[] = seeds;
 /// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=seeds target=seeds
 
 /// @generic.instance id="NoInfer<Function<(T#1,), void>>" template=types.object.NoInfer arguments=(Function<(T#1,), void>)

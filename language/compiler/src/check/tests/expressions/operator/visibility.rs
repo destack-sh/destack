@@ -47,12 +47,14 @@ import { Force } from "./force.ds";
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=force.Force
+/// @resolution.pattern source=force kind=binding target=force
 /// @resolution.name source=Force target=force.Force
 
 const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
+/// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=force.multiply receiver=force.Force
+/// @resolution.operator source="force * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force target=force.multiply receiver=force.Force
 "#,
     );
 }
@@ -148,7 +150,7 @@ extension of Force implements Multiply<float64> {
         Force { value: this.value * other }
         /// @resolution.name source=Force target=Force
         /// @resolution.member source=this.value receiver=Force kind=symbol target=Force.value
-        /// @resolution.call source="this.value * other" parameters=() return=float64 kind=builtin builtin=binary.multiply
+        /// @resolution.operator source="this.value * other" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Force
         /// @resolution.name source=other target=multiply.other
 
@@ -157,12 +159,14 @@ extension of Force implements Multiply<float64> {
 
 declare const inside: Force;
 /// @type.symbol symbol=inside source=inside type=Force
+/// @resolution.pattern source=inside kind=binding target=inside
 /// @resolution.name source=Force target=Force
 
 export const doubled = inside * 2.0;
 /// @type.symbol symbol=doubled source=doubled type=Force
+/// @resolution.pattern source=doubled kind=binding target=doubled
 /// @resolution.name source=inside target=inside
-/// @resolution.call source="inside * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force
+/// @resolution.operator source="inside * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force target=multiply receiver=Force
 "#,
     );
 
@@ -182,10 +186,12 @@ import { Force } from "./force.ds";
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=force.Force
+/// @resolution.pattern source=force kind=binding target=force
 /// @resolution.name source=Force target=force.Force
 
 const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=<error>
+/// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
 "#,
         r#"
@@ -270,7 +276,7 @@ extension of Force implements Multiply<float64> {
         Force { value: this.value * other }
         /// @resolution.name source=Force target=force.Force
         /// @resolution.member source=this.value receiver=force.Force kind=symbol target=force.Force.value
-        /// @resolution.call source="this.value * other" parameters=() return=float64 kind=builtin builtin=binary.multiply
+        /// @resolution.operator source="this.value * other" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=force.Force
         /// @resolution.name source=other target=multiply.other
 
@@ -279,12 +285,14 @@ extension of Force implements Multiply<float64> {
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=force.Force
+/// @resolution.pattern source=force kind=binding target=force
 /// @resolution.name source=Force target=force.Force
 
 const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
+/// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=multiply receiver=force.Force
+/// @resolution.operator source="force * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force target=multiply receiver=force.Force
 "#,
     );
 }
@@ -344,12 +352,14 @@ import { Scaling } from "./scaling.ds";
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=force.Force
+/// @resolution.pattern source=force kind=binding target=force
 /// @resolution.name source=Force target=force.Force
 
 const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
+/// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=scaling.Scaling.multiply receiver=force.Force
+/// @resolution.operator source="force * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force target=scaling.Scaling.multiply receiver=force.Force
 "#,
     );
 }

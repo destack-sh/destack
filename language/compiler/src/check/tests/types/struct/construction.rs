@@ -44,6 +44,7 @@ struct Point {
 
 const point = Point { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 point satisfies Point;
@@ -262,7 +263,7 @@ function doubled<T: Float>(value: T): Box<T> {
     Box { value: value + value }
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=value target=doubled.value
-    /// @resolution.call source="value + value" parameters=() return=T#2 kind=builtin builtin=binary.add
+    /// @resolution.operator source="value + value" kind=builtin
     /// @resolution.name source=value target=doubled.value
 
 }
@@ -324,7 +325,7 @@ struct Counter {
         Counter { value: this.value + 1 }
         /// @resolution.name source=Counter target=Counter
         /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.L0, "exclusive"> kind=symbol target=Counter.value
-        /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.value + 1" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
 
     }
@@ -332,6 +333,7 @@ struct Counter {
 
 const next = Counter { value: 1 }.increment();
 /// @type.symbol symbol=next source=next type=Counter
+/// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Counter target=Counter
 /// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter kind=symbol target=Counter.increment
 /// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow)
@@ -385,6 +387,7 @@ struct Point {
 
 const point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 "#,
         r#"
@@ -436,6 +439,7 @@ struct Point {
 
 const point = Point { x: 1, y: 2, z: 3 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 "#,
         r#"
@@ -488,6 +492,7 @@ struct Point {
 
 const point = new Point(1, 2);
 /// @type.symbol symbol=point source=point type=<error>
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 "#,
         r#"
@@ -552,7 +557,7 @@ struct Counter {
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
         /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
         /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.L0, "exclusive"> kind=symbol target=Counter.value
-        /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.value + 1" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
 
         this.value
@@ -564,10 +569,12 @@ struct Counter {
 
 let counter = Counter { value: 1 };
 /// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
 const next = counter.increment();
 /// @type.symbol symbol=next source=next type=int32
+/// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=counter target=counter
 /// @resolution.member source=counter.increment receiver=Counter kind=symbol target=Counter.increment
 /// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow)
@@ -614,11 +621,13 @@ struct Counter {
 
 const counter: Counter = { value: 1 };
 /// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ value: 1 }' is not assignable to type 'Counter'"
 /// @diagnostic.label line=6 column=26 span="{ value: 1 }" line_source="const counter: Counter = { value: 1 };"
+/// @diagnostic.related line=6 column=16 span="Counter" line_source="const counter: Counter = { value: 1 };" message="expected due to this annotation"
 "#,
     );
 }

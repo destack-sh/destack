@@ -22,6 +22,7 @@ value satisfies void;
 === checked ===
 const value = ();
 /// @type.symbol symbol=value source=value type=()
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=() type=()
 
 value satisfies ();
@@ -57,6 +58,7 @@ value satisfies ();
 === checked ===
 const value: void = ();
 /// @type.symbol symbol=value source=value type=void
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=() type=()
 
 value satisfies ();

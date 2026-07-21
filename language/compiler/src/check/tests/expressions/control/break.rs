@@ -29,6 +29,7 @@ while (true) {
 
     const stop = () => {
     /// @type.symbol symbol=stop source=stop type=Function<(), void>
+    /// @resolution.pattern source=stop kind=binding target=stop
     /// @type.symbol symbol=symbol1 type=Function<(), void>
     /// @type.node type=Function<(), void>
 
@@ -79,9 +80,11 @@ const value: 1 | 2 = loop {
 === checked ===
 declare const flag: boolean;
 /// @type.symbol symbol=flag source=flag type=boolean
+/// @resolution.pattern source=flag kind=binding target=flag
 
 const value = loop {
 /// @type.symbol symbol=value source=value type=1 | 2
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node type=1 | 2
 
     if (flag) {

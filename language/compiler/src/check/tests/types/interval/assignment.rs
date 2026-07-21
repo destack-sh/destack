@@ -28,15 +28,18 @@ type Digit = 0..=9;
 
 declare const value: int32;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 
 const digit: Digit = value;
 /// @type.symbol symbol=digit source=digit type=Digit reduced=0..=9
+/// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=value target=value
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=22 span="value" line_source="const digit: Digit = value;"
+/// @diagnostic.related line=5 column=14 span="Digit" line_source="const digit: Digit = value;" message="expected due to this annotation"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
@@ -70,17 +73,20 @@ type Digit = 0..=9;
 
 declare const digit: Digit;
 /// @type.symbol symbol=digit source=digit type=Digit reduced=0..=9
+/// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 
 const next: Digit = digit + 1;
 /// @type.symbol symbol=next source=next type=Digit reduced=0..=9
+/// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=digit target=digit
-/// @resolution.call source="digit + 1" parameters=() return=int32 kind=builtin builtin=binary.add
+/// @resolution.operator source="digit + 1" kind=builtin
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=21 span="digit + 1" line_source="const next: Digit = digit + 1;"
+/// @diagnostic.related line=5 column=13 span="Digit" line_source="const next: Digit = digit + 1;" message="expected due to this annotation"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
@@ -116,19 +122,23 @@ type Edge = 0..=3 | 252..=255;
 
 const low: Edge = 2;
 /// @type.symbol symbol=low source=low type=Edge reduced=0..=3 | 252..=255
+/// @resolution.pattern source=low kind=binding target=low
 /// @resolution.name source=Edge target=Edge
 
 const high: Edge = 254;
 /// @type.symbol symbol=high source=high type=Edge reduced=0..=3 | 252..=255
+/// @resolution.pattern source=high kind=binding target=high
 /// @resolution.name source=Edge target=Edge
 
 const bad: Edge = 128;
 /// @type.symbol symbol=bad source=bad type=Edge reduced=0..=3 | 252..=255
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Edge target=Edge
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '128' is not assignable to type 'Edge'"
 /// @diagnostic.label line=6 column=19 span="128" line_source="const bad: Edge = 128;"
+/// @diagnostic.related line=6 column=12 span="Edge" line_source="const bad: Edge = 128;" message="expected due to this annotation"
 /// @diagnostic.note message="'Edge' reduces to '0..=3 | 252..=255'"
 "#,
     );
@@ -162,16 +172,19 @@ newtype Port = 1..=65535;
 
 const raw: Port = 443;
 /// @type.symbol symbol=raw source=raw type=Port
+/// @resolution.pattern source=raw kind=binding target=raw
 /// @resolution.name source=Port target=Port
 
 const port = Port(443);
 /// @type.symbol symbol=port source=port type=Port
+/// @resolution.pattern source=port kind=binding target=port
 /// @resolution.name source=Port target=Port
 /// @resolution.construct source=Port(443) parameters=(1..=65535) arguments=(provided(443) as 1..=65535) return=Port kind=newtype target=Port backing=1..=65535
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '443' is not assignable to type 'Port'"
 /// @diagnostic.label line=4 column=19 span="443" line_source="const raw: Port = 443;"
+/// @diagnostic.related line=4 column=12 span="Port" line_source="const raw: Port = 443;" message="expected due to this annotation"
 "#,
     );
 }

@@ -24,12 +24,14 @@ hasX satisfies boolean;
 === checked ===
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source={ x: 1, y: 2 } type={ x: 1; y: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const hasX = "x" in point;
 /// @type.symbol symbol=hasX source=hasX type=boolean
+/// @resolution.pattern source=hasX kind=binding target=hasX
 /// @type.node source="\"x\" in point" type=boolean
 /// @type.node source="\"x\"" type="x"
 /// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, x)" narrowed={ x: float64; y: float64 }
@@ -68,12 +70,14 @@ hasName satisfies boolean;
 === checked ===
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source={ x: 1, y: 2 } type={ x: 1; y: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const hasName = "name" in point;
 /// @type.symbol symbol=hasName source=hasName type=boolean
+/// @resolution.pattern source=hasName kind=binding target=hasName
 /// @type.node source="\"name\" in point" type=boolean
 /// @type.node source="\"name\"" type="name"
 /// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, name)" narrowed=never
@@ -140,10 +144,12 @@ class Bag {
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type=Bag
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 const found = "name" in bag;
 /// @type.symbol symbol=found source=found type=boolean
+/// @resolution.pattern source=found kind=binding target=found
 /// @type.node source="\"name\" in bag" type=boolean
 /// @type.node source="\"name\"" type="name"
 /// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate="membership(Bag, name)" narrowed=never
@@ -198,6 +204,7 @@ declare class User {
 
 declare const user: User;
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 "name" in user;
@@ -250,6 +257,7 @@ type Numbered = { id: int32 };
 
 declare const value: Named | Numbered;
 /// @type.symbol symbol=value source=value type=Named | Numbered
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Numbered target=Numbered
 
@@ -314,6 +322,7 @@ type Numbered = { id: int32 };
 
 declare const value: Named | Numbered;
 /// @type.symbol symbol=value source=value type=Named | Numbered
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Numbered target=Numbered
 
@@ -388,6 +397,7 @@ true in point;
 === checked ===
 const point = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: float64 }
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source={ x: 1 } type={ x: 1 }
 /// @type.node source=1 type=1
 
@@ -427,6 +437,7 @@ declare const value: unknown;
 === checked ===
 declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
+/// @resolution.pattern source=value kind=binding target=value
 
 "name" in value;
 /// @type.node source="\"name\" in value" type=boolean

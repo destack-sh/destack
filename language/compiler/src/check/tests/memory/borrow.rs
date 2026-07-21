@@ -40,19 +40,23 @@ class User {}
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const localView = &readonly localUser;
 /// @type.symbol symbol=localView source=localView type=Placed<Borrowed<User, "static", "readonly">, "local">
+/// @resolution.pattern source=localView kind=binding target=localView
 /// @type.node source="&readonly localUser" type=Placed<Borrowed<User, "static", "readonly">, "local">
 /// @resolution.name source=localUser target=localUser
 
 const sharedView = &readonly sharedUser;
 /// @type.symbol symbol=sharedView source=sharedView type=Placed<Borrowed<User, "static", "readonly">, "shared">
+/// @resolution.pattern source=sharedView kind=binding target=sharedView
 /// @type.node source="&readonly sharedUser" type=Placed<Borrowed<User, "static", "readonly">, "shared">
 /// @resolution.name source=sharedUser target=sharedUser
 
@@ -101,15 +105,18 @@ class User {}
 
 declare const user: local User;
 /// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const projected = &readonly user;
 /// @type.symbol symbol=projected source=projected type=Placed<Borrowed<User, "static", "readonly">, "local">
+/// @resolution.pattern source=projected kind=binding target=projected
 /// @type.node source="&readonly user" type=Placed<Borrowed<User, "static", "readonly">, "local">
 /// @resolution.name source=user target=user
 
 const coerced = user as local &readonly User;
 /// @type.symbol symbol=coerced source=coerced type=Placed<Borrowed<User, "static", "readonly">, "local">
+/// @resolution.pattern source=coerced kind=binding target=coerced
 /// @type.node source="user as local &readonly User" type=Placed<Borrowed<User, "static", "readonly">, "local">
 /// @resolution.name source=user target=user
 /// @resolution.name source=User target=User
@@ -153,22 +160,27 @@ class User {}
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 declare const readonlyUser: local readonly User;
 /// @type.symbol symbol=readonlyUser source=readonlyUser type=Placed<Readonly<User>, "local">
+/// @resolution.pattern source=readonlyUser kind=binding target=readonlyUser
 /// @resolution.name source=User target=User
 
 const sharedExclusive = &exclusive sharedUser;
 /// @type.symbol symbol=sharedExclusive source=sharedExclusive type=Placed<Borrowed<User, "static", "exclusive">, "shared">
+/// @resolution.pattern source=sharedExclusive kind=binding target=sharedExclusive
 /// @resolution.name source=sharedUser target=sharedUser
 
 const readonlyMutable = &readonlyUser;
 /// @type.symbol symbol=readonlyMutable source=readonlyMutable type=Placed<Borrowed<User, "static", "readonly">, "local">
+/// @resolution.pattern source=readonlyMutable kind=binding target=readonlyMutable
 /// @resolution.name source=readonlyUser target=readonlyUser
 
 const readonlyExclusive = &exclusive readonlyUser;
 /// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=Placed<Borrowed<User, "static", "readonly">, "local">
+/// @resolution.pattern source=readonlyExclusive kind=binding target=readonlyExclusive
 /// @resolution.name source=readonlyUser target=readonlyUser
 "#,
         r#"
@@ -228,6 +240,7 @@ class User {}
 
 declare const user: local User;
 /// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 declare function inspect(value: local &readonly User): void;
@@ -313,10 +326,12 @@ class User {}
 
 declare const readonlyView: local &readonly User;
 /// @type.symbol symbol=readonlyView source=readonlyView type=Placed<Borrowed<User, "static", "readonly">, "local">
+/// @resolution.pattern source=readonlyView kind=binding target=readonlyView
 /// @resolution.name source=User target=User
 
 declare const mutableView: local &User;
 /// @type.symbol symbol=mutableView source=mutableView type=Placed<Borrowed<User, "static", "mutable">, "local">
+/// @resolution.pattern source=mutableView kind=binding target=mutableView
 /// @resolution.name source=User target=User
 
 declare function modify(value: local &User): void;
@@ -477,6 +492,7 @@ struct Point {
 
 let point = ^Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
@@ -484,6 +500,7 @@ let point = ^Point { x: 1 };
 
 let x = &readonly point.x;
 /// @type.symbol symbol=x source=x type=Borrowed<int32, "static", "readonly">
+/// @resolution.pattern source=x kind=binding target=x
 /// @type.node source="&readonly point.x" type=Borrowed<int32, "static", "readonly">
 /// @type.node source=point type=Owned<Point> reduced=Point
 /// @type.node source=point.x type=int32
@@ -529,6 +546,7 @@ borrow satisfies &readonly [int32; 3];
 === checked ===
 let values: [int32; 3] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 3>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] type=FixedArray<int32, 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -536,6 +554,7 @@ let values: [int32; 3] = [1, 2, 3];
 
 let borrow = &readonly values;
 /// @type.symbol symbol=borrow source=borrow type=Borrowed<FixedArray<int32, 3>, "static", "readonly">
+/// @resolution.pattern source=borrow kind=binding target=borrow
 /// @type.node source="&readonly values" type=Borrowed<FixedArray<int32, 3>, "static", "readonly">
 /// @type.node source=values type=FixedArray<int32, 3>
 /// @resolution.name source=values target=values

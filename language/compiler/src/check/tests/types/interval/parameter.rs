@@ -45,6 +45,7 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
 
 const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
 /// @type.symbol symbol=ok source=ok type=InlineBuffer<uint8, 16>
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=InlineBuffer target=InlineBuffer
 /// @resolution.name source=InlineBuffer target=InlineBuffer
 

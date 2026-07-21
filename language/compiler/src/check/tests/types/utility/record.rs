@@ -33,6 +33,7 @@ type Flags = Record<"a" | "b", boolean>;
 
 const flags: Flags = { a: true, b: false };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ a: boolean; b: boolean }
+/// @resolution.pattern source=flags kind=binding target=flags
 /// @resolution.name source=Flags target=Flags
 
 flags.a satisfies boolean;
@@ -81,6 +82,7 @@ type Flags = Record<1 | 2, string>;
 
 const flags: Flags = { 1: "one", 2: "two" };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ 1: string; 2: string }
+/// @resolution.pattern source=flags kind=binding target=flags
 /// @resolution.name source=Flags target=Flags
 
 flags[1] satisfies string;
@@ -123,6 +125,7 @@ type Flags = Record<"a" | "b", boolean>;
 
 const flags: Flags = { a: true };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ a: boolean; b: boolean }
+/// @resolution.pattern source=flags kind=binding target=flags
 /// @resolution.name source=Flags target=Flags
 
 /// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
@@ -130,6 +133,7 @@ const flags: Flags = { a: true };
         r#"
 /// @diagnostic.error id=missing-required-property message="missing required property 'b' for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ a: true }" line_source="const flags: Flags = { a: true };"
+/// @diagnostic.related line=4 column=14 span="Flags" line_source="const flags: Flags = { a: true };" message="expected due to this annotation"
 "#,
     );
 }
@@ -161,6 +165,7 @@ type Flags = Record<1 | 2, string>;
 
 const flags: Flags = { 1: "one" };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ 1: string; 2: string }
+/// @resolution.pattern source=flags kind=binding target=flags
 /// @resolution.name source=Flags target=Flags
 
 /// @generic.instance id="Record<1 | 2, string>" template=types.object.Record arguments=(1 | 2, string)
@@ -168,6 +173,7 @@ const flags: Flags = { 1: "one" };
         r#"
 /// @diagnostic.error id=missing-required-property message="missing required property '2' for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ 1: \"one\" }" line_source="const flags: Flags = { 1: \"one\" };"
+/// @diagnostic.related line=4 column=14 span="Flags" line_source="const flags: Flags = { 1: \"one\" };" message="expected due to this annotation"
 "#,
     );
 }
@@ -199,6 +205,7 @@ type Flags = Record<"a" | "b", boolean>;
 
 const flags: Flags = { a: true, b: false, c: true };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ a: boolean; b: boolean }
+/// @resolution.pattern source=flags kind=binding target=flags
 /// @resolution.name source=Flags target=Flags
 
 /// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
@@ -206,6 +213,7 @@ const flags: Flags = { a: true, b: false, c: true };
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'c' in object literal for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ a: true, b: false, c: true }" line_source="const flags: Flags = { a: true, b: false, c: true };"
+/// @diagnostic.related line=4 column=14 span="Flags" line_source="const flags: Flags = { a: true, b: false, c: true };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
@@ -271,6 +279,7 @@ flags[key] satisfies boolean;
 === checked ===
 declare const key: unique symbol;
 /// @type.symbol symbol=key source=key type=unique symbol
+/// @resolution.pattern source=key kind=binding target=key
 
 type Flags = Record<typeof key, boolean>;
 /// @type.symbol symbol=Flags source="type Flags = Record<typeof key, boolean>" type=Record<typeof key, boolean> reduced={ [key]: boolean }
@@ -280,6 +289,7 @@ type Flags = Record<typeof key, boolean>;
 
 const flags: Flags = { [key]: true };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ [key]: boolean }
+/// @resolution.pattern source=flags kind=binding target=flags
 /// @resolution.name source=Flags target=Flags
 /// @resolution.name source=key target=key
 
@@ -331,9 +341,11 @@ declare function read(bag: Bag): int32 | undefined;
 
 const point: { x: int32 } = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 const value = read(point);
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
@@ -341,9 +353,10 @@ const value = read(point);
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32 }' is not assignable to parameter of type 'Bag'"
 /// @diagnostic.label line=7 column=20 span="point" line_source="const value = read(point);"
 /// @diagnostic.related line=7 column=15 span="read(point)" line_source="const value = read(point);" message="in this call"
+/// @diagnostic.note message="'Bag' reduces to '{ [P: string]: int32 }'"
 "#,
     );
 }
@@ -384,6 +397,7 @@ declare function read(bag: Bag): int32 | undefined;
 
 const value = read({ x: 1, y: 2 });
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=read target=read
 /// @resolution.call source="read({ x: 1, y: 2 })" parameters=(Bag) arguments=(provided({ x: 1, y: 2 }) as Bag) return=int32 | undefined kind=symbol target=read
 
@@ -423,6 +437,7 @@ type Bag = Record<string, int32>;
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: string]: int32 }
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 bag["missing"] satisfies int32 | undefined;
@@ -469,15 +484,18 @@ type Bag = Record<string, int32>;
 
 declare const map: Map<string, int32>;
 /// @type.symbol symbol=map source=map type=Map<string, int32>
+/// @resolution.pattern source=map kind=binding target=map
 /// @resolution.name source=Map target=collections.map.Map
 
 const bag: Bag = map;
 /// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: string]: int32 }
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=map target=map
 
 const value = bag["missing"];
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
 /// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
 
@@ -519,6 +537,7 @@ type Empty = Record<never, boolean>;
 
 const empty: Empty = {};
 /// @type.symbol symbol=empty source=empty type=Empty reduced={}
+/// @resolution.pattern source=empty kind=binding target=empty
 /// @resolution.name source=Empty target=Empty
 
 empty satisfies Empty;
@@ -557,6 +576,7 @@ type Empty = Record<never, boolean>;
 
 const empty: Empty = { value: true };
 /// @type.symbol symbol=empty source=empty type=Empty reduced={}
+/// @resolution.pattern source=empty kind=binding target=empty
 /// @resolution.name source=Empty target=Empty
 
 /// @generic.instance id="Record<never, boolean>" template=types.object.Record arguments=(never, boolean)
@@ -564,6 +584,7 @@ const empty: Empty = { value: true };
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'value' in object literal for type 'Empty'"
 /// @diagnostic.label line=4 column=22 span="{ value: true }" line_source="const empty: Empty = { value: true };"
+/// @diagnostic.related line=4 column=14 span="Empty" line_source="const empty: Empty = { value: true };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );

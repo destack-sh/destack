@@ -62,13 +62,16 @@ declare const values: [int32; 1];
 === checked ===
 let value: int32 = 0;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=0 type=0
 
 declare const fallback: int32;
 /// @type.symbol symbol=fallback source=fallback type=int32
+/// @resolution.pattern source=fallback kind=binding target=fallback
 
 declare const values: [int32; 1];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 1>
+/// @resolution.pattern source=values kind=binding target=values
 
 [value = fallback] = values;
 /// @type.node source="[value = fallback] = values" type=FixedArray<int32, 1>

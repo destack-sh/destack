@@ -133,7 +133,7 @@ class Counter {
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
         /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
         /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.L0, "exclusive"> kind=symbol target=Counter.value
-        /// @resolution.call source="this.value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.value + 1" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.L0, "exclusive">
 
     }
@@ -213,18 +213,22 @@ newtype interface Sink {
 
 declare const localSink: local Sink;
 /// @type.symbol symbol=localSink source=localSink type=Placed<Sink, "local">
+/// @resolution.pattern source=localSink kind=binding target=localSink
 /// @resolution.name source=Sink target=Sink
 
 declare const sharedSink: shared Sink;
 /// @type.symbol symbol=sharedSink source=sharedSink type=Placed<Sink, "shared">
+/// @resolution.pattern source=sharedSink kind=binding target=sharedSink
 /// @resolution.name source=Sink target=Sink
 
 declare const localMessage: local Message;
 /// @type.symbol symbol=localMessage source=localMessage type=Placed<Message, "local">
+/// @resolution.pattern source=localMessage kind=binding target=localMessage
 /// @resolution.name source=Message target=Message
 
 declare const sharedMessage: shared Message;
 /// @type.symbol symbol=sharedMessage source=sharedMessage type=Placed<Message, "shared">
+/// @resolution.pattern source=sharedMessage kind=binding target=sharedMessage
 /// @resolution.name source=Message target=Message
 
 localSink.write(localMessage) satisfies local Message;
@@ -290,10 +294,12 @@ class Buffer {
 
 declare const localBuffer: local Buffer;
 /// @type.symbol symbol=localBuffer source=localBuffer type=Placed<Buffer, "local">
+/// @resolution.pattern source=localBuffer kind=binding target=localBuffer
 /// @resolution.name source=Buffer target=Buffer
 
 declare const sharedBuffer: shared Buffer;
 /// @type.symbol symbol=sharedBuffer source=sharedBuffer type=Placed<Buffer, "shared">
+/// @resolution.pattern source=sharedBuffer kind=binding target=sharedBuffer
 /// @resolution.name source=Buffer target=Buffer
 
 localBuffer.clear();
@@ -304,6 +310,7 @@ localBuffer.clear();
 sharedBuffer.clear();
 /// @resolution.name source=sharedBuffer target=sharedBuffer
 /// @resolution.member source=sharedBuffer.clear receiver=Placed<Buffer, "shared"> kind=symbol target=Buffer.clear
+/// @resolution.call source=sharedBuffer.clear() parameters=() return=void kind=symbol target=Buffer.clear receiver=Placed<Buffer, "shared">
 "#,
         r#"
 /// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Buffer' is not assignable to the method's 'this' type 'shared &exclusive Buffer'"
@@ -366,7 +373,7 @@ struct Point {
         /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.scale.L0, "exclusive">
         /// @resolution.pattern.assign source=this.x kind=place place=field(Point.x) type=int32
         /// @resolution.member source=this.x receiver=Borrowed<Point, Point.scale.L0, "exclusive"> kind=symbol target=Point.x
-        /// @resolution.call source="this.x * by" parameters=() return=int32 kind=builtin builtin=binary.multiply
+        /// @resolution.operator source="this.x * by" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.scale.L0, "exclusive">
         /// @resolution.name source=by target=Point.scale.by
 
@@ -381,6 +388,7 @@ function freeze(point: readonly Point): void {
     point.scale(2);
     /// @resolution.name source=point target=freeze.point
     /// @resolution.member source=point.scale receiver=Readonly<Point> kind=symbol target=Point.scale
+    /// @resolution.call source=point.scale(2) parameters=(int32) arguments=(provided(2) as int32) return=void kind=symbol target=Point.scale receiver=Readonly<Point> adjustments=(borrow)
 
 }
 "#,
@@ -454,6 +462,7 @@ function inspect(counter: ^Counter): int32 {
     return counter.read();
     /// @resolution.name source=counter target=inspect.counter
     /// @resolution.member source=counter.read receiver=Owned<Counter> kind=symbol target=Counter.read
+    /// @resolution.call source=counter.read() parameters=() return=int32 kind=symbol target=Counter.read receiver=Owned<Counter>
 
 }
 "#,

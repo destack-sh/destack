@@ -37,19 +37,23 @@ type Keys = keyof Bag;
 
 declare const key: symbol;
 /// @type.symbol symbol=key source=key type=symbol
+/// @resolution.pattern source=key kind=binding target=key
 
 const ok: Keys = key;
 /// @type.symbol symbol=ok source=ok type=Keys reduced=symbol
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=key target=key
 
 const bad: Keys = "name";
 /// @type.symbol symbol=bad source=bad type=Keys reduced=symbol
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"name\"' is not assignable to type 'Keys'"
 /// @diagnostic.label line=7 column=19 span="\"name\"" line_source="const bad: Keys = \"name\";"
+/// @diagnostic.related line=7 column=12 span="Keys" line_source="const bad: Keys = \"name\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Keys' reduces to 'symbol'"
 "#,
     );
@@ -87,6 +91,7 @@ value satisfies int32;
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+/// @resolution.pattern source=token kind=binding target=token
 
 type TokenBox = { readonly [token]: int32 };
 /// @type.symbol symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" type={ readonly [token]: int32 }
@@ -94,10 +99,12 @@ type TokenBox = { readonly [token]: int32 };
 
 declare const box: TokenBox;
 /// @type.symbol symbol=box source=box type=TokenBox reduced={ readonly [token]: int32 }
+/// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=TokenBox target=TokenBox
 
 const value = box[token];
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=box target=box
 /// @resolution.member source=box[token] receiver={ readonly [token]: int32 } kind=field key=token
 /// @resolution.name source=token target=token
@@ -136,6 +143,7 @@ const ok: Keys = token;
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+/// @resolution.pattern source=token kind=binding target=token
 
 type TokenBox = { readonly [token]: int32 };
 /// @type.symbol symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" type={ readonly [token]: int32 }
@@ -148,6 +156,7 @@ type Keys = keyof TokenBox;
 
 const ok: Keys = token;
 /// @type.symbol symbol=ok source=ok type=Keys reduced=token
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=token target=token
 "#,
@@ -184,9 +193,11 @@ const bad: Keys = other;
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+/// @resolution.pattern source=token kind=binding target=token
 
 declare const other: unique symbol;
 /// @type.symbol symbol=other source=other type=unique symbol
+/// @resolution.pattern source=other kind=binding target=other
 
 type TokenBox = { readonly [token]: int32 };
 /// @type.symbol symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" type={ readonly [token]: int32 }
@@ -199,12 +210,14 @@ type Keys = keyof TokenBox;
 
 const bad: Keys = other;
 /// @type.symbol symbol=bad source=bad type=Keys reduced=token
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=other target=other
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'other' is not assignable to type 'Keys'"
 /// @diagnostic.label line=8 column=19 span="other" line_source="const bad: Keys = other;"
+/// @diagnostic.related line=8 column=12 span="Keys" line_source="const bad: Keys = other;" message="expected due to this annotation"
 /// @diagnostic.note message="'Keys' reduces to 'token'"
 "#,
     );
@@ -242,6 +255,7 @@ type RegistryBox = { readonly [Symbol.for("token")]: string };
 
 const box: RegistryBox = { [Symbol.for("token")]: "ok" };
 /// @type.symbol symbol=box source=box type=RegistryBox reduced={ readonly [Symbol.for("token")]: string }
+/// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=RegistryBox target=RegistryBox
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.for receiver=Symbol kind=symbol target=types.symbol.Symbol.for
@@ -249,6 +263,7 @@ const box: RegistryBox = { [Symbol.for("token")]: "ok" };
 
 const value = box[Symbol.for("token")];
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=box target=box
 /// @resolution.member source="box[Symbol.for(\"token\")]" receiver={ readonly [Symbol.for("token")]: string } kind=field key="Symbol.for(\"token\")"
 /// @resolution.name source=Symbol target=types.symbol.Symbol

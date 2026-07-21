@@ -3,167 +3,149 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, CauseId, CheckState, Constraint, ConstraintId, ConstraintState, Origin, Relation,
-    ValueUse,
+    Answer, CheckState, Constraint, ConstraintId, ConstraintState, Origin, Relation,
+    ValueConstraint, ValueSource,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Record one already accepted value constraint for coercion derivation.
-    pub(in crate::check) fn push_solved_constraint(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        use_: ValueUse,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let value_origin = self.intern_origin(origin);
-        let constraint = Constraint::value(
-            Relation::Assignable,
-            source,
-            target,
-            value_origin,
-            cause,
-            Some(use_),
-        );
-        let id = self.solver.allocate_constraint(constraint);
-        self.solver
-            .set_constraint_state(id, ConstraintState::Holds)?;
-
-        Ok(())
-    }
-
-    /// Return implicit coercions from solved value constraints.
+    /// Return implicit coercions derived from held value constraints.
     pub(in crate::check) fn implicit_coercions(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::Coercion)>> {
         let mut constraints = Vec::new();
         for (id, constraint) in self.solver.constraints.iter() {
-            let state = self.solver.constraints.state(id)?;
-            if state == ConstraintState::Holds
-                && self.solver.cause(constraint.cause()).origin.module() == module
-            {
-                constraints.push(id);
+            if self.solver.constraints.state(id)? != ConstraintState::Holds {
+                continue;
+            }
+            let Constraint::Value(constraint) = constraint else {
+                continue;
+            };
+            if constraint.relation == Relation::Assignable && constraint.use_.is_stored() {
+                constraints.push((id, *constraint));
             }
         }
 
+        // derive at most one exact runtime adjustment path per value node
         let mut coercions = FxIndexMap::default();
-        for constraint in constraints {
-            if let Some(coercion) = self.constraint_coercion(module, constraint)? {
-                self.push_implicit_coercion(&mut coercions, coercion)?;
+        for (id, constraint) in constraints {
+            let Some((node, coercion)) = self.value_constraint_coercion(module, id, constraint)?
+            else {
+                continue;
+            };
+            match coercions.get(&node) {
+                None => {
+                    coercions.insert(node, coercion);
+                }
+                Some(previous) if previous == &coercion => {}
+                Some(previous) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "node {node:?} has conflicting implicit coercions {previous:?} and {coercion:?}"
+                        ),
+                    });
+                }
             }
         }
 
         Ok(coercions.into_iter().collect())
     }
 
-    /// Keep one implicit coercion per value node.
-    fn push_implicit_coercion(
-        &mut self,
-        coercions: &mut FxIndexMap<dir::GlobalNodeIdAny, dir::Coercion>,
-        (node, coercion): (dir::GlobalNodeIdAny, dir::Coercion),
-    ) -> CompilerResult<()> {
-        let Some(previous) = coercions.get(&node).copied() else {
-            coercions.insert(node, coercion);
-
-            return Ok(());
-        };
-
-        if self.coercions_match(self.node_site(node)?.origin(), previous, coercion)? {
-            return Ok(());
-        }
-
-        Err(CompilerError::Internal {
-            message: format!(
-                "node {node:?} received conflicting implicit coercions {previous:?} and {coercion:?}"
-            ),
-        })
-    }
-
-    /// Return whether two coercions perform the same representation change.
-    fn coercions_match(
-        &mut self,
-        origin: Origin,
-        left: dir::Coercion,
-        right: dir::Coercion,
-    ) -> CompilerResult<bool> {
-        if left.origin != right.origin {
-            return Ok(false);
-        }
-        if !self.types_are_equal(origin, left.source, right.source)? {
-            return Ok(false);
-        }
-
-        self.types_are_equal(origin, left.target, right.target)
-    }
-
-    /// Return one implicit coercion from one solved value constraint.
-    fn constraint_coercion(
+    /// Return the runtime coercion derived from one held value constraint.
+    fn value_constraint_coercion(
         &mut self,
         module: ModuleId,
-        constraint: ConstraintId,
+        id: ConstraintId,
+        constraint: ValueConstraint,
     ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::Coercion)>> {
-        let (relation, use_, left, right, origin) = {
-            let constraint = self.solver.constraints.get(constraint)?;
+        let (node, origin, source) = match constraint.source {
+            ValueSource::Node(node) if node.module_id == module => {
+                let site = self.node_site(node)?;
+                let declared = self.require_node_type(node)?;
+                let source = match self.flow_type_at(site, declared)? {
+                    Answer::Ready(source) => source,
+                    Answer::Pending(blockers) => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "implicit coercion source for {node:?} is pending: {blockers:?}"
+                            ),
+                        });
+                    }
+                };
 
-            let Constraint::Value(constraint) = constraint else {
-                return Ok(None);
-            };
+                (node, site.origin(), source)
+            }
+            ValueSource::Node(_) => return Ok(None),
+            ValueSource::Type(source) => {
+                let origin = self.cause_origin(constraint.cause);
+                let Some(node) = origin.expression() else {
+                    return Ok(None);
+                };
+                if node.module_id != module {
+                    return Ok(None);
+                }
 
-            (
-                constraint.relation,
-                constraint.use_,
-                constraint.source,
-                constraint.target,
-                constraint.value_origin,
-            )
+                (node.into_any(), origin, source)
+            }
         };
 
-        let origin = self.solver.origin(origin);
-        let Some(node) = origin.expression() else {
-            return Ok(None);
+        let Some(value_target) = self.solver.constraints.value_target(id)? else {
+            return Err(CompilerError::Internal {
+                message: format!("held value constraint {id:?} has no checked target"),
+            });
         };
-        if node.module_id != module {
-            return Ok(None);
-        }
-        if relation != Relation::Assignable {
-            return Ok(None);
-        }
-        if !matches!(
-            use_,
-            Some(ValueUse::Store | ValueUse::Argument | ValueUse::Output)
-        ) {
-            return Ok(None);
-        }
 
-        let source = self.settled_root(left)?;
+        // settle every judged type before choosing its representation path
+        let source = self.settled_root(source)?;
         let source = self.settled_union_root(source)?;
-        let target = self.settled_root(right)?;
+        let value_target = self.settled_root(value_target)?;
+        let value_target = self.settled_union_root(value_target)?;
+        let target = self.settled_root(constraint.target)?;
         let target = self.settled_union_root(target)?;
-
-        // guard open leaves on reduced heads, keeping written types for display
-        let origin = self.node_site(node.into_any())?.origin();
-        let Answer::Ready(reduced_source) = self.reduce_type_head(origin, source)? else {
-            return Ok(None);
-        };
-        let Answer::Ready(reduced_target) = self.reduce_type_head(origin, target)? else {
-            return Ok(None);
-        };
-        if !self.type_variables(reduced_source)?.is_empty()
-            || !self.type_variables(reduced_target)?.is_empty()
-        {
-            return Ok(None);
+        let reduced_source = self.reduce_type_ready(origin, source, "implicit coercion source")?;
+        let reduced_value_target =
+            self.reduce_type_ready(origin, value_target, "checked value target")?;
+        let reduced_target = self.reduce_type_ready(origin, target, "implicit coercion target")?;
+        let mut variables = self.type_variables(reduced_source)?;
+        variables.extend(self.type_variables(reduced_value_target)?);
+        variables.extend(self.type_variables(reduced_target)?);
+        if !variables.is_empty() {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "implicit coercion from '{}' to '{}' retained open variables {variables:?}",
+                    self.format_type(source),
+                    self.format_type(target),
+                ),
+            });
         }
 
         // coercions never create ownership: value forms that reduce away drop
+        let value_target = self.coercion_target(value_target, reduced_value_target)?;
         let target = self.coercion_target(target, reduced_target)?;
-        let Some(coercion) = self.implicit_coercion(origin, source, target)? else {
-            return Ok(None);
-        };
+        let mut adjustments = self
+            .implicit_coercion(origin, source, value_target)?
+            .map_or_else(Vec::new, |coercion| coercion.adjustments);
 
-        Ok(Some((node.into_any(), coercion)))
+        // connect the checked member to its storage carrier
+        if let Some(coercion) = self.implicit_coercion(origin, value_target, target)? {
+            let current = adjustments
+                .last()
+                .map_or(source, |adjustment| adjustment.target);
+            if current != value_target {
+                adjustments.push(dir::CoercionAdjustment {
+                    kind: dir::CoercionKind::Direct,
+                    target: value_target,
+                });
+            }
+            adjustments.extend(coercion.adjustments);
+        }
+        if adjustments.is_empty() {
+            return Ok(None);
+        }
+        let coercion = dir::Coercion::new(source, adjustments, dir::CastOrigin::Implicit);
+
+        Ok(Some((node, coercion)))
     }
 
     /// Return the coercion target, dropping one value form head that reduces away.
@@ -222,8 +204,10 @@ impl CheckState<'_> {
         if self.borrow_conversion(origin, source, target)?.is_some() {
             return Ok(Some(dir::Coercion::new(
                 source,
-                target,
-                dir::CoercionKind::Borrow,
+                vec![dir::CoercionAdjustment {
+                    kind: dir::CoercionKind::Borrow,
+                    target,
+                }],
                 dir::CastOrigin::Implicit,
             )));
         }
@@ -246,49 +230,25 @@ impl CheckState<'_> {
             return Ok(reshapes.then(|| {
                 dir::Coercion::new(
                     source,
-                    target,
-                    dir::CoercionKind::Carrier,
+                    vec![dir::CoercionAdjustment {
+                        kind: dir::CoercionKind::Carrier,
+                        target,
+                    }],
                     dir::CastOrigin::Implicit,
                 )
             }));
         }
 
-        let Some(kind) = dir::Coercion::classify(&source_head, &target_head) else {
+        let Some(kind) = dir::CoercionKind::classify(&source_head, &target_head) else {
             return Ok(None);
         };
-        let mut coercion = dir::Coercion::new(source, target, kind, dir::CastOrigin::Implicit);
+        let adjustment = dir::CoercionAdjustment { kind, target };
 
-        // union entries record the member storing the value when it settles
-        if kind == dir::CoercionKind::Union
-            && let dir::Type::Union(union) = target_head
-            && !matches!(source_head, dir::Type::Union(_))
-        {
-            coercion.member =
-                self.union_member_storing(origin, judged_source, judged_target, &union)?;
-        }
-
-        Ok(Some(coercion))
-    }
-
-    /// Return the union member the source value stores as on entry, when decidable.
-    fn union_member_storing(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        union: &dir::UnionType,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // the first admitting member wins in declaration order
-        let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
-        for element in elements {
-            let element = self.reduce_type_ready(origin, element, "union member")?;
-            let decision = self.decide_relation(origin, Relation::Assignable, source, element)?;
-            if decision.is_ready_true() {
-                return Ok(Some(element));
-            }
-        }
-
-        Ok(None)
+        Ok(Some(dir::Coercion::new(
+            source,
+            vec![adjustment],
+            dir::CastOrigin::Implicit,
+        )))
     }
 
     /// Return whether two tuple types store their elements differently.

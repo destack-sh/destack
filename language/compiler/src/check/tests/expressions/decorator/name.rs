@@ -21,6 +21,7 @@ const value: 1 = 1;
 @missing
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -65,6 +66,7 @@ import { mark } from "./second.ds";
 @mark
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -98,6 +100,7 @@ const value: 1 = 1;
 === checked ===
 const mark = 1;
 /// @type.symbol symbol=mark source=mark type=1
+/// @resolution.pattern source=mark kind=binding target=mark
 /// @type.node source=1 type=1
 
 @mark
@@ -105,6 +108,7 @@ const mark = 1;
 
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -151,6 +155,7 @@ import * as marks from "./marks.ds";
 
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
     );

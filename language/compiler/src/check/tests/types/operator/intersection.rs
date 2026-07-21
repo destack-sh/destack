@@ -44,15 +44,18 @@ type Person = Named & Aged;
 
 declare const person: Person;
 /// @type.symbol symbol=person source=person type=Person reduced={ name: string; age: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 
 const name = person.name;
 /// @type.symbol symbol=name source=name type=string
+/// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=field key=name
 
 const age = person.age;
 /// @type.symbol symbol=age source=age type=int32
+/// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.age receiver={ name: string; age: int32 } kind=field key=age
 "#,
@@ -99,11 +102,13 @@ type Person = Named & Aged;
 
 const person: Person = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=Person reduced={ name: string; age: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 "#,
         r#"
 /// @diagnostic.error id=missing-required-property message="missing required property 'age' for type 'Person'"
 /// @diagnostic.label line=6 column=24 span="{ name: \"Ada\" }" line_source="const person: Person = { name: \"Ada\" };"
+/// @diagnostic.related line=6 column=15 span="Person" line_source="const person: Person = { name: \"Ada\" };" message="expected due to this annotation"
 "#,
     );
 }
@@ -148,11 +153,13 @@ type Value = NumberValue & TextValue;
 
 const value: Value = { value: "ok" };
 /// @type.symbol symbol=value source=value type=Value reduced={ value: int32 & string }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'int32 & string'"
 /// @diagnostic.label line=6 column=31 span="\"ok\"" line_source="const value: Value = { value: \"ok\" };"
+/// @diagnostic.related line=6 column=14 span="Value" line_source="const value: Value = { value: \"ok\" };" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in field 'value'"
 "#,
     );
@@ -202,6 +209,7 @@ type Value = Wide & Narrow;
 
 const value: Value = { value: "ok", extra: "yes" };
 /// @type.symbol symbol=value source=value type=Value reduced={ value: string | int32 & string; extra: string }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 value.value satisfies string;
@@ -241,11 +249,13 @@ type Both = string & int32;
 
 let value: Both = "ok";
 /// @type.symbol symbol=value source=value type=Both reduced=string & int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Both target=Both
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"ok\"' is not assignable to type 'Both'"
 /// @diagnostic.label line=4 column=19 span="\"ok\"" line_source="let value: Both = \"ok\";"
+/// @diagnostic.related line=4 column=12 span="Both" line_source="let value: Both = \"ok\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Both' reduces to 'string & int32'"
 "#,
     );
@@ -277,11 +287,13 @@ type Value = void & never;
 
 let value: Value = ();
 /// @type.symbol symbol=value source=value type=Value reduced=void & never
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '()' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="()" line_source="let value: Value = ();"
+/// @diagnostic.related line=4 column=12 span="Value" line_source="let value: Value = ();" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to 'void & never'"
 "#,
     );

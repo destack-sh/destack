@@ -97,7 +97,7 @@ function read(state: State): int32 {
     /// @type.node source=state.kind type="pending" | "fulfilled"
     /// @resolution.name source=state target=read.state
     /// @resolution.member source=state.kind receiver=Pending | Fulfilled kind=universal targets=[Pending.kind, Fulfilled.kind]
-    /// @resolution.call source="state.kind == \"pending\"" parameters=() return=boolean kind=builtin builtin=binary.equal
+    /// @resolution.operator source="state.kind == \"pending\"" kind=builtin
     /// @type.node source="\"pending\"" type="pending"
 
         return state.reactions;
@@ -216,7 +216,7 @@ function read(state: State): int32 {
     /// @type.node source=state type=State reduced=Pending | Fulfilled
     /// @resolution.name source=state target=read.state
     /// @resolution.member source="state[\"kind\"]" receiver=Pending | Fulfilled kind=universal targets=[Pending.kind, Fulfilled.kind]
-    /// @resolution.call source="state[\"kind\"] == \"pending\"" parameters=() return=boolean kind=builtin builtin=binary.equal
+    /// @resolution.operator source="state[\"kind\"] == \"pending\"" kind=builtin
     /// @type.node source="\"kind\"" type="kind"
     /// @type.node source="\"pending\"" type="pending"
 
@@ -340,6 +340,7 @@ function read(initial: State, next: State): int32 {
 
     let state = initial;
     /// @type.symbol symbol=read.state source=state type=State reduced=Pending | Fulfilled
+    /// @resolution.pattern source=state kind=binding target=read.state
     /// @type.node source=initial type=State reduced=Pending | Fulfilled
     /// @resolution.name source=initial target=read.initial
 
@@ -349,7 +350,7 @@ function read(initial: State, next: State): int32 {
     /// @type.node source=state.kind type="pending" | "fulfilled"
     /// @resolution.name source=state target=read.state
     /// @resolution.member source=state.kind receiver=Pending | Fulfilled kind=universal targets=[Pending.kind, Fulfilled.kind]
-    /// @resolution.call source="state.kind == \"pending\"" parameters=() return=boolean kind=builtin builtin=binary.equal
+    /// @resolution.operator source="state.kind == \"pending\"" kind=builtin
     /// @type.node source="\"pending\"" type="pending"
 
         state = next;
@@ -600,7 +601,7 @@ class Cell<T> {
         if (this.state.kind == "fulfilled") {
         /// @resolution.member source=this.state receiver=Cell<T#5> kind=symbol target=Cell.state
         /// @resolution.member source=this.state.kind receiver=Pending<T#5> | Fulfilled<T#5> kind=universal targets=[Pending.kind, Fulfilled.kind]
-        /// @resolution.call source="this.state.kind == \"fulfilled\"" parameters=() return=boolean kind=builtin builtin=binary.equal
+        /// @resolution.operator source="this.state.kind == \"fulfilled\"" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
 
             this.consume(this.state.value);
@@ -618,7 +619,7 @@ class Cell<T> {
         if (this.state.tail == undefined) {
         /// @resolution.member source=this.state receiver=Cell<T#5> kind=symbol target=Cell.state
         /// @resolution.member source=this.state.tail receiver=Pending<T#5> kind=symbol target=Pending.tail
-        /// @resolution.call source="this.state.tail == undefined" parameters=() return=boolean kind=builtin builtin=binary.equal
+        /// @resolution.operator source="this.state.tail == undefined" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
 
             this.state.head = waiter;

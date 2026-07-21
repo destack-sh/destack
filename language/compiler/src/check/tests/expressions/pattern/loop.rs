@@ -28,6 +28,7 @@ for (const { name, value } of items) {
 === checked ===
 declare const items: { name: string; value: int32 }[];
 /// @type.symbol symbol=items source=items type=Array<{ name: string; value: int32 }>
+/// @resolution.pattern source=items kind=binding target=items
 
 for (const { name, value } of items) {
 /// @resolution.pattern source={ name, value } kind=object fields={ name, value }
@@ -77,6 +78,7 @@ for (const { name } in item) {
 === checked ===
 declare const item: { name: string };
 /// @type.symbol symbol=item source=item type={ name: string }
+/// @resolution.pattern source=item kind=binding target=item
 
 for (const { name } in item) {
 /// @type.symbol symbol=name#2 source=name type=<error>

@@ -358,6 +358,7 @@ declare class Person {
 
 declare const person: readonly Person;
 /// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 
 person.profile.count = 5;

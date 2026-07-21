@@ -28,6 +28,7 @@ second satisfies int32;
 === checked ===
 declare const values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
+/// @resolution.pattern source=values kind=binding target=values
 
 let [first, second] = values;
 /// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
@@ -73,6 +74,7 @@ let [x, y] = point;
 === checked ===
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 let [x, y] = point;
 /// @type.symbol symbol=x#2 source=x type=<error>

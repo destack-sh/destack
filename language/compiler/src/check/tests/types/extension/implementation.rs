@@ -364,6 +364,7 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
 
 const ok = compare(Badge {}, Badge {});
 /// @type.symbol symbol=ok source=ok type=boolean
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=compare target=compare
 /// @resolution.call source="compare(Badge {}, Badge {})" parameters=(Badge, Badge) arguments=(provided(Badge {}) as Badge, provided(Badge {}) as Badge) return=boolean kind=symbol target=compare instance=compare<Badge>
 /// @generic.instance source="compare(Badge {}, Badge {})" id=compare<Badge>

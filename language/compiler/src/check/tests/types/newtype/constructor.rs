@@ -26,6 +26,7 @@ newtype UserId = int64;
 
 const id = UserId(42);
 /// @type.symbol symbol=id source=id type=UserId
+/// @resolution.pattern source=id kind=binding target=id
 /// @type.node source=UserId type=UserId
 /// @type.node source=UserId(42) type=UserId
 /// @resolution.name source=UserId target=UserId
@@ -61,6 +62,7 @@ newtype Pair = (int32, string);
 
 const pair = Pair(1, "x");
 /// @type.symbol symbol=pair source=pair type=Pair
+/// @resolution.pattern source=pair kind=binding target=pair
 /// @type.node source="Pair(1, \"x\")" type=Pair
 /// @type.node source=Pair type=Pair
 /// @resolution.name source=Pair target=Pair
@@ -97,6 +99,7 @@ newtype Config = { debug: boolean };
 
 const config = Config({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
+/// @resolution.pattern source=config kind=binding target=config
 /// @type.node source="Config({ debug: true })" type=Config
 /// @type.node source=Config type=Config
 /// @resolution.name source=Config target=Config
@@ -133,6 +136,7 @@ newtype Annotation = () | (string, { reason?: string });
 
 const annotation = Annotation("lint", { reason: "intentional" });
 /// @type.symbol symbol=annotation source=annotation type=Annotation
+/// @resolution.pattern source=annotation kind=binding target=annotation
 /// @type.node source="Annotation(\"lint\", { reason: \"intentional\" })" type=Annotation
 /// @type.node source=Annotation type=Annotation
 /// @resolution.name source=Annotation target=Annotation
@@ -170,6 +174,7 @@ newtype UserId = int64;
 
 const id: UserId = _(42);
 /// @type.symbol symbol=id source=id type=UserId
+/// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=UserId target=UserId
 /// @type.node source=_(42) type=UserId
 /// @resolution.construct source=_(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
@@ -204,6 +209,7 @@ newtype Point = (int32, int32);
 
 const point: Point = _(1, 2);
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 /// @type.node source="_(1, 2)" type=Point
 /// @resolution.construct source="_(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=Point kind=newtype target=Point backing=(int32, int32)
@@ -239,6 +245,7 @@ newtype Config = { debug: boolean };
 
 const config: Config = _({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
+/// @resolution.pattern source=config kind=binding target=config
 /// @resolution.name source=Config target=Config
 /// @type.node source="_({ debug: true })" type=Config
 /// @resolution.construct source="_({ debug: true })" parameters=({ debug: boolean }) arguments=(provided({ debug: true }) as { debug: boolean }) return=Config kind=newtype target=Config backing={ debug: boolean }
@@ -277,6 +284,7 @@ newtype Box<T> = T;
 
 const value: Box<int32> = _(1);
 /// @type.symbol symbol=value source=value type=Box<int32>
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Box target=Box
 /// @type.node source=_(1) type=Box<int32>
 /// @resolution.construct source=_(1) parameters=(int32) arguments=(provided(1) as int32) return=Box<int32> kind=newtype target=Box backing=int32 instance=Box<int32>
@@ -366,6 +374,7 @@ const value = _(1);
 === checked ===
 const value = _(1);
 /// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
@@ -393,6 +402,7 @@ const value: string = _(1);
 === checked ===
 const value: string = _(1);
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 "#,
         r#"
 /// @diagnostic.error id=invalid-inferred-construct-target message="type 'string' cannot be constructed with '_(...)'"

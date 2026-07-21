@@ -18,9 +18,10 @@ const value: 42 = 42;
 === checked ===
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -43,9 +44,10 @@ let value: float64 = 42;
 === checked ===
 let value = 42;
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -68,9 +70,10 @@ const value: int32 = 42;
 === checked ===
 const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -93,9 +96,10 @@ const value: "ready" = "ready";
 === checked ===
 const value: "ready" = "ready";
 /// @type.symbol symbol=value source=value type="ready"
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"ready\"" type="ready"
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -118,9 +122,10 @@ const value: true = true;
 === checked ===
 const value: true = true;
 /// @type.symbol symbol=value source=value type=true
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -143,9 +148,10 @@ const value: null = null;
 === checked ===
 const value = null;
 /// @type.symbol symbol=value source=value type=null
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=null type=null
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -168,9 +174,10 @@ const value: undefined = undefined;
 === checked ===
 const value = undefined;
 /// @type.symbol symbol=value source=value type=undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=undefined type=undefined
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -193,10 +200,11 @@ const value: 42 = 42 satisfies int32;
 === checked ===
 const value = 42 satisfies int32;
 /// @type.symbol symbol=value source=value type=42
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="42 satisfies int32" type=42
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -221,17 +229,19 @@ const version: float64 = config.version;
 === checked ===
 const config = { version: 1 };
 /// @type.symbol symbol=config source=config type={ version: float64 }
+/// @resolution.pattern source=config kind=binding target=config
 /// @type.node source={ version: 1 } type={ version: 1 }
 /// @type.node source=1 type=1
 
 const version = config.version;
 /// @type.symbol symbol=version source=version type=float64
+/// @resolution.pattern source=version kind=binding target=version
 /// @type.node source=config type={ version: float64 }
 /// @type.node source=config.version type=float64
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.version receiver={ version: float64 } kind=field key=version
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=2 types=7 constraints=0 obligations=2 solutions=2 bounds=1 decisions=4
 "#,
     );
 }
@@ -256,6 +266,7 @@ const mode: "dev" = config.nested.mode;
 === checked ===
 const config = { nested: { mode: "dev" } } as const;
 /// @type.symbol symbol=config source=config type={ readonly nested: { readonly mode: "dev" } }
+/// @resolution.pattern source=config kind=binding target=config
 /// @type.node source="{ nested: { mode: \"dev\" } } as const" type={ readonly nested: { readonly mode: "dev" } }
 /// @type.node source={ nested: { mode: "dev" } } type={ readonly nested: { readonly mode: "dev" } }
 /// @type.node source={ mode: "dev" } type={ readonly mode: "dev" }
@@ -263,6 +274,7 @@ const config = { nested: { mode: "dev" } } as const;
 
 const mode = config.nested.mode;
 /// @type.symbol symbol=mode source=mode type="dev"
+/// @resolution.pattern source=mode kind=binding target=mode
 /// @type.node source=config type={ readonly nested: { readonly mode: "dev" } }
 /// @type.node source=config.nested type={ readonly mode: "dev" }
 /// @type.node source=config.nested.mode type="dev"
@@ -270,7 +282,7 @@ const mode = config.nested.mode;
 /// @resolution.member source=config.nested receiver={ readonly nested: { readonly mode: "dev" } } kind=field key=nested
 /// @resolution.member source=config.nested.mode receiver={ readonly mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=2 types=6 constraints=0 obligations=2 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -297,6 +309,7 @@ const mode: "dev" = value.env.mode;
 === checked ===
 const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string } };
 /// @type.symbol symbol=value source=value type={ readonly env: { readonly mode: "dev" } }
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="{ env: { mode: \"dev\" } } as const" type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source={ env: { mode: "dev" } } as const satisfies { env: { mode: string } } type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source={ env: { mode: "dev" } } type={ readonly env: { readonly mode: "dev" } }
@@ -305,6 +318,7 @@ const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string 
 
 const mode = value.env.mode;
 /// @type.symbol symbol=mode#2 source=mode type="dev"
+/// @resolution.pattern source=mode kind=binding target=mode#2
 /// @type.node source=value type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source=value.env type={ readonly mode: "dev" }
 /// @type.node source=value.env.mode type="dev"
@@ -312,7 +326,7 @@ const mode = value.env.mode;
 /// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } kind=field key=env
 /// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=2 types=9 constraints=1 obligations=2 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -348,9 +362,10 @@ export const version: 1 = 1;
 === checked ===
 export const version = 1;
 /// @type.symbol symbol=version source=version type=1
+/// @resolution.pattern source=version kind=binding target=version
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 
 === main.ds ===
 
@@ -364,10 +379,11 @@ import { version } from "./values.ds";
 
 const copy = version;
 /// @type.symbol symbol=copy source=copy type=1
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=version type=1
 /// @resolution.name source=version target=values.version
 
-/// @check.stats.solve variables=0 types=1 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -403,9 +419,10 @@ export let counter: float64 = 1;
 === checked ===
 export let counter = 1;
 /// @type.symbol symbol=counter source=counter type=float64
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 
 === main.ds ===
 
@@ -419,10 +436,11 @@ import { counter } from "./values.ds";
 
 const copy = counter;
 /// @type.symbol symbol=copy source=copy type=float64
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=counter type=float64
 /// @resolution.name source=counter target=values.counter
 
-/// @check.stats.solve variables=0 types=1 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=2 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }

@@ -33,6 +33,7 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 
 const segment = parse("row-row");
 /// @type.symbol symbol=segment source=segment type="row"
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"row-row\")" parameters=(`${"row"}-${"row"}`) arguments=(provided("row-row") as `${"row"}-${"row"}`) return="row" kind=symbol target=parse instance="parse<\"row\">"
 /// @generic.instance source="parse(\"row-row\")" id="parse<\"row\">"
@@ -128,6 +129,7 @@ declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: 
 
 const segment = withParsed("id:users", (segment) => segment);
 /// @type.symbol symbol=segment source=segment type="users"
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=withParsed target=withParsed
 /// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, Function<("users",), "users">) arguments=(provided("id:users") as `id:${"users"}`, provided((segment) => segment) as Function<("users",), "users">) return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
 /// @generic.instance source="withParsed(\"id:users\", (segment) => segment)" id="withParsed<\"users\", \"users\">"
@@ -179,9 +181,11 @@ declare function parse<T: string>(value: `id:${T}`): T;
 
 const input = true ? "id:users" : "id:posts";
 /// @type.symbol symbol=input source=input type="id:users" | "id:posts"
+/// @resolution.pattern source=input kind=binding target=input
 
 const segment = parse(input);
 /// @type.symbol symbol=segment source=segment type="users" | "posts"
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source=parse(input) parameters=(`id:${"users" | "posts"}`) arguments=(provided(input) as `id:${"users" | "posts"}`) return="users" | "posts" kind=symbol target=parse instance="parse<\"users\" | \"posts\">"
 /// @generic.instance source=parse(input) id="parse<\"users\" | \"posts\">"

@@ -20,9 +20,11 @@ const slice: WithAccess<Borrowed<[uint8], "static", "mutable">, "readonly"> = by
 === checked ===
 declare const bytes: [uint8; 4];
 /// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
+/// @resolution.pattern source=bytes kind=binding target=bytes
 
 const slice = bytes[1..3];
 /// @type.symbol symbol=slice source=slice type=memory.type.WithAccess<Borrowed<Slice<uint8>, "static", "mutable">, "readonly"> reduced=Borrowed<Slice<uint8>, "static", "readonly">
+/// @resolution.pattern source=slice kind=binding target=slice
 /// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes[1..3] type=memory.type.WithAccess<Borrowed<Slice<uint8>, "static", "mutable">, "readonly"> reduced=Borrowed<Slice<uint8>, "static", "readonly">
 /// @resolution.name source=bytes target=bytes

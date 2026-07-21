@@ -26,6 +26,7 @@ for (const value of values) {
 === checked ===
 const values: int32[] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=Array<int32>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] type=Array<int32>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -112,6 +113,7 @@ for (const key in target) {
 === checked ===
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @resolution.pattern source=target kind=binding target=target
 /// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -158,6 +160,7 @@ for (const key in target) {
 === checked ===
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @resolution.pattern source=target kind=binding target=target
 /// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -208,6 +211,7 @@ for (const key in target) {
 === checked ===
 declare const target: { a: int32 } | { b: int32 };
 /// @type.symbol symbol=target source=target type={ a: int32 } | { b: int32 }
+/// @resolution.pattern source=target kind=binding target=target
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
@@ -221,7 +225,6 @@ for (const key in target) {
     /// @resolution.name source=key target=key
 
 }
-
 "#,
     );
 }
@@ -252,6 +255,7 @@ for (const key in &readonly target) {
 === checked ===
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @resolution.pattern source=target kind=binding target=target
 /// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -338,6 +342,7 @@ for (const key in target) {
 === checked ===
 declare const target: unknown;
 /// @type.symbol symbol=target source=target type=unknown
+/// @resolution.pattern source=target kind=binding target=target
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
@@ -350,7 +355,6 @@ for (const key in target) {
     /// @resolution.name source=key target=key
 
 }
-
 "#,
         r#"
 /// @diagnostic.error id=for-in-source-not-object-shaped message="for-in source must be object-shaped"
@@ -450,6 +454,7 @@ struct Point {
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 for (const key in point) {
@@ -513,6 +518,7 @@ class User {
 
 declare const user: User;
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 for (const key in user) {
@@ -559,9 +565,11 @@ for (const key in target) {
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+/// @resolution.pattern source=token kind=binding target=token
 
 declare const target: { name: string; readonly [token]: int32 };
 /// @type.symbol symbol=target source=target type={ name: string; readonly [token]: int32 }
+/// @resolution.pattern source=target kind=binding target=target
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
@@ -605,6 +613,7 @@ for (const key in target) {
 === checked ===
 declare const target: { name?: string; active: boolean };
 /// @type.symbol symbol=target source=target type={ name?: string; active: boolean }
+/// @resolution.pattern source=target kind=binding target=target
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string

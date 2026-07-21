@@ -31,6 +31,7 @@ type Match = Extract<"a" | "b" | "c", "a" | "c">;
 
 declare const matched: Match;
 /// @type.symbol symbol=matched source=matched type=Match reduced="a" | "c"
+/// @resolution.pattern source=matched kind=binding target=matched
 /// @resolution.name source=Match target=Match
 
 matched satisfies "a" | "c";
@@ -68,6 +69,7 @@ type Match = Extract<"a" | "b" | "c", "a" | "c">;
 
 const bad: Match = "b";
 /// @type.symbol symbol=bad source=bad type=Match reduced="a" | "c"
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Match target=Match
 
 /// @generic.instance id="Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" template=types.object.Extract arguments=("a" | "b" | "c", "a" | "c")
@@ -75,6 +77,7 @@ const bad: Match = "b";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"b\"' is not assignable to type 'Match'"
 /// @diagnostic.label line=4 column=20 span="\"b\"" line_source="const bad: Match = \"b\";"
+/// @diagnostic.related line=4 column=12 span="Match" line_source="const bad: Match = \"b\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Match' reduces to '\"a\" | \"c\"'"
 "#,
     );
@@ -107,6 +110,7 @@ type Match = Extract<never, "a">;
 
 let bad: Match = "a";
 /// @type.symbol symbol=bad source=bad type=Match reduced=never
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Match target=Match
 
 /// @generic.instance id="Extract<never, \"a\">" template=types.object.Extract arguments=(never, "a")
@@ -114,6 +118,7 @@ let bad: Match = "a";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"a\"' is not assignable to type 'Match'"
 /// @diagnostic.label line=4 column=18 span="\"a\"" line_source="let bad: Match = \"a\";"
+/// @diagnostic.related line=4 column=10 span="Match" line_source="let bad: Match = \"a\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Match' reduces to 'never'"
 "#,
     );

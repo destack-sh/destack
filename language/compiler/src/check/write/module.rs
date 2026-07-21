@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckError, CheckState, FlowSite, Origin, VarianceState};
+use crate::check::{Answer, CheckError, CheckState, Origin, VarianceState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -35,13 +35,9 @@ impl CheckState<'_> {
 
         // record implicit representation changes beside their value nodes
         for (node, coercion) in coercions {
-            if let Some(previous) = state.coercions.bind_coercion(node, coercion)
-                && previous != coercion
-            {
+            if let Some(previous) = state.coercions.bind_coercion(node, coercion) {
                 return Err(CompilerError::Internal {
-                    message: format!(
-                        "node {node:?} received conflicting coercions {previous:?} and {coercion:?}"
-                    ),
+                    message: format!("node {node:?} already has an implicit coercion {previous:?}"),
                 });
             }
         }
@@ -341,14 +337,9 @@ impl CheckState<'_> {
         symbol_types: &[(dir::GlobalSymbolId, dir::GlobalTypeId)],
     ) -> CompilerResult<Vec<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         let mut sources = Vec::new();
-        sources.extend(node_types.iter().map(|(node, ty)| {
-            let origin = self
-                .node_site(*node)
-                .map(FlowSite::origin)
-                .unwrap_or(Origin::Node(*node, None));
-
-            (origin, *ty)
-        }));
+        for (node, ty) in node_types {
+            sources.push((self.node_origin(*node)?, *ty));
+        }
         sources.extend(
             symbol_types
                 .iter()

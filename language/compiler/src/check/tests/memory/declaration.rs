@@ -40,10 +40,12 @@ shared newtype SharedCount = int32;
 
 declare const localCount: LocalCount;
 /// @type.symbol symbol=localCount source=localCount type=LocalCount
+/// @resolution.pattern source=localCount kind=binding target=localCount
 /// @resolution.name source=LocalCount target=LocalCount
 
 declare const sharedCount: SharedCount;
 /// @type.symbol symbol=sharedCount source=sharedCount type=SharedCount
+/// @resolution.pattern source=sharedCount kind=binding target=sharedCount
 /// @resolution.name source=SharedCount target=SharedCount
 
 localCount satisfies local LocalCount;
@@ -106,10 +108,12 @@ shared newtype SharedBox<T> = { value: T };
 
 declare const localBox: LocalBox<int32>;
 /// @type.symbol symbol=localBox source=localBox type=LocalBox<int32>
+/// @resolution.pattern source=localBox kind=binding target=localBox
 /// @resolution.name source=LocalBox target=LocalBox
 
 declare const sharedBox: SharedBox<int32>;
 /// @type.symbol symbol=sharedBox source=sharedBox type=SharedBox<int32>
+/// @resolution.pattern source=sharedBox kind=binding target=sharedBox
 /// @resolution.name source=SharedBox target=SharedBox
 
 localBox satisfies local LocalBox<int32>;
@@ -253,34 +257,42 @@ shared newtype interface SharedReadable { read(): int32; }
 
 declare const localUser: LocalUser;
 /// @type.symbol symbol=localUser source=localUser type=LocalUser
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=LocalUser target=LocalUser
 
 declare const sharedUser: SharedUser;
 /// @type.symbol symbol=sharedUser source=sharedUser type=SharedUser
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=SharedUser target=SharedUser
 
 declare const localPoint: LocalPoint;
 /// @type.symbol symbol=localPoint source=localPoint type=LocalPoint
+/// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=LocalPoint target=LocalPoint
 
 declare const sharedPoint: SharedPoint;
 /// @type.symbol symbol=sharedPoint source=sharedPoint type=SharedPoint
+/// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=SharedPoint target=SharedPoint
 
 declare const localStatus: LocalStatus;
 /// @type.symbol symbol=localStatus source=localStatus type=LocalStatus
+/// @resolution.pattern source=localStatus kind=binding target=localStatus
 /// @resolution.name source=LocalStatus target=LocalStatus
 
 declare const sharedStatus: SharedStatus;
 /// @type.symbol symbol=sharedStatus source=sharedStatus type=SharedStatus
+/// @resolution.pattern source=sharedStatus kind=binding target=sharedStatus
 /// @resolution.name source=SharedStatus target=SharedStatus
 
 declare const localReadable: LocalReadable;
 /// @type.symbol symbol=localReadable source=localReadable type=LocalReadable
+/// @resolution.pattern source=localReadable kind=binding target=localReadable
 /// @resolution.name source=LocalReadable target=LocalReadable
 
 declare const sharedReadable: SharedReadable;
 /// @type.symbol symbol=sharedReadable source=sharedReadable type=SharedReadable
+/// @resolution.pattern source=sharedReadable kind=binding target=sharedReadable
 /// @resolution.name source=SharedReadable target=SharedReadable
 
 localUser satisfies local LocalUser;
@@ -354,10 +366,12 @@ shared class SharedUser {}
 
 declare const localUser: local LocalUser;
 /// @type.symbol symbol=localUser source=localUser type=Placed<LocalUser, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=LocalUser target=LocalUser
 
 declare const sharedUser: shared SharedUser;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<SharedUser, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=SharedUser target=SharedUser
 "#,
         r#"
@@ -400,10 +414,12 @@ shared class SharedUser {}
 
 declare const wrongLocal: shared LocalUser;
 /// @type.symbol symbol=wrongLocal source=wrongLocal type=Placed<LocalUser, "shared">
+/// @resolution.pattern source=wrongLocal kind=binding target=wrongLocal
 /// @resolution.name source=LocalUser target=LocalUser
 
 declare const wrongShared: local SharedUser;
 /// @type.symbol symbol=wrongShared source=wrongShared type=Placed<SharedUser, "local">
+/// @resolution.pattern source=wrongShared kind=binding target=wrongShared
 /// @resolution.name source=SharedUser target=SharedUser
 "#,
         r#"
@@ -461,18 +477,22 @@ struct Point { x: int32; }
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 declare const localPoint: local Point;
 /// @type.symbol symbol=localPoint source=localPoint type=Placed<Point, "local">
+/// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 
 declare const sharedPoint: shared Point;
 /// @type.symbol symbol=sharedPoint source=sharedPoint type=Placed<Point, "shared">
+/// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
 "#,
         r#"
@@ -538,10 +558,12 @@ class SharedDerived extends SharedBase {}
 
 declare const localDerived: LocalDerived;
 /// @type.symbol symbol=localDerived source=localDerived type=LocalDerived
+/// @resolution.pattern source=localDerived kind=binding target=localDerived
 /// @resolution.name source=LocalDerived target=LocalDerived
 
 declare const sharedDerived: SharedDerived;
 /// @type.symbol symbol=sharedDerived source=sharedDerived type=SharedDerived
+/// @resolution.pattern source=sharedDerived kind=binding target=sharedDerived
 /// @resolution.name source=SharedDerived target=SharedDerived
 
 localDerived satisfies local LocalDerived;
@@ -618,10 +640,12 @@ class SharedServiceImpl implements SharedService {}
 
 declare const localService: LocalServiceImpl;
 /// @type.symbol symbol=localService source=localService type=LocalServiceImpl
+/// @resolution.pattern source=localService kind=binding target=localService
 /// @resolution.name source=LocalServiceImpl target=LocalServiceImpl
 
 declare const sharedService: SharedServiceImpl;
 /// @type.symbol symbol=sharedService source=sharedService type=SharedServiceImpl
+/// @resolution.pattern source=sharedService kind=binding target=sharedService
 /// @resolution.name source=SharedServiceImpl target=SharedServiceImpl
 
 localService satisfies local LocalServiceImpl;
@@ -720,10 +744,12 @@ interface Readable { read(): int32; }
 
 declare const localReadable: local Readable;
 /// @type.symbol symbol=localReadable source=localReadable type=Placed<Readable, "local">
+/// @resolution.pattern source=localReadable kind=binding target=localReadable
 /// @resolution.name source=Readable target=Readable
 
 declare const sharedReadable: shared Readable;
 /// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Readable, "shared">
+/// @resolution.pattern source=sharedReadable kind=binding target=sharedReadable
 /// @resolution.name source=Readable target=Readable
 "#,
         r#"

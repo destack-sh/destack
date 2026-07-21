@@ -20,12 +20,14 @@ const first: float64 = values[0];
 === checked ===
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=float64
+/// @resolution.pattern source=first kind=binding target=first
 /// @type.node source=values type=Array<float64>
 /// @type.node source=values[0] type=float64
 /// @resolution.name source=values target=values
@@ -35,7 +37,7 @@ const first = values[0];
 
 /// @generic.instance id=Array<float64>.<extension#6>.index#4 template=collections.array.index#4 arguments=(float64, float64)
 
-/// @check.stats.solve variables=3 types=19 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=5 types=25 constraints=2 obligations=2 solutions=5 bounds=0 decisions=4
 "#,
     );
 }
@@ -60,12 +62,14 @@ const first: 1 | 2 = values[0];
 === checked ===
 const values: (1 | 2)[] = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<1 | 2>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1 | 2
+/// @resolution.pattern source=first kind=binding target=first
 /// @type.node source=values type=Array<1 | 2>
 /// @type.node source=values[0] type=1 | 2
 /// @resolution.name source=values target=values
@@ -75,7 +79,7 @@ const first = values[0];
 
 /// @generic.instance id="Array<1 | 2>.<extension#6>.index#4" template=collections.array.index#4 arguments=(1 | 2, 1 | 2)
 
-/// @check.stats.solve variables=3 types=17 constraints=4 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=5 types=23 constraints=5 obligations=2 solutions=5 bounds=0 decisions=4
 "#,
     );
 }
@@ -90,7 +94,10 @@ const value: number | boolean = 1;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
         r#"
 === annotated ===
 const value: float64 | boolean = 1 as float64 | boolean;
@@ -98,9 +105,11 @@ const value: float64 | boolean = 1 as float64 | boolean;
 === checked ===
 const value: number | boolean = 1;
 /// @type.symbol symbol=value source=value type=float64 | boolean
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }, { kind: union, target: float64 | boolean }] origin=implicit
 
-/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -123,12 +132,13 @@ const value: 1 | 2 = true ? 1 : 2;
 === checked ===
 const value = true ? 1 : 2;
 /// @type.symbol symbol=value source=value type=1 | 2
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="true ? 1 : 2" type=1 | 2
 /// @type.node source=true type=true
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=7 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
@@ -155,12 +165,13 @@ let value: float64 = true ? 1 : 2;
 === checked ===
 let value = true ? 1 : 2;
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="true ? 1 : 2" type=1 | 2
 /// @type.node source=true type=true
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=8 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"

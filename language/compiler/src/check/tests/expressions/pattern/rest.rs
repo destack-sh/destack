@@ -28,6 +28,7 @@ tail satisfies int32[];
 === checked ===
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
+/// @resolution.pattern source=values kind=binding target=values
 
 let [head, ...tail] = values;
 /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail

@@ -67,7 +67,7 @@ extension of Point {
         /// @type.node source=this type=Point
         /// @type.node source=this.x type=int32
         /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
-        /// @resolution.call source="this.x + this.y" parameters=() return=int32 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.x + this.y" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Point
         /// @type.node source=this type=Point
         /// @type.node source=this.y type=int32
@@ -79,10 +79,12 @@ extension of Point {
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 const value = point.sum();
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=point type=Point
 /// @type.node source=point.sum type=(this: Point) => int32
 /// @type.node source=point.sum() type=int32
@@ -159,7 +161,7 @@ extension of Point {
         /// @type.node source=this type=Point
         /// @type.node source=this.x type=int32
         /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
-        /// @resolution.call source="this.x + this.y" parameters=() return=int32 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.x + this.y" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Point
         /// @type.node source=this type=Point
         /// @type.node source=this.y type=int32
@@ -171,6 +173,7 @@ extension of Point {
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 point.length();
@@ -346,6 +349,7 @@ extension of Buffer {
 
         this.grow()
         /// @resolution.member source=this.grow receiver=Borrowed<Buffer, peek.L0, "readonly"> kind=symbol target=grow
+        /// @resolution.call source=this.grow() parameters=() return=void kind=symbol target=grow receiver=Borrowed<Buffer, peek.L0, "readonly">
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Buffer, peek.L0, "readonly">
 
     }

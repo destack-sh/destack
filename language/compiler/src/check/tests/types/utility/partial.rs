@@ -48,6 +48,7 @@ interface Person {
 
 declare const person: Partial<Person>;
 /// @type.symbol symbol=person source=person type=Partial<Person> reduced={ name?: string; age?: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Partial target=types.object.Partial
 /// @resolution.name source=Person target=Person
 
@@ -110,6 +111,7 @@ interface Person {
 
 const person: Partial<Person> = {};
 /// @type.symbol symbol=person source=person type=Partial<Person> reduced={ name?: string; age?: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Partial target=types.object.Partial
 /// @resolution.name source=Person target=Person
 
@@ -164,6 +166,7 @@ interface Person {
 
 const bad: Partial<Person> = { name: "Ada", extra: true };
 /// @type.symbol symbol=bad source=bad type=Partial<Person> reduced={ name?: string; age?: int32 }
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Partial target=types.object.Partial
 /// @resolution.name source=Person target=Person
 
@@ -172,6 +175,7 @@ const bad: Partial<Person> = { name: "Ada", extra: true };
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Partial<Person>'"
 /// @diagnostic.label line=7 column=30 span="{ name: \"Ada\", extra: true }" line_source="const bad: Partial<Person> = { name: \"Ada\", extra: true };"
+/// @diagnostic.related line=7 column=12 span="Partial" line_source="const bad: Partial<Person> = { name: \"Ada\", extra: true };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
@@ -219,6 +223,7 @@ interface Person {
 
 const bad: Partial<Person> = { name: "Ada", age: "no" };
 /// @type.symbol symbol=bad source=bad type=Partial<Person> reduced={ name?: string; age?: int32 }
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Partial target=types.object.Partial
 /// @resolution.name source=Person target=Person
 
@@ -227,6 +232,7 @@ const bad: Partial<Person> = { name: "Ada", age: "no" };
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=7 column=50 span="\"no\"" line_source="const bad: Partial<Person> = { name: \"Ada\", age: \"no\" };"
+/// @diagnostic.related line=7 column=12 span="Partial" line_source="const bad: Partial<Person> = { name: \"Ada\", age: \"no\" };" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in field 'age'"
 "#,
     );
@@ -276,6 +282,7 @@ interface Person {
 
 const person: Partial<Person> = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=Partial<Person> reduced={ readonly name?: string; age?: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Partial target=types.object.Partial
 /// @resolution.name source=Person target=Person
 

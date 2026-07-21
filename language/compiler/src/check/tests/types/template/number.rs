@@ -30,14 +30,17 @@ type Numeric = `${number}`;
 
 const decimal: Numeric = "42";
 /// @type.symbol symbol=decimal source=decimal type=Numeric reduced=`${float64}`
+/// @resolution.pattern source=decimal kind=binding target=decimal
 /// @resolution.name source=Numeric target=Numeric
 
 const exponent: Numeric = "1e3";
 /// @type.symbol symbol=exponent source=exponent type=Numeric reduced=`${float64}`
+/// @resolution.pattern source=exponent kind=binding target=exponent
 /// @resolution.name source=Numeric target=Numeric
 
 const hexadecimal: Numeric = "0x1";
 /// @type.symbol symbol=hexadecimal source=hexadecimal type=Numeric reduced=`${float64}`
+/// @resolution.pattern source=hexadecimal kind=binding target=hexadecimal
 /// @resolution.name source=Numeric target=Numeric
 "#,
     );
@@ -69,11 +72,13 @@ type Numeric = `${number}`;
 
 const bad: Numeric = "NaN";
 /// @type.symbol symbol=bad source=bad type=Numeric reduced=`${float64}`
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Numeric target=Numeric
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"NaN\"' is not assignable to type 'Numeric'"
 /// @diagnostic.label line=4 column=22 span="\"NaN\"" line_source="const bad: Numeric = \"NaN\";"
+/// @diagnostic.related line=4 column=12 span="Numeric" line_source="const bad: Numeric = \"NaN\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Numeric' reduces to '`${float64}`'"
 "#,
     );
@@ -109,14 +114,17 @@ type Big = `${bigint}`;
 
 const decimal: Big = "900";
 /// @type.symbol symbol=decimal source=decimal type=Big reduced=`${bigint}`
+/// @resolution.pattern source=decimal kind=binding target=decimal
 /// @resolution.name source=Big target=Big
 
 const negative: Big = "-1";
 /// @type.symbol symbol=negative source=negative type=Big reduced=`${bigint}`
+/// @resolution.pattern source=negative kind=binding target=negative
 /// @resolution.name source=Big target=Big
 
 const hexadecimal: Big = "0x1";
 /// @type.symbol symbol=hexadecimal source=hexadecimal type=Big reduced=`${bigint}`
+/// @resolution.pattern source=hexadecimal kind=binding target=hexadecimal
 /// @resolution.name source=Big target=Big
 "#,
     );
@@ -148,11 +156,13 @@ type Small = `${int8}`;
 
 const bad: Small = "128";
 /// @type.symbol symbol=bad source=bad type=Small reduced=`${int8}`
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Small target=Small
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"128\"' is not assignable to type 'Small'"
 /// @diagnostic.label line=4 column=20 span="\"128\"" line_source="const bad: Small = \"128\";"
+/// @diagnostic.related line=4 column=12 span="Small" line_source="const bad: Small = \"128\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Small' reduces to '`${int8}`'"
 "#,
     );
@@ -190,6 +200,7 @@ declare function parse<T: number>(value: `${T}`): T;
 
 const value = parse("1e3");
 /// @type.symbol symbol=value source=value type=1000
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"1e3\")" parameters=(`${1000}`) arguments=(provided("1e3") as `${1000}`) return=1000 kind=symbol target=parse instance=parse<1000>
 /// @generic.instance source="parse(\"1e3\")" id=parse<1000>
@@ -277,6 +288,7 @@ declare function parse<T: bigint>(value: `${T}`): T;
 
 const value = parse("-1");
 /// @type.symbol symbol=value source=value type=-1n
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"-1\")" parameters=(`${-1n}`) arguments=(provided("-1") as `${-1n}`) return=-1n kind=symbol target=parse instance=parse<-1n>
 /// @generic.instance source="parse(\"-1\")" id=parse<-1n>

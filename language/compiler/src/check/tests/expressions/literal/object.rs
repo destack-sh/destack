@@ -18,11 +18,12 @@ const value: { a: float64; b: string } = { a: 1, b: "two" };
 === checked ===
 const value = { a: 1, b: "two" };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string }
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source={ a: 1, b: "two" } type={ a: 1; b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=1 decisions=1
 "#,
     );
 }
@@ -49,21 +50,24 @@ const person: { name: string; age: float64 } = { name, age };
 === checked ===
 const name = "Ada";
 /// @type.symbol symbol=name source=name type="Ada"
+/// @resolution.pattern source=name kind=binding target=name
 /// @type.node source="\"Ada\"" type="Ada"
 
 const age = 42;
 /// @type.symbol symbol=age source=age type=42
+/// @resolution.pattern source=age kind=binding target=age
 /// @type.node source=42 type=42
 
 const person = { name, age };
 /// @type.symbol symbol=person source=person type={ name: string; age: float64 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @type.node source={ name, age } type={ name: "Ada"; age: 42 }
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=3 types=11 constraints=0 obligations=3 solutions=3 bounds=1 decisions=5
 "#,
     );
 }
@@ -86,9 +90,10 @@ const value: {} = {};
 === checked ===
 const value = {};
 /// @type.symbol symbol=value source=value type={}
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source={} type={}
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -111,12 +116,13 @@ const value: { readonly a: 1; readonly b: "two" } = { a: 1, b: "two" } as const;
 === checked ===
 const value = { a: 1, b: "two" } as const;
 /// @type.symbol symbol=value source=value type={ readonly a: 1; readonly b: "two" }
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="{ a: 1, b: \"two\" } as const" type={ readonly a: 1; readonly b: "two" }
 /// @type.node source={ a: 1, b: "two" } type={ readonly a: 1; readonly b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=5 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -139,15 +145,17 @@ const value: { a: float64; b: string } = { a: 1, b: 2 };
 === checked ===
 const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string }
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=8 constraints=3 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '2' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=52 span="2" line_source="const value: { a: number; b: string } = { a: 1, b: 2 };"
+/// @diagnostic.related line=2 column=14 span="{ a: number; b: string }" line_source="const value: { a: number; b: string } = { a: 1, b: 2 };" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in field 'b'"
 "#,
     );
@@ -171,10 +179,11 @@ const state: { reactions: int32[] } = { reactions: [] };
 === checked ===
 const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=state source=state type={ reactions: Array<int32> }
+/// @resolution.pattern source=state kind=binding target=state
 /// @type.node source={ reactions: [] } type={ reactions: Array<int32> }
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=5 constraints=2 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -199,8 +208,8 @@ const mode = config.mode;
 type Mode = "dev" | "prod";
 type Shape = { mode: Mode };
 
-let config: { mode: "dev" } = { mode: "dev" } satisfies Shape;
-const mode: "dev" = config.mode;
+let config: { mode: string } = { mode: "dev" } satisfies Shape;
+const mode: string = config.mode;
 
 === checked ===
 type Mode = "dev" | "prod";
@@ -213,20 +222,22 @@ type Shape = { mode: Mode };
 /// @resolution.name source=Mode target=Mode
 
 let config = { mode: "dev" } satisfies Shape;
-/// @type.symbol symbol=config source=config type={ mode: "dev" }
+/// @type.symbol symbol=config source=config type={ mode: string }
+/// @resolution.pattern source=config kind=binding target=config
 /// @type.node source="{ mode: \"dev\" } satisfies Shape" type={ mode: "dev" }
 /// @type.node source={ mode: "dev" } type={ mode: "dev" }
 /// @type.node source="\"dev\"" type="dev"
 /// @resolution.name source=Shape target=Shape
 
 const mode = config.mode;
-/// @type.symbol symbol=mode source=mode type="dev"
-/// @type.node source=config type={ mode: "dev" }
-/// @type.node source=config.mode type="dev"
+/// @type.symbol symbol=mode source=mode type=string
+/// @resolution.pattern source=mode kind=binding target=mode
+/// @type.node source=config type={ mode: string }
+/// @type.node source=config.mode type=string
 /// @resolution.name source=config target=config
-/// @resolution.member source=config.mode receiver={ mode: "dev" } kind=field key=mode
+/// @resolution.member source=config.mode receiver={ mode: string } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=8 constraints=0 obligations=0 solutions=0 bounds=0 decisions=4
+/// @check.stats.solve variables=2 types=12 constraints=2 obligations=2 solutions=2 bounds=0 decisions=6
 "#,
     );
 }
@@ -251,18 +262,20 @@ const value: { a: float64; b: string; c: boolean } = { ...base, c: true };
 === checked ===
 const base = { a: 1, b: "two" };
 /// @type.symbol symbol=base source=base type={ a: float64; b: string }
+/// @resolution.pattern source=base kind=binding target=base
 /// @type.node source={ a: 1, b: "two" } type={ a: 1; b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
 const value = { ...base, c: true };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string; c: boolean }
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source={ ...base, c: true } type={ a: float64; b: string; c: true }
 /// @type.node source=base type={ a: float64; b: string }
 /// @resolution.name source=base target=base
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=11 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=2 types=13 constraints=0 obligations=2 solutions=2 bounds=2 decisions=3
 "#,
     );
 }
@@ -287,18 +300,20 @@ const value: { a: float64; b: string } = { ...base, b: "two" };
 === checked ===
 const base = { a: 1, b: 2 };
 /// @type.symbol symbol=base source=base type={ a: float64; b: float64 }
+/// @resolution.pattern source=base kind=binding target=base
 /// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const value = { ...base, b: "two" };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string }
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source={ ...base, b: "two" } type={ a: float64; b: "two" }
 /// @type.node source=base type={ a: float64; b: float64 }
 /// @resolution.name source=base target=base
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=10 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=2 types=12 constraints=0 obligations=2 solutions=2 bounds=2 decisions=3
 "#,
     );
 }
@@ -347,6 +362,7 @@ struct Point {
 
 const point = Point { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source="Point { x: 1, y: 2 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
@@ -354,13 +370,14 @@ const point = Point { x: 1, y: 2 };
 
 const moved = Point { ...point, x: 3 };
 /// @type.symbol symbol=moved source=moved type=Point
+/// @resolution.pattern source=moved kind=binding target=moved
 /// @type.node source="Point { ...point, x: 3 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=9 constraints=5 obligations=2 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=2 types=11 constraints=5 obligations=4 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -409,6 +426,7 @@ struct Point {
 
 const point = Point { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source="Point { x: 1, y: 2 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
@@ -416,12 +434,13 @@ const point = Point { x: 1, y: 2 };
 
 const object = { ...point, label: "origin" };
 /// @type.symbol symbol=object source=object type={ x: int32; y: int32; label: string }
+/// @resolution.pattern source=object kind=binding target=object
 /// @type.node source={ ...point, label: "origin" } type={ x: int32; y: int32; label: "origin" }
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 /// @type.node source="\"origin\"" type="origin"
 
-/// @check.stats.solve variables=0 types=11 constraints=3 obligations=2 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=2 types=13 constraints=3 obligations=4 solutions=2 bounds=1 decisions=4
 "#,
     );
 }
@@ -470,18 +489,20 @@ struct Point {
 
 const base: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=base source=base type={ x: int32; y: int32 }
+/// @resolution.pattern source=base kind=binding target=base
 /// @type.node source={ x: 1, y: 2 } type={ x: 1; y: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const point: Point = _ { ...base };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 /// @type.node source="_ { ...base }" type=Point
 /// @type.node source=base type={ x: int32; y: int32 }
 /// @resolution.name source=base target=base
 
-/// @check.stats.solve variables=0 types=8 constraints=5 obligations=2 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=2 types=10 constraints=5 obligations=4 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -547,6 +568,7 @@ class User {
 
 const user = new User("Ada");
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @type.node source="new User(\"Ada\")" type=User
 /// @resolution.construct source="new User(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=User kind=class target=User constructor=User.constructor
 /// @resolution.name source=User target=User
@@ -554,11 +576,12 @@ const user = new User("Ada");
 
 const object = { ...user };
 /// @type.symbol symbol=object source=object type={ name: string }
+/// @resolution.pattern source=object kind=binding target=object
 /// @type.node source={ ...user } type={ name: string }
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
 
-/// @check.stats.solve variables=0 types=10 constraints=2 obligations=4 solutions=0 bounds=0 decisions=6
+/// @check.stats.solve variables=2 types=12 constraints=2 obligations=6 solutions=2 bounds=0 decisions=8
 "#,
     );
 }

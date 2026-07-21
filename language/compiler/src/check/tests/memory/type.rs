@@ -122,10 +122,12 @@ type Payload = PayloadOf<OwnedBorrow>;
 
 declare const base: Base;
 /// @type.symbol symbol=base source=base type=Base reduced=Cell
+/// @resolution.pattern source=base kind=binding target=base
 /// @resolution.name source=Base target=Base
 
 declare const payload: Payload;
 /// @type.symbol symbol=payload source=payload type=Payload reduced=Borrowed<Cell, "static", "mutable">
+/// @resolution.pattern source=payload kind=binding target=payload
 /// @resolution.name source=Payload target=Payload
 
 base satisfies Cell;
@@ -216,10 +218,12 @@ type BorrowedAccess = AccessOf<BorrowOwned>;
 
 declare const borrowedLifetime: BorrowedLifetime;
 /// @type.symbol symbol=borrowedLifetime source=borrowedLifetime type=BorrowedLifetime reduced="static"
+/// @resolution.pattern source=borrowedLifetime kind=binding target=borrowedLifetime
 /// @resolution.name source=BorrowedLifetime target=BorrowedLifetime
 
 declare const borrowedAccess: BorrowedAccess;
 /// @type.symbol symbol=borrowedAccess source=borrowedAccess type=BorrowedAccess reduced="mutable"
+/// @resolution.pattern source=borrowedAccess kind=binding target=borrowedAccess
 /// @resolution.name source=BorrowedAccess target=BorrowedAccess
 
 borrowedLifetime satisfies "static";
@@ -348,6 +352,7 @@ type StaticCell = Reborrow<Cell>;
 
 declare const cell: StaticCell;
 /// @type.symbol symbol=cell source=cell type=StaticCell reduced=Borrowed<Cell, "static", "mutable">
+/// @resolution.pattern source=cell kind=binding target=cell
 /// @resolution.name source=StaticCell target=StaticCell
 
 cell satisfies Borrowed<Cell, "static">;
@@ -418,11 +423,13 @@ type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>
 
 declare const localCell: PreservePlace<local Cell>;
 /// @type.symbol symbol=localCell source=localCell type=PreservePlace<Placed<Cell, "local">, PlaceOf<Placed<Cell, "local">>> reduced=Placed<Cell, "local">
+/// @resolution.pattern source=localCell kind=binding target=localCell
 /// @resolution.name source=PreservePlace target=PreservePlace
 /// @resolution.name source=Cell target=Cell
 
 declare const sharedCell: PreservePlace<shared Cell>;
 /// @type.symbol symbol=sharedCell source=sharedCell type=PreservePlace<Placed<Cell, "shared">, PlaceOf<Placed<Cell, "shared">>> reduced=Placed<Cell, "shared">
+/// @resolution.pattern source=sharedCell kind=binding target=sharedCell
 /// @resolution.name source=PreservePlace target=PreservePlace
 /// @resolution.name source=Cell target=Cell
 
@@ -929,10 +936,12 @@ type BorrowedCell = WithOwnership<Cell, "borrowed", "static">;
 
 declare const ownedCell: OwnedCell;
 /// @type.symbol symbol=ownedCell source=ownedCell type=OwnedCell reduced=Cell
+/// @resolution.pattern source=ownedCell kind=binding target=ownedCell
 /// @resolution.name source=OwnedCell target=OwnedCell
 
 declare const borrowedCell: BorrowedCell;
 /// @type.symbol symbol=borrowedCell source=borrowedCell type=BorrowedCell reduced=Borrowed<Cell, "static", "mutable">
+/// @resolution.pattern source=borrowedCell kind=binding target=borrowedCell
 /// @resolution.name source=BorrowedCell target=BorrowedCell
 
 ownedCell satisfies ^Cell;
@@ -1000,6 +1009,7 @@ type SharedOwned = WithPlace<local ^Cell, "shared">;
 
 declare const sharedOwned: SharedOwned;
 /// @type.symbol symbol=sharedOwned source=sharedOwned type=SharedOwned reduced=Placed<Cell, "shared">
+/// @resolution.pattern source=sharedOwned kind=binding target=sharedOwned
 /// @resolution.name source=SharedOwned target=SharedOwned
 
 sharedOwned satisfies shared ^Cell;
@@ -1127,6 +1137,7 @@ type SharedOwned = WithSpace<^Cell, "shared">;
 
 declare const sharedOwned: SharedOwned;
 /// @type.symbol symbol=sharedOwned source=sharedOwned type=SharedOwned reduced=Placed<Cell, "shared">
+/// @resolution.pattern source=sharedOwned kind=binding target=sharedOwned
 /// @resolution.name source=SharedOwned target=SharedOwned
 
 sharedOwned satisfies shared ^Cell;
@@ -1186,6 +1197,7 @@ type StillShared = WithSpace<shared ^Cell, "local">;
 
 declare const value: StillShared;
 /// @type.symbol symbol=value source=value type=StillShared reduced=Placed<Cell, "shared">
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=StillShared target=StillShared
 
 value satisfies shared ^Cell;
@@ -1261,10 +1273,12 @@ type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
 
 declare const readonlyOwned: ReadonlyOwned;
 /// @type.symbol symbol=readonlyOwned source=readonlyOwned type=ReadonlyOwned reduced=Readonly<Cell>
+/// @resolution.pattern source=readonlyOwned kind=binding target=readonlyOwned
 /// @resolution.name source=ReadonlyOwned target=ReadonlyOwned
 
 declare const exclusiveBorrow: ExclusiveBorrow;
 /// @type.symbol symbol=exclusiveBorrow source=exclusiveBorrow type=ExclusiveBorrow reduced=Borrowed<Cell, "static", "exclusive">
+/// @resolution.pattern source=exclusiveBorrow kind=binding target=exclusiveBorrow
 /// @resolution.name source=ExclusiveBorrow target=ExclusiveBorrow
 
 readonlyOwned satisfies ^readonly Cell;
@@ -1352,6 +1366,7 @@ type Rebased = WithBase<shared ^readonly Cell, Payload>;
 
 declare const rebased: Rebased;
 /// @type.symbol symbol=rebased source=rebased type=Rebased reduced=Placed<Readonly<Payload>, "shared">
+/// @resolution.pattern source=rebased kind=binding target=rebased
 /// @resolution.name source=Rebased target=Rebased
 
 rebased satisfies shared ^readonly Payload;
@@ -1414,6 +1429,7 @@ type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
 
 declare const borrow: ReadonlyBorrow;
 /// @type.symbol symbol=borrow source=borrow type=ReadonlyBorrow reduced=Borrowed<Cell, "static", "readonly">
+/// @resolution.pattern source=borrow kind=binding target=borrow
 /// @resolution.name source=ReadonlyBorrow target=ReadonlyBorrow
 
 borrow satisfies Borrowed<Cell, "static", "readonly">;

@@ -27,6 +27,7 @@ type Value = Capitalize<"hello">;
 
 const ok: Value = "Hello";
 /// @type.symbol symbol=ok source=ok type=Value reduced="Hello"
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Capitalize<\"hello\">" template=types.string.Capitalize arguments=("hello")
@@ -65,6 +66,7 @@ type Value = Capitalize<"yes" | "no">;
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=Value reduced="Yes" | "No"
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 value satisfies "Yes" | "No";
@@ -102,6 +104,7 @@ type Value = Capitalize<"hello">;
 
 const bad: Value = "hello";
 /// @type.symbol symbol=bad source=bad type=Value reduced="Hello"
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Capitalize<\"hello\">" template=types.string.Capitalize arguments=("hello")
@@ -109,6 +112,7 @@ const bad: Value = "hello";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="\"hello\"" line_source="const bad: Value = \"hello\";"
+/// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"hello\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to '\"Hello\"'"
 "#,
     );

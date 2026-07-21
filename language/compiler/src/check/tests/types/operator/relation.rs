@@ -35,10 +35,12 @@ type IsNumber = int32 extends number;
 
 const yes: IsString = true;
 /// @type.symbol symbol=yes source=yes type=IsString reduced=true
+/// @resolution.pattern source=yes kind=binding target=yes
 /// @resolution.name source=IsString target=IsString
 
 const no: IsNumber = false;
 /// @type.symbol symbol=no source=no type=IsNumber reduced=false
+/// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=IsNumber target=IsNumber
 "#,
     );
@@ -78,10 +80,12 @@ type UnitExtendsVoid = () extends void;
 
 const left: VoidExtendsUnit = true;
 /// @type.symbol symbol=left source=left type=VoidExtendsUnit reduced=true
+/// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=VoidExtendsUnit target=VoidExtendsUnit
 
 const right: UnitExtendsVoid = true;
 /// @type.symbol symbol=right source=right type=UnitExtendsVoid reduced=true
+/// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=UnitExtendsVoid target=UnitExtendsVoid
 "#,
     );
@@ -121,10 +125,12 @@ type NeverExtendsUnit = never extends ();
 
 const left: NeverExtendsVoid = true;
 /// @type.symbol symbol=left source=left type=NeverExtendsVoid reduced=true
+/// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=NeverExtendsVoid target=NeverExtendsVoid
 
 const right: NeverExtendsUnit = true;
 /// @type.symbol symbol=right source=right type=NeverExtendsUnit reduced=true
+/// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=NeverExtendsUnit target=NeverExtendsUnit
 "#,
     );
@@ -164,10 +170,12 @@ type UnitExtendsNever = () extends never;
 
 const left: VoidExtendsNever = false;
 /// @type.symbol symbol=left source=left type=VoidExtendsNever reduced=false
+/// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=VoidExtendsNever target=VoidExtendsNever
 
 const right: UnitExtendsNever = false;
 /// @type.symbol symbol=right source=right type=UnitExtendsNever reduced=false
+/// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=UnitExtendsNever target=UnitExtendsNever
 "#,
     );
@@ -277,10 +285,12 @@ type IsPlain = PlainPoint implements Drawable;
 
 const drawn: IsDrawn = true;
 /// @type.symbol symbol=drawn source=drawn type=IsDrawn reduced=true
+/// @resolution.pattern source=drawn kind=binding target=drawn
 /// @resolution.name source=IsDrawn target=IsDrawn
 
 const plain: IsPlain = false;
 /// @type.symbol symbol=plain source=plain type=IsPlain reduced=false
+/// @resolution.pattern source=plain kind=binding target=plain
 /// @resolution.name source=IsPlain target=IsPlain
 "#,
     );

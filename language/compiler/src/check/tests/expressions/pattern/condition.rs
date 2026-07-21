@@ -28,6 +28,7 @@ if (let (count, label) = pair) {
 === checked ===
 declare const pair: (int32, string) | null;
 /// @type.symbol symbol=pair source=pair type=(int32, string) | null
+/// @resolution.pattern source=pair kind=binding target=pair
 
 if (let (count, label) = pair) {
 /// @resolution.pattern source=(count, label) kind=tuple fields=(count, label)
@@ -81,6 +82,7 @@ if (let { enabled, retries } = config) {
 === checked ===
 declare const config: { enabled: boolean; retries: int32 } | null;
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 } | null
+/// @resolution.pattern source=config kind=binding target=config
 
 if (let { enabled, retries } = config) {
 /// @resolution.pattern source={ enabled, retries } kind=object fields={ enabled, retries }
@@ -132,9 +134,11 @@ if (ready && let (count, label) = pair && count > 0) {
 === checked ===
 declare const ready: boolean;
 /// @type.symbol symbol=ready source=ready type=boolean
+/// @resolution.pattern source=ready kind=binding target=ready
 
 declare const pair: (int32, string) | null;
 /// @type.symbol symbol=pair source=pair type=(int32, string) | null
+/// @resolution.pattern source=pair kind=binding target=pair
 
 if (ready && let (count, label) = pair && count > 0) {
 /// @type.node source=ready type=boolean
@@ -149,7 +153,7 @@ if (ready && let (count, label) = pair && count > 0) {
 /// @type.node source="count > 0" type=boolean
 /// @type.node source=count type=int32
 /// @resolution.name source=count target=count
-/// @resolution.call source="count > 0" parameters=() return=boolean kind=builtin builtin=binary.greater_than
+/// @resolution.operator source="count > 0" kind=builtin
 /// @type.node source=0 type=0
 
     label satisfies string;
@@ -192,6 +196,7 @@ if (let "ready" = status) {
 === checked ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
+/// @resolution.pattern source=status kind=binding target=status
 
 if (let "ready" = status) {
 /// @type.node source="\"ready\"" type="ready"
@@ -245,6 +250,7 @@ if (let 1 | 2 = value) {
 === checked ===
 declare const value: 1 | 2 | 3;
 /// @type.symbol symbol=value source=value type=1 | 2 | 3
+/// @resolution.pattern source=value kind=binding target=value
 
 if (let 1 | 2 = value) {
 /// @type.node source=1 type=1
@@ -299,9 +305,11 @@ if (ready && let { name } = user) {
 === checked ===
 declare const ready: boolean;
 /// @type.symbol symbol=ready source=ready type=boolean
+/// @resolution.pattern source=ready kind=binding target=ready
 
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
+/// @resolution.pattern source=user kind=binding target=user
 
 if (ready && let { name } = user) {
 /// @type.node source=ready type=boolean
@@ -347,6 +355,7 @@ if (let { name } = user && name.length > 0) {
 === checked ===
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
+/// @resolution.pattern source=user kind=binding target=user
 
 if (let { name } = user && name.length > 0) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
@@ -358,7 +367,7 @@ if (let { name } = user && name.length > 0) {
 /// @type.node source=name.length type=usize
 /// @resolution.name source=name target=name#2
 /// @resolution.member source=name.length receiver=string kind=symbol target=string.string.length
-/// @resolution.call source="name.length > 0" parameters=() return=boolean kind=builtin builtin=binary.greater_than
+/// @resolution.operator source="name.length > 0" kind=builtin
 /// @type.node source=0 type=0
 
     name satisfies string;
@@ -401,9 +410,11 @@ if (let { name } = user && let { x } = point) {
 === checked ===
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
+/// @resolution.pattern source=user kind=binding target=user
 
 declare const point: { x: int32 } | null;
 /// @type.symbol symbol=point source=point type={ x: int32 } | null
+/// @resolution.pattern source=point kind=binding target=point
 
 if (let { name } = user && let { x } = point) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
@@ -460,6 +471,7 @@ if (let { name } = user) {
 === checked ===
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
+/// @resolution.pattern source=user kind=binding target=user
 
 if (let { name } = user) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
@@ -513,15 +525,17 @@ if (left && right) {
 === checked ===
 declare const left: boolean;
 /// @type.symbol symbol=left source=left type=boolean
+/// @resolution.pattern source=left kind=binding target=left
 
 declare const right: boolean;
 /// @type.symbol symbol=right source=right type=boolean
+/// @resolution.pattern source=right kind=binding target=right
 
 if (left && right) {
 /// @type.node source="left && right" type=boolean
 /// @type.node source=left type=boolean
 /// @resolution.name source=left target=left
-/// @resolution.call source="left && right" parameters=() return=boolean kind=builtin builtin=binary.and
+/// @resolution.operator source="left && right" kind=builtin
 /// @type.node source=right type=boolean
 /// @resolution.name source=right target=right
 

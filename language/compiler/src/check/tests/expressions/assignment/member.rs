@@ -20,6 +20,7 @@ state.count = 1;
 === checked ===
 const state: { readonly count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ readonly count: int32 }
+/// @resolution.pattern source=state kind=binding target=state
 /// @type.node source={ count: 0 } type={ count: 0 }
 /// @type.node source=0 type=0
 
@@ -31,7 +32,7 @@ state.count = 1;
 /// @resolution.pattern.assign source=state.count kind=place place=field(count) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=7 constraints=3 obligations=2 solutions=1 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"
@@ -87,6 +88,7 @@ interface Counter {
 
 declare let counter: Counter;
 /// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
 counter.current = 2;
@@ -138,10 +140,12 @@ interface Counter {
 
 declare const counter: Counter;
 /// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
 const current = counter.current;
 /// @type.symbol symbol=current source=current type=int32
+/// @resolution.pattern source=current kind=binding target=current
 /// @resolution.name source=counter target=counter
 /// @resolution.member source=counter.current receiver=Counter kind=symbol target=Counter.current
 "#,
@@ -187,6 +191,7 @@ interface Sink {
 
 declare let sink: Sink;
 /// @type.symbol symbol=sink source=sink type=Sink
+/// @resolution.pattern source=sink kind=binding target=sink
 /// @resolution.name source=Sink target=Sink
 
 sink.value = 1;
@@ -234,6 +239,7 @@ interface Counter {
 
 declare let counter: Counter;
 /// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=Counter target=Counter
 
 counter.current = 1;
@@ -285,10 +291,12 @@ interface Sink {
 
 declare const sink: Sink;
 /// @type.symbol symbol=sink source=sink type=Sink
+/// @resolution.pattern source=sink kind=binding target=sink
 /// @resolution.name source=Sink target=Sink
 
 const value = sink.value;
 /// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=sink target=sink
 "#,
         r#"

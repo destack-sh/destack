@@ -48,6 +48,7 @@ interface Person {
 
 let person: MutableFields<Person> = { name: "Ada", age: 42 };
 /// @type.symbol symbol=person source=person type=MutableFields<Person> reduced={ name: string; age: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
 
@@ -108,11 +109,13 @@ interface Person {
 
 const empty: MutableFields<Person> = {};
 /// @type.symbol symbol=empty source=empty type=MutableFields<Person> reduced={ name?: string }
+/// @resolution.pattern source=empty kind=binding target=empty
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
 
 const named: MutableFields<Person> = { name: "Ada" };
 /// @type.symbol symbol=named source=named type=MutableFields<Person> reduced={ name?: string }
+/// @resolution.pattern source=named kind=binding target=named
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
 
@@ -177,6 +180,7 @@ interface Person {
 
 let person: MutableFields<Person> = { profile: { name: "Ada" } };
 /// @type.symbol symbol=person source=person type=MutableFields<Person> reduced={ profile: Readonly<{ name: string }> }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
 

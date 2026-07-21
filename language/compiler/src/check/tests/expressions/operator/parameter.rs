@@ -30,7 +30,7 @@ function square<T: int32 | float64>(value: T): T {
 
     return value * value;
     /// @resolution.name source=value target=square.value
-    /// @resolution.call source="value * value" parameters=() return=T kind=builtin builtin=binary.multiply
+    /// @resolution.operator source="value * value" kind=builtin
     /// @resolution.name source=value target=square.value
 
 }
@@ -71,7 +71,7 @@ function scale<T>(left: T, right: T): T where T: int32 | float64 {
 
     return left * right;
     /// @resolution.name source=left target=scale.left
-    /// @resolution.call source="left * right" parameters=() return=T kind=builtin builtin=binary.multiply
+    /// @resolution.operator source="left * right" kind=builtin
     /// @resolution.name source=right target=scale.right
 
 }
@@ -109,7 +109,7 @@ function decrement<T: int32 | float64>(value: T): T {
 
     return value - 1;
     /// @resolution.name source=value target=decrement.value
-    /// @resolution.call source="value - 1" parameters=() return=T kind=builtin builtin=binary.subtract
+    /// @resolution.operator source="value - 1" kind=builtin
 
 }
 "#,
@@ -147,7 +147,7 @@ function ordered<T: int32 | float64>(left: T, right: T): boolean {
 
     return left < right;
     /// @resolution.name source=left target=ordered.left
-    /// @resolution.call source="left < right" parameters=() return=boolean kind=builtin builtin=binary.less_than
+    /// @resolution.operator source="left < right" kind=builtin
     /// @resolution.name source=right target=ordered.right
 
 }
@@ -184,7 +184,7 @@ function negate<T: int32 | float64>(value: T): T {
 /// @resolution.name source=T target=negate.T
 
     return -value;
-    /// @resolution.call source=-value parameters=() return=T kind=builtin builtin=unary.negate
+    /// @resolution.operator source=-value kind=builtin
     /// @resolution.name source=value target=negate.value
 
 }
@@ -202,7 +202,10 @@ function flip<T: int32 | int64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 function flip<T: int32 | int64>(value: T): T {
     return ~value;
@@ -218,11 +221,12 @@ function flip<T: int32 | int64>(value: T): T {
 /// @resolution.name source=T target=flip.T
 
     return ~value;
-    /// @resolution.call source=~value parameters=() return=T kind=builtin builtin=unary.elementwise_not
+    /// @resolution.operator source=~value kind=builtin
     /// @resolution.name source=value target=flip.value
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -328,6 +332,7 @@ const value = missing * 2;
 === checked ===
 const value = missing * 2;
 /// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'missing'"
@@ -356,11 +361,13 @@ const doubled: int32 | float64 = value * value;
 === checked ===
 declare const value: int32 | float64;
 /// @type.symbol symbol=value source=value type=int32 | float64
+/// @resolution.pattern source=value kind=binding target=value
 
 const doubled = value * value;
 /// @type.symbol symbol=doubled source=doubled type=int32 | float64
+/// @resolution.pattern source=doubled kind=binding target=doubled
 /// @resolution.name source=value target=value
-/// @resolution.call source="value * value" parameters=() return=int32 | float64 kind=builtin builtin=binary.multiply
+/// @resolution.operator source="value * value" kind=builtin
 /// @resolution.name source=value target=value
 "#,
     );
@@ -401,7 +408,7 @@ function square<T: Multiply<T>>(value: T): T.Output {
 
     return value * value;
     /// @resolution.name source=value target=square.value
-    /// @resolution.call source="value * value" parameters=(T) arguments=(provided(value) as T) return=T.Output kind=symbol target=ops.multiply.Multiply.multiply receiver=T instance=Multiply<T>.multiply
+    /// @resolution.operator source="value * value" kind=call parameters=(T) arguments=(provided(value) as T) return=T.Output target=ops.multiply.Multiply.multiply receiver=T instance=Multiply<T>.multiply
     /// @generic.instance source="value * value" id=Multiply<T>.multiply
     /// @resolution.name source=value target=square.value
 

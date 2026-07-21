@@ -44,6 +44,7 @@ function identity<T>(value: T): T {
 
 const number = identity(1);
 /// @type.symbol symbol=number source=number type=1
+/// @resolution.pattern source=number kind=binding target=number
 /// @type.node source=identity type=(1) => 1
 /// @type.node source=identity(1) type=1
 /// @resolution.name source=identity target=identity
@@ -53,6 +54,7 @@ const number = identity(1);
 
 const text = identity("x");
 /// @type.symbol symbol=text source=text type="x"
+/// @resolution.pattern source=text kind=binding target=text
 /// @type.node source="identity(\"x\")" type="x"
 /// @type.node source=identity type=("x") => "x"
 /// @resolution.name source=identity target=identity
@@ -63,7 +65,7 @@ const text = identity("x");
 /// @generic.instance id="identity<\"x\">" template=identity arguments=("x")
 /// @generic.instance id=identity<1> template=identity arguments=(1)
 
-/// @check.stats.solve variables=2 types=10 constraints=4 obligations=0 solutions=2 bounds=2 decisions=7
+/// @check.stats.solve variables=4 types=12 constraints=4 obligations=2 solutions=4 bounds=6 decisions=9
 "#);
 }
 
@@ -107,6 +109,7 @@ function identity<T>(value: T): T {
 
 const values = identity([1, 2]);
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source="identity([1, 2])" type=Array<float64>
 /// @type.node source=identity type=(Array<float64>) => Array<float64>
 /// @resolution.name source=identity target=identity
@@ -165,6 +168,7 @@ function first<T>(values: T[]): T {
 
 const value = first([1, 2]);
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="first([1, 2])" type=float64
 /// @type.node source=first type=(Array<float64>) => float64
 /// @resolution.name source=first target=first
@@ -222,6 +226,7 @@ function identity<T>(value: T): T {
 
 const first = identity<1>(1);
 /// @type.symbol symbol=first source=first type=1
+/// @resolution.pattern source=first kind=binding target=first
 /// @type.node source=identity type=(1) => 1
 /// @type.node source=identity<1>(1) type=1
 /// @resolution.name source=identity target=identity
@@ -231,6 +236,7 @@ const first = identity<1>(1);
 
 const second = identity<2>(2);
 /// @type.symbol symbol=second source=second type=2
+/// @resolution.pattern source=second kind=binding target=second
 /// @type.node source=identity type=(2) => 2
 /// @type.node source=identity<2>(2) type=2
 /// @resolution.name source=identity target=identity
@@ -284,6 +290,7 @@ function identity<T>(value: T): T {
 
 const text = identity<string>("x");
 /// @type.symbol symbol=text source=text type=string
+/// @resolution.pattern source=text kind=binding target=text
 /// @type.node source="identity<string>(\"x\")" type=string
 /// @type.node source=identity type=(string) => string
 /// @resolution.name source=identity target=identity
@@ -392,6 +399,7 @@ function identity<T>(value: T): T {
 
 const asInt = identity<int32>;
 /// @type.symbol symbol=asInt source=asInt type=<T>(int32) => int32
+/// @resolution.pattern source=asInt kind=binding target=asInt
 /// @type.node source=identity<int32> type=<T>(int32) => int32
 /// @resolution.name source=identity target=identity
 /// @resolution.instantiation source=identity<int32> target=identity instance=identity<int32>
@@ -468,6 +476,7 @@ function parse<T>(value: T[]): T {
 
 const parser = parse<int32>;
 /// @type.symbol symbol=parser source=parser type=<error>
+/// @resolution.pattern source=parser kind=binding target=parser
 /// @type.node source=parse<int32> type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
 
@@ -517,6 +526,7 @@ declare function pair<T, U = T>(left: T, right?: U): (T, U);
 
 const defaulted = pair(1);
 /// @type.symbol symbol=defaulted source=defaulted type=(1, 1)
+/// @resolution.pattern source=defaulted kind=binding target=defaulted
 /// @type.node source=pair type=(1, 1 | undefined) => (1, 1)
 /// @type.node source=pair(1) type=(1, 1)
 /// @resolution.name source=pair target=pair
@@ -526,6 +536,7 @@ const defaulted = pair(1);
 
 const overridden = pair(1, "x");
 /// @type.symbol symbol=overridden source=overridden type=(1, "x")
+/// @resolution.pattern source=overridden kind=binding target=overridden
 /// @type.node source="pair(1, \"x\")" type=(1, "x")
 /// @type.node source=pair type=(1, "x" | undefined) => (1, "x")
 /// @resolution.name source=pair target=pair

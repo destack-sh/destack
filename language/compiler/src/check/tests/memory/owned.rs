@@ -40,6 +40,7 @@ struct Point {
 
 let point = ^Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
@@ -90,6 +91,7 @@ struct Point {
 
 let point: ^Point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
@@ -157,6 +159,7 @@ struct Container {
 
 const container = Container { data: ^Data { value: 1 } };
 /// @type.symbol symbol=container source=container type=Container
+/// @resolution.pattern source=container kind=binding target=container
 /// @type.node source="Container { data: ^Data { value: 1 } }" type=Container
 /// @resolution.name source=Container target=Container
 /// @type.node source="^Data { value: 1 }" type=Owned<Data> reduced=Data
@@ -238,6 +241,7 @@ struct User {
 
 let user: ^readonly User = ^readonly User {
 /// @type.symbol symbol=user source=user type=Owned<Readonly<User>> reduced=Readonly<User>
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 /// @type.node type=Owned<Readonly<User>> reduced=Readonly<User>
 /// @type.node type=User

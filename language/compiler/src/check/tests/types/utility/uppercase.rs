@@ -27,6 +27,7 @@ type Value = Uppercase<"hello">;
 
 const ok: Value = "HELLO";
 /// @type.symbol symbol=ok source=ok type=Value reduced="HELLO"
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Uppercase<\"hello\">" template=types.string.Uppercase arguments=("hello")
@@ -65,6 +66,7 @@ type Method = Uppercase<"get" | "post">;
 
 declare const method: Method;
 /// @type.symbol symbol=method source=method type=Method reduced="GET" | "POST"
+/// @resolution.pattern source=method kind=binding target=method
 /// @resolution.name source=Method target=Method
 
 method satisfies "GET" | "POST";
@@ -102,6 +104,7 @@ type Value = Uppercase<"hello">;
 
 const bad: Value = "hello";
 /// @type.symbol symbol=bad source=bad type=Value reduced="HELLO"
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Uppercase<\"hello\">" template=types.string.Uppercase arguments=("hello")
@@ -109,6 +112,7 @@ const bad: Value = "hello";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="\"hello\"" line_source="const bad: Value = \"hello\";"
+/// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"hello\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to '\"HELLO\"'"
 "#,
     );

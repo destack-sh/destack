@@ -48,10 +48,12 @@ struct Point { x: int32; }
 
 const modulePoint = ^Point { x: 1 };
 /// @type.symbol symbol=modulePoint source=modulePoint type=Owned<Point> reduced=Point
+/// @resolution.pattern source=modulePoint kind=binding target=modulePoint
 /// @resolution.name source=Point target=Point
 
 const moduleBorrow = &readonly modulePoint;
 /// @type.symbol symbol=moduleBorrow source=moduleBorrow type=Borrowed<Point, "static", "readonly">
+/// @resolution.pattern source=moduleBorrow kind=binding target=moduleBorrow
 /// @resolution.name source=modulePoint target=modulePoint
 
 function inspectFrame(): void {
@@ -59,10 +61,12 @@ function inspectFrame(): void {
 
     const framePoint = ^Point { x: 2 };
     /// @type.symbol symbol=inspectFrame.framePoint source=framePoint type=Owned<Point> reduced=Point
+    /// @resolution.pattern source=framePoint kind=binding target=inspectFrame.framePoint
     /// @resolution.name source=Point target=Point
 
     const frameBorrow = &readonly framePoint;
     /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=Borrowed<Point, "frame", "readonly">
+    /// @resolution.pattern source=frameBorrow kind=binding target=inspectFrame.frameBorrow
     /// @resolution.name source=framePoint target=inspectFrame.framePoint
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;

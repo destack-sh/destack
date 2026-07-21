@@ -45,10 +45,12 @@ type Number = Select<int32>;
 
 declare const text: Text;
 /// @type.symbol symbol=text source=text type=Text reduced="yes"
+/// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Text target=Text
 
 declare const number: Number;
 /// @type.symbol symbol=number source=number type=Number reduced="no"
+/// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Number target=Number
 
 /// @generic.instance id=Select<int32> template=Select arguments=(int32)
@@ -94,6 +96,7 @@ type Result = OnlyStrings<string | int32>;
 
 declare const value: Result;
 /// @type.symbol symbol=value source=value type=Result reduced=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id="OnlyStrings<string | int32>" template=OnlyStrings arguments=(string | int32)
@@ -137,6 +140,7 @@ type Result = Wrapped<string | int32>;
 
 declare const value: Result;
 /// @type.symbol symbol=value source=value type=Result reduced="no"
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id="Wrapped<string | int32>" template=Wrapped arguments=(string | int32)
@@ -181,6 +185,7 @@ type Result = OnlyStrings<never>;
 
 let value: Result = "no";
 /// @type.symbol symbol=value source=value type=Result reduced=never
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id=OnlyStrings<never> template=OnlyStrings arguments=(never)
@@ -188,6 +193,7 @@ let value: Result = "no";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Result'"
 /// @diagnostic.label line=5 column=21 span="\"no\"" line_source="let value: Result = \"no\";"
+/// @diagnostic.related line=5 column=12 span="Result" line_source="let value: Result = \"no\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Result' reduces to 'never'"
 "#,
     );
@@ -241,6 +247,7 @@ type Value = Unbox<Box<"ready">>;
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=Value reduced="ready"
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Box<\"ready\">" template=Box arguments=("ready")
@@ -267,7 +274,7 @@ declare const count: Count;
         DirRows::checked(),
         r#"
 === annotated ===
-newtype Vector<T, comptime N: int> = intrinsic;
+newtype Vector<in out T, comptime N: int> = intrinsic;
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 type Count = LaneCount<Vector<string, 4>>;
 
@@ -298,6 +305,7 @@ type Count = LaneCount<Vector<string, 4>>;
 
 declare const count: Count;
 /// @type.symbol symbol=count source=count type=Count reduced=4
+/// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=Count target=Count
 
 /// @generic.instance id="LaneCount<Vector<string, 4>>" template=LaneCount arguments=(Vector<string, 4>)
@@ -355,6 +363,7 @@ type Value = Text<Box<int32>>;
 
 let value: Value = "no";
 /// @type.symbol symbol=value source=value type=Value reduced=never
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Box<infer U extends string>" template=Box arguments=(infer U extends string)
@@ -364,6 +373,7 @@ let value: Value = "no";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=6 column=20 span="\"no\"" line_source="let value: Value = \"no\";"
+/// @diagnostic.related line=6 column=12 span="Value" line_source="let value: Value = \"no\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to 'never'"
 "#,
     );
@@ -425,10 +435,12 @@ type No = IsBox<string>;
 
 const yes: Yes = true;
 /// @type.symbol symbol=yes source=yes type=Yes reduced=true
+/// @resolution.pattern source=yes kind=binding target=yes
 /// @resolution.name source=Yes target=Yes
 
 const no: No = false;
 /// @type.symbol symbol=no source=no type=No reduced=false
+/// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=No target=No
 
 /// @generic.instance id="Box<infer _>" template=Box arguments=(infer _)
@@ -490,10 +502,12 @@ type Value = Unbox<Box<"a"> | Box<"b">>;
 
 const first: Value = "a";
 /// @type.symbol symbol=first source=first type=Value reduced="a" | "b"
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = "b";
 /// @type.symbol symbol=second source=second type=Value reduced="a" | "b"
+/// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Box<\"a\">" template=Box arguments=("a")

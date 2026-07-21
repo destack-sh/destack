@@ -31,6 +31,7 @@ type Present = NonNullable<string | null | undefined>;
 
 declare const present: Present;
 /// @type.symbol symbol=present source=present type=Present reduced=string
+/// @resolution.pattern source=present kind=binding target=present
 /// @resolution.name source=Present target=Present
 
 present satisfies string;
@@ -68,6 +69,7 @@ type Present = NonNullable<string | null | undefined>;
 
 const bad: Present = null;
 /// @type.symbol symbol=bad source=bad type=Present reduced=string
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Present target=Present
 
 /// @generic.instance id="NonNullable<string | null | undefined>" template=types.object.NonNullable arguments=(string | null | undefined)
@@ -75,6 +77,7 @@ const bad: Present = null;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'null' is not assignable to type 'Present'"
 /// @diagnostic.label line=4 column=22 span="null" line_source="const bad: Present = null;"
+/// @diagnostic.related line=4 column=12 span="Present" line_source="const bad: Present = null;" message="expected due to this annotation"
 /// @diagnostic.note message="'Present' reduces to 'string'"
 "#,
     );
@@ -107,6 +110,7 @@ type Present = NonNullable<never>;
 
 let bad: Present = "no";
 /// @type.symbol symbol=bad source=bad type=Present reduced=never
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Present target=Present
 
 /// @generic.instance id=NonNullable<never> template=types.object.NonNullable arguments=(never)
@@ -114,6 +118,7 @@ let bad: Present = "no";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Present'"
 /// @diagnostic.label line=4 column=20 span="\"no\"" line_source="let bad: Present = \"no\";"
+/// @diagnostic.related line=4 column=10 span="Present" line_source="let bad: Present = \"no\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Present' reduces to 'never'"
 "#,
     );

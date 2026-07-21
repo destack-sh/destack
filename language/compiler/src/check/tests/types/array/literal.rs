@@ -18,11 +18,12 @@ const pair: [int32; 2] = [1, 2];
 === checked ===
 const pair: [int32; 2] = [1, 2];
 /// @type.symbol symbol=pair source=pair type=FixedArray<int32, 2>
+/// @resolution.pattern source=pair kind=binding target=pair
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=5 constraints=3 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=6 constraints=3 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -45,6 +46,7 @@ const pair: [int32; 2] = [1, 2, 3];
 === checked ===
 const pair: [int32; 2] = [1, 2, 3];
 /// @type.symbol symbol=pair source=pair type=FixedArray<int32, 2>
+/// @resolution.pattern source=pair kind=binding target=pair
 /// @type.node source=[1, 2, 3] type=FixedArray<int32, 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -53,6 +55,7 @@ const pair: [int32; 2] = [1, 2, 3];
         r#"
 /// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
 /// @diagnostic.label line=2 column=26 span="[1, 2, 3]" line_source="const pair: [int32; 2] = [1, 2, 3];"
+/// @diagnostic.related line=2 column=13 span="[int32; 2]" line_source="const pair: [int32; 2] = [1, 2, 3];" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in the length: expected '2', found '3'"
 "#,
     );
@@ -76,13 +79,14 @@ const bytes: [uint8; 4] = [1, 2, 3, 4];
 === checked ===
 const bytes: [uint8; _] = [1, 2, 3, 4];
 /// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
+/// @resolution.pattern source=bytes kind=binding target=bytes
 /// @type.node source=[1, 2, 3, 4] type=FixedArray<uint8, 4>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 /// @type.node source=4 type=4
 
-/// @check.stats.solve variables=1 types=9 constraints=5 obligations=0 solutions=1 bounds=2 decisions=0
+/// @check.stats.solve variables=2 types=10 constraints=5 obligations=1 solutions=2 bounds=0 decisions=1
 "#,
     );
 }
@@ -105,6 +109,7 @@ const values: [float64; 4] = [1, 2, 3, 4];
 === checked ===
 const values: [_; _] = [1, 2, 3, 4];
 /// @type.symbol symbol=values source=values type=FixedArray<float64, 4>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3, 4] type=FixedArray<float64, 4>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -132,12 +137,13 @@ const values: [float64; 3] = [1, 2, 3];
 === checked ===
 const values: [_; 3] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=FixedArray<float64, 3>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] type=FixedArray<float64, 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=1 types=7 constraints=4 obligations=0 solutions=1 bounds=3 decisions=0
+/// @check.stats.solve variables=2 types=8 constraints=4 obligations=1 solutions=2 bounds=3 decisions=1
 "#,
     );
 }
@@ -160,6 +166,7 @@ const values: [1 | 2 | 3; 3] = [1 as 1 | 2 | 3, 2 as 1 | 2 | 3, 3 as 1 | 2 | 3];
 === checked ===
 const values: [1 | 2 | 3; 3] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=FixedArray<1 | 2 | 3, 3>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] type=FixedArray<1 | 2 | 3, 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -186,6 +193,7 @@ const values: [float64; 3] = [1, 2, 3] as [float64; 3];
 === checked ===
 const values = [1, 2, 3] as [_; _];
 /// @type.symbol symbol=values source=values type=FixedArray<float64, 3>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] as [_; _] type=FixedArray<float64, 3>
 /// @type.node source=[1, 2, 3] type=FixedArray<float64, 3>
 /// @type.node source=1 type=1
@@ -213,6 +221,7 @@ const values: Slice<float64> = [1, 2, 3] as Slice<float64>;
 === checked ===
 const values = [1, 2, 3] as Slice<_>;
 /// @type.symbol symbol=values source=values type=Slice<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
 /// @generic.instance source="[1, 2, 3] as Slice<_>" id=Slice<float64>
@@ -244,6 +253,7 @@ const values: [float64] = [1, 2, 3] as [float64];
 === checked ===
 const values = [1, 2, 3] as [_];
 /// @type.symbol symbol=values source=values type=Slice<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] as [_] type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
@@ -281,6 +291,7 @@ matrix satisfies [[int32; 2]; 2];
 === checked ===
 const matrix: [[int32; 2]; 2] = [
 /// @type.symbol symbol=matrix source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
+/// @resolution.pattern source=matrix kind=binding target=matrix
 /// @type.node type=FixedArray<FixedArray<int32, 2>, 2>
 
     [1, 2],
@@ -321,6 +332,7 @@ const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 === checked ===
 const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
 /// @type.symbol symbol=matrix source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
+/// @resolution.pattern source=matrix kind=binding target=matrix
 /// @type.node source=[[1, 2], [3]] type=FixedArray<FixedArray<int32, 2>, 2>
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
 /// @type.node source=1 type=1

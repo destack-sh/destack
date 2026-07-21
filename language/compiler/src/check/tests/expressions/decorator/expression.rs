@@ -65,11 +65,13 @@ const value: 1 = 1;
 === checked ===
 const subject = 1;
 /// @type.symbol symbol=subject source=subject type=1
+/// @resolution.pattern source=subject kind=binding target=subject
 /// @type.node source=1 type=1
 
 @subject.field
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -127,6 +129,135 @@ newtype mark = (Payload,);
 
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1 type=1
+"#,
+    );
+}
+
+#[test]
+fn test_reject_ambiguous_decorator_backing() {
+    let session = TestSession::single(
+        r#"
+newtype mark = (string,) | ("value",);
+
+@mark("value")
+const value = 1;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+newtype mark = (string,) | ("value",);
+
+@mark("value")
+const value: 1 = 1;
+
+=== checked ===
+newtype mark = (string,) | ("value",);
+/// @type.symbol symbol=mark source="newtype mark = (string,) | (\"value\",)" type=mark
+/// @definition.newtype symbol=mark source="newtype mark = (string,) | (\"value\",)" backing=(string,) | ("value",)
+
+@mark("value")
+/// @type.node source=mark type=mark
+/// @resolution.name source=mark target=mark
+
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1 type=1
+"#,
+        r#"
+/// @diagnostic.error id=ambiguous-decorator message="decorator arguments must select exactly one newtype backing"
+/// @diagnostic.label line=4 column=2 span="mark(\"value\")" line_source="@mark(\"value\")"
+"#,
+    );
+}
+
+#[test]
+fn test_infer_decorator_generic_arguments() {
+    let session = TestSession::single(
+        r#"
+newtype mark<T> = (T,);
+
+@mark(1)
+const value = 1;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+newtype mark<out T> = (T,);
+
+@mark(1)
+const value: 1 = 1;
+
+=== checked ===
+newtype mark<T> = (T,);
+/// @generic.template symbol=mark parameters=(out T)
+/// @type.symbol symbol=mark source="newtype mark<T> = (T,)" type=mark
+/// @definition.newtype symbol=mark source="newtype mark<T> = (T,)" template=(out T) backing=(T,)
+/// @type.symbol symbol=mark.T source=T type=T
+/// @resolution.name source=T target=mark.T
+
+@mark(1)
+/// @decorator.node source=@mark(1) owner="const value = 1" expression=mark target=mark type=mark<1> kind=newtype parameters=(1) arguments=(provided(1) as 1) newtype=mark backing=(1,) generic_arguments=(1) value=mark<1>(1)
+/// @type.node source=mark type=mark
+/// @resolution.name source=mark target=mark
+/// @type.node source=1 type=1
+
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1 type=1
+"#,
+    );
+}
+
+#[test]
+fn test_accept_explicit_decorator_generic_arguments() {
+    let session = TestSession::single(
+        r#"
+newtype mark<T> = (T,);
+
+@mark<int32>(1)
+const value = 1;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+newtype mark<out T> = (T,);
+
+@mark<int32>(1)
+const value: 1 = 1;
+
+=== checked ===
+newtype mark<T> = (T,);
+/// @generic.template symbol=mark parameters=(out T)
+/// @type.symbol symbol=mark source="newtype mark<T> = (T,)" type=mark
+/// @definition.newtype symbol=mark source="newtype mark<T> = (T,)" template=(out T) backing=(T,)
+/// @type.symbol symbol=mark.T source=T type=T
+/// @resolution.name source=T target=mark.T
+
+@mark<int32>(1)
+/// @decorator.node source=@mark<int32>(1) owner="const value = 1" expression=mark target=mark type=mark<int32> kind=newtype parameters=(int32) arguments=(provided(1) as int32) newtype=mark backing=(int32,) generic_arguments=(int32) value=mark<int32>(1)
+/// @type.node source=mark type=mark
+/// @resolution.name source=mark target=mark
+/// @type.node source=1 type=1
+
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
     );

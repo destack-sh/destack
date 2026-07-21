@@ -31,6 +31,7 @@ type Letter = Exclude<"a" | "b" | "c", "b">;
 
 declare const letter: Letter;
 /// @type.symbol symbol=letter source=letter type=Letter reduced="a" | "c"
+/// @resolution.pattern source=letter kind=binding target=letter
 /// @resolution.name source=Letter target=Letter
 
 letter satisfies "a" | "c";
@@ -68,6 +69,7 @@ type Letter = Exclude<"a" | "b" | "c", "b">;
 
 const bad: Letter = "b";
 /// @type.symbol symbol=bad source=bad type=Letter reduced="a" | "c"
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Letter target=Letter
 
 /// @generic.instance id="Exclude<\"a\" | \"b\" | \"c\", \"b\">" template=types.object.Exclude arguments=("a" | "b" | "c", "b")
@@ -75,6 +77,7 @@ const bad: Letter = "b";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"b\"' is not assignable to type 'Letter'"
 /// @diagnostic.label line=4 column=21 span="\"b\"" line_source="const bad: Letter = \"b\";"
+/// @diagnostic.related line=4 column=12 span="Letter" line_source="const bad: Letter = \"b\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Letter' reduces to '\"a\" | \"c\"'"
 "#,
     );
@@ -107,6 +110,7 @@ type Letter = Exclude<never, "b">;
 
 let bad: Letter = "b";
 /// @type.symbol symbol=bad source=bad type=Letter reduced=never
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Letter target=Letter
 
 /// @generic.instance id="Exclude<never, \"b\">" template=types.object.Exclude arguments=(never, "b")
@@ -114,6 +118,7 @@ let bad: Letter = "b";
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"b\"' is not assignable to type 'Letter'"
 /// @diagnostic.label line=4 column=19 span="\"b\"" line_source="let bad: Letter = \"b\";"
+/// @diagnostic.related line=4 column=10 span="Letter" line_source="let bad: Letter = \"b\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Letter' reduces to 'never'"
 "#,
     );

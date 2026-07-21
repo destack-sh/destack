@@ -78,7 +78,7 @@ extension of Force implements Multiply<float64> {
         Force { value: this.value * other }
         /// @resolution.name source=Force target=Force
         /// @resolution.member source=this.value receiver=Force kind=symbol target=Force.value
-        /// @resolution.call source="this.value * other" parameters=() return=float64 kind=builtin builtin=binary.multiply
+        /// @resolution.operator source="this.value * other" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Force
         /// @resolution.name source=other target=multiply.other
 
@@ -87,12 +87,14 @@ extension of Force implements Multiply<float64> {
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=Force
+/// @resolution.pattern source=force kind=binding target=force
 /// @resolution.name source=Force target=Force
 
 const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=Force
+/// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force
+/// @resolution.operator source="force * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force target=multiply receiver=Force
 "#,
     );
 }
@@ -173,16 +175,19 @@ extension of Meters implements Multiply<Meters> {
 
 declare const width: Meters;
 /// @type.symbol symbol=width source=width type=Meters
+/// @resolution.pattern source=width kind=binding target=width
 /// @resolution.name source=Meters target=Meters
 
 declare const height: Meters;
 /// @type.symbol symbol=height source=height type=Meters
+/// @resolution.pattern source=height kind=binding target=height
 /// @resolution.name source=Meters target=Meters
 
 const area = width * height;
 /// @type.symbol symbol=area source=area type=float64
+/// @resolution.pattern source=area kind=binding target=area
 /// @resolution.name source=width target=width
-/// @resolution.call source="width * height" parameters=(Meters) arguments=(provided(height) as Meters) return=float64 kind=symbol target=multiply receiver=Meters
+/// @resolution.operator source="width * height" kind=call parameters=(Meters) arguments=(provided(height) as Meters) return=float64 target=multiply receiver=Meters
 /// @resolution.name source=height target=height
 "#,
     );

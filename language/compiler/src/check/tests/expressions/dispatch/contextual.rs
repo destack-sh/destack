@@ -77,6 +77,7 @@ function build(): void {
 
     let values: int32[] = Array.new();
     /// @type.symbol symbol=build.values source=values type=Array<int32>
+    /// @resolution.pattern source=values kind=binding target=build.values
     /// @type.node source=Array type=Array
     /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#6>>
     /// @type.node source=Array.new() type=Owned<Array<int32>>

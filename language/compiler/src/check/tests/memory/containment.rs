@@ -58,14 +58,17 @@ struct Cache {
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const cache: local Cache = Cache { localUser, sharedUser };
 /// @type.symbol symbol=cache source=cache type=Placed<Cache, "local">
+/// @resolution.pattern source=cache kind=binding target=cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=localUser target=localUser
@@ -129,10 +132,12 @@ shared struct Cache {
 
 declare const user: shared User;
 /// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const cache: shared Cache = Cache { user, count: 1 };
 /// @type.symbol symbol=cache source=cache type=Placed<Cache, "shared">
+/// @resolution.pattern source=cache kind=binding target=cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=user target=user
@@ -195,21 +200,25 @@ struct BoxedUser {
 
 declare const user: local User;
 /// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const field: shared BoxedUser = BoxedUser { user };
 /// @type.symbol symbol=field source=field type=Placed<BoxedUser, "shared">
+/// @resolution.pattern source=field kind=binding target=field
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=user target=user
 
 const tuple: shared (local User, int32) = (user, 1);
 /// @type.symbol symbol=tuple source=tuple type=Placed<(Placed<User, "local">, int32), "shared">
+/// @resolution.pattern source=tuple kind=binding target=tuple
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
 
 const union: shared (local User | undefined) = user;
 /// @type.symbol symbol=union source=union type=Placed<Placed<User, "local"> | undefined, "shared">
+/// @resolution.pattern source=union kind=binding target=union
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
 "#,
@@ -335,6 +344,7 @@ shared class Service {
 
 declare const service: Service;
 /// @type.symbol symbol=service source=service type=Service
+/// @resolution.pattern source=service kind=binding target=service
 /// @resolution.name source=Service target=Service
 
 service.user satisfies shared User;
@@ -400,14 +410,17 @@ struct Box<T> {
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const rejected: shared Box<local User> = Box { value: localUser };
 /// @type.symbol symbol=rejected source=rejected type=Placed<Box<Placed<User, "local">>, "shared">
+/// @resolution.pattern source=rejected kind=binding target=rejected
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.name source=Box target=Box
@@ -415,6 +428,7 @@ const rejected: shared Box<local User> = Box { value: localUser };
 
 const accepted: shared Box<shared User> = Box { value: sharedUser };
 /// @type.symbol symbol=accepted source=accepted type=Placed<Box<Placed<User, "shared">>, "shared">
+/// @resolution.pattern source=accepted kind=binding target=accepted
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.name source=Box target=Box
@@ -534,21 +548,25 @@ struct BorrowedBox { value: local Borrowed<User, "static">; }
 
 declare const owned: local ^User;
 /// @type.symbol symbol=owned source=owned type=Placed<Owned<User>, "local">
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=User target=User
 
 declare const borrowed: local Borrowed<User, "static">;
 /// @type.symbol symbol=borrowed source=borrowed type=Placed<Borrowed<User, "static", "mutable">, "local">
+/// @resolution.pattern source=borrowed kind=binding target=borrowed
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=User target=User
 
 const ownedBox: shared OwnedBox = OwnedBox { value: owned };
 /// @type.symbol symbol=ownedBox source=ownedBox type=Placed<OwnedBox, "shared">
+/// @resolution.pattern source=ownedBox kind=binding target=ownedBox
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=owned target=owned
 
 const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 /// @type.symbol symbol=borrowedBox source=borrowedBox type=Placed<BorrowedBox, "shared">
+/// @resolution.pattern source=borrowedBox kind=binding target=borrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=borrowed target=borrowed
@@ -628,10 +646,12 @@ class Box {
 
 declare const user: local User;
 /// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const box: shared Box = new Box(user);
 /// @type.symbol symbol=box source=box type=Placed<Box, "shared">
+/// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=Box target=Box
 /// @resolution.construct source="new Box(user)" parameters=(Placed<User, "shared">) arguments=(provided(user) as Placed<User, "shared">) return=Placed<Box, "shared"> kind=class target=Box constructor=Box.constructor
 /// @resolution.name source=Box target=Box
@@ -757,14 +777,17 @@ declare function publish<T: SharedSafe>(value: T): void;
 
 declare const cleanEnvelope: CleanEnvelope;
 /// @type.symbol symbol=cleanEnvelope source=cleanEnvelope type=CleanEnvelope
+/// @resolution.pattern source=cleanEnvelope kind=binding target=cleanEnvelope
 /// @resolution.name source=CleanEnvelope target=CleanEnvelope
 
 declare const localEnvelope: LocalEnvelope;
 /// @type.symbol symbol=localEnvelope source=localEnvelope type=LocalEnvelope
+/// @resolution.pattern source=localEnvelope kind=binding target=localEnvelope
 /// @resolution.name source=LocalEnvelope target=LocalEnvelope
 
 declare const handle: Handle;
 /// @type.symbol symbol=handle source=handle type=Handle
+/// @resolution.pattern source=handle kind=binding target=handle
 /// @resolution.name source=Handle target=Handle
 
 publish<CleanEnvelope>(cleanEnvelope);
@@ -804,7 +827,6 @@ cleanEnvelope satisfies SharedSafe;
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
 /// @diagnostic.label line=23 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
-/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Handle' does not satisfy 'SharedSafe'"
 /// @diagnostic.label line=25 column=1 span="publish(handle)" line_source="publish(handle);"
 /// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"

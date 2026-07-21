@@ -76,7 +76,7 @@ function bump(value: int32): int32 {
     value += 2;
     /// @type.node source="value += 2" type=int32
     /// @type.node source=value type=int32
-    /// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
+    /// @resolution.operator source="value += 2" kind=builtin
     /// @resolution.pattern.assign source=value kind=place place=binding(bump.value) type=int32
     /// @type.node source=2 type=2
 
@@ -123,10 +123,11 @@ function bump(value: int32): int32 {
 
     let value = value + 1;
     /// @type.symbol symbol=bump.value#2 source=value type=int32
+    /// @resolution.pattern source=value kind=binding target=bump.value#2
     /// @type.node source="value + 1" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=bump.value#1
-    /// @resolution.call source="value + 1" parameters=() return=int32 kind=builtin builtin=binary.add
+    /// @resolution.operator source="value + 1" kind=builtin
     /// @type.node source=1 type=1
 
     return value;

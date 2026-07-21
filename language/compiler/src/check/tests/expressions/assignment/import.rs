@@ -37,7 +37,7 @@ counter = 1;
 /// @resolution.pattern.assign source=counter kind=place place=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'counter'"
@@ -84,7 +84,7 @@ localCounter = 1;
 /// @resolution.pattern.assign source=localCounter kind=place place=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'localCounter'"
@@ -176,7 +176,7 @@ namespaceCounter.counter = 1;
 /// @resolution.pattern.assign source=namespaceCounter.counter kind=place place=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'namespaceCounter.counter'"

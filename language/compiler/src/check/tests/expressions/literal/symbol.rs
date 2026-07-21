@@ -18,6 +18,7 @@ const value: symbol = Symbol.create("id" as string | float64 | undefined);
 === checked ===
 const value: symbol = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=symbol
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
@@ -26,7 +27,7 @@ const value: symbol = Symbol.create("id");
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=0 types=5 constraints=3 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=1 types=7 constraints=3 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
     );
 }
@@ -44,24 +45,25 @@ const value: string = Symbol.create("id");
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: string = Symbol.create("id" as string | float64 | undefined);
+const value: string = Symbol.create("id");
 
 === checked ===
 const value: string = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
-/// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=0 types=5 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'symbol' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=23 span="Symbol.create(\"id\")" line_source="const value: string = Symbol.create(\"id\");"
+/// @diagnostic.related line=2 column=14 span="string" line_source="const value: string = Symbol.create(\"id\");" message="expected due to this annotation"
 "#,
     );
 }
@@ -85,6 +87,7 @@ const value: symbol | string = Symbol.create("id" as string | float64 | undefine
 === checked ===
 const value: symbol | string = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=symbol | string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
@@ -93,7 +96,7 @@ const value: symbol | string = Symbol.create("id");
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=0 types=7 constraints=3 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=1 types=8 constraints=3 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
     );
 }
@@ -111,24 +114,25 @@ const value: number = Symbol.create("id");
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: float64 = Symbol.create("id" as string | float64 | undefined);
+const value: float64 = Symbol.create("id");
 
 === checked ===
 const value: number = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="Symbol.create(\"id\")" type=symbol
 /// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
-/// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=0 types=5 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'symbol' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=23 span="Symbol.create(\"id\")" line_source="const value: number = Symbol.create(\"id\");"
+/// @diagnostic.related line=2 column=14 span="number" line_source="const value: number = Symbol.create(\"id\");" message="expected due to this annotation"
 "#,
     );
 }

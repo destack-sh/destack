@@ -65,10 +65,12 @@ function select(value: User): "managed" {
 
 declare const user: local User;
 /// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="managed"
+/// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
 /// @resolution.call source=select(user) parameters=(User) arguments=(provided(user) as User) return="managed" kind=symbol target=select#2
 /// @resolution.name source=user target=user
@@ -145,14 +147,16 @@ function select(value: &User): "mutable" {
 
 declare const user: local User;
 /// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="readonly"
+/// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
 /// @resolution.call source=select(user) parameters=(Borrowed<User, "static", "readonly">) arguments=(provided(user) as Borrowed<User, "static", "readonly">) return="readonly" kind=symbol target=select#1
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<User, "local"> to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=user from=Placed<User, "local"> adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 
 selected satisfies "readonly";
 /// @resolution.name source=selected target=selected
@@ -227,10 +231,12 @@ function select(value: &User): "mutable" {
 
 declare const user: &User;
 /// @type.symbol symbol=user source=user type=Borrowed<User, "static", "mutable">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="mutable"
+/// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
 /// @resolution.call source=select(user) parameters=(Borrowed<User, "static", "mutable">) arguments=(provided(user) as Borrowed<User, "static", "mutable">) return="mutable" kind=symbol target=select#2
 /// @resolution.name source=user target=user
@@ -302,6 +308,7 @@ declare function replace(value: &exclusive User): void;
 
 const user: User = new User();
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
 /// @resolution.name source=User target=User
@@ -310,19 +317,19 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Borrowed<User, "static", "readonly">) arguments=(provided(user) as Borrowed<User, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Borrowed<User, "static", "mutable">) arguments=(provided(user) as Borrowed<User, "static", "mutable">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=User to=Borrowed<User, "static", "mutable"> origin=implicit
+/// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "mutable"> }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(user) parameters=(Borrowed<User, "static", "exclusive">) arguments=(provided(user) as Borrowed<User, "static", "exclusive">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=User to=Borrowed<User, "static", "exclusive"> origin=implicit
+/// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "exclusive"> }] origin=implicit
 "#,
     );
 }
@@ -387,25 +394,26 @@ declare function replace(value: local &exclusive User): void;
 
 declare const user: local ^User;
 /// @type.symbol symbol=user source=user type=Placed<Owned<User>, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Placed<Borrowed<User, "static", "readonly">, "local">) arguments=(provided(user) as Placed<Borrowed<User, "static", "readonly">, "local">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Owned<User>, "local"> to=Placed<Borrowed<User, "static", "readonly">, "local"> origin=implicit
+/// @coercion.node source=user from=Placed<Owned<User>, "local"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "readonly">, "local"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Placed<Borrowed<User, "static", "mutable">, "local">) arguments=(provided(user) as Placed<Borrowed<User, "static", "mutable">, "local">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Owned<User>, "local"> to=Placed<Borrowed<User, "static", "mutable">, "local"> origin=implicit
+/// @coercion.node source=user from=Placed<Owned<User>, "local"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "mutable">, "local"> }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(user) parameters=(Placed<Borrowed<User, "static", "exclusive">, "local">) arguments=(provided(user) as Placed<Borrowed<User, "static", "exclusive">, "local">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Owned<User>, "local"> to=Placed<Borrowed<User, "static", "exclusive">, "local"> origin=implicit
+/// @coercion.node source=user from=Placed<Owned<User>, "local"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "exclusive">, "local"> }] origin=implicit
 "#,
     );
 }
@@ -448,13 +456,14 @@ declare function inspect(value: &readonly User): void;
 
 declare const user: local readonly User;
 /// @type.symbol symbol=user source=user type=Placed<Readonly<User>, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Borrowed<User, "static", "readonly">) arguments=(provided(user) as Borrowed<User, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Readonly<User>, "local"> to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=user from=Placed<Readonly<User>, "local"> adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 "#,
     );
 }
@@ -507,16 +516,17 @@ declare function replace(value: local &exclusive User): void;
 
 declare const user: local readonly User;
 /// @type.symbol symbol=user source=user type=Placed<Readonly<User>, "local">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(Placed<Borrowed<User, <error>, "mutable">, "local">) arguments=(provided(user) as Placed<Borrowed<User, <error>, "mutable">, "local">) return=void kind=symbol target=modify
+/// @resolution.call source=modify(user) parameters=(Placed<Borrowed<User, "frame", "mutable">, "local">) arguments=(provided(user) as Placed<Borrowed<User, "frame", "mutable">, "local">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(Placed<Borrowed<User, <error>, "exclusive">, "local">) arguments=(provided(user) as Placed<Borrowed<User, <error>, "exclusive">, "local">) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(Placed<Borrowed<User, "frame", "exclusive">, "local">) arguments=(provided(user) as Placed<Borrowed<User, "frame", "exclusive">, "local">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
 "#,
         r#"
@@ -582,24 +592,26 @@ declare function inspect(value: &readonly Cell): void;
 
 declare const explicit: Managed<Cell>;
 /// @type.symbol symbol=explicit source=explicit type=Managed<Cell>
+/// @resolution.pattern source=explicit kind=binding target=explicit
 /// @resolution.name source=Managed target=memory.managed.Managed
 /// @resolution.name source=Cell target=Cell
 
 declare const alias: ManagedCell;
 /// @type.symbol symbol=alias source=alias type=ManagedCell reduced=Managed<Cell>
+/// @resolution.pattern source=alias kind=binding target=alias
 /// @resolution.name source=ManagedCell target=ManagedCell
 
 inspect(explicit);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(explicit) parameters=(Borrowed<Cell, "static", "readonly">) arguments=(provided(explicit) as Borrowed<Cell, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=explicit target=explicit
-/// @coercion.node source=explicit from=Managed<Cell> to=Borrowed<Cell, "static", "readonly"> origin=implicit
+/// @coercion.node source=explicit from=Managed<Cell> adjustments=[{ kind: borrow, target: Borrowed<Cell, "static", "readonly"> }] origin=implicit
 
 inspect(alias);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(alias) parameters=(Borrowed<Cell, "static", "readonly">) arguments=(provided(alias) as Borrowed<Cell, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=alias target=alias
-/// @coercion.node source=alias from=ManagedCell to=Borrowed<Cell, "static", "readonly"> origin=implicit
+/// @coercion.node source=alias from=ManagedCell adjustments=[{ kind: borrow, target: Borrowed<Cell, "static", "readonly"> }] origin=implicit
 
 /// @generic.instance id=Managed<Cell> template=memory.managed.Managed arguments=(Cell)
 "#,
@@ -659,13 +671,14 @@ declare function inspect(value: &readonly ManagedCellId): void;
 
 declare const cell: ManagedCellId;
 /// @type.symbol symbol=cell source=cell type=ManagedCellId
+/// @resolution.pattern source=cell kind=binding target=cell
 /// @resolution.name source=ManagedCellId target=ManagedCellId
 
 inspect(cell);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(cell) parameters=(Borrowed<ManagedCellId, "static", "readonly">) arguments=(provided(cell) as Borrowed<ManagedCellId, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=cell target=cell
-/// @coercion.node source=cell from=ManagedCellId to=Borrowed<ManagedCellId, "static", "readonly"> origin=implicit
+/// @coercion.node source=cell from=ManagedCellId adjustments=[{ kind: borrow, target: Borrowed<ManagedCellId, "static", "readonly"> }] origin=implicit
 "#,
         r#"
 
@@ -715,11 +728,13 @@ declare function inspect(value: &readonly Cell): void;
 
 declare const localCell: local Managed<Cell>;
 /// @type.symbol symbol=localCell source=localCell type=Placed<Managed<Cell>, "local">
+/// @resolution.pattern source=localCell kind=binding target=localCell
 /// @resolution.name source=Managed target=memory.managed.Managed
 /// @resolution.name source=Cell target=Cell
 
 declare const readonlyCell: local readonly Managed<Cell>;
 /// @type.symbol symbol=readonlyCell source=readonlyCell type=Placed<Readonly<Managed<Cell>>, "local">
+/// @resolution.pattern source=readonlyCell kind=binding target=readonlyCell
 /// @resolution.name source=Managed target=memory.managed.Managed
 /// @resolution.name source=Cell target=Cell
 
@@ -727,13 +742,13 @@ inspect(localCell);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(localCell) parameters=(Borrowed<Cell, "static", "readonly">) arguments=(provided(localCell) as Borrowed<Cell, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=localCell target=localCell
-/// @coercion.node source=localCell from=Placed<Managed<Cell>, "local"> to=Borrowed<Cell, "static", "readonly"> origin=implicit
+/// @coercion.node source=localCell from=Placed<Managed<Cell>, "local"> adjustments=[{ kind: borrow, target: Borrowed<Cell, "static", "readonly"> }] origin=implicit
 
 inspect(readonlyCell);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(readonlyCell) parameters=(Borrowed<Cell, "static", "readonly">) arguments=(provided(readonlyCell) as Borrowed<Cell, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=readonlyCell target=readonlyCell
-/// @coercion.node source=readonlyCell from=Placed<Readonly<Managed<Cell>>, "local"> to=Borrowed<Cell, "static", "readonly"> origin=implicit
+/// @coercion.node source=readonlyCell from=Placed<Readonly<Managed<Cell>>, "local"> adjustments=[{ kind: borrow, target: Borrowed<Cell, "static", "readonly"> }] origin=implicit
 
 /// @generic.instance id=Managed<Cell> template=memory.managed.Managed arguments=(Cell)
 "#,
@@ -840,6 +855,7 @@ declare function inspect(value: &readonly User): void;
 
 declare const state: State;
 /// @type.symbol symbol=state source=state type=State
+/// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
 inspect(state.user);
@@ -847,7 +863,7 @@ inspect(state.user);
 /// @resolution.call source=inspect(state.user) parameters=(Borrowed<User, "static", "readonly">) arguments=(provided(state.user) as Borrowed<User, "static", "readonly">) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.user receiver=State kind=symbol target=State.user
-/// @coercion.node source=state.user from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=state.user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 
 inspect(state.boxed.value);
 /// @resolution.name source=inspect target=inspect
@@ -855,7 +871,7 @@ inspect(state.boxed.value);
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.boxed receiver=State kind=symbol target=State.boxed
 /// @resolution.member source=state.boxed.value receiver=Box<User> kind=symbol target=Box.value
-/// @coercion.node source=state.boxed.value from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=state.boxed.value from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 
 inspect(state.users[0]);
 /// @resolution.name source=inspect target=inspect
@@ -864,8 +880,8 @@ inspect(state.users[0]);
 /// @resolution.member source=state.users receiver=State kind=symbol target=State.users
 /// @resolution.call source=state.users[0] parameters=(usize) arguments=(provided(0) as usize) return=User kind=symbol target=collections.array.index#4 receiver=Array<User> instance=Array<User>.<extension#6>.index#4
 /// @generic.instance source=state.users[0] id=Array<User>.<extension#6>.index#4
-/// @coercion.node source=state.users[0] from=User to=Borrowed<User, "static", "readonly"> origin=implicit
-/// @coercion.node source=0 from=0 to=usize origin=implicit
+/// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
+/// @coercion.node source=0 from=0 adjustments=[{ kind: widen, target: usize }] origin=implicit
 
 /// @generic.instance id=Array<User>.<extension#6>.index#4 template=collections.array.index#4 arguments=(User, User)
 /// @generic.instance id=Box<User> template=Box arguments=(User)
@@ -909,26 +925,118 @@ class User {}
 
 declare const condition: boolean;
 /// @type.symbol symbol=condition source=condition type=boolean
+/// @resolution.pattern source=condition kind=binding target=condition
 
 declare const first: User;
 /// @type.symbol symbol=first source=first type=User
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=User target=User
 
 declare const second: User;
 /// @type.symbol symbol=second source=second type=User
+/// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=User target=User
 
 const selected: &readonly User = condition ? first : second;
 /// @type.symbol symbol=selected source=selected type=Borrowed<User, "static", "readonly">
+/// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
 /// @resolution.name source=condition target=condition
-/// @coercion.node source="condition ? first : second" from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source="condition ? first : second" from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 /// @resolution.name source=first target=first
-/// @coercion.node source=first from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 /// @resolution.name source=second target=second
-/// @coercion.node source=second from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 "#,
     );
+}
+
+#[test]
+fn test_borrow_flow_narrowed_optional_member() {
+    let session = TestSession::single(
+        r#"
+struct Entry {
+    unit?: &readonly string;
+}
+
+class Counter {
+    readonly unit?: string;
+
+    emit(&readonly this): void {
+        const entry = Entry {
+            unit: this.unit == undefined ? undefined : &readonly this.unit,
+        };
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked().with_coercion(), r#"
+=== annotated ===
+struct Entry<comptime L0: Lifetime> {
+    unit?: Borrowed<string, L0, "readonly">;
+}
+
+class Counter {
+    readonly unit?: string;
+
+    emit(&readonly this): void {
+        const entry: Entry<"frame"> = Entry<"frame"> {
+            unit: (this.unit == undefined
+                ? (undefined as Borrowed<string, "frame", "readonly"> | undefined)
+                : (&readonly this.unit as | Borrowed<string, "frame", "readonly">
+                  | undefined)) as Borrowed<string, "frame", "readonly"> | undefined,
+        };
+    }
+}
+
+=== checked ===
+struct Entry {
+/// @generic.template symbol=Entry parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=Entry type=Entry
+/// @definition.struct symbol=Entry
+/// @definition.field symbol=Entry.unit source="unit?: &readonly string" key=unit type=Borrowed<string, Entry.L0, "readonly">
+
+    unit?: &readonly string;
+    /// @type.symbol symbol=Entry.unit source="unit?: &readonly string" type=Borrowed<string, Entry.L0, "readonly">
+
+}
+
+class Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.unit source="readonly unit?: string" key=unit type=string
+/// @definition.method symbol=Counter.emit slot=emit type=<comptime Counter.emit.L0: Lifetime>(this: Borrowed<this, Counter.emit.L0, "readonly">) => void
+
+    readonly unit?: string;
+    /// @type.symbol symbol=Counter.unit source="readonly unit?: string" type=string
+
+    emit(&readonly this): void {
+    /// @generic.template symbol=Counter.emit parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=Counter.emit type=<comptime Counter.emit.L0: Lifetime>(this: Borrowed<this, Counter.emit.L0, "readonly">) => void
+    /// @type.symbol symbol=Counter.emit.this source="&readonly this" type=Borrowed<this, Counter.emit.L0, "readonly">
+
+        const entry = Entry {
+        /// @type.symbol symbol=Counter.emit.entry source=entry type=Entry<"frame">
+        /// @resolution.pattern source=entry kind=binding target=Counter.emit.entry
+        /// @resolution.name source=Entry target=Entry
+
+            unit: this.unit == undefined ? undefined : &readonly this.unit,
+            /// @resolution.member source=this.unit receiver=Borrowed<Counter, Counter.emit.L0, "readonly"> kind=symbol target=Counter.unit
+            /// @resolution.operator source="this.unit == undefined" kind=builtin
+            /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.emit.L0, "readonly">
+            /// @coercion.node source="this.unit == undefined ? undefined : &readonly this.unit" from=undefined | Borrowed<string, "frame", "readonly"> adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined }] origin=implicit
+            /// @coercion.node source=undefined from=undefined adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined }] origin=implicit
+            /// @coercion.node source="&readonly this.unit" from=Borrowed<string, "frame", "readonly"> adjustments=[{ kind: direct, target: Borrowed<string, "frame", "readonly"> }, { kind: union, target: Borrowed<string, "frame", "readonly"> | undefined }] origin=implicit
+            /// @resolution.member source=this.unit receiver=Borrowed<Counter, Counter.emit.L0, "readonly"> kind=symbol target=Counter.unit
+            /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.emit.L0, "readonly">
+
+        };
+    }
+}
+
+/// @generic.instance id="Entry<\"frame\">" template=Entry arguments=("frame")
+"#);
 }
 
 #[test]
@@ -971,30 +1079,34 @@ class User {}
 
 declare const choice: "first" | "second";
 /// @type.symbol symbol=choice source=choice type="first" | "second"
+/// @resolution.pattern source=choice kind=binding target=choice
 
 declare const first: User;
 /// @type.symbol symbol=first source=first type=User
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=User target=User
 
 declare const second: User;
 /// @type.symbol symbol=second source=second type=User
+/// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=User target=User
 
 const selected: &readonly User = match (choice) {
 /// @type.symbol symbol=selected source=selected type=Borrowed<User, "static", "readonly">
+/// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
-/// @coercion.node from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 /// @resolution.name source=choice target=choice
 
     "first" => first
     /// @resolution.pattern source="\"first\"" kind=literal value="first"
     /// @resolution.name source=first target=first
-    /// @coercion.node source=first from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+    /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 
     _ => second
     /// @resolution.pattern source=_ kind=wildcard
     /// @resolution.name source=second target=second
-    /// @coercion.node source=second from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+    /// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 
 };
 "#,
@@ -1036,20 +1148,23 @@ class User {}
 
 declare const first: User;
 /// @type.symbol symbol=first source=first type=User
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=User target=User
 
 declare const second: User;
 /// @type.symbol symbol=second source=second type=User
+/// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=User target=User
 
 const selected: (&readonly User, &readonly User) = (first, second);
 /// @type.symbol symbol=selected source=selected type=(Borrowed<User, "static", "readonly">, Borrowed<User, "static", "readonly">)
+/// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=first target=first
-/// @coercion.node source=first from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 /// @resolution.name source=second target=second
-/// @coercion.node source=second from=User to=Borrowed<User, "static", "readonly"> origin=implicit
+/// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 "#,
     );
 }
@@ -1082,7 +1197,40 @@ declare function inspect(value: &readonly string): void;
 inspect("message");
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source="inspect(\"message\")" parameters=(Borrowed<string, "frame", "readonly">) arguments=(provided("message") as Borrowed<string, "frame", "readonly">) return=void kind=symbol target=inspect
-/// @coercion.node source="\"message\"" from="message" to=Borrowed<string, "frame", "readonly"> origin=implicit
+/// @coercion.node source="\"message\"" from="message" adjustments=[{ kind: borrow, target: Borrowed<string, "frame", "readonly"> }] origin=implicit
+"#,
+    );
+}
+
+#[test]
+fn test_coerce_managed_bigint_literal_to_readonly_borrow() {
+    let session = TestSession::single(
+        r#"
+declare function inspect(value: &readonly bigint): void;
+
+inspect(42n);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+declare function inspect<comptime L0: Lifetime>(value: Borrowed<bigint, L0, "readonly">): void;
+
+inspect(42n as Borrowed<bigint, "frame", "readonly">);
+
+=== checked ===
+declare function inspect(value: &readonly bigint): void;
+/// @generic.template symbol=inspect parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly bigint): void" type=<comptime inspect.L0: Lifetime>(Borrowed<bigint, inspect.L0, "readonly">) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly bigint" type=Borrowed<bigint, inspect.L0, "readonly">
+
+inspect(42n);
+/// @resolution.name source=inspect target=inspect
+/// @resolution.call source=inspect(42n) parameters=(Borrowed<bigint, "frame", "readonly">) arguments=(provided(42n) as Borrowed<bigint, "frame", "readonly">) return=void kind=symbol target=inspect
+/// @coercion.node source=42n from=42n adjustments=[{ kind: borrow, target: Borrowed<bigint, "frame", "readonly"> }] origin=implicit
 "#,
     );
 }
@@ -1123,6 +1271,7 @@ class User {}
 
 declare const user: shared User;
 /// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 declare function inspect(value: shared &readonly User): void;
@@ -1141,13 +1290,13 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Placed<Borrowed<User, "static", "readonly">, "shared">) arguments=(provided(user) as Placed<Borrowed<User, "static", "readonly">, "shared">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<User, "shared"> to=Placed<Borrowed<User, "static", "readonly">, "shared"> origin=implicit
+/// @coercion.node source=user from=Placed<User, "shared"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "readonly">, "shared"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Placed<Borrowed<User, "static", "mutable">, "shared">) arguments=(provided(user) as Placed<Borrowed<User, "static", "mutable">, "shared">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<User, "shared"> to=Placed<Borrowed<User, "static", "mutable">, "shared"> origin=implicit
+/// @coercion.node source=user from=Placed<User, "shared"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "mutable">, "shared"> }] origin=implicit
 "#,
     );
 }
@@ -1186,6 +1335,7 @@ class User {}
 
 declare const user: shared User;
 /// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 declare function replace(value: shared &exclusive User): void;
@@ -1196,7 +1346,7 @@ declare function replace(value: shared &exclusive User): void;
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(Placed<Borrowed<User, <error>, "exclusive">, "shared">) arguments=(provided(user) as Placed<Borrowed<User, <error>, "exclusive">, "shared">) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(Placed<Borrowed<User, "frame", "exclusive">, "shared">) arguments=(provided(user) as Placed<Borrowed<User, "frame", "exclusive">, "shared">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
 "#,
         r#"
@@ -1249,6 +1399,7 @@ class User {}
 
 declare const user: shared ^User;
 /// @type.symbol symbol=user source=user type=Placed<Owned<User>, "shared">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 declare function inspect(value: shared &readonly User): void;
@@ -1273,19 +1424,19 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Placed<Borrowed<User, "static", "readonly">, "shared">) arguments=(provided(user) as Placed<Borrowed<User, "static", "readonly">, "shared">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Owned<User>, "shared"> to=Placed<Borrowed<User, "static", "readonly">, "shared"> origin=implicit
+/// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "readonly">, "shared"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Placed<Borrowed<User, "static", "mutable">, "shared">) arguments=(provided(user) as Placed<Borrowed<User, "static", "mutable">, "shared">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Owned<User>, "shared"> to=Placed<Borrowed<User, "static", "mutable">, "shared"> origin=implicit
+/// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "mutable">, "shared"> }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(user) parameters=(Placed<Borrowed<User, "static", "exclusive">, "shared">) arguments=(provided(user) as Placed<Borrowed<User, "static", "exclusive">, "shared">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Owned<User>, "shared"> to=Placed<Borrowed<User, "static", "exclusive">, "shared"> origin=implicit
+/// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<Borrowed<User, "static", "exclusive">, "shared"> }] origin=implicit
 "#,
     );
 }
@@ -1351,22 +1502,24 @@ declare function inspectValues(value: &readonly int32[]): void;
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
+/// @resolution.pattern source=values kind=binding target=values
 
 inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint
 /// @resolution.call source=inspectPoint(point) parameters=(Borrowed<Point, "static", "readonly">) arguments=(provided(point) as Borrowed<Point, "static", "readonly">) return=void kind=symbol target=inspectPoint
 /// @resolution.name source=point target=point
-/// @coercion.node source=point from=Point to=Borrowed<Point, "static", "readonly"> origin=implicit
+/// @coercion.node source=point from=Point adjustments=[{ kind: borrow, target: Borrowed<Point, "static", "readonly"> }] origin=implicit
 
 inspectValues(values);
 /// @resolution.name source=inspectValues target=inspectValues
 /// @resolution.call source=inspectValues(values) parameters=(Borrowed<Array<int32>, "static", "readonly">) arguments=(provided(values) as Borrowed<Array<int32>, "static", "readonly">) return=void kind=symbol target=inspectValues
 /// @resolution.name source=values target=values
-/// @coercion.node source=values from=Array<int32> to=Borrowed<Array<int32>, "static", "readonly"> origin=implicit
+/// @coercion.node source=values from=Array<int32> adjustments=[{ kind: borrow, target: Borrowed<Array<int32>, "static", "readonly"> }] origin=implicit
 "#,
     );
 }
@@ -1393,6 +1546,7 @@ values.push(1);
 === checked ===
 declare const values: shared int32[];
 /// @type.symbol symbol=values source=values type=Placed<Array<int32>, "shared">
+/// @resolution.pattern source=values kind=binding target=values
 
 values.push(1);
 /// @resolution.name source=values target=values
@@ -1439,10 +1593,12 @@ class User {}
 
 declare const user: User;
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const same = user;
 /// @type.symbol symbol=same source=same type=User
+/// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=user target=user
 
 same satisfies User;
@@ -1480,6 +1636,7 @@ class User {}
 
 let user: User = new User();
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 /// @type.node source="new User()" type=User
 /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
@@ -1487,6 +1644,7 @@ let user: User = new User();
 
 let owned: ^User = user;
 /// @type.symbol symbol=owned source=owned type=Owned<User>
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=User target=User
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
@@ -1494,6 +1652,7 @@ let owned: ^User = user;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'User' is not assignable to type '^User'"
 /// @diagnostic.label line=5 column=20 span="user" line_source="let owned: ^User = user;"
+/// @diagnostic.related line=5 column=12 span="^" line_source="let owned: ^User = user;" message="expected due to this annotation"
 "#,
     );
 }
@@ -1539,16 +1698,19 @@ struct Label { buffer: ^Buffer; }
 
 declare const label: ^Label;
 /// @type.symbol symbol=label source=label type=Owned<Label> reduced=Label
+/// @resolution.pattern source=label kind=binding target=label
 /// @resolution.name source=Label target=Label
 
 let borrow = &label;
 /// @type.symbol symbol=borrow source=borrow type=Borrowed<Label, "static", "mutable">
+/// @resolution.pattern source=borrow kind=binding target=borrow
 /// @type.node source=&label type=Borrowed<Label, "static", "mutable">
 /// @type.node source=label type=Owned<Label> reduced=Label
 /// @resolution.name source=label target=label
 
 let owned: ^Label = borrow;
 /// @type.symbol symbol=owned source=owned type=Owned<Label> reduced=Label
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Label target=Label
 /// @type.node source=borrow type=Borrowed<Label, "static", "mutable">
 /// @resolution.name source=borrow target=borrow
@@ -1556,6 +1718,7 @@ let owned: ^Label = borrow;
         r#"
 /// @diagnostic.error id=not-assignable message="type '&Label' is not assignable to type '^Label'"
 /// @diagnostic.label line=7 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
+/// @diagnostic.related line=7 column=12 span="^" line_source="let owned: ^Label = borrow;" message="expected due to this annotation"
 /// @diagnostic.note message="'^Label' reduces to 'Label'"
 "#,
     );
@@ -1603,31 +1766,35 @@ struct Point {
 
 let point = ^Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Owned<Point> reduced=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source="^Point { x: 1 }" type=Owned<Point> reduced=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 to=int32 origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
 let borrow = &point;
 /// @type.symbol symbol=borrow source=borrow type=Borrowed<Point, "static", "mutable">
+/// @resolution.pattern source=borrow kind=binding target=borrow
 /// @type.node source=&point type=Borrowed<Point, "static", "mutable">
 /// @type.node source=point type=Owned<Point> reduced=Point
 /// @resolution.name source=point target=point
 
 let copied: Point = borrow;
 /// @type.symbol symbol=copied source=copied type=Point
+/// @resolution.pattern source=copied kind=binding target=copied
 /// @resolution.name source=Point target=Point
 /// @type.node source=borrow type=Borrowed<Point, "static", "mutable">
 /// @resolution.name source=borrow target=borrow
-/// @coercion.node source=borrow from=Borrowed<Point, "static", "mutable"> to=Point origin=implicit
+/// @coercion.node source=borrow from=Borrowed<Point, "static", "mutable"> adjustments=[{ kind: carrier, target: Point }] origin=implicit
 
 let owned: ^Point = borrow;
 /// @type.symbol symbol=owned source=owned type=Owned<Point> reduced=Point
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Point target=Point
 /// @type.node source=borrow type=Borrowed<Point, "static", "mutable">
 /// @resolution.name source=borrow target=borrow
-/// @coercion.node source=borrow from=Borrowed<Point, "static", "mutable"> to=Point origin=implicit
+/// @coercion.node source=borrow from=Borrowed<Point, "static", "mutable"> adjustments=[{ kind: carrier, target: Point }] origin=implicit
 "#,
         r#""#,
     );
@@ -1659,6 +1826,7 @@ class User {}
 
 let owned: ^User = new User();
 /// @type.symbol symbol=owned source=owned type=Owned<User>
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=User target=User
 /// @type.node source="new User()" type=Owned<User>
 /// @resolution.construct source="new User()" parameters=() return=Owned<User> kind=class target=User constructor=default
@@ -1706,12 +1874,14 @@ struct Point {
 
 let point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
 
 let owned: ^Point = point;
 /// @type.symbol symbol=owned source=owned type=Owned<Point> reduced=Point
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
@@ -1814,6 +1984,7 @@ declare function duplicate<T: Copy>(value: T): ^T;
 
 declare const session: ^Session;
 /// @type.symbol symbol=session source=session type=Owned<Session>
+/// @resolution.pattern source=session kind=binding target=session
 /// @resolution.name source=Session target=Session
 
 duplicate(32);

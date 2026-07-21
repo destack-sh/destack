@@ -46,6 +46,7 @@ interface Person {
 
 declare const person: Readonly<Person>;
 /// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
@@ -98,6 +99,7 @@ interface Person {
 
 const person: Readonly<Person> = {};
 /// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
@@ -156,6 +158,7 @@ interface Person {
 
 declare const person: Readonly<Person>;
 /// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
@@ -218,6 +221,7 @@ interface Person {
 
 const person: Readonly<Person> = { profile: { name: "Ada" } };
 /// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 

@@ -27,6 +27,7 @@ const hidden: MissingType = missingValue;
 
 const visible = 1;
 /// @type.symbol symbol=visible source=visible type=1
+/// @resolution.pattern source=visible kind=binding target=visible
 /// @type.node source=1 type=1
 "#,
     );
@@ -53,11 +54,13 @@ const value: int32 = "text";
 @if(true)
 const value: int32 = "text";
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"text\"" type="text"
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=3 column=22 span="\"text\"" line_source="const value: int32 = \"text\";"
+/// @diagnostic.related line=3 column=14 span="int32" line_source="const value: int32 = \"text\";" message="expected due to this annotation"
 "#,
     );
 }
@@ -115,6 +118,7 @@ const value = 1;
 === checked ===
 let enabled = true;
 /// @type.symbol symbol=enabled source=enabled type=boolean
+/// @resolution.pattern source=enabled kind=binding target=enabled
 /// @type.node source=true type=true
 
 @if(enabled)

@@ -81,12 +81,14 @@ function capture<T>(): void {
 
     let seen: Consume<T> | undefined = undefined;
     /// @type.symbol symbol=capture.seen source=seen type=Consume<T#3> | undefined
+    /// @resolution.pattern source=seen kind=binding target=capture.seen
     /// @resolution.name source=Consume target=Consume
     /// @resolution.name source=T target=capture.T
     /// @type.node source=undefined type=undefined
 
     let cell = new Cell<T>((inner) => {
     /// @type.symbol symbol=capture.cell source=cell type=Cell<T#3>
+    /// @resolution.pattern source=cell kind=binding target=capture.cell
     /// @type.node type=Cell<T#3>
     /// @resolution.construct parameters=(Function<(Consume<T#3>,), void>) arguments=(provided(argument) as Function<(Consume<T#3>,), void>) return=Cell<T#3> kind=class target=Cell constructor=Cell.constructor instance=Cell<T#3>
     /// @resolution.name source=Cell target=Cell
@@ -192,10 +194,12 @@ function capture(): void {
 
     let seen: int32 | undefined = undefined;
     /// @type.symbol symbol=capture.seen source=seen type=int32 | undefined
+    /// @resolution.pattern source=seen kind=binding target=capture.seen
     /// @type.node source=undefined type=undefined
 
     let cell = new Cell<int32>((inner) => {
     /// @type.symbol symbol=capture.cell source=cell type=Cell<int32>
+    /// @resolution.pattern source=cell kind=binding target=capture.cell
     /// @type.node type=Cell<int32>
     /// @resolution.construct parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
     /// @resolution.name source=Cell target=Cell

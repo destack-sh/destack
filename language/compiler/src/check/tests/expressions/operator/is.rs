@@ -26,6 +26,7 @@ if (value is string) {
 === checked ===
 declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
+/// @resolution.pattern source=value kind=binding target=value
 
 if (value is string) {
 /// @type.node source="value is string" type=boolean
@@ -67,6 +68,7 @@ if (value is { name: string }) {
 === checked ===
 declare const value: Dynamic<unknown>;
 /// @type.symbol symbol=value source=value type=Dynamic<unknown>
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 
 if (value is { name: string }) {
@@ -117,6 +119,7 @@ if (value is string) {
 === checked ===
 declare const value: string | int32;
 /// @type.symbol symbol=value source=value type=string | int32
+/// @resolution.pattern source=value kind=binding target=value
 
 if (value is string) {
 /// @type.node source="value is string" type=boolean
@@ -164,6 +167,7 @@ if (value is int32) {
 === checked ===
 declare const value: string;
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 
 if (value is int32) {
 /// @type.node source="value is int32" type=boolean
@@ -224,6 +228,7 @@ struct Node {
 
 declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
+/// @resolution.pattern source=value kind=binding target=value
 
 if (value is &readonly Node) {
 /// @type.node source="value is &readonly Node" type=boolean

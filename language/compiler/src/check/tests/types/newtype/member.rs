@@ -89,3 +89,63 @@ extension<T> of Sealed<T> {
         r#""#,
     );
 }
+
+#[test]
+fn test_imported_newtype_member_access_projects_generic_backing() {
+    let session = TestSession::builder()
+        .module(
+            "value.ds",
+            r#"
+export class Wrapper<T> {
+    open(): T {
+        throw "unreachable";
+    }
+}
+
+export newtype Sealed<T> = Wrapper<T>;
+
+export function value(): Sealed<int32> {
+    throw "unreachable";
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { value } from "./value.ds";
+
+const number = value().open();
+number satisfies int32;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { value } from "./value.ds";
+
+const number: int32 = value().open<int32>();
+number satisfies int32;
+
+=== checked ===
+import { value } from "./value.ds";
+
+const number = value().open();
+/// @type.symbol symbol=number source=number type=int32
+/// @resolution.pattern source=number kind=binding target=number
+/// @resolution.name source=value target=value.value
+/// @resolution.member source=value().open receiver=value.Sealed<int32> kind=symbol target=value.Wrapper.open adjustments=(backing)
+/// @resolution.call source=value() parameters=() return=value.Sealed<int32> kind=symbol target=value.value
+/// @resolution.call source=value().open() parameters=() return=int32 kind=symbol target=value.Wrapper.open receiver=value.Wrapper<int32> adjustments=(backing) instance=value.Wrapper<int32>.open
+/// @generic.instance source=value().open() id=value.Wrapper<int32>.open
+
+number satisfies int32;
+/// @resolution.name source=number target=number
+
+/// @generic.instance id=value.Wrapper<int32>.open template=value.Wrapper.open arguments=(int32)
+"#,
+    );
+}

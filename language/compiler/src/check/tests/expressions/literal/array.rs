@@ -18,11 +18,12 @@ let values: float64[] = [1, 2];
 === checked ===
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -45,11 +46,12 @@ const values: float64[] = [1, 2];
 === checked ===
 const values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=1 decisions=1
 "#,
     );
 }
@@ -74,6 +76,7 @@ const first: 1 = values[0];
 === checked ===
 const values = [1, 2] as const;
 /// @type.symbol symbol=values source=values type=readonly [1, 2] reduced=[1, 2]
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source="[1, 2] as const" type=readonly [1, 2] reduced=[1, 2]
 /// @type.node source=[1, 2] type=readonly [1, 2] reduced=[1, 2]
 /// @type.node source=1 type=1
@@ -81,13 +84,14 @@ const values = [1, 2] as const;
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1
+/// @resolution.pattern source=first kind=binding target=first
 /// @type.node source=values type=readonly [1, 2] reduced=[1, 2]
 /// @type.node source=values[0] type=1
 /// @resolution.name source=values target=values
 /// @resolution.member source=values[0] receiver=[1, 2] kind=element index=0
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=2 types=8 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -110,9 +114,10 @@ const values: never[] = [];
 === checked ===
 const values = [];
 /// @type.symbol symbol=values source=values type=Array<never>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[] type=Array<never>
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -135,9 +140,10 @@ const values: int32[] = [];
 === checked ===
 const values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -160,12 +166,13 @@ let values: (float64 | string | boolean)[] = [1, "two", true];
 === checked ===
 let values = [1, "two", true];
 /// @type.symbol symbol=values source=values type=Array<float64 | string | boolean>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, "two", true] type=Array<1 | "two" | true>
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=11 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=12 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -188,12 +195,13 @@ const values: float64[] = [1, 2, 3];
 === checked ===
 const values: number[] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=6 constraints=4 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=7 constraints=4 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -216,11 +224,12 @@ const values: float64[] = [1, "two"];
 === checked ===
 const values: number[] = [1, "two"];
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, "two"] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=6 constraints=3 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"two\"' is not assignable to type 'float64'"

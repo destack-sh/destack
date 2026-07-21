@@ -76,7 +76,7 @@ extension of Charge implements Negate {
 
         Charge { value: -this.value }
         /// @resolution.name source=Charge target=Charge
-        /// @resolution.call source=-this.value parameters=() return=float64 kind=builtin builtin=unary.negate
+        /// @resolution.operator source=-this.value kind=builtin
         /// @resolution.member source=this.value receiver=Charge kind=symbol target=Charge.value
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Charge
 
@@ -85,11 +85,13 @@ extension of Charge implements Negate {
 
 declare const charge: Charge;
 /// @type.symbol symbol=charge source=charge type=Charge
+/// @resolution.pattern source=charge kind=binding target=charge
 /// @resolution.name source=Charge target=Charge
 
 const flipped = -charge;
 /// @type.symbol symbol=flipped source=flipped type=Charge
-/// @resolution.call source=-charge parameters=() return=Charge kind=symbol target=negate receiver=Charge
+/// @resolution.pattern source=flipped kind=binding target=flipped
+/// @resolution.operator source=-charge kind=call parameters=() return=Charge target=negate receiver=Charge
 /// @resolution.name source=charge target=charge
 "#,
     );

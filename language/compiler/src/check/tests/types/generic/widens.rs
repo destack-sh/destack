@@ -57,11 +57,13 @@ struct Holder<T> {
 
 declare const circles: Holder<Circle>;
 /// @type.symbol symbol=circles source=circles type=Holder<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const shapes: Holder<Shape> = circles;
 /// @type.symbol symbol=shapes source=shapes type=Holder<Shape>
+/// @resolution.pattern source=shapes kind=binding target=shapes
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -137,11 +139,13 @@ struct Holder<T> {
 
 declare const circles: Holder<Circle>;
 /// @type.symbol symbol=circles source=circles type=Holder<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const either: Holder<Circle | Square> = circles;
 /// @type.symbol symbol=either source=either type=Holder<Circle | Square>
+/// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
@@ -153,6 +157,7 @@ const either: Holder<Circle | Square> = circles;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<Circle | Square>'"
 /// @diagnostic.label line=11 column=41 span="circles" line_source="const either: Holder<Circle | Square> = circles;"
+/// @diagnostic.related line=11 column=15 span="Holder" line_source="const either: Holder<Circle | Square> = circles;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"
 "#,
     );
@@ -199,10 +204,12 @@ struct Holder<T> {
 
 declare const one: Holder<1>;
 /// @type.symbol symbol=one source=one type=Holder<1>
+/// @resolution.pattern source=one kind=binding target=one
 /// @resolution.name source=Holder target=Holder
 
 const wide: Holder<int32> = one;
 /// @type.symbol symbol=wide source=wide type=Holder<int32>
+/// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=one target=one
 
@@ -212,6 +219,7 @@ const wide: Holder<int32> = one;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<1>' is not assignable to type 'Holder<int32>'"
 /// @diagnostic.label line=7 column=29 span="one" line_source="const wide: Holder<int32> = one;"
+/// @diagnostic.related line=7 column=13 span="Holder" line_source="const wide: Holder<int32> = one;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'int32', found '1'"
 "#,
     );
@@ -266,11 +274,13 @@ struct Holder<T> {
 
 declare const circles: Holder<Circle>;
 /// @type.symbol symbol=circles source=circles type=Holder<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const opaque: Holder<unknown> = circles;
 /// @type.symbol symbol=opaque source=opaque type=Holder<unknown>
+/// @resolution.pattern source=opaque kind=binding target=opaque
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=circles target=circles
 
@@ -280,6 +290,7 @@ const opaque: Holder<unknown> = circles;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<unknown>'"
 /// @diagnostic.label line=9 column=33 span="circles" line_source="const opaque: Holder<unknown> = circles;"
+/// @diagnostic.related line=9 column=15 span="Holder" line_source="const opaque: Holder<unknown> = circles;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'unknown', found 'Circle'"
 "#,
     );
@@ -343,11 +354,13 @@ struct Holder<T> {
 
 declare const circles: Holder<Circle>;
 /// @type.symbol symbol=circles source=circles type=Holder<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const dynamic: Holder<Dynamic<Draw>> = circles;
 /// @type.symbol symbol=dynamic source=dynamic type=Holder<Dynamic<Draw>>
+/// @resolution.pattern source=dynamic kind=binding target=dynamic
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @resolution.name source=Draw target=Draw
@@ -360,6 +373,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<Dynamic<Draw>>'"
 /// @diagnostic.label line=10 column=40 span="circles" line_source="const dynamic: Holder<Dynamic<Draw>> = circles;"
+/// @diagnostic.related line=10 column=16 span="Holder" line_source="const dynamic: Holder<Dynamic<Draw>> = circles;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Dynamic<Draw>', found 'Circle'"
 "#,
     );
@@ -422,11 +436,13 @@ struct Holder<T> {
 
 declare const makers: Holder<() => Circle>;
 /// @type.symbol symbol=makers source=makers type=Holder<Function<(), Circle>>
+/// @resolution.pattern source=makers kind=binding target=makers
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const widened: Holder<() => Shape> = makers;
 /// @type.symbol symbol=widened source=widened type=Holder<Function<(), Shape>>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=makers target=makers
@@ -502,11 +518,13 @@ struct Holder<T> {
 
 declare const makers: Holder<() => Circle>;
 /// @type.symbol symbol=makers source=makers type=Holder<Function<(), Circle>>
+/// @resolution.pattern source=makers kind=binding target=makers
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const either: Holder<() => Circle | Square> = makers;
 /// @type.symbol symbol=either source=either type=Holder<Function<(), Circle | Square>>
+/// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
@@ -518,6 +536,7 @@ const either: Holder<() => Circle | Square> = makers;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Holder<() => Circle>' is not assignable to type 'Holder<() => … | …>'"
 /// @diagnostic.label line=11 column=47 span="makers" line_source="const either: Holder<() => Circle | Square> = makers;"
+/// @diagnostic.related line=11 column=15 span="Holder" line_source="const either: Holder<() => Circle | Square> = makers;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected '() => Circle | Square', found '() => Circle'"
 "#,
     );
@@ -580,11 +599,13 @@ declare class Box<T> {
 
 declare const boxed: Box<Circle>;
 /// @type.symbol symbol=boxed source=boxed type=Box<Circle>
+/// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 
 const widened: Box<Shape> = boxed;
 /// @type.symbol symbol=widened source=widened type=Box<Shape>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
@@ -595,6 +616,7 @@ const widened: Box<Shape> = boxed;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
 /// @diagnostic.label line=10 column=29 span="boxed" line_source="const widened: Box<Shape> = boxed;"
+/// @diagnostic.related line=10 column=16 span="Box" line_source="const widened: Box<Shape> = boxed;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Box': expected 'Shape', found 'Circle'"
 "#,
     );
@@ -657,11 +679,13 @@ declare class Label<T> {
 
 declare const labeled: Label<Circle>;
 /// @type.symbol symbol=labeled source=labeled type=Label<Circle>
+/// @resolution.pattern source=labeled kind=binding target=labeled
 /// @resolution.name source=Label target=Label
 /// @resolution.name source=Circle target=Circle
 
 const widened: Label<Shape> = labeled;
 /// @type.symbol symbol=widened source=widened type=Label<Shape>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Label target=Label
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=labeled target=labeled
@@ -729,11 +753,13 @@ declare class Box<T> {
 
 declare const boxed: ^Box<Circle>;
 /// @type.symbol symbol=boxed source=boxed type=Owned<Box<Circle>>
+/// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 
 const widened: ^Box<Shape> = boxed;
 /// @type.symbol symbol=widened source=widened type=Owned<Box<Shape>>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
@@ -812,11 +838,13 @@ declare class Pipe<T> {
 
 declare const pipe: ^Pipe<Circle>;
 /// @type.symbol symbol=pipe source=pipe type=Owned<Pipe<Circle>>
+/// @resolution.pattern source=pipe kind=binding target=pipe
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Circle target=Circle
 
 const widened: ^Pipe<Shape> = pipe;
 /// @type.symbol symbol=widened source=widened type=Owned<Pipe<Shape>>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=pipe target=pipe
@@ -827,6 +855,7 @@ const widened: ^Pipe<Shape> = pipe;
         r#"
 /// @diagnostic.error id=not-assignable message="type '^Pipe<Circle>' is not assignable to type '^Pipe<Shape>'"
 /// @diagnostic.label line=12 column=31 span="pipe" line_source="const widened: ^Pipe<Shape> = pipe;"
+/// @diagnostic.related line=12 column=16 span="^" line_source="const widened: ^Pipe<Shape> = pipe;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Pipe': expected 'Shape', found 'Circle'"
 "#,
     );
@@ -923,11 +952,13 @@ extension<T> of Stack<T> {
 
 declare const circles: Stack<Circle>;
 /// @type.symbol symbol=circles source=circles type=Stack<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
 
 const widened: Stack<Shape> = circles;
 /// @type.symbol symbol=widened source=widened type=Stack<Shape>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -938,6 +969,7 @@ const widened: Stack<Shape> = circles;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Stack<Circle>' is not assignable to type 'Stack<Shape>'"
 /// @diagnostic.label line=16 column=31 span="circles" line_source="const widened: Stack<Shape> = circles;"
+/// @diagnostic.related line=16 column=16 span="Stack" line_source="const widened: Stack<Shape> = circles;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Stack': expected 'Shape', found 'Circle'"
 "#,
     );
@@ -1034,11 +1066,13 @@ extension<T> of Stack<T> {
 
 declare const circles: Stack<Circle>;
 /// @type.symbol symbol=circles source=circles type=Stack<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
 
 const view: readonly Stack<Shape> = circles;
 /// @type.symbol symbol=view source=view type=Readonly<Stack<Shape>>
+/// @resolution.pattern source=view kind=binding target=view
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -1127,11 +1161,13 @@ class Bag<T> {
 
 declare const circles: Bag<Circle>;
 /// @type.symbol symbol=circles source=circles type=Bag<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=Circle target=Circle
 
 const view: readonly Bag<Shape> = circles;
 /// @type.symbol symbol=view source=view type=Readonly<Bag<Shape>>
+/// @resolution.pattern source=view kind=binding target=view
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -1142,6 +1178,7 @@ const view: readonly Bag<Shape> = circles;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Bag<Circle>' is not assignable to type 'readonly Bag<Shape>'"
 /// @diagnostic.label line=14 column=35 span="circles" line_source="const view: readonly Bag<Shape> = circles;"
+/// @diagnostic.related line=14 column=13 span="readonly" line_source="const view: readonly Bag<Shape> = circles;" message="expected due to this annotation"
 "#,
     );
 }
@@ -1192,11 +1229,13 @@ newtype Handle<out T> = intrinsic;
 
 declare const handle: Handle<Circle>;
 /// @type.symbol symbol=handle source=handle type=Handle<Circle>
+/// @resolution.pattern source=handle kind=binding target=handle
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Circle target=Circle
 
 const widened: Handle<Shape> = handle;
 /// @type.symbol symbol=widened source=widened type=Handle<Shape>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
@@ -1261,11 +1300,13 @@ newtype Handle<out T> = intrinsic;
 
 declare const handle: Handle<Circle>;
 /// @type.symbol symbol=handle source=handle type=Handle<Circle>
+/// @resolution.pattern source=handle kind=binding target=handle
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Circle target=Circle
 
 const either: Handle<Circle | Square> = handle;
 /// @type.symbol symbol=either source=either type=Handle<Circle | Square>
+/// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
@@ -1277,6 +1318,7 @@ const either: Handle<Circle | Square> = handle;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Handle<Circle>' is not assignable to type 'Handle<Circle | Square>'"
 /// @diagnostic.label line=9 column=41 span="handle" line_source="const either: Handle<Circle | Square> = handle;"
+/// @diagnostic.related line=9 column=15 span="Handle" line_source="const either: Handle<Circle | Square> = handle;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Handle': expected 'Circle | Square', found 'Circle'"
 "#,
     );
@@ -1328,12 +1370,14 @@ newtype Handle<out T> = intrinsic;
 
 declare const handle: Managed<Handle<Circle>>;
 /// @type.symbol symbol=handle source=handle type=Managed<Handle<Circle>>
+/// @resolution.pattern source=handle kind=binding target=handle
 /// @resolution.name source=Managed target=memory.managed.Managed
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Circle target=Circle
 
 const widened: Managed<Handle<Shape>> = handle;
 /// @type.symbol symbol=widened source=widened type=Managed<Handle<Shape>>
+/// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Managed target=memory.managed.Managed
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
@@ -1347,6 +1391,7 @@ const widened: Managed<Handle<Shape>> = handle;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Managed<Handle<Circle>>' is not assignable to type 'Managed<Handle<Shape>>'"
 /// @diagnostic.label line=8 column=41 span="handle" line_source="const widened: Managed<Handle<Shape>> = handle;"
+/// @diagnostic.related line=8 column=16 span="Managed" line_source="const widened: Managed<Handle<Shape>> = handle;" message="expected due to this annotation"
 /// @diagnostic.note message="'Managed<Handle<Circle>>' reduces to 'Handle<Circle>'"
 /// @diagnostic.note message="'Managed<Handle<Shape>>' reduces to 'Handle<Shape>'"
 "#,
@@ -1420,17 +1465,20 @@ struct Holder<T> {
 
 declare const holder: Holder<Circle>;
 /// @type.symbol symbol=holder source=holder type=Holder<Circle>
+/// @resolution.pattern source=holder kind=binding target=holder
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const view: &readonly Holder<Shape> = &readonly holder;
 /// @type.symbol symbol=view source=view type=Borrowed<Holder<Shape>, "static", "readonly">
+/// @resolution.pattern source=view kind=binding target=view
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=holder target=holder
 
 const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @type.symbol symbol=either source=either type=Borrowed<Holder<Circle | Square>, "static", "readonly">
+/// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
@@ -1443,6 +1491,7 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
         r#"
 /// @diagnostic.error id=not-assignable message="type '&readonly Holder<Circle>' is not assignable to type '&readonly Holder<Circle | Square>'"
 /// @diagnostic.label line=12 column=51 span="&readonly holder" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;"
+/// @diagnostic.related line=12 column=15 span="&" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;" message="expected due to this annotation"
 "#,
     );
 }

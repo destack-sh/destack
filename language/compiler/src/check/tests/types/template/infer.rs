@@ -37,6 +37,7 @@ type Name = Segment<"/api">;
 
 declare const name: Name;
 /// @type.symbol symbol=name source=name type=Name reduced="api"
+/// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 
 /// @generic.instance id="Segment<\"/api\">" template=Segment arguments=("/api")
@@ -89,10 +90,12 @@ type No = HasId<"users">;
 
 const yes: Yes = true;
 /// @type.symbol symbol=yes source=yes type=Yes reduced=true
+/// @resolution.pattern source=yes kind=binding target=yes
 /// @resolution.name source=Yes target=Yes
 
 const no: No = false;
 /// @type.symbol symbol=no source=no type=No reduced=false
+/// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=No target=No
 
 /// @generic.instance id="HasId<\"id:users\">" template=HasId arguments=("id:users")
@@ -140,10 +143,12 @@ type Result = Extract<`foo-a` | `foo-b`>;
 
 const a: Result = "a";
 /// @type.symbol symbol=a source=a type=Result reduced="a" | "b"
+/// @resolution.pattern source=a kind=binding target=a
 /// @resolution.name source=Result target=Result
 
 const b: Result = "b";
 /// @type.symbol symbol=b source=b type=Result reduced="a" | "b"
+/// @resolution.pattern source=b kind=binding target=b
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id="Extract<`foo-a` | `foo-b`>" template=Extract arguments=(`foo-a` | `foo-b`)
@@ -188,6 +193,7 @@ type Match = Repeat<"foo-foo">;
 
 const matched: Match = "foo";
 /// @type.symbol symbol=matched source=matched type=Match reduced="foo"
+/// @resolution.pattern source=matched kind=binding target=matched
 /// @resolution.name source=Match target=Match
 
 /// @generic.instance id="Repeat<\"foo-foo\">" template=Repeat arguments=("foo-foo")
@@ -232,6 +238,7 @@ type Match = Repeat<"foo-bar">;
 
 const matched: Match = "no";
 /// @type.symbol symbol=matched source=matched type=Match reduced="no"
+/// @resolution.pattern source=matched kind=binding target=matched
 /// @resolution.name source=Match target=Match
 
 /// @generic.instance id="Repeat<\"foo-bar\">" template=Repeat arguments=("foo-bar")
@@ -277,6 +284,7 @@ type Result = Pair<"foo-bar-baz">;
 
 const result: Result = ("foo", "bar-baz");
 /// @type.symbol symbol=result source=result type=Result reduced=("foo", "bar-baz")
+/// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id="Pair<\"foo-bar-baz\">" template=Pair arguments=("foo-bar-baz")
@@ -322,6 +330,7 @@ type Result = Pair<"foo-bar-baz">;
 
 const bad: Result = ("foo-bar", "baz");
 /// @type.symbol symbol=bad source=bad type=Result reduced=("foo", "bar-baz")
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id="Pair<\"foo-bar-baz\">" template=Pair arguments=("foo-bar-baz")
@@ -375,10 +384,12 @@ type Result = Split<"a">;
 
 const ok: Result = ("a", "");
 /// @type.symbol symbol=ok source=ok type=Result reduced=("a", "")
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Result target=Result
 
 const bad: Result = ("", "a");
 /// @type.symbol symbol=bad source=bad type=Result reduced=("a", "")
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id="Split<\"a\">" template=Split arguments=("a")
@@ -430,6 +441,7 @@ type Result = Split<"a">;
 
 const ok: Result = ("", "");
 /// @type.symbol symbol=ok source=ok type=Result reduced=("", "")
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Result target=Result
 
 /// @generic.instance id="Split<\"a\">" template=Split arguments=("a")

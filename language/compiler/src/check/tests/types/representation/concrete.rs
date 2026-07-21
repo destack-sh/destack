@@ -36,6 +36,7 @@ function storageSize<T: Concrete>(): usize {
 
     const size = comptime sizeOf<T>();
     /// @type.symbol symbol=storageSize.size source=size type=usize
+    /// @resolution.pattern source=size kind=binding target=storageSize.size
     /// @resolution.name source=sizeOf target=reflect.type.sizeOf
     /// @resolution.call source=sizeOf<T>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<T>
     /// @generic.instance source=sizeOf<T>() id=sizeOf<T>
@@ -48,6 +49,7 @@ function storageSize<T: Concrete>(): usize {
 
 const size = storageSize<int32>();
 /// @type.symbol symbol=size source=size type=usize
+/// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=storageSize target=storageSize
 /// @resolution.call source=storageSize<int32>() parameters=() return=usize kind=symbol target=storageSize instance=storageSize<int32>
 /// @generic.instance source=storageSize<int32>() id=storageSize<int32>
@@ -133,6 +135,7 @@ newtype Shape = Circle | Rectangle;
 
 const size = comptime sizeOf<Shape>();
 /// @type.symbol symbol=size source=size type=usize
+/// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
 /// @resolution.call source=sizeOf<Shape>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Shape>
 /// @generic.instance source=sizeOf<Shape>() id=sizeOf<Shape>
@@ -185,6 +188,7 @@ interface Writer {
 
 const size = comptime sizeOf<Dynamic<Writer>>();
 /// @type.symbol symbol=size source=size type=usize
+/// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
 /// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Dynamic<Writer>>
 /// @generic.instance source=sizeOf<Dynamic<Writer>>() id=sizeOf<Dynamic<Writer>>
@@ -236,6 +240,7 @@ type Writer = {
 
 const size = comptime sizeOf<Dynamic<Writer>>();
 /// @type.symbol symbol=size source=size type=usize
+/// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=sizeOf target=reflect.type.sizeOf
 /// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Dynamic<Writer>>
 /// @generic.instance source=sizeOf<Dynamic<Writer>>() id=sizeOf<Dynamic<Writer>>
@@ -268,6 +273,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
 === checked ===
 declare const value: Dynamic<<T>(input: T) => T>;
 /// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @generic.template source=type_expression parameters=(T)
 /// @type.symbol symbol=T source=T type=T

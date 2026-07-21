@@ -28,6 +28,7 @@ y satisfies string;
 === checked ===
 declare const point: { x: int32; y: string };
 /// @type.symbol symbol=point source=point type={ x: int32; y: string }
+/// @resolution.pattern source=point kind=binding target=point
 
 let { x, y } = point;
 /// @resolution.pattern source={ x, y } kind=object fields={ x, y }
@@ -45,6 +46,45 @@ y satisfies string;
 /// @type.node source="y satisfies string" type=string
 /// @type.node source=y type=string
 /// @resolution.name source=y target=y#2
+"#,
+    );
+}
+
+#[test]
+fn test_object_pattern_checks_annotated_value() {
+    let session = TestSession::single(
+        r#"
+declare const source: { x: string };
+
+let { x }: { x: int32 } = source;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const source: { x: string };
+
+let { x }: { x: int32 } = source;
+
+=== checked ===
+declare const source: { x: string };
+/// @type.symbol symbol=source source=source type={ x: string }
+/// @resolution.pattern source=source kind=binding target=source
+
+let { x }: { x: int32 } = source;
+/// @resolution.pattern source={ x } kind=object fields={ x }
+/// @type.symbol symbol=x#3 source=x type=int32
+/// @type.node source=source type={ x: string }
+/// @resolution.name source=source target=source
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '{ x: string }' is not assignable to type '{ x: int32 }'"
+/// @diagnostic.label line=4 column=27 span="source" line_source="let { x }: { x: int32 } = source;"
+/// @diagnostic.related line=4 column=12 span="{ x: int32 }" line_source="let { x }: { x: int32 } = source;" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in field 'x': expected 'int32', found 'string'"
 "#,
     );
 }

@@ -30,6 +30,7 @@ declare function id<const T>(value: T): T;
 
 const value = id("ready");
 /// @type.symbol symbol=value source=value type="ready"
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id(\"ready\")" parameters=("ready") arguments=(provided("ready") as "ready") return="ready" kind=symbol target=id instance="id<\"ready\">"
 /// @generic.instance source="id(\"ready\")" id="id<\"ready\">"
@@ -71,12 +72,14 @@ declare function id<const T>(value: T): T;
 
 const values = id([1, 2]);
 /// @type.symbol symbol=values source=values type=[1, 2]
+/// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=([1, 2]) arguments=(provided([1, 2]) as [1, 2]) return=[1, 2] kind=symbol target=id instance="id<[1, 2]>"
 /// @generic.instance source="id([1, 2])" id="id<[1, 2]>"
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
 /// @resolution.member source=values[0] receiver=[1, 2] kind=element index=0
 
@@ -117,12 +120,14 @@ declare function id<T>(value: T): T;
 
 const values = id([1, 2]);
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=id instance=id<Array<float64>>
 /// @generic.instance source="id([1, 2])" id=id<Array<float64>>
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=float64
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
 /// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#4 receiver=Array<float64> instance=Array<float64>.<extension#6>.index#4
 /// @generic.instance source=values[0] id=Array<float64>.<extension#6>.index#4
@@ -161,6 +166,7 @@ declare function take(values: float64[]): void;
 
 declare const values: (1 | 2)[];
 /// @type.symbol symbol=values source=values type=Array<1 | 2>
+/// @resolution.pattern source=values kind=binding target=values
 
 take(values);
 /// @resolution.name source=take target=take
@@ -308,6 +314,7 @@ declare function id<T>(value: T): T;
 
 const value = id((1, "x"));
 /// @type.symbol symbol=value source=value type=(float64, string)
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id((1, \"x\"))" parameters=((float64, string)) arguments=(provided((1, "x")) as (float64, string)) return=(float64, string) kind=symbol target=id instance="id<(float64, string)>"
 /// @generic.instance source="id((1, \"x\"))" id="id<(float64, string)>"
@@ -354,17 +361,20 @@ declare function id<const T>(value: T): T;
 
 const value = id({ kind: "ready", level: 1 });
 /// @type.symbol symbol=value source=value type={ readonly kind: "ready"; readonly level: 1 }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ readonly kind: "ready"; readonly level: 1 }) arguments=(provided({ kind: "ready", level: 1 }) as { readonly kind: "ready"; readonly level: 1 }) return={ readonly kind: "ready"; readonly level: 1 } kind=symbol target=id instance="id<{ readonly kind: \"ready\"; readonly level: 1 }>"
 /// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<{ readonly kind: \"ready\"; readonly level: 1 }>"
 
 const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type="ready"
+/// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.kind receiver={ readonly kind: "ready"; readonly level: 1 } kind=field key=kind
 
 const level = value.level;
 /// @type.symbol symbol=level source=level type=1
+/// @resolution.pattern source=level kind=binding target=level
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.level receiver={ readonly kind: "ready"; readonly level: 1 } kind=field key=level
 
@@ -410,17 +420,20 @@ declare function id<T>(value: T): T;
 
 const value = id({ kind: "ready", level: 1 });
 /// @type.symbol symbol=value source=value type={ kind: string; level: float64 }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
 /// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ kind: string; level: float64 }) arguments=(provided({ kind: "ready", level: 1 }) as { kind: string; level: float64 }) return={ kind: string; level: float64 } kind=symbol target=id instance="id<{ kind: string; level: float64 }>"
 /// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<{ kind: string; level: float64 }>"
 
 const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type=string
+/// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.kind receiver={ kind: string; level: float64 } kind=field key=kind
 
 const level = value.level;
 /// @type.symbol symbol=level source=level type=float64
+/// @resolution.pattern source=level kind=binding target=level
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.level receiver={ kind: string; level: float64 } kind=field key=level
 
@@ -1439,13 +1452,13 @@ function asinh<T: Float>(x: T): T {
     /// @resolution.call source="log(x + sqrt(x * x + 1))" parameters=(T#3) arguments=(provided(x + sqrt(x * x + 1)) as T#3) return=T#3 kind=symbol target=log instance=log<T#3>
     /// @generic.instance source="log(x + sqrt(x * x + 1))" id=log<T#3>
     /// @resolution.name source=x target=asinh.x
-    /// @resolution.call source="x + sqrt(x * x + 1)" parameters=() return=T#3 kind=builtin builtin=binary.add
+    /// @resolution.operator source="x + sqrt(x * x + 1)" kind=builtin
     /// @resolution.name source=sqrt target=sqrt
     /// @resolution.call source="sqrt(x * x + 1)" parameters=(T#3) arguments=(provided(x * x + 1) as T#3) return=T#3 kind=symbol target=sqrt instance=sqrt<T#3>
     /// @generic.instance source="sqrt(x * x + 1)" id=sqrt<T#3>
     /// @resolution.name source=x target=asinh.x
-    /// @resolution.call source="x * x + 1" parameters=() return=T#3 kind=builtin builtin=binary.add
-    /// @resolution.call source="x * x" parameters=() return=T#3 kind=builtin builtin=binary.multiply
+    /// @resolution.operator source="x * x + 1" kind=builtin
+    /// @resolution.operator source="x * x" kind=builtin
     /// @resolution.name source=x target=asinh.x
 
 }

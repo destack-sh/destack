@@ -56,6 +56,7 @@ struct Point {
 
 const value: HasX = Point { x: 1 };
 /// @type.symbol symbol=value source=value type=HasX
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=HasX target=HasX
 /// @resolution.name source=Point target=Point
 
@@ -106,10 +107,12 @@ struct Point {
 
 const point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 const value: { readonly x: int32 } = point;
 /// @type.symbol symbol=value source=value type={ readonly x: int32 }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=point target=point
 
 value satisfies { readonly x: int32 };
@@ -174,6 +177,7 @@ struct Counter {
 
 const counter: HasCount = Counter { count: 1 };
 /// @type.symbol symbol=counter source=counter type=HasCount
+/// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=HasCount target=HasCount
 /// @resolution.name source=Counter target=Counter
 
@@ -360,16 +364,19 @@ class PointClass {
 
 const point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 const value: PointClass = point;
 /// @type.symbol symbol=value source=value type=PointClass
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=PointClass target=PointClass
 /// @resolution.name source=point target=point
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Point' is not assignable to type 'PointClass'"
 /// @diagnostic.label line=11 column=27 span="point" line_source="const value: PointClass = point;"
+/// @diagnostic.related line=11 column=14 span="PointClass" line_source="const value: PointClass = point;" message="expected due to this annotation"
 "#,
     );
 }
@@ -430,17 +437,20 @@ class PointClass {
 
 const point = new PointClass();
 /// @type.symbol symbol=point source=point type=PointClass
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.construct source="new PointClass()" parameters=() return=PointClass kind=class target=PointClass constructor=default
 /// @resolution.name source=PointClass target=PointClass
 
 const value: Point = point;
 /// @type.symbol symbol=value source=value type=Point
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=point target=point
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'PointClass' is not assignable to type 'Point'"
 /// @diagnostic.label line=11 column=22 span="point" line_source="const value: Point = point;"
+/// @diagnostic.related line=11 column=14 span="Point" line_source="const value: Point = point;" message="expected due to this annotation"
 "#,
     );
 }

@@ -1,6 +1,152 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_enum_member_initializes_inferred_binding() {
+    let session = TestSession::single(
+        r#"
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+const selected = Mode.Read;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+const selected = Mode.Read;
+
+=== checked ===
+enum Mode {
+/// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
+
+    Read = 1,
+    /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
+    /// @type.node source=1 type=1
+
+    Write = 2,
+    /// @type.symbol symbol=Mode.Write source="Write = 2" type=Mode.Write
+    /// @type.node source=2 type=2
+
+}
+
+const selected = Mode.Read;
+/// @type.symbol symbol=selected source=selected type=Mode.Read
+/// @resolution.pattern source=selected kind=binding target=selected
+/// @type.node source=Mode type=Mode
+/// @type.node source=Mode.Read type=Mode.Read
+/// @resolution.name source=Mode target=Mode
+/// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+"#,
+    );
+}
+
+#[test]
+fn test_narrowed_enum_member_initializes_inferred_binding() {
+    let session = TestSession::single(
+        r#"
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+declare const mode: Mode;
+switch (mode) {
+    case Mode.Read:
+        const selected = mode;
+        break;
+    default:
+        const remaining = mode;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+declare const mode: Mode;
+switch (mode) {
+    case Mode.Read:
+        const selected = mode;
+        break;
+    default:
+        const remaining = mode;
+}
+
+=== checked ===
+enum Mode {
+/// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
+
+    Read = 1,
+    /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
+    /// @type.node source=1 type=1
+
+    Write = 2,
+    /// @type.symbol symbol=Mode.Write source="Write = 2" type=Mode.Write
+    /// @type.node source=2 type=2
+
+}
+
+declare const mode: Mode;
+/// @type.symbol symbol=mode source=mode type=Mode
+/// @resolution.pattern source=mode kind=binding target=mode
+/// @resolution.name source=Mode target=Mode
+
+switch (mode) {
+/// @type.node source=mode type=Mode
+/// @resolution.name source=mode target=mode
+
+    case Mode.Read:
+    /// @resolution.operator kind=builtin
+    /// @type.node source=Mode type=Mode
+    /// @type.node source=Mode.Read type=Mode.Read
+    /// @resolution.name source=Mode target=Mode
+    /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+
+        const selected = mode;
+        /// @type.symbol symbol=selected source=selected type=Mode.Read
+        /// @resolution.pattern source=selected kind=binding target=selected
+        /// @type.node source=mode type=Mode.Read
+        /// @resolution.name source=mode target=mode
+
+        break;
+        /// @type.node source=break type=never
+
+    default:
+        const remaining = mode;
+        /// @type.symbol symbol=remaining source=remaining type=Mode.Write
+        /// @resolution.pattern source=remaining kind=binding target=remaining
+        /// @type.node source=mode type=Mode.Write
+        /// @resolution.name source=mode target=mode
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_enum_static_member_access_selects_variant_symbol() {
     let session = TestSession::single(
         r#"
@@ -52,6 +198,7 @@ enum Status {
 
 const value: Status = Status.Default;
 /// @type.symbol symbol=value source=value type=Status
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Status target=Status
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Default receiver=Status kind=symbol target=Status.Default
@@ -115,7 +262,7 @@ enum Status {
         return this == Status.Active;
         /// @type.node source="this == Status.Active" type=boolean
         /// @type.node source=this type=Borrowed<Status, Status.isActive.L0, "exclusive">
-        /// @resolution.call source="this == Status.Active" parameters=() return=boolean kind=builtin builtin=binary.equal
+        /// @resolution.operator source="this == Status.Active" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=Status type=Borrowed<Status, Status.isActive.L0, "exclusive">
         /// @type.node source=Status type=Status
         /// @type.node source=Status.Active type=Status.Active
@@ -127,6 +274,7 @@ enum Status {
 
 const value = Status.Active.isActive();
 /// @type.symbol symbol=value source=value type=boolean
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=Status type=Status
 /// @type.node source=Status.Active type=Status.Active
 /// @type.node source=Status.Active.isActive type=<comptime Status.isActive.L0: memory.lifetime.Lifetime>(this: Borrowed<Status.Active, Status.isActive.L0, "exclusive">) => boolean

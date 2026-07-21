@@ -39,6 +39,7 @@ import { value } from "./index.ds";
 
 const direct = value;
 /// @type.symbol symbol=direct source=direct type=int32
+/// @resolution.pattern source=direct kind=binding target=direct
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=source.value
 "#,
@@ -84,6 +85,7 @@ import { source } from "./index.ds";
 
 const namespaced = source.value;
 /// @type.symbol symbol=namespaced source=namespaced type=int32
+/// @resolution.pattern source=namespaced kind=binding target=namespaced
 /// @type.node source=source.value type=int32
 /// @resolution.name source=source.value target=source.value
 "#,
@@ -126,10 +128,12 @@ import { helper } from "./util.ds";
 
 const first = helper;
 /// @type.symbol symbol=first source=first type=int32
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=helper target=util.helper
 
 const second = sibling;
 /// @type.symbol symbol=second source=second type=<error>
+/// @resolution.pattern source=second kind=binding target=second
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'sibling'"

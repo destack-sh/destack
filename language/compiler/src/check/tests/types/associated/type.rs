@@ -46,6 +46,7 @@ struct Box<T> {
 
 declare const value: Box<string>.Item;
 /// @type.symbol symbol=value source=value type=Box<string>.Item reduced=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Box target=Box
 
 /// @generic.instance id=Box<string> template=Box arguments=(string)
@@ -89,6 +90,7 @@ class Packet {
 
 const size = Packet.Size;
 /// @type.symbol symbol=size source=size type=uint32
+/// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=Packet target=Packet
 /// @resolution.member source=Packet.Size receiver=Packet kind=symbol target=Packet.Size
 "#,
@@ -251,6 +253,7 @@ type Made<F: Producing> = F.Output;
 
 declare const made: Made<Factory>;
 /// @type.symbol symbol=made source=made type=Made<Factory> reduced=int32
+/// @resolution.pattern source=made kind=binding target=made
 /// @resolution.name source=Made target=Made
 /// @resolution.name source=Factory target=Factory
 
@@ -324,8 +327,6 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 "#,
         r#"
 /// @diagnostic.error id=return-not-assignable message="type 'I.Item' is not assignable to the declared result type 'uint8'"
-/// @diagnostic.label line=9 column=12 span="iter.next()" line_source="return iter.next();"
-/// @diagnostic.error id=not-assignable message="type 'I.Item' is not assignable to type 'uint8'"
 /// @diagnostic.label line=9 column=12 span="iter.next()" line_source="return iter.next();"
 "#,
     );

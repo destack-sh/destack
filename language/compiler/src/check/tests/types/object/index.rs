@@ -49,11 +49,13 @@ function read(bag: Bag): int32 | undefined {
 
     const x = bag["x"];
     /// @type.symbol symbol=read.x source=x type=int32 | undefined
+    /// @resolution.pattern source=x kind=binding target=read.x
     /// @resolution.name source=bag target=read.bag
     /// @resolution.member source="bag[\"x\"]" receiver={ readonly [key: string]: int32 } kind=index key=string
 
     const missing = bag["missing"];
     /// @type.symbol symbol=read.missing source=missing type=int32 | undefined
+    /// @resolution.pattern source=missing kind=binding target=read.missing
     /// @resolution.name source=bag target=read.bag
     /// @resolution.member source="bag[\"missing\"]" receiver={ readonly [key: string]: int32 } kind=index key=string
 
@@ -67,9 +69,11 @@ function read(bag: Bag): int32 | undefined {
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 const x = read(point);
 /// @type.symbol symbol=x#2 source=x type=int32 | undefined
+/// @resolution.pattern source=x kind=binding target=x#2
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
@@ -117,9 +121,11 @@ declare function read(bag: Bag): int32 | undefined;
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
 /// @type.symbol symbol=mixed source=mixed type={ x: int32; y: string }
+/// @resolution.pattern source=mixed kind=binding target=mixed
 
 const value = read(mixed);
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(mixed) parameters=(Bag) arguments=(provided(mixed) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=mixed target=mixed
@@ -161,10 +167,12 @@ type Bag = { readonly [key: string]: int32 };
 
 const checked = { x: 1 } satisfies Bag;
 /// @type.symbol symbol=checked source=checked type={ x: 1 }
+/// @resolution.pattern source=checked kind=binding target=checked
 /// @resolution.name source=Bag target=Bag
 
 const missing = checked["missing"];
 /// @type.symbol symbol=missing source=missing type=<error>
+/// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=checked target=checked
 "#,
         r#"
@@ -211,17 +219,20 @@ declare function write(bag: Bag): int32 | undefined;
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 const bad = write(point);
 /// @type.symbol symbol=bad source=bad type=int32 | undefined
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32; y: int32 }' is not assignable to parameter of type 'Bag'"
 /// @diagnostic.label line=7 column=19 span="point" line_source="const bad = write(point);"
 /// @diagnostic.related line=7 column=13 span="write(point)" line_source="const bad = write(point);" message="in this call"
+/// @diagnostic.note message="'Bag' reduces to '{ [key: string]: int32 }'"
 "#,
     );
 }
@@ -283,10 +294,12 @@ function write(bag: Bag): int32 | undefined {
 
 declare const map: Map<string, int32>;
 /// @type.symbol symbol=map source=map type=Map<string, int32>
+/// @resolution.pattern source=map kind=binding target=map
 /// @resolution.name source=Map target=collections.map.Map
 
 const value = write(map);
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(map) parameters=(Bag) arguments=(provided(map) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=map target=map
@@ -422,6 +435,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 
 declare let store: Store;
 /// @type.symbol symbol=store source=store type=Store
+/// @resolution.pattern source=store kind=binding target=store
 /// @resolution.name source=Store target=Store
 
 declare function write(bag: Bag): int32 | undefined;
@@ -431,6 +445,7 @@ declare function write(bag: Bag): int32 | undefined;
 
 const value = write(store);
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(store) parameters=(Bag) arguments=(provided(store) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=store target=store
@@ -482,9 +497,11 @@ declare function read(bag: Bag): int32 | undefined;
 
 const point: { x: int32 } = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 const bad = read(point);
 /// @type.symbol symbol=bad source=bad type=int32 | undefined
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
@@ -492,9 +509,10 @@ const bad = read(point);
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32 }' is not assignable to parameter of type 'Bag'"
 /// @diagnostic.label line=7 column=18 span="point" line_source="const bad = read(point);"
 /// @diagnostic.related line=7 column=13 span="read(point)" line_source="const bad = read(point);" message="in this call"
+/// @diagnostic.note message="'Bag' reduces to '{ [P: string]: int32 }'"
 "#,
     );
 }
@@ -532,10 +550,12 @@ type Bag = Record<string, int32>;
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: string]: int32 }
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag["missing"];
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
 /// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
 
@@ -580,10 +600,12 @@ type Bag = Record<usize, int32>;
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: usize]: int32 }
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag[1];
 /// @type.symbol symbol=value source=value type=int32 | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
 /// @resolution.member source=bag[1] receiver={ [P: usize]: int32 } kind=index key=usize
 
@@ -624,10 +646,12 @@ type Bag = Record<string, int32>;
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type=Bag reduced={ [P: string]: int32 }
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag.missing;
 /// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
 
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
@@ -682,10 +706,12 @@ interface Bag<T> {
 
 declare const bag: Bag<int32>;
 /// @type.symbol symbol=bag source=bag type=Bag<int32>
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag["name"];
 /// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="bag[\"name\"]" type=<error>
 /// @type.node source=bag type=Bag<int32>
 /// @resolution.name source=bag target=bag

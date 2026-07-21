@@ -41,6 +41,7 @@ class Topic<T: string> {
 
 declare const channel: Topic<"orders">.Channel;
 /// @type.symbol symbol=channel source=channel type=Topic<"orders">.Channel reduced="topic:orders"
+/// @resolution.pattern source=channel kind=binding target=channel
 /// @resolution.name source=Topic target=Topic
 
 channel satisfies `topic:${"orders"}`;
@@ -101,7 +102,7 @@ interface EventShape<T> {
     /// @type.symbol symbol=EventShape.Handlers type={ [K in keyof T#1 as `on-${K}`]: T#1[K] }
 
         [K in keyof T as `on-${K}`]: T[K];
-        /// @generic.template source=type_mapped_parameter parameters=(K: keyof T#1)
+        /// @generic.template source=mapped_type_parameter parameters=(K: keyof T#1)
         /// @type.symbol symbol=EventShape.Handlers.K source=[K in keyof T as `on-${K}`] type=K
         /// @resolution.name source=T target=EventShape.T
         /// @resolution.name source=K target=EventShape.Handlers.K
@@ -123,6 +124,7 @@ class Bus<T> implements EventShape<T> {}
 
 declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
 /// @type.symbol symbol=handlers source=handlers type=Bus<{ ready: boolean; message: string }>.Handlers reduced={ on-ready: boolean; on-message: string }
+/// @resolution.pattern source=handlers kind=binding target=handlers
 /// @resolution.name source=Bus target=Bus
 
 handlers["on-ready"] satisfies boolean;
@@ -180,6 +182,7 @@ class EventName<T: string> {
 
 declare const kind: EventName<"evt:login">.Kind;
 /// @type.symbol symbol=kind source=kind type=EventName<"evt:login">.Kind reduced="login"
+/// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source=EventName target=EventName
 
 kind satisfies "login";

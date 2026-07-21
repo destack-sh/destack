@@ -180,6 +180,7 @@ newtype Cow = Borrowed | Owned;
 
 const borrowed: Cow = Cow.Borrowed({ value: "value" });
 /// @type.symbol symbol=borrowed source=borrowed type=Cow
+/// @resolution.pattern source=borrowed kind=binding target=borrowed
 /// @resolution.name source=Cow target=Cow
 /// @type.node source="Cow.Borrowed({ value: \"value\" })" type=Cow
 /// @type.node source=Cow type=Cow
@@ -192,6 +193,7 @@ const borrowed: Cow = Cow.Borrowed({ value: "value" });
 
 const owned: Cow = Cow.Owned({ value: "value" });
 /// @type.symbol symbol=owned source=owned type=Cow
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Cow target=Cow
 /// @type.node source="Cow.Owned({ value: \"value\" })" type=Cow
 /// @type.node source=Cow type=Cow
@@ -287,6 +289,7 @@ newtype Action = Read | Write;
 
 const read: Action = Action.Read({ value: "value" });
 /// @type.symbol symbol=read source=read type=Action
+/// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Action target=Action
 /// @type.node source="Action.Read({ value: \"value\" })" type=Action
 /// @type.node source=Action type=Action
@@ -299,6 +302,7 @@ const read: Action = Action.Read({ value: "value" });
 
 const write: Action = Action.Write({ value: "value" });
 /// @type.symbol symbol=write source=write type=Action
+/// @resolution.pattern source=write kind=binding target=write
 /// @resolution.name source=Action target=Action
 /// @type.node source="Action.Write({ value: \"value\" })" type=Action
 /// @type.node source=Action type=Action
@@ -372,6 +376,7 @@ extension<T> of Wrapper<T> {
 
         const value = await this;
         /// @type.symbol symbol=take.value source=value type=T#2
+        /// @resolution.pattern source=value kind=binding target=take.value
         /// @type.node source="await this" type=T#2
         /// @type.node source=this type=Wrapper<T#2>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Wrapper<T#2>

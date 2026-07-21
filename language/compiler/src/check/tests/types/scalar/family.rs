@@ -48,10 +48,12 @@ struct Vector<T: Numeric> {
 
 const ints = Vector { x: 1 as int32 };
 /// @type.symbol symbol=ints source=ints type=Vector<int32>
+/// @resolution.pattern source=ints kind=binding target=ints
 /// @resolution.name source=Vector target=Vector
 
 const floats = Vector { x: 1.5 as float32 };
 /// @type.symbol symbol=floats source=floats type=Vector<float32>
+/// @resolution.pattern source=floats kind=binding target=floats
 /// @resolution.name source=Vector target=Vector
 
 /// @generic.instance id=Vector<float32> template=Vector arguments=(float32)
@@ -102,16 +104,20 @@ struct Index<T: int> {
 
 const wide = Index { value: 1 as int64 };
 /// @type.symbol symbol=wide source=wide type=Index<int64>
+/// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Index target=Index
 
 const narrow = Index { value: 1 as int32 };
 /// @type.symbol symbol=narrow source=narrow type=Index<int32>
+/// @resolution.pattern source=narrow kind=binding target=narrow
 /// @resolution.name source=Index target=Index
 
 /// @generic.instance id=Index<int32> template=Index arguments=(int32)
 /// @generic.instance id=Index<int64> template=Index arguments=(int64)
 "#,
         r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
+/// @diagnostic.label line=7 column=16 span="Index" line_source="const narrow = Index { value: 1 as int32 };"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
 /// @diagnostic.label line=7 column=16 span="Index { value: 1 as int32 }" line_source="const narrow = Index { value: 1 as int32 };"
 /// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"
@@ -147,10 +153,12 @@ const index: usize = key as usize;
 === checked ===
 const fits: int8 = 100;
 /// @type.symbol symbol=fits source=fits type=int8
+/// @resolution.pattern source=fits kind=binding target=fits
 /// @type.node source=100 type=100
 
 const overflows: int8 = 300;
 /// @type.symbol symbol=overflows source=overflows type=int8
+/// @resolution.pattern source=overflows kind=binding target=overflows
 /// @type.node source=300 type=300
 
 type Pair = { 0: string; 1: string };
@@ -159,15 +167,18 @@ type Pair = { 0: string; 1: string };
 
 declare const key: keyof Pair;
 /// @type.symbol symbol=key source=key type=keyof Pair reduced=0 | 1
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Pair target=Pair
 
 const index: usize = key;
 /// @type.symbol symbol=index source=index type=usize
+/// @resolution.pattern source=index kind=binding target=index
 /// @resolution.name source=key target=key
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '300' is not assignable to type 'int8'"
 /// @diagnostic.label line=3 column=25 span="300" line_source="const overflows: int8 = 300;"
+/// @diagnostic.related line=3 column=18 span="int8" line_source="const overflows: int8 = 300;" message="expected due to this annotation"
 "#,
     );
 }

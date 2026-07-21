@@ -105,7 +105,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
         /// @type.node source="this.x + this.x" type=T#2
         /// @type.node source=this.x type=T#2
         /// @resolution.member source=this.x receiver=Pair<T#2> kind=symbol target=Pair.x
-        /// @resolution.call source="this.x + this.x" parameters=() return=T#2 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.x + this.x" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Pair<T#2>
         /// @type.node source=this.x type=T#2
         /// @resolution.member source=this.x receiver=Pair<T#2> kind=symbol target=Pair.x

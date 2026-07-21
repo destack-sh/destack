@@ -30,19 +30,23 @@ type Count = 0..5;
 
 const low: Count = 0;
 /// @type.symbol symbol=low source=low type=Count reduced=0..5
+/// @resolution.pattern source=low kind=binding target=low
 /// @resolution.name source=Count target=Count
 
 const high: Count = 4;
 /// @type.symbol symbol=high source=high type=Count reduced=0..5
+/// @resolution.pattern source=high kind=binding target=high
 /// @resolution.name source=Count target=Count
 
 const bad: Count = 5;
 /// @type.symbol symbol=bad source=bad type=Count reduced=0..5
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Count target=Count
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '5' is not assignable to type 'Count'"
 /// @diagnostic.label line=6 column=20 span="5" line_source="const bad: Count = 5;"
+/// @diagnostic.related line=6 column=12 span="Count" line_source="const bad: Count = 5;" message="expected due to this annotation"
 /// @diagnostic.note message="'Count' reduces to '0..5'"
 "#,
     );
@@ -78,19 +82,23 @@ type Digit = 0..=9;
 
 const zero: Digit = 0;
 /// @type.symbol symbol=zero source=zero type=Digit reduced=0..=9
+/// @resolution.pattern source=zero kind=binding target=zero
 /// @resolution.name source=Digit target=Digit
 
 const nine: Digit = 9;
 /// @type.symbol symbol=nine source=nine type=Digit reduced=0..=9
+/// @resolution.pattern source=nine kind=binding target=nine
 /// @resolution.name source=Digit target=Digit
 
 const bad: Digit = 10;
 /// @type.symbol symbol=bad source=bad type=Digit reduced=0..=9
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Digit target=Digit
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '10' is not assignable to type 'Digit'"
 /// @diagnostic.label line=6 column=20 span="10" line_source="const bad: Digit = 10;"
+/// @diagnostic.related line=6 column=12 span="Digit" line_source="const bad: Digit = 10;" message="expected due to this annotation"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
@@ -124,11 +132,13 @@ type Offset = -4..=4;
 
 const left: Offset = -4;
 /// @type.symbol symbol=left source=left type=Offset reduced=-4..=4
+/// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=Offset target=Offset
-/// @resolution.call source=-4 parameters=() return=-4 kind=builtin builtin=unary.negate
+/// @resolution.operator source=-4 kind=builtin
 
 const right: Offset = 4;
 /// @type.symbol symbol=right source=right type=Offset reduced=-4..=4
+/// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=Offset target=Offset
 "#,
     );

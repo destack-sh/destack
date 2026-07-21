@@ -30,9 +30,11 @@ const value: 1 | 2 = if (enabled) {
 === checked ===
 declare const enabled: boolean;
 /// @type.symbol symbol=enabled source=enabled type=boolean
+/// @resolution.pattern source=enabled kind=binding target=enabled
 
 const value = if (enabled) {
 /// @type.symbol symbol=value source=value type=1 | 2
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node type=1 | 2
 /// @type.node source=enabled type=boolean
 /// @resolution.name source=enabled target=enabled
@@ -78,7 +80,7 @@ function add(left: int32, right: int32): int32 {
     /// @type.node source="left + right" type=int32
     /// @type.node source=left type=int32
     /// @resolution.name source=left target=add.left
-    /// @resolution.call source="left + right" parameters=() return=int32 kind=builtin builtin=binary.add
+    /// @resolution.operator source="left + right" kind=builtin
     /// @type.node source=right type=int32
     /// @resolution.name source=right target=add.right
 

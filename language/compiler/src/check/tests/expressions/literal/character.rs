@@ -18,9 +18,10 @@ const value: 'a' = 'a';
 === checked ===
 const value = 'a';
 /// @type.symbol symbol=value source=value type='a'
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -43,9 +44,10 @@ let value: char = 'a';
 === checked ===
 let value = 'a';
 /// @type.symbol symbol=value source=value type=char
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -68,9 +70,10 @@ const value: char = 'a';
 === checked ===
 const value: char = 'a';
 /// @type.symbol symbol=value source=value type=char
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -93,13 +96,15 @@ const value: string = 'a';
 === checked ===
 const value: string = 'a';
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=23 span="'a'" line_source="const value: string = 'a';"
+/// @diagnostic.related line=2 column=14 span="string" line_source="const value: string = 'a';" message="expected due to this annotation"
 "#,
     );
 }
@@ -122,13 +127,15 @@ const value: int32 = 'a';
 === checked ===
 const value: int32 = 'a';
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'int32'"
 /// @diagnostic.label line=2 column=22 span="'a'" line_source="const value: int32 = 'a';"
+/// @diagnostic.related line=2 column=14 span="int32" line_source="const value: int32 = 'a';" message="expected due to this annotation"
 "#,
     );
 }
@@ -151,9 +158,10 @@ const value: char | string = 'a' as char | string;
 === checked ===
 const value: char | string = 'a';
 /// @type.symbol symbol=value source=value type=char | string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }

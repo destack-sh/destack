@@ -29,6 +29,7 @@ type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>
 
 const ok: Receiver = { id: "u1" };
 /// @type.symbol symbol=ok source=ok type=Receiver reduced={ id: string }
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Receiver target=Receiver
 
 ok.id satisfies string;
@@ -67,6 +68,7 @@ type Receiver = ThisParameterType<(value: number) => void>;
 
 const ok: Receiver = { anything: true };
 /// @type.symbol symbol=ok source=ok type=Receiver reduced=unknown
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Receiver target=Receiver
 
 /// @generic.instance id="ThisParameterType<Function<(float64,), void>>" template=types.function.ThisParameterType arguments=(Function<(float64,), void>)
@@ -103,6 +105,7 @@ type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
 
 const fn: Fn = (value) => `${value}`;
 /// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(float64,), string>
+/// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
 /// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(float64,), string>
 /// @type.symbol symbol=symbol6.value source=value type=float64
@@ -146,6 +149,7 @@ type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
 
 declare const fn: Fn;
 /// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(float64,), string>
+/// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
 
 fn("bad");

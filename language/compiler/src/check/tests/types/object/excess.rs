@@ -26,16 +26,18 @@ type Person = { name: string };
 
 const value: Person = { name: "Ada", extra: true };
 /// @type.symbol symbol=value source=value type=Person reduced={ name: string }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
 /// @type.node source={ name: "Ada", extra: true } type={ name: "Ada"; extra: true }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=8 constraints=2 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Person'"
 /// @diagnostic.label line=4 column=23 span="{ name: \"Ada\", extra: true }" line_source="const value: Person = { name: \"Ada\", extra: true };"
+/// @diagnostic.related line=4 column=14 span="Person" line_source="const value: Person = { name: \"Ada\", extra: true };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
@@ -69,17 +71,19 @@ type Person = { name: string };
 
 const source = { name: "Ada", extra: true };
 /// @type.symbol symbol=source source=source type={ name: string; extra: boolean }
+/// @resolution.pattern source=source kind=binding target=source
 /// @type.node source={ name: "Ada", extra: true } type={ name: "Ada"; extra: true }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
 const value: Person = source;
 /// @type.symbol symbol=value source=value type=Person reduced={ name: string }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
 
-/// @check.stats.solve variables=0 types=9 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=2 types=11 constraints=1 obligations=2 solutions=2 bounds=1 decisions=4
 "#,
     );
 }
@@ -129,6 +133,7 @@ function keep<T: { name: string }>(value: T): T {
 
 const value = keep({ name: "Ada", extra: true });
 /// @type.symbol symbol=value source=value type={ name: string; extra: boolean }
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="keep({ name: \"Ada\", extra: true })" type={ name: string; extra: boolean }
 /// @type.node source=keep type=({ name: string; extra: boolean }) => { name: string; extra: boolean }
 /// @resolution.name source=keep target=keep
@@ -140,6 +145,7 @@ const value = keep({ name: "Ada", extra: true });
 
 const extra = value.extra;
 /// @type.symbol symbol=extra source=extra type=boolean
+/// @resolution.pattern source=extra kind=binding target=extra
 /// @type.node source=value type={ name: string; extra: boolean }
 /// @type.node source=value.extra type=boolean
 /// @resolution.name source=value target=value

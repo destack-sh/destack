@@ -20,10 +20,12 @@ const next: () => float64 = (): float64 => count + 1;
 === checked ===
 let count = 1;
 /// @type.symbol symbol=count source=count type=float64
+/// @resolution.pattern source=count kind=binding target=count
 /// @type.node source=1 type=1
 
 const next = () => count + 1;
 /// @type.symbol symbol=next source=next type=Function<(), float64>
+/// @resolution.pattern source=next kind=binding target=next
 /// @type.symbol symbol=symbol2 source="() => count + 1" type=Function<(), float64>
 /// @type.node source="() => count + 1" type=Function<(), float64>
 /// @capture.function function=symbol2 bindings=1 frames=(main.<frame0>)
@@ -32,7 +34,7 @@ const next = () => count + 1;
 /// @type.node source="count + 1" type=float64
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @resolution.call source="count + 1" parameters=() return=float64 kind=builtin builtin=binary.add
+/// @resolution.operator source="count + 1" kind=builtin
 /// @type.node source=1 type=1
 "#,
     );
@@ -80,18 +82,22 @@ const boo: () => void = (): void => {
 === checked ===
 let a = 0;
 /// @type.symbol symbol=a source=a type=float64
+/// @resolution.pattern source=a kind=binding target=a
 /// @type.node source=0 type=0
 
 let b = 0;
 /// @type.symbol symbol=b source=b type=float64
+/// @resolution.pattern source=b kind=binding target=b
 /// @type.node source=0 type=0
 
 let c = 0;
 /// @type.symbol symbol=c source=c type=float64
+/// @resolution.pattern source=c kind=binding target=c
 /// @type.node source=0 type=0
 
 const foo = () => {
 /// @type.symbol symbol=foo source=foo type=Function<(), void>
+/// @resolution.pattern source=foo kind=binding target=foo
 /// @type.symbol symbol=symbol4 type=Function<(), void>
 /// @type.node type=Function<(), void>
 /// @capture.function function=symbol4 bindings=2 frames=(main.<frame0>)
@@ -102,14 +108,14 @@ const foo = () => {
     a += 1;
     /// @type.node source="a += 1" type=float64
     /// @type.node source=a type=float64
-    /// @resolution.call source="a += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.operator source="a += 1" kind=builtin
     /// @resolution.pattern.assign source=a kind=place place=binding(a) type=float64
     /// @type.node source=1 type=1
 
     b += 1;
     /// @type.node source="b += 1" type=float64
     /// @type.node source=b type=float64
-    /// @resolution.call source="b += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.operator source="b += 1" kind=builtin
     /// @resolution.pattern.assign source=b kind=place place=binding(b) type=float64
     /// @type.node source=1 type=1
 
@@ -117,6 +123,7 @@ const foo = () => {
 
 const boo = () => {
 /// @type.symbol symbol=boo source=boo type=Function<(), void>
+/// @resolution.pattern source=boo kind=binding target=boo
 /// @type.symbol symbol=symbol6 type=Function<(), void>
 /// @type.node type=Function<(), void>
 /// @capture.function function=symbol6 bindings=2 frames=(main.<frame0>)
@@ -126,14 +133,14 @@ const boo = () => {
     b += 1;
     /// @type.node source="b += 1" type=float64
     /// @type.node source=b type=float64
-    /// @resolution.call source="b += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.operator source="b += 1" kind=builtin
     /// @resolution.pattern.assign source=b kind=place place=binding(b) type=float64
     /// @type.node source=1 type=1
 
     c += 1;
     /// @type.node source="c += 1" type=float64
     /// @type.node source=c type=float64
-    /// @resolution.call source="c += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.operator source="c += 1" kind=builtin
     /// @resolution.pattern.assign source=c kind=place place=binding(c) type=float64
     /// @type.node source=1 type=1
 
@@ -174,10 +181,12 @@ const next: () => float64 = (): float64 => count + step;
 === checked ===
 let count = 1;
 /// @type.symbol symbol=count source=count type=float64
+/// @resolution.pattern source=count kind=binding target=count
 /// @type.node source=1 type=1
 
 let step = 2;
 /// @type.symbol symbol=step source=step type=float64
+/// @resolution.pattern source=step kind=binding target=step
 /// @type.node source=2 type=2
 
 @capture({
@@ -194,6 +203,7 @@ let step = 2;
 })
 const next = () => count + step;
 /// @type.symbol symbol=next source=next type=Function<(), float64>
+/// @resolution.pattern source=next kind=binding target=next
 /// @type.symbol symbol=symbol3 source="() => count + step" type=Function<(), float64>
 /// @type.node source="() => count + step" type=Function<(), float64>
 /// @capture.function function=symbol3 bindings=2 frames=(main.<frame0>)
@@ -205,7 +215,7 @@ const next = () => count + step;
 /// @type.node source="count + step" type=float64
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @resolution.call source="count + step" parameters=() return=float64 kind=builtin builtin=binary.add
+/// @resolution.operator source="count + step" kind=builtin
 /// @type.node source=step type=float64
 /// @resolution.name source=step target=step
 "#,
@@ -271,10 +281,12 @@ struct Socket {
 
 let count = 0;
 /// @type.symbol symbol=count source=count type=float64
+/// @resolution.pattern source=count kind=binding target=count
 /// @type.node source=0 type=0
 
 let socket = Socket {};
 /// @type.symbol symbol=socket source=socket type=Socket
+/// @resolution.pattern source=socket kind=binding target=socket
 /// @type.node source="Socket {}" type=Socket
 /// @resolution.name source=Socket target=Socket
 
@@ -292,6 +304,7 @@ let socket = Socket {};
 })
 const send: ^Function<(string,), void> = (message) => {
 /// @type.symbol symbol=send source=send type=Owned<Function<(string,), void>>
+/// @resolution.pattern source=send kind=binding target=send
 /// @resolution.name source=Function target=types.function.Function
 /// @type.symbol symbol=symbol7 type=Function<(string,), void>
 /// @type.node type=Function<(string,), void>
@@ -306,7 +319,7 @@ const send: ^Function<(string,), void> = (message) => {
     count += 1;
     /// @type.node source="count += 1" type=float64
     /// @type.node source=count type=float64
-    /// @resolution.call source="count += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.operator source="count += 1" kind=builtin
     /// @resolution.pattern.assign source=count kind=place place=binding(count) type=float64
     /// @type.node source=1 type=1
 
@@ -370,6 +383,7 @@ declare class Client {
 
 let client = new Client();
 /// @type.symbol symbol=client source=client type=Client
+/// @resolution.pattern source=client kind=binding target=client
 /// @type.node source="new Client()" type=Client
 /// @resolution.construct source="new Client()" parameters=() return=Client kind=class target=Client constructor=default
 /// @resolution.name source=Client target=Client
@@ -381,6 +395,7 @@ let client = new Client();
 
 const load = async () => await client.read();
 /// @type.symbol symbol=load source=load type=Function<(), Promise<string>>
+/// @resolution.pattern source=load kind=binding target=load
 /// @type.symbol symbol=symbol5 source="async () => await client.read()" type=Function<(), Promise<string>>
 /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>>
 /// @generic.instance source="async () => await client.read()" id=Promise<string>

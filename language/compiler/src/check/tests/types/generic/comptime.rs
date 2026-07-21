@@ -40,6 +40,7 @@ function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
 
 const bytes = take<4>([1, 2, 3, 4]);
 /// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
+/// @resolution.pattern source=bytes kind=binding target=bytes
 /// @type.node source="take<4>([1, 2, 3, 4])" type=FixedArray<uint8, 4>
 /// @type.node source=take type=(FixedArray<uint8, 4>) => FixedArray<uint8, 4>
 /// @resolution.name source=take target=take
@@ -95,6 +96,7 @@ function choose<comptime Flag: boolean = true>(value: int32): int32 {
 
 const value = choose(1);
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=choose type=(int32) => int32
 /// @type.node source=choose(1) type=int32
 /// @resolution.name source=choose target=choose
@@ -136,6 +138,7 @@ type Read = <comptime N: uint>() => [uint8; N];
 
 declare const read: Read;
 /// @type.symbol symbol=read source=read type=Read reduced=Function<(), FixedArray<uint8, N>>
+/// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Read target=Read
 "#,
     );
@@ -181,10 +184,12 @@ type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
 
 declare const tagged: Tagged<"alpha">;
 /// @type.symbol symbol=tagged source=tagged type=Tagged<"alpha"> reduced={ tag: "alpha" }
+/// @resolution.pattern source=tagged kind=binding target=tagged
 /// @resolution.name source=Tagged target=Tagged
 
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 /// @type.symbol symbol=flagged source=flagged type=Flagged<{ name: "search"; enabled: true }> reduced={ name: "search"; enabled: true }
+/// @resolution.pattern source=flagged kind=binding target=flagged
 /// @resolution.name source=Flagged target=Flagged
 
 /// @generic.instance id="Flagged<{ name: \"search\"; enabled: true }>" template=Flagged arguments=({ name: "search"; enabled: true })

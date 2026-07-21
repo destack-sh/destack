@@ -28,15 +28,18 @@ type LowerAscii = 'a'..='z';
 
 const letter: LowerAscii = 'm';
 /// @type.symbol symbol=letter source=letter type=LowerAscii reduced='a'..='z'
+/// @resolution.pattern source=letter kind=binding target=letter
 /// @resolution.name source=LowerAscii target=LowerAscii
 
 const bad: LowerAscii = 'A';
 /// @type.symbol symbol=bad source=bad type=LowerAscii reduced='a'..='z'
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=LowerAscii target=LowerAscii
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type ''A'' is not assignable to type 'LowerAscii'"
 /// @diagnostic.label line=5 column=25 span="'A'" line_source="const bad: LowerAscii = 'A';"
+/// @diagnostic.related line=5 column=12 span="LowerAscii" line_source="const bad: LowerAscii = 'A';" message="expected due to this annotation"
 /// @diagnostic.note message="'LowerAscii' reduces to ''a'..='z''"
 "#,
     );

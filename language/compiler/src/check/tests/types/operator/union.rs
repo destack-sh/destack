@@ -20,6 +20,7 @@ value = 42 as string | int32;
 === checked ===
 let value: string | int32 = "hello";
 /// @type.symbol symbol=value source=value type=string | int32
+/// @resolution.pattern source=value kind=binding target=value
 
 value = 42;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=string | int32
@@ -47,9 +48,11 @@ const value: string | int32 = text as string | int32;
 === checked ===
 const text: string = "hello";
 /// @type.symbol symbol=text source=text type=string
+/// @resolution.pattern source=text kind=binding target=text
 
 const value: string | int32 = text;
 /// @type.symbol symbol=value source=value type=string | int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=text target=text
 "#,
     );
@@ -90,6 +93,7 @@ type B = A | { c: boolean };
 
 const value: B = { c: true };
 /// @type.symbol symbol=value source=value type=B reduced=A | { c: boolean }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=B target=B
 
 value satisfies { a: int32 } | { b: string } | { c: boolean };
@@ -126,6 +130,7 @@ type A = never | string;
 
 const value: A = "hello";
 /// @type.symbol symbol=value source=value type=A reduced=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=A target=A
 
 value satisfies string;
@@ -162,6 +167,7 @@ type Value = void | never;
 
 const value: Value = ();
 /// @type.symbol symbol=value source=value type=Value reduced=void
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 value satisfies void;
@@ -228,6 +234,7 @@ struct Circle {
 
 let shape: Rectangle | Circle = Rectangle {};
 /// @type.symbol symbol=shape source=shape type=Rectangle | Circle
+/// @resolution.pattern source=shape kind=binding target=shape
 /// @resolution.name source=Rectangle target=Rectangle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Rectangle target=Rectangle

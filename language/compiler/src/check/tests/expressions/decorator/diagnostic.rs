@@ -142,6 +142,7 @@ const value: 1 = 1;
 
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -270,6 +271,7 @@ const value: 1 = 1;
 
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -308,6 +310,7 @@ const value: 1 = 1;
 
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 "#,
         r#"

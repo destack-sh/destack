@@ -1,6 +1,578 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_switch_numeric_literal_checks() {
+    let session = TestSession::single(
+        r#"
+switch (1) {
+    case 1: debugger;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+switch (1) {
+    case 1:
+        debugger;
+}
+
+=== checked ===
+switch (1) {
+/// @type.node source=1 type=1
+
+    case 1: debugger;
+    /// @resolution.operator source="case 1: debugger;" kind=builtin
+    /// @type.node source=1 type=1
+    /// @type.node source=debugger type=void
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_switch_string_literal_checks() {
+    let session = TestSession::single(
+        r#"
+switch ("ready") {
+    case "ready": debugger;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+switch ("ready") {
+    case "ready":
+        debugger;
+}
+
+=== checked ===
+switch ("ready") {
+/// @type.node source="\"ready\"" type="ready"
+
+    case "ready": debugger;
+    /// @resolution.operator source="case \"ready\": debugger;" kind=builtin
+    /// @type.node source="\"ready\"" type="ready"
+    /// @type.node source=debugger type=void
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_switch_bigint_literal_checks() {
+    let session = TestSession::single(
+        r#"
+switch (1n) {
+    case 1n: debugger;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+switch (1n) {
+    case 1n:
+        debugger;
+}
+
+=== checked ===
+switch (1n) {
+/// @type.node source=1n type=1n
+
+    case 1n: debugger;
+    /// @resolution.operator source="case 1n: debugger;" kind=builtin
+    /// @type.node source=1n type=1n
+    /// @type.node source=debugger type=void
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_switch_evaluates_selectors_before_default() {
+    let session = TestSession::single(
+        r#"
+declare const selected: int32;
+let observed: int32;
+
+switch (selected) {
+    default: break;
+    case (observed = 1): break;
+}
+
+observed satisfies int32;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const selected: int32;
+let observed: int32;
+
+switch (selected) {
+    default:
+        break;
+    case (observed = 1):
+        break;
+}
+
+observed satisfies int32;
+
+=== checked ===
+declare const selected: int32;
+/// @type.symbol symbol=selected source=selected type=int32
+/// @resolution.pattern source=selected kind=binding target=selected
+
+let observed: int32;
+/// @type.symbol symbol=observed source=observed type=int32
+/// @resolution.pattern source=observed kind=binding target=observed
+
+switch (selected) {
+/// @type.node source=selected type=int32
+/// @resolution.name source=selected target=selected
+
+    default: break;
+    /// @type.node source=break type=never
+
+    case (observed = 1): break;
+    /// @resolution.operator source="case (observed = 1): break;" kind=builtin
+    /// @type.node source="observed = 1" type=1
+    /// @type.node source=observed type=int32
+    /// @resolution.pattern.assign source=observed kind=place place=binding(observed) type=int32
+    /// @type.node source=1 type=1
+    /// @type.node source=break type=never
+
+}
+
+observed satisfies int32;
+/// @type.node source="observed satisfies int32" type=int32
+/// @type.node source=observed type=int32
+/// @resolution.name source=observed target=observed
+"#,
+    );
+}
+
+#[test]
+fn test_switch_with_default_and_returning_cases_does_not_complete() {
+    let session = TestSession::single(
+        r#"
+function classify(value: int32): int32 {
+    switch (value) {
+        case 0: return 0;
+        default: return 1;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+function classify(value: int32): int32 {
+    switch (value) {
+        case 0:
+            return 0;
+        default:
+            return 1;
+    }
+}
+
+=== checked ===
+function classify(value: int32): int32 {
+/// @type.symbol symbol=classify type=(int32) => int32
+/// @type.symbol symbol=classify.value source="value: int32" type=int32
+
+    switch (value) {
+    /// @type.node type=never
+    /// @type.node source=value type=int32
+    /// @resolution.name source=value target=classify.value
+
+        case 0: return 0;
+        /// @resolution.operator source="case 0: return 0;" kind=builtin
+        /// @type.node source=0 type=0
+        /// @type.node source=0 type=0
+
+        default: return 1;
+        /// @type.node source=1 type=1
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_match_omits_statically_absent_arm() {
+    let session = TestSession::single(
+        r#"
+const value = match (true) {
+    @if(false)
+    false => missingValue
+    _ => 1
+};
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+const value: 1 = match (true) {
+    @if(false)
+    false => missingValue
+    _ => 1
+};
+
+=== checked ===
+const value = match (true) {
+/// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node type=1
+/// @type.node source=true type=true
+
+    @if(false)
+    false => missingValue
+    _ => 1
+    /// @resolution.pattern source=_ kind=wildcard
+    /// @type.node source=1 type=1
+
+};
+"#,
+    );
+}
+
+#[test]
+fn test_switch_omits_statically_absent_case() {
+    let session = TestSession::single(
+        r#"
+switch (0) {
+    @if(false)
+    case missingValue: missingCall();
+    default: debugger;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+switch (0) {
+    @if(false)
+    case missingValue:
+        missingCall();
+    default:
+        debugger;
+}
+
+=== checked ===
+switch (0) {
+/// @type.node source=0 type=0
+
+    @if(false)
+    case missingValue: missingCall();
+    default: debugger;
+    /// @type.node source=debugger type=void
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_switch_narrows_enum_members() {
+    let session = TestSession::single(
+        r#"
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+declare const mode: Mode;
+switch (mode) {
+    case Mode.Read:
+        mode;
+        break;
+    default:
+        mode;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+declare const mode: Mode;
+switch (mode) {
+    case Mode.Read:
+        mode;
+        break;
+    default:
+        mode;
+}
+
+=== checked ===
+enum Mode {
+/// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
+
+    Read = 1,
+    /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
+    /// @type.node source=1 type=1
+
+    Write = 2,
+    /// @type.symbol symbol=Mode.Write source="Write = 2" type=Mode.Write
+    /// @type.node source=2 type=2
+
+}
+
+declare const mode: Mode;
+/// @type.symbol symbol=mode source=mode type=Mode
+/// @resolution.pattern source=mode kind=binding target=mode
+/// @resolution.name source=Mode target=Mode
+
+switch (mode) {
+/// @type.node source=mode type=Mode
+/// @resolution.name source=mode target=mode
+
+    case Mode.Read:
+    /// @resolution.operator kind=builtin
+    /// @type.node source=Mode type=Mode
+    /// @type.node source=Mode.Read type=Mode.Read
+    /// @resolution.name source=Mode target=Mode
+    /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+
+        mode;
+        /// @type.node source=mode type=Mode.Read
+        /// @resolution.name source=mode target=mode
+
+        break;
+        /// @type.node source=break type=never
+
+    default:
+        mode;
+        /// @type.node source=mode type=Mode.Write
+        /// @resolution.name source=mode target=mode
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_switch_narrows_singleton_newtypes() {
+    let session = TestSession::single(
+        r#"
+newtype Ready = "ready";
+newtype Pending = "pending";
+
+declare const state: Ready | Pending;
+switch (state) {
+    case Ready("ready"):
+        state;
+        break;
+    default:
+        state;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+newtype Ready = "ready";
+newtype Pending = "pending";
+
+declare const state: Ready | Pending;
+switch (state) {
+    case Ready("ready"):
+        state;
+        break;
+    default:
+        state;
+}
+
+=== checked ===
+newtype Ready = "ready";
+/// @type.symbol symbol=Ready source="newtype Ready = \"ready\"" type=Ready
+/// @definition.newtype symbol=Ready source="newtype Ready = \"ready\"" backing="ready"
+
+newtype Pending = "pending";
+/// @type.symbol symbol=Pending source="newtype Pending = \"pending\"" type=Pending
+/// @definition.newtype symbol=Pending source="newtype Pending = \"pending\"" backing="pending"
+
+declare const state: Ready | Pending;
+/// @type.symbol symbol=state source=state type=Ready | Pending
+/// @resolution.pattern source=state kind=binding target=state
+/// @resolution.name source=Ready target=Ready
+/// @resolution.name source=Pending target=Pending
+
+switch (state) {
+/// @type.node source=state type=Ready | Pending
+/// @resolution.name source=state target=state
+
+    case Ready("ready"):
+    /// @resolution.operator kind=builtin
+    /// @type.node source="Ready(\"ready\")" type=Ready
+    /// @type.node source=Ready type=Ready
+    /// @resolution.name source=Ready target=Ready
+    /// @resolution.construct source="Ready(\"ready\")" parameters=("ready") arguments=(provided("ready") as "ready") return=Ready kind=newtype target=Ready backing="ready"
+    /// @type.node source="\"ready\"" type="ready"
+
+        state;
+        /// @type.node source=state type=Ready
+        /// @resolution.name source=state target=state
+
+        break;
+        /// @type.node source=break type=never
+
+    default:
+        state;
+        /// @type.node source=state type=Pending
+        /// @resolution.name source=state target=state
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_match_boolean_is_exhaustive() {
+    let session = TestSession::single(
+        r#"
+declare const value: boolean;
+
+const label = match (value) {
+    true => "yes"
+    false => "no"
+};
+
+label satisfies "yes" | "no";
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const value: boolean;
+
+const label: "yes" | "no" = match (value) {
+    true => "yes"
+    false => "no"
+};
+
+label satisfies "yes" | "no";
+
+=== checked ===
+declare const value: boolean;
+/// @type.symbol symbol=value source=value type=boolean
+/// @resolution.pattern source=value kind=binding target=value
+
+const label = match (value) {
+/// @type.symbol symbol=label source=label type="yes" | "no"
+/// @resolution.pattern source=label kind=binding target=label
+/// @type.node type="yes" | "no"
+/// @type.node source=value type=boolean
+/// @resolution.name source=value target=value
+
+    true => "yes"
+    /// @type.node source=true type=true
+    /// @resolution.pattern source=true kind=literal value=true
+    /// @type.node source="\"yes\"" type="yes"
+
+    false => "no"
+    /// @type.node source=false type=false
+    /// @resolution.pattern source=false kind=literal value=false
+    /// @type.node source="\"no\"" type="no"
+
+};
+
+label satisfies "yes" | "no";
+/// @type.node source="label satisfies \"yes\" | \"no\"" type="yes" | "no"
+/// @type.node source=label type="yes" | "no"
+/// @resolution.name source=label target=label
+"#,
+    );
+}
+
+#[test]
+fn test_empty_match_is_exhaustive_for_never() {
+    let session = TestSession::single(
+        r#"
+declare const value: never;
+
+const result = match (value) {};
+
+result satisfies never;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const value: never;
+
+const result: never = match (value) {};
+
+result satisfies never;
+
+=== checked ===
+declare const value: never;
+/// @type.symbol symbol=value source=value type=never
+/// @resolution.pattern source=value kind=binding target=value
+
+const result = match (value) {};
+/// @type.symbol symbol=result source=result type=never
+/// @resolution.pattern source=result kind=binding target=result
+/// @type.node source="match (value) {}" type=never
+/// @type.node source=value type=never
+/// @resolution.name source=value target=value
+
+result satisfies never;
+/// @type.node source="result satisfies never" type=never
+/// @type.node source=result type=never
+/// @resolution.name source=result target=result
+"#,
+    );
+}
+
+#[test]
 fn test_match_literal_union_is_exhaustive() {
     let session = TestSession::single(
         r#"
@@ -32,9 +604,11 @@ label satisfies "go" | "stop";
 === checked ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
+/// @resolution.pattern source=status kind=binding target=status
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "stop"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go" | "stop"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
@@ -85,9 +659,11 @@ const label: "go" = match (status) {
 === checked ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
+/// @resolution.pattern source=status kind=binding target=status
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
@@ -135,9 +711,11 @@ const label: "go" | "stop" = match (status) {
 === checked ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
+/// @resolution.pattern source=status kind=binding target=status
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "stop"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go" | "stop"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
@@ -197,9 +775,11 @@ result satisfies int32;
 === checked ===
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 const result = match (point) {
 /// @type.symbol symbol=result source=result type=int32
+/// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
@@ -211,7 +791,7 @@ const result = match (point) {
     /// @type.node source="x == x" type=boolean
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#2
-    /// @resolution.call source="x == x" parameters=() return=boolean kind=builtin builtin=binary.equal
+    /// @resolution.operator source="x == x" kind=builtin
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#2
     /// @type.node source=y type=int32
@@ -263,6 +843,7 @@ match (config) {
 === checked ===
 declare const config: { enabled: boolean; retries: int32 };
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 }
+/// @resolution.pattern source=config kind=binding target=config
 
 match (config) {
 /// @type.node source=config type={ enabled: boolean; retries: int32 }
@@ -331,6 +912,7 @@ match (packet) {
 === checked ===
 declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
 /// @type.symbol symbol=packet source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
+/// @resolution.pattern source=packet kind=binding target=packet
 
 match (packet) {
 /// @type.node source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
@@ -445,6 +1027,7 @@ class User {
 
 declare const user: User;
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 match (user) {
@@ -497,6 +1080,7 @@ match (values) {
 === checked ===
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
+/// @resolution.pattern source=values kind=binding target=values
 
 match (values) {
 /// @type.node source=values type=Array<int32>
@@ -551,6 +1135,7 @@ match (value) {
 === checked ===
 declare const value: { left: int32 } | { right: int32 };
 /// @type.symbol symbol=value source=value type={ left: int32 } | { right: int32 }
+/// @resolution.pattern source=value kind=binding target=value
 
 match (value) {
 /// @type.node type=int32
@@ -601,9 +1186,11 @@ const label: "go" | "error" = match (status) {
 === checked ===
 declare const status: "ready" | "error";
 /// @type.symbol symbol=status source=status type="ready" | "error"
+/// @resolution.pattern source=status kind=binding target=status
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "error"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go" | "error"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status

@@ -115,6 +115,7 @@ try {
 } catch {
     const handled = true;
     /// @type.symbol symbol=handled source=handled type=true
+    /// @resolution.pattern source=handled kind=binding target=handled
     /// @type.node source=true type=true
 
 }

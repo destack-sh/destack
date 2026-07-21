@@ -558,10 +558,12 @@ class State {
 
 declare const localState: local State;
 /// @type.symbol symbol=localState source=localState type=Placed<State, "local">
+/// @resolution.pattern source=localState kind=binding target=localState
 /// @resolution.name source=State target=State
 
 declare const sharedState: shared State;
 /// @type.symbol symbol=sharedState source=sharedState type=Placed<State, "shared">
+/// @resolution.pattern source=sharedState kind=binding target=sharedState
 /// @resolution.name source=State target=State
 
 localState.status = Status.Busy;
@@ -635,6 +637,7 @@ struct State { status: Status; }
 
 declare const state: ^State;
 /// @type.symbol symbol=state source=state type=Owned<State> reduced=State
+/// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
 state.status = Status.Busy;

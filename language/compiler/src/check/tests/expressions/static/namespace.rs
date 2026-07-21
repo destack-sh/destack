@@ -36,9 +36,10 @@ export const value: 1 = 1;
 @if(true)
 export const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 
 === main.ds ===
 
@@ -52,10 +53,11 @@ import * as dep from "./dep.ds";
 
 const result = dep.value;
 /// @type.symbol symbol=result source=result type=1
+/// @resolution.pattern source=result kind=binding target=result
 /// @type.node source=dep.value type=1
 /// @resolution.name source=dep.value target=dep.value
 
-/// @check.stats.solve variables=0 types=1 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }

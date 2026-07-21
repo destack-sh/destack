@@ -18,9 +18,10 @@ const value: 42n = 42n;
 === checked ===
 const value = 42n;
 /// @type.symbol symbol=value source=value type=42n
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -43,9 +44,10 @@ let value: bigint = 42n;
 === checked ===
 let value = 42n;
 /// @type.symbol symbol=value source=value type=bigint
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -68,9 +70,10 @@ const value: bigint = 42n;
 === checked ===
 const value: bigint = 42n;
 /// @type.symbol symbol=value source=value type=bigint
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -93,13 +96,15 @@ const value: float64 = 42n;
 === checked ===
 const value: number = 42n;
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '42n' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=23 span="42n" line_source="const value: number = 42n;"
+/// @diagnostic.related line=2 column=14 span="number" line_source="const value: number = 42n;" message="expected due to this annotation"
 "#,
     );
 }
@@ -122,9 +127,96 @@ const value: bigint | string = 42n as bigint | string;
 === checked ===
 const value: bigint | string = 42n;
 /// @type.symbol symbol=value source=value type=bigint | string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+"#,
+    );
+}
+
+#[test]
+fn test_bigint_literal_resolves_extension_member() {
+    let session = TestSession::builder()
+        .target("native")
+        .module(
+            "main.ds",
+            r#"
+const isZero = (1n).isZero;
+
+isZero satisfies boolean;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+const isZero: boolean = 1n.isZero;
+
+isZero satisfies boolean;
+
+=== checked ===
+const isZero = (1n).isZero;
+/// @type.symbol symbol=isZero source=isZero type=boolean
+/// @resolution.pattern source=isZero kind=binding target=isZero
+/// @type.node source=(1n).isZero type=boolean
+/// @resolution.member source=(1n).isZero receiver=1n kind=symbol target=math.bigint.isZero
+/// @type.node source=1n type=1n
+
+isZero satisfies boolean;
+/// @type.node source="isZero satisfies boolean" type=boolean
+/// @type.node source=isZero type=boolean
+/// @resolution.name source=isZero target=isZero
+"#,
+    );
+}
+
+#[test]
+fn test_bigint_alias_resolves_extension_member() {
+    let session = TestSession::builder()
+        .target("native")
+        .module(
+            "main.ds",
+            r#"
+let value: bigint = 1n;
+const isZero = value.isZero;
+
+isZero satisfies boolean;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+let value: bigint = 1n;
+const isZero: boolean = value.isZero;
+
+isZero satisfies boolean;
+
+=== checked ===
+let value: bigint = 1n;
+/// @type.symbol symbol=value source=value type=bigint
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1n type=1n
+
+const isZero = value.isZero;
+/// @type.symbol symbol=isZero source=isZero type=boolean
+/// @resolution.pattern source=isZero kind=binding target=isZero
+/// @type.node source=value type=bigint
+/// @type.node source=value.isZero type=boolean
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.isZero receiver=bigint kind=symbol target=math.bigint.isZero
+
+isZero satisfies boolean;
+/// @type.node source="isZero satisfies boolean" type=boolean
+/// @type.node source=isZero type=boolean
+/// @resolution.name source=isZero target=isZero
 "#,
     );
 }

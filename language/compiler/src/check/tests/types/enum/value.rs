@@ -1,5 +1,57 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Require one nominal enum member per runtime value.
+#[test]
+fn test_rejects_duplicate_enum_variant_values() {
+    let session = TestSession::single(
+        r#"
+enum Status {
+    Ready = 1,
+    Active = 1,
+    Waiting,
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+enum Status {
+    Ready = 1,
+    Active = 1,
+    Waiting,
+}
+
+=== checked ===
+enum Status {
+/// @type.symbol symbol=Status type=Status
+/// @definition.enum symbol=Status
+/// @definition.variant symbol=Status.Ready source="Ready = 1" key=Ready value=1
+/// @definition.variant symbol=Status.Waiting source=Waiting key=Waiting value=2
+
+    Ready = 1,
+    /// @type.symbol symbol=Status.Ready source="Ready = 1" type=Status.Ready
+    /// @type.node source=1 type=1
+
+    Active = 1,
+    /// @type.symbol symbol=Status.Active source="Active = 1" type=<error>
+    /// @type.node source=1 type=1
+
+    Waiting,
+    /// @type.symbol symbol=Status.Waiting source=Waiting type=Status.Waiting
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=duplicate-enum-variant-value message="enum variant value '1' is already declared"
+/// @diagnostic.label line=4 column=5 span="Active" line_source="Active = 1,"
+/// @diagnostic.related line=3 column=5 span="Ready" line_source="Ready = 1," message="first declared here"
+"#,
+    );
+}
+
 /// Reject enum values outside the integer and string domains.
 #[test]
 fn test_rejects_invalid_enum_variant_type() {

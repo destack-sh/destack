@@ -35,6 +35,40 @@ class User {
 }
 
 #[test]
+fn test_infer_class_field_from_initializer() {
+    let session = TestSession::single(
+        r#"
+class User {
+    active = true;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class User {
+    active: boolean = true;
+}
+
+=== checked ===
+class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.field symbol=User.active source="active = true" key=active type=boolean
+
+    active = true;
+    /// @type.symbol symbol=User.active source="active = true" type=boolean
+    /// @type.node source=true type=true
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_implicit_constructor_requires_initialized_fields() {
     let session = TestSession::single(
         r#"

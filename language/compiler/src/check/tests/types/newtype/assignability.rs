@@ -26,11 +26,13 @@ newtype UserId = int64;
 
 const id: UserId = 42;
 /// @type.symbol symbol=id source=id type=UserId
+/// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=UserId target=UserId
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '42' is not assignable to type 'UserId'"
 /// @diagnostic.label line=4 column=20 span="42" line_source="const id: UserId = 42;"
+/// @diagnostic.related line=4 column=11 span="UserId" line_source="const id: UserId = 42;" message="expected due to this annotation"
 "#,
     );
 }
@@ -61,12 +63,14 @@ newtype UserId = int64;
 
 const raw: int64 = UserId(42);
 /// @type.symbol symbol=raw source=raw type=int64
+/// @resolution.pattern source=raw kind=binding target=raw
 /// @resolution.name source=UserId target=UserId
 /// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'UserId' is not assignable to type 'int64'"
 /// @diagnostic.label line=4 column=20 span="UserId(42)" line_source="const raw: int64 = UserId(42);"
+/// @diagnostic.related line=4 column=12 span="int64" line_source="const raw: int64 = UserId(42);" message="expected due to this annotation"
 "#,
     );
 }
@@ -101,11 +105,13 @@ newtype UserId = int64;
 
 const id = UserId(42);
 /// @type.symbol symbol=id source=id type=UserId
+/// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=UserId target=UserId
 /// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 
 const raw = id as int64;
 /// @type.symbol symbol=raw source=raw type=int64
+/// @resolution.pattern source=raw kind=binding target=raw
 /// @resolution.name source=id target=id
 
 raw satisfies int64;
@@ -144,11 +150,13 @@ newtype UserId = int64;
 
 const source = UserId(42);
 /// @type.symbol symbol=source source=source type=UserId
+/// @resolution.pattern source=source kind=binding target=source
 /// @resolution.name source=UserId target=UserId
 /// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 
 const target: UserId = source;
 /// @type.symbol symbol=target source=target type=UserId
+/// @resolution.pattern source=target kind=binding target=target
 /// @resolution.name source=UserId target=UserId
 /// @resolution.name source=source target=source
 
@@ -193,17 +201,20 @@ newtype OrderId = int64;
 
 const user = UserId(42);
 /// @type.symbol symbol=user source=user type=UserId
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=UserId target=UserId
 /// @resolution.construct source=UserId(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 
 const order: OrderId = user;
 /// @type.symbol symbol=order source=order type=OrderId
+/// @resolution.pattern source=order kind=binding target=order
 /// @resolution.name source=OrderId target=OrderId
 /// @resolution.name source=user target=user
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'UserId' is not assignable to type 'OrderId'"
 /// @diagnostic.label line=6 column=24 span="user" line_source="const order: OrderId = user;"
+/// @diagnostic.related line=6 column=14 span="OrderId" line_source="const order: OrderId = user;" message="expected due to this annotation"
 "#,
     );
 }
@@ -250,6 +261,7 @@ import { UserId as RightUserId } from "./right.ds";
 
 const id: LeftUserId = RightUserId(42);
 /// @type.symbol symbol=id source=id type=left.UserId
+/// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=LeftUserId target=left.UserId
 /// @resolution.name source=RightUserId target=right.UserId
 /// @resolution.construct source=RightUserId(42) parameters=(int64) arguments=(provided(42) as int64) return=right.UserId kind=newtype target=right.UserId backing=int64
@@ -257,6 +269,7 @@ const id: LeftUserId = RightUserId(42);
         r#"
 /// @diagnostic.error id=not-assignable message="type 'right.UserId' is not assignable to type 'left.UserId'"
 /// @diagnostic.label line=5 column=24 span="RightUserId(42)" line_source="const id: LeftUserId = RightUserId(42);"
+/// @diagnostic.related line=5 column=11 span="LeftUserId" line_source="const id: LeftUserId = RightUserId(42);" message="expected due to this annotation"
 "#,
     );
 }
@@ -287,11 +300,13 @@ newtype Config = { debug: boolean };
 
 const config: Config = { debug: true };
 /// @type.symbol symbol=config source=config type=Config
+/// @resolution.pattern source=config kind=binding target=config
 /// @resolution.name source=Config target=Config
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ debug: true }' is not assignable to type 'Config'"
 /// @diagnostic.label line=4 column=24 span="{ debug: true }" line_source="const config: Config = { debug: true };"
+/// @diagnostic.related line=4 column=15 span="Config" line_source="const config: Config = { debug: true };" message="expected due to this annotation"
 "#,
     );
 }

@@ -33,6 +33,7 @@ type Keys = keyof User;
 
 declare const key: Keys;
 /// @type.symbol symbol=key source=key type=Keys reduced="name" | "age"
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
     );
@@ -78,6 +79,7 @@ type Keys = keyof (Left | Right);
 
 declare const key: Keys;
 /// @type.symbol symbol=key source=key type=Keys reduced="shared"
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
     );
@@ -123,11 +125,13 @@ type Keys = keyof (Left | Right);
 
 const bad: Keys = "left";
 /// @type.symbol symbol=bad source=bad type=Keys reduced="shared"
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"left\"' is not assignable to type 'Keys'"
 /// @diagnostic.label line=6 column=19 span="\"left\"" line_source="const bad: Keys = \"left\";"
+/// @diagnostic.related line=6 column=12 span="Keys" line_source="const bad: Keys = \"left\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Keys' reduces to '\"shared\"'"
 "#,
     );
@@ -173,6 +177,7 @@ type Keys = keyof (Left & Right);
 
 declare const key: Keys;
 /// @type.symbol symbol=key source=key type=Keys reduced="shared" | "left" | "right"
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
     );
@@ -214,6 +219,7 @@ type Actual = Keys<{ a: int32; b: string }>;
 
 declare const key: Actual;
 /// @type.symbol symbol=key source=key type=Actual reduced="a" | "b"
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Actual target=Actual
 
 /// @generic.instance id="Keys<{ a: int32; b: string }>" template=Keys arguments=({ a: int32; b: string })
@@ -254,6 +260,7 @@ type Keys = keyof User;
 
 declare const key: Keys;
 /// @type.symbol symbol=key source=key type=Keys reduced="name" | "age"
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
     );
@@ -404,10 +411,12 @@ type Keys = keyof Bag;
 
 const text: Keys = "name";
 /// @type.symbol symbol=text source=text type=Keys reduced=string | usize
+/// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Keys target=Keys
 
 const index: Keys = 1;
 /// @type.symbol symbol=index source=index type=Keys reduced=string | usize
+/// @resolution.pattern source=index kind=binding target=index
 /// @resolution.name source=Keys target=Keys
 "#,
     );
@@ -446,11 +455,13 @@ type Keys = keyof Bag;
 
 const bad: Keys = true;
 /// @type.symbol symbol=bad source=bad type=Keys reduced=string | usize
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Keys'"
 /// @diagnostic.label line=5 column=19 span="true" line_source="const bad: Keys = true;"
+/// @diagnostic.related line=5 column=12 span="Keys" line_source="const bad: Keys = true;" message="expected due to this annotation"
 /// @diagnostic.note message="'Keys' reduces to 'string | usize'"
 "#,
     );
@@ -489,6 +500,7 @@ type Keys = keyof Slots;
 
 const key: Keys = 1;
 /// @type.symbol symbol=key source=key type=Keys reduced=usize
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=Keys target=Keys
 "#,
     );
@@ -527,11 +539,13 @@ type Keys = keyof Slots;
 
 const bad: Keys = "name";
 /// @type.symbol symbol=bad source=bad type=Keys reduced=usize
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"name\"' is not assignable to type 'Keys'"
 /// @diagnostic.label line=5 column=19 span="\"name\"" line_source="const bad: Keys = \"name\";"
+/// @diagnostic.related line=5 column=12 span="Keys" line_source="const bad: Keys = \"name\";" message="expected due to this annotation"
 /// @diagnostic.note message="'Keys' reduces to 'usize'"
 "#,
     );
@@ -579,10 +593,12 @@ type HasTitle = "title" extends keyof Person ? true : false;
 
 const name: HasName = true;
 /// @type.symbol symbol=name source=name type=HasName reduced=true
+/// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=HasName target=HasName
 
 const title: HasTitle = false;
 /// @type.symbol symbol=title source=title type=HasTitle reduced=false
+/// @resolution.pattern source=title kind=binding target=title
 /// @resolution.name source=HasTitle target=HasTitle
 "#,
     );
@@ -650,14 +666,17 @@ type HasIntersectionLeft = "left" extends keyof (Left & Right) ? true : false;
 
 const unionLeft: HasUnionLeft = false;
 /// @type.symbol symbol=unionLeft source=unionLeft type=HasUnionLeft reduced=false
+/// @resolution.pattern source=unionLeft kind=binding target=unionLeft
 /// @resolution.name source=HasUnionLeft target=HasUnionLeft
 
 const unionShared: HasUnionShared = true;
 /// @type.symbol symbol=unionShared source=unionShared type=HasUnionShared reduced=true
+/// @resolution.pattern source=unionShared kind=binding target=unionShared
 /// @resolution.name source=HasUnionShared target=HasUnionShared
 
 const intersectionLeft: HasIntersectionLeft = true;
 /// @type.symbol symbol=intersectionLeft source=intersectionLeft type=HasIntersectionLeft reduced=true
+/// @resolution.pattern source=intersectionLeft kind=binding target=intersectionLeft
 /// @resolution.name source=HasIntersectionLeft target=HasIntersectionLeft
 "#,
     );

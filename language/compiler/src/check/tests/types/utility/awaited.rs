@@ -29,6 +29,7 @@ type Value = Awaited<string>;
 
 const ok: Value = "ready";
 /// @type.symbol symbol=ok source=ok type=Value reduced=string
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
 ok satisfies string;
@@ -70,6 +71,7 @@ type Value = Awaited<Promise<Promise<string>>>;
 
 const ok: Value = "ready";
 /// @type.symbol symbol=ok source=ok type=Value reduced=string
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
 ok satisfies string;
@@ -111,10 +113,12 @@ type Value = Awaited<null | undefined>;
 
 const first: Value = null;
 /// @type.symbol symbol=first source=first type=Value reduced=null | undefined
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = undefined;
 /// @type.symbol symbol=second source=second type=Value reduced=null | undefined
+/// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Awaited<null | undefined>" template=types.object.Awaited arguments=(null | undefined)
@@ -152,10 +156,12 @@ type Value = Awaited<Promise<string>>;
 
 declare const promise: Promise<string>;
 /// @type.symbol symbol=promise source=promise type=Promise<string>
+/// @resolution.pattern source=promise kind=binding target=promise
 /// @resolution.name source=Promise target=async.promise.Promise
 
 const bad: Value = promise;
 /// @type.symbol symbol=bad source=bad type=Value reduced=string
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=promise target=promise
 
@@ -165,6 +171,7 @@ const bad: Value = promise;
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Promise<string>' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="promise" line_source="const bad: Value = promise;"
+/// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = promise;" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to 'string'"
 "#,
     );

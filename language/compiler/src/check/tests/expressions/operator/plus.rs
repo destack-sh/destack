@@ -18,9 +18,10 @@ const value: 3 = 1 + 2;
 === checked ===
 const value = 1 + 2;
 /// @type.symbol symbol=value source=value type=3
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="1 + 2" type=3
 /// @type.node source=1 type=1
-/// @resolution.call source="1 + 2" parameters=() return=3 kind=builtin builtin=binary.add
+/// @resolution.operator source="1 + 2" kind=builtin
 /// @type.node source=2 type=2
 "#,
     );
@@ -122,7 +123,7 @@ extension of Vector implements Add<Vector> {
             /// @type.node source=this type=Vector
             /// @type.node source=this.x type=int32
             /// @resolution.member source=this.x receiver=Vector kind=symbol target=Vector.x
-            /// @resolution.call source="this.x + other.x" parameters=() return=int32 kind=builtin builtin=binary.add
+            /// @resolution.operator source="this.x + other.x" kind=builtin
             /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.x type=int32
@@ -134,7 +135,7 @@ extension of Vector implements Add<Vector> {
             /// @type.node source=this type=Vector
             /// @type.node source=this.y type=int32
             /// @resolution.member source=this.y receiver=Vector kind=symbol target=Vector.y
-            /// @resolution.call source="this.y + other.y" parameters=() return=int32 kind=builtin builtin=binary.add
+            /// @resolution.operator source="this.y + other.y" kind=builtin
             /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.y type=int32
@@ -147,18 +148,21 @@ extension of Vector implements Add<Vector> {
 
 declare const left: Vector;
 /// @type.symbol symbol=left source=left type=Vector
+/// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=Vector target=Vector
 
 declare const right: Vector;
 /// @type.symbol symbol=right source=right type=Vector
+/// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=Vector target=Vector
 
 const sum = left + right;
 /// @type.symbol symbol=sum source=sum type=Vector
+/// @resolution.pattern source=sum kind=binding target=sum
 /// @type.node source="left + right" type=Vector
 /// @type.node source=left type=Vector
 /// @resolution.name source=left target=left
-/// @resolution.call source="left + right" parameters=(Vector) arguments=(provided(right) as Vector) return=Vector kind=symbol target=add receiver=Vector
+/// @resolution.operator source="left + right" kind=call parameters=(Vector) arguments=(provided(right) as Vector) return=Vector target=add receiver=Vector
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
 "#,
@@ -244,7 +248,7 @@ extension of Score implements Add<Score> {
         Score { value: this.value + other.value }
         /// @resolution.name source=Score target=Score
         /// @resolution.member source=this.value receiver=Score kind=symbol target=Score.value
-        /// @resolution.call source="this.value + other.value" parameters=() return=float64 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.value + other.value" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Score
         /// @resolution.name source=other target=add.other
         /// @resolution.member source=other.value receiver=Score kind=symbol target=Score.value
@@ -254,14 +258,16 @@ extension of Score implements Add<Score> {
 
 declare let total: Score;
 /// @type.symbol symbol=total source=total type=Score
+/// @resolution.pattern source=total kind=binding target=total
 /// @resolution.name source=Score target=Score
 
 declare const bonus: Score;
 /// @type.symbol symbol=bonus source=bonus type=Score
+/// @resolution.pattern source=bonus kind=binding target=bonus
 /// @resolution.name source=Score target=Score
 
 total += bonus;
-/// @resolution.call source="total += bonus" parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score
+/// @resolution.operator source="total += bonus" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score target=add receiver=Score
 /// @resolution.pattern.assign source=total kind=place place=binding(total) type=Score
 /// @resolution.name source=bonus target=bonus
 "#);
@@ -345,7 +351,7 @@ extension of Score implements Add {
         Score { value: this.value + other.value }
         /// @resolution.name source=Score target=Score
         /// @resolution.member source=this.value receiver=Score kind=symbol target=Score.value
-        /// @resolution.call source="this.value + other.value" parameters=() return=float64 kind=builtin builtin=binary.add
+        /// @resolution.operator source="this.value + other.value" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Score
         /// @resolution.name source=other target=add.other
         /// @resolution.member source=other.value receiver=Score kind=symbol target=Score.value
@@ -355,14 +361,16 @@ extension of Score implements Add {
 
 declare let total: Score;
 /// @type.symbol symbol=total source=total type=Score
+/// @resolution.pattern source=total kind=binding target=total
 /// @resolution.name source=Score target=Score
 
 declare const bonus: Score;
 /// @type.symbol symbol=bonus source=bonus type=Score
+/// @resolution.pattern source=bonus kind=binding target=bonus
 /// @resolution.name source=Score target=Score
 
 total += bonus;
-/// @resolution.call source="total += bonus" parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score
+/// @resolution.operator source="total += bonus" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score target=add receiver=Score
 /// @resolution.pattern.assign source=total kind=place place=binding(total) type=Score
 /// @resolution.name source=bonus target=bonus
 "#);

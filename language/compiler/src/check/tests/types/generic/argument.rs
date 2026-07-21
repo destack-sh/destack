@@ -23,7 +23,7 @@ type Clone<T> = { [K in keyof T]: T[K] };
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
 /// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Clone.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Clone.T
 /// @resolution.name source=T target=Clone.T
@@ -75,6 +75,7 @@ type Bytes = Slots<16>;
 
 declare const bytes: Bytes;
 /// @type.symbol symbol=bytes source=bytes type=Bytes reduced=FixedArray<uint8, 16>
+/// @resolution.pattern source=bytes kind=binding target=bytes
 /// @resolution.name source=Bytes target=Bytes
 
 /// @generic.instance id=Slots<16> template=Slots arguments=(16)

@@ -152,3 +152,46 @@ newtype Shape = { kind: "shape" };
 "#,
     );
 }
+
+#[test]
+fn test_reject_non_newtype_derive_provider() {
+    let session = TestSession::single(
+        r#"
+const provider = 1;
+
+@derive(provider)
+newtype Shape = { kind: "shape" };
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+const provider: 1 = 1;
+
+@derive(provider)
+newtype Shape = { kind: "shape" };
+
+=== checked ===
+const provider = 1;
+/// @type.symbol symbol=provider source=provider type=1
+/// @resolution.pattern source=provider kind=binding target=provider
+/// @type.node source=1 type=1
+
+@derive(provider)
+/// @type.node source=derive type=derive
+/// @resolution.name source=derive target=decorator.derive.derive
+/// @resolution.name source=provider target=provider
+
+newtype Shape = { kind: "shape" };
+/// @type.symbol symbol=Shape source="newtype Shape = { kind: \"shape\" }" type=Shape
+/// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"shape\" }" backing={ kind: "shape" }
+"#,
+        r#"
+/// @diagnostic.error id=invalid-derive-provider message="derive argument must name a registered provider newtype"
+/// @diagnostic.label line=4 column=9 span="provider" line_source="@derive(provider)"
+"#,
+    );
+}

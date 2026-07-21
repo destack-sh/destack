@@ -75,12 +75,14 @@ struct Buffer {
 
 const writer: NamedWriter = Buffer {};
 /// @type.symbol symbol=writer source=writer type=NamedWriter
+/// @resolution.pattern source=writer kind=binding target=writer
 /// @resolution.name source=NamedWriter target=NamedWriter
 /// @resolution.name source=Buffer target=Buffer
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Buffer' is not assignable to type 'NamedWriter'"
 /// @diagnostic.label line=14 column=29 span="Buffer {}" line_source="const writer: NamedWriter = Buffer {};"
+/// @diagnostic.related line=14 column=15 span="NamedWriter" line_source="const writer: NamedWriter = Buffer {};" message="expected due to this annotation"
 "#,
     );
 }

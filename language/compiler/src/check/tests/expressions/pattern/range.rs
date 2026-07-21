@@ -101,10 +101,12 @@ type Tiny = 0..=2;
 
 declare const value: Tiny;
 /// @type.symbol symbol=value source=value type=Tiny reduced=0..=2
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Tiny target=Tiny
 
 const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "two"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "two"
 /// @type.node source=value type=Tiny reduced=0..=2
 /// @resolution.name source=value target=value
@@ -161,10 +163,12 @@ type LowerAscii = 'a'..='z';
 
 declare const value: LowerAscii;
 /// @type.symbol symbol=value source=value type=LowerAscii reduced='a'..='z'
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=LowerAscii target=LowerAscii
 
 const isEarly = match (value) {
 /// @type.symbol symbol=isEarly source=isEarly type=true | false
+/// @resolution.pattern source=isEarly kind=binding target=isEarly
 /// @type.node type=true | false
 /// @type.node source=value type=LowerAscii reduced='a'..='z'
 /// @resolution.name source=value target=value
@@ -222,10 +226,12 @@ type Tiny = 0..=3;
 
 declare const value: Tiny;
 /// @type.symbol symbol=value source=value type=Tiny reduced=0..=3
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Tiny target=Tiny
 
 const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "high"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "high"
 /// @type.node source=value type=Tiny reduced=0..=3
 /// @resolution.name source=value target=value

@@ -18,6 +18,7 @@ const value: int32 = 1 as int32;
 === checked ===
 const value = 1 as int32;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="1 as int32" type=int32
 /// @type.node source=1 type=1
 "#,

@@ -34,6 +34,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 
 const segment = parse("id:users");
 /// @type.symbol symbol=segment source=segment type="users"
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"id:users\")" parameters=(`id:${"users"}`) arguments=(provided("id:users") as `id:${"users"}`) return="users" kind=symbol target=parse instance="parse<\"users\">"
 /// @generic.instance source="parse(\"id:users\")" id="parse<\"users\">"
@@ -80,6 +81,7 @@ declare function build<T: string>(value: T): `id:${T}`;
 
 const key = build("users");
 /// @type.symbol symbol=key source=key type=`id:${"users"}` reduced="id:users"
+/// @resolution.pattern source=key kind=binding target=key
 /// @resolution.name source=build target=build
 /// @resolution.call source="build(\"users\")" parameters=("users") arguments=(provided("users") as "users") return=`id:${"users"}` kind=symbol target=build instance="build<\"users\">"
 /// @generic.instance source="build(\"users\")" id="build<\"users\">"
@@ -130,9 +132,11 @@ declare function identity<T: string>(value: `${T}`): T;
 
 let value = "users";
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 
 const text = identity(value);
 /// @type.symbol symbol=text source=text type=string
+/// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(value) parameters=(`${string}`) arguments=(provided(value) as `${string}`) return=string kind=symbol target=identity instance=identity<string>
 /// @generic.instance source=identity(value) id=identity<string>
@@ -180,6 +184,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 
 let key = "id:users";
 /// @type.symbol symbol=key source=key type=string
+/// @resolution.pattern source=key kind=binding target=key
 
 parse(key);
 /// @resolution.name source=parse target=parse
@@ -231,6 +236,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 
 const segment = parse("id:");
 /// @type.symbol symbol=segment source=segment type=""
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"id:\")" parameters=(`id:${""}`) arguments=(provided("id:") as `id:${""}`) return="" kind=symbol target=parse instance="parse<\"\">"
 /// @generic.instance source="parse(\"id:\")" id="parse<\"\">"
@@ -277,6 +283,7 @@ declare function parse<T: number>(value: `${T}`): T;
 
 const value = parse("42");
 /// @type.symbol symbol=value source=value type=42
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"42\")" parameters=(`${42}`) arguments=(provided("42") as `${42}`) return=42 kind=symbol target=parse instance=parse<42>
 /// @generic.instance source="parse(\"42\")" id=parse<42>

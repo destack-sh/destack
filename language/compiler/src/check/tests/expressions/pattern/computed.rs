@@ -26,6 +26,7 @@ value satisfies int32;
 === checked ===
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 let { ["x"]: value } = point;
 /// @resolution.pattern source={ ["x"]: value } kind=object fields={ x: value }
@@ -67,14 +68,17 @@ let { [key]: value } = point;
 === checked ===
 declare const key: string;
 /// @type.symbol symbol=key source=key type=string
+/// @resolution.pattern source=key kind=binding target=key
 
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 let { [key]: value } = point;
 /// @resolution.pattern source={ [key]: value } kind=object fields={}
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
+/// @type.symbol symbol=value source=value type=<error>
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
 "#,
@@ -121,9 +125,11 @@ type Bag = { [key: string]: int32 };
 
 declare const key: string;
 /// @type.symbol symbol=key source=key type=string
+/// @resolution.pattern source=key kind=binding target=key
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type=Bag reduced={ [key: string]: int32 }
+/// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 let { [key]: value } = bag;
@@ -239,6 +245,7 @@ value satisfies int32;
 === checked ===
 declare const pair: { 0: string; 1: int32 };
 /// @type.symbol symbol=pair source=pair type={ 0: string; 1: int32 }
+/// @resolution.pattern source=pair kind=binding target=pair
 
 let { [1]: value } = pair;
 /// @resolution.pattern source={ [1]: value } kind=object fields={ 1: value }
@@ -284,9 +291,11 @@ value satisfies string;
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+/// @resolution.pattern source=token kind=binding target=token
 
 declare const box: { readonly [token]: string };
 /// @type.symbol symbol=box source=box type={ readonly [token]: string }
+/// @resolution.pattern source=box kind=binding target=box
 
 let { [token]: value } = box;
 /// @resolution.pattern source={ [token]: value } kind=object fields={ token: value }
@@ -331,6 +340,7 @@ value satisfies string;
 === checked ===
 declare const box: { readonly [Symbol.for("token")]: string };
 /// @type.symbol symbol=box source=box type={ readonly [Symbol.for("token")]: string }
+/// @resolution.pattern source=box kind=binding target=box
 
 let { [Symbol.for("token")]: value } = box;
 /// @resolution.pattern source={ [Symbol.for("token")]: value } kind=object fields={ Symbol.for("token"): value }

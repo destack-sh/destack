@@ -27,7 +27,7 @@ type Flags<T> = { [K in keyof T]: boolean };
 /// @type.symbol symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" type={ [K in keyof T]: boolean }
 /// @definition.type symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" template=(T) value={ [K in keyof T]: boolean }
 /// @type.symbol symbol=Flags.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Flags.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Flags.T
 
@@ -38,6 +38,7 @@ type Actual = Flags<{ name: string; age: int32 }>;
 
 declare const value: Actual;
 /// @type.symbol symbol=value source=value type=Actual reduced={ name: boolean; age: boolean }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Actual target=Actual
 
 /// @generic.instance id="Flags<{ name: string; age: int32 }>" template=Flags arguments=({ name: string; age: int32 })
@@ -68,7 +69,7 @@ type Clone<T> = { [K in keyof T]: T[K] };
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
 /// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Clone.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Clone.T
 /// @resolution.name source=T target=Clone.T
@@ -107,7 +108,7 @@ type Loose<T> = { [K in keyof T]?: T[K] };
 /// @type.symbol symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
 /// @definition.type symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Loose.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Loose.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Loose.T
 /// @resolution.name source=T target=Loose.T
@@ -150,7 +151,7 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
 /// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Optional.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Optional.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Optional.T
 /// @resolution.name source=T target=Optional.T
@@ -163,6 +164,7 @@ type Value = Optional<{ name: string }>["name"];
 
 const missing: Value = undefined;
 /// @type.symbol symbol=missing source=missing type=Value reduced=string | undefined
+/// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Optional<{ name: string }>" template=Optional arguments=({ name: string })
@@ -197,7 +199,7 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
 /// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Optional.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Optional.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Optional.T
 /// @resolution.name source=T target=Optional.T
@@ -210,6 +212,7 @@ type Value = Optional<{ name: string }>["name"];
 
 const bad: Value = 1;
 /// @type.symbol symbol=bad source=bad type=Value reduced=string | undefined
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="Optional<{ name: string }>" template=Optional arguments=({ name: string })
@@ -217,6 +220,7 @@ const bad: Value = 1;
         r#"
 /// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="1" line_source="const bad: Value = 1;"
+/// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = 1;" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to 'string | undefined'"
 "#,
     );
@@ -245,7 +249,7 @@ type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
 /// @type.symbol symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" type={ -readonly[K in keyof T]-?: T[K] }
 /// @definition.type symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" template=(T) value={ -readonly[K in keyof T]-?: T[K] }
 /// @type.symbol symbol=Strict.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Strict.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Strict.T
 /// @resolution.name source=T target=Strict.T
@@ -280,7 +284,7 @@ type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 /// @type.symbol symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" type={ [K in "name" | "age" as Uppercase<K>]: boolean } reduced={ NAME: boolean; AGE: boolean }
 /// @definition.type symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" value={ [K in "name" | "age" as Uppercase<K>]: boolean } reduced={ NAME: boolean; AGE: boolean }
-/// @generic.template source=type_mapped_parameter parameters=(K: "name" | "age")
+/// @generic.template source=mapped_type_parameter parameters=(K: "name" | "age")
 /// @type.symbol symbol=Caps.K source=[K in "name" | "age" as Uppercase<K>] type=K
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 /// @resolution.name source=K target=Caps.K
@@ -321,7 +325,7 @@ type Collide<T> = { [K in keyof T as "value"]: T[K] };
 /// @type.symbol symbol=Collide source="type Collide<T> = { [K in keyof T as \"value\"]: T[K] }" type={ [K in keyof T as "value"]: T[K] }
 /// @definition.type symbol=Collide source="type Collide<T> = { [K in keyof T as \"value\"]: T[K] }" template=(T) value={ [K in keyof T as "value"]: T[K] }
 /// @type.symbol symbol=Collide.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Collide.K source=[K in keyof T as "value"] type=K
 /// @resolution.name source=T target=Collide.T
 /// @resolution.name source=T target=Collide.T
@@ -334,6 +338,7 @@ type Actual = Collide<{ name: string; age: int32 }>;
 
 declare const actual: Actual;
 /// @type.symbol symbol=actual source=actual type=Actual reduced={ value: string; value: int32 }
+/// @resolution.pattern source=actual kind=binding target=actual
 /// @resolution.name source=Actual target=Actual
 
 actual.value satisfies string | int32;
@@ -368,7 +373,7 @@ type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K]
 /// @type.symbol symbol=WithoutSecret type={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
 /// @definition.type symbol=WithoutSecret template=(T) value={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
 /// @type.symbol symbol=WithoutSecret.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=WithoutSecret.K source=[K in keyof T as K extends "secret" ? never : K] type=K
 /// @resolution.name source=T target=WithoutSecret.T
 /// @resolution.name source=K target=WithoutSecret.K
@@ -410,13 +415,14 @@ type Actual = Clone<{ readonly [token]: int32 }>;
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+/// @resolution.pattern source=token kind=binding target=token
 
 type Clone<T> = { [K in keyof T]: T[K] };
 /// @generic.template symbol=Clone parameters=(T)
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
 /// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Clone.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Clone.T
 /// @resolution.name source=T target=Clone.T
@@ -455,7 +461,7 @@ type Locked<T> = { +readonly [K in keyof T]+?: T[K] };
 /// @type.symbol symbol=Locked source="type Locked<T> = { +readonly [K in keyof T]+?: T[K] }" type={ +readonly[K in keyof T]+?: T[K] }
 /// @definition.type symbol=Locked source="type Locked<T> = { +readonly [K in keyof T]+?: T[K] }" template=(T) value={ +readonly[K in keyof T]+?: T[K] }
 /// @type.symbol symbol=Locked.T source=T type=T
-/// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=Locked.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Locked.T
 /// @resolution.name source=T target=Locked.T

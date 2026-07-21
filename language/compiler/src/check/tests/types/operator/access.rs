@@ -33,6 +33,7 @@ type Name = User["name"];
 
 declare const name: Name;
 /// @type.symbol symbol=name source=name type=Name reduced=string
+/// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 "#,
     );
@@ -71,6 +72,7 @@ type Right = Pair[1];
 
 declare const value: Right;
 /// @type.symbol symbol=value source=value type=Right reduced=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Right target=Right
 "#,
     );
@@ -170,6 +172,7 @@ type Value = User["name" | "age"];
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=Value reduced=string | int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
     );
@@ -208,11 +211,13 @@ type Value = User["name" | "age"];
 
 const bad: Value = true;
 /// @type.symbol symbol=bad source=bad type=Value reduced=string | int32
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
+/// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to 'string | int32'"
 "#,
     );
@@ -260,10 +265,12 @@ type Value = (Left | Right)["value"];
 
 const number: Value = 1;
 /// @type.symbol symbol=number source=number type=Value reduced=int32 | string
+/// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Value target=Value
 
 const text: Value = "hello";
 /// @type.symbol symbol=text source=text type=Value reduced=int32 | string
+/// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 "#,
     );
@@ -306,14 +313,17 @@ type Value = Input["value"];
 
 const missing: Value = undefined;
 /// @type.symbol symbol=missing source=missing type=Value reduced=float64 | undefined | string
+/// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=Value target=Value
 
 const number: Value = 1;
 /// @type.symbol symbol=number source=number type=Value reduced=float64 | undefined | string
+/// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Value target=Value
 
 const text: Value = "hello";
 /// @type.symbol symbol=text source=text type=Value reduced=float64 | undefined | string
+/// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 "#,
     );
@@ -352,11 +362,13 @@ type Value = Input["value"];
 
 const bad: Value = true;
 /// @type.symbol symbol=bad source=bad type=Value reduced=float64 | undefined | string
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
+/// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to 'float64 | undefined | string'"
 "#,
     );
@@ -429,6 +441,7 @@ type First = Pair[0];
 
 declare const first: First;
 /// @type.symbol symbol=first source=first type=First reduced=string
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=First target=First
 "#,
     );
@@ -470,6 +483,7 @@ type Value = Element<string[]>;
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=Value reduced=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id=Element<Array<string>> template=Element arguments=(Array<string>)
@@ -523,6 +537,7 @@ type Name = ValueAt<User, "name">;
 
 declare const name: Name;
 /// @type.symbol symbol=name source=name type=Name reduced=string
+/// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 
 /// @generic.instance id="ValueAt<User, \"name\">" template=ValueAt arguments=(User, "name")
@@ -638,10 +653,12 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 
 declare const user: User;
 /// @type.symbol symbol=user source=user type=User reduced={ readonly name: string; readonly age: int32 }
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const name = get(user, "name");
 /// @type.symbol symbol=name source=name type=User["name"] reduced=string
+/// @resolution.pattern source=name kind=binding target=name
 /// @type.node source="get(user, \"name\")" type=User["name"] reduced=string
 /// @type.node source=get type=(User, "name") => User["name"] reduced=(User, "name") => string
 /// @resolution.name source=get target=get
@@ -653,6 +670,7 @@ const name = get(user, "name");
 
 const age = get(user, "age");
 /// @type.symbol symbol=age source=age type=User["age"] reduced=int32
+/// @resolution.pattern source=age kind=binding target=age
 /// @type.node source="get(user, \"age\")" type=User["age"] reduced=int32
 /// @type.node source=get type=(User, "age") => User["age"] reduced=(User, "age") => int32
 /// @resolution.name source=get target=get
@@ -711,6 +729,7 @@ type Name = User["name"];
 
 declare const name: Name;
 /// @type.symbol symbol=name source=name type=Name reduced=string | undefined
+/// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 "#,
     );
@@ -744,6 +763,7 @@ declare const value: Value;
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+/// @resolution.pattern source=token kind=binding target=token
 
 type TokenBox = { readonly [token]: int32 };
 /// @type.symbol symbol=TokenBox source="type TokenBox = { readonly [token]: int32 }" type={ readonly [token]: int32 }
@@ -757,6 +777,7 @@ type Value = TokenBox[token];
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=Value reduced=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
     );
@@ -795,6 +816,7 @@ type Value = Bag["name"];
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=Value reduced=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
     );

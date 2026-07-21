@@ -40,6 +40,7 @@ declare function use<T>(callback: () => T | Box<T>): T;
 
 const value = use(() => {});
 /// @type.symbol symbol=value source=value type=void
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="use(() => {})" type=void
 /// @type.node source=use type=(Function<(), void | Box<void>>) => void
 /// @resolution.name source=use target=use
@@ -91,6 +92,7 @@ declare function map<T, U>(value: T, callback: (value: T) => U): U;
 
 const value = map(1, (item) => item);
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="map(1, (item) => item)" type=1
 /// @type.node source=map type=(1, Function<(1,), 1>) => 1
 /// @resolution.name source=map target=map
@@ -155,10 +157,12 @@ declare class Box<T> {
 
 declare const box: Box<int32>;
 /// @type.symbol symbol=box source=box type=Box<int32>
+/// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=Box target=Box
 
 const mapped = box.map((value) => value);
 /// @type.symbol symbol=mapped source=mapped type=Box<int32>
+/// @resolution.pattern source=mapped kind=binding target=mapped
 /// @type.node source="box.map((value) => value)" type=Box<int32>
 /// @type.node source=box type=Box<int32>
 /// @type.node source=box.map type=<U>(this: Box<int32>, Function<(int32,), U>) => Box<U>
@@ -227,6 +231,7 @@ declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 
 const value = map(1, (item) => item);
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="map(1, (item) => item)" type=1
 /// @type.node source=map type=(1, Function<(1,), 1 | Box<1>>) => 1
 /// @resolution.name source=map target=map
@@ -298,10 +303,12 @@ declare class Box<T> {
 
 declare const box: Box<int32>;
 /// @type.symbol symbol=box source=box type=Box<int32>
+/// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=Box target=Box
 
 const value = box.map((item) => item);
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="box.map((item) => item)" type=int32
 /// @type.node source=box type=Box<int32>
 /// @type.node source=box.map type=<U>(this: Box<int32>, Function<(int32,), U | Box<U>>) => U

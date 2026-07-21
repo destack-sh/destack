@@ -20,9 +20,10 @@ const value: "hello" = "hello";
 === checked ===
 const value = "hello";
 /// @type.symbol symbol=value source=value type="hello"
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -45,9 +46,10 @@ let value: string = "hello";
 === checked ===
 let value = "hello";
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -70,9 +72,10 @@ const value: string = "hello";
 === checked ===
 const value: string = "hello";
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -95,9 +98,10 @@ const value: "" = "";
 === checked ===
 const value = "";
 /// @type.symbol symbol=value source=value type=""
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"\"" type=""
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -120,13 +124,101 @@ const value: float64 = "hello";
 === checked ===
 const value: number = "hello";
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=23 span="\"hello\"" line_source="const value: number = \"hello\";"
+/// @diagnostic.related line=2 column=14 span="number" line_source="const value: number = \"hello\";" message="expected due to this annotation"
+"#,
+    );
+}
+
+#[test]
+fn test_string_literal_resolves_class_member() {
+    let session = TestSession::builder()
+        .target("native")
+        .module(
+            "main.ds",
+            r#"
+const isEmpty = "".isEmpty;
+
+isEmpty satisfies boolean;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+const isEmpty: boolean = "".isEmpty;
+
+isEmpty satisfies boolean;
+
+=== checked ===
+const isEmpty = "".isEmpty;
+/// @type.symbol symbol=isEmpty source=isEmpty type=boolean
+/// @resolution.pattern source=isEmpty kind=binding target=isEmpty
+/// @type.node source="\"\"" type=""
+/// @type.node source="\"\".isEmpty" type=boolean
+/// @resolution.member source="\"\".isEmpty" receiver="" kind=symbol target=string.string.isEmpty
+
+isEmpty satisfies boolean;
+/// @type.node source="isEmpty satisfies boolean" type=boolean
+/// @type.node source=isEmpty type=boolean
+/// @resolution.name source=isEmpty target=isEmpty
+"#,
+    );
+}
+
+#[test]
+fn test_string_alias_resolves_class_member() {
+    let session = TestSession::builder()
+        .target("native")
+        .module(
+            "main.ds",
+            r#"
+let value: string = "";
+const isEmpty = value.isEmpty;
+
+isEmpty satisfies boolean;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+let value: string = "";
+const isEmpty: boolean = value.isEmpty;
+
+isEmpty satisfies boolean;
+
+=== checked ===
+let value: string = "";
+/// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source="\"\"" type=""
+
+const isEmpty = value.isEmpty;
+/// @type.symbol symbol=isEmpty source=isEmpty type=boolean
+/// @resolution.pattern source=isEmpty kind=binding target=isEmpty
+/// @type.node source=value type=string
+/// @type.node source=value.isEmpty type=boolean
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.isEmpty receiver=string kind=symbol target=string.string.isEmpty
+
+isEmpty satisfies boolean;
+/// @type.node source="isEmpty satisfies boolean" type=boolean
+/// @type.node source=isEmpty type=boolean
+/// @resolution.name source=isEmpty target=isEmpty
 "#,
     );
 }

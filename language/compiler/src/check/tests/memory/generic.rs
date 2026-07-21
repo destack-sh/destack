@@ -87,6 +87,7 @@ declare function consume(user: User): void;
 
 declare const user: shared User;
 /// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 consume(user);
@@ -215,10 +216,12 @@ function identity<comptime S: Space>(value: Placed<User, S>): Placed<User, S> {
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 identity(localUser) satisfies local User;
@@ -297,10 +300,12 @@ function identity<T>(value: T): T {
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 identity(localUser) satisfies local User;
@@ -382,16 +387,19 @@ struct Box<T> {
 
 declare const localBox: local Box<User>;
 /// @type.symbol symbol=localBox source=localBox type=Placed<Box<User>, "local">
+/// @resolution.pattern source=localBox kind=binding target=localBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
 declare const sharedBox: shared Box<User>;
 /// @type.symbol symbol=sharedBox source=sharedBox type=Placed<Box<User>, "shared">
+/// @resolution.pattern source=sharedBox kind=binding target=sharedBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
 declare const mixedBox: local Box<shared User>;
 /// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Box<Placed<User, "shared">>, "local">
+/// @resolution.pattern source=mixedBox kind=binding target=mixedBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
@@ -441,7 +449,7 @@ function negate(value: boolean): boolean {
 /// @type.symbol symbol=negate.value source="value: boolean" type=boolean
 
     return !value;
-    /// @resolution.call source=!value parameters=() return=boolean kind=builtin builtin=unary.not
+    /// @resolution.operator source=!value kind=builtin
     /// @resolution.name source=value target=negate.value
 
 }
@@ -477,6 +485,7 @@ function inspect(value: int32): void {
 
     const borrow = &readonly value;
     /// @type.symbol symbol=inspect.borrow source=borrow type=Borrowed<int32, "frame", "readonly">
+    /// @resolution.pattern source=borrow kind=binding target=inspect.borrow
     /// @resolution.name source=value target=inspect.value
 
     borrow satisfies local &readonly int32;
@@ -682,14 +691,17 @@ class Box<T> {
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const localBox: local Box<User> = new Box(localUser);
 /// @type.symbol symbol=localBox source=localBox type=Placed<Box<User>, "local">
+/// @resolution.pattern source=localBox kind=binding target=localBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(localUser)" parameters=(User) arguments=(provided(localUser) as User) return=Placed<Box<User>, "local"> kind=class target=Box constructor=Box.constructor instance=Box<User>
@@ -699,6 +711,7 @@ const localBox: local Box<User> = new Box(localUser);
 
 const sharedBox: shared Box<User> = new Box(sharedUser);
 /// @type.symbol symbol=sharedBox source=sharedBox type=Placed<Box<User>, "shared">
+/// @resolution.pattern source=sharedBox kind=binding target=sharedBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(sharedUser)" parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<Box<User>, "shared"> kind=class target=Box constructor=Box.constructor instance=Box<User>
@@ -708,6 +721,7 @@ const sharedBox: shared Box<User> = new Box(sharedUser);
 
 const mixedBox: local Box<shared User> = new Box(sharedUser);
 /// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Box<Placed<User, "shared">>, "local">
+/// @resolution.pattern source=mixedBox kind=binding target=mixedBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 /// @resolution.construct source="new Box(sharedUser)" parameters=(Placed<User, "shared">) arguments=(provided(sharedUser) as Placed<User, "shared">) return=Placed<Box<Placed<User, "shared">>, "local"> kind=class target=Box constructor=Box.constructor instance="Box<Placed<User, \"shared\">>"
@@ -827,11 +841,13 @@ class User {}
 
 declare const localBox: local Box<User>;
 /// @type.symbol symbol=localBox source=localBox type=Placed<Box<User>, "local">
+/// @resolution.pattern source=localBox kind=binding target=localBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 
 declare const mixedBox: local Box<shared User>;
 /// @type.symbol symbol=mixedBox source=mixedBox type=Placed<Box<Placed<User, "shared">>, "local">
+/// @resolution.pattern source=mixedBox kind=binding target=mixedBox
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
 

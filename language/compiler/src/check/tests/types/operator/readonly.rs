@@ -41,6 +41,7 @@ type User = {
 
 declare const user: readonly User;
 /// @type.symbol symbol=user source=user type=Readonly<User> reduced=Readonly<{ profile: { name: string } }>
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 user.profile.name = "Grace";
@@ -79,9 +80,11 @@ frozen satisfies readonly number[];
 === checked ===
 declare let values: number[];
 /// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
 
 let frozen: readonly number[] = values;
 /// @type.symbol symbol=frozen source=frozen type=readonly Array<float64>
+/// @resolution.pattern source=frozen kind=binding target=frozen
 /// @resolution.name source=values target=values
 
 frozen satisfies readonly number[];
@@ -110,14 +113,17 @@ let bad: float64[] = frozen;
 === checked ===
 declare let frozen: readonly number[];
 /// @type.symbol symbol=frozen source=frozen type=readonly Array<float64>
+/// @resolution.pattern source=frozen kind=binding target=frozen
 
 let bad: number[] = frozen;
 /// @type.symbol symbol=bad source=bad type=Array<float64>
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=frozen target=frozen
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'readonly Array<float64>' is not assignable to type 'Array<float64>'"
 /// @diagnostic.label line=3 column=21 span="frozen" line_source="let bad: number[] = frozen;"
+/// @diagnostic.related line=3 column=10 span="number[]" line_source="let bad: number[] = frozen;" message="expected due to this annotation"
 "#,
     );
 }
@@ -179,6 +185,7 @@ struct User {
 
 declare const user: readonly User;
 /// @type.symbol symbol=user source=user type=Readonly<User>
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 user.profile.name = "Grace";

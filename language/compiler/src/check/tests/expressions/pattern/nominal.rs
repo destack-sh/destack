@@ -34,6 +34,7 @@ newtype UserId = int64;
 
 declare const id: UserId;
 /// @type.symbol symbol=id source=id type=UserId
+/// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=UserId target=UserId
 
 if (let UserId(value) = id) {
@@ -104,6 +105,7 @@ struct Point {
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 match (point) {
@@ -119,7 +121,7 @@ match (point) {
     /// @type.node source="x + y" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
-    /// @resolution.call source="x + y" parameters=() return=int32 kind=builtin builtin=binary.add
+    /// @resolution.operator source="x + y" kind=builtin
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
 
@@ -162,6 +164,7 @@ type Point = { x: int32; y: int32 };
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point reduced={ x: int32; y: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 match (point) {
@@ -250,6 +253,7 @@ class User {
 
 declare const user: User;
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 match (user) {

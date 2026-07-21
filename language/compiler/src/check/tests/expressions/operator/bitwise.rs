@@ -22,15 +22,18 @@ const literal: 32 = 1 << 5;
 === checked ===
 declare const flags: int32;
 /// @type.symbol symbol=flags source=flags type=int32
+/// @resolution.pattern source=flags kind=binding target=flags
 
 const shifted = flags << 5;
 /// @type.symbol symbol=shifted source=shifted type=int32
+/// @resolution.pattern source=shifted kind=binding target=shifted
 /// @resolution.name source=flags target=flags
-/// @resolution.call source="flags << 5" parameters=() return=int32 kind=builtin builtin=binary.shift_left
+/// @resolution.operator source="flags << 5" kind=builtin
 
 const literal = 1 << 5;
 /// @type.symbol symbol=literal source=literal type=32
-/// @resolution.call source="1 << 5" parameters=() return=32 kind=builtin builtin=binary.shift_left
+/// @resolution.pattern source=literal kind=binding target=literal
+/// @resolution.operator source="1 << 5" kind=builtin
 "#,
     );
 }
@@ -57,14 +60,17 @@ const masked: int32 = mask & bits;
 === checked ===
 declare const mask: int32;
 /// @type.symbol symbol=mask source=mask type=int32
+/// @resolution.pattern source=mask kind=binding target=mask
 
 declare const bits: int32;
 /// @type.symbol symbol=bits source=bits type=int32
+/// @resolution.pattern source=bits kind=binding target=bits
 
 const masked = mask & bits;
 /// @type.symbol symbol=masked source=masked type=int32
+/// @resolution.pattern source=masked kind=binding target=masked
 /// @resolution.name source=mask target=mask
-/// @resolution.call source="mask & bits" parameters=() return=int32 kind=builtin builtin=binary.elementwise_and
+/// @resolution.operator source="mask & bits" kind=builtin
 /// @resolution.name source=bits target=bits
 "#,
     );
@@ -90,9 +96,11 @@ const bad = scale & 2;
 === checked ===
 declare const scale: float64;
 /// @type.symbol symbol=scale source=scale type=float64
+/// @resolution.pattern source=scale kind=binding target=scale
 
 const bad = scale & 2;
 /// @type.symbol symbol=bad source=bad type=<error>
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=scale target=scale
 "#,
         r#"
@@ -184,7 +192,7 @@ extension of Flags implements And<Flags> {
         Flags { bits: this.bits & other.bits }
         /// @resolution.name source=Flags target=Flags
         /// @resolution.member source=this.bits receiver=Flags kind=symbol target=Flags.bits
-        /// @resolution.call source="this.bits & other.bits" parameters=() return=int32 kind=builtin builtin=binary.elementwise_and
+        /// @resolution.operator source="this.bits & other.bits" kind=builtin
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Flags
         /// @resolution.name source=other target=and.other
         /// @resolution.member source=other.bits receiver=Flags kind=symbol target=Flags.bits
@@ -194,16 +202,19 @@ extension of Flags implements And<Flags> {
 
 declare const left: Flags;
 /// @type.symbol symbol=left source=left type=Flags
+/// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=Flags target=Flags
 
 declare const right: Flags;
 /// @type.symbol symbol=right source=right type=Flags
+/// @resolution.pattern source=right kind=binding target=right
 /// @resolution.name source=Flags target=Flags
 
 const both = left & right;
 /// @type.symbol symbol=both source=both type=Flags
+/// @resolution.pattern source=both kind=binding target=both
 /// @resolution.name source=left target=left
-/// @resolution.call source="left & right" parameters=(Flags) arguments=(provided(right) as Flags) return=Flags kind=symbol target=and receiver=Flags
+/// @resolution.operator source="left & right" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags target=and receiver=Flags
 /// @resolution.name source=right target=right
 "#,
     );

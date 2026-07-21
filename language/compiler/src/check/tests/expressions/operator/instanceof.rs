@@ -28,9 +28,11 @@ class User {}
 
 declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
+/// @resolution.pattern source=value kind=binding target=value
 
 const ok = value instanceof User;
 /// @type.symbol symbol=ok source=ok type=boolean
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
@@ -103,6 +105,7 @@ declare class Team {
 
 declare const value: User | Team;
 /// @type.symbol symbol=value source=value type=User | Team
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=User target=User
 /// @resolution.name source=Team target=Team
 
@@ -190,6 +193,7 @@ declare class Team {
 
 declare const value: User | Team;
 /// @type.symbol symbol=value source=value type=User | Team
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=User target=User
 /// @resolution.name source=Team target=Team
 
@@ -254,9 +258,11 @@ interface Named {
 
 declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
+/// @resolution.pattern source=value kind=binding target=value
 
 const ok = value instanceof Named;
 /// @type.symbol symbol=ok source=ok type=<error>
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @type.node source="value instanceof Named" type=<error>
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
@@ -298,9 +304,11 @@ class User {}
 
 declare const value: string;
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 
 const ok = value instanceof User;
 /// @type.symbol symbol=ok source=ok type=boolean
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value

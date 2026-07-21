@@ -65,6 +65,7 @@ struct Rectangle {
 
 const rectangle = Rectangle {
 /// @type.symbol symbol=rectangle source=rectangle type=Rectangle
+/// @resolution.pattern source=rectangle kind=binding target=rectangle
 /// @resolution.name source=Rectangle target=Rectangle
 
     start: { x: 0, y: 0 },
@@ -142,6 +143,7 @@ struct Rectangle {
 
 const rectangle = Rectangle {
 /// @type.symbol symbol=rectangle source=rectangle type=Rectangle
+/// @resolution.pattern source=rectangle kind=binding target=rectangle
 /// @resolution.name source=Rectangle target=Rectangle
 
     start: { x: 0, y: 0, z: 0 },
@@ -291,6 +293,7 @@ struct Offset implements PointLike {
 
 const rectangle = Rectangle {
 /// @type.symbol symbol=rectangle source=rectangle type=Rectangle
+/// @resolution.pattern source=rectangle kind=binding target=rectangle
 /// @resolution.name source=Rectangle target=Rectangle
 
     start: Point { x: 0, y: 0 },
@@ -396,6 +399,7 @@ type Shape = Circle | Rectangle;
 
 const shapes: Array<Shape> = [
 /// @type.symbol symbol=shapes source=shapes type=Array<Shape>
+/// @resolution.pattern source=shapes kind=binding target=shapes
 /// @resolution.name source=Array target=collections.array.Array
 /// @resolution.name source=Shape target=Shape
 
@@ -409,6 +413,7 @@ const shapes: Array<Shape> = [
 
 const first = shapes[0];
 /// @type.symbol symbol=first source=first type=Circle | Rectangle
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=shapes target=shapes
 /// @resolution.call source=shapes[0] parameters=(usize) arguments=(provided(0) as usize) return=Circle | Rectangle kind=symbol target=collections.array.index#4 receiver=Array<Shape> instance="Array<Circle | Rectangle>.<extension#6>.index#4"
 /// @generic.instance source=shapes[0] id="Array<Circle | Rectangle>.<extension#6>.index#4"
@@ -476,6 +481,7 @@ struct Player {
 
 const player = Player {
 /// @type.symbol symbol=player source=player type=Player
+/// @resolution.pattern source=player kind=binding target=player
 /// @resolution.name source=Player target=Player
 
     mode: "active",
@@ -561,10 +567,12 @@ class Marker {
 
 declare const segment: Segment;
 /// @type.symbol symbol=segment source=segment type=Segment
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=Segment target=Segment
 
 declare const marker: Marker;
 /// @type.symbol symbol=marker source=marker type=Marker
+/// @resolution.pattern source=marker kind=binding target=marker
 /// @resolution.name source=Marker target=Marker
 
 segment.start satisfies Point;

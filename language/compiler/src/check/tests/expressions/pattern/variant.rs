@@ -111,6 +111,7 @@ newtype Status = Ok<string> | Err<int32>;
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
+/// @resolution.pattern source=status kind=binding target=status
 /// @resolution.name source=Status target=Status
 
 match (status) {
@@ -189,6 +190,7 @@ newtype Event = { kind: "click"; x: int32; y: int32 } | { kind: "key"; key: stri
 
 declare const event: Event;
 /// @type.symbol symbol=event source=event type=Event
+/// @resolution.pattern source=event kind=binding target=event
 /// @resolution.name source=Event target=Event
 
 match (event) {
@@ -205,7 +207,7 @@ match (event) {
     /// @type.node source="x + y" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
-    /// @resolution.call source="x + y" parameters=() return=int32 kind=builtin builtin=binary.add
+    /// @resolution.operator source="x + y" kind=builtin
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
 
@@ -291,6 +293,7 @@ newtype Other = Ok<string>;
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
+/// @resolution.pattern source=status kind=binding target=status
 /// @resolution.name source=Status target=Status
 
 match (status) {
@@ -361,6 +364,7 @@ newtype Status = Ok<string> | Err<int32>;
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
+/// @resolution.pattern source=status kind=binding target=status
 /// @resolution.name source=Status target=Status
 
 match (status) {
@@ -433,10 +437,12 @@ newtype Status = Ok<string> | Err<int32>;
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
+/// @resolution.pattern source=status kind=binding target=status
 /// @resolution.name source=Status target=Status
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="ok" | "err"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="ok" | "err"
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
@@ -510,10 +516,12 @@ newtype Status = Ok<string> | Err<int32>;
 
 declare const status: Status;
 /// @type.symbol symbol=status source=status type=Status
+/// @resolution.pattern source=status kind=binding target=status
 /// @resolution.name source=Status target=Status
 
 const label = match (status) {
 /// @type.symbol symbol=label source=label type="ok" | "err"
+/// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="ok" | "err"
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
@@ -528,7 +536,7 @@ const label = match (status) {
     /// @type.node source=value.length type=usize
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.length receiver=string kind=symbol target=string.string.length
-    /// @resolution.call source="value.length > 0" parameters=() return=boolean kind=builtin builtin=binary.greater_than
+    /// @resolution.operator source="value.length > 0" kind=builtin
     /// @type.node source=0 type=0
     /// @type.node source="\"ok\"" type="ok"
 

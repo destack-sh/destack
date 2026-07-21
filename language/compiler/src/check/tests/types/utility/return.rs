@@ -29,6 +29,7 @@ type Value = ReturnType<() => string>;
 
 const ok: Value = "ready";
 /// @type.symbol symbol=ok source=ok type=Value reduced=string
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
 ok satisfies string;
@@ -68,10 +69,12 @@ type Value = ReturnType<() => "a" | "b">;
 
 const first: Value = "a";
 /// @type.symbol symbol=first source=first type=Value reduced="a" | "b"
+/// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = "b";
 /// @type.symbol symbol=second source=second type=Value reduced="a" | "b"
+/// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="ReturnType<Function<(), \"a\" | \"b\">>" template=types.function.ReturnType arguments=(Function<(), "a" | "b">)
@@ -106,6 +109,7 @@ type Value = ReturnType<() => string>;
 
 const bad: Value = 1;
 /// @type.symbol symbol=bad source=bad type=Value reduced=string
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 
 /// @generic.instance id="ReturnType<Function<(), string>>" template=types.function.ReturnType arguments=(Function<(), string>)
@@ -113,6 +117,7 @@ const bad: Value = 1;
         r#"
 /// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="1" line_source="const bad: Value = 1;"
+/// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = 1;" message="expected due to this annotation"
 /// @diagnostic.note message="'Value' reduces to 'string'"
 "#,
     );

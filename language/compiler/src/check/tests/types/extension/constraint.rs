@@ -119,11 +119,13 @@ extension<T> of Box<T> where T: Readable {
 
 declare const boxed: Box<Document>;
 /// @type.symbol symbol=boxed source=boxed type=Box<Document>
+/// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Document target=Document
 
 const text = boxed.read();
 /// @type.symbol symbol=text source=text type=string
+/// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=boxed target=boxed
 /// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=read
 /// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Document> instance=Box<Document>.<extension#1>.read
@@ -242,6 +244,7 @@ extension<T> of Box<T> where T: Readable {
 
 declare const boxed: Box<Token>;
 /// @type.symbol symbol=boxed source=boxed type=Box<Token>
+/// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Token target=Token
 

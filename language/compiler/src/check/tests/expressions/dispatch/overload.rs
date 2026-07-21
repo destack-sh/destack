@@ -54,6 +54,7 @@ function parse(value: "id"): "literal" {
 
 const result = parse("id");
 /// @type.symbol symbol=result source=result type="string"
+/// @resolution.pattern source=result kind=binding target=result
 /// @type.node source="parse(\"id\")" type="string"
 /// @resolution.name source=parse target=[parse#1, parse#2]
 /// @resolution.call source="parse(\"id\")" parameters=(string) arguments=(provided("id") as string) return="string" kind=symbol target=parse#1
@@ -144,6 +145,7 @@ function apply<U>(run: (value: string) => U): "plain" {
 
 const result = apply((value) => {});
 /// @type.symbol symbol=result source=result type="plain"
+/// @resolution.pattern source=result kind=binding target=result
 /// @type.node source="apply((value) => {})" type="plain"
 /// @resolution.name source=apply target=[apply#1, apply#2]
 /// @resolution.call source="apply((value) => {})" parameters=(Function<(string,), void>) arguments=(provided((value) => {}) as Function<(string,), void>) return="plain" kind=symbol target=apply#2 instance=apply#2<void>

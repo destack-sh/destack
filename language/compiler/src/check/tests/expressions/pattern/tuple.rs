@@ -28,6 +28,7 @@ label satisfies string;
 === checked ===
 declare const pair: (int32, string);
 /// @type.symbol symbol=pair source=pair type=(int32, string)
+/// @resolution.pattern source=pair kind=binding target=pair
 
 let (count, label) = pair;
 /// @resolution.pattern source=(count, label) kind=tuple fields=(count, label)
@@ -73,6 +74,7 @@ let (x, y) = point;
 === checked ===
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @resolution.pattern source=point kind=binding target=point
 
 let (x, y) = point;
 /// @type.symbol symbol=x#2 source=x type=<error>

@@ -76,10 +76,12 @@ class Segment {
 
 declare const segment: Segment;
 /// @type.symbol symbol=segment source=segment type=Segment
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=Segment target=Segment
 
 const narrowMeta = segment.narrow;
 /// @type.symbol symbol=narrowMeta source=narrowMeta type=NarrowMeta
+/// @resolution.pattern source=narrowMeta kind=binding target=narrowMeta
 /// @type.node source=segment type=Segment
 /// @type.node source=segment.narrow type=NarrowMeta
 /// @resolution.name source=segment target=segment
@@ -164,6 +166,7 @@ class Segment {
 
 declare const segment: Segment;
 /// @type.symbol symbol=segment source=segment type=Segment
+/// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=Segment target=Segment
 
 segment.wide;

@@ -36,10 +36,12 @@ type TreeB = { value: float64; child: TreeB | null };
 
 declare const source: TreeA;
 /// @type.symbol symbol=source source=source type=TreeA reduced={ value: float64; child: TreeA | null }
+/// @resolution.pattern source=source kind=binding target=source
 /// @resolution.name source=TreeA target=TreeA
 
 const tree: TreeB = source;
 /// @type.symbol symbol=tree source=tree type=TreeB reduced={ value: float64; child: TreeB | null }
+/// @resolution.pattern source=tree kind=binding target=tree
 /// @resolution.name source=TreeB target=TreeB
 /// @type.node source=source type=TreeA reduced={ value: float64; child: TreeA | null }
 /// @resolution.name source=source target=source

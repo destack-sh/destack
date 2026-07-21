@@ -50,10 +50,64 @@ type Args = ConstructorParameters<typeof User>;
 
 const ok: Args = ("Ada", 42);
 /// @type.symbol symbol=ok source=ok type=Args reduced=(string, float64)
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Args target=Args
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
+
+/// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)
+"#,
+    );
+}
+
+#[test]
+fn test_constructor_parameters_extracts_imported_class_arguments() {
+    let session = TestSession::builder()
+        .module(
+            "user.ds",
+            r#"
+export class User {
+    constructor(name: string, age: number) {}
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { User } from "./user.ds";
+
+type Args = ConstructorParameters<typeof User>;
+
+const value: Args = ("Ada", 42);
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { User } from "./user.ds";
+
+type Args = ConstructorParameters<typeof User>;
+
+const value: Args = ("Ada", 42);
+
+=== checked ===
+import { User } from "./user.ds";
+
+type Args = ConstructorParameters<typeof User>;
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User> reduced=(string, float64)
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User> reduced=(string, float64)
+/// @resolution.name source=ConstructorParameters target=types.function.ConstructorParameters
+/// @resolution.name source=User target=user.User
+
+const value: Args = ("Ada", 42);
+/// @type.symbol symbol=value source=value type=Args reduced=(string, float64)
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Args target=Args
 
 /// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)
 "#,
@@ -108,6 +162,7 @@ type Value = InstanceType<typeof User>;
 
 const ok: Value = new User();
 /// @type.symbol symbol=ok source=ok type=Value reduced=User
+/// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
 /// @resolution.name source=User target=User
@@ -169,6 +224,7 @@ type Args = ConstructorParameters<typeof User>;
 
 const bad: Args = ("Ada", "old");
 /// @type.symbol symbol=bad source=bad type=Args reduced=(string, float64)
+/// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Args target=Args
 
 /// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)

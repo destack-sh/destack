@@ -18,13 +18,15 @@ const value: int32 = "text";
 === checked ===
 const value: int32 = "text";
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'int32'"
 /// @diagnostic.label line=2 column=22 span="\"text\"" line_source="const value: int32 = \"text\";"
+/// @diagnostic.related line=2 column=14 span="int32" line_source="const value: int32 = \"text\";" message="expected due to this annotation"
 "#,
     );
 }
@@ -49,6 +51,7 @@ value = 2;
 === checked ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value = 2;
@@ -57,7 +60,7 @@ value = 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=5 constraints=2 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -82,6 +85,7 @@ value = "text";
 === checked ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value = "text";
@@ -90,7 +94,7 @@ value = "text";
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=5 constraints=2 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'int32'"
@@ -120,16 +124,17 @@ value += 2;
 === checked ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value += 2;
 /// @type.node source="value += 2" type=int32
 /// @type.node source=value type=int32
-/// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
+/// @resolution.operator source="value += 2" kind=builtin
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=5 constraints=3 obligations=2 solutions=1 bounds=0 decisions=3
 "#,
     );
 }
@@ -154,6 +159,7 @@ value = 2;
 === checked ===
 let value = 1;
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value = 2;
@@ -162,7 +168,7 @@ value = 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=float64
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=5 constraints=1 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -187,6 +193,7 @@ value = "text";
 === checked ===
 let value = 1;
 /// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value = "text";
@@ -195,7 +202,7 @@ value = "text";
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=float64
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=5 constraints=1 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'float64'"
@@ -225,6 +232,7 @@ value = 1;
 === checked ===
 let value: int32;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 
 value = 1;
 /// @type.node source="value = 1" type=1
@@ -232,7 +240,7 @@ value = 1;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -257,6 +265,7 @@ values = [1, 2];
 === checked ===
 let values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
+/// @resolution.pattern source=values kind=binding target=values
 
 values = [1, 2];
 /// @type.node source="values = [1, 2]" type=Array<int32>
@@ -266,7 +275,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=5 constraints=3 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=6 constraints=3 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -291,6 +300,7 @@ values = [];
 === checked ===
 let values: int32[];
 /// @type.symbol symbol=values source=values type=Array<int32>
+/// @resolution.pattern source=values kind=binding target=values
 
 values = [];
 /// @type.node source="values = []" type=Array<int32>
@@ -298,7 +308,7 @@ values = [];
 /// @resolution.pattern.assign source=values kind=place place=binding(values) type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -321,6 +331,7 @@ const values: never[] = [];
 === checked ===
 const values = [];
 /// @type.symbol symbol=values source=values type=Array<never>
+/// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[] type=Array<never>
 "#,
     );
@@ -346,6 +357,7 @@ values = [1, 2];
 === checked ===
 let values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
+/// @resolution.pattern source=values kind=binding target=values
 
 values = [1, 2];
 /// @type.node source="values = [1, 2]" type=FixedArray<int32, 2>
@@ -355,7 +367,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=5 constraints=3 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=6 constraints=3 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -380,6 +392,7 @@ values = [1, 2, 3];
 === checked ===
 let values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
+/// @resolution.pattern source=values kind=binding target=values
 
 values = [1, 2, 3];
 /// @type.node source="values = [1, 2, 3]" type=FixedArray<int32, 3>
@@ -390,7 +403,7 @@ values = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=7 constraints=4 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=8 constraints=4 obligations=2 solutions=1 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
@@ -423,6 +436,7 @@ const copy: string = value;
 === checked ===
 let value: string;
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 
 value = "ready";
 /// @type.node source="value = \"ready\"" type="ready"
@@ -432,10 +446,11 @@ value = "ready";
 
 const copy = value;
 /// @type.symbol symbol=copy source=copy type=string
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=2 types=5 constraints=1 obligations=3 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -460,14 +475,15 @@ const copy: string = value;
 === checked ===
 let value: string;
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 
 const copy = value;
 /// @type.symbol symbol=copy source=copy type=string
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
-
+/// @check.stats.solve variables=2 types=4 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=use-before-assigned message="'value' is used before being assigned"
@@ -507,9 +523,11 @@ const copy: string = value;
 === checked ===
 declare const condition: boolean;
 /// @type.symbol symbol=condition source=condition type=boolean
+/// @resolution.pattern source=condition kind=binding target=condition
 
 let value: string;
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 
 if (condition) {
 /// @type.node source=condition type=boolean
@@ -524,10 +542,11 @@ if (condition) {
 }
 const copy = value;
 /// @type.symbol symbol=copy source=copy type=string
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=3 types=9 constraints=2 obligations=4 solutions=3 bounds=0 decisions=6
 "#,
         r#"
 /// @diagnostic.error id=use-before-assigned message="'value' is used before being assigned"
@@ -567,9 +586,11 @@ const copy: string | undefined = value;
 === checked ===
 declare const condition: boolean;
 /// @type.symbol symbol=condition source=condition type=boolean
+/// @resolution.pattern source=condition kind=binding target=condition
 
 let value: string | undefined = undefined;
 /// @type.symbol symbol=value source=value type=string | undefined
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=undefined type=undefined
 
 if (condition) {
@@ -585,10 +606,11 @@ if (condition) {
 }
 const copy = value;
 /// @type.symbol symbol=copy source=copy type=string | undefined
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=string | undefined
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=3 types=12 constraints=3 obligations=4 solutions=3 bounds=0 decisions=6
 "#,
     );
 }

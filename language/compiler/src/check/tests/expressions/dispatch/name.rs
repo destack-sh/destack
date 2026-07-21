@@ -20,14 +20,16 @@ const copy: 1 = value;
 === checked ===
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 const copy = value;
 /// @type.symbol symbol=copy source=copy type=1
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=1
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=2 types=4 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
 "#,
     );
 }
@@ -52,9 +54,11 @@ const copy = valeu;
 === checked ===
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 
 const copy = valeu;
 /// @type.symbol symbol=copy source=copy type=<error>
+/// @resolution.pattern source=copy kind=binding target=copy
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'valeu'; did you mean 'value'?"
@@ -84,9 +88,11 @@ const copy = json;
 === checked ===
 const JSON = 1;
 /// @type.symbol symbol=JSON source=JSON type=1
+/// @resolution.pattern source=JSON kind=binding target=JSON
 
 const copy = json;
 /// @type.symbol symbol=copy source=copy type=<error>
+/// @resolution.pattern source=copy kind=binding target=copy
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'json'; did you mean 'JSON'?"
@@ -116,9 +122,11 @@ const same: int32 = value as int32;
 === checked ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 
 const same = value as int32;
 /// @type.symbol symbol=same source=same type=int32
+/// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=value target=value
 "#,
         r#"
@@ -167,10 +175,12 @@ struct Point {
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 const size = point.lenght;
 /// @type.symbol symbol=size source=size type=<error>
+/// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=point target=point
 "#,
         r#"

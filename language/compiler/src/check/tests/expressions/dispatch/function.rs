@@ -35,20 +35,21 @@ function add(left: int32, right: int32): int32 {
     return left + right;
     /// @type.node source="left + right" type=int32
     /// @resolution.name source=left target=add.left
-    /// @resolution.call source="left + right" parameters=() return=int32 kind=builtin builtin=binary.add
+    /// @resolution.operator source="left + right" kind=builtin
     /// @resolution.name source=right target=add.right
 
 }
 
 const value = add(1, 2);
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="add(1, 2)" type=int32
 /// @resolution.name source=add target=add
 /// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=symbol target=add
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=6 constraints=6 obligations=0 solutions=0 bounds=0 decisions=5
+/// @check.stats.solve variables=1 types=7 constraints=6 obligations=1 solutions=1 bounds=0 decisions=6
 "#);
 }
 
@@ -89,6 +90,7 @@ import { add } from "./math.ds";
 
 const value = add(1, 2);
 /// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="add(1, 2)" type=int32
 /// @resolution.name source=add target=math.add
 /// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=symbol target=math.add
@@ -178,6 +180,7 @@ declare function map<T>(callback: (value: unknown) => T): T;
 
 const value = map(() => 1);
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="map(() => 1)" type=1
 /// @type.node source=map type=(Function<(unknown,), 1>) => 1
 /// @resolution.name source=map target=map
@@ -233,6 +236,7 @@ function greet(name: string = "world"): string {
 
 let short = greet();
 /// @type.symbol symbol=short source=short type=string
+/// @resolution.pattern source=short kind=binding target=short
 /// @type.node source=greet type=(string) => string
 /// @type.node source=greet() type=string
 /// @resolution.name source=greet target=greet
@@ -240,6 +244,7 @@ let short = greet();
 
 let long = greet("compiler");
 /// @type.symbol symbol=long source=long type=string
+/// @resolution.pattern source=long kind=binding target=long
 /// @type.node source="greet(\"compiler\")" type=string
 /// @type.node source=greet type=(string) => string
 /// @resolution.name source=greet target=greet

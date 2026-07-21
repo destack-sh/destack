@@ -36,11 +36,13 @@ declare function load(): User;
 
 const user = load();
 /// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=load target=load
 /// @resolution.call source=load() parameters=() return=User kind=symbol target=load
 
 let copy = user;
 /// @type.symbol symbol=copy source=copy type=User
+/// @resolution.pattern source=copy kind=binding target=copy
 /// @resolution.name source=user target=user
 "#,
         r#"
@@ -84,6 +86,7 @@ declare function load(): shared User;
 
 const user = load();
 /// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=load target=load
 /// @resolution.call source=load() parameters=() return=Placed<User, "shared"> kind=symbol target=load
 
@@ -93,6 +96,55 @@ user satisfies shared User;
 "#,
         r#"
 
+"#,
+    );
+}
+
+#[test]
+fn test_infer_shared_binding_placement() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+declare function load(): User;
+
+shared const user = load();
+user satisfies shared User;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class User {}
+
+declare function load(): User;
+
+shared const user: shared User = load();
+user satisfies shared User;
+
+=== checked ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=User
+/// @definition.class symbol=User source="class User {}"
+
+declare function load(): User;
+/// @type.symbol symbol=load source="declare function load(): User" type=() => User
+/// @resolution.name source=User target=User
+
+shared const user = load();
+/// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @resolution.pattern source=user kind=binding target=user
+/// @resolution.name source=load target=load
+/// @resolution.call source=load() parameters=() return=User kind=symbol target=load
+
+user satisfies shared User;
+/// @resolution.name source=user target=user
+/// @resolution.name source=User target=User
+"#,
+        r#"
 "#,
     );
 }
@@ -129,11 +181,13 @@ struct Point { x: int32; }
 
 const localPoint: local Point = Point { x: 1 };
 /// @type.symbol symbol=localPoint source=localPoint type=Placed<Point, "local">
+/// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
 
 const sharedPoint: shared Point = Point { x: 2 };
 /// @type.symbol symbol=sharedPoint source=sharedPoint type=Placed<Point, "shared">
+/// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
 "#,
@@ -231,10 +285,12 @@ struct Point { x: int32; }
 
 declare const localPoint: local Point;
 /// @type.symbol symbol=localPoint source=localPoint type=Placed<Point, "local">
+/// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 
 declare const sharedPoint: shared Point;
 /// @type.symbol symbol=sharedPoint source=sharedPoint type=Placed<Point, "shared">
+/// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
 
 localPoint.x satisfies local int32;
@@ -292,6 +348,7 @@ struct State { user: shared User; }
 
 declare const state: local State;
 /// @type.symbol symbol=state source=state type=Placed<State, "local">
+/// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
 state.user satisfies shared User;
@@ -325,6 +382,7 @@ values[0] satisfies shared int32;
 === checked ===
 declare const values: shared [int32; 2];
 /// @type.symbol symbol=values source=values type=Placed<FixedArray<int32, 2>, "shared">
+/// @resolution.pattern source=values kind=binding target=values
 
 values[0] satisfies shared int32;
 /// @resolution.name source=values target=values
@@ -361,9 +419,11 @@ value satisfies local int32;
 === checked ===
 declare const source: shared int32;
 /// @type.symbol symbol=source source=source type=Placed<int32, "shared">
+/// @resolution.pattern source=source kind=binding target=source
 
 const value = source;
 /// @type.symbol symbol=value source=value type=Placed<int32, "shared">
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=source target=source
 
 value satisfies local int32;
@@ -402,16 +462,17 @@ class World {}
 
 declare const world: ^World;
 /// @type.symbol symbol=world source=world type=Owned<World>
+/// @resolution.pattern source=world kind=binding target=world
 /// @resolution.name source=World target=World
 
 shared const sharedWorld: ^World = world;
 /// @type.symbol symbol=sharedWorld source=sharedWorld type=Placed<Owned<World>, "shared">
+/// @resolution.pattern source=sharedWorld kind=binding target=sharedWorld
 /// @resolution.name source=World target=World
 /// @resolution.name source=world target=world
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '^World' is not assignable to type 'shared ^World'"
-/// @diagnostic.label line=5 column=36 span="world" line_source="shared const sharedWorld: ^World = world;"
+
 "#,
     );
 }
@@ -452,6 +513,7 @@ type Transform = (value: User) => User;
 
 const transform = (value: User): User => value;
 /// @type.symbol symbol=transform source=transform type=Function<(User,), User>
+/// @resolution.pattern source=transform kind=binding target=transform
 /// @type.symbol symbol=symbol4 source="(value: User): User => value" type=Function<(User,), User>
 /// @type.symbol symbol=symbol4.value source="value: User" type=User
 /// @resolution.name source=User target=User

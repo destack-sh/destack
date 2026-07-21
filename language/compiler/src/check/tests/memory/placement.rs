@@ -106,29 +106,35 @@ class User {}
 
 declare const localUser: local User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const localFromShared: local User = sharedUser;
 /// @type.symbol symbol=localFromShared source=localFromShared type=Placed<User, "local">
+/// @resolution.pattern source=localFromShared kind=binding target=localFromShared
 /// @resolution.name source=User target=User
 /// @resolution.name source=sharedUser target=sharedUser
 
 const sharedFromLocal: shared User = localUser;
 /// @type.symbol symbol=sharedFromLocal source=sharedFromLocal type=Placed<User, "shared">
+/// @resolution.pattern source=sharedFromLocal kind=binding target=sharedFromLocal
 /// @resolution.name source=User target=User
 /// @resolution.name source=localUser target=localUser
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'shared User' is not assignable to type 'local User'"
 /// @diagnostic.label line=7 column=37 span="sharedUser" line_source="const localFromShared: local User = sharedUser;"
+/// @diagnostic.related line=7 column=24 span="local" line_source="const localFromShared: local User = sharedUser;" message="expected due to this annotation"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"
 /// @diagnostic.error id=not-assignable message="type 'local User' is not assignable to type 'shared User'"
 /// @diagnostic.label line=8 column=38 span="localUser" line_source="const sharedFromLocal: shared User = localUser;"
+/// @diagnostic.related line=8 column=24 span="shared" line_source="const sharedFromLocal: shared User = localUser;" message="expected due to this annotation"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"
 "#,
@@ -193,10 +199,12 @@ type CarrierPlace = PlaceOf<LocalChoice>;
 
 declare const localChoice: LocalChoice;
 /// @type.symbol symbol=localChoice source=localChoice type=LocalChoice reduced=Placed<User | Placed<Team, "shared">, "local">
+/// @resolution.pattern source=localChoice kind=binding target=localChoice
 /// @resolution.name source=LocalChoice target=LocalChoice
 
 declare const carrierPlace: CarrierPlace;
 /// @type.symbol symbol=carrierPlace source=carrierPlace type=CarrierPlace reduced="local"
+/// @resolution.pattern source=carrierPlace kind=binding target=carrierPlace
 /// @resolution.name source=CarrierPlace target=CarrierPlace
 
 localChoice satisfies local (User | shared Team);
@@ -249,29 +257,35 @@ class User {}
 
 declare const localUser: local ^User;
 /// @type.symbol symbol=localUser source=localUser type=Placed<Owned<User>, "local">
+/// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared ^User;
 /// @type.symbol symbol=sharedUser source=sharedUser type=Placed<Owned<User>, "shared">
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const sharedFromLocal: shared ^User = localUser;
 /// @type.symbol symbol=sharedFromLocal source=sharedFromLocal type=Placed<Owned<User>, "shared">
+/// @resolution.pattern source=sharedFromLocal kind=binding target=sharedFromLocal
 /// @resolution.name source=User target=User
 /// @resolution.name source=localUser target=localUser
 
 const localFromShared: local ^User = sharedUser;
 /// @type.symbol symbol=localFromShared source=localFromShared type=Placed<Owned<User>, "local">
+/// @resolution.pattern source=localFromShared kind=binding target=localFromShared
 /// @resolution.name source=User target=User
 /// @resolution.name source=sharedUser target=sharedUser
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'local ^User' is not assignable to type 'shared ^User'"
 /// @diagnostic.label line=7 column=39 span="localUser" line_source="const sharedFromLocal: shared ^User = localUser;"
+/// @diagnostic.related line=7 column=24 span="shared" line_source="const sharedFromLocal: shared ^User = localUser;" message="expected due to this annotation"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"
 /// @diagnostic.error id=not-assignable message="type 'shared ^User' is not assignable to type 'local ^User'"
 /// @diagnostic.label line=8 column=38 span="sharedUser" line_source="const localFromShared: local ^User = sharedUser;"
+/// @diagnostic.related line=8 column=24 span="local" line_source="const localFromShared: local ^User = sharedUser;" message="expected due to this annotation"
 /// @diagnostic.note message="a value never changes its space"
 /// @diagnostic.help message="use a value in the destination placement or create a new value there"
 "#,

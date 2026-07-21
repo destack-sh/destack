@@ -32,11 +32,13 @@ type Person = { name: string };
 
 const source = { name: "Ada" };
 /// @type.symbol symbol=source source=source type={ name: string }
+/// @resolution.pattern source=source kind=binding target=source
 /// @type.node source={ name: "Ada" } type={ name: "Ada" }
 /// @type.node source="\"Ada\"" type="Ada"
 
 const person: Person = source;
 /// @type.symbol symbol=person source=person type=Person reduced={ name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string }
 /// @resolution.name source=source target=source
@@ -85,23 +87,28 @@ type Options = { retries?: int32 };
 
 declare const maybe: int32 | undefined;
 /// @type.symbol symbol=maybe source=maybe type=int32 | undefined
+/// @resolution.pattern source=maybe kind=binding target=maybe
 
 const explicit: Options = { retries: 3 };
 /// @type.symbol symbol=explicit source=explicit type=Options reduced={ retries?: int32 }
+/// @resolution.pattern source=explicit kind=binding target=explicit
 /// @resolution.name source=Options target=Options
 
 const omitted: Options = {};
 /// @type.symbol symbol=omitted source=omitted type=Options reduced={ retries?: int32 }
+/// @resolution.pattern source=omitted kind=binding target=omitted
 /// @resolution.name source=Options target=Options
 
 const undecided: Options = { retries: maybe };
 /// @type.symbol symbol=undecided source=undecided type=Options reduced={ retries?: int32 }
+/// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'int32 | undefined' is not assignable to type 'int32'"
 /// @diagnostic.label line=8 column=39 span="maybe" line_source="const undecided: Options = { retries: maybe };"
+/// @diagnostic.related line=8 column=18 span="Options" line_source="const undecided: Options = { retries: maybe };" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in field 'retries': expected 'int32', found 'undefined'"
 "#,
     );
@@ -139,14 +146,17 @@ type Options = { retries?: int32 | undefined };
 
 declare const maybe: int32 | undefined;
 /// @type.symbol symbol=maybe source=maybe type=int32 | undefined
+/// @resolution.pattern source=maybe kind=binding target=maybe
 
 const undecided: Options = { retries: maybe };
 /// @type.symbol symbol=undecided source=undecided type=Options reduced={ retries?: int32 | undefined }
+/// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
 
 const cleared: Options = { retries: undefined };
 /// @type.symbol symbol=cleared source=cleared type=Options reduced={ retries?: int32 | undefined }
+/// @resolution.pattern source=cleared kind=binding target=cleared
 /// @resolution.name source=Options target=Options
 "#,
         r#"

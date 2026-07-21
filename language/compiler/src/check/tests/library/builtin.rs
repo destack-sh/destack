@@ -20,7 +20,6 @@ fn test_check_library() {
         .module_ids()
         .map(|module| ArtifactKey::dir_checked(module, profile));
     let result = session.require_all(keys);
-
     let diagnostics = session.render_terminal_diagnostics(None);
     if !diagnostics.is_empty() {
         panic!("\n{diagnostics}");

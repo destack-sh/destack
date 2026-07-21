@@ -26,6 +26,7 @@ type Count = 0..5;
 
 declare const count: Count;
 /// @type.symbol symbol=count source=count type=Count reduced=0..5
+/// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=Count target=Count
 "#,
     );

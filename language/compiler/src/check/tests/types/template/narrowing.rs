@@ -34,11 +34,12 @@ type Route = `api:${string}`;
 
 declare const route: Route | undefined;
 /// @type.symbol symbol=route source=route type=Route | undefined
+/// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
 if (route != undefined) {
 /// @resolution.name source=route target=route
-/// @resolution.call source="route != undefined" parameters=() return=boolean kind=builtin builtin=binary.not_equal
+/// @resolution.operator source="route != undefined" kind=builtin
 
     route satisfies Route;
     /// @resolution.name source=route target=route
@@ -87,11 +88,12 @@ type Route = `api:${string}`;
 
 declare const route: Route;
 /// @type.symbol symbol=route source=route type=Route reduced=`api:${string}`
+/// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
 if (route == "api:users") {
 /// @resolution.name source=route target=route
-/// @resolution.call source="route == \"api:users\"" parameters=() return=boolean kind=builtin builtin=binary.equal
+/// @resolution.operator source="route == \"api:users\"" kind=builtin
 
     route satisfies Route;
     /// @resolution.name source=route target=route
@@ -147,10 +149,12 @@ type Route = `api:${"users" | "posts"}`;
 
 const route: Route = "api:users";
 /// @type.symbol symbol=route source=route type=Route reduced="api:users" | "api:posts"
+/// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
 const section = match (route) {
 /// @type.symbol symbol=section source=section type="users" | "posts"
+/// @resolution.pattern source=section kind=binding target=section
 /// @resolution.name source=route target=route
 
     "api:users" => "users"

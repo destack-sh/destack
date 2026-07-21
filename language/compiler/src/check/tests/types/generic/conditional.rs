@@ -103,10 +103,12 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 
 declare const text: TextSink;
 /// @type.symbol symbol=text source=text type=TextSink
+/// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=TextSink target=TextSink
 
 declare const number: NumberSink;
 /// @type.symbol symbol=number source=number type=NumberSink
+/// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=NumberSink target=NumberSink
 
 write("message", text);
@@ -231,6 +233,7 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 
 declare const number: NumberSink;
 /// @type.symbol symbol=number source=number type=NumberSink
+/// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=NumberSink target=NumberSink
 
 write("message", number);

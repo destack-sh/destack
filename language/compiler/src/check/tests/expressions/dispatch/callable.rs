@@ -24,10 +24,12 @@ const text: string = transform(1);
 === checked ===
 declare const transform: Function<(int32,), string>;
 /// @type.symbol symbol=transform source=transform type=Function<(int32,), string>
+/// @resolution.pattern source=transform kind=binding target=transform
 /// @resolution.name source=Function target=types.function.Function
 
 const text = transform(1);
 /// @type.symbol symbol=text source=text type=string
+/// @resolution.pattern source=text kind=binding target=text
 /// @type.node source=transform(1) type=string
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) parameters=(int32) arguments=(provided(1) as int32) return=string kind=expression
@@ -60,6 +62,7 @@ value();
 === checked ===
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value();

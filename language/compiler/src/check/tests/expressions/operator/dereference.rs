@@ -20,10 +20,12 @@ const value: int32 = *shared;
 === checked ===
 declare const shared: &readonly int32;
 /// @type.symbol symbol=shared source=shared type=Borrowed<int32, "static", "readonly">
+/// @resolution.pattern source=shared kind=binding target=shared
 
 const value = *shared;
 /// @type.symbol symbol=value source=value type=int32
-/// @resolution.call source=*shared parameters=() return=int32 kind=builtin builtin=unary.dereference
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.operator source=*shared kind=builtin
 /// @resolution.name source=shared target=shared
 "#,
     );

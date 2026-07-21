@@ -18,10 +18,11 @@ const value: RegExp = /abc/;
 === checked ===
 const value: RegExp = /abc/;
 /// @type.symbol symbol=value source=value type=RegExp
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=3 constraints=1 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -44,13 +45,15 @@ const value: string = /abc/;
 === checked ===
 const value: string = /abc/;
 /// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=23 span="/abc/" line_source="const value: string = /abc/;"
+/// @diagnostic.related line=2 column=14 span="string" line_source="const value: string = /abc/;" message="expected due to this annotation"
 "#,
     );
 }
@@ -73,10 +76,11 @@ const value: RegExp | int32 = /abc/ as RegExp | int32;
 === checked ===
 const value: RegExp | int32 = /abc/;
 /// @type.symbol symbol=value source=value type=RegExp | int32
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=5 constraints=1 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -99,13 +103,15 @@ const value: boolean = /abc/;
 === checked ===
 const value: boolean = /abc/;
 /// @type.symbol symbol=value source=value type=boolean
+/// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'boolean'"
 /// @diagnostic.label line=2 column=24 span="/abc/" line_source="const value: boolean = /abc/;"
+/// @diagnostic.related line=2 column=14 span="boolean" line_source="const value: boolean = /abc/;" message="expected due to this annotation"
 "#,
     );
 }

@@ -34,12 +34,13 @@ type Handler = { run: (value: number) => number };
 
 const handler = {
 /// @type.symbol symbol=handler source=handler type={ run: Function<(float64,), float64> }
+/// @resolution.pattern source=handler kind=binding target=handler
 
     run: (value) => value + 1,
     /// @type.symbol symbol=symbol5 source="(value) => value + 1" type=Function<(float64,), float64>
     /// @type.symbol symbol=symbol5.value source=value type=float64
     /// @resolution.name source=value target=symbol5.value
-    /// @resolution.call source="value + 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.operator source="value + 1" kind=builtin
 
 } satisfies Handler;
 /// @resolution.name source=Handler target=Handler
@@ -82,6 +83,7 @@ type Mode = "dev" | "prod";
 
 const config = { mode: "dev" } satisfies { mode: Mode };
 /// @type.symbol symbol=config source=config type={ mode: "dev" }
+/// @resolution.pattern source=config kind=binding target=config
 /// @resolution.name source=Mode target=Mode
 
 config.mode satisfies "dev";
@@ -117,6 +119,7 @@ type Shape = { a: number };
 
 const value = { a: 1, b: 2 } satisfies Shape;
 /// @type.symbol symbol=value source=value type={ a: 1; b: 2 }
+/// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Shape target=Shape
 "#,
         r#"

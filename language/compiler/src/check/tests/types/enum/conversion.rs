@@ -49,18 +49,22 @@ enum Mode {
 
 const raw: uint8 = Mode.Read;
 /// @type.symbol symbol=raw source=raw type=uint8
+/// @resolution.pattern source=raw kind=binding target=raw
 /// @resolution.name source=Mode target=Mode
 /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
 
 const mode: Mode = 1;
 /// @type.symbol symbol=mode source=mode type=Mode
+/// @resolution.pattern source=mode kind=binding target=mode
 /// @resolution.name source=Mode target=Mode
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Mode.Read' is not assignable to type 'uint8'"
 /// @diagnostic.label line=8 column=20 span="Mode.Read" line_source="const raw: uint8 = Mode.Read;"
+/// @diagnostic.related line=8 column=12 span="uint8" line_source="const raw: uint8 = Mode.Read;" message="expected due to this annotation"
 /// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Mode'"
 /// @diagnostic.label line=9 column=20 span="1" line_source="const mode: Mode = 1;"
+/// @diagnostic.related line=9 column=13 span="Mode" line_source="const mode: Mode = 1;" message="expected due to this annotation"
 "#,
     );
 }

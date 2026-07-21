@@ -48,6 +48,7 @@ interface Person {
 
 declare const person: Required<Person>;
 /// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string; age: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
 
@@ -106,6 +107,7 @@ interface Person {
 
 const person: Required<Person> = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string; age: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
 
@@ -114,6 +116,7 @@ const person: Required<Person> = { name: "Ada" };
         r#"
 /// @diagnostic.error id=missing-required-property message="missing required property 'age' for type 'Required<Person>'"
 /// @diagnostic.label line=7 column=34 span="{ name: \"Ada\" }" line_source="const person: Required<Person> = { name: \"Ada\" };"
+/// @diagnostic.related line=7 column=15 span="Required" line_source="const person: Required<Person> = { name: \"Ada\" };" message="expected due to this annotation"
 "#,
     );
 }
@@ -156,6 +159,7 @@ interface Person {
 
 const person: Required<Person> = { name: undefined };
 /// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string | undefined }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
 
@@ -206,6 +210,7 @@ interface Person {
 
 const person: Required<Person> = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=Required<Person> reduced={ readonly name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
 

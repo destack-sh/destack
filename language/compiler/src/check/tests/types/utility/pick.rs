@@ -54,6 +54,7 @@ interface Person {
 
 declare const person: Pick<Person, "name" | "active">;
 /// @type.symbol symbol=person source=person type=Pick<Person, "name" | "active"> reduced={ name: string; active: boolean }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Pick target=types.object.Pick
 /// @resolution.name source=Person target=Person
 
@@ -120,11 +121,13 @@ interface Person {
 
 declare const person: Pick<Person, "name" | "active">;
 /// @type.symbol symbol=person source=person type=Pick<Person, "name" | "active"> reduced={ name: string; active: boolean }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Pick target=types.object.Pick
 /// @resolution.name source=Person target=Person
 
 const age = person.age;
 /// @type.symbol symbol=age source=age type=<error>
+/// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
 
 /// @generic.instance id="Pick<Person, \"name\" | \"active\">" template=types.object.Pick arguments=(Person, "name" | "active")
@@ -196,10 +199,12 @@ type AgeOnly = Pick<Person, "age">;
 
 const empty: AgeOnly = {};
 /// @type.symbol symbol=empty source=empty type=AgeOnly reduced={ age?: int32 }
+/// @resolution.pattern source=empty kind=binding target=empty
 /// @resolution.name source=AgeOnly target=AgeOnly
 
 const aged: AgeOnly = { age: 42 };
 /// @type.symbol symbol=aged source=aged type=AgeOnly reduced={ age?: int32 }
+/// @resolution.pattern source=aged kind=binding target=aged
 /// @resolution.name source=AgeOnly target=AgeOnly
 
 empty satisfies AgeOnly;
@@ -267,6 +272,7 @@ type AgeOnly = Pick<Person, "age">;
 
 const person: AgeOnly = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=AgeOnly reduced={ age?: int32 }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=AgeOnly target=AgeOnly
 
 /// @generic.instance id="Pick<Person, \"age\">" template=types.object.Pick arguments=(Person, "age")
@@ -274,6 +280,7 @@ const person: AgeOnly = { name: "Ada" };
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'name' in object literal for type 'AgeOnly'"
 /// @diagnostic.label line=9 column=25 span="{ name: \"Ada\" }" line_source="const person: AgeOnly = { name: \"Ada\" };"
+/// @diagnostic.related line=9 column=15 span="AgeOnly" line_source="const person: AgeOnly = { name: \"Ada\" };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
@@ -333,6 +340,7 @@ type NameOnly = Pick<Person, "name">;
 
 const person: NameOnly = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=NameOnly reduced={ name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=NameOnly target=NameOnly
 
 person satisfies NameOnly;
@@ -396,6 +404,7 @@ type NameOnly = Pick<Person, "name">;
 
 const person: NameOnly = {};
 /// @type.symbol symbol=person source=person type=NameOnly reduced={ name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=NameOnly target=NameOnly
 
 /// @generic.instance id="Pick<Person, \"name\">" template=types.object.Pick arguments=(Person, "name")
@@ -403,6 +412,7 @@ const person: NameOnly = {};
         r#"
 /// @diagnostic.error id=missing-required-property message="missing required property 'name' for type 'NameOnly'"
 /// @diagnostic.label line=9 column=26 span="{}" line_source="const person: NameOnly = {};"
+/// @diagnostic.related line=9 column=15 span="NameOnly" line_source="const person: NameOnly = {};" message="expected due to this annotation"
 "#,
     );
 }
@@ -459,6 +469,7 @@ type NameOnly = Pick<Person, "name">;
 
 const person: NameOnly = { name: "Ada", age: 42 };
 /// @type.symbol symbol=person source=person type=NameOnly reduced={ name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=NameOnly target=NameOnly
 
 /// @generic.instance id="Pick<Person, \"name\">" template=types.object.Pick arguments=(Person, "name")
@@ -466,6 +477,7 @@ const person: NameOnly = { name: "Ada", age: 42 };
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'age' in object literal for type 'NameOnly'"
 /// @diagnostic.label line=9 column=26 span="{ name: \"Ada\", age: 42 }" line_source="const person: NameOnly = { name: \"Ada\", age: 42 };"
+/// @diagnostic.related line=9 column=15 span="NameOnly" line_source="const person: NameOnly = { name: \"Ada\", age: 42 };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
@@ -525,6 +537,7 @@ type NameOnly = Pick<Person, "name">;
 
 const person: NameOnly = { name: "Ada" };
 /// @type.symbol symbol=person source=person type=NameOnly reduced={ readonly name: string }
+/// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=NameOnly target=NameOnly
 
 person.name = "Grace";
