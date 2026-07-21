@@ -330,16 +330,13 @@ impl FunctionLiveness {
     ) -> HashSet<Value> {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-
-        // block entry
-        if instruction_offset == 0 {
-            return self.value_live_in(block_id).clone();
-        }
-
         let mut live = self.value_live_out(block_id).clone();
 
-        // later instructions
-        for instruction_id in block.instructions.iter().skip(instruction_offset) {
+        // retain values consumed by the terminator
+        live.extend(terminator.uses(tree));
+
+        // walk later definitions and uses backward
+        for instruction_id in block.instructions.iter().skip(instruction_offset).rev() {
             let instruction = tree.get(*instruction_id);
 
             if let Some(destination) = instruction.destination() {
@@ -357,12 +354,63 @@ impl FunctionLiveness {
             }
         }
 
-        // terminator
-        for used in terminator.uses(tree) {
-            live.insert(used);
+        live
+    }
+
+    /// Return the locals live before one instruction offset in one block.
+    pub fn local_live_before_instruction(
+        &self,
+        tree: &Tree,
+        block_id: LocalNodeId<Block>,
+        instruction_offset: usize,
+    ) -> HashSet<LocalNodeId<Local>> {
+        let block = tree.get(block_id);
+
+        // block entry
+        if instruction_offset == 0 {
+            return self.local_live_in(block_id).clone();
+        }
+
+        let mut live = self.local_live_out(block_id).clone();
+
+        // walk later local reads and writes backward
+        for instruction_id in block.instructions.iter().skip(instruction_offset).rev() {
+            match tree.get(*instruction_id) {
+                Instruction::LocalSet { local, .. } => {
+                    live.remove(local);
+                }
+                Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
+                    live.insert(*local);
+                }
+                _ => {}
+            }
         }
 
         live
+    }
+
+    /// Return the values live before one block terminator.
+    pub fn value_live_before_terminator(
+        &self,
+        tree: &Tree,
+        block_id: LocalNodeId<Block>,
+    ) -> HashSet<Value> {
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
+        let mut live = self.value_live_out(block_id).clone();
+
+        // retain values consumed by the terminator itself
+        live.extend(terminator.uses(tree));
+
+        live
+    }
+
+    /// Return the locals live before one block terminator.
+    pub fn local_live_before_terminator(
+        &self,
+        block_id: LocalNodeId<Block>,
+    ) -> HashSet<LocalNodeId<Local>> {
+        self.local_live_out(block_id).clone()
     }
 
     /// Return all values live somewhere in the function.
@@ -503,5 +551,51 @@ entry:
         let entry = function.entry().expect("missing entry");
 
         assert!(!liveness.is_value_live_after_instruction(entry, 0, Value::new(0), &tree));
+    }
+
+    #[test]
+    fn test_query_liveness_before_operations() {
+        let (tree, function_id) = parse_test_function(
+            r#"
+function test(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
+    v2: int32 = int.add v0, v1
+    return v2
+}
+"#,
+        );
+
+        let function = tree.get(function_id);
+        let liveness = FunctionLiveness::build(function, &tree);
+        let entry = function.entry().expect("missing entry");
+        let local = function.local(0);
+
+        // block parameters are live before the first instruction
+        let values = liveness.value_live_before_instruction(&tree, entry, 0);
+        assert_eq!(values, HashSet::from([Value::new(0)]));
+        let locals = liveness.local_live_before_instruction(&tree, entry, 0);
+        assert!(locals.is_empty());
+
+        // local storage becomes live after its defining store
+        let values = liveness.value_live_before_instruction(&tree, entry, 1);
+        assert_eq!(values, HashSet::from([Value::new(0)]));
+        let locals = liveness.local_live_before_instruction(&tree, entry, 1);
+        assert_eq!(locals, HashSet::from([local]));
+
+        // SSA operands remain live until their final use
+        let values = liveness.value_live_before_instruction(&tree, entry, 2);
+        assert_eq!(values, HashSet::from([Value::new(0), Value::new(1)]));
+        let locals = liveness.local_live_before_instruction(&tree, entry, 2);
+        assert!(locals.is_empty());
+
+        // terminator liveness retains only its return operand
+        let values = liveness.value_live_before_terminator(&tree, entry);
+        assert_eq!(values, HashSet::from([Value::new(2)]));
+        let locals = liveness.local_live_before_terminator(entry);
+        assert!(locals.is_empty());
     }
 }
