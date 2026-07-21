@@ -483,6 +483,24 @@ impl TargetArch {
             Self::Other(value) => value,
         }
     }
+
+    /// Return the architecture pointer width in bytes when known.
+    pub fn pointer_bytes(&self) -> Option<u8> {
+        match self {
+            Self::X86_64
+            | Self::Aarch64
+            | Self::Riscv64
+            | Self::PowerPc64
+            | Self::PowerPc64le
+            | Self::S390x
+            | Self::Mips64
+            | Self::Mips64el
+            | Self::LoongArch64
+            | Self::Wasm64 => Some(8),
+            Self::X86 | Self::Armv7 | Self::Armv6 | Self::Riscv32 | Self::Wasm32 => Some(4),
+            Self::Other(_) => None,
+        }
+    }
 }
 
 /// Target vendor for native targets.
