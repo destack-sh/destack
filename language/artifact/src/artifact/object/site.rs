@@ -19,8 +19,6 @@ pub struct AllocationSite {
     pub result_type: mir::TypeId,
     /// The type stored in the allocation.
     pub storage_type: mir::TypeId,
-    /// The physical storage layout.
-    pub storage_layout: mir::LayoutId,
 }
 
 /// One addressable memory operation.
@@ -77,6 +75,8 @@ pub struct SuspensionSite {
     pub frame_state: u32,
     /// The type yielded to the coroutine owner.
     pub yielded_type: mir::TypeId,
+    /// The type received from the coroutine owner.
+    pub resumed_type: mir::TypeId,
 }
 
 /// One explicit profile counter operation.
