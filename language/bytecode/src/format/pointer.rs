@@ -7,23 +7,44 @@ use crate::{Opcode, Scalar, ValueType};
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
-    /// Format one address operation.
-    pub(super) fn format_address(&mut self, opcode: Opcode) -> FormatResult<()> {
+    /// Format one pointer operation.
+    pub(super) fn format_pointer(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             Opcode::GLOBAL_ADDRESS => self.format_global_address(),
             Opcode::FRAME_ADDRESS => self.format_frame_address(),
-            Opcode::ADDRESS_OFFSET => self.format_address_offset(),
-            Opcode::ADDRESS_ELEMENT => self.format_address_element(),
-            Opcode::ADDRESS_DISTANCE => self.format_address_distance(),
+            Opcode::POINTER_OFFSET => self.format_pointer_offset(),
+            Opcode::POINTER_INDEX => self.format_pointer_index(),
+            Opcode::POINTER_DISTANCE => self.format_pointer_distance(),
+            Opcode::REFERENCE_POINTER => self.format_reference_pointer(),
             _ => Err(FormatError::SyntaxError {
-                message: "invalid address opcode",
+                message: "invalid pointer opcode",
             }),
         }
     }
 
+    /// Format one stable heap reference projection.
+    fn format_reference_pointer(&mut self) -> FormatResult<()> {
+        let result = self.register_id()?;
+        let reference = self.register_id()?;
+        self.reference()?;
+
+        self.write_result(result, ValueType::pointer())?;
+        write!(
+            self.formatter,
+            [
+                space(),
+                token("="),
+                space(),
+                token("reference.pointer"),
+                space()
+            ]
+        )?;
+        self.write_register(reference)
+    }
+
     /// Format one linked global address.
     fn format_global_address(&mut self) -> FormatResult<()> {
-        self.result(ValueType::address())?;
+        self.result(ValueType::pointer())?;
         let symbol = self.symbol()?;
 
         // write the linked global
@@ -42,7 +63,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one frame-slot address.
     fn format_frame_address(&mut self) -> FormatResult<()> {
-        self.result(ValueType::address())?;
+        self.result(ValueType::pointer())?;
         let slot = format!("s{}", self.u32()?);
 
         // write the fixed frame slot
@@ -59,10 +80,10 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_text(&slot)
     }
 
-    /// Format one constant address offset.
-    fn format_address_offset(&mut self) -> FormatResult<()> {
-        self.result(ValueType::address())?;
-        let address = self.register_id()?;
+    /// Format one constant pointer offset.
+    fn format_pointer_offset(&mut self) -> FormatResult<()> {
+        self.result(ValueType::pointer())?;
+        let pointer = self.register_id()?;
         let offset = self.i32()?.to_string();
 
         // write the base and byte displacement
@@ -72,19 +93,19 @@ impl InstructionFormatter<'_, '_, '_> {
                 space(),
                 token("="),
                 space(),
-                token("address.offset"),
+                token("pointer.offset"),
                 space()
             ]
         )?;
-        self.write_register(address)?;
+        self.write_register(pointer)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_text(&offset)
     }
 
-    /// Format one scaled element address.
-    fn format_address_element(&mut self) -> FormatResult<()> {
-        self.result(ValueType::address())?;
-        let address = self.register_id()?;
+    /// Format one scaled pointer index.
+    fn format_pointer_index(&mut self) -> FormatResult<()> {
+        self.result(ValueType::pointer())?;
+        let pointer = self.register_id()?;
         let index = self.register_id()?;
         let stride = self.u32()?.to_string();
 
@@ -95,11 +116,11 @@ impl InstructionFormatter<'_, '_, '_> {
                 space(),
                 token("="),
                 space(),
-                token("address.element"),
+                token("pointer.index"),
                 space()
             ]
         )?;
-        self.write_register(address)?;
+        self.write_register(pointer)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(index)?;
         write!(self.formatter, [token(","), space(), token("stride(")])?;
@@ -107,8 +128,8 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token(")")
     }
 
-    /// Format one signed distance between two addresses.
-    fn format_address_distance(&mut self) -> FormatResult<()> {
+    /// Format one signed distance between two pointers.
+    fn format_pointer_distance(&mut self) -> FormatResult<()> {
         self.result(ValueType::scalar(Scalar::Int64))?;
         let left = self.register_id()?;
         let right = self.register_id()?;
@@ -120,7 +141,7 @@ impl InstructionFormatter<'_, '_, '_> {
                 space(),
                 token("="),
                 space(),
-                token("address.distance"),
+                token("pointer.distance"),
                 space()
             ]
         )?;

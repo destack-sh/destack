@@ -173,8 +173,8 @@ impl ValueTag {
     pub const REFERENCE: Self = Self(4);
     /// One uninitialized Destack reference token.
     pub const UNINIT_REFERENCE: Self = Self(5);
-    /// One unowned byte address.
-    pub const ADDRESS: Self = Self(6);
+    /// One unowned native pointer.
+    pub const POINTER: Self = Self(6);
     /// One bare callable pointer.
     pub const FUNCTION_POINTER: Self = Self(7);
     /// One callable pointer and captured environment.
@@ -234,9 +234,9 @@ impl ValueType {
         Self::new_reference(ValueTag::UNINIT_REFERENCE, ReferenceType::new(kind, space))
     }
 
-    /// Create one unowned byte address value type.
-    pub const fn address() -> Self {
-        Self::new(ValueTag::ADDRESS, 0, 1, 0, 0)
+    /// Create one unowned native pointer value type.
+    pub const fn pointer() -> Self {
+        Self::new(ValueTag::POINTER, 0, 1, 0, 0)
     }
 
     /// Create one bare callable pointer value type.
@@ -311,7 +311,7 @@ impl ValueType {
             ValueTag::SCALAR
                 | ValueTag::TYPE_ID
                 | ValueTag::REFERENCE
-                | ValueTag::ADDRESS
+                | ValueTag::POINTER
                 | ValueTag::FUNCTION_POINTER
                 | ValueTag::TENSOR
         )
@@ -401,9 +401,9 @@ impl ValueType {
         self.tag.0 == ValueTag::REFERENCE.0
     }
 
-    /// Return whether this is an unowned byte address.
-    pub const fn is_address(self) -> bool {
-        self.tag.0 == ValueTag::ADDRESS.0
+    /// Return whether this is an unowned native pointer.
+    pub const fn is_pointer(self) -> bool {
+        self.tag.0 == ValueTag::POINTER.0
     }
 
     /// Return the function type for a function pointer or function value.
@@ -523,7 +523,7 @@ impl ValueType {
             ValueTag::INT128 | ValueTag::UINT128 => {
                 self.scalar == 0 && self.word_count == 2 && self.has_no_qualifiers()
             }
-            ValueTag::TYPE_ID | ValueTag::ADDRESS => {
+            ValueTag::TYPE_ID | ValueTag::POINTER => {
                 self.scalar == 0 && self.word_count == 1 && self.has_no_qualifiers()
             }
             ValueTag::REFERENCE | ValueTag::UNINIT_REFERENCE => {

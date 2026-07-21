@@ -6,22 +6,55 @@ use crate::{
 use super::function::FunctionParser;
 
 impl Parser<'_> {
-    /// Parse one address operation.
-    pub(super) fn parse_address_operation(
+    /// Parse one pointer operation.
+    pub(super) fn parse_pointer_operation(
         &mut self,
         name: &str,
         token: Token,
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        match Opcode::from_name(name) {
-            Some(Opcode::GLOBAL_ADDRESS) => self.parse_global_address(results, function),
-            Some(Opcode::FRAME_ADDRESS) => self.parse_frame_address(results, function),
-            Some(Opcode::ADDRESS_OFFSET) => self.parse_address_offset(token, results, function),
-            Some(Opcode::ADDRESS_ELEMENT) => self.parse_address_element(token, results, function),
-            Some(Opcode::ADDRESS_DISTANCE) => self.parse_address_distance(token, results, function),
-            _ => Err(ParseError::new("unknown address operation", token.span)),
+        match name {
+            "global.address" => self.parse_global_address(results, function),
+            "frame.address" => self.parse_frame_address(results, function),
+            "pointer.offset" => self.parse_pointer_offset(token, results, function),
+            "pointer.index" => self.parse_pointer_index(token, results, function),
+            "pointer.distance" => self.parse_pointer_distance(token, results, function),
+            "reference.pointer" => self.parse_reference_pointer(token, results, function),
+            _ => Err(ParseError::new("unknown pointer operation", token.span)),
         }
+    }
+
+    /// Parse one stable heap reference projection.
+    fn parse_reference_pointer(
+        &mut self,
+        token: Token,
+        results: &[RegisterId],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let reference = self.parse_register()?;
+        let reference_type = function
+            .value_type(reference)
+            .filter(|ty| ty.is_initialized_reference())
+            .and_then(ValueType::reference_type)
+            .ok_or_else(|| {
+                ParseError::new(
+                    "reference pointer requires an initialized reference",
+                    token.span,
+                )
+            })?;
+
+        // retain the space required to resolve the stable offset
+        let mut instruction = InstructionBuilder::new(Opcode::REFERENCE_POINTER);
+        instruction.register(reference);
+        instruction.reference(reference_type.kind(), reference_type.space());
+
+        function.emit(
+            instruction,
+            results,
+            &[ValueType::pointer()],
+            self.empty_span(),
+        )
     }
 
     /// Parse one linked global address.
@@ -46,7 +79,7 @@ impl Parser<'_> {
         function.emit(
             instruction,
             results,
-            &[ValueType::address()],
+            &[ValueType::pointer()],
             self.empty_span(),
         )
     }
@@ -66,7 +99,7 @@ impl Parser<'_> {
         let index = index
             .parse::<u32>()
             .map_err(|_| ParseError::new("expected frame slot", slot.span))?;
-        if index >= function.frame_slot_count {
+        if !function.contains_frame_slot(index) {
             return Err(ParseError::new("unknown frame slot", slot.span));
         }
 
@@ -77,23 +110,23 @@ impl Parser<'_> {
         function.emit(
             instruction,
             results,
-            &[ValueType::address()],
+            &[ValueType::pointer()],
             self.empty_span(),
         )
     }
 
-    /// Parse one constant byte offset from an address.
-    fn parse_address_offset(
+    /// Parse one constant byte offset from a pointer.
+    fn parse_pointer_offset(
         &mut self,
         token: Token,
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse the base address
-        let address = self.parse_register()?;
-        if !function.has_type(address, ValueType::address()) {
+        let pointer = self.parse_register()?;
+        if !function.has_type(pointer, ValueType::pointer()) {
             return Err(ParseError::new(
-                "address offset requires a native address",
+                "pointer offset requires a native pointer",
                 token.span,
             ));
         }
@@ -102,37 +135,37 @@ impl Parser<'_> {
         self.eat_token(TokenType::Comma)?;
         let offset = self.parse_i64()?;
         let offset = i32::try_from(offset)
-            .map_err(|_| ParseError::new("address offset exceeds int32", token.span))?;
+            .map_err(|_| ParseError::new("pointer offset exceeds int32", token.span))?;
 
         // encode the address calculation
-        let mut instruction = InstructionBuilder::new(Opcode::ADDRESS_OFFSET);
-        instruction.register(address);
+        let mut instruction = InstructionBuilder::new(Opcode::POINTER_OFFSET);
+        instruction.register(pointer);
         instruction.i32(offset);
 
         function.emit(
             instruction,
             results,
-            &[ValueType::address()],
+            &[ValueType::pointer()],
             self.empty_span(),
         )
     }
 
-    /// Parse one scaled element address.
-    fn parse_address_element(
+    /// Parse one scaled pointer index.
+    fn parse_pointer_index(
         &mut self,
         token: Token,
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse the base and element index
-        let address = self.parse_register()?;
+        let pointer = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let index = self.parse_register()?;
-        if !function.has_type(address, ValueType::address())
+        if !function.has_type(pointer, ValueType::pointer())
             || !function.has_type(index, ValueType::scalar(Scalar::Uint64))
         {
             return Err(ParseError::new(
-                "element address requires a native address and uint64 index",
+                "pointer index requires a native pointer and uint64 index",
                 token.span,
             ));
         }
@@ -145,21 +178,21 @@ impl Parser<'_> {
         self.eat_token(TokenType::CloseParenthesis)?;
 
         // encode the scaled address calculation
-        let mut instruction = InstructionBuilder::new(Opcode::ADDRESS_ELEMENT);
-        instruction.register(address);
+        let mut instruction = InstructionBuilder::new(Opcode::POINTER_INDEX);
+        instruction.register(pointer);
         instruction.register(index);
         instruction.u32(stride);
 
         function.emit(
             instruction,
             results,
-            &[ValueType::address()],
+            &[ValueType::pointer()],
             self.empty_span(),
         )
     }
 
-    /// Parse one signed distance between two addresses.
-    fn parse_address_distance(
+    /// Parse one signed distance between two pointers.
+    fn parse_pointer_distance(
         &mut self,
         token: Token,
         results: &[RegisterId],
@@ -169,17 +202,17 @@ impl Parser<'_> {
         let left = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let right = self.parse_register()?;
-        if !function.has_type(left, ValueType::address())
-            || !function.has_type(right, ValueType::address())
+        if !function.has_type(left, ValueType::pointer())
+            || !function.has_type(right, ValueType::pointer())
         {
             return Err(ParseError::new(
-                "address distance requires two native addresses",
+                "pointer distance requires two native pointers",
                 token.span,
             ));
         }
 
         // encode the signed distance
-        let mut instruction = InstructionBuilder::new(Opcode::ADDRESS_DISTANCE);
+        let mut instruction = InstructionBuilder::new(Opcode::POINTER_DISTANCE);
         instruction.register(left);
         instruction.register(right);
 

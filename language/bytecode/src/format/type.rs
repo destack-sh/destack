@@ -29,7 +29,7 @@ impl<'a> BytecodeFormatContext<'a> {
             ValueTag::INT128 => Ok("int128".to_string()),
             ValueTag::UINT128 => Ok("uint128".to_string()),
             ValueTag::TYPE_ID => Ok("typeId".to_string()),
-            ValueTag::ADDRESS => Ok("address".to_string()),
+            ValueTag::POINTER => Ok("pointer".to_string()),
             ValueTag::REFERENCE | ValueTag::UNINIT_REFERENCE => self.reference_type_text(ty),
             ValueTag::FUNCTION_POINTER | ValueTag::FUNCTION => self.function_value_text(ty),
             ValueTag::SLICE | ValueTag::UNINIT_SLICE => self.slice_type_text(ty),

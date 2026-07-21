@@ -1,4 +1,3 @@
-mod address;
 mod atomic;
 mod call;
 mod constant;
@@ -12,6 +11,7 @@ mod memory;
 mod new;
 mod object;
 mod operand;
+mod pointer;
 mod profile;
 mod reference;
 mod scalar;

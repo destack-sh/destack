@@ -37,7 +37,7 @@ impl Parser<'_> {
             "int128" => Ok(ValueType::int128()),
             "uint128" => Ok(ValueType::uint128()),
             "typeId" => Ok(ValueType::type_id()),
-            "address" => Ok(ValueType::address()),
+            "pointer" => Ok(ValueType::pointer()),
             "ref" => {
                 let (kind, space) = self.parse_reference_qualifiers()?;
 
