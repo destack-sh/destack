@@ -12,6 +12,8 @@ pub struct HeapReference(pub(crate) usize);
 impl HeapReference {
     /// The null heap reference.
     pub const NULL: Self = Self(0);
+    /// The undefined heap reference.
+    pub const UNDEFINED: Self = Self(1);
 
     /// The packed byte width of one heap reference.
     pub const BYTE_LEN: usize = std::mem::size_of::<Self>();
@@ -26,6 +28,12 @@ impl HeapReference {
     #[inline]
     pub fn is_null(&self) -> bool {
         self.0 == 0
+    }
+
+    /// Report whether this reference is null or undefined.
+    #[inline]
+    pub const fn is_nullish(&self) -> bool {
+        self.0 == Self::NULL.0 || self.0 == Self::UNDEFINED.0
     }
 
     /// Return the raw packed bits.

@@ -10,11 +10,11 @@ pub enum Root {
 }
 
 impl Root {
-    /// Return whether this root is null.
-    pub fn is_null(self) -> bool {
+    /// Return whether this root is null or undefined.
+    pub fn is_nullish(self) -> bool {
         match self {
-            Self::HeapReference(reference) => reference.is_null(),
-            Self::SharedHeapReference(reference) => reference.is_null(),
+            Self::HeapReference(reference) => reference.is_nullish(),
+            Self::SharedHeapReference(reference) => reference.is_nullish(),
         }
     }
 }
@@ -37,7 +37,7 @@ pub trait RootSink {
 
 impl RootSink for Vec<HeapReference> {
     fn push(&mut self, root: Root) {
-        if root.is_null() {
+        if root.is_nullish() {
             return;
         }
 
@@ -49,7 +49,7 @@ impl RootSink for Vec<HeapReference> {
 
 impl RootSink for Vec<SharedHeapReference> {
     fn push(&mut self, root: Root) {
-        if root.is_null() {
+        if root.is_nullish() {
             return;
         }
 

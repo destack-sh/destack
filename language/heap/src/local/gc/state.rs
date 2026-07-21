@@ -299,10 +299,12 @@ pub(crate) enum MarkWork {
 }
 
 impl TraceReference for MarkWork {
-    /// Report whether this trace work points at null.
-    fn is_null(self) -> bool {
+    /// Report whether this trace work points at null or undefined.
+    fn is_nullish(self) -> bool {
         match self {
-            Self::Reference(reference) | Self::LargeRange { reference, .. } => reference.is_null(),
+            Self::Reference(reference) | Self::LargeRange { reference, .. } => {
+                reference.is_nullish()
+            }
         }
     }
 }
@@ -322,10 +324,12 @@ pub(crate) enum EdgeWork {
 }
 
 impl TraceReference for EdgeWork {
-    /// Report whether this edge work points at null.
-    fn is_null(self) -> bool {
+    /// Report whether this edge work points at null or undefined.
+    fn is_nullish(self) -> bool {
         match self {
-            Self::Reference(reference) | Self::LargeRange { reference, .. } => reference.is_null(),
+            Self::Reference(reference) | Self::LargeRange { reference, .. } => {
+                reference.is_nullish()
+            }
         }
     }
 }

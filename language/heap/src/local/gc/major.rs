@@ -1013,8 +1013,8 @@ impl HeapStorage {
 
     /// Queue one major collection reference after marking it.
     fn enqueue_major_reference(&mut self, reference: HeapReference) -> HeapResult<()> {
-        // null references are not heap roots
-        if reference.is_null() {
+        // nullish references are not heap roots
+        if reference.is_nullish() {
             return Ok(());
         }
 

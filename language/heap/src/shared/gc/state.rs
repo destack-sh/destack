@@ -296,9 +296,9 @@ impl MarkQueue {
 
     /// Push one pending trace work item.
     pub(crate) fn push(&self, worker: Option<&SharedMarkWorker>, work: MarkWork) {
-        // null large references are not trace work
+        // nullish large references are not trace work
         if let MarkWork::Large { reference, .. } = work
-            && reference.is_null()
+            && reference.is_nullish()
         {
             return;
         }

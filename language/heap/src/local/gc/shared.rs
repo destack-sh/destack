@@ -151,7 +151,7 @@ impl HeapStorage {
             ReferenceInput::mapped(base_address),
             ReferenceRange::All,
             &mut |reference| {
-                if !reference.is_null() {
+                if !reference.is_nullish() {
                     roots.push(reference);
                 }
 
@@ -208,7 +208,7 @@ impl HeapStorage {
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(start, range_len),
             &mut |reference| {
-                if !reference.is_null() {
+                if !reference.is_nullish() {
                     roots.push(reference);
                 }
 

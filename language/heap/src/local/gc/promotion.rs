@@ -734,7 +734,7 @@ impl HeapStorage {
 
     /// Return whether one reference points into live young space.
     pub(super) fn reference_is_young(&self, reference: HeapReference) -> HeapResult<bool> {
-        if reference.is_null() {
+        if reference.is_nullish() {
             return Ok(false);
         }
 
@@ -754,7 +754,7 @@ impl HeapStorage {
         reference: HeapReference,
         forwarding: &ForwardingTable,
     ) -> HeapResult<Option<HeapReference>> {
-        if reference.is_null() {
+        if reference.is_nullish() {
             return Ok(None);
         }
 

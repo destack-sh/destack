@@ -4,19 +4,19 @@ use crate::{HeapReference, SharedHeapReference};
 
 /// One reference type that may appear in one trace queue.
 pub(crate) trait TraceReference: Copy {
-    /// Report whether this reference is null.
-    fn is_null(self) -> bool;
+    /// Report whether this reference is null or undefined.
+    fn is_nullish(self) -> bool;
 }
 
 impl TraceReference for HeapReference {
-    fn is_null(self) -> bool {
-        HeapReference::is_null(&self)
+    fn is_nullish(self) -> bool {
+        HeapReference::is_nullish(&self)
     }
 }
 
 impl TraceReference for SharedHeapReference {
-    fn is_null(self) -> bool {
-        SharedHeapReference::is_null(&self)
+    fn is_nullish(self) -> bool {
+        SharedHeapReference::is_nullish(&self)
     }
 }
 
@@ -38,7 +38,7 @@ impl<R> Default for TraceQueue<R> {
 impl<R: TraceReference> TraceQueue<R> {
     /// Push one pending reference.
     pub(crate) fn push(&mut self, reference: R) {
-        if !reference.is_null() {
+        if !reference.is_nullish() {
             self.pending.push_back(reference);
         }
     }

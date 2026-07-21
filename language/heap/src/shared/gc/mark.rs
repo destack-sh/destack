@@ -36,7 +36,7 @@ impl HeapStorage {
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut |reference| {
-                if !reference.is_null() {
+                if !reference.is_nullish() {
                     self.mark_reference(None, reference)?;
                 }
 
@@ -51,7 +51,7 @@ impl HeapStorage {
             ReferenceInput::bytes(byte_offset, bytes),
             ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut |reference| {
-                if !reference.is_null() {
+                if !reference.is_nullish() {
                     self.mark_reference(None, reference)?;
                 }
 
@@ -107,7 +107,7 @@ impl HeapStorage {
     ) -> HeapResult<()> {
         // seed explicit roots
         for reference in references {
-            if reference.is_null() {
+            if reference.is_nullish() {
                 continue;
             }
 
@@ -123,7 +123,7 @@ impl HeapStorage {
         worker: Option<&SharedMarkWorker>,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
-        if reference.is_null() {
+        if reference.is_nullish() {
             return Ok(());
         }
 
