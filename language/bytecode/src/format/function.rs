@@ -110,10 +110,10 @@ impl Function {
         write!(formatter, [group(&parameters)])
     }
 
-    /// Format this function's resume values when it can suspend.
+    /// Format this function's resume parameters when it can suspend.
     fn format_resume<'a>(&self, formatter: &mut BytecodeFormatter<'a, '_>) -> FormatResult<()> {
         let types = formatter.context().object.value_types();
-        let resume = self.resume_types(types);
+        let resume = self.resume_parameters(types);
         if resume.is_empty() {
             return Ok(());
         }
@@ -131,7 +131,7 @@ impl Function {
         let object = formatter.context().object;
         let slots = self.frame_slots(object.frame_slots());
 
-        // write logical frame slots
+        // write frame slots
         let frame = format_with(|formatter: &mut BytecodeFormatter<'a, '_>| {
             for (index, slot) in slots.iter().enumerate() {
                 let ty = formatter.context().type_name(slot.ty)?.to_string();

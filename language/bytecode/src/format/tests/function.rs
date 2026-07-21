@@ -1,6 +1,6 @@
 use super::assert_format_eq;
 
-/// Format multiline function signatures and logical frame slots.
+/// Format multiline function signatures and frame slots.
 #[test]
 fn test_format_function() {
     assert_format_eq(

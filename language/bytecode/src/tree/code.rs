@@ -2,7 +2,9 @@ use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameSlot, Function, FunctionType, Instructions, ValueType};
+use crate::{
+    Constant, Error, FrameSlot, Function, FunctionType, Instruction, Instructions, ValueType,
+};
 
 /// Linked executable bytecode stored in Program sections.
 #[repr(C, align(8))]
@@ -12,12 +14,18 @@ pub struct Code {
     function_types: SectionSlice<FunctionType>,
     /// Flattened function value types.
     value_types: SectionSlice<ValueType>,
-    /// Flattened logical local storage slots.
+    /// Flattened frame slots.
     frame_slots: SectionSlice<FrameSlot>,
+    /// Linked immutable byte sequences.
+    constants: SectionSlice<Constant>,
+    /// Concatenated linked constant bytes.
+    constant_bytes: SectionSlice<u8>,
     /// Linked bytecode functions in Program function order.
     functions: SectionSlice<Function>,
     /// Contiguous code bytes for every linked function.
     code: SectionSlice<u8>,
+    /// Function-relative byte offsets for logical operations.
+    operation_offsets: SectionSlice<CodeOffset>,
 }
 
 impl Code {
@@ -34,6 +42,16 @@ impl Code {
     /// Return all linked frame slots.
     pub fn frame_slots<'a>(&self, sections: SectionImage<'a>) -> &'a [FrameSlot] {
         sections.entries(self.frame_slots)
+    }
+
+    /// Return all linked immutable byte sequences.
+    pub fn constants<'a>(&self, sections: SectionImage<'a>) -> &'a [Constant] {
+        sections.entries(self.constants)
+    }
+
+    /// Return all linked immutable constant bytes.
+    pub fn constant_bytes<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
+        sections.entries(self.constant_bytes)
     }
 
     /// Return all linked bytecode functions.
@@ -61,6 +79,29 @@ impl Code {
 
         Some(code.instructions(sections.entries(self.code)))
     }
+
+    /// Read one instruction by logical operation index.
+    pub fn instruction<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        function_index: usize,
+        operation: u32,
+    ) -> Result<Option<Instruction<'a>>, Error> {
+        let Some(function) = self.function(sections, function_index) else {
+            return Ok(None);
+        };
+        let Some(code) = function.code() else {
+            return Ok(None);
+        };
+        let Some(offset) =
+            function.operation_offset(sections.entries(self.operation_offsets), operation)
+        else {
+            return Ok(None);
+        };
+
+        code.instruction(sections.entries(self.code), offset)
+            .map(Some)
+    }
 }
 
 /// Linked bytecode under construction.
@@ -70,12 +111,18 @@ pub struct CodeBuilder {
     function_types: Vec<FunctionType>,
     /// Flattened function value types.
     value_types: Vec<ValueType>,
-    /// Flattened logical local storage slots.
+    /// Flattened frame slots.
     frame_slots: Vec<FrameSlot>,
+    /// Linked immutable byte sequences.
+    constants: Vec<Constant>,
+    /// Concatenated linked constant bytes.
+    constant_bytes: Vec<u8>,
     /// Linked functions in Program function order.
     functions: Vec<Function>,
     /// Encoded function bytes.
     code: Vec<u8>,
+    /// Function-relative byte offsets for logical operations.
+    operation_offsets: Vec<CodeOffset>,
 }
 
 impl CodeBuilder {
@@ -98,9 +145,23 @@ impl CodeBuilder {
         self
     }
 
-    /// Set flattened logical local storage slots.
+    /// Set flattened frame slots.
     pub fn frame_slots(mut self, entries: impl IntoIterator<Item = FrameSlot>) -> Self {
         self.frame_slots = entries.into_iter().collect();
+
+        self
+    }
+
+    /// Set linked immutable byte sequences.
+    pub fn constants(mut self, entries: impl IntoIterator<Item = Constant>) -> Self {
+        self.constants = entries.into_iter().collect();
+
+        self
+    }
+
+    /// Set linked immutable constant bytes.
+    pub fn constant_bytes(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+        self.constant_bytes = bytes.into();
 
         self
     }
@@ -119,20 +180,33 @@ impl CodeBuilder {
         self
     }
 
+    /// Set function-relative logical operation offsets.
+    pub fn operation_offsets(mut self, offsets: impl IntoIterator<Item = CodeOffset>) -> Self {
+        self.operation_offsets = offsets.into_iter().collect();
+
+        self
+    }
+
     /// Build linked executable bytecode in Program sections.
     pub fn build(self, sections: &mut SectionBuilder) -> Code {
         let function_types = sections.insert(self.function_types);
         let value_types = sections.insert(self.value_types);
         let frame_slots = sections.insert(self.frame_slots);
+        let constants = sections.insert(self.constants);
+        let constant_bytes = sections.insert(self.constant_bytes);
         let functions = sections.insert(self.functions);
         let code = sections.insert(self.code);
+        let operation_offsets = sections.insert(self.operation_offsets);
 
         Code {
             function_types,
             value_types,
             frame_slots,
+            constants,
+            constant_bytes,
             functions,
             code,
+            operation_offsets,
         }
     }
 }
@@ -160,9 +234,20 @@ impl CodeRange {
     pub fn instructions(self, bytes: &[u8]) -> Instructions<'_> {
         Instructions::new(self.slice(bytes))
     }
+
+    /// Read one instruction at a function-relative byte offset.
+    pub fn instruction(self, bytes: &[u8], offset: CodeOffset) -> Result<Instruction<'_>, Error> {
+        let start = self.byte_offset as usize + offset.index();
+        let end = self.byte_offset as usize + self.byte_len as usize;
+        let Some(bytes) = bytes.get(start..end) else {
+            return Err(Error::TruncatedInstruction);
+        };
+
+        Instruction::read(bytes)
+    }
 }
 
-/// A byte offset inside one bytecode function.
+/// A byte offset inside one encoded bytecode function.
 #[repr(transparent)]
 #[derive(
     Clone,
@@ -187,6 +272,6 @@ impl CodeOffset {
     }
 }
 
-const _: () = assert!(size_of::<Code>() == 80);
+const _: () = assert!(size_of::<Code>() == 128);
 const _: () = assert!(size_of::<CodeRange>() == 8);
 const _: () = assert!(size_of::<CodeOffset>() == 4);

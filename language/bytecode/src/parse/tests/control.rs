@@ -1,4 +1,4 @@
-use crate::{Comparison, FunctionId, Opcode, Result, Scalar, ScalarCheck};
+use crate::{Comparison, FunctionId, Opcode, Result, Scalar, ScalarCheck, ValueType};
 
 use super::TestParser;
 
@@ -121,5 +121,17 @@ export function fail(): void {
         suspend,
         vec![Opcode::YIELD, Opcode::RETURN, Opcode::UNWIND_RESUME]
     );
+    let function = object.function(FunctionId(0)).expect("suspending function");
+    assert_eq!(
+        function.resume_parameters(object.value_types()),
+        &[ValueType::scalar(Scalar::Int32)]
+    );
+    for (operation, opcode) in suspend.iter().copied().enumerate() {
+        let instruction = object
+            .instruction(FunctionId(0), operation as u32)
+            .expect("valid instruction")
+            .expect("operation instruction");
+        assert_eq!(instruction.opcode(), opcode);
+    }
     assert_eq!(fail, vec![Opcode::CATCH, Opcode::PANIC_VALUE]);
 }

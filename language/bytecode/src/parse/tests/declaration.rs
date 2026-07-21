@@ -14,6 +14,7 @@ type User
 type Consumer = (int32) => void
 
 constant defaultUser, align(8) = bytes(1, 2, 3, 4)
+constant alignedUser, align(8) = bytes(5, 6)
 readonly global user: User = constant defaultUser
 local global cachedUser: User = zero
 external function consume(int32): void
@@ -33,11 +34,16 @@ external function consume(int32): void
     );
 
     // constant and global definitions
-    assert_eq!(object.constants().len(), 1);
+    assert_eq!(object.constants().len(), 2);
     assert_eq!(object.constants()[0].alignment_bytes, 8);
     assert_eq!(
         object.constants()[0].bytes(object.constant_bytes()),
         &[1, 2, 3, 4]
+    );
+    assert_eq!(object.constants()[1].bytes.start, 8);
+    assert_eq!(
+        object.constants()[1].bytes(object.constant_bytes()),
+        &[5, 6]
     );
     let global = object.global(GlobalId(0)).expect("global");
     assert_eq!(global.location, GlobalLocation::CONSTANT);

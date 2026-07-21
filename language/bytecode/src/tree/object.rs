@@ -5,9 +5,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    Constant, ConstantId, ConstantRelocation, FrameSlot, Function, FunctionId, FunctionType,
-    FunctionTypeId, Global, GlobalId, InstructionRelocation, Instructions, StringEntry, Type,
-    TypeId, ValueType,
+    CodeOffset, Constant, ConstantId, ConstantRelocation, Error, FrameSlot, Function, FunctionId,
+    FunctionType, FunctionTypeId, Global, GlobalId, Instruction, InstructionRelocation,
+    Instructions, StringEntry, Type, TypeId, ValueType,
 };
 
 pub(super) const OBJECT_MAGIC: u32 = u32::from_le_bytes(*b"DSBC");
@@ -35,7 +35,7 @@ pub struct Object {
     /// Concatenated bytes referenced by constants.
     constant_bytes: SectionSlice<u8>,
 
-    /// Flattened logical local storage slots referenced by functions.
+    /// Flattened frame slots referenced by functions.
     frame_slots: SectionSlice<FrameSlot>,
     /// Function declarations and definitions.
     functions: SectionSlice<Function>,
@@ -45,6 +45,8 @@ pub struct Object {
     instruction_relocations: SectionSlice<InstructionRelocation>,
     /// Relocatable operands in immutable constants.
     constant_relocations: SectionSlice<ConstantRelocation>,
+    /// Function-relative byte offsets for logical operations.
+    operation_offsets: SectionSlice<CodeOffset>,
 
     /// Complete aligned object storage.
     storage: SectionStorage,
@@ -117,7 +119,7 @@ pub(super) struct Root {
     /// Concatenated bytes referenced by constants.
     pub(super) constant_bytes: SectionSlice<u8>,
 
-    /// Flattened logical local storage slots referenced by functions.
+    /// Flattened frame slots referenced by functions.
     pub(super) frame_slots: SectionSlice<FrameSlot>,
     /// Function declarations and definitions.
     pub(super) functions: SectionSlice<Function>,
@@ -127,6 +129,8 @@ pub(super) struct Root {
     pub(super) instruction_relocations: SectionSlice<InstructionRelocation>,
     /// Relocatable operands in immutable constants.
     pub(super) constant_relocations: SectionSlice<ConstantRelocation>,
+    /// Function-relative byte offsets for logical operations.
+    pub(super) operation_offsets: SectionSlice<CodeOffset>,
 }
 
 impl Root {
@@ -150,6 +154,7 @@ impl Root {
             code: SectionSlice::empty(),
             instruction_relocations: SectionSlice::empty(),
             constant_relocations: SectionSlice::empty(),
+            operation_offsets: SectionSlice::empty(),
         }
     }
 
@@ -194,7 +199,9 @@ impl Root {
         self.check_section(self.functions)?;
         self.check_section(self.code)?;
         self.check_section(self.instruction_relocations)?;
-        self.check_section(self.constant_relocations)
+        self.check_section(self.constant_relocations)?;
+
+        self.check_section(self.operation_offsets)
     }
 
     /// Require one typed section to fit this object image.
@@ -311,7 +318,7 @@ impl Object {
         self.sections().entries(self.constant_bytes)
     }
 
-    /// Return all logical local storage slots.
+    /// Return all frame slots.
     pub fn frame_slots(&self) -> &[FrameSlot] {
         self.sections().entries(self.frame_slots)
     }
@@ -333,6 +340,25 @@ impl Object {
         Some(code.instructions(self.code()))
     }
 
+    /// Read one instruction by logical operation index.
+    pub fn instruction(
+        &self,
+        function: FunctionId,
+        operation: u32,
+    ) -> Result<Option<Instruction<'_>>, Error> {
+        let Some(function) = self.function(function) else {
+            return Ok(None);
+        };
+        let Some(code) = function.code() else {
+            return Ok(None);
+        };
+        let Some(offset) = function.operation_offset(self.operation_offsets(), operation) else {
+            return Ok(None);
+        };
+
+        code.instruction(self.code(), offset).map(Some)
+    }
+
     /// Return all encoded function bytes.
     pub fn code(&self) -> &[u8] {
         self.sections().entries(self.code)
@@ -346,6 +372,11 @@ impl Object {
     /// Return all constant relocations.
     pub fn constant_relocations(&self) -> &[ConstantRelocation] {
         self.sections().entries(self.constant_relocations)
+    }
+
+    /// Return function-relative logical operation offsets.
+    pub fn operation_offsets(&self) -> &[CodeOffset] {
+        self.sections().entries(self.operation_offsets)
     }
 
     /// Build one object owner from its fixed root and retained storage.
@@ -364,6 +395,7 @@ impl Object {
             code: root.code,
             instruction_relocations: root.instruction_relocations,
             constant_relocations: root.constant_relocations,
+            operation_offsets: root.operation_offsets,
             storage,
         }
     }
@@ -392,4 +424,4 @@ impl<'de> Deserialize<'de> for Object {
 }
 
 const _: () = assert!(align_of::<Root>() == 16);
-const _: () = assert!(size_of::<Root>() == 224);
+const _: () = assert!(size_of::<Root>() == 240);

@@ -2,7 +2,7 @@ use destack_core::{EntryRange, Optional, SectionEntry, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeRange, FrameSlot, ValueType};
+use crate::{CodeOffset, CodeRange, FrameSlot, ValueType};
 
 /// One bytecode function declaration or definition.
 #[repr(C, align(8))]
@@ -10,13 +10,15 @@ use crate::{CodeRange, FrameSlot, ValueType};
 pub struct Function {
     /// The stable function symbol name.
     pub name: StringId,
-    /// The values delivered when this function resumes.
-    pub resume_types: EntryRange<ValueType>,
-    /// The logical local storage slots for this definition.
+    /// The parameters delivered when this function resumes.
+    pub resume_parameters: EntryRange<ValueType>,
+    /// The frame slots for this definition.
     pub frame_slots: EntryRange<FrameSlot>,
+    /// The function-relative byte offset of each logical operation.
+    pub operation_offsets: EntryRange<CodeOffset>,
     /// The hidden callable environment type when present.
     pub environment: Optional<ValueType>,
-    /// Stable hash of the encoded function body.
+    /// Stable hash of the relocatable encoded function body.
     pub code_hash: u64,
     /// The encoded function body when this object defines the function.
     pub code: Optional<CodeRange>,
@@ -39,11 +41,12 @@ impl Function {
     pub const fn new(
         name: StringId,
         function_type: FunctionTypeId,
-        resume_types: EntryRange<ValueType>,
+        resume_parameters: EntryRange<ValueType>,
         linkage: Linkage,
         environment: Optional<ValueType>,
         register_count: u16,
         frame_slots: EntryRange<FrameSlot>,
+        operation_offsets: EntryRange<CodeOffset>,
         code: Optional<CodeRange>,
         counter_count: u32,
         sampler_count: u32,
@@ -51,8 +54,9 @@ impl Function {
     ) -> Self {
         Self {
             name,
-            resume_types,
+            resume_parameters,
             frame_slots,
+            operation_offsets,
             environment,
             code_hash,
             code,
@@ -65,9 +69,9 @@ impl Function {
         }
     }
 
-    /// Borrow the values delivered when this function resumes.
-    pub fn resume_types<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
-        self.resume_types.slice(types)
+    /// Borrow the parameters delivered when this function resumes.
+    pub fn resume_parameters<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
+        self.resume_parameters.slice(types)
     }
 
     /// Return the register file word count.
@@ -75,9 +79,21 @@ impl Function {
         self.register_count as usize
     }
 
-    /// Return this function's logical local storage slots.
+    /// Return this function's frame slots.
     pub fn frame_slots<'a>(&self, slots: &'a [FrameSlot]) -> &'a [FrameSlot] {
         self.frame_slots.slice(slots)
+    }
+
+    /// Return this function's logical operation offsets.
+    pub fn operation_offsets<'a>(&self, offsets: &'a [CodeOffset]) -> &'a [CodeOffset] {
+        self.operation_offsets.slice(offsets)
+    }
+
+    /// Return one logical operation's function-relative byte offset.
+    pub fn operation_offset(&self, offsets: &[CodeOffset], operation: u32) -> Option<CodeOffset> {
+        self.operation_offsets(offsets)
+            .get(operation as usize)
+            .copied()
     }
 
     /// Return this function's encoded code range when defined.
@@ -250,7 +266,7 @@ impl FunctionType {
     }
 }
 
-const _: () = assert!(size_of::<Function>() == 80);
+const _: () = assert!(size_of::<Function>() == 88);
 const _: () = assert!(size_of::<FunctionId>() == 4);
 const _: () = assert!(size_of::<FunctionTypeId>() == 4);
 const _: () = assert!(size_of::<RegisterId>() == 2);

@@ -290,7 +290,7 @@ impl InstructionFormatter<'_, '_, '_> {
         // write the resume result assignment
         let function = *self.formatter.context().active_function()?;
         let types = self.formatter.context().object.value_types();
-        self.results(function.resume_types(types))?;
+        self.results(function.resume_parameters(types))?;
         write!(
             self.formatter,
             [space(), token("="), space(), token("yield")]
