@@ -141,12 +141,23 @@ pub struct Coercion {
 }
 
 /// One typed adjustment in an implicit coercion path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CoercionAdjustment {
     /// The adjustment performed.
     pub kind: CoercionKind,
     /// The type after this adjustment.
     pub target: GlobalTypeId,
+    /// The source cases entering a union carrier.
+    pub cases: Vec<CoercionCase>,
+}
+
+/// One source case entering a union carrier.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct CoercionCase {
+    /// The target union case index, absent when leaving a union carrier.
+    pub target: Option<u32>,
+    /// The adjustments applied to the source case payload.
+    pub adjustments: Vec<CoercionAdjustment>,
 }
 
 impl Coercion {
@@ -168,9 +179,52 @@ impl Coercion {
         }
     }
 
+    /// Create one union coercion from its complete source-case map.
+    pub fn union(
+        source: GlobalTypeId,
+        target: GlobalTypeId,
+        cases: Vec<CoercionCase>,
+        origin: CastOrigin,
+    ) -> Self {
+        let adjustment = CoercionAdjustment {
+            kind: CoercionKind::Union,
+            target,
+            cases,
+        };
+
+        Self::new(source, vec![adjustment], origin)
+    }
+
     /// Return the final target type.
     pub fn target(&self) -> GlobalTypeId {
         self.adjustments[self.adjustments.len() - 1].target
+    }
+
+    /// Map every type id in this coercion.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.source = map(self.source);
+        for adjustment in &mut self.adjustments {
+            adjustment.map_type_ids(map);
+        }
+    }
+}
+
+impl CoercionAdjustment {
+    /// Map every type id in this adjustment.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.target = map(self.target);
+        for case in &mut self.cases {
+            case.map_type_ids(map);
+        }
+    }
+}
+
+impl CoercionCase {
+    /// Map every type id in this source case.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        for adjustment in &mut self.adjustments {
+            adjustment.map_type_ids(map);
+        }
     }
 }
 
@@ -262,6 +316,13 @@ impl CoercionKind {
             return None;
         }
 
+        // identical scalar carriers require no runtime conversion
+        if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
+            && source == target
+        {
+            return None;
+        }
+
         // distinct scalar carriers convert their stored values
         if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
             && source.widens_to(*target)
@@ -333,10 +394,7 @@ impl CoercionSegment {
     /// Map every type id embedded in this segment.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         for coercion in self.coercions.values_mut() {
-            coercion.source = map(coercion.source);
-            for adjustment in &mut coercion.adjustments {
-                adjustment.target = map(adjustment.target);
-            }
+            coercion.map_type_ids(map);
         }
     }
 
