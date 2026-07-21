@@ -66,7 +66,7 @@ pub struct Tree {
     pub(crate) switch_cases: Arena<SwitchCase>,
 
     // node side data
-    /// Parent of every node, rebuilt when the tree is complete and updated in place.
+    /// Structural membership and parent ids, rebuilt from roots and updated in place.
     parents: NodeParentIndex,
     /// How each derived node came to be.
     origin_by_node_id: SparseNodeMap<Origin>,
@@ -703,7 +703,7 @@ impl Tree {
         }
     }
 
-    /// Set or clear the parent node id for one node id.
+    /// Set the parent node id for one node, or mark it as a structural root.
     #[inline]
     pub(crate) fn set_parent_id(&mut self, node_id: u32, parent_id: Option<u32>) {
         self.node_index(node_id);
@@ -1113,7 +1113,7 @@ impl Tree {
 mod tests {
     use destack_source::{FileId, ModuleId, PackageId, Span};
 
-    use crate::{Decorator, DecoratorPosition, Expression, Tree, TypeExpression};
+    use crate::{Decorator, DecoratorPosition, Expression, Tree, TypeExpression, View};
 
     fn test_module_id() -> ModuleId {
         ModuleId::new(PackageId::new(1), 1)
@@ -1190,5 +1190,35 @@ mod tests {
         assert!(tree.has_node_id(retained.id));
         assert!(!tree.has_node_id(removed.id));
         assert_eq!(tree.next_global_id(), removed.id);
+    }
+
+    /// Index structural membership independently from physical allocation.
+    #[test]
+    fn test_index_parents_tracks_structural_membership() {
+        let mut tree = Tree::new(test_module_id());
+        let left = tree.insert(Expression::Error, test_span(0));
+        let root = tree.insert(
+            Expression::Member {
+                left,
+                name: None,
+                is_optional: false,
+            },
+            test_span(1),
+        );
+        let unindexed = tree.insert(Expression::Error, test_span(2));
+        tree.index_parents(&[root]);
+
+        // index roots and descendants with their structural parents
+        assert!(tree.parents().contains(root.id));
+        assert!(tree.parents().contains(left.id));
+        assert_eq!(tree.get_parent_id(root.id), None);
+        assert_eq!(tree.get_parent_id(left.id), Some(root.id));
+
+        // hide unrelated arena allocations from structural views
+        assert!(!tree.parents().contains(unindexed.id));
+        let view = View::new(&tree);
+        assert!(view.is_visible(root.into_any()));
+        assert!(view.is_visible(left.into_any()));
+        assert!(!view.is_visible(unindexed.into_any()));
     }
 }

@@ -351,16 +351,17 @@ impl<'a> View<'a> {
             if !patch.has_node(node_id) {
                 continue;
             }
-            if patch.tree.is_detached(node_id.id) {
+            if patch.tree.is_detached(node_id.id) || !patch.tree.parents().contains(node_id.id) {
                 return None;
             }
 
             return Some((&patch.tree, node_id));
         }
 
-        self.tree
-            .has_node_id(node_id.id)
-            .then_some((self.tree, node_id))
+        let is_indexed =
+            self.tree.has_node_id(node_id.id) && self.tree.parents().contains(node_id.id);
+
+        is_indexed.then_some((self.tree, node_id))
     }
 
     /// Resolve replacement chains for one node id.

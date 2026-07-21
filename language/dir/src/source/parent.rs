@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{DirectChildCollector, LocalNodeId, LocalNodeIdAny, Node, Tree, TreeStore};
 
-/// Dense structural parent ids keyed by node id.
+/// Dense structural membership and parent ids keyed by node id.
 ///
-/// Slots use node ids relative to the tree base, matching the tree's other dense storage.
-/// A tail tree therefore indexes only its own nodes.
+/// Each slot records an unindexed node, a structural root, or a parent node id.
+/// Slots use ids relative to the tree base, so a tail tree indexes only its own nodes.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct NodeParentIndex {
     /// The first global node id covered by the index.
@@ -22,8 +22,10 @@ impl Default for NodeParentIndex {
 }
 
 impl NodeParentIndex {
-    /// Sentinel used for nodes without a parent.
-    const NO_PARENT: u32 = u32::MAX;
+    /// Sentinel used for nodes outside the indexed structure.
+    const UNINDEXED: u32 = u32::MAX;
+    /// Sentinel used for indexed structural roots.
+    const ROOT: u32 = u32::MAX - 1;
 
     /// Create a new NodeParentIndex over a base tree.
     pub fn new() -> Self {
@@ -48,10 +50,15 @@ impl NodeParentIndex {
         let mut index = Self::with_base(base);
         index
             .parent_id_by_node_id
-            .resize(node_count, Self::NO_PARENT);
+            .resize(node_count, Self::UNINDEXED);
         let mut children = DirectChildCollector::default();
         let mut visited = vec![false; node_count];
         let mut pending = roots.iter().map(|root_id| root_id.id).collect::<Vec<_>>();
+
+        // index the declared structural roots
+        for root in roots {
+            index.set(root.id, None);
+        }
 
         while let Some(parent_id) = pending.pop() {
             let parent_type = tree.get_node_type(parent_id);
@@ -98,7 +105,20 @@ impl NodeParentIndex {
     pub fn get_by_id(&self, node_id: u32) -> Option<u32> {
         let index = node_id.checked_sub(self.base)? as usize;
         let parent_id = *self.parent_id_by_node_id.get(index)?;
-        (parent_id != Self::NO_PARENT).then_some(parent_id)
+
+        (parent_id < Self::ROOT).then_some(parent_id)
+    }
+
+    /// Return whether one node belongs to the indexed structure.
+    #[inline]
+    pub fn contains(&self, node_id: u32) -> bool {
+        let Some(index) = node_id.checked_sub(self.base).map(|index| index as usize) else {
+            return false;
+        };
+
+        self.parent_id_by_node_id
+            .get(index)
+            .is_some_and(|parent_id| *parent_id != Self::UNINDEXED)
     }
 
     /// Walk all parents to the root.
@@ -123,7 +143,7 @@ impl NodeParentIndex {
         self.walk_parents_by_id(node_id.id)
     }
 
-    /// Set or clear the parent for one node id, growing the index to fit.
+    /// Set the parent for one node id, or mark it as a structural root.
     #[inline]
     pub fn set(&mut self, node_id: u32, parent_id: Option<u32>) {
         assert!(
@@ -133,13 +153,13 @@ impl NodeParentIndex {
         );
         let index = (node_id - self.base) as usize;
         if index >= self.parent_id_by_node_id.len() {
-            self.parent_id_by_node_id.resize(index + 1, Self::NO_PARENT);
+            self.parent_id_by_node_id.resize(index + 1, Self::UNINDEXED);
         }
 
-        self.parent_id_by_node_id[index] = parent_id.unwrap_or(Self::NO_PARENT);
+        self.parent_id_by_node_id[index] = parent_id.unwrap_or(Self::ROOT);
     }
 
-    /// Drop parents for nodes at or beyond one global id and clear dangling links.
+    /// Drop structural entries at or beyond one global node id.
     #[inline]
     pub fn truncate(&mut self, next_global_id: u32) {
         assert!(
@@ -148,14 +168,15 @@ impl NodeParentIndex {
             self.base
         );
         let length = (next_global_id - self.base) as usize;
-        self.parent_id_by_node_id.truncate(length);
+        assert!(
+            self.parent_id_by_node_id
+                .iter()
+                .take(length)
+                .all(|parent_id| *parent_id >= Self::ROOT || *parent_id < next_global_id),
+            "retained DIR node has a truncated structural parent"
+        );
 
-        // clear links into the truncated node range
-        for parent_id in &mut self.parent_id_by_node_id {
-            if *parent_id != Self::NO_PARENT && *parent_id >= next_global_id {
-                *parent_id = Self::NO_PARENT;
-            }
-        }
+        self.parent_id_by_node_id.truncate(length);
     }
 
     /// Index the direct children of one structural parent.
@@ -175,14 +196,12 @@ impl NodeParentIndex {
 
     /// Index one structural child.
     fn index_child(&mut self, tree: &Tree, parent: LocalNodeIdAny, child_id: u32) {
-        if let Some(existing_parent) = self.get_by_id(child_id) {
+        if self.contains(child_id) {
             let child_type = tree.get_node_type(child_id);
-            let existing_parent_type = tree.get_node_type(existing_parent);
             assert_eq!(
-                existing_parent, parent.id,
-                "DIR {child_type:?} node {child_id} has both {existing_parent_type:?} node \
-                 {existing_parent} and {:?} node {} as structural parents",
-                parent.ty, parent.id,
+                self.get_by_id(child_id),
+                Some(parent.id),
+                "DIR {child_type:?} node {child_id} has conflicting structural ownership"
             );
         }
 
