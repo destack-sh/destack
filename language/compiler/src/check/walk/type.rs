@@ -561,6 +561,8 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
+        self.commit_node_scope(id)?;
+
         if matches!(
             self.tree.get(id),
             dir::TypeExpression::Infer {

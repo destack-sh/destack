@@ -24,7 +24,6 @@ impl WalkState<'_, '_> {
             .references
             .get(source)
             .cloned();
-
         match reference {
             // a bound name gives one declaration or a callable overload set
             Some(dir::Reference::Bound(symbols)) => {

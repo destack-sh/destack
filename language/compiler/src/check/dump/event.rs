@@ -40,8 +40,7 @@ impl CheckEvent {
                 .text(
                     "cause",
                     context.origin_label(context.check.solver.cause(bound.cause).origin),
-                )
-                .text("mode", context.bound_mode_label(bound.mode)),
+                ),
             Self::UpperBoundPushed { variable, bound } => ArtifactEvent::new("variable.upper")
                 .debug()
                 .text("variable", context.variable_label(*variable))
@@ -50,8 +49,7 @@ impl CheckEvent {
                 .text(
                     "cause",
                     context.origin_label(context.check.solver.cause(bound.cause).origin),
-                )
-                .text("mode", context.bound_mode_label(bound.mode)),
+                ),
             Self::SolveStarted { tasks, variables } => ArtifactEvent::new("solve.started")
                 .info()
                 .usize("tasks", *tasks)
@@ -113,28 +111,6 @@ impl CheckEvent {
                 .text("upper", context.type_bound_list_label(&bounds.upper))
                 .text("solution", context.type_label(*solution))
                 .usize("waiters", *waiters),
-            Self::VariableBlocked {
-                variable,
-                bounds,
-                blockers,
-            } => ArtifactEvent::new("variable.blocked")
-                .debug()
-                .text("variable", context.variable_label(*variable))
-                .text("lower", context.type_bound_list_label(&bounds.lower))
-                .text("upper", context.type_bound_list_label(&bounds.upper))
-                .text("blockers", context.dependency_list_label(blockers)),
-            Self::VariableUnsolved { variable, bounds } => ArtifactEvent::new("variable.unsolved")
-                .debug()
-                .text("variable", context.variable_label(*variable))
-                .text("lower", context.type_bound_list_label(&bounds.lower))
-                .text("upper", context.type_bound_list_label(&bounds.upper)),
-            Self::VariableAliased {
-                variable,
-                representative,
-            } => ArtifactEvent::new("variable.alias")
-                .debug()
-                .text("variable", context.variable_label(*variable))
-                .text("representative", context.variable_label(*representative)),
         };
 
         log.push(event);

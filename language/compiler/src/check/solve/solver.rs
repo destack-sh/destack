@@ -9,7 +9,7 @@ use crate::check::{
     BoundSide, Cause, CauseArena, CauseId, Constraint, ConstraintId, ConstraintState,
     ConstraintTable, Dependency, ObligationEntry, ObligationId, ObligationTable, Origin,
     OriginArena, OriginId, RelationCache, RelationCacheSnapshot, Task, TypeBound, Variable,
-    VariableRole, VariableTable, Widening, WorkQueue,
+    VariableDomain, VariableRole, VariableTable, Widening, WorkQueue,
 };
 
 /// Solver state for one checked component.
@@ -48,10 +48,24 @@ pub(in crate::check) struct SolverSnapshot {
     obligations: usize,
     /// The queued work before the probe.
     queue: WorkQueue,
+    /// The parked work before the probe.
+    waiters: FxIndexMap<Dependency, SmallVec<[Task; 2]>>,
     /// The undo log length before the probe.
     undo: usize,
     /// Relation cache snapshot before the probe.
     relations: RelationCacheSnapshot,
+}
+
+impl SolverSnapshot {
+    /// Return the variables allocated after this snapshot.
+    pub(in crate::check) fn variable_domain(&self) -> VariableDomain {
+        VariableDomain::after(self.variables)
+    }
+
+    /// Return whether one variable existed before this snapshot.
+    pub(in crate::check) fn contains_variable(&self, variable: dir::TypeVariableId) -> bool {
+        variable.0 < self.variables as u32
+    }
 }
 
 /// One solver storage undo entry.
@@ -90,14 +104,9 @@ enum Undo {
         /// The changed constraint.
         id: ConstraintId,
         /// The previous constraint state.
-        previous: ConstraintState,
-    },
-    /// Undo one waiter entry mutation.
-    Waiters {
-        /// The changed dependency.
-        dependency: Dependency,
-        /// The previous waiter list.
-        previous: Option<SmallVec<[Task; 2]>>,
+        previous_state: ConstraintState,
+        /// The previous concrete value target.
+        previous_target: Option<dir::GlobalTypeId>,
     },
 }
 
@@ -127,6 +136,7 @@ impl Solver {
             constraints: self.constraints.count(),
             obligations: self.obligations.count(),
             queue: replace(&mut self.queue, WorkQueue::new()),
+            waiters: std::mem::take(&mut self.waiters),
             undo: self.undo.len(),
             relations: self.relations.snapshot(),
         }
@@ -142,17 +152,13 @@ impl Solver {
 
         self.relations.rollback(snapshot.relations);
         self.queue = snapshot.queue;
+        self.waiters = snapshot.waiters;
         self.constraints.truncate(snapshot.constraints);
         self.obligations.truncate(snapshot.obligations);
         debug_assert_eq!(self.variables.count(), snapshot.variables);
         self.snapshot_depth -= 1;
 
         Ok(())
-    }
-
-    /// Return whether a snapshot is active.
-    pub(in crate::check) fn is_probing(&self) -> bool {
-        self.snapshot_depth > 0
     }
 
     /// Allocate one variable.
@@ -179,17 +185,6 @@ impl Solver {
         id: dir::TypeVariableId,
     ) -> CompilerResult<VariableRole> {
         self.variables.role(id)
-    }
-
-    /// Replace one variable's role, recording undo inside probes.
-    pub(in crate::check) fn set_variable_role(
-        &mut self,
-        id: dir::TypeVariableId,
-        role: VariableRole,
-    ) -> CompilerResult<()> {
-        self.record_variable(id)?;
-
-        self.variables.set_role(id, role)
     }
 
     /// Intern one work origin.
@@ -280,14 +275,15 @@ impl Solver {
         id
     }
 
-    /// Set one constraint state.
-    pub(in crate::check) fn set_constraint_state(
+    /// Set one constraint result.
+    pub(in crate::check) fn set_constraint_result(
         &mut self,
         id: ConstraintId,
         state: ConstraintState,
+        value_target: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
         self.record_constraint(id)?;
-        self.constraints.set_state(id, state);
+        self.constraints.set_result(id, state, value_target);
 
         Ok(())
     }
@@ -300,27 +296,12 @@ impl Solver {
         id
     }
 
-    /// Return the representative for one variable.
-    pub(in crate::check) fn representative(
-        &self,
-        variable: dir::TypeVariableId,
-    ) -> CompilerResult<dir::TypeVariableId> {
-        let mut current = variable;
-        while let Some(alias) = self.variable(current)?.alias {
-            current = alias;
-        }
-
-        Ok(current)
-    }
-
     /// Return one variable solution.
     pub(in crate::check) fn solution(
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let representative = self.representative(variable)?;
-
-        Ok(self.variable(representative)?.solution)
+        Ok(self.variable(variable)?.solution)
     }
 
     /// Return all variable entries.
@@ -361,7 +342,6 @@ impl Solver {
     /// Park one task until a dependency changes.
     pub(in crate::check) fn wait_for(&mut self, dependency: Dependency, task: Task) {
         self.queue.park(&task);
-        self.record_waiters(dependency);
         let waiters = self.waiters.entry(dependency).or_default();
         if !waiters.contains(&task) {
             waiters.push(task);
@@ -370,8 +350,6 @@ impl Solver {
 
     /// Wake tasks parked on one dependency.
     pub(in crate::check) fn wake(&mut self, dependency: Dependency) -> SmallVec<[Task; 2]> {
-        self.record_waiters(dependency);
-
         self.waiters.swap_remove(&dependency).unwrap_or_default()
     }
 
@@ -396,9 +374,19 @@ impl Solver {
             .collect()
     }
 
-    /// Pop one solver task.
-    pub(in crate::check) fn pop_task(&mut self) -> Option<Task> {
-        self.queue.pop()
+    /// Pop the next queued type or value judgment.
+    pub(in crate::check) fn pop_judgment(&mut self) -> Option<Task> {
+        self.queue.pop_judgment()
+    }
+
+    /// Pop the next queued obligation.
+    pub(in crate::check) fn pop_obligation(&mut self) -> Option<Task> {
+        self.queue.pop_obligation()
+    }
+
+    /// Pop the next queued constraint task.
+    pub(in crate::check) fn pop_constraint_task(&mut self) -> Option<Task> {
+        self.queue.pop_constraint()
     }
 
     /// Record one undo entry if a snapshot is active.
@@ -427,21 +415,12 @@ impl Solver {
         if self.snapshot_depth > 0 {
             self.undo.push(Undo::Constraint {
                 id,
-                previous: self.constraints.state(id)?,
+                previous_state: self.constraints.state(id)?,
+                previous_target: self.constraints.value_target(id)?,
             });
         }
 
         Ok(())
-    }
-
-    /// Record one waiter entry if a snapshot is active.
-    fn record_waiters(&mut self, dependency: Dependency) {
-        if self.snapshot_depth > 0 {
-            self.undo.push(Undo::Waiters {
-                dependency,
-                previous: self.waiters.get(&dependency).cloned(),
-            });
-        }
     }
 
     /// Apply one undo entry.
@@ -466,20 +445,14 @@ impl Solver {
                 Some((bound, cause)) => self.variables.set_parameter_bound(id, bound, cause),
                 None => self.variables.remove_parameter_bound(id),
             },
-            Undo::Constraint { id, previous } => {
-                self.constraints.set_state(id, previous);
+            Undo::Constraint {
+                id,
+                previous_state,
+                previous_target,
+            } => {
+                self.constraints
+                    .set_result(id, previous_state, previous_target);
             }
-            Undo::Waiters {
-                dependency,
-                previous,
-            } => match previous {
-                Some(previous) => {
-                    self.waiters.insert(dependency, previous);
-                }
-                None => {
-                    self.waiters.swap_remove(&dependency);
-                }
-            },
         }
 
         Ok(())

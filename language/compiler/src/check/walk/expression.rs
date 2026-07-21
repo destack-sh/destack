@@ -31,15 +31,12 @@ impl WalkState<'_, '_> {
                 let declaration = *declaration;
 
                 // identify function values checked by their receiving context
-                let is_lambda = match self.tree.get(declaration) {
+                let is_lambda = matches!(
+                    self.tree.get(declaration),
                     dir::Declaration::Function(function)
                         if function.signature.form == dir::FunctionForm::Lambda
-                            || function.name.is_none() =>
-                    {
-                        true
-                    }
-                    _ => false,
-                };
+                            || function.name.is_none()
+                );
                 self.walk_declaration(declaration, self.tree.get(declaration))?;
                 if is_lambda {
                     let Some(symbol) = self
@@ -183,9 +180,14 @@ impl WalkState<'_, '_> {
                 self.walk_try_expression(id, *body, *catch, *finally)?;
             }
             // match value { case pattern => body }
-            dir::Expression::Match { value, cases, .. } => {
+            dir::Expression::Match { value, arms } => {
+                let arms = arms.iter().copied().collect::<SmallVec<[_; 4]>>();
+                self.walk_match_expression(id, *value, &arms)?;
+            }
+            // switch (value) { case value: body }
+            dir::Expression::Switch { value, cases } => {
                 let cases = cases.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_match_expression(id, *value, &cases)?;
+                self.walk_switch_statement(id, *value, &cases)?;
             }
             // break value
             dir::Expression::Break { label, value } => {

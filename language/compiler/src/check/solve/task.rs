@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    BoundMode, CauseId, CheckFailure, ConstraintId, Expectation, FlowSite, FunctionBody,
-    ObligationFailure, ObligationId, PlaceUse, Relation, ValueUse,
+    CauseId, CheckFailure, ConstraintId, FlowSite, FunctionBody, ObligationFailure, ObligationId,
+    PlaceUse, Relation, ValueUse,
 };
 
 /// Failed judgments returned by one solver task run.
@@ -36,20 +36,15 @@ pub(in crate::check) struct ConstraintFailure {
     pub(in crate::check) failure: CheckFailure,
 }
 
-const TASK_PRIORITY_COUNT: usize = 6;
+const TASK_PRIORITY_COUNT: usize = 4;
 
 /// One scheduled solver task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Task {
     /// Solve one type relation constraint.
     Relate(ConstraintId),
-    /// Check one source use against its expected type.
-    Check {
-        /// The checked source use.
-        site: FlowSite,
-        /// The expected type judgment.
-        expectation: Expectation,
-    },
+    /// Check one source node value constraint.
+    Check(ConstraintId),
     /// Infer one source use.
     Infer {
         /// The inferred source use.
@@ -61,13 +56,6 @@ pub(in crate::check) enum Task {
     CheckBody(FunctionBody),
     /// Check one deferred obligation.
     Oblige(ObligationId),
-    /// Solve one variable from its bounds.
-    Solve {
-        /// The variable to solve.
-        variable: dir::TypeVariableId,
-        /// The weakest bounds allowed to choose a solution.
-        mode: BoundMode,
-    },
 }
 
 impl Task {
@@ -75,16 +63,8 @@ impl Task {
     fn priority(&self) -> TaskPriority {
         match self {
             Self::Relate(_) => TaskPriority::Relate,
-            Self::Check { .. } | Self::CheckBody(_) => TaskPriority::Check,
+            Self::Check(_) | Self::CheckBody(_) => TaskPriority::Check,
             Self::Infer { .. } => TaskPriority::Infer,
-            Self::Solve {
-                mode: BoundMode::Strong,
-                ..
-            } => TaskPriority::Solve,
-            Self::Solve {
-                mode: BoundMode::Weak,
-                ..
-            } => TaskPriority::WeakSolve,
             Self::Oblige(_) => TaskPriority::Oblige,
         }
     }
@@ -95,28 +75,20 @@ impl Task {
 enum TaskPriority {
     /// Relation constraints run first.
     Relate,
-    /// Context-sensitive source checks run before unconstrained inference.
+    /// Target-directed source checks run before unconstrained inference.
     Check,
     /// Unconstrained source inference runs after contextual checks.
     Infer,
-    /// Variable solving runs after relations.
-    Solve,
     /// Obligations run after solving.
     Oblige,
-    /// Weak variable solving runs after every regular task drains.
-    WeakSolve,
 }
 
 impl TaskPriority {
-    /// Every priority in scheduler order.
-    const ALL: [Self; TASK_PRIORITY_COUNT] = [
-        Self::Relate,
-        Self::Check,
-        Self::Infer,
-        Self::Solve,
-        Self::Oblige,
-        Self::WeakSolve,
-    ];
+    /// Priorities that produce checked types and resolutions.
+    const JUDGMENTS: [Self; 3] = [Self::Relate, Self::Check, Self::Infer];
+
+    /// Priorities that settle value and type constraints.
+    const CONSTRAINTS: [Self; 2] = [Self::Relate, Self::Check];
 
     /// Return the dense array index for this priority.
     fn index(self) -> usize {
@@ -155,9 +127,21 @@ impl WorkQueue {
         }
     }
 
-    /// Pop the next task in priority order.
-    pub(in crate::check) fn pop(&mut self) -> Option<Task> {
-        TaskPriority::ALL
+    /// Pop the next type or value judgment.
+    pub(in crate::check) fn pop_judgment(&mut self) -> Option<Task> {
+        TaskPriority::JUDGMENTS
+            .into_iter()
+            .find_map(|priority| self.pop_at(priority))
+    }
+
+    /// Pop the next deferred obligation.
+    pub(in crate::check) fn pop_obligation(&mut self) -> Option<Task> {
+        self.pop_at(TaskPriority::Oblige)
+    }
+
+    /// Pop the next constraint task.
+    pub(in crate::check) fn pop_constraint(&mut self) -> Option<Task> {
+        TaskPriority::CONSTRAINTS
             .into_iter()
             .find_map(|priority| self.pop_at(priority))
     }

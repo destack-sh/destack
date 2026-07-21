@@ -20,6 +20,14 @@ pub(in crate::check) enum Dependency {
 }
 
 impl<T> Answer<T> {
+    /// Borrow the ready value, if this answer has settled.
+    pub(in crate::check) fn ready_ref(&self) -> Option<&T> {
+        match self {
+            Self::Ready(value) => Some(value),
+            Self::Pending(_) => None,
+        }
+    }
+
     /// Return the ready value, if this answer has settled.
     pub(in crate::check) fn ready(self) -> Option<T> {
         match self {

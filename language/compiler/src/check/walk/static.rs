@@ -79,6 +79,12 @@ impl WalkState<'_, '_> {
 
     /// Commit one static gate decision.
     fn commit_static_gate(&mut self, decorated: dir::GlobalNodeIdAny, gate: StaticGate) {
+        if gate == StaticGate::Absent {
+            self.check
+                .module_mut(self.module)
+                .statics
+                .set_absent(decorated);
+        }
         self.check
             .module_mut(self.module)
             .static_presence

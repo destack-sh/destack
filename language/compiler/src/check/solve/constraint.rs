@@ -3,7 +3,7 @@ use std::mem::size_of;
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 
-use crate::check::{CauseId, CheckState, OriginId, Relation};
+use crate::check::{CauseId, CheckState, Relation};
 use crate::{CompilerError, CompilerResult};
 
 /// Component-global id of one collected constraint.
@@ -51,18 +51,23 @@ pub(in crate::check) struct TypeConstraint {
 pub(in crate::check) struct ValueConstraint {
     /// The relation to enforce.
     pub(in crate::check) relation: Relation,
-    /// The source value type.
-    pub(in crate::check) source: dir::GlobalTypeId,
-    /// The target value type.
+    /// The source value.
+    pub(in crate::check) source: ValueSource,
+    /// The expected target.
     pub(in crate::check) target: dir::GlobalTypeId,
-    /// The source value occurrence used for value materialization.
-    pub(in crate::check) value_origin: OriginId,
     /// Why this constraint exists.
     pub(in crate::check) cause: CauseId,
     /// The checked value role.
-    pub(in crate::check) use_: Option<ValueUse>,
-    /// Whether this relation only verifies and never bounds open variables.
-    pub(in crate::check) is_check_only: bool,
+    pub(in crate::check) use_: ValueUse,
+}
+
+/// Source of one contextual value constraint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum ValueSource {
+    /// A source node requiring contextual checking.
+    Node(dir::GlobalNodeIdAny),
+    /// An already typed value.
+    Type(dir::GlobalTypeId),
 }
 
 /// Runtime value use checked by one value constraint.
@@ -114,6 +119,13 @@ pub(in crate::check) enum ValueUse {
     Satisfies,
 }
 
+impl ValueUse {
+    /// Return whether this use stores the value in a runtime destination.
+    pub(in crate::check) fn is_stored(self) -> bool {
+        matches!(self, Self::Store | Self::Argument | Self::Output)
+    }
+}
+
 impl Constraint {
     /// Create a pure relation between two types.
     pub(in crate::check) fn r#type(
@@ -150,40 +162,17 @@ impl Constraint {
     /// Create a value constraint.
     pub(in crate::check) fn value(
         relation: Relation,
-        source: dir::GlobalTypeId,
+        source: ValueSource,
         target: dir::GlobalTypeId,
-        value_origin: OriginId,
         cause: CauseId,
-        use_: Option<ValueUse>,
+        use_: ValueUse,
     ) -> Self {
         Self::Value(ValueConstraint {
             relation,
             source,
             target,
-            value_origin,
             cause,
             use_,
-            is_check_only: false,
-        })
-    }
-
-    /// Create a value constraint that verifies without bounding open variables.
-    pub(in crate::check) fn check_only_value(
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        value_origin: OriginId,
-        cause: CauseId,
-        use_: Option<ValueUse>,
-    ) -> Self {
-        Self::Value(ValueConstraint {
-            relation,
-            source,
-            target,
-            value_origin,
-            cause,
-            use_,
-            is_check_only: true,
         })
     }
 
@@ -192,22 +181,6 @@ impl Constraint {
         match self {
             Self::Type(constraint) => constraint.relation,
             Self::Value(constraint) => constraint.relation,
-        }
-    }
-
-    /// Return the source operand.
-    pub(in crate::check) fn source(&self) -> dir::GlobalTypeId {
-        match self {
-            Self::Type(constraint) => constraint.source,
-            Self::Value(constraint) => constraint.source,
-        }
-    }
-
-    /// Return the target operand.
-    pub(in crate::check) fn target(&self) -> dir::GlobalTypeId {
-        match self {
-            Self::Type(constraint) => constraint.target,
-            Self::Value(constraint) => constraint.target,
         }
     }
 
@@ -223,7 +196,7 @@ impl Constraint {
     pub(in crate::check) fn value_use(&self) -> Option<ValueUse> {
         match self {
             Self::Type(_) => None,
-            Self::Value(constraint) => constraint.use_,
+            Self::Value(constraint) => Some(constraint.use_),
         }
     }
 }
@@ -253,6 +226,8 @@ pub(in crate::check) struct ConstraintTable {
     constraints: Vec<Constraint>,
     /// Constraint states indexed by constraint id.
     states: Vec<ConstraintState>,
+    /// Concrete targets selected by completed value checks.
+    value_targets: Vec<Option<dir::GlobalTypeId>>,
 }
 
 impl ConstraintTable {
@@ -266,12 +241,14 @@ impl ConstraintTable {
         debug_assert_eq!(self.constraints.len(), id.index());
         self.constraints.push(constraint);
         self.states.push(ConstraintState::Pending);
+        self.value_targets.push(None);
     }
 
     /// Truncate constraints undone by one probe rollback.
     pub(in crate::check) fn truncate(&mut self, count: usize) {
         self.constraints.truncate(count);
         self.states.truncate(count);
+        self.value_targets.truncate(count);
     }
 
     /// Return one constraint.
@@ -301,9 +278,28 @@ impl ConstraintTable {
             })
     }
 
-    /// Set one constraint state.
-    pub(in crate::check) fn set_state(&mut self, id: ConstraintId, state: ConstraintState) {
+    /// Return the concrete target selected by one completed value check.
+    pub(in crate::check) fn value_target(
+        &self,
+        id: ConstraintId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        self.value_targets
+            .get(id.index())
+            .copied()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("check constraint {id:?} has no value target slot"),
+            })
+    }
+
+    /// Set one constraint result.
+    pub(in crate::check) fn set_result(
+        &mut self,
+        id: ConstraintId,
+        state: ConstraintState,
+        value_target: Option<dir::GlobalTypeId>,
+    ) {
         self.states[id.index()] = state;
+        self.value_targets[id.index()] = value_target;
     }
 
     /// Return whether one constraint finished solving.
@@ -377,6 +373,15 @@ pub(in crate::check) enum CheckOutcome {
     Fails(CheckFailure),
 }
 
+/// Completed relation judgment for one runtime value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct ValueCheck {
+    /// Whether the value relation held.
+    pub(in crate::check) outcome: CheckOutcome,
+    /// The concrete contextual target checked against the value.
+    pub(in crate::check) target: dir::GlobalTypeId,
+}
+
 impl CheckOutcome {
     /// Return this check followed by another check.
     pub(in crate::check) fn and(self, next: Self) -> Self {
@@ -401,7 +406,7 @@ pub(in crate::check) enum CheckAttempt {
     /// The expression form does not use this target directly.
     NotApplicable,
     /// The expression form checked against this target.
-    Checked(CheckOutcome),
+    Checked(ValueCheck),
 }
 
 // lock the queued constraint shapes

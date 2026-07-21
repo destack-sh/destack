@@ -1,9 +1,7 @@
 use destack_artifact::ArtifactEvent;
 use destack_dir as dir;
 
-use crate::check::{
-    DumpContext, ExpectedType, MatchCase, Obligation, ObligationId, PatternCoverage,
-};
+use crate::check::{DumpContext, Obligation, ObligationId, PatternCoverage};
 
 impl Obligation {
     /// Render this obligation as one trace event.
@@ -23,7 +21,7 @@ impl Obligation {
 
         match self {
             Self::PatternCoverage(obligation) => event
-                .text("value", expected_type_label(&obligation.value, context))
+                .text("value", context.expected_type_label(obligation.value))
                 .text(
                     "coverage",
                     pattern_coverage_label(&obligation.coverage, context),
@@ -82,14 +80,6 @@ impl Obligation {
     }
 }
 
-/// Render one expected type payload.
-fn expected_type_label(expected: &ExpectedType, context: &DumpContext<'_, '_>) -> String {
-    match expected {
-        ExpectedType::Type(ty) => context.type_label(*ty),
-        ExpectedType::Node(site) => format!("node({})", context.flow_site_label(*site)),
-    }
-}
-
 /// Render one runtime predicate payload.
 fn runtime_predicate_label(
     predicate: &dir::GuardResolution,
@@ -120,28 +110,22 @@ fn runtime_predicate_label(
 /// Render one pattern coverage payload.
 fn pattern_coverage_label(coverage: &PatternCoverage, context: &DumpContext<'_, '_>) -> String {
     match coverage {
-        PatternCoverage::Match { cases } => {
-            let cases = cases
+        PatternCoverage::Match { arms } => {
+            let arms = arms
                 .iter()
-                .map(|case| match case {
-                    MatchCase::Default => "default".to_string(),
-                    MatchCase::Pattern {
-                        pattern,
-                        is_guarded,
-                    } => {
-                        let pattern = context.node_label(pattern.into_any());
+                .map(|arm| {
+                    let pattern = context.node_label(arm.pattern.into_any());
 
-                        if *is_guarded {
-                            format!("{pattern} if")
-                        } else {
-                            pattern
-                        }
+                    if arm.is_guarded {
+                        format!("{pattern} if")
+                    } else {
+                        pattern
                     }
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            format!("match[{cases}]")
+            format!("match[{arms}]")
         }
         PatternCoverage::Binding { pattern } => {
             format!("binding({})", context.node_label(pattern.into_any()))

@@ -1,8 +1,8 @@
 use std::mem::size_of;
+use std::ops::Range;
 
 use destack_core::FxIndexMap;
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::check::{
     BoundEntry, BoundIter, BoundList, BoundSide, CauseId, EMPTY, OriginId, TypeBound,
@@ -14,6 +14,8 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::check) enum VariableRole {
     /// Ordinary inference variable.
     Regular,
+    /// Variable inferred from a callable body return.
+    Return,
     /// Variable instantiating one declared generic parameter.
     Instantiation {
         /// The instantiated parameter.
@@ -31,14 +33,17 @@ pub(in crate::check) enum VariableRole {
 impl VariableRole {
     /// Return whether this role solves as ordinary inference.
     pub(in crate::check) fn is_inference(self) -> bool {
-        matches!(self, Self::Regular | Self::Instantiation { .. })
+        matches!(
+            self,
+            Self::Regular | Self::Return | Self::Instantiation { .. }
+        )
     }
 
     /// Return the declared parameter this variable instantiates.
     pub(in crate::check) fn parameter(self) -> Option<dir::GlobalGenericParameterId> {
         match self {
             Self::Instantiation { parameter } => Some(parameter),
-            Self::Regular | Self::Memory { .. } => None,
+            Self::Regular | Self::Return | Self::Memory { .. } => None,
         }
     }
 }
@@ -54,6 +59,35 @@ pub(in crate::check) enum Widening {
     WhenWritten,
 }
 
+/// Variables one solver drain may fix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct VariableDomain {
+    /// The first variable in the domain.
+    first: u32,
+}
+
+impl VariableDomain {
+    /// Every variable in the component solver.
+    pub(in crate::check) const ALL: Self = Self { first: 0 };
+
+    /// Return the variables allocated after one solver snapshot.
+    pub(in crate::check) fn after(count: usize) -> Self {
+        Self {
+            first: count as u32,
+        }
+    }
+
+    /// Return whether the domain contains one variable.
+    pub(in crate::check) fn contains(self, variable: dir::TypeVariableId) -> bool {
+        variable.0 >= self.first
+    }
+
+    /// Return the variable indices in this domain below one table length.
+    pub(in crate::check) fn range(self, count: usize) -> Range<usize> {
+        self.first as usize..count
+    }
+}
+
 /// One inference variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct Variable {
@@ -65,8 +99,6 @@ pub(in crate::check) struct Variable {
     pub(in crate::check) upper: BoundList,
     /// The solved type, when solving finished.
     pub(in crate::check) solution: Option<dir::GlobalTypeId>,
-    /// The union-find representative, when aliased to another variable.
-    pub(in crate::check) alias: Option<dir::TypeVariableId>,
     /// The literal widening policy applied when solving.
     pub(in crate::check) widening: Widening,
 }
@@ -106,7 +138,6 @@ impl VariableTable {
             lower: BoundList::new(),
             upper: BoundList::new(),
             solution: None,
-            alias: None,
             widening,
         });
         self.roles.push(role);
@@ -169,11 +200,10 @@ impl VariableTable {
     ) -> CompilerResult<bool> {
         // reject bounds already collected on this side; the first
         //  cause wins, since provenance never changes the solution
-        if self.side_bounds(id, side)?.any(|existing| {
-            existing.ty == bound.ty
-                && existing.relation == bound.relation
-                && existing.mode == bound.mode
-        }) {
+        if self
+            .side_bounds(id, side)?
+            .any(|existing| existing.ty == bound.ty && existing.relation == bound.relation)
+        {
             return Ok(false);
         }
 
@@ -225,19 +255,6 @@ impl VariableTable {
         };
 
         Ok(())
-    }
-
-    /// Detach every bound of one variable side for aliasing replay.
-    pub(in crate::check) fn take_bounds(
-        &mut self,
-        id: dir::TypeVariableId,
-        side: BoundSide,
-    ) -> CompilerResult<SmallVec<[TypeBound; 2]>> {
-        // aliasing re-pushes bounds through the checked paths
-        let moved = self.side_bounds(id, side)?.collect();
-        *self.side_mut(id, side)? = BoundList::new();
-
-        Ok(moved)
     }
 
     /// Iterate one variable side in insertion order.
@@ -352,4 +369,4 @@ impl VariableTable {
 
 // lock the hot solver row shape
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Variable>() == 72);
+const _: () = assert!(size_of::<Variable>() == 64);

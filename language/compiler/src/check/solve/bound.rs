@@ -5,22 +5,6 @@ use crate::check::{CauseId, Relation};
 /// One empty intrusive list link.
 pub(in crate::check) const EMPTY: u32 = u32::MAX;
 
-/// When one bound may choose an inference variable's solution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum BoundMode {
-    /// Bound may solve the variable during regular solver work.
-    Strong,
-    /// Bound may solve the variable only after regular work drains.
-    Weak,
-}
-
-impl BoundMode {
-    /// Return whether this solve pass may use weak bounds.
-    pub(in crate::check) fn allows_weak(self) -> bool {
-        matches!(self, Self::Weak)
-    }
-}
-
 /// One bound collected for an inference variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct TypeBound {
@@ -30,23 +14,15 @@ pub(in crate::check) struct TypeBound {
     pub(in crate::check) relation: Relation,
     /// Why this bound exists.
     pub(in crate::check) cause: CauseId,
-    /// When this bound may choose the variable's solution.
-    pub(in crate::check) mode: BoundMode,
 }
 
 impl TypeBound {
     /// Return one type bound from its cause.
-    pub(in crate::check) fn new(
-        ty: dir::GlobalTypeId,
-        relation: Relation,
-        cause: CauseId,
-        mode: BoundMode,
-    ) -> Self {
+    pub(in crate::check) fn new(ty: dir::GlobalTypeId, relation: Relation, cause: CauseId) -> Self {
         Self {
             ty,
             relation,
             cause,
-            mode,
         }
     }
 }

@@ -81,7 +81,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         tracked: Vec<dir::TypeVariableId>,
         has_body: bool,
     ) -> CompilerResult<(Option<dir::GlobalTypeId>, Option<dir::GlobalTypeId>)> {
-        let Some(return_type) = return_type else {
+        let Some(mut return_type) = return_type else {
             return Ok((None, None));
         };
 
@@ -155,11 +155,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .collect::<Vec<_>>();
         return_lifetimes.extend(tracked);
 
-        // tie each elided result lifetime to the receiver or input lifetime
+        // replace each elided result lifetime with the unique input lifetime
         for return_variable in return_lifetimes {
             if return_variable != *input_variable {
-                self.check
-                    .commit_solution(return_variable, input_lifetime)?;
+                let return_lifetime = self.check.variable_type(return_variable)?;
+                return_type = self.check.replace_type(
+                    self.module,
+                    return_type,
+                    return_lifetime,
+                    input_lifetime,
+                )?;
             }
         }
 
@@ -441,16 +446,31 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let completed = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
+            let completed = if signature.return_type.is_none() {
+                self.open_type_hole(source, Widening::Never, VariableRole::Return)?
+            } else {
+                self.intern_operation(dir::TypeOperation::Awaited(dir::UnaryType {
+                    target: result,
+                }))?
+            };
             let promised =
                 self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
-            self.relate_type(
-                origin,
-                CauseKind::Return { annotation: None },
-                Relation::Assignable,
-                promised,
-                result,
-            );
+            if signature.return_type.is_none() {
+                let Some(variable) = self.check.root_variable(result)? else {
+                    return Err(CompilerError::Internal {
+                        message: "inferred async return is not an inference variable".into(),
+                    });
+                };
+                self.check.commit_solution(variable, promised)?;
+            } else {
+                self.relate_type(
+                    origin,
+                    CauseKind::Return { annotation: None },
+                    Relation::Assignable,
+                    promised,
+                    result,
+                );
+            }
 
             return_target = completed;
         }
@@ -458,7 +478,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
             let yielded = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
-            let completed = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
+            let completed = self.open_type_hole(source, Widening::Never, VariableRole::Return)?;
             let resumed = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
             let item = match signature.asynchrony {
                 // function* f() {}
@@ -467,13 +487,22 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
             };
             let generated = self.language_type_reference(item, &[yielded, completed, resumed])?;
-            self.relate_type(
-                origin,
-                CauseKind::Return { annotation: None },
-                Relation::Assignable,
-                generated,
-                result,
-            );
+            if signature.return_type.is_none() {
+                let Some(variable) = self.check.root_variable(result)? else {
+                    return Err(CompilerError::Internal {
+                        message: "inferred generator return is not an inference variable".into(),
+                    });
+                };
+                self.check.commit_solution(variable, generated)?;
+            } else {
+                self.relate_type(
+                    origin,
+                    CauseKind::Return { annotation: None },
+                    Relation::Assignable,
+                    generated,
+                    result,
+                );
+            }
 
             return_target = completed;
             yield_target = Some(yielded);

@@ -70,9 +70,15 @@ impl WalkState<'_, '_> {
                 ..
             } => true,
             // match (value) { pattern => body }
-            dir::Expression::Match { cases, .. } => cases
+            dir::Expression::Match { arms, .. } => arms
                 .iter()
-                .any(|case| self.match_case_can_complete_normally(self.tree.get(*case))),
+                .any(|arm| self.match_arm_can_complete_normally(self.tree.get(*arm))),
+            // switch (value) { case pattern: body }
+            dir::Expression::Switch { .. } => !self
+                .check
+                .module(self.module)
+                .unreachable_ends
+                .contains(&id.into_any()),
             // try { value } catch (error) { recover(error) }
             dir::Expression::Try {
                 body,
@@ -148,7 +154,7 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return whether one match case can complete normally.
+    /// Return whether one match arm can complete normally.
     ///
     /// Example:
     /// ```ds
@@ -157,12 +163,12 @@ impl WalkState<'_, '_> {
     ///     _ => "other",
     /// }
     /// ```
-    pub(in crate::check) fn match_case_can_complete_normally(&self, case: &dir::MatchCase) -> bool {
-        match case {
+    pub(in crate::check) fn match_arm_can_complete_normally(&self, arm: &dir::MatchArm) -> bool {
+        match arm {
             // pattern => expression
-            dir::MatchCase::Expression { body, .. } => self.expression_can_complete_normally(*body),
+            dir::MatchArm::Expression { body, .. } => self.expression_can_complete_normally(*body),
             // pattern => { ... }
-            dir::MatchCase::Block { body, .. } => {
+            dir::MatchArm::Block { body, .. } => {
                 self.block_can_complete_normally(self.tree.get(*body))
             }
         }

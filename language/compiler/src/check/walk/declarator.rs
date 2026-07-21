@@ -74,13 +74,12 @@ impl WalkState<'_, '_> {
 
         // record pattern checking from the initializer or annotation
         if let Some(value) = declarator.value {
-            let value_site = self.node_site(value)?;
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
                 self.check.push_obligation(
                     Obligation::PatternCoverage(PatternCoverageObligation {
                         source: declarator.pattern.into_global_any(self.module),
-                        value: ExpectedType::Node(value_site),
+                        value: ExpectedType::Node(value.into_global_any(self.module)),
                         coverage: PatternCoverage::Binding {
                             pattern: declarator.pattern.into_global(self.module),
                         },

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    BoundMode, CheckState, ConstraintId, Dependency, FlowPointId, FlowSite, ObligationId, Origin,
-    Relation, TypeBound, ValueUse, Widening,
+    CheckState, ConstraintId, Dependency, ExpectedType, FlowPointId, FlowSite, ObligationId,
+    Origin, Relation, TypeBound, ValueUse, Widening,
 };
 
 /// Rendering context for check trace values.
@@ -87,6 +87,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         self.check.format_type(ty)
     }
 
+    /// Return a compact expected type label.
+    pub(in crate::check) fn expected_type_label(&self, expected: ExpectedType) -> String {
+        match expected {
+            ExpectedType::Type(ty) => self.type_label(ty),
+            ExpectedType::Node(node) => format!("node({})", self.node_label(node)),
+        }
+    }
+
     /// Return a compact type-bound list label.
     pub(in crate::check) fn type_bound_list_label(&self, bounds: &[TypeBound]) -> String {
         if bounds.is_empty() {
@@ -106,14 +114,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             Widening::Never => "never",
             Widening::Always => "always",
             Widening::WhenWritten => "when-written",
-        }
-    }
-
-    /// Return a compact bound mode label.
-    pub(in crate::check) fn bound_mode_label(&self, mode: BoundMode) -> &'static str {
-        match mode {
-            BoundMode::Strong => "strong",
-            BoundMode::Weak => "weak",
         }
     }
 

@@ -131,29 +131,6 @@ pub(in crate::check) enum CheckEvent {
         /// The number of tasks woken by this solution.
         waiters: usize,
     },
-    /// One variable solve is blocked on open dependencies.
-    VariableBlocked {
-        /// The blocked variable.
-        variable: dir::TypeVariableId,
-        /// The bounds present when the solve blocked.
-        bounds: VariableBounds,
-        /// The dependencies blocking the solve.
-        blockers: SmallVec<[Dependency; 2]>,
-    },
-    /// One variable solve had no usable bounds.
-    VariableUnsolved {
-        /// The unsolved variable.
-        variable: dir::TypeVariableId,
-        /// The bounds present when the solve stayed open.
-        bounds: VariableBounds,
-    },
-    /// Two open variables were aliased.
-    VariableAliased {
-        /// The aliased variable.
-        variable: dir::TypeVariableId,
-        /// The new representative.
-        representative: dir::TypeVariableId,
-    },
 }
 
 impl CheckState<'_> {

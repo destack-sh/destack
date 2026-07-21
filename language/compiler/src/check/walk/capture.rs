@@ -60,7 +60,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return whether one value reference crosses into an outer function.
-    fn is_captured_symbol_reference(
+    pub(in crate::check) fn is_captured_symbol_reference(
         &self,
         symbol: dir::GlobalSymbolId,
         function: dir::GlobalSymbolId,

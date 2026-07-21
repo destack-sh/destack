@@ -1,3 +1,4 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -876,6 +877,7 @@ impl WalkState<'_, '_> {
         let mut members = Vec::new();
         let mut next_value = Some(Ok(dir::EnumVariantValue::Integer(0)));
         let mut backing = None;
+        let mut values = FxIndexMap::default();
         for field in &declaration.fields {
             let variant = self.walk_enum_field(*field, self.tree.get(*field), next_value)?;
             let variant = match variant {
@@ -902,6 +904,20 @@ impl WalkState<'_, '_> {
 
                 continue;
             }
+
+            // preserve one nominal member per runtime value
+            if let Some(previous) = values.get(&variant.value).copied() {
+                let literal = dir::ScalarLiteral::from(variant.value);
+                let value = self.check.format_scalar_literal(&literal);
+                self.check
+                    .report_duplicate_enum_variant_value(variant.source, previous, value);
+                let error = self.intern_type(dir::Type::Error)?;
+                self.bind_symbol_type(variant.symbol, error)?;
+                next_value = Some(variant.value.increment());
+
+                continue;
+            }
+            values.insert(variant.value, variant.source);
 
             // commit the accepted singleton and its scalar value
             let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType {
@@ -1707,7 +1723,7 @@ impl WalkState<'_, '_> {
 
         // open the inferred result
         Ok((
-            Some(self.open_type_hole(source, Widening::Never, VariableRole::Regular)?),
+            Some(self.open_type_hole(source, Widening::Never, VariableRole::Return)?),
             Vec::new(),
         ))
     }
@@ -1786,7 +1802,7 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
         // root extensions under the same declaration used for member lookup
-        if let Some((_, instance)) = self.check.apparent_instance(ty)? {
+        if let Some(instance) = self.check.apparent_instance(ty)? {
             let root = instance.symbol;
 
             return Ok(dir::ExtensionTarget::Rooted { root, ty });

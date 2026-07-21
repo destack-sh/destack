@@ -1,44 +1,112 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::check::{
     Answer, CheckEvent, CheckOutcome, CheckState, Constraint, ConstraintFailure, ConstraintId,
-    Dependency, Origin, PlaceUse, Task, TaskFailure, TaskFailures, VariableRole,
+    ConstraintState, Dependency, Expectation, Origin, Task, TaskFailure, TaskFailures, ValueSource,
+    VariableDomain, VariableRole, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Drain every queued task to quiescence.
     pub(in crate::check) fn drain(&mut self) -> CompilerResult<()> {
-        loop {
-            let task = self.solver.pop_task();
-            let Some(task) = task else {
-                break;
-            };
+        let failures = self.drain_tasks()?;
+        for failure in failures {
+            self.report_task_failure(failure)?;
+        }
 
-            // move the task out of active work and report its failures
-            match self.run_task(&task)? {
-                Answer::Ready(failures) => {
-                    self.solver.complete_task(&task);
-                    for failure in failures {
-                        self.report_task_failure(failure)?;
-                    }
-                }
-                Answer::Pending(blockers) if blockers.is_empty() => {
+        Ok(())
+    }
+
+    /// Drain every queued task and return its failed judgments.
+    pub(in crate::check) fn drain_tasks(&mut self) -> CompilerResult<TaskFailures> {
+        let mut failures = TaskFailures::new();
+        loop {
+            // run every ready value and type judgment before solving
+            if let Some(task) = self.solver.pop_judgment() {
+                self.run_queued_task(task, &mut failures)?;
+
+                continue;
+            }
+
+            // solve grounded inference before checking deferred obligations
+            if self.solve_variables(VariableDomain::ALL)? {
+                continue;
+            }
+
+            // obligations may add new judgments, so check one at a time
+            if let Some(task) = self.solver.pop_obligation() {
+                self.run_queued_task(task, &mut failures)?;
+
+                continue;
+            }
+
+            // apply defaults only after every available obligation ran
+            if self.default_variables(VariableDomain::ALL)? {
+                continue;
+            }
+
+            break;
+        }
+
+        Ok(failures)
+    }
+
+    /// Drain queued value and type constraints without checking bodies or obligations.
+    pub(in crate::check) fn drain_constraint_tasks(
+        &mut self,
+        variables: VariableDomain,
+    ) -> CompilerResult<TaskFailures> {
+        let mut failures = TaskFailures::new();
+        loop {
+            // run only value and type constraints created by the probe
+            if let Some(task) = self.solver.pop_constraint_task() {
+                self.run_queued_task(task, &mut failures)?;
+
+                continue;
+            }
+
+            // solve variables allocated by the probe from its accepted constraints
+            if self.solve_variables(variables)? {
+                continue;
+            }
+
+            // apply probe-local defaults after all available evidence
+            if self.default_variables(variables)? {
+                continue;
+            }
+
+            break;
+        }
+
+        Ok(failures)
+    }
+
+    /// Run one popped task, completing or parking it.
+    fn run_queued_task(&mut self, task: Task, failures: &mut TaskFailures) -> CompilerResult<()> {
+        // move the task out of active work and collect its failures
+        match self.run_task(&task)? {
+            Answer::Ready(task_failures) => {
+                self.solver.complete_task(&task);
+                failures.extend(task_failures);
+            }
+            Answer::Pending(blockers) => {
+                if blockers.is_empty() {
                     return Err(CompilerError::Internal {
                         message: format!("check task {task:?} is pending without dependencies"),
                     });
                 }
-                Answer::Pending(blockers) => self.park_task(&task, &blockers)?,
-            }
 
-            self.record_event(CheckEvent::TaskRan {
-                step: self.solve_steps,
-                task,
-            });
-            self.solve_steps += 1;
+                self.park_task(&task, &blockers)?;
+            }
         }
+
+        self.record_event(CheckEvent::TaskRan {
+            step: self.solve_steps,
+            task,
+        });
+        self.solve_steps += 1;
 
         Ok(())
     }
@@ -56,7 +124,6 @@ impl CheckState<'_> {
         });
 
         self.drain()?;
-        self.close_memory_holes()?;
         self.report_unresolved()?;
 
         self.record_event(CheckEvent::SolveFinished {
@@ -67,63 +134,41 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Close un-evidenced lifetime holes to frame and access holes to readonly, then re-drain.
-    fn close_memory_holes(&mut self) -> CompilerResult<()> {
-        loop {
-            let mut closed = false;
-            for dependency in self.solver.waiting_dependencies() {
-                let Dependency::Variable(variable) = dependency else {
-                    continue;
-                };
-                let state = *self.solver.variable(variable)?;
-                if state.solution.is_some() {
-                    continue;
-                }
-                let default = match self.variable_memory_parameter(variable)? {
-                    Some(dir::MemoryParameter::Lifetime) => {
-                        dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)
-                    }
-                    Some(dir::MemoryParameter::Access) => {
-                        dir::MemoryLiteral::Access(dir::Access::Readonly)
-                    }
-                    _ => continue,
-                };
-                let origin = self.solver.origin(state.origin);
-                let default = self.intern_type(origin.module(), dir::Type::Memory(default))?;
-                self.commit_solution(variable, default)?;
-                closed = true;
-            }
-            if !closed {
-                return Ok(());
-            }
-
-            self.drain()?;
-        }
-    }
-
-    /// Report every dependency still parked on after the drain.
+    /// Report every unresolved symbol and inference variable after the drain.
     pub(in crate::check) fn report_unresolved(&mut self) -> CompilerResult<()> {
-        // drain parked dependencies once
+        // retain unresolved symbol dependencies from parked tasks
         let parked = self.solver.drain_waiters();
         let mut origins = FxIndexMap::default();
-
-        // resolve each stuck dependency to the origin it anchors at
         for (dependency, _) in parked {
-            let (origin, variable) = match dependency {
-                Dependency::Variable(variable) => {
-                    let state = self.solver.variable(variable)?;
-                    if state.solution.is_some() {
-                        continue;
-                    }
-
-                    (self.solver.origin(state.origin), Some(variable))
-                }
-                Dependency::SymbolType(symbol) => (Origin::Symbol(symbol), None),
-            };
-            origins.entry(origin).or_insert(variable);
+            if let Dependency::SymbolType(symbol) = dependency {
+                origins.entry(Origin::Symbol(symbol)).or_insert(None);
+            }
         }
 
-        self.report_cannot_infer_origins(origins)
+        // every remaining root is a genuine inference failure
+        let mut unresolved = Vec::new();
+        for index in 0..self.solver.variable_count() {
+            let variable = dir::TypeVariableId(index as u32);
+            let state = *self.solver.variable(variable)?;
+            if state.solution.is_none() {
+                let origin = self.solver.origin(state.origin);
+                origins.entry(origin).or_insert(Some(variable));
+                unresolved.push((variable, origin.module()));
+            }
+        }
+
+        self.report_cannot_infer_origins(origins)?;
+
+        // close failed inference graphs with the compiler error type
+        for (variable, module) in unresolved {
+            if self.solver.variable(variable)?.solution.is_some() {
+                continue;
+            }
+            let error = self.intern_type(module, dir::Type::Error)?;
+            self.commit_solution(variable, error)?;
+        }
+
+        Ok(())
     }
 
     /// Return the memory parameter kind one variable ranges over, however it arose.
@@ -175,16 +220,7 @@ impl CheckState<'_> {
         task: &Task,
     ) -> CompilerResult<Answer<TaskFailures>> {
         match task {
-            Task::Relate(constraint) => self.run_relate(*constraint),
-            Task::Check { site, expectation } => {
-                let mut body = self.body();
-                let checked = body.attempt_node(*site, PlaceUse::Read, Some(*expectation))?;
-
-                Ok(match checked {
-                    Answer::Ready(_) => Answer::Ready(TaskFailures::new()),
-                    Answer::Pending(blockers) => Answer::Pending(blockers),
-                })
-            }
+            Task::Relate(constraint) | Task::Check(constraint) => self.run_relate(*constraint),
             Task::Infer { site, use_ } => {
                 let mut body = self.body();
                 let checked = body.attempt_node(*site, *use_, None)?;
@@ -203,7 +239,6 @@ impl CheckState<'_> {
                 })
             }
             Task::Oblige(obligation) => self.run_obligation(*obligation),
-            Task::Solve { variable, mode } => self.solve_variable(*variable, *mode),
         }
     }
 
@@ -229,52 +264,74 @@ impl CheckState<'_> {
         }
 
         let constraint = *self.solver.constraints.get(id)?;
-        let check = match &constraint {
-            Constraint::Type(constraint) => self.check_type_constraint(
-                constraint.cause,
-                constraint.relation,
-                constraint.source,
-                constraint.target,
-            )?,
-            Constraint::Value(constraint) => {
-                // park check-only relations until their target closes
-                if constraint.is_check_only {
-                    let target = self.settled_root(constraint.target)?;
-                    let variables = self.type_variables(target)?;
-                    if !variables.is_empty() {
-                        let blockers: SmallVec<[Dependency; 2]> =
-                            variables.into_iter().map(Dependency::Variable).collect();
-
-                        return Ok(Answer::Pending(blockers));
-                    }
-                }
-
-                self.check_value_constraint(
+        let checked = match constraint {
+            Constraint::Type(constraint) => {
+                let check = self.check_type_constraint(
                     constraint.cause,
-                    self.solver.origin(constraint.value_origin),
                     constraint.relation,
                     constraint.source,
                     constraint.target,
-                )?
+                )?;
+
+                match check {
+                    Answer::Ready(check) => {
+                        Answer::Ready((constraint.source, constraint.target, check, None))
+                    }
+                    Answer::Pending(blockers) => Answer::Pending(blockers),
+                }
+            }
+            Constraint::Value(constraint) => {
+                let mut body = self.body();
+                let target = constraint.target;
+                match constraint.source {
+                    ValueSource::Node(node) => {
+                        let site = body.node_site(node)?;
+                        let expectation = Expectation {
+                            target,
+                            relation: constraint.relation,
+                            cause: constraint.cause,
+                            use_: constraint.use_,
+                        };
+                        let check = answer!(body.check_node_target(site, expectation)?);
+                        let source = answer!(body.node_type_at(site)?);
+
+                        Answer::Ready((source, target, check.outcome, Some(check.target)))
+                    }
+                    ValueSource::Type(source) => {
+                        let check = body.check_value_relation(
+                            constraint.cause,
+                            constraint.relation,
+                            source,
+                            target,
+                        )?;
+
+                        match check {
+                            Answer::Ready(check) => {
+                                Answer::Ready((source, target, check.outcome, Some(check.target)))
+                            }
+                            Answer::Pending(blockers) => Answer::Pending(blockers),
+                        }
+                    }
+                }
             }
         };
 
-        match check {
-            Answer::Ready(check) => {
+        match checked {
+            Answer::Ready((source, target, check, value_target)) => {
                 let mut failures = TaskFailures::new();
                 if let CheckOutcome::Fails(failure) = check {
                     failures.push(TaskFailure::Constraint(ConstraintFailure {
                         cause: constraint.cause(),
                         relation: constraint.relation(),
                         use_: constraint.value_use(),
-                        source: constraint.source(),
-                        target: constraint.target(),
+                        source,
+                        target,
                         failure,
                     }));
                 }
 
                 let state = check.state();
-                self.solver.set_constraint_state(id, state)?;
+                self.solver.set_constraint_result(id, state, value_target)?;
                 self.record_event(CheckEvent::RelationChecked {
                     constraint: id,
                     is_finished: true,
@@ -296,9 +353,34 @@ impl CheckState<'_> {
     /// Collect one constraint and schedule it.
     pub(in crate::check) fn push_constraint(&mut self, constraint: Constraint) -> ConstraintId {
         let id = self.solver.allocate_constraint(constraint);
-        self.queue_task(Task::Relate(id));
+        let task = match constraint {
+            Constraint::Value(constraint) if matches!(constraint.source, ValueSource::Node(_)) => {
+                Task::Check(id)
+            }
+            Constraint::Type(_) | Constraint::Value(_) => Task::Relate(id),
+        };
+        self.queue_task(task);
 
         id
+    }
+
+    /// Record one constraint that has already finished checking.
+    pub(in crate::check) fn record_constraint(
+        &mut self,
+        constraint: Constraint,
+        state: ConstraintState,
+        value_target: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<ConstraintId> {
+        if !state.is_done() {
+            return Err(CompilerError::Internal {
+                message: "recorded constraint is still pending".to_string(),
+            });
+        }
+
+        let id = self.solver.allocate_constraint(constraint);
+        self.solver.set_constraint_result(id, state, value_target)?;
+
+        Ok(id)
     }
 
     /// Queue one solver task.
@@ -318,13 +400,7 @@ impl CheckState<'_> {
         });
 
         for blocker in blockers {
-            let dependency = match *blocker {
-                Dependency::Variable(variable) => {
-                    Dependency::Variable(self.solver.representative(variable)?)
-                }
-                Dependency::SymbolType(symbol) => Dependency::SymbolType(symbol),
-            };
-            self.solver.wait_for(dependency, task.clone());
+            self.solver.wait_for(*blocker, task.clone());
         }
 
         Ok(())

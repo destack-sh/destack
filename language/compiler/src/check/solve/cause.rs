@@ -35,6 +35,11 @@ impl Cause {
             parent: Some(parent),
         }
     }
+
+    /// Return this cause at another source origin.
+    pub(in crate::check) fn with_origin(self, origin: Origin) -> Self {
+        Self { origin, ..self }
+    }
 }
 
 /// Why one judgment exists.
