@@ -191,10 +191,12 @@ impl ValueTag {
     pub const TENSOR_VIEW: Self = Self(13);
     /// One inline fixed-width vector.
     pub const VECTOR: Self = Self(14);
+    /// One legalized logical value spanning opaque register words.
+    pub const WORDS: Self = Self(15);
 
     /// Return whether this value category is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::VECTOR.0
+        self.0 <= Self::WORDS.0
     }
 }
 
@@ -285,6 +287,11 @@ impl ValueType {
             ty.lane_count,
             0,
         )
+    }
+
+    /// Create one legalized opaque register value.
+    pub const fn words(word_count: u16) -> Self {
+        Self::new(ValueTag::WORDS, 0, word_count, 0, 0)
     }
 
     /// Return the value representation category.
@@ -473,6 +480,24 @@ impl ValueType {
         }
     }
 
+    /// Replace object-local type and function type symbols.
+    pub fn map_symbols<E>(
+        self,
+        map_type: impl FnOnce(TypeId) -> Result<TypeId, E>,
+        map_function_type: impl FnOnce(FunctionTypeId) -> Result<FunctionTypeId, E>,
+    ) -> Result<Self, E> {
+        let symbol =
+            if self.is_slice() || self.is_dynamic() || self.is_tensor() || self.is_tensor_view() {
+                map_type(TypeId(self.symbol))?.0
+            } else if self.is_function() || self.is_function_pointer() {
+                map_function_type(FunctionTypeId(self.symbol))?.0
+            } else {
+                self.symbol
+            };
+
+        Ok(Self { symbol, ..self })
+    }
+
     /// Return whether this is an owning tensor handle.
     pub const fn is_tensor(self) -> bool {
         self.tag.0 == ValueTag::TENSOR.0
@@ -536,6 +561,12 @@ impl ValueType {
                 };
 
                 self.word_count == ty.word_count() && self.reference.bits() == 0 && self.symbol == 0
+            }
+            ValueTag::WORDS => {
+                self.scalar == 0
+                    && self.word_count != 0
+                    && self.lane_count == 0
+                    && self.has_no_qualifiers()
             }
             _ => false,
         }

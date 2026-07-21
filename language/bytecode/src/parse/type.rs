@@ -84,6 +84,17 @@ impl Parser<'_> {
                 Ok(ty)
             }
             "vector" => self.parse_vector(token.span),
+            "words" => {
+                self.eat_token(TokenType::LessThan)?;
+                let word_count = self.parse_u16()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                let ty = ValueType::words(word_count);
+                if !ty.is_defined() {
+                    return Err(ParseError::new("invalid word value type", token.span));
+                }
+
+                Ok(ty)
+            }
             _ => Err(ParseError::new("expected bytecode value type", token.span)),
         }
     }

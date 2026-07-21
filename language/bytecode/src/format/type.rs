@@ -48,6 +48,7 @@ impl<'a> BytecodeFormatContext<'a> {
                 .ok_or(FormatError::SyntaxError {
                     message: "bytecode object contains an invalid vector type",
                 }),
+            ValueTag::WORDS => Ok(format!("words<{}>", ty.word_count())),
             _ => Err(FormatError::SyntaxError {
                 message: "bytecode object contains an invalid value type",
             }),
