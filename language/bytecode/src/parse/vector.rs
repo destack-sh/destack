@@ -1,11 +1,10 @@
 use crate::{
-    ConvertMode, FloatOperation, IntegerOperation, Opcode, ParseError, ParseResult, Parser,
-    ReduceOperation, RegisterId, RegisterRange, Scalar, Token, TokenType, ValueType,
-    VectorOperation, VectorType,
+    ConvertMode, FloatOperation, InstructionBuilder, IntegerOperation, Opcode, ParseError,
+    ParseResult, Parser, ReduceOperation, RegisterId, RegisterRange, Scalar, Token, TokenType,
+    ValueType, VectorOperation, VectorType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one fixed width vector instruction.
@@ -15,7 +14,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match name {
             "splat" => self.parse_vector_splat(token, results, result_types, function),
@@ -37,7 +36,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let vector = self.vector_result(result_types, token)?;
         let value = self.parse_register()?;
@@ -67,7 +66,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let vector = self.vector_result(result_types, token)?;
         let vector_type = ValueType::vector(vector);
@@ -106,7 +105,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let input = self.parse_register()?;
         let vector = self.vector_type(function, input, token)?;
@@ -139,7 +138,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let vector = self.vector_result(result_types, token)?;
         let vector_type = ValueType::vector(vector);
@@ -181,7 +180,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let operator = self.eat_token(TokenType::Identifier)?;
         let operator_name = self.text(operator).to_string();
@@ -220,7 +219,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let vector = self.vector_result(result_types, token)?;
         let vector_type = ValueType::vector(vector);
@@ -253,7 +252,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let operator = self.eat_token(TokenType::Identifier)?;
         let (family, operation) = self
@@ -292,7 +291,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let target = self.vector_result(result_types, token)?;
         let mode = self.eat_token(TokenType::Identifier)?;
@@ -329,7 +328,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let vector = self.vector_result(result_types, token)?;
         let address = self.parse_register()?;
@@ -360,7 +359,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let vector = self.vector_result(result_types, token)?;
         let vector_type = ValueType::vector(vector);
@@ -419,7 +418,7 @@ impl Parser<'_> {
     /// Return one initialized vector register's representation.
     fn vector_type(
         &self,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         register: RegisterId,
         token: Token,
     ) -> ParseResult<VectorType> {

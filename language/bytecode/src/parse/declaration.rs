@@ -105,6 +105,12 @@ impl Parser<'_> {
         } else {
             1
         };
+        if alignment_bytes == 0 {
+            return Err(ParseError::new(
+                "constant alignment must be nonzero",
+                name.span,
+            ));
+        }
         self.eat_token(TokenType::Equal)?;
         self.eat_name("bytes")?;
         self.eat_token(TokenType::OpenParenthesis)?;

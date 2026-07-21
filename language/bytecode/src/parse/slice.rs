@@ -1,10 +1,9 @@
 use crate::{
-    Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar, Token, TokenType,
-    ValueTag, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar,
+    Token, TokenType, ValueTag, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one slice operation.
@@ -14,7 +13,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match Opcode::from_name(name) {
             Some(Opcode::SLICE_VIEW) => {
@@ -31,7 +30,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // match the initialized slice result
         let result_type = result_types
@@ -87,7 +86,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // match the initialized slice input
         let slice = self.parse_register()?;

@@ -1,10 +1,9 @@
 use crate::{
-    Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar, Symbol, Token, TokenType,
-    ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar, Symbol, Token,
+    TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one address operation.
@@ -13,7 +12,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match Opcode::from_name(name) {
             Some(Opcode::GLOBAL_ADDRESS) => self.parse_global_address(results, function),
@@ -29,7 +28,7 @@ impl Parser<'_> {
     fn parse_global_address(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // resolve the linked global
         let name = self.eat_token(TokenType::Identifier)?;
@@ -56,7 +55,7 @@ impl Parser<'_> {
     fn parse_frame_address(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse the dense frame slot
         let slot = self.eat_token(TokenType::Identifier)?;
@@ -88,7 +87,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse the base address
         let address = self.parse_register()?;
@@ -123,7 +122,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse the base and element index
         let address = self.parse_register()?;
@@ -164,7 +163,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse both addresses
         let left = self.parse_register()?;

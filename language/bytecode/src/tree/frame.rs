@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::TypeId;
 
-/// One logical local storage slot in a bytecode frame.
+/// One storage slot in a bytecode frame.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameSlot {

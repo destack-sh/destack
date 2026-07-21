@@ -1,11 +1,10 @@
 use crate::{
     AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, ExecutionScope, FenceAccess,
-    Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar, StorageSet, Token, TokenType,
-    ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar, StorageSet,
+    Token, TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one atomic memory instruction.
@@ -15,7 +14,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // fixed operations
         if name == "atomic.fence" {
@@ -32,7 +31,7 @@ impl Parser<'_> {
     fn parse_atomic_fence(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let order = self.parse_atomic_order()?;
         let scope = self.parse_optional_scope()?;
@@ -67,7 +66,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let opcode = if name == "atomic.wake" {
             Opcode::ATOMIC_WAKE
@@ -118,7 +117,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let (operation, scalar) = self.parse_atomic_name(name, token)?;
 
@@ -207,7 +206,7 @@ impl Parser<'_> {
         operation: AtomicOperation,
         scalar_type: ValueType,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<Option<RegisterId>> {
         if operation == AtomicOperation::Load {
             return Ok(None);
@@ -231,7 +230,7 @@ impl Parser<'_> {
         operation: AtomicOperation,
         scalar_type: ValueType,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<Option<RegisterId>> {
         if !operation.is_compare_exchange() {
             return Ok(None);
@@ -254,7 +253,7 @@ impl Parser<'_> {
         &mut self,
         operation: AtomicOperation,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<Option<RegisterId>> {
         if operation != AtomicOperation::WaitTimed {
             return Ok(None);

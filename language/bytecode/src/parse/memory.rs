@@ -1,10 +1,9 @@
 use crate::{
-    MemoryOperation, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar,
-    Token, TokenType, ValueType, VectorOperation,
+    InstructionBuilder, MemoryOperation, Opcode, ParseError, ParseResult, Parser, RegisterId,
+    RegisterRange, Scalar, Token, TokenType, ValueType, VectorOperation,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one memory operation.
@@ -14,7 +13,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // load one reference or vector from its declared result type
         if name == "load" {
@@ -56,7 +55,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let Some(ty) = result_types.first().copied() else {
             return Err(ParseError::new("load requires one result", token.span));
@@ -99,7 +98,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let address = self.parse_register()?;
         if !function.has_type(address, ValueType::address()) {
@@ -150,7 +149,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // select the scalar memory operation
         let operation = if name.starts_with("load.") {
@@ -207,7 +206,7 @@ impl Parser<'_> {
         opcode: Opcode,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse source, target, and byte length
         let source = self.parse_register()?;
@@ -240,7 +239,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse target, fill byte, and byte length
         let target = self.parse_register()?;
@@ -272,7 +271,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse both addresses and compared byte length
         let left = self.parse_register()?;
@@ -311,7 +310,7 @@ impl Parser<'_> {
         opcode: Opcode,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // require one native address
         let address = self.parse_register()?;

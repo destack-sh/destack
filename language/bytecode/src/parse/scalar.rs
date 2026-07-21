@@ -1,11 +1,10 @@
 use crate::{
-    BooleanOperation, CastOperation, FloatOperation, IntegerOperation, Opcode, ParseError,
-    ParseResult, Parser, RegisterId, RegisterRange, Scalar, Symbol, Token, TokenType, ValueTag,
-    ValueType,
+    BooleanOperation, CastOperation, FloatOperation, InstructionBuilder, IntegerOperation, Opcode,
+    ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar, Symbol, Token, TokenType,
+    ValueTag, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one literal selected by its declared result type.
@@ -13,7 +12,7 @@ impl Parser<'_> {
         &mut self,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let ty = *result_types
             .first()
@@ -68,7 +67,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         if name != "constant.bytes" {
             return Err(ParseError::new("unknown constant operation", token.span));
@@ -156,7 +155,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let input = self.parse_register()?;
         let source_type = function
@@ -200,7 +199,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let (family, operation_name) = name
             .split_once('.')
@@ -377,7 +376,7 @@ impl Parser<'_> {
         results: &[RegisterId],
         result_types: &[ValueType],
         inputs: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let is_signed = ty.tag() == ValueTag::INT128;
         let opcode = Opcode::integer128(operation, is_signed);

@@ -1,10 +1,9 @@
 use crate::{
-    New, NewKind, Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar, Symbol, Token,
-    TokenType, ValueType,
+    InstructionBuilder, New, NewKind, Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar,
+    Symbol, Token, TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one `new` instruction.
@@ -14,7 +13,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // match the result reference against the operation
         let operation = New::from_name(name)

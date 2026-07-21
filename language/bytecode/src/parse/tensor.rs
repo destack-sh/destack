@@ -1,11 +1,10 @@
 use crate::{
-    ConvertMode, FloatOperation, IndexReduceOperation, IntegerOperation, Opcode, ParseError,
-    ParseResult, Parser, ReduceOperation, RegisterId, RegisterRange, Scalar, ScatterOperation,
-    Symbol, TensorOperation, TieBreak, Token, TokenType, ValueType,
+    ConvertMode, FloatOperation, IndexReduceOperation, InstructionBuilder, IntegerOperation,
+    Opcode, ParseError, ParseResult, Parser, ReduceOperation, RegisterId, RegisterRange, Scalar,
+    ScatterOperation, Symbol, TensorOperation, TieBreak, Token, TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 /// Logical tensor operands collected while one instruction is parsed.
 #[derive(Debug, Default)]
@@ -22,7 +21,7 @@ struct TensorOperands {
 
 impl TensorOperands {
     /// Return whether every collected operand matches its tensor role.
-    fn matches(&self, function: &FunctionBuilder) -> bool {
+    fn matches(&self, function: &FunctionParser) -> bool {
         let are_tensors_valid = self.tensors.iter().all(|register| {
             function
                 .value_type(*register)
@@ -52,7 +51,7 @@ impl TensorOperands {
     }
 
     /// Return the common tensor value type when one was collected.
-    fn common_type(&self, function: &FunctionBuilder) -> Option<ValueType> {
+    fn common_type(&self, function: &FunctionParser) -> Option<ValueType> {
         self.same_type
             .first()
             .and_then(|register| function.value_type(*register))
@@ -67,7 +66,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let operation = self.resolve_tensor_operation(name, token)?;
         let mut instruction = InstructionBuilder::new(Opcode::tensor(operation));
@@ -181,7 +180,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
         mut instruction: InstructionBuilder,
         operands: TensorOperands,
     ) -> ParseResult<()> {
@@ -253,7 +252,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         result_scalar: Option<Scalar>,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -325,7 +324,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         result_scalar: Option<Scalar>,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -395,7 +394,7 @@ impl Parser<'_> {
     fn parse_tensor_index_reduce(
         &mut self,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -584,7 +583,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         result_scalar: Option<Scalar>,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -746,7 +745,7 @@ impl Parser<'_> {
         operation: TensorOperation,
         token: Token,
         result_scalar: Option<Scalar>,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -779,7 +778,7 @@ impl Parser<'_> {
     fn parse_tensor_store(
         &mut self,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -811,7 +810,7 @@ impl Parser<'_> {
     fn parse_tensor_fill(
         &mut self,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -834,7 +833,7 @@ impl Parser<'_> {
     fn parse_tensor_copy(
         &mut self,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -864,7 +863,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         result_types: &[ValueType],
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -894,7 +893,7 @@ impl Parser<'_> {
     fn parse_tensor_view_input(
         &mut self,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
     ) -> ParseResult<RegisterId> {
         let view = self.parse_register()?;

@@ -1,12 +1,11 @@
 use destack_core::{EntryRange, LocalStringPool, Optional, SectionBuilder, StringId};
 
+use crate::tree::object::Root;
 use crate::{
-    CodeRange, Constant, ConstantId, ConstantRelocation, FrameSlot, Function, FunctionId,
-    FunctionType, FunctionTypeId, Global, GlobalId, InstructionRelocation, Object, StringEntry,
-    Type, TypeId, ValueType,
+    CodeOffset, CodeRange, Constant, ConstantId, ConstantRelocation, FrameSlot, Function,
+    FunctionId, FunctionType, FunctionTypeId, Global, GlobalId, InstructionRelocation, Object,
+    StringEntry, Type, TypeId, ValueType,
 };
-
-use super::object::Root;
 
 /// Bytecode object under construction.
 #[derive(Debug, Default)]
@@ -38,6 +37,8 @@ pub struct ObjectBuilder {
     instruction_relocations: Vec<InstructionRelocation>,
     /// Relocations inside constant bytes.
     constant_relocations: Vec<ConstantRelocation>,
+    /// Function-relative byte offsets for logical operations.
+    operation_offsets: Vec<CodeOffset>,
 }
 
 impl ObjectBuilder {
@@ -98,7 +99,7 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set logical frame slots.
+    /// Set frame slots.
     pub fn frame_slots(mut self, frame_slots: impl IntoIterator<Item = FrameSlot>) -> Self {
         self.frame_slots = frame_slots.into_iter().collect();
 
@@ -137,6 +138,24 @@ impl ObjectBuilder {
         self.constant_relocations = relocations.into_iter().collect();
 
         self
+    }
+
+    /// Set function-relative logical operation offsets.
+    pub fn operation_offsets(mut self, offsets: impl IntoIterator<Item = CodeOffset>) -> Self {
+        self.operation_offsets = offsets.into_iter().collect();
+
+        self
+    }
+
+    /// Append logical operation offsets and return their range.
+    pub(crate) fn push_operation_offsets(
+        &mut self,
+        offsets: impl IntoIterator<Item = CodeOffset>,
+    ) -> EntryRange<CodeOffset> {
+        let start = self.operation_offsets.len();
+        self.operation_offsets.extend(offsets);
+
+        EntryRange::new(start as u32, (self.operation_offsets.len() - start) as u32)
     }
 
     /// Intern one stable string and return its content id.
@@ -180,7 +199,7 @@ impl ObjectBuilder {
         self.constants.len()
     }
 
-    /// Append one immutable constant and return its object-local id.
+    /// Append one nonzero-aligned immutable constant and return its object-local id.
     pub(crate) fn push_constant(
         &mut self,
         name: Optional<StringId>,
@@ -188,13 +207,16 @@ impl ObjectBuilder {
         bytes: impl AsRef<[u8]>,
     ) -> ConstantId {
         let bytes = bytes.as_ref();
+        let alignment_bytes = alignment_bytes as usize;
+        let aligned_byte_len = self.constant_bytes.len().next_multiple_of(alignment_bytes);
+        self.constant_bytes.resize(aligned_byte_len, 0);
         let start = self.constant_bytes.len() as u32;
         let range = EntryRange::new(start, bytes.len() as u32);
         let id = ConstantId(self.constants.len() as u32);
         self.constant_bytes.extend_from_slice(bytes);
         self.constants.push(Constant {
             name,
-            alignment_bytes,
+            alignment_bytes: alignment_bytes as u32,
             bytes: range,
         });
 
@@ -212,12 +234,12 @@ impl ObjectBuilder {
             .push(relocation.rebase(constant.bytes.start));
     }
 
-    /// Return the number of logical frame slots.
+    /// Return the number of frame slots.
     pub(crate) fn frame_slot_count(&self) -> usize {
         self.frame_slots.len()
     }
 
-    /// Append one logical frame slot.
+    /// Append one frame slot.
     pub(crate) fn push_frame_slot(&mut self, slot: FrameSlot) {
         self.frame_slots.push(slot);
     }
@@ -323,6 +345,7 @@ impl ObjectBuilder {
         let code = sections.insert(self.code);
         let instruction_relocations = sections.insert(self.instruction_relocations);
         let constant_relocations = sections.insert(self.constant_relocations);
+        let operation_offsets = sections.insert(self.operation_offsets);
 
         // finalize the fixed root after all section offsets are known
         root.byte_len = sections.view().byte_len() as u64;
@@ -341,6 +364,7 @@ impl ObjectBuilder {
         root.code = code;
         root.instruction_relocations = instruction_relocations;
         root.constant_relocations = constant_relocations;
+        root.operation_offsets = operation_offsets;
         sections.replace(root_section, [root]);
         let storage = sections.build();
 

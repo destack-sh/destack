@@ -2,11 +2,11 @@ use crate::{
     Label, ParseError, ParseResult, Parser, RegisterId, Scalar, Token, TokenType, ValueType,
 };
 
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse and append one complete bytecode instruction.
-    pub(super) fn parse_instruction(&mut self, function: &mut FunctionBuilder) -> ParseResult<()> {
+    pub(super) fn parse_instruction(&mut self, function: &mut FunctionParser) -> ParseResult<()> {
         // parse the optional result declaration
         let (results, result_types) = self.parse_instruction_results()?;
         if self.is_literal(&result_types) {
@@ -36,7 +36,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // dispatch operations by their ISA family
         let family = name.split_once('.').map_or(name, |(family, _)| family);

@@ -1,10 +1,9 @@
 use crate::{
-    Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId, RegisterRange, Scalar,
-    Symbol, Token, TokenType, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId,
+    RegisterRange, Scalar, Symbol, Token, TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one reference lifetime or storage operation.
@@ -13,7 +12,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match Opcode::from_name(name) {
             Some(Opcode::NEW_COMPLETE) => self.parse_new_complete(token, results, function),
@@ -34,7 +33,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // derive the initialized form from the source value
         let input = self.parse_register()?;
@@ -64,7 +63,7 @@ impl Parser<'_> {
         opcode: Opcode,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // derive the exact ownership required by this transition
         let value = self.parse_register()?;
@@ -102,7 +101,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // match one address or initialized reference
         let value = self.parse_register()?;
@@ -133,7 +132,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // parse the managed object and changed byte range
         let object = self.parse_register()?;

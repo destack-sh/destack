@@ -3,6 +3,14 @@ use std::fmt;
 /// A malformed bytecode instruction stream.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
+    /// The instruction destinations do not match its opcode.
+    InvalidResults,
+    /// The instruction destinations are not one contiguous register range.
+    NoncontiguousResults,
+    /// A branch label is not defined in dense declaration order.
+    InvalidLabel(u32),
+    /// A branch references an undefined label.
+    UnknownLabel(u32),
     /// The instruction header or body is truncated.
     TruncatedInstruction,
     /// The instruction byte length is invalid.
@@ -24,6 +32,19 @@ impl fmt::Display for Error {
     /// Format this bytecode error.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidResults => {
+                formatter.write_str("instruction results do not match its opcode")
+            }
+            Self::NoncontiguousResults => {
+                formatter.write_str("instruction results are not contiguous")
+            }
+            Self::InvalidLabel(label) => {
+                write!(
+                    formatter,
+                    "bytecode label l{label} is not dense and ordered"
+                )
+            }
+            Self::UnknownLabel(label) => write!(formatter, "unknown bytecode label l{label}"),
             Self::TruncatedInstruction => formatter.write_str("truncated bytecode instruction"),
             Self::InvalidInstructionLength(byte_len) => {
                 write!(formatter, "invalid bytecode instruction length {byte_len}")

@@ -1,10 +1,9 @@
 use crate::{
-    Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar, Symbol, Token,
-    TokenType, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar,
+    Symbol, Token, TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one register value operation.
@@ -13,7 +12,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match Opcode::from_name(name) {
             Some(Opcode::MOVE) => self.parse_move(token, results, function),
@@ -29,7 +28,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let input = self.parse_register()?;
         let ty = function
@@ -56,7 +55,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let condition = self.parse_register()?;
         if !function.has_type(condition, ValueType::scalar(Scalar::Boolean)) {
@@ -103,7 +102,7 @@ impl Parser<'_> {
     fn parse_type_id(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let ty = self.parse_type_name()?;
         let mut instruction = InstructionBuilder::new(Opcode::TYPE_ID);
@@ -122,7 +121,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let left = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;

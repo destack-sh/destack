@@ -1,10 +1,9 @@
 use crate::{
-    CounterId, Opcode, ParseError, ParseResult, Parser, RegisterId, SamplerId, Token, TokenType,
-    ValueType,
+    CounterId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, SamplerId,
+    Token, TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one explicit profile operation.
@@ -13,7 +12,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let opcode = Opcode::from_name(name)
             .ok_or_else(|| ParseError::new("unknown profile operation", token.span))?;
@@ -25,7 +24,6 @@ impl Parser<'_> {
             self.eat_token(TokenType::OpenParenthesis)?;
             let counter = CounterId(self.parse_u32()?);
             self.eat_token(TokenType::CloseParenthesis)?;
-            function.include_counter(counter);
             instruction.counter(counter);
         }
         // sample one function-local sampler
@@ -34,7 +32,6 @@ impl Parser<'_> {
             self.eat_token(TokenType::OpenParenthesis)?;
             let sampler = SamplerId(self.parse_u32()?);
             self.eat_token(TokenType::CloseParenthesis)?;
-            function.include_sampler(sampler);
             instruction.sampler(sampler);
             self.eat_token(TokenType::Comma)?;
             let value = self.parse_register()?;

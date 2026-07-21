@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
                         .function_declarations
                         .push(super::symbol::FunctionDeclaration {
                             function_type,
-                            resume: Vec::new(),
+                            resume_parameters: Vec::new(),
                         });
                 }
                 "global" => {

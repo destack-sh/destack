@@ -1,6 +1,5 @@
 mod address;
 mod atomic;
-mod builder;
 mod call;
 mod control;
 mod cursor;

@@ -39,8 +39,8 @@ pub(super) struct FunctionTypeDefinition {
 pub(super) struct FunctionDeclaration {
     /// The canonical callable type.
     pub(super) function_type: FunctionTypeId,
-    /// The values delivered when the function resumes.
-    pub(super) resume: Vec<ValueType>,
+    /// The parameters delivered when the function resumes.
+    pub(super) resume_parameters: Vec<ValueType>,
 }
 
 impl SymbolTable {

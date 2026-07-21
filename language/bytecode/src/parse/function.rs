@@ -1,73 +1,39 @@
 use destack_core::{EntryRange, Optional, fnv1a_64};
-use destack_source::{FileId, Span};
+use destack_source::Span;
 
+use super::symbol::FunctionTypeDefinition;
 use crate::{
-    CodeOffset, CounterId, FrameSlot, Function, FunctionTypeId, Instruction, InstructionRelocation,
-    Label, Linkage, Opcode, Operand, ParseError, ParseResult, Parser, RegisterId, RegisterRange,
-    SamplerId, Symbol, Token, TokenType, ValueType,
+    FrameSlot, Function, FunctionBuilder, FunctionTypeId, InstructionBuilder, Label, Linkage,
+    Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Symbol, Token, TokenType,
+    ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::symbol::FunctionTypeDefinition;
-
-/// Mutable state for one bytecode function definition.
+/// Parser state for one bytecode function definition.
 #[derive(Debug)]
-pub(super) struct FunctionBuilder {
-    /// Source file identity for bytecode errors.
-    pub(super) file_id: FileId,
-    /// Encoded function bytes.
-    pub(super) code: Vec<u8>,
-    /// Label byte offsets.
-    pub(super) labels: Vec<CodeOffset>,
-    /// Branch operands awaiting label resolution.
-    pub(super) branches: Vec<BranchFixup>,
-    /// Symbol operands awaiting object linking.
-    pub(super) relocations: Vec<InstructionRelocation>,
-    /// Greatest register index plus one.
-    pub(super) register_count: u16,
-    /// Greatest profile counter index plus one.
-    pub(super) counter_count: u32,
-    /// Greatest profile sampler index plus one.
-    pub(super) sampler_count: u32,
+pub(super) struct FunctionParser {
+    /// Physical bytecode function builder.
+    pub(super) builder: FunctionBuilder,
     /// The frame slots declared before the function body.
     pub(super) frame_slot_count: u32,
     /// Register types established by parameters and instructions.
     pub(super) register_types: Vec<Option<ValueType>>,
     /// Logical function result types in return order.
     pub(super) results: Vec<ValueType>,
-    /// Logical values delivered when this function resumes.
-    pub(super) resume: Vec<ValueType>,
+    /// Logical parameters delivered when this function resumes.
+    pub(super) resume_parameters: Vec<ValueType>,
     /// The hidden callable environment type when present.
     pub(super) environment: Option<ValueType>,
 }
 
-/// One branch operand awaiting label resolution.
-#[derive(Debug)]
-pub(super) struct BranchFixup {
-    /// The target label.
-    pub(super) label: Label,
-    /// The branch operand byte inside the function code.
-    pub(super) byte_offset: usize,
-    /// The end of the containing instruction.
-    pub(super) instruction_end: usize,
-}
-
-impl FunctionBuilder {
-    /// Create one empty function builder.
-    pub(super) fn new(file_id: FileId) -> Self {
+impl FunctionParser {
+    /// Create parser state for one empty function.
+    pub(super) fn new() -> Self {
         Self {
-            file_id,
-            code: Vec::new(),
-            labels: Vec::new(),
-            branches: Vec::new(),
-            relocations: Vec::new(),
-            register_count: 0,
-            counter_count: 0,
-            sampler_count: 0,
+            builder: FunctionBuilder::new(),
             frame_slot_count: 0,
             register_types: Vec::new(),
             results: Vec::new(),
-            resume: Vec::new(),
+            resume_parameters: Vec::new(),
             environment: None,
         }
     }
@@ -93,17 +59,8 @@ impl FunctionBuilder {
             .zip(result_types)
             .map(|(register, ty)| RegisterRange::new(*register, ty.word_count()))
             .collect::<Vec<_>>();
-        let result_bytes = Self::encode_results(instruction.opcode, &definitions, span)?;
 
-        // include every physical register touched by the instruction
-        for range in definitions.iter().chain(&instruction.ranges) {
-            self.include_range(*range);
-        }
-        for register in &instruction.registers {
-            self.include(*register);
-        }
-
-        // reject reads outside initialized register words
+        // require initialized register operands
         for register in &instruction.registers {
             if !self.contains_word(*register) {
                 return Err(ParseError::new(
@@ -113,7 +70,7 @@ impl FunctionBuilder {
             }
         }
 
-        // match logical ranges against initialized values
+        // require initialized register ranges
         for range in &instruction.ranges {
             if !self.contains_range(*range) {
                 return Err(ParseError::new(
@@ -123,7 +80,7 @@ impl FunctionBuilder {
             }
         }
 
-        // establish every logical result type
+        // establish each result before physical emission
         if !self.assign_values(results, result_types) {
             return Err(ParseError::new(
                 "instruction result overlaps another register value",
@@ -131,147 +88,12 @@ impl FunctionBuilder {
             ));
         }
 
-        // assemble results before operation operands
-        let mut operands = result_bytes;
-        let result_byte_len = operands.len();
-        operands.extend_from_slice(&instruction.bytes);
-        Instruction::pack(instruction.opcode, &operands, &mut self.code)
+        self.builder.begin_operation();
+        self.builder
+            .emit(instruction, &definitions)
             .map_err(|error| ParseError::new(error.to_string(), span))?;
-        let instruction_end = self.code.len();
-        let operand_base = instruction_end - operands.len();
-
-        // retain symbolic operands for object linking
-        for symbol in instruction.symbols {
-            let byte_offset = (operand_base + result_byte_len + symbol.byte_offset) as u32;
-            self.relocations
-                .push(InstructionRelocation::new(byte_offset, symbol.symbol));
-        }
-
-        // retain branch labels for displacement resolution
-        for (byte_offset, label) in instruction.branches {
-            self.branches.push(BranchFixup {
-                label,
-                byte_offset: operand_base + result_byte_len + byte_offset,
-                instruction_end,
-            });
-        }
 
         Ok(())
-    }
-
-    /// Encode destination operands from one opcode layout.
-    fn encode_results(
-        opcode: Opcode,
-        definitions: &[RegisterRange],
-        span: Span,
-    ) -> ParseResult<Vec<u8>> {
-        let layout = opcode
-            .layout()
-            .ok_or_else(|| ParseError::new("unknown bytecode operation", span))?;
-        let result_operands = layout
-            .operands()
-            .iter()
-            .copied()
-            .take_while(|operand| matches!(operand, Operand::Result | Operand::ResultRange))
-            .collect::<Vec<_>>();
-        let mut bytes = Vec::new();
-        let mut definition_index = 0;
-
-        // encode each declared destination in layout order
-        for (operand_index, operand) in result_operands.iter().enumerate() {
-            let definition = definitions.get(definition_index).ok_or_else(|| {
-                ParseError::new(
-                    "instruction result count does not match its operation",
-                    span,
-                )
-            })?;
-            if *operand == Operand::Result && definition.word_count != 1 {
-                return Err(ParseError::new(
-                    "instruction result width does not match its operation",
-                    span,
-                ));
-            }
-
-            bytes.extend_from_slice(&definition.start.0.to_le_bytes());
-            if *operand == Operand::ResultRange {
-                let is_final_operand = operand_index + 1 == result_operands.len();
-                let word_count = if is_final_operand {
-                    Self::packed_word_count(&definitions[definition_index..], span)?
-                } else {
-                    definition.word_count
-                };
-                bytes.extend_from_slice(&word_count.to_le_bytes());
-                definition_index = if is_final_operand {
-                    definitions.len()
-                } else {
-                    definition_index + 1
-                };
-            } else {
-                definition_index += 1;
-            }
-        }
-
-        // reject destinations beyond the opcode layout
-        if definition_index != definitions.len() {
-            return Err(ParseError::new(
-                "instruction result count does not match its operation",
-                span,
-            ));
-        }
-
-        Ok(bytes)
-    }
-
-    /// Return the physical width of contiguous logical results.
-    fn packed_word_count(definitions: &[RegisterRange], span: Span) -> ParseResult<u16> {
-        let Some(first) = definitions.first() else {
-            return Err(ParseError::new(
-                "instruction result count does not match its operation",
-                span,
-            ));
-        };
-        let mut end = u32::from(first.start.0);
-
-        // consume each logical result without gaps
-        for definition in definitions {
-            if u32::from(definition.start.0) != end {
-                return Err(ParseError::new(
-                    "instruction results are not contiguous",
-                    span,
-                ));
-            }
-            end += u32::from(definition.word_count);
-        }
-
-        u16::try_from(end - u32::from(first.start.0))
-            .map_err(|_| ParseError::new("instruction result range is too wide", span))
-    }
-
-    /// Include one register in this function's fixed register file.
-    pub(super) fn include(&mut self, register: RegisterId) {
-        self.register_count = self.register_count.max(register.0 + 1);
-        self.register_types
-            .resize(self.register_count as usize, None);
-    }
-
-    /// Include every register in one contiguous range.
-    pub(super) fn include_range(&mut self, range: RegisterRange) {
-        if range.word_count == 0 {
-            return;
-        }
-
-        let last = RegisterId(range.start.0 + range.word_count - 1);
-        self.include(last);
-    }
-
-    /// Include one function-local profile counter.
-    pub(super) fn include_counter(&mut self, counter: CounterId) {
-        self.counter_count = self.counter_count.max(counter.0 + 1);
-    }
-
-    /// Include one function-local profile sampler.
-    pub(super) fn include_sampler(&mut self, sampler: SamplerId) {
-        self.sampler_count = self.sampler_count.max(sampler.0 + 1);
     }
 
     /// Assign one logical value type to contiguous registers.
@@ -281,10 +103,12 @@ impl FunctionBuilder {
             return false;
         }
         let end = end as u16;
-        self.register_count = self.register_count.max(end);
         if !Self::assign_type(&mut self.register_types, register, ty) {
             return false;
         }
+        let range = RegisterRange::new(register, end - register.0);
+        self.builder.reserve(range);
+
         true
     }
 
@@ -340,39 +164,18 @@ impl FunctionBuilder {
     pub(super) fn contains_range(&self, range: RegisterRange) -> bool {
         let start = u32::from(range.start.0);
         let end = start + u32::from(range.word_count);
+        if end > u32::from(u16::MAX) {
+            return false;
+        }
 
         (start..end).all(|register| self.contains_word(RegisterId(register as u16)))
     }
 
     /// Define one branch label at the current code offset.
     pub(super) fn define_label(&mut self, label: Label, span: Span) -> ParseResult<()> {
-        let offset = CodeOffset(self.code.len() as u32);
-        if label.index() != self.labels.len() {
-            return Err(ParseError::new("labels must be dense and ordered", span));
-        }
-        self.labels.push(offset);
-
-        Ok(())
-    }
-
-    /// Resolve all branch labels into signed end-relative displacements.
-    pub(super) fn resolve_branches(&mut self) -> ParseResult<()> {
-        for branch in &self.branches {
-            let Some(target) = self.labels.get(branch.label.index()) else {
-                return Err(ParseError::new(
-                    format!("unknown label '{}'", branch.label),
-                    Span::empty(self.file_id),
-                ));
-            };
-            let displacement = target.index() as i64 - branch.instruction_end as i64;
-            let displacement = i32::try_from(displacement).map_err(|_| {
-                ParseError::new("branch displacement exceeds i32", Span::empty(self.file_id))
-            })?;
-            self.code[branch.byte_offset..branch.byte_offset + 4]
-                .copy_from_slice(&displacement.to_le_bytes());
-        }
-
-        Ok(())
+        self.builder
+            .define(label)
+            .map_err(|error| ParseError::new(error.to_string(), span))
     }
 
     /// Assign one logical type without overlapping another logical value.
@@ -426,9 +229,10 @@ impl Parser<'_> {
         let name = self.eat_token(TokenType::Identifier)?;
         let text = self.text(name).to_string();
         let id = self.function_symbol(&text, name.span)?;
-        let mut function = FunctionBuilder::new(self.cursor.file_id);
-        let (definition, resume) = self.parse_function_header(linkage, name.span, &mut function)?;
-        self.symbols.function_declarations[id.index()].resume = resume;
+        let mut function = FunctionParser::new();
+        let (definition, resume_parameters) =
+            self.parse_function_header(linkage, name.span, &mut function)?;
+        self.symbols.function_declarations[id.index()].resume_parameters = resume_parameters;
 
         // reuse one canonical id for every identical function type
         if let Some(index) = self
@@ -470,11 +274,12 @@ impl Parser<'_> {
         }
 
         // parse the indexed function header
-        let mut function = FunctionBuilder::new(self.cursor.file_id);
-        let (parsed, resume) = self.parse_function_header(linkage, name.span, &mut function)?;
-        if resume != self.symbols.function_declarations[id.index()].resume {
+        let mut function = FunctionParser::new();
+        let (parsed, resume_parameters) =
+            self.parse_function_header(linkage, name.span, &mut function)?;
+        if resume_parameters != self.symbols.function_declarations[id.index()].resume_parameters {
             return Err(ParseError::new(
-                "resume types changed after indexing",
+                "resume parameters changed after indexing",
                 name.span,
             ));
         }
@@ -486,7 +291,7 @@ impl Parser<'_> {
             ));
         }
         function.results.clone_from(&parsed.results);
-        function.resume.clone_from(&resume);
+        function.resume_parameters.clone_from(&resume_parameters);
         if linkage == Linkage::EXTERNAL {
             let function = Function::new(
                 self.object.intern_string(&text),
@@ -494,7 +299,8 @@ impl Parser<'_> {
                 EntryRange::empty(),
                 linkage,
                 Optional::none(),
-                function.register_count,
+                function.builder.register_count(),
+                EntryRange::empty(),
                 EntryRange::empty(),
                 Optional::none(),
                 0,
@@ -508,7 +314,7 @@ impl Parser<'_> {
 
         self.eat_token(TokenType::OpenBrace)?;
         let slot_start = self.object.frame_slot_count() as u32;
-        let resume = self.object.push_value_types(resume);
+        let resume_parameters = self.object.push_value_types(resume_parameters);
 
         // parse the complete logical frame first
         while self.peek_name("slot") {
@@ -534,28 +340,39 @@ impl Parser<'_> {
             }
         }
 
-        // resolve every control-flow label
-        function.resolve_branches()?;
         let slot_len = self.object.frame_slot_count() as u32 - slot_start;
 
-        // append the encoded body to the object code section
-        let code_hash = fnv1a_64(&function.code);
+        // finish the physical function body
+        let environment = function.environment;
+        let body = function
+            .builder
+            .build()
+            .map_err(|error| ParseError::new(error.to_string(), self.empty_span()))?;
+
+        // append the body to the object code section
+        let code_hash = fnv1a_64(&body.code);
         let code = self
             .object
-            .push_code(&function.code, function.relocations.iter().copied());
+            .push_code(&body.code, body.relocations.iter().copied());
+
+        // retain function-relative logical operation offsets
+        let operation_offsets = self
+            .object
+            .push_operation_offsets(body.operation_offsets.iter().copied());
 
         // publish the complete function row
         let function = Function::new(
             self.object.intern_string(&text),
             function_type,
-            resume,
+            resume_parameters,
             linkage,
-            Optional::from(function.environment),
-            function.register_count,
+            Optional::from(environment),
+            body.register_count,
             EntryRange::new(slot_start, slot_len),
+            operation_offsets,
             Optional::some(code),
-            function.counter_count,
-            function.sampler_count,
+            body.counter_count,
+            body.sampler_count,
             code_hash,
         );
         self.object.push_function(function);
@@ -568,14 +385,14 @@ impl Parser<'_> {
         &mut self,
         linkage: Linkage,
         span: Span,
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<(FunctionTypeDefinition, Vec<ValueType>)> {
         let parameters = if linkage == Linkage::EXTERNAL {
             self.parse_value_types()?
         } else {
             self.parse_parameters(function)?
         };
-        let resume = self.parse_resume_types()?;
+        let resume = self.parse_resume_parameters()?;
         if linkage == Linkage::EXTERNAL && !resume.is_empty() {
             return Err(ParseError::new("external functions cannot resume", span));
         }
@@ -592,7 +409,7 @@ impl Parser<'_> {
     }
 
     /// Parse the logical values delivered when this function resumes.
-    fn parse_resume_types(&mut self) -> ParseResult<Vec<ValueType>> {
+    fn parse_resume_parameters(&mut self) -> ParseResult<Vec<ValueType>> {
         if !self.eat_name_if("resume") {
             return Ok(Vec::new());
         }
@@ -601,7 +418,7 @@ impl Parser<'_> {
     }
 
     /// Parse logical function parameters and assign their physical registers.
-    fn parse_parameters(&mut self, function: &mut FunctionBuilder) -> ParseResult<Vec<ValueType>> {
+    fn parse_parameters(&mut self, function: &mut FunctionParser) -> ParseResult<Vec<ValueType>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut parameters = Vec::new();
         while !self.eat_token_if(TokenType::CloseParenthesis) {
@@ -624,7 +441,7 @@ impl Parser<'_> {
             }
 
             // pack parameters into the function's leading register window
-            if register.0 != function.register_count {
+            if register.0 != function.builder.register_count() {
                 return Err(ParseError::new(
                     "function parameters must occupy one contiguous register window",
                     self.previous().span,
@@ -666,7 +483,7 @@ impl Parser<'_> {
         Ok(vec![result])
     }
 
-    /// Parse one logical frame slot.
+    /// Parse one frame slot.
     fn parse_frame_slot(&mut self, slot_index: u32) -> ParseResult<()> {
         self.eat_name("slot")?;
         let slot = self.eat_token(TokenType::Identifier)?;
@@ -731,7 +548,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match Opcode::from_name(name) {
             Some(Opcode::FUNCTION_ADDRESS) => self.parse_function_address(results, function),
@@ -753,7 +570,7 @@ impl Parser<'_> {
     fn parse_function_address(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let name = self.eat_token(TokenType::Identifier)?;
         let target = self.function_symbol(self.text(name), name.span)?;
@@ -775,7 +592,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let result_type = result_types
             .first()
@@ -827,7 +644,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let value = self.parse_register()?;
         let value_type = function
@@ -856,7 +673,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let result_type = result_types
             .first()
@@ -888,7 +705,7 @@ impl Parser<'_> {
         token: Token,
         results: &[RegisterId],
         result_types: &[ValueType],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let result_type = result_types
             .first()

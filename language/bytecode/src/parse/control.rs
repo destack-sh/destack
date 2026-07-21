@@ -1,10 +1,10 @@
 use crate::{
-    Comparison, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId, RegisterRange,
-    Scalar, ScalarCheck, Space, Symbol, Token, TokenType, Trap, ValueType,
+    Comparison, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind,
+    RegisterId, RegisterRange, Scalar, ScalarCheck, Space, Symbol, Token, TokenType, Trap,
+    ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse one control operation.
@@ -13,7 +13,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let opcode = Opcode::from_name(name)
             .ok_or_else(|| ParseError::new("unknown control operation", token.span))?;
@@ -46,7 +46,7 @@ impl Parser<'_> {
     fn parse_jump(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let mut instruction = InstructionBuilder::new(Opcode::JUMP);
         instruction.branch(self.parse_label()?);
@@ -59,7 +59,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let condition = self.parse_register()?;
         if !function.has_type(condition, ValueType::scalar(Scalar::Boolean)) {
@@ -89,7 +89,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let value = self.parse_register()?;
         let is_integer = function
@@ -135,9 +135,9 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let resume = function.resume.clone();
+        let resume_parameters = function.resume_parameters.clone();
 
         // parse yielded logical values
         let values = if self.peek_is(TokenType::FatArrow) {
@@ -165,7 +165,7 @@ impl Parser<'_> {
         instruction.branch(resume_label);
         instruction.branch(unwind_label);
 
-        function.emit(instruction, results, &resume, self.empty_span())
+        function.emit(instruction, results, &resume_parameters, self.empty_span())
     }
 
     /// Parse one function return.
@@ -173,7 +173,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let values = if self.peek_is(TokenType::CloseBrace) || self.is_label() {
             Vec::new()
@@ -202,7 +202,7 @@ impl Parser<'_> {
     fn parse_trap(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let reason = self.eat_token(TokenType::Identifier)?;
         let reason = Trap::from_name(self.text(reason))
@@ -217,7 +217,7 @@ impl Parser<'_> {
     fn parse_panic(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let instruction = if self.is_register() {
             let mut instruction = InstructionBuilder::new(Opcode::PANIC_VALUE);
@@ -235,7 +235,7 @@ impl Parser<'_> {
     fn parse_catch(
         &mut self,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let instruction = InstructionBuilder::new(Opcode::CATCH);
         let ty = ValueType::reference(ReferenceKind::MANAGED, Space::LOCAL);
@@ -248,7 +248,7 @@ impl Parser<'_> {
         &mut self,
         opcode: Opcode,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let instruction = InstructionBuilder::new(opcode);
 
@@ -261,7 +261,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let name = name
             .strip_prefix("check.")
@@ -285,7 +285,7 @@ impl Parser<'_> {
     fn parse_null_check(
         &mut self,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<InstructionBuilder> {
         let value = self.parse_register()?;
         let value_type = function.value_type(value).ok_or_else(|| {
@@ -309,7 +309,7 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<InstructionBuilder> {
         let value = self.parse_register()?;
         if !function.has_type(value, ValueType::type_id()) {
@@ -341,7 +341,7 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<InstructionBuilder> {
         // parse the operation and scalar suffix
         let (operation_name, scalar_name) = name
@@ -425,7 +425,7 @@ impl Parser<'_> {
         ty: ValueType,
         message: &'static str,
         token: Token,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<RegisterId> {
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register()?;
@@ -442,7 +442,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // resolve the exact comparison and scalar suffix
         let mut components = name.split('.');

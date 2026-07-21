@@ -1,10 +1,9 @@
 use crate::{
-    FunctionId, FunctionTypeId, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange,
-    Symbol, Token, TokenType, ValueType,
+    FunctionId, FunctionTypeId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser,
+    RegisterId, RegisterRange, Symbol, Token, TokenType, ValueType,
 };
 
-use super::builder::InstructionBuilder;
-use super::function::FunctionBuilder;
+use super::function::FunctionParser;
 
 /// One parsed bytecode call target.
 #[derive(Clone, Copy, Debug)]
@@ -133,7 +132,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
-        function: &mut FunctionBuilder,
+        function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let is_tail = name.starts_with("tail.");
         let is_invoke = name.starts_with("invoke");
@@ -193,7 +192,7 @@ impl Parser<'_> {
     fn parse_call_target(
         &mut self,
         name: &str,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<(CallTarget, Vec<RegisterId>)> {
         // direct target
         if matches!(name, "call" | "invoke" | "tail.call") {
@@ -226,7 +225,7 @@ impl Parser<'_> {
     /// Parse one function value or function pointer call target.
     fn parse_indirect_call_target(
         &mut self,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<(CallTarget, Vec<RegisterId>)> {
         let register = self.parse_register()?;
         let arguments = self.parse_argument_registers()?;
@@ -263,7 +262,7 @@ impl Parser<'_> {
     fn parse_dispatch_call_target(
         &mut self,
         name: &str,
-        function: &FunctionBuilder,
+        function: &FunctionParser,
     ) -> ParseResult<(CallTarget, Vec<RegisterId>)> {
         let receiver = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
