@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-#[cfg(not(target_arch = "wasm32"))]
-use destack_repository::OptimizeLevel;
 use destack_repository::{
     DestackFile, Ref, Repository, Revision, Target, TargetRoot, Trace, TraceSnapshot, TraceView,
     apply_manifest_overrides_to_json, parse_jsonc_text,
@@ -567,15 +565,9 @@ impl<'a> CommandContext<'a> {
         }
 
         // infer a default target when no explicit configuration exists
-        let target_name = if module.is_code() { "native" } else { "js" };
+        let target_name = if module.is_code() { "bytecode" } else { "js" };
 
         self.resolve_named_target_for_module(revision, module_id, target_name, overrides)
-    }
-
-    /// Decide whether optimization should run for a target.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(super) fn should_optimize(&self, target: &Target) -> bool {
-        !matches!(target.compiler.optimize, OptimizeLevel::O0)
     }
 
     /// Resolve a destack.json path for the current repository.

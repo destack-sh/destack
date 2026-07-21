@@ -217,8 +217,8 @@ impl SelectedTarget {
             return ArtifactKey::asset(module_id, self.id);
         }
 
-        // select the executable program root
-        if self.target.uses_native_emit_pipeline() {
+        // select the linked Program root
+        if self.target.emit.is_program() {
             return ArtifactKey::program(self.id.package_id(), self.id);
         }
 

@@ -4,13 +4,9 @@ use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use destack_artifact::ArtifactKey;
-#[cfg(not(target_arch = "wasm32"))]
-use destack_compiler::ProgramLinker;
-#[cfg(not(target_arch = "wasm32"))]
-use destack_program::Program;
 use destack_repository::TraceView;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_repository::{Environment, Profile, ProviderError, Repository, Revision};
+use destack_repository::{Environment, Profile, Repository, Revision};
 #[cfg(not(target_arch = "wasm32"))]
 use destack_runtime::runtime::World;
 #[cfg(not(target_arch = "wasm32"))]
@@ -19,7 +15,7 @@ use destack_serde::Reflect;
 #[cfg(target_arch = "wasm32")]
 use destack_source::DiagnosticCollection;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_source::{ModuleId, ProfileId, TargetId};
+use destack_source::{ModuleId, TargetId};
 #[cfg(not(target_arch = "wasm32"))]
 use destack_vm::MachineOptions;
 use serde::{Deserialize, Serialize};
@@ -146,13 +142,7 @@ impl CommandContext<'_> {
         let target = self.resolve_target_for_module(revision, entry_module, target_overrides)?;
 
         // collect run roots
-        let artifact_keys = run_roots_for_target(
-            &self.repository,
-            revision,
-            entry_module,
-            &target.id,
-            self.should_optimize(&target.target),
-        )?;
+        let artifact_keys = vec![ArtifactKey::program(target.id.package_id(), target.id)];
 
         // provide the requested roots
         self.provide(revision, &artifact_keys)?;
@@ -223,25 +213,6 @@ impl CommandContext<'_> {
     }
 }
 
-/// Build the requested run roots for one target.
-#[cfg(not(target_arch = "wasm32"))]
-fn run_roots_for_target(
-    repository: &Arc<Repository>,
-    revision: Revision,
-    module_id: ModuleId,
-    target_id: &TargetId,
-    is_optimized: bool,
-) -> Result<Vec<ArtifactKey>, String> {
-    let profile = target_profile_id(repository, revision, module_id, *target_id)?;
-    let mut artifact_keys = vec![ArtifactKey::mir_lowered(module_id, profile, *target_id)];
-
-    if is_optimized {
-        artifact_keys.push(ArtifactKey::mir_optimized(module_id, profile, *target_id));
-    }
-
-    Ok(artifact_keys)
-}
-
 /// Execute the entry module in the VM.
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::too_many_arguments)]
@@ -256,20 +227,17 @@ fn run_entry_module(
     run_mode: RunMode,
     output: &mut OutputBuffer,
 ) -> CommandResult<RunResult> {
-    // profile facts
+    // resolve the runtime profile
     let target_id = target.id;
     let profile = target_profile(repository, revision, entry_module, target_id)?;
     let runtime_options = target.target.execution.clone();
     let conditions = profile.conditions().clone();
 
-    // program
-    let program = create_program(
-        repository,
-        revision,
-        entry_module,
-        &target_id,
-        MachineOptions::default(),
-    )?;
+    // load the linked Program
+    let artifacts = repository.artifact_reader(revision);
+    let program = artifacts
+        .program(target_id.package_id(), target_id)
+        .map_err(|error| error.to_string())?;
 
     // runtime launch
     let entry_source = inputs
@@ -424,78 +392,6 @@ fn uint_payload(value: u128) -> serde_json::Value {
     } else {
         serde_json::Value::String(value.to_string())
     }
-}
-
-/// Create a runtime program from the module MIR.
-#[cfg(not(target_arch = "wasm32"))]
-fn create_program(
-    repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-    target_id: &TargetId,
-    options: MachineOptions,
-) -> CommandResult<Arc<Program>> {
-    let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
-    let artifacts = repository.artifact_reader(revision);
-    let strings = repository.string_pool().as_ref().clone();
-
-    // prefer optimized mir when the optimize stage has run
-    match artifacts.mir_optimized(module_id, profile_id, *target_id) {
-        Ok(mir) => {
-            let program = ProgramLinker::new(
-                module_id.package_id,
-                mir.tree.clone(),
-                mir.target,
-                mir.types.clone(),
-                mir.layouts.clone(),
-                mir.dispatch.clone(),
-                mir.drops.clone(),
-                strings,
-                options.heap,
-                options.shared_heap,
-            )
-            .build()
-            .map_err(|error| error.to_string())?;
-
-            return Ok(Arc::new(program));
-        }
-        Err(ProviderError::Blocked { .. }) => {}
-        Err(error) => return Err(error.to_string().into()),
-    }
-
-    // otherwise use lowered mir
-    let mir = artifacts
-        .mir_lowered(module_id, profile_id, *target_id)
-        .map_err(|error| error.to_string())?;
-    let program = ProgramLinker::new(
-        module_id.package_id,
-        mir.tree.clone(),
-        mir.target,
-        mir.types.clone(),
-        mir.layouts.clone(),
-        mir.dispatch.clone(),
-        mir.drops.clone(),
-        strings,
-        options.heap,
-        options.shared_heap,
-    )
-    .build()
-    .map_err(|error| error.to_string())?;
-
-    Ok(Arc::new(program))
-}
-
-/// Return the profile id selected for one module target.
-#[cfg(not(target_arch = "wasm32"))]
-fn target_profile_id(
-    repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-    target_id: TargetId,
-) -> Result<ProfileId, String> {
-    let profile = target_profile(repository, revision, module_id, target_id)?;
-
-    Ok(profile.id())
 }
 
 /// Return the profile selected for one module target.
