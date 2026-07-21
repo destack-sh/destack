@@ -44,6 +44,5 @@ export newtype interface Zeroable {}
 @languageItem("memory.Default")
 export newtype interface Default {
     /// Create the default value.
-    static default(): this;
+    static default(): ^this;
 }
-
