@@ -1,14 +1,11 @@
-use std::sync::Arc;
-
 use destack_core::{StringId, StringPool};
-use destack_program::Program;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::string::collect_string_ids;
 
 use crate::{
-    ArtifactDependency, ArtifactError, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
+    ArtifactDependency, ArtifactError, ArtifactPayload, ArtifactPayloadRef,
     ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactSidecar, ArtifactVersion,
     BuildId, DiagnosticRecord,
 };
@@ -43,7 +40,7 @@ impl ArtifactRecord {
         sidecars: Vec<ArtifactSidecar>,
     ) -> Result<Self, ArtifactError> {
         // encode payload values
-        let payload_bytes = Self::encode_payload(payload)?;
+        let payload_bytes = payload.encode()?;
         let projections = payload.fingerprint_projections().map_err(|_| {
             ArtifactError::Invalid("artifact payload contains an invalid projection")
         })?;
@@ -85,14 +82,7 @@ impl ArtifactRecord {
         }
 
         // decode the typed payload
-        let payload = if matches!(self.version.key, ArtifactKey::Program { .. }) {
-            let program = Program::load(&self.payload)?;
-
-            ArtifactPayload::Program(Arc::new(program))
-        } else {
-            destack_serde::from_slice(&self.payload)
-                .map_err(|error| ArtifactError::Codec(Box::new(error)))?
-        };
+        let payload = ArtifactPayload::decode(&self.version.key, &self.payload)?;
 
         // require the payload to match its artifact key
         if !payload.matches_key(&self.version.key) {
@@ -124,15 +114,6 @@ impl ArtifactRecord {
         Self::require_strings(&strings, string_pool)?;
 
         Ok(payload)
-    }
-
-    /// Encode one artifact payload into record bytes.
-    fn encode_payload(payload: ArtifactPayloadRef<'_>) -> Result<Vec<u8>, ArtifactError> {
-        match payload {
-            ArtifactPayloadRef::Program(program) => program.to_bytes().map_err(ArtifactError::from),
-            _ => destack_serde::to_vec(&payload)
-                .map_err(|error| ArtifactError::Codec(Box::new(error))),
-        }
     }
 
     /// Collect string ids referenced by one artifact payload.

@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
+use destack_core::SectionStorage;
 use destack_program::Program;
 use destack_serde::Reflect;
 use destack_source::ContentId;
 
 use crate::{
-    ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle, Data,
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared, MirAnalyzed, MirElaborated,
-    MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, Product,
-    ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,
+    Bundle, Data, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared, MirAnalyzed,
+    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted,
+    Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 
@@ -113,9 +114,9 @@ pub enum ArtifactPayloadRef<'a> {
     MirLowered(&'a MirLowered),
     /// Verified MIR marker after required semantic verification.
     MirVerified(&'a MirVerified),
-    /// MIR after required executable elaboration.
+    /// MIR after required elaboration.
     MirElaborated(&'a MirElaborated),
-    /// Per-module link summary for whole-program analysis.
+    /// Per-module link graph for whole-program analysis.
     MirAnalyzed(&'a MirAnalyzed),
     /// Optimized MIR.
     MirOptimized(&'a MirOptimized),
@@ -144,6 +145,20 @@ pub enum ArtifactPayloadRef<'a> {
 }
 
 impl ArtifactPayload {
+    /// Decode one payload from its artifact storage representation.
+    pub(crate) fn decode(key: &ArtifactKey, bytes: &[u8]) -> Result<Self, ArtifactError> {
+        if matches!(key, ArtifactKey::Program { .. }) {
+            let storage = SectionStorage::from_bytes(bytes);
+
+            // SAFETY: Program records retain bytes produced by ProgramBuilder.
+            let program = unsafe { Program::load(storage) }?;
+
+            return Ok(Self::Program(Arc::new(program)));
+        }
+
+        destack_serde::from_slice(bytes).map_err(|error| ArtifactError::Codec(Box::new(error)))
+    }
+
     /// Return whether this payload belongs to one artifact key.
     pub fn matches_key(&self, key: &ArtifactKey) -> bool {
         match (key, self) {
@@ -326,6 +341,15 @@ impl ArtifactPayload {
 }
 
 impl ArtifactPayloadRef<'_> {
+    /// Encode this payload for artifact storage.
+    pub(crate) fn encode(self) -> Result<Vec<u8>, ArtifactError> {
+        match self {
+            Self::Program(program) => Ok(program.bytes().to_vec()),
+            payload => destack_serde::to_vec(&payload)
+                .map_err(|error| ArtifactError::Codec(Box::new(error))),
+        }
+    }
+
     /// Return one observable projection fingerprint for this payload.
     pub(crate) fn fingerprint_projection(
         self,
