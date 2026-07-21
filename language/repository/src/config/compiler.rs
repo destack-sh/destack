@@ -112,11 +112,6 @@ impl Derive {
 }
 
 impl CompilerOptions {
-    /// Enable native-only restrictions for native and wasm targets.
-    pub fn apply_native_restrictions(&mut self) {
-        self.restrictions.no_managed = DiagnosticPolicy::Deny;
-    }
-
     /// Enable heap-free restrictions.
     pub fn apply_no_heap_restrictions(&mut self) {
         self.restrictions.no_managed = self.restrictions.no_managed.max(self.restrictions.no_heap);

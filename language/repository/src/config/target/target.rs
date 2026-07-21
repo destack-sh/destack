@@ -22,7 +22,7 @@ use super::output::*;
 pub struct Target {
     /// Entry points for entry-rooted targets.
     pub entry: Vec<PathBuf>,
-    /// User callable launched by executable products.
+    /// User callable launched by this target.
     pub entrypoint: Option<Entrypoint>,
     /// Global modules added to every target root set.
     pub globals: Vec<PathBuf>,
@@ -33,7 +33,7 @@ pub struct Target {
 
     /// Policy declarations and rules for this target.
     pub policy: Policy,
-    /// Emitted artifact family (js, ts, wasm, native).
+    /// Emitted artifact family (js, ts, bytecode, wasm, native).
     pub emit: EmitFormat,
     /// Target operating system.
     pub platform: Platform,
@@ -83,7 +83,16 @@ impl Target {
 
     /// Return the known built-in target names.
     pub fn builtin_target_names() -> &'static [&'static str] {
-        &["default", "js", "ts", "wasm", "wasm-wasi", "wasi", "native"]
+        &[
+            "default",
+            "js",
+            "ts",
+            "bytecode",
+            "wasm",
+            "wasm-wasi",
+            "wasi",
+            "native",
+        ]
     }
 
     /// Create a built-in target configuration for a known target id.
@@ -109,6 +118,14 @@ impl Target {
     /// Create a target with TypeScript output.
     pub fn ts() -> Self {
         Self::new(EmitFormat::Ts, Host::Browser)
+    }
+
+    /// Create a target with Destack bytecode output.
+    pub fn bytecode() -> Self {
+        let mut target = Self::new(EmitFormat::Bytecode, Host::Native);
+        target.compiler.optimize = OptimizeLevel::O2;
+
+        target
     }
 
     /// Create a target with WASM output for JavaScript hosts.
@@ -137,7 +154,7 @@ impl Target {
 
     /// Create a new target for comptime execution.
     pub fn comptime() -> Self {
-        Self::native()
+        Self::bytecode()
     }
 
     /// Create a target with native freestanding output.
@@ -164,6 +181,7 @@ impl Target {
             "default" => Some(Self::default()),
             "js" => Some(Self::js()),
             "ts" => Some(Self::ts()),
+            "bytecode" => Some(Self::bytecode()),
             "wasm" => Some(Self::wasm_js()),
             "wasm-wasi" | "wasi" => Some(Self::wasm_wasi()),
             "native" => Some(Self::native()),
@@ -202,7 +220,6 @@ impl Target {
     /// Build compiler options adjusted for this target.
     pub fn compiler_options(&self, compiler_options: &CompilerOptions) -> CompilerOptions {
         let mut compiler_options = compiler_options.clone();
-        let is_native_output = self.emit.is_wasm() || self.emit.is_native();
 
         // target defaults
         if self.compiler.tree.is_some() {
@@ -220,27 +237,12 @@ impl Target {
             .restrictions
             .tighten_with(&self.compiler.restrictions);
 
-        // native outputs force stricter semantics
-        if is_native_output {
-            compiler_options.apply_native_restrictions();
-        }
-
         compiler_options
     }
 
-    /// Return whether this target uses the JavaScript emit pipeline.
-    pub fn uses_js_emit_pipeline(&self) -> bool {
-        self.emit.is_js_family()
-    }
-
-    /// Return whether this target uses the native emit pipeline.
-    pub fn uses_native_emit_pipeline(&self) -> bool {
-        self.emit.is_native_family()
-    }
-
-    /// Return the semantic runtime contract implied by this target.
+    /// Return the runtime selected by this target.
     pub fn runtime(&self) -> Runtime {
-        if self.emit.is_js_family() {
+        if self.emit.is_script() {
             Runtime::Js
         } else {
             Runtime::Destack
@@ -294,11 +296,6 @@ impl Target {
     /// Return whether this target inlines source maps into text outputs.
     pub fn uses_inline_source_maps(&self) -> bool {
         self.source_map_mode().is_some_and(SourceMapMode::is_inline)
-    }
-
-    /// Return whether this target publishes one native payload.
-    pub fn publishes_native_output(&self) -> bool {
-        self.emit.is_native_family()
     }
 
     /// Return the normalized source map mode for this target.
@@ -429,7 +426,7 @@ impl Target {
     }
 }
 
-/// User callable launched by executable Destack products.
+/// User callable launched by a Destack target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]

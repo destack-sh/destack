@@ -702,7 +702,7 @@ impl<'a> ArtifactReader<'a> {
         self.read(ArtifactKey::script(module, target), ArtifactTable::script)
     }
 
-    /// Read one compiled-code object artifact.
+    /// Read one executable object artifact.
     pub fn object(&self, module: ModuleId, target: TargetId) -> Result<Arc<Object>, ProviderError> {
         self.read(ArtifactKey::object(module, target), ArtifactTable::object)
     }
