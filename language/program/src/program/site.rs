@@ -1,5 +1,4 @@
 use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
-use destack_heap::AllocationPlan;
 use destack_mir::Space;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -167,18 +166,20 @@ impl SiteTable {
         sections.entries(self.counters)
     }
 
-    /// Return the number of dense profile counters.
-    pub fn profile_counter_count(&self, sections: SectionImage<'_>) -> usize {
-        let counters = self
-            .counters(sections)
+    /// Return the number of dense counters.
+    pub fn counter_count(&self, sections: SectionImage<'_>) -> usize {
+        self.counters(sections)
             .iter()
-            .map(|site| site.counter.index() + 1);
-        let samples = self
-            .samples(sections)
-            .iter()
-            .map(|site| site.counter.index() + 1);
+            .map(|site| site.counter.index() + 1)
+            .fold(0, usize::max)
+    }
 
-        counters.chain(samples).fold(0, usize::max)
+    /// Return the number of dense samplers.
+    pub fn sampler_count(&self, sections: SectionImage<'_>) -> usize {
+        self.samples(sections)
+            .iter()
+            .map(|site| site.sampler.index() + 1)
+            .fold(0, usize::max)
     }
 
     /// Return the sample site at one program point.
@@ -382,6 +383,13 @@ pub struct ContinuationSiteId(pub u32);
 )]
 pub struct CounterId(pub u32);
 
+/// Dense program profile sampler identifier within one program.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct SamplerId(pub u32);
+
 /// Heap allocation operation at one program point.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
@@ -400,8 +408,6 @@ pub struct AllocationSite {
     pub storage_type: TypeId,
     /// The layout used for the allocated storage.
     pub storage_layout: LayoutId,
-    /// The executable heap allocation plan.
-    pub plan: AllocationPlan,
 }
 
 /// Heap allocation operation family.
@@ -528,8 +534,8 @@ pub struct CounterSite {
 pub struct SampleSite {
     /// The program point that records the sample.
     pub point: ProgramPoint,
-    /// The counter receiving samples at this site.
-    pub counter: CounterId,
+    /// The sampler receiving values at this site.
+    pub sampler: SamplerId,
     /// The sampled value type.
     pub value_type: TypeId,
 }
@@ -604,6 +610,13 @@ impl ContinuationSiteId {
 
 impl CounterId {
     /// Return this counter id as a dense array index.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl SamplerId {
+    /// Return this sampler id as a dense array index.
     pub const fn index(self) -> usize {
         self.0 as usize
     }

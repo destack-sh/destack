@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::GlobalAddress;
 
 use super::{
-    AllocationSiteId, CallSiteId, ContinuationSiteId, CounterId, EdgeSiteId, Program, WordLayout,
+    AllocationSiteId, CallSiteId, ContinuationSiteId, CounterId, EdgeSiteId, Program, SamplerId,
+    WordLayout,
 };
 
 const STANDARD_SAMPLE_BUCKET_LIMIT: u32 = 32;
@@ -26,7 +27,7 @@ pub struct Profile {
     pub edges: Vec<EdgeProfile>,
     /// Continuation site profiles.
     pub continuations: Vec<ContinuationProfile>,
-    /// Explicit sample profiles indexed by program counter id.
+    /// Explicit sample profiles indexed by program sampler id.
     pub samples: Vec<SampleProfile>,
 }
 
@@ -151,7 +152,8 @@ impl Profile {
     pub fn new(program: &Program, options: ProfileOptions) -> Self {
         let sections = program.sections();
         let sites = program.sites();
-        let counter_count = sites.profile_counter_count(sections);
+        let counter_count = sites.counter_count(sections);
+        let sampler_count = sites.sampler_count(sections);
 
         Self {
             options,
@@ -160,7 +162,7 @@ impl Profile {
             calls: vec![CallProfile::new(); sites.call_count(sections)],
             edges: vec![EdgeProfile::new(); sites.edge_count(sections)],
             continuations: vec![ContinuationProfile::new(); sites.continuation_count(sections)],
-            samples: vec![SampleProfile::new(); counter_count],
+            samples: vec![SampleProfile::new(); sampler_count],
         }
     }
 
@@ -222,8 +224,8 @@ impl Profile {
 
     /// Record one sampled word key.
     #[inline]
-    pub fn record_sample(&mut self, counter: CounterId, key: u64) {
-        self.samples[counter.index()].record(SampleKey::new(key), self.options.sample_bucket_limit);
+    pub fn record_sample(&mut self, sampler: SamplerId, key: u64) {
+        self.samples[sampler.index()].record(SampleKey::new(key), self.options.sample_bucket_limit);
     }
 }
 
