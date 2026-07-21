@@ -6,7 +6,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
     CompareExchangeAccess, CounterId, DispatchSlot, ExecutionScope, FenceAccess, FunctionId,
-    Instruction, LocalNodeId, MemoryOrdering, StorageSet, TensorConvertMode,
+    Instruction, LocalNodeId, MemoryOrdering, SamplerId, StorageSet, TensorConvertMode,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
     TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeId, UnaryOperator,
@@ -265,14 +265,16 @@ impl Parser {
 
             // profile instrumentation
             "profile.increment" => {
-                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
+                let counter =
+                    CounterId(self.parse_profile_id_segment(&mut segment_spans, "counter")?);
                 Instruction::ProfileIncrement { counter }
             }
             "profile.sample" => {
-                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
+                let sampler =
+                    SamplerId(self.parse_profile_id_segment(&mut segment_spans, "sampler")?);
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::ProfileSample { counter, value }
+                Instruction::ProfileSample { sampler, value }
             }
 
             // debug control
@@ -1238,15 +1240,16 @@ impl Parser {
         Ok(values)
     }
 
-    /// Parse a profile counter reference.
-    fn parse_profile_counter_segment(
+    /// Parse one profile identifier.
+    fn parse_profile_id_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<CounterId> {
+        name: &str,
+    ) -> ParseResult<u32> {
         let keyword = self.eat_token(TokenType::Identifier)?;
         segment_spans.push(keyword.span);
-        if self.tree.source_text(keyword.span) != "counter" {
-            return Err(ParseError::invalid("profile counter", self.pos()));
+        if self.tree.source_text(keyword.span) != name {
+            return Err(ParseError::invalid(name, self.pos()));
         }
 
         let open = self.eat_token(TokenType::OpenParenthesis)?;
@@ -1258,12 +1261,12 @@ impl Parser {
             .tree
             .source_text(number.span)
             .parse::<u32>()
-            .map_err(|_| ParseError::invalid("profile counter", self.pos()))?;
+            .map_err(|_| ParseError::invalid(name, self.pos()))?;
 
         let close = self.eat_token(TokenType::CloseParenthesis)?;
         segment_spans.push(close.span);
 
-        Ok(CounterId(value))
+        Ok(value)
     }
 
     /// Parse a parenthesized list of values.

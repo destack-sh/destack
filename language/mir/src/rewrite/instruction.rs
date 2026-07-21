@@ -1150,8 +1150,8 @@ pub fn instruction_substitute_uses(
             value: substitute(value),
             result_type: *result_type,
         },
-        mir::Instruction::ProfileSample { counter, value } => mir::Instruction::ProfileSample {
-            counter: *counter,
+        mir::Instruction::ProfileSample { sampler, value } => mir::Instruction::ProfileSample {
+            sampler: *sampler,
             value: substitute(value),
         },
         // instructions without value operands or with externalized arguments
@@ -2695,8 +2695,8 @@ pub fn instruction_map(
         mir::Instruction::ProfileIncrement { counter } => {
             mir::Instruction::ProfileIncrement { counter: *counter }
         }
-        mir::Instruction::ProfileSample { counter, value } => mir::Instruction::ProfileSample {
-            counter: *counter,
+        mir::Instruction::ProfileSample { sampler, value } => mir::Instruction::ProfileSample {
+            sampler: *sampler,
             value: remap(*value),
         },
         mir::Instruction::Breakpoint => mir::Instruction::Breakpoint,
@@ -3469,8 +3469,8 @@ pub fn instruction_map_with_locals(
         mir::Instruction::ProfileIncrement { counter } => {
             mir::Instruction::ProfileIncrement { counter: *counter }
         }
-        mir::Instruction::ProfileSample { counter, value } => mir::Instruction::ProfileSample {
-            counter: *counter,
+        mir::Instruction::ProfileSample { sampler, value } => mir::Instruction::ProfileSample {
+            sampler: *sampler,
             value: remap(*value),
         },
         mir::Instruction::Breakpoint => mir::Instruction::Breakpoint,

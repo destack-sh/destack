@@ -600,7 +600,7 @@ impl LevelTarget {
 mod tests {
     use super::*;
     use crate::analyses::tests::{empty_function_analysis_cache, parse_test_function};
-    use crate::{Count, CounterId, FunctionHash, FunctionProfile, Successor, ValueProfile};
+    use crate::{Count, FunctionHash, FunctionProfile, SamplerId, Successor, ValueProfile};
 
     /// Build a function profile with branch edge counts.
     fn branch_profile(
@@ -630,7 +630,7 @@ mod tests {
             entry: Count::new(1),
             edges,
             counts: Vec::new(),
-            values: HashMap::<CounterId, ValueProfile>::new(),
+            values: HashMap::<SamplerId, ValueProfile>::new(),
         }
     }
 

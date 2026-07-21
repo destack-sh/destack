@@ -8,9 +8,9 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
     Constant, CounterId, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic, LocalId, Node,
-    NodeType, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator, TensorIndexTieBreak,
-    TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator, Value, ValueSlice,
-    VectorConvertMode, VectorReduceOperator,
+    NodeType, SamplerId, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
+    TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator,
+    Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
 /// Instructions produce SSA values and perform "operations".
@@ -854,8 +854,8 @@ pub enum Instruction {
     },
     /// Sample one runtime value.
     ProfileSample {
-        /// The counter receiving the sampled value.
-        counter: CounterId,
+        /// The sampler receiving the value.
+        sampler: SamplerId,
         /// The sampled MIR value.
         value: Value,
     },

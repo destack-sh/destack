@@ -1697,13 +1697,13 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::ProfileSample { counter, value } => {
+            Instruction::ProfileSample { sampler, value } => {
                 write!(
                     f,
                     [
                         token("profile.sample"),
                         space(),
-                        copied_text(&format!("counter({})", counter.0)),
+                        copied_text(&format!("sampler({})", sampler.0)),
                         token(","),
                         space(),
                         value

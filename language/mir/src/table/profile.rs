@@ -37,10 +37,10 @@ impl Profile {
     }
 }
 
-/// Static profile counter table for one MIR module.
+/// Static profile site table for one MIR module.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ProfileTable {
-    /// Per-function profile counter tables.
+    /// Per-function profile site tables.
     pub functions: HashMap<FunctionId, FunctionProfileTable>,
 }
 
@@ -50,12 +50,12 @@ impl ProfileTable {
         Self::default()
     }
 
-    /// Return one function's profile counter table.
+    /// Return one function's profile site table.
     pub fn function(&self, function: FunctionId) -> Option<&FunctionProfileTable> {
         self.functions.get(&function)
     }
 
-    /// Insert one function's profile counter table.
+    /// Insert one function's profile site table.
     pub fn insert_function(
         &mut self,
         function: FunctionId,
@@ -64,20 +64,28 @@ impl ProfileTable {
         self.functions.insert(function, profile)
     }
 
-    /// Return one profile point's counter id.
-    pub fn counter(&self, function: FunctionId, point: &ProfilePoint) -> Option<CounterId> {
+    /// Return one counter site's counter id.
+    pub fn counter(&self, function: FunctionId, site: &CounterSite) -> Option<CounterId> {
         self.function(function)
-            .and_then(|profile| profile.counter(point))
+            .and_then(|profile| profile.counter(site))
+    }
+
+    /// Return one sample site's sampler id.
+    pub fn sampler(&self, function: FunctionId, site: &SampleSite) -> Option<SamplerId> {
+        self.function(function)
+            .and_then(|profile| profile.sampler(site))
     }
 }
 
-/// Static profile counter table for one function.
+/// Static profile site table for one function.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionProfileTable {
     /// Control-flow hash guarding against stale profile application.
     pub hash: FunctionHash,
-    /// Profile points indexed by counter id.
-    pub points: Vec<ProfilePoint>,
+    /// Counter sites indexed by counter id.
+    pub counters: Vec<CounterSite>,
+    /// Sample sites indexed by sampler id.
+    pub samplers: Vec<SampleSite>,
 }
 
 impl FunctionProfileTable {
@@ -85,39 +93,66 @@ impl FunctionProfileTable {
     pub fn new(hash: FunctionHash) -> Self {
         Self {
             hash,
-            points: Vec::new(),
+            counters: Vec::new(),
+            samplers: Vec::new(),
         }
     }
 
-    /// Insert one profile point and return its counter id.
-    pub fn insert(&mut self, point: ProfilePoint) -> CounterId {
-        let counter = CounterId(self.points.len() as u32);
-        self.points.push(point);
+    /// Insert one counter site and return its counter id.
+    pub fn insert_counter(&mut self, site: CounterSite) -> CounterId {
+        let counter = CounterId(self.counters.len() as u32);
+        self.counters.push(site);
 
         counter
     }
 
-    /// Return one profile point by counter id.
-    pub fn point(&self, counter: CounterId) -> Option<&ProfilePoint> {
-        self.points.get(counter.0 as usize)
+    /// Return one counter site by counter id.
+    pub fn counter_site(&self, counter: CounterId) -> Option<&CounterSite> {
+        self.counters.get(counter.index())
     }
 
-    /// Return one profile point's counter id.
-    pub fn counter(&self, point: &ProfilePoint) -> Option<CounterId> {
-        self.points
+    /// Return one counter site's counter id.
+    pub fn counter(&self, site: &CounterSite) -> Option<CounterId> {
+        self.counters
             .iter()
-            .position(|candidate| candidate == point)
+            .position(|candidate| candidate == site)
             .map(|index| CounterId(index as u32))
+    }
+
+    /// Insert one sample site and return its sampler id.
+    pub fn insert_sampler(&mut self, site: SampleSite) -> SamplerId {
+        let sampler = SamplerId(self.samplers.len() as u32);
+        self.samplers.push(site);
+
+        sampler
+    }
+
+    /// Return one sample site by sampler id.
+    pub fn sample_site(&self, sampler: SamplerId) -> Option<&SampleSite> {
+        self.samplers.get(sampler.index())
+    }
+
+    /// Return one sample site's sampler id.
+    pub fn sampler(&self, site: &SampleSite) -> Option<SamplerId> {
+        self.samplers
+            .iter()
+            .position(|candidate| candidate == site)
+            .map(|index| SamplerId(index as u32))
     }
 }
 
 /// Semantic meaning of one profile counter.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ProfilePoint {
+pub enum CounterSite {
     /// Function entry execution count.
     Entry,
     /// Control-flow edge count.
     Edge(Edge),
+}
+
+/// Semantic meaning of one profile sampler.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum SampleSite {
     /// Value distribution for one SSA value.
     Value(Value),
     /// Observed call target distribution for one callsite.
@@ -141,8 +176,8 @@ pub struct FunctionProfile {
     pub edges: HashMap<Edge, Count>,
     /// Per-counter execution counts, indexed by [`CounterId`].
     pub counts: Vec<Count>,
-    /// Observed value-profiling sites, by counter.
-    pub values: HashMap<CounterId, ValueProfile>,
+    /// Observed value profiles indexed by sampler id.
+    pub values: HashMap<SamplerId, ValueProfile>,
 }
 
 /// Profile data for one global, addressed by its persistent symbol.
@@ -259,6 +294,27 @@ pub struct CounterId(
     /// The zero-based profile counter index.
     pub u32,
 );
+
+impl CounterId {
+    /// Return this id as a dense function-local index.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// Identifier for one emitted profile sampler, positional within a function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct SamplerId(
+    /// The zero-based profile sampler index.
+    pub u32,
+);
+
+impl SamplerId {
+    /// Return this id as a dense function-local index.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
 
 /// Structural hash of a function's profiled control flow, for stale detection.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
