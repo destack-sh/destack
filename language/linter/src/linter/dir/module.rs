@@ -90,6 +90,23 @@ impl DirModule {
         Ok(trailing.map_or(span, |trailing| span.merge(trailing)))
     }
 
+    /// Return the source span removed with one DIR statement.
+    pub fn statement_removal_span(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Span, ProviderError> {
+        let span = self.statement_span(expression)?;
+        let source = self.file(span.file)?.text().as_bytes();
+        let mut start = span.start as usize;
+
+        // absorb the horizontal separator immediately before the statement
+        while start > 0 && matches!(source[start - 1], b' ' | b'\t') {
+            start -= 1;
+        }
+
+        Ok(Span::new(span.file, start as u32, span.end))
+    }
+
     /// Return a source anchor for one DIR node.
     pub fn anchor(&self, node: dir::LocalNodeIdAny) -> Result<DiagnosticAnchor, ProviderError> {
         let span = self.span(node)?;

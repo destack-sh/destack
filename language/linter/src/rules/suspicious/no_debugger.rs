@@ -46,20 +46,11 @@ fn suggest_removal(
     view: dir::View<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Result<DiagnosticSuggestion, ProviderError> {
-    // root statements can disappear completely
-    let replacement = if module.roots.contains(&expression_id) {
-        ""
-    }
-    // classify the statement's structural position
-    else {
-        let parent = view.get_parent_for(expression_id).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "debugger statement {} in module {:?} has no DIR parent",
-                expression_id.id, module.id
-            ))
-        })?;
-
-        match parent.ty {
+    let replacement = match view.get_parent_for(expression_id) {
+        // root statements can disappear completely
+        None => "",
+        // classify the statement's structural position
+        Some(parent) => match parent.ty {
             // preserve required implicit control bodies
             dir::NodeType::Block => {
                 let block_id = dir::LocalNodeId::<dir::Block>::new(parent.id);
@@ -67,40 +58,27 @@ fn suggest_removal(
                 let is_implicit_body = block.form == dir::BlockForm::Implicit
                     && block.only_expression() == Some(expression_id);
 
-                if is_implicit_body { "{}" } else { "" }
-            }
-            // preserve required match arm expressions
-            dir::NodeType::MatchCase => {
-                let case_id = dir::LocalNodeId::<dir::MatchCase>::new(parent.id);
-                let match_parent = view.get_parent_for(case_id).ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "debugger match case {} in module {:?} has no DIR parent",
-                        parent.id, module.id
-                    ))
-                })?;
-
-                // require the enclosing match expression
-                let match_expression = match_parent
-                    .try_into_typed::<dir::Expression>()
-                    .map_err(|message| {
+                // remove statements from explicit or multi-statement blocks
+                if !is_implicit_body {
+                    ""
+                }
+                // preserve required bodies except switch case statements
+                else {
+                    let owner = view.get_parent_for(block_id).ok_or_else(|| {
                         ProviderError::internal(format!(
-                            "debugger match case {} in module {:?} has invalid DIR parent: {message}",
-                            parent.id, module.id
+                            "debugger block {} in module {:?} has no DIR parent",
+                            block_id.id, module.id
                         ))
                     })?;
-                let dir::Expression::Match { form, .. } = view.get(match_expression) else {
-                    return Err(ProviderError::internal(format!(
-                        "debugger match case {} in module {:?} has non-match DIR parent {match_parent:?}",
-                        parent.id, module.id
-                    )));
-                };
 
-                // preserve match arm values but allow empty switch cases
-                match form {
-                    dir::MatchForm::Match => "{}",
-                    dir::MatchForm::Switch => "",
+                    match owner.ty {
+                        dir::NodeType::SwitchCase => "",
+                        _ => "{}",
+                    }
                 }
             }
+            // preserve required match arm expressions
+            dir::NodeType::MatchArm => "{}",
             // catch and finally clauses require bodies
             dir::NodeType::Catch => "{}",
             dir::NodeType::Expression
@@ -120,11 +98,15 @@ fn suggest_removal(
                     expression_id.id, module.id
                 )));
             }
-        }
+        },
     };
 
     // replace the complete statement
-    let span = module.statement_span(expression_id)?;
+    let span = if replacement.is_empty() {
+        module.statement_removal_span(expression_id)?
+    } else {
+        module.statement_span(expression_id)?
+    };
     let mut file_patch = FilePatch::new(span.file);
     file_patch.replace(span, replacement);
     let patches = PatchSet::single(file_patch);
