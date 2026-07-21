@@ -198,9 +198,14 @@ impl MemoryStop {
         }
     }
 
-    /// Return whether this stop selects one memory site.
-    pub fn selects(self, site: MemorySite, range: Option<MemoryRange>) -> bool {
-        self.access.selects(site.access) && self.target.selects(site, range)
+    /// Return whether this stop selects one executed memory access.
+    pub fn selects(
+        self,
+        site: MemorySite,
+        access: MemoryAccess,
+        range: Option<MemoryRange>,
+    ) -> bool {
+        self.access.selects(access) && self.target.selects(site, range)
     }
 }
 
@@ -228,16 +233,17 @@ impl WatchSet {
         self.requires_memory_range
     }
 
-    /// Return the first watchpoint selected by one memory site.
+    /// Return the first watchpoint selected by one executed memory access.
     pub fn watchpoint_at(
         &self,
         site: MemorySite,
+        access: MemoryAccess,
         range: Option<MemoryRange>,
     ) -> Option<WatchpointId> {
         self.memory
             .iter()
             .copied()
-            .find(|stop| stop.selects(site, range))
+            .find(|stop| stop.selects(site, access, range))
             .map(|stop| stop.watchpoint_id)
     }
 }
