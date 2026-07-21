@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
 impl CheckState<'_> {
     /// Decide whether one type can be overwritten through non-exclusive access.
@@ -36,9 +36,7 @@ impl CheckState<'_> {
         let kind = self.ty(ty)?;
 
         match kind {
-            dir::Type::Variable(variable) => {
-                Ok(Answer::pending([self.variable_dependency(variable)?]))
-            }
+            dir::Type::Variable(variable) => Ok(Answer::pending([Dependency::Variable(variable)])),
             // refinements constrain members without changing the base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;

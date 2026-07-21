@@ -38,7 +38,7 @@ impl BodyState<'_, '_> {
 
         // type the target as its resolved newtype declaration
         let target = application.expression.target.into_global_any(module);
-        if self.node_type_maybe(target).is_none() {
+        if self.committed_node_type(target).is_none() {
             let reference = dir::Type::Reference(dir::TypeReference {
                 symbol: application.symbol,
             });
@@ -61,11 +61,21 @@ impl BodyState<'_, '_> {
             NewtypeOverload::Unambiguous,
         )?);
         let (selection, parameters, return_type) = match matched {
-            NewtypeMatch::Selected {
-                selection,
-                parameters,
-                return_type,
-            } => (selection, parameters, return_type),
+            NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
+                signature.selection,
+                signature.parameters,
+                signature.return_type,
+            ),
+            NewtypeMatch::Invalid { rejection, .. } => {
+                self.report_decorator_rejection(
+                    site.origin(),
+                    &application.expression.arguments,
+                    NewtypeRejection::Signature(rejection),
+                )?;
+                self.commit_error_node(site.node)?;
+
+                return Ok(Answer::Ready(None));
+            }
             NewtypeMatch::Rejected(rejection) => {
                 self.report_decorator_rejection(
                     site.origin(),
@@ -78,7 +88,7 @@ impl BodyState<'_, '_> {
             }
         };
 
-        // commit the decorator-specific resolution and final argument checks
+        // commit the decorator-specific resolution
         let target = match self.global.language.item(application.symbol) {
             Some(item) => dir::DecoratorTarget::LanguageItem {
                 symbol: application.symbol,
@@ -90,7 +100,6 @@ impl BodyState<'_, '_> {
         };
         let arguments =
             self.argument_bindings(module, &application.expression.arguments, &parameters);
-        answer!(self.check_arguments(site, &application.expression.arguments, &arguments)?);
 
         let resolution = dir::DecoratorResolution {
             target,
@@ -242,11 +251,21 @@ impl BodyState<'_, '_> {
                 NewtypeOverload::Unambiguous,
             )?);
             let (selection, parameters, return_type) = match matched {
-                NewtypeMatch::Selected {
-                    selection,
-                    parameters,
-                    return_type,
-                } => (selection, parameters, return_type),
+                NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
+                    signature.selection,
+                    signature.parameters,
+                    signature.return_type,
+                ),
+                NewtypeMatch::Invalid { rejection, .. } => {
+                    self.report_decorator_rejection(
+                        origin,
+                        &arguments,
+                        NewtypeRejection::Signature(rejection),
+                    )?;
+                    self.commit_error_node(expression.into_global_any(module))?;
+
+                    return Ok(Answer::Ready(None));
+                }
                 NewtypeMatch::Rejected(rejection) => {
                     self.report_decorator_rejection(origin, &arguments, rejection)?;
                     self.commit_error_node(expression.into_global_any(module))?;
@@ -261,11 +280,6 @@ impl BodyState<'_, '_> {
                 self.argument_bindings(module, &arguments, &parameters),
                 return_type,
             );
-            answer!(self.check_arguments(
-                self.node_site(expression.into_global_any(module))?,
-                &arguments,
-                &resolution.arguments,
-            )?);
             self.commit_decision(
                 expression.into_global_any(module),
                 Decision::Construct(resolution),
@@ -299,11 +313,19 @@ impl BodyState<'_, '_> {
                 NewtypeOverload::Unambiguous,
             )?);
             let (selection, return_type) = match matched {
-                NewtypeMatch::Selected {
-                    selection,
-                    return_type,
-                    ..
-                } => (selection, return_type),
+                NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
+                    (signature.selection, signature.return_type)
+                }
+                NewtypeMatch::Invalid { rejection, .. } => {
+                    self.report_decorator_rejection(
+                        origin,
+                        &[],
+                        NewtypeRejection::Signature(rejection),
+                    )?;
+                    self.commit_error_node(source)?;
+
+                    return Ok(Answer::Ready(None));
+                }
                 NewtypeMatch::Rejected(rejection) => {
                     self.report_decorator_rejection(origin, &[], rejection)?;
                     self.commit_error_node(source)?;

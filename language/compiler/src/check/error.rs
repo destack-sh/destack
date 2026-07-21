@@ -557,15 +557,13 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         id = "invalid-derive-provider",
-        message = "type '{provider}' is not a derive provider"
+        message = "derive argument must name a registered provider newtype"
     )]
     InvalidDeriveProvider {
         /// Report the derive provider argument.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The rejected provider type.
-        provider: String,
     },
 
     /// A derive provider does not support the annotated declaration.
@@ -676,19 +674,6 @@ pub enum CheckError {
         module: ModuleId,
         /// The selected member key.
         key: String,
-    },
-
-    /// Call selection has multiple valid targets.
-    ///
-    /// ```ds
-    /// parse(value);
-    /// ```
-    #[diagnostic(id = "ambiguous-call", message = "ambiguous call")]
-    AmbiguousCall {
-        /// Report the call expression.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
     },
 
     /// Selected member is not accessible from the current scope.
@@ -805,6 +790,44 @@ pub enum CheckError {
     )]
     InvalidDecoratorTarget {
         /// Report the decorator target expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Decorator arguments do not select exactly one backing alternative.
+    ///
+    /// ```ds
+    /// newtype mark = (string,) | (`${string}`,);
+    ///
+    /// @mark("value")
+    /// const value = 1;
+    /// ```
+    #[diagnostic(
+        id = "ambiguous-decorator",
+        message = "decorator arguments must select exactly one newtype backing"
+    )]
+    AmbiguousDecorator {
+        /// Report the decorator application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Decorator arguments match no backing alternative.
+    ///
+    /// ```ds
+    /// newtype mark = (string,) | (boolean,);
+    ///
+    /// @mark(1)
+    /// const value = 1;
+    /// ```
+    #[diagnostic(
+        id = "no-matching-decorator",
+        message = "decorator arguments do not match any newtype backing"
+    )]
+    NoMatchingDecorator {
+        /// Report the decorator application.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,

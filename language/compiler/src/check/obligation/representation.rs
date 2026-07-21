@@ -36,7 +36,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // intrinsically local declarations never store shared
-        let value = self.value_beneath_forms(origin, ty)?;
+        let value = answer!(self.strip_form(origin, ty)?);
         let value = answer!(self.reduce_type_head(origin, value)?);
         let symbol = match self.ty(value)? {
             dir::Type::Instance(instance) => Some(instance.symbol),

@@ -3,20 +3,18 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidatePass, Cause, CauseKind, CheckState, Decision,
-    FlowPointId, FlowSite, Origin, Relation, TypeSubstitution, answer,
+    Answer, BodyState, CheckState, Decision, FlowPointId, FlowSite, Origin, SignatureMatch,
+    TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One written tagged pattern head.
+/// One instantiated tagged owner.
 #[derive(Debug, Clone)]
-pub(in crate::check) struct TaggedPatternHead {
-    /// The tagged owner type.
-    owner: dir::GlobalTypeId,
-    /// The tagged owner instance.
-    instance: dir::GenericInstance,
-    /// The written case key.
-    key: dir::StaticKey,
+pub(in crate::check) struct VariantOwner {
+    /// The variant owner type.
+    pub(in crate::check) owner: dir::GlobalTypeId,
+    /// The variant owner instance.
+    pub(in crate::check) instance: dir::GenericInstance,
 }
 
 /// One tagged case named by a pattern.
@@ -48,13 +46,41 @@ struct TaggedPayloadField {
 }
 
 impl BodyState<'_, '_> {
-    /// Return the tagged owner and case named by one variant pattern.
-    pub(in crate::check) fn tagged_pattern_head(
+    /// Select one written variant pattern when its owner is a variant family.
+    pub(in crate::check) fn select_variant_type_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        origin: Origin,
+        flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        module: ModuleId,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<Answer<bool>> {
+        let Some((owner, symbol, key)) = answer!(self.variant_pattern_owner(origin, module, ty)?)
+        else {
+            return Ok(Answer::Ready(false));
+        };
+        let Some(case) = self.variant_case(symbol, key)? else {
+            let key = self.format_static_key(&key);
+            self.report_pattern_variant_missing(origin, key, owner)?;
+            answer!(self.commit_rejected_pattern(node)?);
+
+            return Ok(Answer::Ready(true));
+        };
+        answer!(self.select_variant_pattern(node, origin, flow, scope, case, fields)?);
+
+        Ok(Answer::Ready(true))
+    }
+
+    /// Return the variant family and key named by one pattern.
+    fn variant_pattern_owner(
         &mut self,
         origin: Origin,
         module: ModuleId,
         ty: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
+    ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, dir::GlobalSymbolId, dir::StaticKey)>>>
+    {
         let source = ty.into_global_any(module);
         let expression = self.module(module).view().get(ty).clone();
         match expression {
@@ -62,12 +88,12 @@ impl BodyState<'_, '_> {
                 let owner = answer!(self.node_type(left.into_global_any(module))?);
                 let key = dir::StaticKey::Name(name);
 
-                self.tagged_pattern_head_from_owner(origin, owner, key)
+                self.variant_family_from_type(origin, owner, key)
             }
             dir::TypeExpression::Reference { path, .. } => {
                 let reference = self.module(module).resolved.references.get(source).cloned();
                 let Some(dir::Reference::Projected { base, from }) = reference else {
-                    // bound references name declarations, never tagged cases
+                    // bound references name declarations, never variant cases
                     return Ok(Answer::Ready(None));
                 };
                 let Some(name) = path.segments.get(from as usize).copied() else {
@@ -76,127 +102,205 @@ impl BodyState<'_, '_> {
                 let owner = answer!(self.symbol_type(base)?);
                 let key = dir::StaticKey::Name(name);
 
-                self.tagged_pattern_head_from_owner(origin, owner, key)
+                self.variant_family_from_type(origin, owner, key)
             }
-            _ => self.tagged_pattern_head_from_type(origin, source),
+            _ => {
+                let ty = answer!(self.node_type(source)?);
+                let Some(member) = self.member_head(ty)? else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                self.variant_family_from_type(origin, member.owner, member.key)
+            }
         }
     }
 
+    /// Return one variant family from its owner type and selected key.
+    fn variant_family_from_type(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, dir::GlobalSymbolId, dir::StaticKey)>>>
+    {
+        let owner = answer!(self.reduce_type_head(origin, owner)?);
+        let symbol = match self.ty(owner)? {
+            dir::Type::Instance(instance) => instance.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(Answer::Ready(None)),
+        };
+        let is_variant_family = match self.definition(symbol)? {
+            Some(dir::Definition::Enum(_)) => true,
+            Some(dir::Definition::Newtype(definition)) => definition.is_tagged(),
+            _ => false,
+        };
+        if is_variant_family {
+            Ok(Answer::Ready(Some((owner, symbol, key))))
+        } else {
+            Ok(Answer::Ready(None))
+        }
+    }
+
+    /// Return the variant case named by one expression pattern.
+    pub(in crate::check) fn variant_expression_case(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<Option<dir::VariantCase>>> {
+        let dir::Expression::Member {
+            left,
+            name: Some(name),
+            ..
+        } = self.module(module).view().get(value).clone()
+        else {
+            return Ok(Answer::Ready(None));
+        };
+
+        let owner = answer!(self.node_type(left.into_global_any(module))?);
+        self.variant_case_from_owner(origin, owner, dir::StaticKey::Name(name))
+    }
+
+    /// Return one variant case from its owner type and key.
+    fn variant_case_from_owner(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<Option<dir::VariantCase>>> {
+        let owner = answer!(self.reduce_type_head(origin, owner)?);
+        let symbol = match self.ty(owner)? {
+            dir::Type::Instance(instance) => instance.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(Answer::Ready(None)),
+        };
+        let case = self.variant_case(symbol, key)?;
+
+        Ok(Answer::Ready(case))
+    }
+
+    /// Return one variant case from its declaration symbol and key.
+    fn variant_case(
+        &mut self,
+        owner: dir::GlobalSymbolId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Option<dir::VariantCase>> {
+        let member = match self.definition(owner)? {
+            Some(dir::Definition::Enum(definition)) => {
+                definition.variant_by_key(key).map(|variant| variant.symbol)
+            }
+            Some(dir::Definition::Newtype(definition)) if definition.is_tagged() => definition
+                .tagged_variant_by_key(key)
+                .map(|variant| variant.symbol),
+            _ => None,
+        };
+        let case = member.map(|member| dir::VariantCase { owner, key, member });
+
+        Ok(case)
+    }
+
     /// Select one tagged variant pattern.
-    pub(in crate::check) fn select_tagged_variant_pattern(
+    pub(in crate::check) fn select_variant_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
         scope: Option<dir::GlobalGenericTemplateId>,
-        head: TaggedPatternHead,
+        case: dir::VariantCase,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
-        let definition = self.definition(head.instance.symbol)?;
+        let input = answer!(self.node_type(node.into_any())?);
+        let owners = answer!(self.variant_owners_from_input(origin, input, case.owner)?);
+        if owners.is_empty() {
+            let owner = self.format_symbol(case.owner);
+            let key = self.format_static_key(&case.key);
+            let variant = format!("{owner}.{key}");
+            self.report_pattern_variant_not_in_type(origin, variant, input)?;
+
+            return self.commit_rejected_pattern(node);
+        }
+
+        let definition = self.definition(case.owner)?;
         match definition {
             // enum owners select their member by discriminant
             Some(dir::Definition::Enum(_)) => {
-                return self.select_enum_member_pattern(
-                    node,
-                    origin,
-                    head.owner,
-                    &head.instance,
-                    head.key,
-                    fields,
-                );
+                return self.select_enum_member_pattern(node, origin, case, &owners, fields);
             }
 
             // derived newtypes carry their checked tagged definition
             Some(dir::Definition::Newtype(value)) if value.is_tagged() => {}
 
             // every other owner has no variant cases
-            _ => return self.reject_pattern(node, origin, head.owner),
+            _ => return self.reject_pattern(node, origin, owners[0].owner),
         }
 
-        // select the requested owner from the matched input when it is visible
-        let written_owner = head.owner;
-        let input = answer!(self.node_type(node.into_any())?);
-        let heads = answer!(self.tagged_heads_from_input(origin, input, &head)?);
-        // otherwise let the written generic owner bind against the input
-        let heads = if heads.is_empty() {
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            let belongs =
-                answer!(self.constrain_type(cause, Relation::Assignable, input, head.owner)?);
-            let variant = self.format_variant_case(head.owner, head.key);
-            if !belongs {
-                self.report_pattern_variant_not_in_type(origin, variant, input)?;
-
-                return self.commit_rejected_pattern(node);
-            }
-
-            vec![head]
-        } else {
-            heads
-        };
-
         // select the requested case from every matched owner arm
-        let Some(case) = answer!(self.tagged_case_selection_from_heads(origin, &heads)?) else {
-            let key = self.format_static_key(&heads[0].key);
-            self.report_pattern_variant_missing(origin, key, written_owner)?;
+        let Some(selection) =
+            answer!(self.tagged_case_selection_from_owners(origin, &case, &owners)?)
+        else {
+            let key = self.format_static_key(&case.key);
+            self.report_pattern_variant_missing(origin, key, owners[0].owner)?;
 
             return self.commit_rejected_pattern(node);
         };
 
         // project written fields out of the compact payload
-        let projected = self.project_tagged_payload_fields(
+        let projected = answer!(self.project_tagged_payload_fields(
             node,
             origin,
             flow,
             scope,
-            case.payload,
-            &case.fields,
+            selection.payload,
+            &selection.fields,
             fields,
-        )?;
+        )?);
 
-        let tag_type = self.intern_type(origin.module(), dir::Type::from(&case.discriminant))?;
+        let tag_type =
+            self.intern_type(origin.module(), dir::Type::from(&selection.discriminant))?;
         let projection = dir::Projection::VariantPayload {
-            case: case.case,
-            generic_arguments: case.generic_arguments,
-            discriminant: case.discriminant,
-            ty: case.payload,
+            case: selection.case,
+            generic_arguments: selection.generic_arguments,
+            discriminant: selection.discriminant,
+            ty: selection.payload,
         };
-        let owner = self.tagged_selection_owner(origin.module(), &heads)?;
+        let owner = self.tagged_selection_owner(origin.module(), &owners)?;
         let predicate = dir::Predicate::unary(
             dir::PredicateOperand::projected(dir::Projection::VariantTag { ty: tag_type }),
-            dir::PredicateCondition::Literal(case.discriminant),
+            dir::PredicateCondition::Literal(selection.discriminant),
         )
         .with_narrowed(owner)
         .with_projection(projection.clone());
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Variant(
-                dir::PatternVariantDestructureResolution {
-                    predicate,
-                    projection,
-                    fields: projected,
-                },
+            dir::PatternResolution::Destructure(Box::new(
+                dir::PatternDestructureResolution::Variant(Box::new(
+                    dir::PatternVariantDestructureResolution {
+                        predicate,
+                        projection,
+                        fields: projected,
+                    },
+                )),
             )),
         )
     }
 
     /// Return tagged owner instances visible in the matched input.
-    fn tagged_heads_from_input(
+    fn variant_owners_from_input(
         &mut self,
         origin: Origin,
         input: dir::GlobalTypeId,
-        written: &TaggedPatternHead,
-    ) -> CompilerResult<Answer<Vec<TaggedPatternHead>>> {
-        let input = self.value_beneath_forms(origin, input)?;
-        let mut heads = Vec::new();
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Answer<Vec<VariantOwner>>> {
+        let input = answer!(self.strip_form(origin, input)?);
+        let mut owners = Vec::new();
 
         // collect every visible owner instance from the input
         match self.ty(input)? {
-            dir::Type::Instance(instance) if instance.symbol == written.instance.symbol => {
-                heads.push(TaggedPatternHead {
+            dir::Type::Instance(instance) if instance.symbol == symbol => {
+                owners.push(VariantOwner {
                     owner: input,
                     instance,
-                    key: written.key,
                 });
             }
             dir::Type::Union(union) => {
@@ -206,12 +310,11 @@ impl BodyState<'_, '_> {
                 for arm in arms {
                     let arm = answer!(self.reduce_type_head(origin, arm)?);
                     if let dir::Type::Instance(instance) = self.ty(arm)?
-                        && instance.symbol == written.instance.symbol
+                        && instance.symbol == symbol
                     {
-                        heads.push(TaggedPatternHead {
+                        owners.push(VariantOwner {
                             owner: arm,
                             instance,
-                            key: written.key,
                         });
                     }
                 }
@@ -219,18 +322,19 @@ impl BodyState<'_, '_> {
             _ => {}
         };
 
-        Ok(Answer::Ready(heads))
+        Ok(Answer::Ready(owners))
     }
 
     /// Return one selected case from every matched tagged owner arm.
-    fn tagged_case_selection_from_heads(
+    fn tagged_case_selection_from_owners(
         &mut self,
         origin: Origin,
-        heads: &[TaggedPatternHead],
+        case: &dir::VariantCase,
+        owners: &[VariantOwner],
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let mut selected = Vec::with_capacity(heads.len());
-        for head in heads {
-            let Some(case) = answer!(self.tagged_case_selection(origin, head)?) else {
+        let mut selected = Vec::with_capacity(owners.len());
+        for owner in owners {
+            let Some(case) = answer!(self.tagged_case_selection(origin, owner, case)?) else {
                 continue;
             };
             selected.push(case);
@@ -290,11 +394,11 @@ impl BodyState<'_, '_> {
     fn tagged_selection_owner(
         &mut self,
         module: ModuleId,
-        heads: &[TaggedPatternHead],
+        owners: &[VariantOwner],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        match heads {
-            [head] => Ok(head.owner),
-            _ => self.normalized_union_type(module, heads.iter().map(|head| head.owner)),
+        match owners {
+            [owner] => Ok(owner.owner),
+            _ => self.normalized_union_type(module, owners.iter().map(|owner| owner.owner)),
         }
     }
 
@@ -330,22 +434,24 @@ impl BodyState<'_, '_> {
         // open the owner at the call site: the return expectation and
         //  the payload arguments bind its holes
         let owner_static = answer!(self.symbol_type(owner_instance.symbol)?);
-        let Some(head) = answer!(self.tagged_pattern_head_from_owner(origin, owner_static, key)?)
-        else {
+        let Some(owner) = answer!(self.tagged_owner_from_type(origin, owner_static)?) else {
             return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
-        let Some(case) = answer!(self.tagged_case_selection(origin, &head)?) else {
+        let Some(variant) = self.variant_case(owner.instance.symbol, key)? else {
+            return self.reject_construct(site, node, origin, argument_nodes, &[]);
+        };
+        let Some(case) = answer!(self.tagged_case_selection(origin, &owner, &variant)?) else {
             return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
 
         // explicit type arguments bind the opened owner holes directly
         let mut type_arguments = type_arguments;
         if !type_arguments.is_empty() {
-            let dir::Type::Instance(owner_open) = self.ty(head.owner)? else {
+            let dir::Type::Instance(owner_open) = self.ty(owner.owner)? else {
                 return self.reject_construct(site, node, origin, argument_nodes, &[]);
             };
             let holes = self
-                .type_ids(head.owner.module_id, owner_open.arguments)?
+                .type_ids(owner.owner.module_id, owner_open.arguments)?
                 .to_vec();
             if holes.len() != type_arguments.len() {
                 return self.reject_construct(site, node, origin, argument_nodes, &[]);
@@ -374,11 +480,10 @@ impl BodyState<'_, '_> {
             template: None,
             this_parameter: None,
             parameters,
-            return_type: Some(head.owner),
+            return_type: Some(owner.owner),
             is_generator: false,
         };
         let attempt = self.match_signature(
-            CandidatePass::Confirm,
             origin,
             module,
             module,
@@ -393,9 +498,16 @@ impl BodyState<'_, '_> {
             &arguments,
             expected_return,
         )?;
-        let signature = match answer!(attempt) {
-            CandidateOutcome::Accepted(signature) => signature,
-            CandidateOutcome::Rejected(_) => {
+        let (signature, rejection) = match answer!(attempt) {
+            SignatureMatch::Selected(signature) | SignatureMatch::ReturnMismatch(signature) => {
+                (signature, None)
+            }
+            SignatureMatch::Invalid {
+                selection,
+                rejection,
+                variables,
+            } => (selection, Some((rejection, variables))),
+            SignatureMatch::Inapplicable(_) => {
                 return self.reject_construct(site, node, origin, argument_nodes, &[]);
             }
         };
@@ -418,59 +530,22 @@ impl BodyState<'_, '_> {
             self.argument_bindings(module, argument_nodes, &signature.parameters),
             signature.return_type,
         );
-        self.check_arguments(site, argument_nodes, &resolution.arguments)?;
         self.commit_decision(node, Decision::Construct(resolution))?;
         self.commit_node_type(node, signature.return_type)?;
+        if let Some((rejection, variables)) = rejection {
+            self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
+            self.check.poison_variables(variables)?;
+        }
 
         Ok(Answer::Ready(()))
     }
 
-    /// Return the tagged head named by one owner.case expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// match bound { Bound.Unbounded => 0 }
-    /// ```
-    pub(in crate::check) fn tagged_expression_head(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        value: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
-        let dir::Expression::Member {
-            left,
-            name: Some(name),
-            ..
-        } = self.module(module).view().get(value).clone()
-        else {
-            return Ok(Answer::Ready(None));
-        };
-
-        let owner = answer!(self.node_type(left.into_global_any(module))?);
-        self.tagged_pattern_head_from_owner(origin, owner, dir::StaticKey::Name(name))
-    }
-
-    /// Return the tagged pattern head carried by one computed member type.
-    fn tagged_pattern_head_from_type(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
-        let ty = answer!(self.node_type(source)?);
-        let Some(member) = self.member_head(ty)? else {
-            return Ok(Answer::Ready(None));
-        };
-
-        self.tagged_pattern_head_from_owner(origin, member.owner, member.key)
-    }
-
-    /// Return a tagged pattern head from an owner type and a written case key.
-    fn tagged_pattern_head_from_owner(
+    /// Instantiate one tagged owner type.
+    fn tagged_owner_from_type(
         &mut self,
         origin: Origin,
         owner: dir::GlobalTypeId,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
+    ) -> CompilerResult<Answer<Option<VariantOwner>>> {
         let owner = answer!(self.reduce_type_head(origin, owner)?);
         let (owner, instance) = match self.ty(owner)? {
             dir::Type::Instance(instance) => (owner, instance),
@@ -506,38 +581,35 @@ impl BodyState<'_, '_> {
             _ => return Ok(Answer::Ready(None)),
         };
 
-        Ok(Answer::Ready(Some(TaggedPatternHead {
-            owner,
-            instance,
-            key,
-        })))
+        Ok(Answer::Ready(Some(VariantOwner { owner, instance })))
     }
 
     /// Select one tagged variant.
     fn tagged_case_selection(
         &mut self,
         origin: Origin,
-        head: &TaggedPatternHead,
+        owner: &VariantOwner,
+        case: &dir::VariantCase,
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let Some(variant) = self.tagged_variant(head.instance.symbol, head.key)? else {
+        let Some(variant) = self.tagged_variant(owner.instance.symbol, case.key)? else {
             return Ok(Answer::Ready(None));
         };
         // instantiate the backing leaf under the selected owner
         let substitution = self
-            .instance_substitution(head.owner.module_id, &head.instance)?
-            .with_receiver(head.owner);
+            .instance_substitution(owner.owner.module_id, &owner.instance)?
+            .with_receiver(owner.owner);
         let leaf = self.substitute_type(origin.module(), variant.backing, &substitution)?;
         let leaf = answer!(self.reduce_type_head(origin, leaf)?);
 
         // project the runtime payload from the selected leaf
         let definition =
-            self.definition(head.instance.symbol)?
+            self.definition(owner.instance.symbol)?
                 .ok_or_else(|| CompilerError::Internal {
-                    message: format!("tagged owner {:?} has no definition", head.instance.symbol),
+                    message: format!("tagged owner {:?} has no definition", owner.instance.symbol),
                 })?;
         let dir::Definition::Newtype(definition) = definition else {
             return Err(CompilerError::Internal {
-                message: format!("tagged owner {:?} is not a newtype", head.instance.symbol),
+                message: format!("tagged owner {:?} is not a newtype", owner.instance.symbol),
             });
         };
         let discriminant = definition
@@ -545,26 +617,21 @@ impl BodyState<'_, '_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "tagged owner {:?} has no discriminant",
-                    head.instance.symbol
+                    owner.instance.symbol
                 ),
             })?;
         let discriminant_key = dir::StaticKey::Name(discriminant);
         let fields = answer!(self.tagged_payload_fields(origin, leaf, discriminant_key)?);
         let payload = self.tagged_payload_type(origin, &fields)?;
         let discriminant = dir::ScalarLiteral::String(variant.discriminant);
-        let case = dir::VariantCase {
-            owner: head.instance.symbol,
-            key: variant.key,
-            member: variant.symbol,
-        };
-        let head_arguments = self
-            .type_ids(head.owner.module_id, head.instance.arguments)?
+        let owner_arguments = self
+            .type_ids(owner.owner.module_id, owner.instance.arguments)?
             .to_vec();
         let generic_arguments =
-            self.symbol_generic_argument_bindings(head.instance.symbol, &head_arguments)?;
+            self.symbol_generic_argument_bindings(owner.instance.symbol, &owner_arguments)?;
 
         Ok(Answer::Ready(Some(TaggedCaseSelection {
-            case,
+            case: case.clone(),
             generic_arguments: Some(generic_arguments),
             discriminant,
             payload,
@@ -690,7 +757,7 @@ impl BodyState<'_, '_> {
         payload: dir::GlobalTypeId,
         payload_fields: &[TaggedPayloadField],
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Vec<dir::PatternFieldResolution>> {
+    ) -> CompilerResult<Answer<Vec<dir::PatternFieldResolution>>> {
         let module = node.module_id;
         let mut projected = Vec::with_capacity(fields.len());
         let mut position = 0usize;
@@ -714,12 +781,12 @@ impl BodyState<'_, '_> {
                         continue;
                     };
 
-                    self.project_pattern_input(
+                    answer!(self.check_pattern_projection(
                         flow,
                         scope,
                         pattern_type,
                         pattern.into_global_any(module),
-                    )?;
+                    )?);
                     projected.push(dir::PatternFieldResolution {
                         source,
                         projection: dir::Projection::FieldGet {
@@ -742,12 +809,12 @@ impl BodyState<'_, '_> {
                     let input = self.tagged_payload_field_type(module, payload_field)?;
 
                     if let Some(pattern) = pattern {
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             input,
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                     } else if let Some(symbol) =
                         self.module(module).declaration_symbol((*field).into_any())
                     {
@@ -774,7 +841,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        Ok(projected)
+        Ok(Answer::Ready(projected))
     }
 
     /// Return one positional compact payload type.

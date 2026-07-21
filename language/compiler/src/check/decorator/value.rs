@@ -392,7 +392,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
         let source = value.into_global_any(module);
         let ty = self
-            .node_type_maybe(source)
+            .committed_node_type(source)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("static type expression {source:?} has no committed type"),
             })?;
@@ -422,7 +422,7 @@ impl CheckState<'_> {
         }
         // type declarations are first-class reflected values
         else if self.symbol_kind(symbol).can_be_used_as_type() {
-            let Some(ty) = self.node_type_maybe(source) else {
+            let Some(ty) = self.committed_node_type(source) else {
                 return Err(CompilerError::Internal {
                     message: format!("static type value {source:?} has no committed type"),
                 });

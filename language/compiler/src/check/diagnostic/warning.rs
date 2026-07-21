@@ -25,7 +25,7 @@ impl CheckState<'_> {
         // settle each checked condition before inspecting its canonical type
         for condition in conditions {
             let global = condition.into_global_any(module);
-            let Some(ty) = self.node_type_maybe(global) else {
+            let Some(ty) = self.committed_node_type(global) else {
                 return Err(CompilerError::Internal {
                     message: format!("runtime condition {global:?} has no checked type"),
                 });

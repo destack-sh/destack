@@ -6,8 +6,9 @@ use destack_source::{
 };
 
 use crate::check::{
-    BoundSide, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure, OperatorOperands,
-    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
+    BoundSide, Cause, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure,
+    OperatorOperands, Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse,
+    Variance,
 };
 use crate::{CheckError, CheckWarning, CompilerResult, DiagnosticAnchor};
 
@@ -595,13 +596,12 @@ impl CheckState<'_> {
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Vec<(BoundSide, TypeBound)>> {
-        let representative = self.solver.representative(variable)?;
         let mut bounds = Vec::new();
         for side in [BoundSide::Lower, BoundSide::Upper] {
             bounds.extend(
                 self.solver
                     .variables
-                    .side_bounds(representative, side)?
+                    .side_bounds(variable, side)?
                     .map(|bound| (side, bound)),
             );
         }
@@ -799,6 +799,7 @@ impl CheckState<'_> {
                 index,
                 source,
                 target,
+                ..
             } => format!(
                 "rejects argument {index}: '{}' is not assignable to '{}'",
                 self.format_type_at(module, *source),
@@ -1068,23 +1069,32 @@ impl CheckState<'_> {
             // report argument mismatch on the failing value
             SignatureRejection::Argument {
                 index,
+                relation,
                 source,
                 target,
             } => {
-                let origin = arguments
+                let argument_origin = arguments
                     .get(index)
                     .and_then(|argument| self.body().argument_expression(module, *argument))
                     .map(|node| self.origin_at(origin, node))
                     .transpose()?
                     .unwrap_or(origin);
-                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                let error = CheckError::ArgumentNotAssignable {
-                    anchor,
-                    module,
-                    source: self.format_type_at(module, source),
-                    target: self.format_type_at(module, target),
-                };
-                self.report(module, error);
+                let call = self.origin_source(origin)?;
+                let cause = self.intern_cause(Cause::root(
+                    argument_origin,
+                    CauseKind::Argument {
+                        call,
+                        index: index as u32,
+                    },
+                ));
+                self.report_constraint_failure(
+                    cause,
+                    relation,
+                    Some(ValueUse::Argument),
+                    source,
+                    target,
+                    CheckFailure::Relation,
+                )?;
             }
 
             // report generic bound mismatch on the supplied or inferred argument source

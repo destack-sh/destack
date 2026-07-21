@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
 impl CheckState<'_> {
     /// Decide whether one type duplicates implicitly without ownership.
@@ -37,7 +37,7 @@ impl CheckState<'_> {
 
         match kind {
             dir::Type::Variable(variable) => {
-                Ok(Answer::pending([self.variable_dependency(variable)?]))
+                Ok(Answer::pending([Dependency::Variable(variable)]))
             }
             // refinements constrain members without changing the base
             dir::Type::Refined(refined) => {
@@ -100,7 +100,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    self.body(origin.module())
+                    self.body()
                         .access_is_readonly(origin, access)
                 }
                 dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. } => {

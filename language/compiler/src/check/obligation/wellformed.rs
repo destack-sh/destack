@@ -16,7 +16,7 @@ impl CheckState<'_> {
         // explicit placement must agree with an intrinsically placed nominal base
         if let Some(written) = self.type_place(obligation.ty)? {
             let written = answer!(self.reduce_type_head(origin, written)?);
-            let value = self.value_beneath_forms(origin, obligation.ty)?;
+            let value = answer!(self.strip_form(origin, obligation.ty)?);
             let value = answer!(self.reduce_type_head(origin, value)?);
             let symbol = match self.ty(value)? {
                 dir::Type::Instance(instance) => Some(instance.symbol),

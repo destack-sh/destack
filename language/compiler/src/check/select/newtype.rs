@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateOutcome, CandidatePass, CandidateVerdict, Origin,
-    ProbeReason, SignatureRejection, SignatureSelection, TypeSubstitution, answer,
+    Answer, BodyState, CallableArgument, CandidateVerdict, MemoryRank, Origin, ProbeReason,
+    SignatureMatch, SignatureRejection, TypeSubstitution, VariableDomain, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -19,24 +19,49 @@ struct NewtypeCandidate {
 /// Result of matching arguments against one newtype.
 pub(in crate::check) enum NewtypeMatch {
     /// One backing alternative accepted the arguments.
-    Selected {
-        /// The durable nominal selection.
-        selection: dir::NewtypeSelection,
-        /// The selected parameter types.
-        parameters: SmallVec<[dir::FunctionParameterType; 4]>,
-        /// The instantiated nominal return type.
-        return_type: dir::GlobalTypeId,
+    Selected(NewtypeSignature),
+    /// One backing alternative was selected but rejects the expected return.
+    ReturnMismatch(NewtypeSignature),
+    /// One backing alternative was selected but rejects the invocation.
+    Invalid {
+        /// The selected backing signature.
+        signature: NewtypeSignature,
+        /// The rejected invocation judgment.
+        rejection: SignatureRejection,
+        /// The inference variables owned by the rejected invocation.
+        variables: VariableDomain,
     },
     /// No backing alternative accepted the arguments.
     Rejected(NewtypeRejection),
+}
+
+/// One selected newtype backing signature.
+pub(in crate::check) struct NewtypeSignature {
+    /// The durable nominal selection.
+    pub(in crate::check) selection: dir::NewtypeSelection,
+    /// The selected parameter types.
+    pub(in crate::check) parameters: SmallVec<[dir::FunctionParameterType; 4]>,
+    /// The instantiated nominal return type.
+    pub(in crate::check) return_type: dir::GlobalTypeId,
 }
 
 /// Reason no backing alternative accepted the supplied arguments.
 pub(in crate::check) enum NewtypeRejection {
     /// One signature produced a specific rejection.
     Signature(SignatureRejection),
-    /// Candidate signatures produced overload diagnostics.
-    Candidates(Vec<String>),
+    /// No backing alternative accepted the arguments.
+    NoMatch(Vec<String>),
+    /// Backing selection is not provably unique.
+    Ambiguous,
+}
+
+/// How newtype backing alternatives are selected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum NewtypeOverload {
+    /// Select the first viable alternative in authored order.
+    Ordered,
+    /// Require exactly one independently viable alternative.
+    Unambiguous,
 }
 
 impl BodyState<'_, '_> {
@@ -48,6 +73,7 @@ impl BodyState<'_, '_> {
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         type_arguments: &[dir::GlobalTypeId],
         expected_return: Option<dir::GlobalTypeId>,
+        overload: NewtypeOverload,
     ) -> CompilerResult<Answer<NewtypeMatch>> {
         let module = origin.module();
         let arguments = self.callable_arguments(module, argument_nodes)?;
@@ -85,30 +111,41 @@ impl BodyState<'_, '_> {
         )?;
 
         // build one signature candidate per backing alternative
-        let candidates = answer!(self.newtype_candidates(origin, backing, return_type)?);
+        let candidates =
+            answer!(self.newtype_candidates(origin, backing, return_type, overload)?);
 
-        // keep the first viable candidate, or the first ambiguous candidate if none decide
+        // select according to the construction's ambiguity rule
         let is_single_candidate = candidates.len() == 1;
-        let mut winner = None;
-        let mut ambiguous = None;
+        let mut winner: Option<(MemoryRank, NewtypeCandidate)> = None;
+        let mut indeterminate = None;
         let mut notes = Vec::new();
         for candidate in candidates.iter().copied() {
             if is_single_candidate {
-                winner = Some(candidate);
+                winner = Some((MemoryRank::Exact, candidate));
                 break;
             }
-            let (verdict, rejection) = self.probe_candidate_noted(
+            let mut rank = MemoryRank::Exact;
+            let (verdict, rejection) = answer!(self.probe_candidate_noted(
                 ProbeReason::Signature,
                 |state| {
-                    state.match_newtype_candidate(
-                        CandidatePass::Winnow,
+                    let outcome = state.match_newtype_candidate(
                         origin,
                         candidate,
                         &generic_parameters,
                         &type_arguments,
                         &arguments,
                         expected_return,
-                    )
+                    )?;
+                    match outcome {
+                        Answer::Ready(matched) => {
+                            if let SignatureMatch::Selected(selection) = &matched {
+                                rank = answer!(selection.memory_rank(origin, &arguments, state)?);
+                            }
+
+                            Ok(Answer::Ready(matched.into_candidate()))
+                        }
+                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    }
                 },
                 |state, rejection| {
                     Ok(state.check.describe_signature_rejection(
@@ -117,25 +154,42 @@ impl BodyState<'_, '_> {
                         rejection,
                     ))
                 },
-            )?;
+            )?);
             match verdict {
                 CandidateVerdict::Rejected => notes.extend(rejection),
                 CandidateVerdict::Viable => {
-                    winner = Some(candidate);
-                    break;
+                    if overload == NewtypeOverload::Unambiguous && winner.is_some() {
+                        return Ok(Answer::Ready(NewtypeMatch::Rejected(
+                            NewtypeRejection::Ambiguous,
+                        )));
+                    }
+                    if overload == NewtypeOverload::Unambiguous {
+                        winner = Some((rank, candidate));
+                    } else if rank == MemoryRank::Exact {
+                        winner = Some((rank, candidate));
+                        break;
+                    } else if winner.is_none_or(|(best, _)| rank < best) {
+                        winner = Some((rank, candidate));
+                    }
                 }
-                CandidateVerdict::Ambiguous => {
-                    ambiguous.get_or_insert(candidate);
+                CandidateVerdict::Indeterminate => {
+                    if overload == NewtypeOverload::Unambiguous {
+                        return Ok(Answer::Ready(NewtypeMatch::Rejected(
+                            NewtypeRejection::Ambiguous,
+                        )));
+                    }
+                    indeterminate.get_or_insert(candidate);
                 }
             }
         }
+        let winner = winner.map(|(_, candidate)| candidate);
 
         // confirm the selected candidate outside speculative state
         let mut selected = None;
+        let mut is_return_mismatch = false;
         let mut signature_rejection = None;
-        if let Some(candidate) = winner.or(ambiguous) {
+        if let Some(candidate) = winner.or(indeterminate) {
             let matched = self.match_newtype_candidate(
-                CandidatePass::Confirm,
                 origin,
                 candidate,
                 &generic_parameters,
@@ -144,23 +198,39 @@ impl BodyState<'_, '_> {
                 expected_return,
             )?;
             match answer!(matched) {
-                CandidateOutcome::Accepted(signature) => selected = Some((candidate, signature)),
-                CandidateOutcome::Rejected(rejection)
+                SignatureMatch::Selected(signature) => {
+                    selected = Some((candidate, signature, None));
+                }
+                SignatureMatch::ReturnMismatch(signature) => {
+                    selected = Some((candidate, signature, None));
+                    is_return_mismatch = true;
+                }
+                SignatureMatch::Invalid {
+                    selection,
+                    rejection,
+                    variables,
+                } if is_single_candidate => {
+                    selected = Some((candidate, selection, Some((rejection, variables))));
+                }
+                SignatureMatch::Inapplicable(rejection)
                     if is_single_candidate && rejection.is_precise() =>
                 {
                     signature_rejection = Some(rejection);
                 }
-                CandidateOutcome::Rejected(_) => {}
+                SignatureMatch::Invalid { variables, .. } => {
+                    self.check.poison_variables(variables)?;
+                }
+                SignatureMatch::Inapplicable(_) => {}
             }
         }
 
         // preserve one specific rejection or bounded candidate diagnostics
-        let Some((candidate, signature)) = selected else {
+        let Some((candidate, signature, rejection)) = selected else {
             let rejection = match signature_rejection {
                 Some(rejection) => NewtypeRejection::Signature(rejection),
                 None => {
                     notes.truncate(4);
-                    NewtypeRejection::Candidates(notes)
+                    NewtypeRejection::NoMatch(notes)
                 }
             };
 
@@ -188,11 +258,22 @@ impl BodyState<'_, '_> {
             generic_arguments: signature.generic_arguments.clone(),
         };
 
-        Ok(Answer::Ready(NewtypeMatch::Selected {
+        let signature = NewtypeSignature {
             selection,
             parameters: signature.parameters,
             return_type: signature.return_type,
-        }))
+        };
+        let matched = match rejection {
+            Some((rejection, variables)) => NewtypeMatch::Invalid {
+                signature,
+                rejection,
+                variables,
+            },
+            None if is_return_mismatch => NewtypeMatch::ReturnMismatch(signature),
+            None => NewtypeMatch::Selected(signature),
+        };
+
+        Ok(Answer::Ready(matched))
     }
 
     /// Build argument matching candidates from one newtype backing.
@@ -201,6 +282,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         backing: dir::GlobalTypeId,
         return_type: dir::GlobalTypeId,
+        overload: NewtypeOverload,
     ) -> CompilerResult<Answer<SmallVec<[NewtypeCandidate; 2]>>> {
         let backing = answer!(self.reduce_type_head(origin, backing)?);
         let mut backings = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[backing]);
@@ -215,7 +297,9 @@ impl BodyState<'_, '_> {
             for element in elements {
                 backings.push(answer!(self.reduce_type_head(origin, element)?));
             }
-            backings.push(backing);
+            if overload == NewtypeOverload::Ordered {
+                backings.push(backing);
+            }
         }
 
         // map scalar and tuple backings onto ordinary callable signatures
@@ -257,14 +341,13 @@ impl BodyState<'_, '_> {
     /// Match one newtype backing candidate against supplied arguments.
     fn match_newtype_candidate(
         &mut self,
-        pass: CandidatePass,
         origin: Origin,
         candidate: NewtypeCandidate,
         generic_parameters: &[dir::GlobalGenericParameterId],
         type_arguments: &[dir::GlobalTypeId],
         arguments: &[CallableArgument],
         expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<CandidateOutcome<SignatureSelection, SignatureRejection>>> {
+    ) -> CompilerResult<Answer<SignatureMatch>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
         let Some(function) = self.signature_head(candidate.signature)? else {
@@ -277,7 +360,6 @@ impl BodyState<'_, '_> {
         };
 
         self.match_signature(
-            pass,
             origin,
             module,
             candidate.signature.module_id,
