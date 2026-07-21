@@ -371,30 +371,6 @@ impl Program {
         self.frames.slot(self.sections(), layout, slot)
     }
 
-    /// Return all value slots for one frame layout.
-    pub fn frame_value_slots<'a>(&'a self, layout: &FrameLayout) -> &'a [FrameSlot] {
-        let sections = self.sections();
-        let slots = self.frames.slots(sections, layout);
-
-        layout.values(slots)
-    }
-
-    /// Return all local slots for one frame layout.
-    pub fn frame_local_slots<'a>(&'a self, layout: &FrameLayout) -> &'a [FrameSlot] {
-        let sections = self.sections();
-        let slots = self.frames.slots(sections, layout);
-
-        layout.locals(slots)
-    }
-
-    /// Return one local slot for one frame layout.
-    pub fn frame_local_slot(&self, layout: &FrameLayout, local: u32) -> Option<&FrameSlot> {
-        let sections = self.sections();
-        let slots = self.frames.slots(sections, layout);
-
-        layout.local(slots, local)
-    }
-
     /// Return the closure environment slot for one frame layout.
     pub fn frame_environment_slot<'a>(&'a self, layout: &FrameLayout) -> Option<&'a FrameSlot> {
         let sections = self.sections();

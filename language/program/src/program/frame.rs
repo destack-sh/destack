@@ -243,10 +243,9 @@ impl FrameTableBuilder {
 
             layouts.push(FrameLayout {
                 slots: slot_range,
-                value_count: layout.value_count,
-                local_count: layout.local_count,
                 environment_slot: layout.environment_slot.into(),
                 byte_len: layout.byte_len,
+                alignment: layout.alignment,
             });
         }
 
@@ -306,14 +305,12 @@ impl FrameSlot {
 pub struct FrameLayout {
     /// Slots in frame order.
     pub slots: EntryRange<FrameSlot>,
-    /// Number of SSA value slots.
-    pub value_count: u32,
-    /// Number of local slots.
-    pub local_count: u32,
     /// Callable environment slot.
     pub environment_slot: Optional<FrameSlotId>,
     /// The frame byte length.
     pub byte_len: u32,
+    /// The frame byte alignment.
+    pub alignment: u32,
 }
 
 impl FrameLayout {
@@ -322,57 +319,9 @@ impl FrameLayout {
         self.byte_len
     }
 
-    /// Return the frame slot id for one SSA value.
-    pub fn value_slot_id(&self, value: u32) -> Option<FrameSlotId> {
-        (value < self.value_count).then_some(value.into())
-    }
-
-    /// Return the frame slot id for one local.
-    pub fn local_slot_id(&self, local: u32) -> Option<FrameSlotId> {
-        (local < self.local_count).then_some((self.value_count + local).into())
-    }
-
-    /// Return the value slot at one SSA value index.
-    pub fn value<'a>(&self, slots: &'a [FrameSlot], value: u32) -> Option<&'a FrameSlot> {
-        if value < self.value_count {
-            slots.get(value as usize)
-        } else {
-            None
-        }
-    }
-
-    /// Return the local slot at the given local index.
-    pub fn local<'a>(&self, slots: &'a [FrameSlot], local: u32) -> Option<&'a FrameSlot> {
-        if local >= self.local_count {
-            return None;
-        }
-
-        let index = self.value_count + local;
-
-        slots.get(index as usize)
-    }
-
-    /// Return the SSA value addressed by one slot id.
-    pub fn slot_value(&self, id: FrameSlotId) -> Option<u32> {
-        if id.0 < self.value_count {
-            Some(id.0)
-        } else {
-            None
-        }
-    }
-
-    /// Return the local addressed by one slot id.
-    pub fn slot_local(&self, id: FrameSlotId) -> Option<u32> {
-        if id.0 < self.value_count {
-            return None;
-        }
-
-        let local_index = id.0 - self.value_count;
-        if local_index < self.local_count {
-            Some(local_index)
-        } else {
-            None
-        }
+    /// Return the frame byte alignment.
+    pub const fn alignment(self) -> u32 {
+        self.alignment
     }
 
     /// Return whether one slot id addresses the callable environment.
@@ -385,19 +334,6 @@ impl FrameLayout {
         self.environment_slot
             .get()
             .and_then(|id| slots.get(id.0 as usize))
-    }
-
-    /// Return all value slots.
-    pub fn values<'a>(&self, slots: &'a [FrameSlot]) -> &'a [FrameSlot] {
-        &slots[..self.value_count as usize]
-    }
-
-    /// Return all local slots.
-    pub fn locals<'a>(&self, slots: &'a [FrameSlot]) -> &'a [FrameSlot] {
-        let start = self.value_count as usize;
-        let end = start + self.local_count as usize;
-
-        &slots[start..end]
     }
 
     /// Return the frame slot count.
@@ -453,25 +389,22 @@ impl FrameState {
 pub struct FrameLayoutBuilder {
     /// Slots in frame order.
     slots: Vec<FrameSlot>,
-    /// Number of SSA value slots.
-    value_count: u32,
-    /// Number of local slots.
-    local_count: u32,
     /// Callable environment slot.
     environment_slot: Option<FrameSlotId>,
     /// The frame byte length.
     byte_len: u32,
+    /// The frame byte alignment.
+    alignment: u32,
 }
 
 impl FrameLayoutBuilder {
     /// Create one physical frame layout builder.
-    pub fn new(value_count: u32, local_count: u32, byte_len: u32) -> Self {
+    pub fn new(byte_len: u32, alignment: u32) -> Self {
         Self {
             slots: Vec::new(),
-            value_count,
-            local_count,
             environment_slot: None,
             byte_len,
+            alignment,
         }
     }
 

@@ -806,6 +806,16 @@ impl LayoutBuilder {
         }
     }
 
+    /// Return the total byte length.
+    pub const fn byte_len(&self) -> u32 {
+        self.size
+    }
+
+    /// Return the required byte alignment.
+    pub const fn alignment(&self) -> u32 {
+        self.alignment
+    }
+
     /// Build this layout into one section entry.
     fn build(
         self,
