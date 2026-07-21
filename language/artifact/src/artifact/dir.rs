@@ -25,10 +25,13 @@ impl DirParsed {
         files: Vec<DirParsedFile>,
         anchor_expression: dir::LocalNodeId<dir::Expression>,
     ) -> Self {
-        let roots = files
+        // index source roots and diagnostic anchors
+        let mut roots = files
             .iter()
             .flat_map(|file| file.roots.iter().copied())
             .collect::<Vec<_>>();
+        roots.extend(files.iter().map(|file| file.anchor_expression));
+        roots.push(anchor_expression);
         tree.index_parents(&roots);
 
         Self {
