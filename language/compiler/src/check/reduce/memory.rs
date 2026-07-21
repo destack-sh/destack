@@ -6,6 +6,17 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
+/// Overload rank of one accepted memory relation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(in crate::check) enum MemoryRank {
+    /// Source and target memory forms match exactly.
+    Exact,
+    /// A mutable borrow weakens to readonly access.
+    Weakened,
+    /// Managed or owned storage is borrowed.
+    Borrowed,
+}
+
 /// Memory forms stacked over one base type.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct FormChain {
@@ -256,6 +267,29 @@ impl CheckState<'_> {
         Ok(is_immediate)
     }
 
+    /// Place one binding value in its explicitly declared storage space.
+    pub(in crate::check) fn place_binding_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let space = self
+            .module(symbol.module_id)
+            .binding_table()
+            .get_symbol(symbol.local_id)
+            .binding_space;
+        let Some(space) = space else {
+            return Ok(ty);
+        };
+
+        let place = self.intern_type(
+            symbol.module_id,
+            dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))),
+        )?;
+
+        self.placed_type(Origin::Symbol(symbol), ty, place)
+    }
+
     /// Place one value type without requiring its payload to be solved.
     pub(in crate::check) fn placed_type(
         &mut self,
@@ -312,42 +346,33 @@ impl CheckState<'_> {
         self.placed_type(origin, ty, place)
     }
 
-    /// Return the value beneath one type's memory forms.
-    pub(in crate::check) fn value_beneath_forms(
+    /// Strip every explicit memory form from one type.
+    pub(in crate::check) fn strip_form(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // unreduced heads stop the peel where they stand
-        let Answer::Ready(mut value) = self.reduce_type_head(origin, id)? else {
-            return Ok(id);
-        };
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut value = answer!(self.reduce_type_head(origin, id)?);
         while let dir::Type::Form(form) = self.ty(value)? {
-            match self.reduce_type_head(origin, form.value)? {
-                Answer::Ready(inner) => value = inner,
-                Answer::Pending(_) => return Ok(form.value),
-            }
+            value = answer!(self.reduce_type_head(origin, form.value)?);
         }
 
-        Ok(value)
+        Ok(Answer::Ready(value))
     }
 
-    /// Replace the value beneath one type's memory forms.
-    pub(in crate::check) fn replace_beneath_forms(
+    /// Replace the value beneath every explicit memory form.
+    pub(in crate::check) fn replace_form_value(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // unreduced heads carry no forms to preserve
-        let Answer::Ready(head) = self.reduce_type_head(origin, ty)? else {
-            return Ok(value);
-        };
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let head = answer!(self.reduce_type_head(origin, ty)?);
         let dir::Type::Form(form) = self.ty(head)? else {
-            return Ok(value);
+            return Ok(Answer::Ready(value));
         };
 
-        let inner = self.replace_beneath_forms(origin, form.value, value)?;
+        let inner = answer!(self.replace_form_value(origin, form.value, value)?);
         let rebuilt = self.intern_type(
             origin.module(),
             dir::Type::Form(dir::FormType {
@@ -356,7 +381,7 @@ impl CheckState<'_> {
             }),
         )?;
 
-        Ok(rebuilt)
+        Ok(Answer::Ready(rebuilt))
     }
 
     /// Normalize one static value against a memory-domain language item.
@@ -1110,52 +1135,47 @@ impl CheckState<'_> {
         Ok(Some(self.intern_memory_type(origin, formed)?))
     }
 
-    /// Rank the memory adjustment one argument needs: exact 0, weakened access 1, borrow 2.
-    pub(in crate::check) fn memory_adjustment_rank(
+    /// Return the overload rank of one accepted memory relation.
+    pub(in crate::check) fn memory_rank(
         &mut self,
         origin: Origin,
         argument: dir::GlobalTypeId,
         parameter: dir::GlobalTypeId,
-    ) -> CompilerResult<u8> {
-        let borrows = (
-            self.peek_ownership_form(argument)?,
-            self.peek_ownership_form(parameter)?,
-        );
-        match borrows {
-            // borrow acquisition from managed or owned storage ranks last
-            (Some(dir::Form::Borrowed(_)), Some(dir::Form::Borrowed(_))) => {}
-            (_, Some(dir::Form::Borrowed(_))) => return Ok(2),
-            _ => return Ok(0),
+    ) -> CompilerResult<MemoryRank> {
+        // representation-changing borrow acquisition ranks last
+        if self
+            .borrow_conversion(origin, argument, parameter)?
+            .is_some()
+        {
+            return Ok(MemoryRank::Borrowed);
         }
+
+        // only two existing borrows can differ by access alone
+        let argument = self.form_chain(origin, argument)?;
+        let parameter = self.form_chain(origin, parameter)?;
+        let Some(dir::Form::Borrowed(argument_borrow)) =
+            argument.ownership_form().map(|entry| entry.form)
+        else {
+            return Ok(MemoryRank::Exact);
+        };
+        let Some(dir::Form::Borrowed(parameter_borrow)) =
+            parameter.ownership_form().map(|entry| entry.form)
+        else {
+            return Ok(MemoryRank::Exact);
+        };
 
         // access weakening between borrowed forms ranks in the middle
-        if let (Some(dir::Form::Borrowed(source)), Some(dir::Form::Borrowed(target))) = borrows {
-            let source = self.type_borrow(argument.module_id, source)?;
-            let target = self.type_borrow(parameter.module_id, target)?;
-            let source = self.memory_component_text(origin, source.access)?;
-            let target = self.memory_component_text(origin, target.access)?;
-            if let (Some(source), Some(target)) = (source, target)
-                && source != target
-            {
-                return Ok(1);
-            }
+        let argument_borrow = self.type_borrow(origin.module(), argument_borrow)?;
+        let parameter_borrow = self.type_borrow(origin.module(), parameter_borrow)?;
+        let argument_access = self.access_literal(origin, argument_borrow.access)?;
+        let parameter_access = self.access_literal(origin, parameter_borrow.access)?;
+        if let (Some(argument_access), Some(parameter_access)) = (argument_access, parameter_access)
+            && argument_access != parameter_access
+        {
+            return Ok(MemoryRank::Weakened);
         }
 
-        Ok(0)
-    }
-
-    /// Peek the outer ownership form under transparent qualifiers.
-    fn peek_ownership_form(&self, ty: dir::GlobalTypeId) -> CompilerResult<Option<dir::Form>> {
-        let mut current = ty;
-        loop {
-            let dir::Type::Form(form) = self.ty(current)? else {
-                return Ok(None);
-            };
-            match form.form {
-                dir::Form::Placed { .. } | dir::Form::Readonly => current = form.value,
-                form => return Ok(Some(form)),
-            }
-        }
+        Ok(MemoryRank::Exact)
     }
 
     /// Return whether two related types differ only by concrete placement.

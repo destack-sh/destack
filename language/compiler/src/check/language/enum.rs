@@ -1,9 +1,42 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Origin, answer};
 
 impl CheckState<'_> {
+    /// Return the singleton member types of one value enum.
+    pub(in crate::check) fn enum_member_types(
+        &mut self,
+        module: ModuleId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        let dir::Type::Instance(instance) = self.ty(value)? else {
+            return Ok(None);
+        };
+        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
+            return Ok(None);
+        };
+        let members = definition
+            .variants()
+            .map(|variant| variant.symbol)
+            .collect::<Vec<_>>();
+
+        let mut variants = Vec::with_capacity(members.len());
+        for member in members {
+            let variant = self.intern_type(
+                module,
+                dir::Type::EnumMember(dir::EnumMemberType {
+                    owner: value,
+                    member,
+                }),
+            )?;
+            variants.push(variant);
+        }
+
+        Ok(Some(variants))
+    }
+
     /// Return the declared member domain of one value enum type.
     pub(in crate::check) fn enum_discriminant_domain(
         &mut self,

@@ -748,8 +748,9 @@ impl CheckState<'_> {
         // bodies commit their nodes before obligations read them
         let value = match obligation.value {
             ExpectedType::Type(ty) => ty,
-            ExpectedType::Node(site) => {
-                let ty = self.require_node_type(site.node)?;
+            ExpectedType::Node(node) => {
+                let site = self.node_site(node)?;
+                let ty = self.require_node_type(node)?;
 
                 answer!(self.flow_type_at(site, ty)?)
             }

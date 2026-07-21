@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, answer};
+use crate::check::{
+    Answer, BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, VariantOwner, answer,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
@@ -23,28 +25,21 @@ impl BodyState<'_, '_> {
             return self.commit_rejected_pattern(node);
         }
 
-        // select tagged owner.case patterns before ordinary newtype unwraps
-        if let Some(head) = answer!(self.tagged_pattern_head(origin, module, ty)?) {
-            return self.select_tagged_variant_pattern(node, origin, flow, scope, head, fields);
+        // select owner.case patterns before ordinary newtype unwraps
+        if answer!(
+            self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields,)?
+        ) {
+            return Ok(Answer::Ready(()));
         }
 
         // resolve the written nominal tag like a construction head
         let tag = answer!(self.written_construct_tag(origin, module, ty)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
-        let instance = match self.ty(tag)? {
-            dir::Type::Instance(instance) => instance,
-            _ => return self.reject_pattern(node, origin, tag),
+        let Some(instance) = self.decompose_newtype(origin, tag)? else {
+            return self.reject_pattern(node, origin, tag);
         };
-
-        // unwrap the substituted newtype backing
-        let backing = match self.definition(instance.symbol)? {
-            Some(dir::Definition::Newtype(definition)) => definition.backing,
-            _ => return self.reject_pattern(node, origin, tag),
-        };
-        let substitution = self
-            .instance_substitution(tag.module_id, &instance)?
-            .with_receiver(tag);
-        let backing = self.substitute_type(origin.module(), backing, &substitution)?;
+        let backing = instance.backing;
+        let projection = instance.into_projection();
 
         // flow the backing into the wrapped hole
         let value = fields
@@ -54,22 +49,20 @@ impl BodyState<'_, '_> {
                 _ => None,
             });
         if let Some(value) = value {
-            self.project_pattern_input(flow, scope, backing, value.into_global_any(module))?;
+            answer!(self.check_pattern_projection(
+                flow,
+                scope,
+                backing,
+                value.into_global_any(module)
+            )?);
         }
 
-        let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
-        let generic_arguments =
-            self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(dir::PatternProjectionResolution {
-                projection: dir::Projection::NewtypePayload {
-                    symbol: instance.symbol,
-                    generic_arguments,
-                    ty: backing,
-                },
+            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
+                projection,
                 pattern: value.map(|value| value.into_global_any(module)),
-            }),
+            })),
         )
     }
 
@@ -78,33 +71,32 @@ impl BodyState<'_, '_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
-        owner: dir::GlobalTypeId,
-        instance: &dir::GenericInstance,
-        key: dir::StaticKey,
+        case: dir::VariantCase,
+        owners: &[VariantOwner],
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
         // enum members carry no payload to destructure
         if !fields.is_empty() {
-            return self.reject_pattern(node, origin, owner);
+            return self.reject_pattern(node, origin, owners[0].owner);
         }
 
         // the written key selects the declared variant
-        let variant = match self.definition(instance.symbol)? {
+        let variant = match self.definition(case.owner)? {
             Some(dir::Definition::Enum(definition)) => definition
-                .variant_by_key(key)
+                .variant_by_key(case.key)
                 .map(|variant| (variant.symbol, variant.value)),
             _ => {
                 return Err(CompilerError::Internal {
                     message: format!(
                         "enum member pattern received non-enum owner {:?}",
-                        instance.symbol
+                        case.owner
                     ),
                 });
             }
         };
         let Some((member, value)) = variant else {
-            let key = self.format_static_key(&key);
-            self.report_pattern_variant_missing(origin, key, owner)?;
+            let key = self.format_static_key(&case.key);
+            self.report_pattern_variant_missing(origin, key, owners[0].owner)?;
 
             return self.commit_rejected_pattern(node);
         };
@@ -112,10 +104,18 @@ impl BodyState<'_, '_> {
         // test the discriminant and narrow to the variant's own type
         let discriminant = dir::ScalarLiteral::from(value);
         let module = origin.module();
-        let narrowed = self.intern_type(
-            module,
-            dir::Type::EnumMember(dir::EnumMemberType { owner, member }),
-        )?;
+        let mut narrowed = Vec::with_capacity(owners.len());
+        for owner in owners {
+            let member = self.intern_type(
+                module,
+                dir::Type::EnumMember(dir::EnumMemberType {
+                    owner: owner.owner,
+                    member,
+                }),
+            )?;
+            narrowed.push(member);
+        }
+        let narrowed = self.normalized_union_type(module, narrowed)?;
         let tag_type = self.intern_type(module, dir::Type::from(&discriminant))?;
         let predicate = dir::Predicate::unary(
             dir::PredicateOperand::projected(dir::Projection::VariantTag { ty: tag_type }),
@@ -125,7 +125,7 @@ impl BodyState<'_, '_> {
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Test(dir::PatternPredicateResolution { predicate }),
+            dir::PatternResolution::Test(Box::new(dir::PatternPredicateResolution { predicate })),
         )
     }
 
@@ -146,9 +146,11 @@ impl BodyState<'_, '_> {
             return self.commit_rejected_pattern(node);
         }
 
-        // select tagged owner.case patterns before nominal fields
-        if let Some(head) = answer!(self.tagged_pattern_head(origin, module, ty)?) {
-            return self.select_tagged_variant_pattern(node, origin, flow, scope, head, fields);
+        // select owner.case patterns before nominal fields
+        if answer!(
+            self.select_variant_type_pattern(node, origin, flow, scope, module, ty, fields,)?
+        ) {
+            return Ok(Answer::Ready(()));
         }
 
         // resolve the written nominal tag like a construction head
@@ -161,9 +163,10 @@ impl BodyState<'_, '_> {
 
         // bind the pattern instantiation from the matched input
         let input = answer!(self.node_type(node.into_any())?);
-        let input = self.value_beneath_forms(origin, input)?;
+        let input = answer!(self.strip_form(origin, input)?);
         let mut matched = input;
-        if let Some(backing) = answer!(self.newtype_backing(origin, input)?) {
+        if let Some(instance) = self.decompose_newtype(origin, input)? {
+            let backing = instance.backing;
             matched = answer!(self.reduce_type_head(origin, backing)?);
         }
         let arms: SmallVec<[dir::GlobalTypeId; 4]> = match self.ty(matched)? {
@@ -191,13 +194,15 @@ impl BodyState<'_, '_> {
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Nominal(
-                dir::PatternNominalDestructureResolution {
-                    symbol: instance.symbol,
-                    generic_arguments,
-                    fields,
-                    rest,
-                },
+            dir::PatternResolution::Destructure(Box::new(
+                dir::PatternDestructureResolution::Nominal(
+                    dir::PatternNominalDestructureResolution {
+                        symbol: instance.symbol,
+                        generic_arguments,
+                        fields,
+                        rest: rest.map(Box::new),
+                    },
+                ),
             )),
         )
     }

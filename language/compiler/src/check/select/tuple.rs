@@ -69,12 +69,12 @@ impl BodyState<'_, '_> {
             if let Some(target) = target {
                 if target.local_id.ty == dir::NodeType::Pattern {
                     let pattern = dir::LocalNodeId::<dir::Pattern>::new(target.local_id.id);
-                    self.project_pattern_input(
+                    answer!(self.check_pattern_projection(
                         flow,
                         scope,
                         projected_value,
                         pattern.into_global_any(module),
-                    )?;
+                    )?);
                 } else {
                     let hole = self.require_node_type(target)?;
                     let cause = self
@@ -100,8 +100,10 @@ impl BodyState<'_, '_> {
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Tuple(
-                dir::PatternTupleDestructureResolution { fields: projected },
+            dir::PatternResolution::Destructure(Box::new(
+                dir::PatternDestructureResolution::Tuple(dir::PatternTupleDestructureResolution {
+                    fields: projected,
+                }),
             )),
         )
     }
@@ -157,12 +159,12 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            self.project_pattern_input(
+            answer!(self.check_pattern_projection(
                 flow,
                 scope,
                 projected_value,
                 pattern.into_global_any(module),
-            )?;
+            )?);
             projected.push(dir::AssignPatternFieldResolution {
                 source: field.into_global_any(module),
                 projection: dir::Projection::FieldGet {

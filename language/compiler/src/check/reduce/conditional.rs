@@ -522,7 +522,9 @@ impl CheckState<'_> {
             }
             // class references match constructor patterns by their construct signatures
             (dir::Type::FunctionSignature(_), dir::Type::Reference(reference)) => {
-                let candidates = self.reference_construct_signatures(reference)?.to_vec();
+                let candidates = self
+                    .reference_construct_signatures(origin, reference)?
+                    .to_vec();
                 let mut matched = Answer::Ready(false);
                 for candidate in candidates {
                     matched = matched

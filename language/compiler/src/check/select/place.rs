@@ -78,12 +78,14 @@ impl BodyState<'_, '_> {
                 } => {
                     return self.selection_lifetime(module, &[then_expression, else_expression]);
                 }
-                dir::Expression::Match { cases, .. } => {
+                dir::Expression::Match {
+                    arms: match_arms, ..
+                } => {
                     let mut arms = SmallVec::<[dir::LocalNodeId<dir::Expression>; 4]>::new();
-                    for case in cases {
-                        match self.module(module).view().get(case) {
-                            dir::MatchCase::Expression { body, .. } => arms.push(*body),
-                            dir::MatchCase::Block { body, .. } => {
+                    for arm in match_arms {
+                        match self.module(module).view().get(arm) {
+                            dir::MatchArm::Expression { body, .. } => arms.push(*body),
+                            dir::MatchArm::Block { body, .. } => {
                                 let tail = self.module(module).view().get(*body).value_expression();
                                 arms.extend(tail);
                             }
@@ -97,10 +99,10 @@ impl BodyState<'_, '_> {
         };
 
         // join projection anchors with the root place lifetime
+        let origin = self.node_site(expression.into_any())?.origin();
         let mut lifetime = root;
         for anchor in anchors.into_iter().rev() {
-            lifetime =
-                self.language_type(module, dir::LanguageItem::LifetimeOr, &[anchor, lifetime])?;
+            lifetime = answer!(self.join_lifetimes(origin, anchor, lifetime)?);
         }
 
         Ok(Answer::Ready(Some(lifetime)))
@@ -119,13 +121,29 @@ impl BodyState<'_, '_> {
             let lifetime = answer!(self.expression_lifetime(arm.into_global(module), ty)?);
             joined = Some(match joined {
                 Some(current) => {
-                    self.language_type(module, dir::LanguageItem::LifetimeOr, &[current, lifetime])?
+                    answer!(self.join_lifetimes(site.origin(), current, lifetime)?)
                 }
                 None => lifetime,
             });
         }
 
         Ok(Answer::Ready(joined))
+    }
+
+    /// Join two lifetime terms, reducing a closed generated computation.
+    fn join_lifetimes(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let joined = self.language_type(
+            origin.module(),
+            dir::LanguageItem::LifetimeOr,
+            &[left, right],
+        )?;
+
+        self.reduce_type(origin, joined)
     }
 
     /// Return the lifetime term for one binding place.
@@ -195,7 +213,7 @@ impl BodyState<'_, '_> {
                 }
 
                 // a constructor holds its receiver exclusively while it builds it
-                let constructs = self.constructs
+                let constructs = self.is_constructor
                     && matches!(self.module(module).view().get(left), dir::Expression::This);
                 let receiver_node = left.into_global_any(module);
                 let receiver_site = self.node_site(receiver_node)?;
@@ -247,9 +265,8 @@ impl BodyState<'_, '_> {
                 };
                 let key_scope = self.origin_scope(origin)?;
                 let anchored = Origin::Node(index_node, key_scope);
-                let key_origin = self.intern_origin(anchored);
                 let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-                if let Some(constraint) = selection.key_constraint(key_origin, cause, index) {
+                if let Some(constraint) = selection.key_constraint(cause, index) {
                     self.push_constraint(constraint);
                 }
                 let ty = selection.ty();
@@ -393,9 +410,10 @@ impl BodyState<'_, '_> {
             let ty = match types.as_slice() {
                 [ty] => *ty,
                 _ => {
-                    let elements = self.intern_type_ids(source.module_id, &types)?;
+                    let module = origin.module();
+                    let elements = self.intern_type_ids(module, &types)?;
                     self.intern_type(
-                        source.module_id,
+                        module,
                         dir::Type::Intersection(dir::IntersectionType { elements }),
                     )?
                 }
@@ -453,7 +471,10 @@ impl BodyState<'_, '_> {
         };
 
         Ok(Answer::Ready(Some(WriteTarget::new(
-            dir::Storage::Property { read, write },
+            dir::Storage::Property {
+                read: read.map(Box::new),
+                write: Box::new(write),
+            },
             ty,
             source,
         ))))

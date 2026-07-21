@@ -17,7 +17,7 @@ impl BodyState<'_, '_> {
         mode: InferMode,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
-        if self.node_type_maybe(node.into_any()).is_some() {
+        if self.committed_node_type(node.into_any()).is_some() {
             return Ok(Answer::Ready(()));
         }
 

@@ -168,7 +168,7 @@ impl CheckState<'_> {
             // declared defaults complete the parameter when inference stays dry
             if let Some(default) = binding.default {
                 let default = self.substitute_type(origin.module(), default, &substitution)?;
-                self.set_variable_default(variable, default)?;
+                self.set_variable_default(variable, default);
             }
 
             let argument = self.variable_type(variable)?;
@@ -181,7 +181,7 @@ impl CheckState<'_> {
             {
                 let bound = self.substitute_type(origin.module(), bound, &substitution)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
-                self.set_variable_parameter_bound(variable, bound, cause)?;
+                self.set_variable_parameter_bound(variable, bound, cause);
             }
         }
 
@@ -555,7 +555,7 @@ impl CheckState<'_> {
             }
         }
 
-        // resolve one solved variable through its representative
+        // resolve one solved variable through its root
         let variable = match self.ty(id)? {
             dir::Type::Variable(variable) => Some(variable),
             _ => None,

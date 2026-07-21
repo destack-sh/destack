@@ -50,7 +50,7 @@ impl CheckState<'_> {
         let check = if answer!(decision) {
             ObligationCheck::holds()
         } else {
-            let missing = self.uncovered_value(origin, &[pattern], value)?;
+            let missing = answer!(self.uncovered_value(origin, &[pattern], value)?);
 
             ObligationCheck::fail(failure(source, missing))
         };
@@ -70,9 +70,9 @@ impl CheckState<'_> {
         // untagged newtypes match through their backing, like the
         //  narrowing family they belong to
         if answer!(self.variant_discriminant_domain(origin, value)?).is_none()
-            && let Some(projection) = self.project_newtype(origin, value)?
+            && let Some(instance) = self.decompose_newtype(origin, value)?
         {
-            let backing = projection.ty();
+            let backing = instance.backing;
             return self.decide_patterns_cover(origin, patterns, backing);
         }
 
@@ -134,17 +134,14 @@ impl CheckState<'_> {
         origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<UncoveredValue> {
-        let value = match self.reduce_type_head(origin, value)? {
-            Answer::Ready(value) => value,
-            Answer::Pending(_) => return Ok(UncoveredValue::Type(value)),
-        };
+    ) -> CompilerResult<Answer<UncoveredValue>> {
+        let value = answer!(self.reduce_type_head(origin, value)?);
 
         // untagged newtypes witness through their backing
         if let Answer::Ready(None) = self.variant_discriminant_domain(origin, value)?
-            && let Some(projection) = self.project_newtype(origin, value)?
+            && let Some(instance) = self.decompose_newtype(origin, value)?
         {
-            let backing = projection.ty();
+            let backing = instance.backing;
             return self.uncovered_value(origin, patterns, backing);
         }
 
@@ -153,40 +150,37 @@ impl CheckState<'_> {
             let elements: SmallVec<[_; 4]> =
                 SmallVec::from_slice(self.type_ids(value.module_id, union.elements)?);
             for element in elements {
-                if self
-                    .decide_patterns_cover(origin, patterns, element)?
-                    .is_ready_false()
-                {
+                if !answer!(self.decide_patterns_cover(origin, patterns, element)?) {
                     return self.uncovered_value(origin, patterns, element);
                 }
             }
 
-            return Ok(UncoveredValue::Type(value));
+            return Ok(Answer::Ready(UncoveredValue::Type(value)));
         }
 
         // name the first uncovered variant case
-        let variant_domain = match self.variant_discriminant_domain(origin, value)? {
-            Answer::Ready(domain) => domain,
-            Answer::Pending(_) => None,
-        };
+        let variant_domain = answer!(self.variant_discriminant_domain(origin, value)?);
         if let Some(domain) = variant_domain {
             for discriminant in domain {
-                if self
-                    .decide_patterns_cover_variant_case(patterns, discriminant)?
-                    .is_ready_false()
-                {
+                if !answer!(self.decide_patterns_cover_variant_case(patterns, discriminant)?) {
                     if let Some(key) = self.enum_case_key_from_discriminant(value, discriminant)? {
-                        return Ok(UncoveredValue::VariantCase { ty: value, key });
+                        return Ok(Answer::Ready(UncoveredValue::VariantCase {
+                            ty: value,
+                            key,
+                        }));
                     }
-                    if let Answer::Ready(Some(key)) =
-                        self.tagged_case_key_from_type(origin, value, discriminant)?
+                    if let Some(key) =
+                        answer!(self.tagged_case_key_from_type(origin, value, discriminant)?)
                     {
-                        return Ok(UncoveredValue::VariantCase { ty: value, key });
+                        return Ok(Answer::Ready(UncoveredValue::VariantCase {
+                            ty: value,
+                            key,
+                        }));
                     }
 
                     let literal =
                         self.intern_type(origin.module(), dir::Type::Literal(discriminant))?;
-                    return Ok(UncoveredValue::Type(literal));
+                    return Ok(Answer::Ready(UncoveredValue::Type(literal)));
                 }
             }
         }
@@ -195,33 +189,26 @@ impl CheckState<'_> {
         if let Some(domain) = self.ty(value)?.finite_literals() {
             for literal in domain {
                 let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
-                if self
-                    .decide_patterns_cover(origin, patterns, element)?
-                    .is_ready_false()
-                {
-                    return Ok(UncoveredValue::Type(element));
+                if !answer!(self.decide_patterns_cover(origin, patterns, element)?) {
+                    return Ok(Answer::Ready(UncoveredValue::Type(element)));
                 }
             }
         }
 
         // name the first uncovered scalar interval
-        if let dir::Type::Range(domain) = self.ty(value)? {
-            match self.uncovered_range(origin, patterns, &domain)? {
-                Answer::Ready(Some(range)) => {
-                    let ty = match range.singleton_literal() {
-                        Some(literal) => dir::Type::Literal(literal),
-                        None => dir::Type::Range(range),
-                    };
-                    let range = self.intern_type(origin.module(), ty)?;
+        if let dir::Type::Range(domain) = self.ty(value)?
+            && let Some(range) = answer!(self.uncovered_range(origin, patterns, &domain)?)
+        {
+            let ty = match range.singleton_literal() {
+                Some(literal) => dir::Type::Literal(literal),
+                None => dir::Type::Range(range),
+            };
+            let range = self.intern_type(origin.module(), ty)?;
 
-                    return Ok(UncoveredValue::Type(range));
-                }
-                Answer::Ready(None) => {}
-                Answer::Pending(_) => return Ok(UncoveredValue::Type(value)),
-            }
+            return Ok(Answer::Ready(UncoveredValue::Type(range)));
         }
 
-        Ok(UncoveredValue::Type(value))
+        Ok(Answer::Ready(UncoveredValue::Type(value)))
     }
 
     /// Decide whether one pattern covers every value in one type.
@@ -416,48 +403,69 @@ impl CheckState<'_> {
                 self.decide_fields_cover(origin, module, &fields, value)
             }
             // nominal patterns check the tag then their payload fields
-            dir::Pattern::NominalTuple { ty, fields }
-            | dir::Pattern::NominalObject { ty, fields } => {
-                let ty = *ty;
+            dir::Pattern::NominalTuple { fields, .. }
+            | dir::Pattern::NominalObject { fields, .. } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let tag = answer!(
-                    self.body(origin.module())
-                        .written_construct_tag(origin, module, ty)?
-                );
+                let resolution = self
+                    .resolutions(module)
+                    .pattern_resolution(pattern.into_any())
+                    .cloned()
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("nominal coverage pattern {pattern:?} has no resolution"),
+                    })?;
+                let dir::PatternResolution::Destructure(resolution) = resolution else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "nominal coverage pattern {pattern:?} has non-destructure resolution"
+                        ),
+                    });
+                };
+
+                // tagged variants decide through their selected predicate and payload
+                if let dir::PatternDestructureResolution::Variant(variant) = resolution.as_ref() {
+                    if !answer!(self.decide_predicate_covers(origin, &variant.predicate, value)?) {
+                        return Ok(Answer::Ready(false));
+                    }
+                    let payload = variant.projection.ty();
+
+                    return self.decide_fields_cover(origin, module, &fields, payload);
+                }
+                let dir::PatternDestructureResolution::Nominal(nominal) = resolution.as_ref()
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "nominal coverage pattern {pattern:?} has non-nominal destructuring"
+                        ),
+                    });
+                };
 
                 // one constructor covers every instantiation of its symbol
-                let tag = answer!(self.reduce_type_head(origin, tag)?);
                 let value_head = answer!(self.reduce_type_head(origin, value)?);
-                match (self.ty(value_head)?, self.ty(tag)?) {
-                    (dir::Type::Instance(value_instance), dir::Type::Instance(tag_instance)) => {
+                match self.ty(value_head)? {
+                    dir::Type::Instance(value_instance) => {
                         // inherited constructors cover through heritage
-                        if value_instance.symbol != tag_instance.symbol {
+                        if value_instance.symbol != nominal.symbol {
                             let closure = answer!(self.heritage_closure(
                                 origin,
                                 value_head.module_id,
                                 &value_instance,
                             )?);
-                            let inherits = closure.applications.iter().any(|application| {
-                                application.instance.symbol == tag_instance.symbol
-                            });
+                            let inherits = closure
+                                .applications
+                                .iter()
+                                .any(|application| application.instance.symbol == nominal.symbol);
                             if !inherits {
                                 return Ok(Answer::Ready(false));
                             }
                         }
                     }
-                    _ => {
-                        let tag_decision =
-                            self.decide_relation(origin, Relation::Assignable, value, tag)?;
-                        if !tag_decision.is_ready_true() {
-                            return Ok(tag_decision);
-                        }
-                    }
+                    _ => return Ok(Answer::Ready(false)),
                 }
 
                 // project the newtype payload behind the tag when present
-                let payload = match self.project_newtype(origin, value)? {
-                    Some(projection) => {
-                        answer!(self.reduce_type_head(origin, projection.ty())?)
+                let payload = match self.decompose_newtype(origin, value)? {
+                    Some(instance) => {
+                        answer!(self.reduce_type_head(origin, instance.backing)?)
                     }
                     None => value,
                 };
@@ -581,7 +589,7 @@ impl CheckState<'_> {
                         self.module(module).view().get(pattern),
                         dir::Pattern::Default { .. }
                     );
-                    let lookup = answer!(self.body(origin.module()).lookup_member(
+                    let lookup = answer!(self.body().lookup_member(
                         origin,
                         module,
                         value,

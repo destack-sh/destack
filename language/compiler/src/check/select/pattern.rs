@@ -2,12 +2,12 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, Decision, Expectation, ExpectedType,
-    FlowPointId, FlowSite, Obligation, Origin, PlaceUse, Relation, ValueUse,
+    Answer, BodyState, Cause, CauseKind, Constraint, Decision, Expectation, FlowPointId, FlowSite,
+    Obligation, Origin, PlaceUse, Relation, ValueSource, ValueUse, Widening,
     WritablePlaceObligation, WriteTarget, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Check one pattern against its input type.
@@ -52,6 +52,18 @@ impl BodyState<'_, '_> {
 
         // read each assignment target shape once and dispatch with it
         let pattern = self.module(module).view().get(node.local_id).clone();
+        let needs_reduced_input = matches!(
+            &pattern,
+            dir::AssignPattern::Sequence { .. }
+                | dir::AssignPattern::Tuple { .. }
+                | dir::AssignPattern::Object { .. }
+        );
+        let input = if needs_reduced_input {
+            answer!(self.reduce_type_head(pattern_origin, input)?)
+        } else {
+            input
+        };
+
         match pattern {
             // x = value, obj.x = value
             dir::AssignPattern::Place { expression: value } => {
@@ -76,14 +88,12 @@ impl BodyState<'_, '_> {
                         pattern: node.into_any(),
                     },
                 ));
-                let input_origin = self.intern_origin(input_origin);
                 self.push_constraint(Constraint::value(
                     Relation::Assignable,
-                    input,
+                    ValueSource::Type(input),
                     target,
-                    input_origin,
                     pattern_cause,
-                    Some(ValueUse::Store),
+                    ValueUse::Store,
                 ));
 
                 Ok(Answer::Ready(true))
@@ -103,7 +113,12 @@ impl BodyState<'_, '_> {
                     answer!(self.defaulted_pattern_input(pattern_origin, input, default)?);
 
                 // flow the defaulted input into the nested target
-                self.project_pattern_input(flow, scope, input, pattern.into_global_any(module))?;
+                answer!(self.check_pattern_projection(
+                    flow,
+                    scope,
+                    input,
+                    pattern.into_global_any(module)
+                )?);
 
                 let () = answer!(self.commit_assign_pattern(
                     node,
@@ -183,42 +198,27 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
         let origin = Origin::Node(node.into_any(), scope);
-        let input = answer!(self.reduce_type_head(origin, input)?);
-        let input = answer!(self.accepted_pattern_input(node, origin, input)?);
 
-        // read each shape's payload once and dispatch with it
-        let view = self.module(module).view();
-        match view.get(node.local_id) {
+        // reduce inputs only for patterns that inspect their value
+        let pattern = self.module(module).view().get(node.local_id).clone();
+        let needs_reduced_input = !matches!(
+            &pattern,
+            dir::Pattern::Wildcard | dir::Pattern::Binding { .. }
+        );
+        let input = if needs_reduced_input {
+            answer!(self.reduce_type_head(origin, input)?)
+        } else {
+            input
+        };
+        let input = answer!(self.filter_destructuring_source(node, origin, input)?);
+
+        match &pattern {
             // _
             dir::Pattern::Wildcard => self.commit_pattern(node, dir::PatternResolution::Ignore),
 
             // name, name: pattern
             dir::Pattern::Binding { pattern, .. } => {
-                let pattern = *pattern;
-                let symbol = self
-                    .module(module)
-                    .declaration_symbol(node.local_id.into_any());
-                if let Some(symbol) = symbol {
-                    let input = self.pattern_binding_type(symbol, input)?;
-
-                    self.bind_symbol_type(symbol, input)?;
-                }
-                if let Some(pattern) = pattern {
-                    self.project_pattern_input(
-                        flow,
-                        scope,
-                        input,
-                        pattern.into_global_any(module),
-                    )?;
-                }
-
-                self.commit_pattern(
-                    node,
-                    dir::PatternResolution::Bind(dir::PatternBindingResolution {
-                        symbol,
-                        pattern: pattern.map(|pattern| pattern.into_global_any(module)),
-                    }),
-                )
+                self.select_binding_pattern(node, flow, scope, input, *pattern)
             }
 
             // pattern!, pattern = value
@@ -246,7 +246,12 @@ impl BodyState<'_, '_> {
                 let input = answer!(self.defaulted_pattern_input(origin, input, default)?);
 
                 // flow the defaulted input into the nested pattern
-                self.project_pattern_input(flow, scope, input, pattern.into_global_any(module))?;
+                answer!(self.check_pattern_projection(
+                    flow,
+                    scope,
+                    input,
+                    pattern.into_global_any(module)
+                )?);
 
                 self.commit_pattern(
                     node,
@@ -328,6 +333,63 @@ impl BodyState<'_, '_> {
         }
     }
 
+    /// Select one symbol binding and its optional nested pattern.
+    fn select_binding_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        input: dir::GlobalTypeId,
+        pattern: Option<dir::LocalNodeId<dir::Pattern>>,
+    ) -> CompilerResult<Answer<()>> {
+        let module = node.module_id;
+        let origin = Origin::Node(node.into_any(), scope);
+        let symbol = self
+            .module(module)
+            .declaration_symbol(node.local_id.into_any())
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("binding pattern {node:?} has no symbol"),
+            })?;
+        let binding = self.check.symbol_type_maybe(symbol);
+        let input = if binding == Some(input) {
+            input
+        } else {
+            let input = self.pattern_binding_type(symbol, input)?;
+            if let Some(binding) = binding {
+                let cause = self.check.intern_cause(Cause::root(
+                    origin,
+                    CauseKind::Pattern {
+                        pattern: node.into_any(),
+                    },
+                ));
+                let relation = self.pattern_binding_relation(input, binding)?;
+                answer!(self.check.relate(cause, relation, None, input, binding,)?);
+            } else {
+                self.check.commit_binding_type(symbol, input)?;
+            }
+
+            input
+        };
+
+        // project the captured input into the nested pattern
+        if let Some(pattern) = pattern {
+            answer!(self.check_pattern_projection(
+                flow,
+                scope,
+                input,
+                pattern.into_global_any(module)
+            )?);
+        }
+
+        self.commit_pattern(
+            node,
+            dir::PatternResolution::Bind(dir::PatternBindingResolution {
+                symbol: Some(symbol),
+                pattern: pattern.map(|pattern| pattern.into_global_any(module)),
+            }),
+        )
+    }
+
     /// Select one or-pattern, sharing the input across branches.
     fn select_union_pattern(
         &mut self,
@@ -341,7 +403,12 @@ impl BodyState<'_, '_> {
 
         // match every branch against the same input
         for pattern in patterns {
-            self.project_pattern_input(flow, scope, input, (*pattern).into_global_any(module))?;
+            answer!(self.check_pattern_projection(
+                flow,
+                scope,
+                input,
+                (*pattern).into_global_any(module)
+            )?);
         }
 
         self.commit_pattern(
@@ -521,40 +588,25 @@ impl BodyState<'_, '_> {
 }
 
 impl BodyState<'_, '_> {
-    /// Return the input type accepted by one pattern on its success branch.
-    pub(in crate::check) fn accepted_pattern_input(
+    /// Return the relation that initializes one pattern binding slot.
+    fn pattern_binding_relation(
         &mut self,
-        node: dir::GlobalNodeId<dir::Pattern>,
-        origin: Origin,
         input: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let Some(target) = answer!(self.pattern_target_type(node)?) else {
-            return Ok(Answer::Ready(input));
+        mut binding: dir::GlobalTypeId,
+    ) -> CompilerResult<Relation> {
+        while let dir::Type::Form(form) = self.ty(binding)? {
+            binding = form.value;
+        }
+        let Some(variable) = self.check.root_variable(binding)? else {
+            return Ok(Relation::Equal);
         };
-        let should_narrow = matches!(
-            self.ty(input)?,
-            dir::Type::Any
-                | dir::Type::Unknown
-                | dir::Type::Object
-                | dir::Type::Union(_)
-                | dir::Type::Dynamic(_)
-        );
-        if !should_narrow {
-            return Ok(Answer::Ready(input));
-        }
+        let variable = self.check.solver.variable(variable)?;
 
-        let operation = dir::TypeOperation::Narrow(dir::NarrowType {
-            source: input,
-            target,
-            is_positive: true,
-        });
-        // disjoint targets keep the raw input so field projection reports the mismatch
-        let accepted = answer!(self.reduce_operation_type(origin, operation)?);
-        if matches!(self.ty(accepted)?, dir::Type::Never) {
-            return Ok(Answer::Ready(input));
+        if variable.widening == Widening::Never || self.widen_type(input)? == input {
+            Ok(Relation::Equal)
+        } else {
+            Ok(Relation::Writable)
         }
-
-        Ok(Answer::Ready(accepted))
     }
 
     /// Return the type bound by one pattern binding.
@@ -563,15 +615,19 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let binding = self
-            .module(symbol.module_id)
-            .bindings
-            .get_symbol(symbol.local_id);
-        if binding.binding_mutability == Some(dir::Mutability::Immutable) {
-            Ok(input)
+        let mutability = {
+            let bindings = self.module(symbol.module_id).binding_table();
+            let binding = bindings.get_symbol(symbol.local_id);
+
+            binding.binding_mutability
+        };
+        let input = if mutability == Some(dir::Mutability::Immutable) {
+            input
         } else {
-            self.widen_type(input)
-        }
+            self.widen_type(input)?
+        };
+
+        self.check.place_binding_type(symbol, input)
     }
 
     /// Return whether one pattern has a default branch.
@@ -598,21 +654,155 @@ impl BodyState<'_, '_> {
         )
     }
 
+    /// Filter one union to alternatives satisfying a destructuring requirement.
+    fn filter_destructuring_source(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let Some(requirement) = self.destructuring_requirement(node)? else {
+            return Ok(Answer::Ready(source));
+        };
+        if !matches!(self.ty(source)?, dir::Type::Union(_)) {
+            return Ok(Answer::Ready(source));
+        }
+
+        let operation = dir::TypeOperation::Narrow(dir::NarrowType {
+            source,
+            target: requirement,
+            is_positive: true,
+        });
+        let narrowed = answer!(self.reduce_operation_type(origin, operation)?);
+
+        // preserve the rejected source for the pattern diagnostic
+        if matches!(self.ty(narrowed)?, dir::Type::Never) {
+            Ok(Answer::Ready(source))
+        } else {
+            Ok(Answer::Ready(narrowed))
+        }
+    }
+
+    /// Return one destructuring pattern's structural requirement.
+    fn destructuring_requirement(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let module = node.module_id;
+        let pattern = self.module(module).view().get(node.local_id).clone();
+        let requirement = match pattern {
+            dir::Pattern::Tuple { fields } => Some(self.tuple_requirement(module, &fields)?),
+            dir::Pattern::Object { fields } => Some(self.object_requirement(module, &fields)?),
+            _ => None,
+        };
+
+        Ok(requirement)
+    }
+
+    /// Return one tuple pattern's structural requirement.
+    fn tuple_requirement(
+        &mut self,
+        module: ModuleId,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let unknown = self.intern_type(module, dir::Type::Unknown)?;
+        let mut elements = Vec::with_capacity(fields.len());
+        for field in fields {
+            let field = self.module(module).view().get(*field);
+            match field {
+                dir::PatternField::Positional { pattern }
+                | dir::PatternField::Named {
+                    pattern: Some(pattern),
+                    ..
+                } => {
+                    let mut element = dir::TypeElement::new(unknown);
+                    element.is_optional = self.is_defaulted_pattern(module, *pattern);
+                    elements.push(element);
+                }
+                dir::PatternField::Named { pattern: None, .. } | dir::PatternField::Elision => {
+                    elements.push(dir::TypeElement::new(unknown));
+                }
+                dir::PatternField::Computed { .. } | dir::PatternField::Rest { .. } => {}
+            }
+        }
+        let elements = self.intern_elements(module, &elements)?;
+        let tuple = dir::TupleType {
+            form: dir::TupleForm::Tuple,
+            elements,
+        };
+
+        self.intern_type(module, dir::Type::Tuple(tuple))
+    }
+
+    /// Return one object pattern's structural requirement.
+    fn object_requirement(
+        &mut self,
+        module: ModuleId,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let unknown = self.intern_type(module, dir::Type::Unknown)?;
+        let mut required = Vec::new();
+        for field in fields {
+            let Some((key, pattern)) = self.object_field_requirement(module, *field)? else {
+                continue;
+            };
+            if pattern.is_some_and(|pattern| self.is_defaulted_pattern(module, pattern)) {
+                continue;
+            }
+            required.push(dir::TypeField {
+                key,
+                ty: unknown,
+                is_optional: false,
+                is_readonly: true,
+            });
+        }
+        let fields = self.intern_fields(module, &required)?;
+        let shape = dir::ShapeType {
+            fields,
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
+        };
+        let ty = self.intern_type(module, dir::Type::Shape(shape))?;
+
+        Ok(ty)
+    }
+
+    /// Return the static key named by one object pattern field.
+    fn object_field_requirement(
+        &self,
+        module: ModuleId,
+        field: dir::LocalNodeId<dir::PatternField>,
+    ) -> CompilerResult<Option<(dir::StaticKey, Option<dir::LocalNodeId<dir::Pattern>>)>> {
+        let field = self.module(module).view().get(field).clone();
+        let key = match field {
+            dir::PatternField::Named { name, pattern, .. } => Some((name.static_key(), pattern)),
+            dir::PatternField::Computed { key, pattern } => self
+                .static_key_from_expression(module, key)?
+                .map(|key| (key, Some(pattern))),
+            dir::PatternField::Positional { .. }
+            | dir::PatternField::Rest { .. }
+            | dir::PatternField::Elision => None,
+        };
+
+        Ok(key)
+    }
+
     /// Flow one projected value into a nested pattern hole.
-    pub(in crate::check) fn project_pattern_input(
+    pub(in crate::check) fn check_pattern_projection(
         &mut self,
         flow: FlowPointId,
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let site = FlowSite {
             node: pattern,
             flow,
             scope,
         };
         let expectation = Expectation {
-            expected: ExpectedType::Type(input),
+            target: input,
             relation: Relation::Assignable,
             cause: self.check.intern_cause(Cause::root(
                 Origin::Node(pattern, scope),
@@ -620,9 +810,9 @@ impl BodyState<'_, '_> {
             )),
             use_: ValueUse::Store,
         };
-        self.check_node(site, PlaceUse::Read, Some(expectation))?;
+        answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
 
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 
     /// Return the value produced by one defaulted pattern.
@@ -665,120 +855,5 @@ impl BodyState<'_, '_> {
         let ty = self.normalized_union_type(origin.module(), kept)?;
 
         Ok(Answer::Ready(ty))
-    }
-
-    /// Return the broad runtime type tested by one destructuring pattern.
-    fn pattern_target_type(
-        &mut self,
-        node: dir::GlobalNodeId<dir::Pattern>,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let module = node.module_id;
-        let target = match self.module(module).view().get(node.local_id).clone() {
-            dir::Pattern::Tuple { fields } => {
-                let target = self.tuple_pattern_target_type(module, &fields)?;
-
-                Some(target)
-            }
-            dir::Pattern::Object { fields } => {
-                let target = answer!(self.object_pattern_target_type(module, &fields)?);
-
-                Some(target)
-            }
-            _ => None,
-        };
-
-        Ok(Answer::Ready(target))
-    }
-
-    /// Return a tuple type broad enough for one tuple pattern.
-    fn tuple_pattern_target_type(
-        &mut self,
-        module: ModuleId,
-        fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let unknown = self.intern_type(module, dir::Type::Unknown)?;
-        let mut elements = Vec::with_capacity(fields.len());
-        for field in fields {
-            let field = self.module(module).view().get(*field);
-            match field {
-                dir::PatternField::Positional { pattern } => {
-                    let mut element = dir::TypeElement::new(unknown);
-                    element.is_optional = self.is_defaulted_pattern(module, *pattern);
-                    elements.push(element);
-                }
-                dir::PatternField::Named {
-                    pattern: Some(pattern),
-                    ..
-                } => {
-                    let mut element = dir::TypeElement::new(unknown);
-                    element.is_optional = self.is_defaulted_pattern(module, *pattern);
-                    elements.push(element);
-                }
-                dir::PatternField::Named { pattern: None, .. } | dir::PatternField::Elision => {
-                    elements.push(dir::TypeElement::new(unknown))
-                }
-                _ => {}
-            }
-        }
-        let elements = self.intern_elements(module, &elements)?;
-        let tuple = dir::TupleType {
-            form: dir::TupleForm::Tuple,
-            elements,
-        };
-
-        self.intern_type(module, dir::Type::Tuple(tuple))
-    }
-
-    /// Return an object shape broad enough for one object pattern.
-    fn object_pattern_target_type(
-        &mut self,
-        module: ModuleId,
-        fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let unknown = self.intern_type(module, dir::Type::Unknown)?;
-        let mut fields_target = Vec::new();
-        for field in fields {
-            let Some((key, pattern)) = self.pattern_field_target_key(module, *field)? else {
-                continue;
-            };
-            if pattern.is_some_and(|pattern| self.is_defaulted_pattern(module, pattern)) {
-                continue;
-            }
-            fields_target.push(dir::TypeField {
-                key,
-                ty: unknown,
-                is_optional: false,
-                is_readonly: true,
-            });
-        }
-        let fields_target = self.intern_fields(module, &fields_target)?;
-        let shape = dir::ShapeType {
-            fields: fields_target,
-            call_signatures: dir::TypeListId::EMPTY,
-            construct_signatures: dir::TypeListId::EMPTY,
-            index_signatures: dir::TypeListId::EMPTY,
-        };
-        let target = self.intern_type(module, dir::Type::Shape(shape))?;
-
-        Ok(Answer::Ready(target))
-    }
-
-    /// Return the static key locally named by one pattern field.
-    fn pattern_field_target_key(
-        &self,
-        module: ModuleId,
-        field: dir::LocalNodeId<dir::PatternField>,
-    ) -> CompilerResult<Option<(dir::StaticKey, Option<dir::LocalNodeId<dir::Pattern>>)>> {
-        let key = match self.module(module).view().get(field).clone() {
-            dir::PatternField::Named { name, pattern, .. } => Some((name.static_key(), pattern)),
-            dir::PatternField::Computed { key, pattern } => self
-                .static_key_from_expression(module, key)?
-                .map(|key| (key, Some(pattern))),
-            dir::PatternField::Rest { .. }
-            | dir::PatternField::Elision
-            | dir::PatternField::Positional { .. } => None,
-        };
-
-        Ok(key)
     }
 }

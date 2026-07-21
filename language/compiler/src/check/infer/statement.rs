@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, Expectation, ExpectedType, FlowSite, Origin,
-    PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, Origin, PlaceUse,
+    Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -265,7 +265,7 @@ impl BodyState<'_, '_> {
                     CauseKind::Initializer { annotation },
                 ));
                 let expectation = Expectation {
-                    expected: ExpectedType::Type(written),
+                    target: written,
                     relation: Relation::Assignable,
                     cause,
                     use_: ValueUse::Store,
@@ -328,7 +328,7 @@ impl BodyState<'_, '_> {
             .check
             .intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         let expectation = Expectation {
-            expected: ExpectedType::Type(boolean),
+            target: boolean,
             relation: Relation::Assignable,
             cause: self.check.intern_cause(Cause::root(
                 Origin::Node(condition.into_global_any(module), site.scope),

@@ -13,7 +13,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // take one common explicit contextual place, leaving bare values bare
         let place = match target {
-            Some(target) => answer!(self.fresh_value_place(origin, target)?),
+            Some(target) => answer!(self.contextual_place(origin, target)?),
             None => None,
         };
         let Some(place) = place else {
@@ -25,7 +25,32 @@ impl BodyState<'_, '_> {
     }
 
     /// Return the common concrete place offered by one contextual type.
-    fn fresh_value_place(
+    fn contextual_place(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let target = self.check.settled_root(target)?;
+        let scope = match self.check.type_flags(target)?.has_parameter() {
+            true => self.check.origin_scope(origin)?,
+            false => None,
+        };
+        if let Some(place) = self.check.contextual_places.get(&(target, scope)) {
+            return Ok(Answer::Ready(*place));
+        }
+
+        let answer = self.compute_contextual_place(origin, target)?;
+        if let Answer::Ready(place) = answer
+            && self.check.type_variables(target)?.is_empty()
+        {
+            self.check.contextual_places.insert((target, scope), place);
+        }
+
+        Ok(answer)
+    }
+
+    /// Compute the common concrete place offered by one contextual type.
+    fn compute_contextual_place(
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
@@ -46,7 +71,7 @@ impl BodyState<'_, '_> {
         let elements = self.type_ids(base.module_id, union.elements)?.to_vec();
         let mut common = None;
         for element in elements {
-            let Some(place) = answer!(self.fresh_value_place(origin, element)?) else {
+            let Some(place) = answer!(self.contextual_place(origin, element)?) else {
                 continue;
             };
             match common {
@@ -107,6 +132,9 @@ impl BodyState<'_, '_> {
         let node = site.node.into_typed::<dir::Expression>();
         let right_site = self.node_site(right.into_global_any(node.module_id))?;
         let value = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
+        let Some(_) = answer!(self.select_assign_place(right_site, right, PlaceUse::Read)?) else {
+            return Ok(Answer::Ready(()));
+        };
 
         // derive borrow form parameters from the place and written mutability
         let expression = right.into_global(node.module_id);

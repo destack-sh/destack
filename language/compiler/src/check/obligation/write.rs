@@ -2,7 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, ObligationCheck, ObligationFailure, Origin, WritablePlaceObligation, answer,
+    Answer, CheckState, Dependency, ObligationCheck, ObligationFailure, Origin,
+    WritablePlaceObligation, answer,
 };
 
 /// Writable storage selected by a source expression.
@@ -142,7 +143,7 @@ impl CheckState<'_> {
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let access = match self.ty(receiver)? {
             dir::Type::Variable(variable) => {
-                return Ok(Answer::pending([self.variable_dependency(variable)?]));
+                return Ok(Answer::pending([Dependency::Variable(variable)]));
             }
             dir::Type::Form(form) => match form.form {
                 dir::Form::Borrowed(borrow) => {
@@ -220,10 +221,7 @@ impl CheckState<'_> {
         let owner = answer!(self.reduce_type_head(origin, owner)?);
 
         // readonly receiver views reject stored field writes
-        if answer!(
-            self.body(origin.module())
-                .receiver_projects_readonly(origin, owner)?
-        ) {
+        if answer!(self.body().receiver_projects_readonly(origin, owner)?) {
             let failure = ObligationFailure::CannotAssignReadonlyMember {
                 source,
                 member: field,

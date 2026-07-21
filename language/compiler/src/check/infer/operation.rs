@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, FlowSite, PlaceUse, Relation,
+    Answer, BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, PlaceUse, Relation,
     TryPropagationTarget, ValueUse, VariableRole, Widening, answer,
 };
 
@@ -63,16 +63,16 @@ impl BodyState<'_, '_> {
 
         // cast targets with open holes deduce them from their operand
         if !self.check.type_variables(target)?.is_empty()
-            && self.node_type_maybe(value_site.node).is_none()
+            && self.committed_node_type(value_site.node).is_none()
         {
             let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
-            answer!(self.check_expression(
-                value_site,
+            let expectation = Expectation {
                 target,
-                Relation::Castable,
+                relation: Relation::Castable,
                 cause,
-                ValueUse::Store
-            )?);
+                use_: ValueUse::Store,
+            };
+            answer!(self.check_expression(value_site, expectation)?);
             self.commit_node_type(node.into_any(), target)?;
 
             return Ok(Answer::Ready(()));

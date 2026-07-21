@@ -6,7 +6,7 @@ use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Evaluate one runtime guard narrowing.
-    pub(super) fn reduce_narrow(
+    pub(super) fn reduce_narrowing(
         &mut self,
         origin: Origin,
         narrow: dir::NarrowType,
@@ -14,19 +14,24 @@ impl CheckState<'_> {
         let source = answer!(self.reduce_type_head(origin, narrow.source)?);
         let target = answer!(self.reduce_type_head(origin, narrow.target)?);
 
-        // narrow newtypes through their backing representation
-        let mut source = source;
-        if matches!(self.ty(source)?, dir::Type::Instance(_))
-            && let Some(backing) =
-                answer!(self.body(origin.module()).newtype_backing(origin, source)?)
-        {
-            source = answer!(self.reduce_type_head(origin, backing)?);
+        // newtypes narrow through their substituted runtime backing
+        if let Some(instance) = self.decompose_newtype(origin, source)? {
+            let backing = answer!(self.reduce_type_head(origin, instance.backing)?);
+
+            return self.reduce_narrowing(
+                origin,
+                dir::NarrowType {
+                    source: backing,
+                    target,
+                    is_positive: narrow.is_positive,
+                },
+            );
         }
 
         // narrow the payload beneath memory forms, then rebuild the forms
         if matches!(self.ty(source)?, dir::Type::Form(_)) {
-            let value = self.value_beneath_forms(origin, source)?;
-            let target_value = self.value_beneath_forms(origin, target)?;
+            let value = answer!(self.strip_form(origin, source)?);
+            let target_value = answer!(self.strip_form(origin, target)?);
             let operation = self.intern_operation(
                 origin.module(),
                 dir::TypeOperation::Narrow(dir::NarrowType {
@@ -42,49 +47,53 @@ impl CheckState<'_> {
             if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 return Ok(Answer::Ready(Some(narrowed)));
             }
-            let rebuilt = self.replace_beneath_forms(origin, source, narrowed)?;
+            let rebuilt = answer!(self.replace_form_value(origin, source, narrowed)?);
 
             return Ok(Answer::Ready(Some(rebuilt)));
         }
 
         // distribute over union-valued sources
-        let elements = match self.ty(source)? {
-            dir::Type::Union(union) => {
-                SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
-            }
-            dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
-            // stuck operations wait for their blocking variables
-            dir::Type::Operation(operation) => {
-                let variables = self.type_variables(source)?;
-                if variables.is_empty() {
-                    // closed operations expand before narrowing distributes
-                    let expanded = answer!(self.reduce_type(origin, source)?);
-                    if expanded != source {
-                        return self.reduce_narrow(
-                            origin,
-                            dir::NarrowType {
-                                source: expanded,
-                                target: narrow.target,
-                                is_positive: narrow.is_positive,
-                            },
-                        );
-                    }
-                    // irreducible template patterns narrow like single arms
-                    if matches!(
-                        self.type_operation(source.module_id, operation)?,
-                        dir::TypeOperation::TemplateLiteral(_)
-                    ) {
-                        SmallVec::from_slice(&[source])
-                    } else {
-                        return Ok(Answer::Ready(None));
-                    }
-                } else {
-                    return Ok(Answer::pending(
-                        variables.into_iter().map(Dependency::Variable),
-                    ));
+        let members = self.enum_member_types(origin.module(), source)?;
+        let elements = match members {
+            Some(members) => SmallVec::from_vec(members),
+            None => match self.ty(source)? {
+                dir::Type::Union(union) => {
+                    SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
                 }
-            }
-            _ => SmallVec::from_slice(&[source]),
+                dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
+                // stuck operations wait for their blocking variables
+                dir::Type::Operation(operation) => {
+                    let variables = self.type_variables(source)?;
+                    if variables.is_empty() {
+                        // closed operations expand before narrowing distributes
+                        let expanded = answer!(self.reduce_type(origin, source)?);
+                        if expanded != source {
+                            return self.reduce_narrowing(
+                                origin,
+                                dir::NarrowType {
+                                    source: expanded,
+                                    target: narrow.target,
+                                    is_positive: narrow.is_positive,
+                                },
+                            );
+                        }
+                        // irreducible template patterns narrow like single arms
+                        if matches!(
+                            self.type_operation(source.module_id, operation)?,
+                            dir::TypeOperation::TemplateLiteral(_)
+                        ) {
+                            SmallVec::from_slice(&[source])
+                        } else {
+                            return Ok(Answer::Ready(None));
+                        }
+                    } else {
+                        return Ok(Answer::pending(
+                            variables.into_iter().map(Dependency::Variable),
+                        ));
+                    }
+                }
+                _ => SmallVec::from_slice(&[source]),
+            },
         };
 
         let module = origin.module();

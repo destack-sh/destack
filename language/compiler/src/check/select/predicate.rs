@@ -133,7 +133,7 @@ impl BodyState<'_, '_> {
         };
 
         // guard targets read as their declaration reference
-        if self.node_type_maybe(target_node).is_none() {
+        if self.committed_node_type(target_node).is_none() {
             let reference =
                 self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
             self.commit_node_type(target_node, reference)?;
@@ -436,14 +436,14 @@ impl BodyState<'_, '_> {
         key: Option<dir::StaticKey>,
     ) -> CompilerResult<Answer<dir::Predicate>> {
         let receiver_type = receiver;
-        let receiver = dir::PredicateOperand::new(receiver_type);
+        let receiver = dir::PredicateOperand::direct(receiver_type);
         let static_key = key;
         let key = match static_key {
             Some(key) => dir::PredicateKey::Static(key),
-            None => dir::PredicateKey::Dynamic(dir::PredicateOperand::new(key_type)),
+            None => dir::PredicateKey::Dynamic(dir::PredicateOperand::direct(key_type)),
         };
         let test = dir::PredicateMembershipTest { receiver, key };
-        let predicate = dir::Predicate::new(dir::PredicateTest::Membership(test));
+        let predicate = dir::Predicate::new(dir::PredicateTest::Membership(Box::new(test)));
 
         let Some(key) = static_key else {
             return Ok(Answer::Ready(predicate));
@@ -524,7 +524,7 @@ impl BodyState<'_, '_> {
                     ty: self.type_descriptor_type(origin)?,
                 })
             }
-            _ => dir::PredicateOperand::new(value),
+            _ => dir::PredicateOperand::direct(value),
         };
 
         Ok(Answer::Ready(input))
@@ -549,7 +549,7 @@ impl BodyState<'_, '_> {
     fn type_descriptor_type(&mut self, origin: Origin) -> CompilerResult<dir::GlobalTypeId> {
         let module = origin.module();
         let unknown = self.intern_type(module, dir::Type::Unknown)?;
-        let symbol = self.language_symbol(dir::LanguageItem::Type);
+        let symbol = self.language_symbol(dir::LanguageItem::Type)?;
         let arguments = self.intern_type_ids(module, &[unknown])?;
 
         self.intern_type(

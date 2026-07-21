@@ -17,11 +17,11 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
-        instance: &dir::GenericInstance,
+        symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let extensions = self.visible_extensions(module, instance.symbol)?;
+        let extensions = self.visible_extensions(module, symbol)?;
 
         // visit extension declarations in resolution order
         let mut candidates = Vec::new();
@@ -222,7 +222,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
-        let Some((_, instance)) = self.apparent_instance(receiver)? else {
+        let Some(instance) = self.apparent_instance(receiver)? else {
             return self.visible_blanket_extensions(module);
         };
         let scope = instance.symbol;

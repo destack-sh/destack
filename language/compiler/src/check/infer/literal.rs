@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, FlowSite, PlaceUse, answer};
+use crate::check::{Answer, BodyState, FlowSite, PlaceUse, Relation, answer};
 
 /// Inference mode for literal materialization contexts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +23,28 @@ impl InferMode {
 }
 
 impl BodyState<'_, '_> {
+    /// Return the relation carried by one authored literal value.
+    pub(in crate::check) fn literal_relation(&self, mut value: dir::GlobalNodeIdAny) -> Relation {
+        let Ok(mut expression) = value.try_into_typed::<dir::Expression>() else {
+            return Relation::Assignable;
+        };
+
+        // follow transparent expressions to the literal they preserve
+        loop {
+            match self.module(value.module_id).view().get(expression.local_id) {
+                dir::Expression::ObjectExpression { .. }
+                | dir::Expression::ArrayExpression { .. }
+                | dir::Expression::TupleExpression { .. } => return Relation::Writable,
+                dir::Expression::Satisfies {
+                    expression: child, ..
+                } => {
+                    value = child.into_global_any(value.module_id);
+                    expression = child.into_global(value.module_id);
+                }
+                _ => return Relation::Assignable,
+            }
+        }
+    }
     /// Return the type of one scalar literal expression.
     pub(in crate::check) fn scalar_literal_type(
         &mut self,

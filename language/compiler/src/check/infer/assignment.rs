@@ -51,30 +51,14 @@ impl BodyState<'_, '_> {
                     place: expression.into_global_any(module),
                 },
             ));
-            let check = answer!(self.check_expression(
+            answer!(self.check_node_expected(
                 right_site,
                 target,
                 Relation::Assignable,
                 cause,
                 ValueUse::Store,
             )?);
-
-            // a failed store reports but the assignment still resolves
-            if let CheckOutcome::Fails(failure) = check {
-                let source = answer!(self.node_type_at(right_site)?);
-                self.report_constraint_failure(
-                    cause,
-                    Relation::Assignable,
-                    Some(ValueUse::Store),
-                    source,
-                    target,
-                    failure,
-                )?;
-            }
             let value = answer!(self.node_type_at(right_site)?);
-            let origin = Origin::Node(right_node, site.scope);
-            self.check
-                .push_solved_constraint(origin, cause, ValueUse::Store, value, target)?;
             let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
             self.commit_node_type(left_node.into_any(), value)?;
 
@@ -161,24 +145,14 @@ impl BodyState<'_, '_> {
                 place: target.into_global_any(module),
             },
         ));
-        let check = answer!(self.check_expression(
+        let check = answer!(self.check_node_expected(
             right_site,
             target_type,
             Relation::Assignable,
             cause,
             ValueUse::Store,
         )?);
-        if let CheckOutcome::Fails(failure) = check {
-            let source = answer!(self.node_type_at(right_site)?);
-            self.report_constraint_failure(
-                cause,
-                Relation::Assignable,
-                Some(ValueUse::Store),
-                source,
-                target_type,
-                failure,
-            )?;
-
+        if matches!(check.outcome, CheckOutcome::Fails(_)) {
             return self.reject_assignment_expression(node, left_node);
         }
         let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);

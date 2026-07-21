@@ -216,7 +216,7 @@ impl CheckState<'_> {
         for interface_member in requirements.members {
             let mut candidates = SmallVec::<[_; 2]>::new();
             for member in members {
-                let member = match self.body(origin.module()).declared_member(member)? {
+                let member = match self.body().declared_member(member)? {
                     Answer::Ready(Some(member)) => member,
                     Answer::Ready(None) => continue,
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -317,10 +317,7 @@ impl CheckState<'_> {
                 dir::NominalHeritage,
             ); 2],
         >::new();
-        for other in self
-            .body(origin.module())
-            .visible_extensions(module, root)?
-        {
+        for other in self.body().visible_extensions(module, root)? {
             if other == symbol {
                 continue;
             }

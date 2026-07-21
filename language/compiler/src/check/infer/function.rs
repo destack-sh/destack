@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, Origin, answer};
+use crate::check::{Answer, BodyState, Cause, CauseKind, Origin, Relation, answer};
 
 impl BodyState<'_, '_> {
     /// Return the callable payload of one owned or placed target for a fresh function value.
@@ -64,6 +64,9 @@ impl BodyState<'_, '_> {
         // deduce open signature holes from the contextual callable
         if let Some(target) = target {
             let origin = self.check.node_site(node)?.origin();
+            let cause = self
+                .check
+                .intern_cause(Cause::root(origin, CauseKind::Expression));
             let value = self.check.require_node_type(node)?;
             let value_signature = answer!(self.callable_signature_type(origin, value)?);
             let target_signature = answer!(self.callable_signature_type(origin, target)?);
@@ -84,8 +87,13 @@ impl BodyState<'_, '_> {
                         break;
                     }
                     let hole = self.check.settled_root(value.ty)?;
-                    if let Some(variable) = self.check.root_variable(hole)? {
-                        self.check.commit_solution(variable, target.ty)?;
+                    if self.check.root_variable(hole)?.is_some() {
+                        answer!(self.check.constrain_type(
+                            cause,
+                            Relation::Equal,
+                            hole,
+                            target.ty,
+                        )?);
                     }
                 }
 
@@ -94,18 +102,19 @@ impl BodyState<'_, '_> {
                     (value_function.return_type, target_function.return_type)
                 {
                     let hole = self.check.settled_root(ret)?;
-                    if let Some(variable) = self.check.root_variable(hole)? {
-                        self.check.commit_solution(variable, target_ret)?;
+                    if self.check.root_variable(hole)?.is_some() {
+                        answer!(self.check.constrain_type(
+                            cause,
+                            Relation::Equal,
+                            hole,
+                            target_ret,
+                        )?);
                     }
                 }
             }
         }
 
         // check the body under the deduced signature
-        if self.check.node_type_maybe(body.site.node).is_some() {
-            return Ok(Answer::Ready(true));
-        }
-
         body.check(self.check)
     }
 }

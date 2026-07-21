@@ -153,8 +153,8 @@ impl BodyState<'_, '_> {
         }
 
         // project one newtype to its backing
-        if let Some(projection) = answer!(self.newtype_backing_projection(origin, head)?) {
-            return Ok(Answer::Ready(Some(projection)));
+        if let Some(instance) = self.decompose_newtype(origin, head)? {
+            return Ok(Answer::Ready(Some(instance.into_projection())));
         }
 
         Ok(Answer::Ready(None))

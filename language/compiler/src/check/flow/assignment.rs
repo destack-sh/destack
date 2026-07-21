@@ -16,6 +16,13 @@ impl WalkState<'_, '_> {
             return;
         }
 
+        // captured bindings are assigned by their owning flow
+        if let Some(function) = self.flow().current_function_symbol()
+            && self.is_captured_symbol_reference(symbol, function)
+        {
+            return;
+        }
+
         // report unassigned reads at the read occurrence
         if !self
             .flow()

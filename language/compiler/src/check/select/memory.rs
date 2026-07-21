@@ -65,7 +65,7 @@ impl BodyState<'_, '_> {
             )?);
 
             return Ok(Answer::Ready(Some(DereferenceSelection {
-                operation: dir::DereferenceOperation::Call(call.resolution),
+                operation: dir::DereferenceOperation::Call(Box::new(call.resolution)),
                 ty,
             })));
         }
@@ -101,17 +101,22 @@ impl BodyState<'_, '_> {
             dir::Type::Form(dir::FormType { form, value: input }),
         )?;
 
-        self.project_pattern_input(flow, scope, projected, pattern.into_global_any(module))?;
+        answer!(self.check_pattern_projection(
+            flow,
+            scope,
+            projected,
+            pattern.into_global_any(module)
+        )?);
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(dir::PatternProjectionResolution {
+            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
                 projection: dir::Projection::Borrow {
                     access: Some(access),
                     ty: projected,
                 },
                 pattern: Some(pattern.into_global_any(module)),
-            }),
+            })),
         )
     }
 
@@ -128,14 +133,19 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         let access = mutability.map(dir::Mutability::access);
 
-        self.project_pattern_input(flow, scope, input, pattern.into_global_any(module))?;
+        answer!(self.check_pattern_projection(
+            flow,
+            scope,
+            input,
+            pattern.into_global_any(module)
+        )?);
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(dir::PatternProjectionResolution {
+            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
                 projection: dir::Projection::Move { access, ty: input },
                 pattern: Some(pattern.into_global_any(module)),
-            }),
+            })),
         )
     }
 
@@ -155,17 +165,22 @@ impl BodyState<'_, '_> {
         else {
             return self.commit_rejected_pattern(node);
         };
-        self.project_pattern_input(flow, scope, selection.ty, pattern.into_global_any(module))?;
+        answer!(self.check_pattern_projection(
+            flow,
+            scope,
+            selection.ty,
+            pattern.into_global_any(module)
+        )?);
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Project(dir::PatternProjectionResolution {
+            dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
                 projection: dir::Projection::Dereference {
                     read: selection.operation,
                     ty: selection.ty,
                 },
                 pattern: Some(pattern.into_global_any(module)),
-            }),
+            })),
         )
     }
 }

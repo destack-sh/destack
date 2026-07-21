@@ -3,9 +3,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateOutcome, CandidatePass, CandidateVerdict, Cause,
-    CauseKind, Decision, DecisionKind, FlowSite, NewtypeMatch, NewtypeRejection, Origin,
-    ProbeReason, Relation, SignatureRejection, SignatureSelection, TypeSubstitution, answer,
+    Answer, BodyState, CallableArgument, CandidateVerdict, Cause, CauseKind, CheckFailure,
+    CheckOutcome, Decision, DecisionKind, Dependency, FlowSite, MemoryRank, NewtypeMatch,
+    NewtypeOverload, NewtypeRejection, NewtypeSignature, Origin, ProbeReason, Relation,
+    SignatureMatch, SignatureRejection, SignatureSelection, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -30,6 +31,11 @@ impl BodyState<'_, '_> {
         let origin = site.origin();
         let source = ty.into_global_any(module);
 
+        // return the committed construct target
+        if let Some(target) = self.committed_node_type(source) {
+            return Ok(Answer::Ready(target));
+        }
+
         // omitted heads are owned entirely by the expected target
         if matches!(
             self.module(module).view().get(ty),
@@ -44,6 +50,7 @@ impl BodyState<'_, '_> {
 
                 return Ok(Answer::Ready(error));
             };
+            self.commit_node_type(source, expected)?;
 
             return Ok(Answer::Ready(expected));
         }
@@ -59,6 +66,8 @@ impl BodyState<'_, '_> {
             && let Some(expected) =
                 answer!(self.expected_construct_instance(origin, expected, *symbol)?)
         {
+            self.commit_node_type(source, expected)?;
+
             return Ok(Answer::Ready(expected));
         }
 
@@ -73,6 +82,11 @@ impl BodyState<'_, '_> {
         ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let source = ty.into_global_any(module);
+
+        // return the committed construct head
+        if let Some(target) = self.committed_node_type(source) {
+            return Ok(Answer::Ready(target));
+        }
 
         // non-reference heads keep strict annotation typing
         let dir::TypeExpression::Reference {
@@ -118,7 +132,15 @@ impl BodyState<'_, '_> {
         };
 
         // instantiate written arguments and open omitted construct parameters
-        self.instantiate_construct_target(origin, source, symbol, &generic_arguments)
+        let target = answer!(self.instantiate_construct_target(
+            origin,
+            source,
+            symbol,
+            &generic_arguments,
+        )?);
+        self.commit_node_type(source, target)?;
+
+        Ok(Answer::Ready(target))
     }
 
     /// Return the expected target after peeling construction forms.
@@ -151,7 +173,17 @@ impl BodyState<'_, '_> {
 
         // search direct, owned, and union targets for one matching nominal head
         while let Some(candidate) = pending.pop() {
-            let candidate = answer!(self.reduce_type_head(origin, candidate)?);
+            let candidate = match self.reduce_type_head(origin, candidate)? {
+                Answer::Ready(candidate) => candidate,
+                Answer::Pending(blockers)
+                    if blockers
+                        .iter()
+                        .all(|blocker| matches!(blocker, Dependency::Variable(_))) =>
+                {
+                    continue;
+                }
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            };
             match self.ty(candidate)? {
                 dir::Type::Instance(instance) if instance.symbol == symbol => {
                     if matched.is_some() {
@@ -369,19 +401,19 @@ impl BodyState<'_, '_> {
 
         // winnow constructors in declaration order, then confirm the winner
         let is_single_candidate = constructors.len() == 1;
-        let mut winner = None;
-        let mut ambiguous = None;
+        let mut winner: Option<(MemoryRank, dir::ClassConstructorDefinition)> = None;
+        let mut indeterminate = None;
         let mut rejections = Vec::new();
         for constructor in constructors {
             if is_single_candidate {
-                winner = Some(constructor);
+                winner = Some((MemoryRank::Exact, constructor));
                 break;
             }
-            let (verdict, rejection) = self.probe_candidate_noted(
+            let mut rank = MemoryRank::Exact;
+            let (verdict, rejection) = answer!(self.probe_candidate_noted(
                 ProbeReason::Signature,
                 |state| {
-                    state.attempt_construct(
-                        CandidatePass::Winnow,
+                    let outcome = state.attempt_construct(
                         origin,
                         module,
                         target.module_id,
@@ -391,30 +423,45 @@ impl BodyState<'_, '_> {
                         &arguments,
                         expected_return,
                         receiver,
-                    )
+                    )?;
+                    match outcome {
+                        Answer::Ready(matched) => {
+                            if let SignatureMatch::Selected(selection) = &matched {
+                                rank = answer!(selection.memory_rank(origin, &arguments, state)?);
+                            }
+
+                            Ok(Answer::Ready(matched.into_candidate()))
+                        }
+                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    }
                 },
                 |state, rejection| {
                     Ok(state
                         .check
                         .describe_signature_rejection(module, constructor.ty, rejection))
                 },
-            )?;
+            )?);
             match verdict {
                 CandidateVerdict::Rejected => rejections.extend(rejection),
                 CandidateVerdict::Viable => {
-                    winner = Some(constructor);
-                    break;
+                    if rank == MemoryRank::Exact {
+                        winner = Some((rank, constructor));
+                        break;
+                    }
+                    if winner.as_ref().is_none_or(|(best, _)| rank < *best) {
+                        winner = Some((rank, constructor));
+                    }
                 }
-                CandidateVerdict::Ambiguous => {
-                    ambiguous.get_or_insert(constructor);
+                CandidateVerdict::Indeterminate => {
+                    indeterminate.get_or_insert(constructor);
                 }
             }
         }
+        let winner = winner.map(|(_, constructor)| constructor);
 
         // confirm the winner outside any probe
-        if let Some(constructor) = winner.or(ambiguous) {
+        if let Some(constructor) = winner.or(indeterminate) {
             let attempt = self.attempt_construct(
-                CandidatePass::Confirm,
                 origin,
                 module,
                 target.module_id,
@@ -426,19 +473,54 @@ impl BodyState<'_, '_> {
                 receiver,
             )?;
 
-            if let CandidateOutcome::Accepted(signature) = answer!(attempt) {
-                return self.commit_construct(
-                    site,
-                    node,
-                    module,
-                    target.module_id,
-                    argument_nodes,
-                    &instance,
-                    constructor.constructor,
-                    signature,
-                    result,
-                    &forms,
-                );
+            match answer!(attempt) {
+                SignatureMatch::Selected(signature) | SignatureMatch::ReturnMismatch(signature) => {
+                    return self.commit_construct(
+                        node,
+                        module,
+                        target.module_id,
+                        argument_nodes,
+                        &instance,
+                        constructor.constructor,
+                        signature,
+                        result,
+                        &forms,
+                    );
+                }
+                SignatureMatch::Invalid {
+                    selection,
+                    rejection,
+                    variables,
+                } if is_single_candidate => {
+                    self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
+                    self.check.poison_variables(variables)?;
+                    answer!(self.commit_construct(
+                        node,
+                        module,
+                        target.module_id,
+                        argument_nodes,
+                        &instance,
+                        constructor.constructor,
+                        selection,
+                        result,
+                        &forms,
+                    )?);
+
+                    return Ok(Answer::Ready(()));
+                }
+                SignatureMatch::Inapplicable(rejection)
+                    if is_single_candidate && rejection.is_precise() =>
+                {
+                    self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
+                    self.commit_decision(node, Decision::Rejected)?;
+                    self.commit_error_node(node)?;
+
+                    return Ok(Answer::Ready(()));
+                }
+                SignatureMatch::Invalid { variables, .. } => {
+                    self.check.poison_variables(variables)?;
+                }
+                SignatureMatch::Inapplicable(_) => {}
             }
         }
 
@@ -542,7 +624,6 @@ impl BodyState<'_, '_> {
     /// Attempt one constructor candidate against collected arguments.
     fn attempt_construct(
         &mut self,
-        pass: CandidatePass,
         origin: Origin,
         module: ModuleId,
         instance_module: ModuleId,
@@ -552,13 +633,13 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         expected_return: Option<dir::GlobalTypeId>,
         receiver: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<CandidateOutcome<SignatureSelection, SignatureRejection>>> {
+    ) -> CompilerResult<Answer<SignatureMatch>> {
         let source = self.origin_source_node(origin)?;
 
         // reduce the constructor shape before matching arguments
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let Some(function) = self.signature_head(function_type)? else {
-            return Ok(Answer::Ready(CandidateOutcome::Rejected(
+            return Ok(Answer::Ready(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
             )));
         };
@@ -571,7 +652,6 @@ impl BodyState<'_, '_> {
         {
             let parameters = self.generic_template_parameters(template);
             return self.match_signature(
-                pass,
                 origin,
                 module,
                 function_type.module_id,
@@ -595,7 +675,7 @@ impl BodyState<'_, '_> {
         let function_type = self.substitute_type(origin.module(), function_type, &substitution)?;
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let Some(function) = self.signature_head(function_type)? else {
-            return Ok(Answer::Ready(CandidateOutcome::Rejected(
+            return Ok(Answer::Ready(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
             )));
         };
@@ -604,7 +684,6 @@ impl BodyState<'_, '_> {
         let carried =
             self.generic_argument_bindings(&substitution.parameters, &substitution.arguments)?;
         self.match_signature(
-            pass,
             origin,
             module,
             function_type.module_id,
@@ -637,20 +716,29 @@ impl BodyState<'_, '_> {
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         type_arguments: &[dir::GlobalTypeId],
         expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<CheckOutcome>> {
         let matched = answer!(self.match_newtype(
             origin,
             symbol,
             argument_nodes,
             type_arguments,
             expected_return,
+            NewtypeOverload::Ordered,
         )?);
-        let (selection, parameters, return_type) = match matched {
-            NewtypeMatch::Selected {
-                selection,
-                parameters,
-                return_type,
-            } => (selection, parameters, return_type),
+        let (signature, rejection, outcome) = match matched {
+            NewtypeMatch::Selected(signature) => (signature, None, CheckOutcome::Holds),
+            NewtypeMatch::ReturnMismatch(signature) => {
+                (signature, None, CheckOutcome::Fails(CheckFailure::Relation))
+            }
+            NewtypeMatch::Invalid {
+                signature,
+                rejection,
+                variables,
+            } => (
+                signature,
+                Some((rejection, variables)),
+                CheckOutcome::Fails(CheckFailure::Reported),
+            ),
             NewtypeMatch::Rejected(rejection) => match rejection {
                 NewtypeRejection::Signature(rejection) => {
                     self.report_signature_rejection(
@@ -662,33 +750,50 @@ impl BodyState<'_, '_> {
                     self.commit_decision(node, Decision::Rejected)?;
                     self.commit_error_node(node)?;
 
-                    return Ok(Answer::Ready(()));
+                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
                 }
-                NewtypeRejection::Candidates(notes) => {
-                    return self.reject_construct(site, node, origin, argument_nodes, &notes);
+                NewtypeRejection::NoMatch(notes) => {
+                    answer!(self.reject_construct(site, node, origin, argument_nodes, &notes)?);
+
+                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
+                }
+                NewtypeRejection::Ambiguous => {
+                    return Err(CompilerError::Internal {
+                        message: "ordered newtype selection rejected an ambiguous backing"
+                            .to_string(),
+                    });
                 }
             },
         };
 
-        // commit the selected newtype construction
+        // report the rejected judgment before poisoning its local inference
         let module = origin.module();
+        if let Some((rejection, variables)) = rejection {
+            self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
+            self.check.poison_variables(variables)?;
+        }
+
+        // commit the selected newtype construction
+        let NewtypeSignature {
+            selection,
+            parameters,
+            return_type,
+        } = signature;
         let target = dir::ConstructTarget::Newtype(selection);
         let resolution = dir::ConstructResolution::new(
             target,
             self.argument_bindings(module, argument_nodes, &parameters),
             return_type,
         );
-        self.check_arguments(site, argument_nodes, &resolution.arguments)?;
         self.commit_decision(node, Decision::Construct(resolution))?;
         self.commit_node_type(node, return_type)?;
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready(outcome))
     }
 
     /// Commit one accepted construction selection.
     fn commit_construct(
         &mut self,
-        site: FlowSite,
         node: dir::GlobalNodeIdAny,
         module: ModuleId,
         instance_module: ModuleId,
@@ -731,7 +836,6 @@ impl BodyState<'_, '_> {
             self.argument_bindings(module, argument_nodes, &signature.parameters),
             produced,
         );
-        self.check_arguments(site, argument_nodes, &resolution.arguments)?;
         self.commit_decision(node, Decision::Construct(resolution))?;
 
         self.commit_node_type(node, produced)?;

@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidatePass, CandidateVerdict, CheckFailure,
-    CheckOutcome, Decision, DecisionKind, Dependency, FlowSite, Origin, PlaceUse, ProbeReason,
-    SignatureRejection, SignatureSelection, answer,
+    Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
+    DecisionKind, Dependency, FlowSite, MemoryRank, Origin, PlaceUse, ProbeReason, SignatureMatch,
+    SignatureRejection, SignatureSelection, VariableDomain, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -129,7 +129,7 @@ impl BodyState<'_, '_> {
             self.commit_decision(node, Decision::Rejected)?;
             self.commit_error_node(node)?;
 
-            return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)));
+            return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
         };
         let candidates = match &callees {
             CallCandidates::Any(candidates) => candidates,
@@ -141,7 +141,7 @@ impl BodyState<'_, '_> {
             self.commit_decision(node, Decision::Rejected)?;
             self.commit_error_node(node)?;
 
-            return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)));
+            return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
         }
 
         // newtype targets select their nominal constructor
@@ -156,12 +156,12 @@ impl BodyState<'_, '_> {
             if matches!(self.symbol_kind(symbol), dir::SymbolKind::Newtype) {
                 // newtype heads read as their declaration reference
                 let callee_node = callee.into_global_any(module);
-                if self.node_type_maybe(callee_node).is_none() {
+                if self.committed_node_type(callee_node).is_none() {
                     let reference = self
                         .intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
                     self.commit_node_type(callee_node, reference)?;
                 }
-                answer!(self.select_newtype_construct(
+                return self.select_newtype_construct(
                     site,
                     node,
                     origin,
@@ -169,9 +169,7 @@ impl BodyState<'_, '_> {
                     argument_nodes,
                     &argument_types,
                     expected_return,
-                )?);
-
-                return Ok(Answer::Ready(CheckOutcome::Holds));
+                );
             }
         }
 
@@ -208,100 +206,130 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(CheckOutcome::Holds));
         }
 
-        // winnow candidates by adjustment rank, breaking ties in declaration order
+        // winnow candidates by memory rank, breaking ties in declaration order
+        let arguments = self.callable_arguments(module, argument_nodes)?;
         let is_single_candidate = candidates.len() == 1;
-        let mut winner: Option<(u8, &CallableCandidate)> = None;
-        let mut ambiguous = None;
+        let mut winner: Option<(MemoryRank, &CallableCandidate)> = None;
+        let mut indeterminate = None;
         let mut rejections = Vec::new();
         for candidate in candidates {
             if is_single_candidate {
-                winner = Some((0, candidate));
+                winner = Some((MemoryRank::Exact, candidate));
                 break;
             }
-            // rank inside the probe, where argument inference is complete
-            let mut probed_rank = 0u8;
-            let (verdict, rejection) = self.probe_candidate_noted(
+            // classify the accepted substituted signature inside the probe
+            let mut rank = MemoryRank::Exact;
+            let (verdict, rejection) = answer!(self.probe_candidate_noted(
                 ProbeReason::Signature,
                 |state| {
                     let outcome = state.attempt_call(
-                        CandidatePass::Winnow,
                         origin,
-                        module,
                         candidate,
-                        argument_nodes,
+                        &arguments,
                         &argument_types,
                         expected_return,
                     )?;
-                    if matches!(outcome, Answer::Ready(CandidateOutcome::Accepted(_))) {
-                        probed_rank = state.candidate_adjustment_rank(
-                            origin,
-                            module,
-                            candidate.ty,
-                            argument_nodes,
-                        )?;
-                    }
+                    match outcome {
+                        Answer::Ready(matched) => {
+                            if let SignatureMatch::Selected(signature) = &matched {
+                                rank = answer!(signature.memory_rank(origin, &arguments, state)?);
+                            }
 
-                    Ok(outcome)
+                            Ok(Answer::Ready(matched.into_candidate()))
+                        }
+                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    }
                 },
                 |state, rejection| {
                     Ok(state
                         .check
                         .describe_signature_rejection(module, candidate.ty, rejection))
                 },
-            )?;
+            )?);
             match verdict {
                 CandidateVerdict::Rejected => rejections.extend(rejection),
                 CandidateVerdict::Viable => {
-                    let rank = probed_rank;
-                    if rank == 0 {
-                        winner = Some((0, candidate));
+                    if rank == MemoryRank::Exact {
+                        winner = Some((rank, candidate));
                         break;
                     }
                     if winner.is_none_or(|(best, _)| rank < best) {
                         winner = Some((rank, candidate));
                     }
                 }
-                CandidateVerdict::Ambiguous => {
-                    ambiguous.get_or_insert(candidate);
+                CandidateVerdict::Indeterminate => {
+                    indeterminate.get_or_insert(candidate);
                 }
             }
         }
         let winner = winner.map(|(_, candidate)| candidate);
 
         // confirm the winner outside any probe
-        if let Some(candidate) = winner.or(ambiguous) {
+        if let Some(candidate) = winner.or(indeterminate) {
             let attempt = self.attempt_call(
-                CandidatePass::Confirm,
                 origin,
-                module,
                 candidate,
-                argument_nodes,
+                &arguments,
                 &argument_types,
                 expected_return,
             )?;
 
             match answer!(attempt) {
-                CandidateOutcome::Accepted(selection) => {
-                    answer!(self.commit_call_selection(
+                SignatureMatch::Selected(signature) => {
+                    answer!(self.commit_call_signature(
                         site,
                         node,
                         callee,
+                        candidate,
                         argument_nodes,
-                        selection
+                        signature,
                     )?);
 
                     return Ok(Answer::Ready(CheckOutcome::Holds));
                 }
-                CandidateOutcome::Rejected(rejection)
+                SignatureMatch::ReturnMismatch(signature) => {
+                    answer!(self.commit_call_signature(
+                        site,
+                        node,
+                        callee,
+                        candidate,
+                        argument_nodes,
+                        signature,
+                    )?);
+
+                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)));
+                }
+                SignatureMatch::Invalid {
+                    selection,
+                    rejection,
+                    variables,
+                } if is_single_candidate => {
+                    self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
+                    self.check.poison_variables(variables)?;
+                    answer!(self.commit_call_signature(
+                        site,
+                        node,
+                        callee,
+                        candidate,
+                        argument_nodes,
+                        selection,
+                    )?);
+
+                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
+                }
+                SignatureMatch::Inapplicable(rejection)
                     if is_single_candidate && rejection.is_precise() =>
                 {
                     self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
                     self.commit_decision(node, Decision::Rejected)?;
                     self.commit_error_node(node)?;
 
-                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)));
+                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
                 }
-                CandidateOutcome::Rejected(_) => {}
+                SignatureMatch::Invalid { variables, .. } => {
+                    self.check.poison_variables(variables)?;
+                }
+                SignatureMatch::Inapplicable(_) => {}
             }
         }
 
@@ -312,44 +340,7 @@ impl BodyState<'_, '_> {
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
 
-        Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)))
-    }
-
-    /// Rank one candidate's memory adjustments, where undecided arguments rank exact.
-    fn candidate_adjustment_rank(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        callee: dir::GlobalTypeId,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-    ) -> CompilerResult<u8> {
-        let Some(signature) = self.check.signature_head(callee)? else {
-            return Ok(0);
-        };
-        let parameters = self
-            .check
-            .signature_parameters(callee.module_id, signature.parameters)?
-            .to_vec();
-
-        let mut rank = 0;
-        for (index, argument) in argument_nodes.iter().enumerate() {
-            let Some(value) = self.argument_expression(module, *argument) else {
-                continue;
-            };
-            let Some(argument) = self.node_type_maybe(value) else {
-                continue;
-            };
-            // rest parameters absorb the remaining arguments
-            let Some(parameter) = parameters.get(index).or(parameters.last()) else {
-                break;
-            };
-            rank = rank.max(
-                self.check
-                    .memory_adjustment_rank(origin, argument, parameter.ty)?,
-            );
-        }
-
-        Ok(rank)
+        Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)))
     }
 
     /// Return whether one call head is an inference hole.
@@ -382,7 +373,7 @@ impl BodyState<'_, '_> {
             self.commit_decision(node, Decision::Rejected)?;
             self.commit_error_node(node)?;
 
-            return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)));
+            return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
         };
         let target = answer!(self.reduce_type_head(origin, expected_return)?);
         let symbol = match self.ty(target)? {
@@ -396,11 +387,11 @@ impl BodyState<'_, '_> {
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
 
-                return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)));
+                return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
             }
         };
 
-        answer!(self.select_newtype_construct(
+        self.select_newtype_construct(
             site,
             node,
             origin,
@@ -408,9 +399,7 @@ impl BodyState<'_, '_> {
             argument_nodes,
             argument_types,
             Some(expected_return),
-        )?);
-
-        Ok(Answer::Ready(CheckOutcome::Holds))
+        )
     }
 
     /// Collect callable candidates in declaration order from one callee node.
@@ -585,7 +574,7 @@ impl BodyState<'_, '_> {
         callee: FlowSite,
     ) -> CompilerResult<Answer<Option<CallCandidates>>> {
         let ty = answer!(self.infer_node_type(callee, PlaceUse::Read)?);
-        let reduced = self.value_beneath_forms(origin, ty)?;
+        let reduced = answer!(self.strip_form(origin, ty)?);
 
         let mut candidates = SmallVec::new();
         match self.ty(reduced)? {
@@ -604,9 +593,7 @@ impl BodyState<'_, '_> {
 
                 Ok(Answer::Ready(Some(CallCandidates::Any(candidates))))
             }
-            dir::Type::Variable(variable) => {
-                Ok(Answer::pending([self.variable_dependency(variable)?]))
-            }
+            dir::Type::Variable(variable) => Ok(Answer::pending([Dependency::Variable(variable)])),
             _ => Ok(Answer::Ready(Some(CallCandidates::Any(candidates)))),
         }
     }
@@ -685,66 +672,49 @@ impl BodyState<'_, '_> {
     /// Attempt one callable candidate against collected arguments.
     fn attempt_call(
         &mut self,
-        pass: CandidatePass,
         origin: Origin,
-        module: ModuleId,
         candidate: &CallableCandidate,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[CallableArgument],
         argument_types: &[dir::GlobalTypeId],
         expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<CandidateOutcome<CallSelection, SignatureRejection>>> {
-        let arguments = self.callable_arguments(module, argument_nodes)?;
-
-        // the declared receiver mode gates the candidate before matching
-        match self.receiver_rejects_candidate(origin, candidate)? {
-            Answer::Ready(true) => {
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(
-                    SignatureRejection::Receiver {
-                        source: candidate.receiver.expect("gated receiver"),
-                        target: candidate.receiver.expect("gated receiver"),
-                    },
-                )));
-            }
-            Answer::Ready(false) => {}
-            Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
-        }
-        let attempt = self.attempt_callable(
-            pass,
+    ) -> CompilerResult<Answer<SignatureMatch>> {
+        let variables = VariableDomain::after(self.check.solver.variable_count());
+        let receiver_rejected = answer!(self.receiver_rejects_candidate(origin, candidate)?);
+        let matched = answer!(self.attempt_callable(
             origin,
             candidate.ty,
             candidate.generic_scope,
             candidate.receiver,
             &candidate.generic_arguments,
             argument_types,
-            &arguments,
+            arguments,
             expected_return,
-        )?;
+        )?);
+        if !receiver_rejected {
+            return Ok(Answer::Ready(matched));
+        }
 
-        let signature = match answer!(attempt) {
-            CandidateOutcome::Accepted(signature) => signature,
-            CandidateOutcome::Rejected(rejection) => {
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
-            }
+        let Some(receiver) = candidate.receiver else {
+            return Err(CompilerError::Internal {
+                message: "receiver-free candidate rejected by receiver mode".to_string(),
+            });
         };
-
-        // build accepted resolution
-        let target = match candidate.resolution_candidate(&signature) {
-            Some(candidate) => dir::CallTarget::Symbol(candidate),
-            None => dir::CallTarget::Expression {
-                generic_arguments: signature.generic_arguments.clone(),
+        let rejection = SignatureRejection::Receiver {
+            source: receiver,
+            target: receiver,
+        };
+        let matched = match matched {
+            SignatureMatch::Selected(selection)
+            | SignatureMatch::ReturnMismatch(selection)
+            | SignatureMatch::Invalid { selection, .. } => SignatureMatch::Invalid {
+                selection,
+                rejection,
+                variables,
             },
+            SignatureMatch::Inapplicable(rejection) => SignatureMatch::Inapplicable(rejection),
         };
-        let resolution = dir::CallResolution::new(
-            target,
-            Some(signature.callable),
-            self.argument_bindings(module, argument_nodes, &signature.parameters),
-            signature.return_type,
-        );
 
-        Ok(Answer::Ready(CandidateOutcome::Accepted(CallSelection {
-            resolution,
-            return_type: signature.return_type,
-        })))
+        Ok(Answer::Ready(matched))
     }
 
     /// Select one call on a union receiver.
@@ -767,9 +737,10 @@ impl BodyState<'_, '_> {
             // the declared receiver mode gates each arm before matching
             let rejected = answer!(self.receiver_rejects_candidate(origin, candidate)?);
             let attempt = match rejected {
-                true => Answer::Ready(CandidateOutcome::Rejected(SignatureRejection::Inapplicable)),
+                true => Answer::Ready(SignatureMatch::Inapplicable(
+                    SignatureRejection::Inapplicable,
+                )),
                 false => self.attempt_callable(
-                    CandidatePass::Confirm,
                     origin,
                     candidate.ty,
                     candidate.generic_scope,
@@ -780,7 +751,7 @@ impl BodyState<'_, '_> {
                     expected_return,
                 )?,
             };
-            let CandidateOutcome::Accepted(signature) = answer!(attempt) else {
+            let SignatureMatch::Selected(signature) = answer!(attempt) else {
                 // one rejecting variant rejects the whole union call
                 let argument_types = answer!(self.infer_argument_types(site, argument_nodes)?);
                 self.report_no_matching_call(origin, &argument_types, &[])?;
@@ -819,12 +790,41 @@ impl BodyState<'_, '_> {
             self.argument_bindings(origin.module(), argument_nodes, &parameters),
             return_type,
         );
-        self.check_arguments(site, argument_nodes, &resolution.arguments)?;
         self.commit_decision(node, Decision::Call(resolution))?;
 
         self.commit_node_type(node, return_type)?;
 
         Ok(Answer::Ready(()))
+    }
+
+    /// Commit one selected call signature.
+    fn commit_call_signature(
+        &mut self,
+        site: FlowSite,
+        node: dir::GlobalNodeIdAny,
+        callee: dir::LocalNodeId<dir::Expression>,
+        candidate: &CallableCandidate,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        signature: SignatureSelection,
+    ) -> CompilerResult<Answer<()>> {
+        let target = match candidate.resolution_candidate(&signature) {
+            Some(candidate) => dir::CallTarget::Symbol(candidate),
+            None => dir::CallTarget::Expression {
+                generic_arguments: signature.generic_arguments.clone(),
+            },
+        };
+        let resolution = dir::CallResolution::new(
+            target,
+            Some(signature.callable),
+            self.argument_bindings(node.module_id, argument_nodes, &signature.parameters),
+            signature.return_type,
+        );
+        let selection = CallSelection {
+            resolution,
+            return_type: signature.return_type,
+        };
+
+        self.commit_call_selection(site, node, callee, selection)
     }
 
     /// Commit one accepted call selection.
@@ -833,11 +833,8 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         node: dir::GlobalNodeIdAny,
         callee: dir::LocalNodeId<dir::Expression>,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         mut selection: CallSelection,
     ) -> CompilerResult<Answer<()>> {
-        self.check_arguments(site, argument_nodes, &selection.resolution.arguments)?;
-
         // preserve exact static-key expressions after normal signature selection
         if let Some(ty) = self.static_key_expression_type(site)? {
             selection.resolution.return_type = ty;
@@ -847,7 +844,7 @@ impl BodyState<'_, '_> {
         // type declaration callees with their instantiated callable
         let callee = callee.into_global_any(node.module_id);
         if let Some(callable) = selection.resolution.callable_type
-            && self.node_type_maybe(callee).is_none()
+            && self.committed_node_type(callee).is_none()
         {
             self.commit_node_type(callee, callable)?;
         }

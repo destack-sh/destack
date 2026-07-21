@@ -22,7 +22,7 @@ impl BodyState<'_, '_> {
             return self.commit_rejected_pattern(node);
         }
 
-        let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![]);
+        let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![])?;
 
         // reject non-sequence sources before projecting fields
         let Some(_length) = answer!(self.select_sequence_length(origin, scrutinee, &sequence)?)
@@ -72,15 +72,15 @@ impl BodyState<'_, '_> {
                     };
                     let element = call.return_type;
 
-                    self.project_pattern_input(
+                    answer!(self.check_pattern_projection(
                         flow,
                         scope,
                         element,
                         pattern.into_global_any(module),
-                    )?;
+                    )?);
                     projected.push(dir::PatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call { call, ty: element },
+                        projection: dir::Projection::Call(Box::new(call)),
                         pattern: Some(pattern.into_global_any(module)),
                     });
                     position += 1;
@@ -99,21 +99,18 @@ impl BodyState<'_, '_> {
                     let rest_type = call.return_type;
 
                     if let Some(pattern) = pattern {
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             rest_type,
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                     }
-                    rest = Some(dir::PatternFieldResolution {
+                    rest = Some(Box::new(dir::PatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call {
-                            call,
-                            ty: rest_type,
-                        },
+                        projection: dir::Projection::Call(Box::new(call)),
                         pattern: pattern.map(|pattern| pattern.into_global_any(module)),
-                    });
+                    }));
                 }
                 dir::PatternField::Elision => {
                     position += 1;
@@ -125,12 +122,14 @@ impl BodyState<'_, '_> {
         // record the sequence form behind the scrutinee
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Sequence(
-                dir::PatternSequenceDestructureResolution {
-                    arity,
-                    fields: projected,
-                    rest,
-                },
+            dir::PatternResolution::Destructure(Box::new(
+                dir::PatternDestructureResolution::Sequence(
+                    dir::PatternSequenceDestructureResolution {
+                        arity,
+                        fields: projected,
+                        rest,
+                    },
+                ),
             )),
         )
     }
@@ -153,7 +152,7 @@ impl BodyState<'_, '_> {
         }
 
         let rest_start = self.assign_sequence_rest_start(module, fields);
-        let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![]);
+        let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![])?;
 
         // reject non-sequence sources before projecting fields
         let Some(_length) = answer!(self.select_sequence_length(origin, scrutinee, &sequence)?)
@@ -198,15 +197,15 @@ impl BodyState<'_, '_> {
                     };
                     let element = call.return_type;
 
-                    self.project_pattern_input(
+                    answer!(self.check_pattern_projection(
                         flow,
                         scope,
                         element,
                         pattern.into_global_any(module),
-                    )?;
+                    )?);
                     projected.push(dir::AssignPatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call { call, ty: element },
+                        projection: dir::Projection::Call(Box::new(call)),
                         pattern: Some(pattern.into_global_any(module)),
                     });
                     position += 1;
@@ -225,21 +224,18 @@ impl BodyState<'_, '_> {
                     let rest_type = call.return_type;
 
                     if let Some(pattern) = pattern {
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             rest_type,
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                     }
-                    rest = Some(dir::AssignPatternFieldResolution {
+                    rest = Some(Box::new(dir::AssignPatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call {
-                            call,
-                            ty: rest_type,
-                        },
+                        projection: dir::Projection::Call(Box::new(call)),
                         pattern: pattern.map(|pattern| pattern.into_global_any(module)),
-                    });
+                    }));
                 }
                 dir::AssignPatternField::Elision => {
                     position += 1;

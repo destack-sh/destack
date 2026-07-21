@@ -123,7 +123,7 @@ impl WalkState<'_, '_> {
                     .control_results
                     .insert(value.into_global_any(self.module), result);
             }
-            (Some(_), ControlTargetForm::Iteration) => {
+            (Some(_), ControlTargetForm::Iteration | ControlTargetForm::Switch) => {
                 self.check
                     .report_break_value_outside_loop(self.module, source);
             }
@@ -143,7 +143,7 @@ impl WalkState<'_, '_> {
                     result,
                 );
             }
-            (None, ControlTargetForm::Iteration) => {}
+            (None, ControlTargetForm::Iteration | ControlTargetForm::Switch) => {}
         }
 
         // capture branch flow at the break site

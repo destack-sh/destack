@@ -30,7 +30,7 @@ impl CheckState<'_> {
             }
 
             // guard narrowings filter runtime-tested sources
-            dir::TypeOperation::Narrow(narrow) => self.reduce_narrow(origin, *narrow),
+            dir::TypeOperation::Narrow(narrow) => self.reduce_narrowing(origin, *narrow),
 
             // string mappings transform string literals and distribute over unions
             dir::TypeOperation::StringMapping { mapping, target } => {

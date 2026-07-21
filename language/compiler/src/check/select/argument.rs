@@ -3,8 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, BoundMode, CallableArgument, Cause, CauseKind, Constraint, Expectation,
-    ExpectedType, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, CallableArgument, FlowSite, Origin, PlaceUse, Relation, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -69,82 +68,6 @@ impl BodyState<'_, '_> {
             .collect()
     }
 
-    /// Queue final argument checks for one accepted signature.
-    pub(in crate::check) fn check_arguments(
-        &mut self,
-        site: FlowSite,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        bindings: &[dir::ArgumentBinding],
-    ) -> CompilerResult<()> {
-        let module = site.node.module_id;
-        for argument in argument_nodes.iter().copied() {
-            let argument_node = argument.into_global_any(module);
-            let Some(binding) = bindings.iter().find(|binding| {
-                matches!(
-                    &binding.argument,
-                    dir::ArgumentSource::Provided(source) if *source == argument_node
-                ) || matches!(
-                    &binding.argument,
-                    dir::ArgumentSource::Rest(sources) if sources.contains(&argument_node)
-                )
-            }) else {
-                continue;
-            };
-            let Some(value) = self.argument_expression(module, argument) else {
-                continue;
-            };
-            let value_site = self.node_site(value)?;
-            let origin = Origin::Node(value, site.scope);
-
-            // barred parameters settle from the unbarred arguments alone
-            let mut expected = binding.ty;
-            let is_barred = self.contains_inference_barrier(expected)?;
-            if is_barred {
-                for variable in self.type_variables(expected)? {
-                    let _ = self.check.solve_variable(variable, BoundMode::Strong)?;
-                }
-                expected = self.erase_inference_barriers(module, expected)?;
-            }
-            // use the same relation selected during candidate matching
-            let argument = CallableArgument::Expression(value);
-            let relation = self.argument_relation(argument);
-
-            let cause = self.check.intern_cause(Cause::root(
-                origin,
-                CauseKind::Argument {
-                    call: site.node,
-                    index: binding.parameter as u32,
-                },
-            ));
-
-            // verify values against open barred targets once they close
-            if is_barred && !self.type_variables(expected)?.is_empty() {
-                let checked = self.check_node(value_site, PlaceUse::Read, None)?;
-                let value_origin = self.intern_origin(origin);
-                self.push_constraint(Constraint::check_only_value(
-                    relation,
-                    checked.ty,
-                    expected,
-                    value_origin,
-                    cause,
-                    Some(ValueUse::Argument),
-                ));
-
-                continue;
-            }
-
-            let expectation = Expectation {
-                expected: ExpectedType::Type(expected),
-                relation,
-                cause,
-                use_: ValueUse::Argument,
-            };
-            self.check_node(value_site, PlaceUse::Read, Some(expectation))?;
-        }
-
-        Ok(())
-    }
-
     /// Infer the type supplied by one runtime argument.
     pub(in crate::check) fn infer_argument_type(
         &mut self,
@@ -187,14 +110,22 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<SmallVec<[CallableArgument; 4]>> {
         let mut values = SmallVec::<[CallableArgument; 4]>::new();
 
-        // preserve argument positions even for malformed argument nodes
+        // preserve source expressions for candidate checking
         for argument in arguments {
             let source = argument.into_global_any(module);
             match self.argument_expression(module, *argument) {
-                Some(value) => values.push(CallableArgument::Expression(value)),
+                Some(value) => values.push(CallableArgument {
+                    source: value,
+                    ty: None,
+                    relation: self.literal_relation(value),
+                }),
                 None => {
                     let ty = self.intern_type(module, dir::Type::Error)?;
-                    values.push(CallableArgument::Typed { source, ty });
+                    values.push(CallableArgument {
+                        source,
+                        ty: Some(ty),
+                        relation: Relation::Assignable,
+                    });
                 }
             }
         }
@@ -219,23 +150,31 @@ impl BodyState<'_, '_> {
         for argument in sources {
             match argument {
                 dir::ArgumentSource::Provided(source) => {
-                    if arguments.get(index).is_none() {
+                    let Some(ty) = arguments.get(index).copied() else {
                         return Err(CompilerError::Internal {
                             message: "typed argument source has no type".to_string(),
                         });
-                    }
+                    };
                     index += 1;
-                    values.push(CallableArgument::Expression(*source));
+                    values.push(CallableArgument {
+                        source: *source,
+                        ty: Some(ty),
+                        relation: self.literal_relation(*source),
+                    });
                 }
                 dir::ArgumentSource::Rest(sources) => {
                     for source in sources {
-                        if arguments.get(index).is_none() {
+                        let Some(ty) = arguments.get(index).copied() else {
                             return Err(CompilerError::Internal {
                                 message: "typed rest argument source has no type".to_string(),
                             });
-                        }
+                        };
                         index += 1;
-                        values.push(CallableArgument::Expression(*source));
+                        values.push(CallableArgument {
+                            source: *source,
+                            ty: Some(ty),
+                            relation: self.literal_relation(*source),
+                        });
                     }
                 }
                 dir::ArgumentSource::Static(ty) => {
@@ -246,12 +185,20 @@ impl BodyState<'_, '_> {
                         }
                         None => *ty,
                     };
-                    values.push(CallableArgument::Typed { source, ty });
+                    values.push(CallableArgument {
+                        source,
+                        ty: Some(ty),
+                        relation: Relation::Assignable,
+                    });
                 }
                 dir::ArgumentSource::Omitted => {
                     if let Some(ty) = arguments.get(index).copied() {
                         index += 1;
-                        values.push(CallableArgument::Typed { source, ty });
+                        values.push(CallableArgument {
+                            source,
+                            ty: Some(ty),
+                            relation: Relation::Assignable,
+                        });
                     }
                 }
             }
@@ -268,31 +215,6 @@ impl BodyState<'_, '_> {
         }
 
         Ok(values)
-    }
-
-    /// Return the relation used to match and check one argument.
-    pub(in crate::check) fn argument_relation(&self, argument: CallableArgument) -> Relation {
-        let CallableArgument::Expression(mut value) = argument else {
-            return Relation::Assignable;
-        };
-        let module = value.module_id;
-
-        // follow satisfies expressions that preserve the literal value
-        loop {
-            match self
-                .module(module)
-                .view()
-                .get(value.local_id.into_typed::<dir::Expression>())
-            {
-                dir::Expression::ObjectExpression { .. }
-                | dir::Expression::ArrayExpression { .. }
-                | dir::Expression::TupleExpression { .. } => return Relation::Writable,
-                dir::Expression::Satisfies { expression, .. } => {
-                    value = expression.into_global_any(module);
-                }
-                _ => return Relation::Assignable,
-            }
-        }
     }
 
     /// Return the expression carried by one argument node.

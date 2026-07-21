@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CauseId, CheckOutcome, FlowSite, PlaceUse, Relation, StaticGate, ValueUse,
+    Answer, BodyState, CauseId, FlowSite, PlaceUse, Relation, StaticGate, ValueCheck, ValueUse,
     answer,
 };
 
@@ -77,7 +77,7 @@ impl BodyState<'_, '_> {
         relation: Relation,
         cause: CauseId,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<CheckOutcome>> {
+    ) -> CompilerResult<Answer<ValueCheck>> {
         let module = site.node.module_id;
         answer!(self.check_block_statements(module, block)?);
         let value = self.block_value(module, block)?;

@@ -198,6 +198,16 @@ impl CheckState<'_> {
                     Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
                 }
             }
+            FlowPredicate::Equality { value, is_positive } => {
+                let origin = self.node_site(node)?.origin();
+                match self.equality_predicate_target(origin, value)? {
+                    Answer::Ready(Some(target)) => {
+                        self.resolve_type_predicate(node, source, target, is_positive)
+                    }
+                    Answer::Ready(None) => Ok(Answer::Ready(None)),
+                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                }
+            }
             FlowPredicate::Type {
                 target,
                 is_positive,
@@ -214,6 +224,27 @@ impl CheckState<'_> {
                 }
             }
         }
+    }
+
+    /// Return the singleton type selected by one equality operand.
+    fn equality_predicate_target(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let ty = answer!(self.node_type(value.into_any())?);
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
+        if self.ty(ty)?.is_singleton() {
+            return Ok(Answer::Ready(Some(ty)));
+        }
+        if let Some(instance) = self.decompose_newtype(origin, ty)? {
+            let backing = answer!(self.reduce_type_head(origin, instance.backing)?);
+            if self.ty(backing)?.is_singleton() {
+                return Ok(Answer::Ready(Some(ty)));
+            }
+        }
+
+        Ok(Answer::Ready(None))
     }
 
     /// Resolve one runtime type predicate.
@@ -327,25 +358,26 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         match resolution {
             dir::PatternResolution::Test(test) => Ok(Answer::Ready(test.predicate.narrowed)),
-            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Nominal(
-                nominal,
-            )) => {
-                let arguments: Vec<dir::GlobalTypeId> =
-                    dir::GenericArgumentBinding::values(&nominal.generic_arguments).collect();
-                let arguments = self.intern_type_ids(origin.module(), &arguments)?;
-                let ty = self.intern_type(
-                    origin.module(),
-                    dir::Type::Instance(dir::GenericInstance {
-                        symbol: nominal.symbol,
-                        arguments,
-                    }),
-                )?;
+            dir::PatternResolution::Destructure(destructure) => match destructure.as_ref() {
+                dir::PatternDestructureResolution::Nominal(nominal) => {
+                    let arguments: Vec<dir::GlobalTypeId> =
+                        dir::GenericArgumentBinding::values(&nominal.generic_arguments).collect();
+                    let arguments = self.intern_type_ids(origin.module(), &arguments)?;
+                    let ty = self.intern_type(
+                        origin.module(),
+                        dir::Type::Instance(dir::GenericInstance {
+                            symbol: nominal.symbol,
+                            arguments,
+                        }),
+                    )?;
 
-                Ok(Answer::Ready(Some(ty)))
-            }
-            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Variant(
-                variant,
-            )) => Ok(Answer::Ready(variant.predicate.narrowed)),
+                    Ok(Answer::Ready(Some(ty)))
+                }
+                dir::PatternDestructureResolution::Variant(variant) => {
+                    Ok(Answer::Ready(variant.predicate.narrowed))
+                }
+                _ => Ok(Answer::Ready(None)),
+            },
             dir::PatternResolution::Bind(dir::PatternBindingResolution {
                 pattern: Some(inner),
                 ..

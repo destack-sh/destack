@@ -50,7 +50,7 @@ impl CheckState<'_> {
         let projected = match carrier {
             None => None,
             Some(carrier) => {
-                let lookup = answer!(self.body(origin.module()).lookup_member(
+                let lookup = answer!(self.body().lookup_member(
                     origin,
                     module,
                     carrier,

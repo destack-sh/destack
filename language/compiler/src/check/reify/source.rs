@@ -136,7 +136,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             // the hole's node type carries its solved variable
             let Some(ty) = self
                 .check
-                .node_type_maybe(hole_id.into_global_any(module_id))
+                .committed_node_type(hole_id.into_global_any(module_id))
             else {
                 continue;
             };
@@ -437,7 +437,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         let source = expression_id.into_global_any(module_id);
-        let Some(ty) = self.check.node_type_maybe(source) else {
+        let Some(ty) = self.check.committed_node_type(source) else {
             return Ok(());
         };
 
@@ -527,7 +527,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let arguments = match &resolution.target {
             dir::CallTarget::Expression { generic_arguments } => generic_arguments.as_slice(),
             dir::CallTarget::Symbol(candidate) => candidate.generic_arguments.as_slice(),
-            dir::CallTarget::Builtin(_) | dir::CallTarget::Universal(_) => return Ok(()),
+            dir::CallTarget::Universal(_) => return Ok(()),
         };
         if arguments.is_empty() {
             return Ok(());
@@ -570,12 +570,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             return Ok(());
         };
 
-        let source = ty.into_global_any(module_id);
         let node = expression_id.into_global_any(module_id);
-        let target = self
-            .check
-            .node_type_maybe(source)
-            .or_else(|| self.check.node_type_maybe(node));
+        let target = self.check.committed_node_type(node);
         let Some(target) = target else {
             return Ok(());
         };
@@ -674,12 +670,16 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         &mut self,
         coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
     ) -> CompilerResult<()> {
-        for (node, coercion) in coercions.iter().copied() {
+        for (node, coercion) in coercions {
+            let node = *node;
             if node.local_id.ty != dir::NodeType::Expression {
                 continue;
             }
             // carrier widening keeps the written literal (it would just be noisy)
-            if coercion.kind == dir::CoercionKind::Widen {
+            if matches!(
+                coercion.adjustments.as_slice(),
+                [adjustment] if adjustment.kind == dir::CoercionKind::Widen
+            ) {
                 continue;
             }
             if !self.state.source_tree().has_node_id(node.local_id.id) {
@@ -687,7 +687,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             }
 
             self.anchor(node.local_id);
-            let Some(target_type) = self.types.reify(coercion.target)? else {
+            let Some(target_type) = self.types.reify(coercion.target())? else {
                 continue;
             };
 

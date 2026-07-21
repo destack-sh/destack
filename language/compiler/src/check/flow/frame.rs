@@ -60,6 +60,8 @@ pub(in crate::check) enum ControlTargetForm {
     },
     /// A conditional or iterating loop accepts value-less `break` and `continue`.
     Iteration,
+    /// A switch accepts value-less `break` but not `continue`.
+    Switch,
 }
 
 impl ControlTargetForm {
@@ -70,7 +72,7 @@ impl ControlTargetForm {
 
     /// Return whether an unlabeled `break` may target this form.
     pub(in crate::check) fn accepts_unlabeled_break(self) -> bool {
-        matches!(self, Self::Loop { .. } | Self::Iteration)
+        matches!(self, Self::Loop { .. } | Self::Iteration | Self::Switch)
     }
 }
 

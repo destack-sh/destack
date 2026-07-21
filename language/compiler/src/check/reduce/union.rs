@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -43,7 +44,7 @@ impl CheckState<'_> {
         module: ModuleId,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let elements = self.union_elements(elements)?;
+        let elements = self.union_elements(module, elements)?;
 
         match elements.as_slice() {
             [single] => Ok(*single),
@@ -58,9 +59,12 @@ impl CheckState<'_> {
     /// Return flattened and deduplicated union elements.
     fn union_elements(
         &mut self,
+        module: ModuleId,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 4]>> {
         let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let mut keys = FxIndexSet::default();
+        let mut key_domains = SmallVec::<[dir::PrimitiveType; 2]>::new();
         for element in elements {
             let element = self.settled_root(element)?;
 
@@ -74,14 +78,30 @@ impl CheckState<'_> {
 
             // keep only elements not covered by a broader element
             for element in elements {
+                // singleton keys deduplicate by identity and their primitive domains
+                if let Some(key) = self.static_key_from_type(element)? {
+                    let is_covered = !keys.insert(key)
+                        || key_domains
+                            .iter()
+                            .any(|primitive| key.widens_to_primitive(*primitive));
+                    if !is_covered {
+                        kept.push(element);
+                    }
+
+                    continue;
+                }
+
                 if self.union_contains(&kept, element)? {
                     continue;
                 }
-                if self.merge_borrowed_union_element(&mut kept, element)? {
+                if self.merge_borrowed_union_element(module, &mut kept, element)? {
                     continue;
                 }
 
                 self.remove_covered_union_elements(&mut kept, element)?;
+                if let dir::Type::Primitive(primitive) = self.ty(element)? {
+                    key_domains.push(primitive);
+                }
                 kept.push(element);
             }
         }
@@ -92,10 +112,10 @@ impl CheckState<'_> {
     /// Merge borrows of one payload and access by joining their lifetimes.
     fn merge_borrowed_union_element(
         &mut self,
+        module: ModuleId,
         kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let module = element.module_id;
         let dir::Type::Form(form) = self.ty(element)? else {
             return Ok(false);
         };
@@ -181,44 +201,10 @@ impl CheckState<'_> {
             (_, dir::Type::Never) => true,
             (target, dir::Type::Literal(literal)) => literal.widens_to(&target),
             (target, dir::Type::Range(range)) => range.widens_to(&target),
-            // instances interned by different modules compare by their parts
-            (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
-                if source_instance.symbol == target_instance.symbol =>
-            {
-                self.type_ids(source.module_id, source_instance.arguments)?
-                    == self.type_ids(target.module_id, target_instance.arguments)?
-            }
             _ => false,
         };
 
         Ok(decision)
-    }
-
-    /// Return whether two union elements are the same type structurally.
-    ///
-    /// Instances interned by different modules carry distinct ids for one
-    /// structural type, so id equality alone under-deduplicates.
-    pub(in crate::check) fn union_element_duplicates(
-        &self,
-        existing: dir::GlobalTypeId,
-        element: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        if existing == element {
-            return Ok(true);
-        }
-
-        match (self.ty(existing)?, self.ty(element)?) {
-            (existing_head, element_head) if existing_head == element_head => Ok(true),
-            (dir::Type::Instance(existing_instance), dir::Type::Instance(element_instance))
-                if existing_instance.symbol == element_instance.symbol =>
-            {
-                Ok(
-                    self.type_ids(existing.module_id, existing_instance.arguments)?
-                        == self.type_ids(element.module_id, element_instance.arguments)?,
-                )
-            }
-            _ => Ok(false),
-        }
     }
 
     /// Return one union type without nullish elements.
@@ -250,10 +236,11 @@ impl CheckState<'_> {
         }
 
         // collapse the accepted elements back into one type
+        let module = origin.module();
         let value = match non_nullish.as_slice() {
-            [] => self.intern_type(ty.module_id, dir::Type::Never)?,
+            [] => self.intern_type(module, dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(ty.module_id, non_nullish)?,
+            _ => self.normalized_union_type(module, non_nullish)?,
         };
         let rejected = match (has_null, has_undefined) {
             (true, true) => NullishPart::NullOrUndefined,

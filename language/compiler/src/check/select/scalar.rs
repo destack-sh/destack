@@ -40,27 +40,22 @@ impl BodyState<'_, '_> {
         match literal {
             Some(value) => {
                 let predicate = dir::Predicate::unary(
-                    dir::PredicateOperand::new(input),
+                    dir::PredicateOperand::direct(input),
                     dir::PredicateCondition::Literal(value),
                 )
                 .with_narrowed(ty);
 
                 self.commit_pattern(
                     node,
-                    dir::PatternResolution::Test(dir::PatternPredicateResolution { predicate }),
+                    dir::PatternResolution::Test(Box::new(dir::PatternPredicateResolution {
+                        predicate,
+                    })),
                 )
             }
             None => {
                 // bare owner.case member paths select payload-less variants
-                if let Some(head) = answer!(self.tagged_expression_head(origin, module, value)?) {
-                    return self.select_tagged_variant_pattern(
-                        node,
-                        origin,
-                        flow,
-                        scope,
-                        head,
-                        &[],
-                    );
+                if let Some(case) = answer!(self.variant_expression_case(origin, module, value)?) {
+                    return self.select_variant_pattern(node, origin, flow, scope, case, &[]);
                 }
 
                 self.report_expression_pattern_not_literal(module, node.local_id.into_any());
@@ -121,7 +116,7 @@ impl BodyState<'_, '_> {
         let written = dir::RangeType::new(bounds[0], bounds[1], end_kind);
         let narrowed = self.range_pattern_narrowed_type(module, domain, &written)?;
         let predicate = dir::Predicate::unary(
-            dir::PredicateOperand::new(domain),
+            dir::PredicateOperand::direct(domain),
             dir::PredicateCondition::Range(dir::PredicateRange {
                 domain,
                 start: bounds[0],
@@ -133,7 +128,7 @@ impl BodyState<'_, '_> {
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Test(dir::PatternPredicateResolution { predicate }),
+            dir::PatternResolution::Test(Box::new(dir::PatternPredicateResolution { predicate })),
         )
     }
 

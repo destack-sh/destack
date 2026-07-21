@@ -142,13 +142,11 @@ impl CheckState<'_> {
             dir::Type::Reference(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,
         };
-        let lookup = answer!(self.body(origin.module()).lookup_member(
-            origin,
-            origin.module(),
-            owner,
-            space,
-            key
-        )?);
+        let lookup =
+            answer!(
+                self.body()
+                    .lookup_member(origin, origin.module(), owner, space, key)?
+            );
 
         match lookup {
             // a field contributes its value type

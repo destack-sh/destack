@@ -42,7 +42,7 @@ impl CheckState<'_> {
         let check = if answer!(self.decide_patterns_cover(origin, &patterns, value)?) {
             ObligationCheck::holds()
         } else {
-            let missing = self.uncovered_value(origin, &patterns, value)?;
+            let missing = answer!(self.uncovered_value(origin, &patterns, value)?);
 
             ObligationCheck::fail(ObligationFailure::NonExhaustivePattern { source, missing })
         };

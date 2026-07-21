@@ -5,7 +5,7 @@ use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
     Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Constraint, FlowSite,
-    Origin, PlaceUse, Relation, ValueUse, VariableRole, Widening, answer,
+    Origin, PlaceUse, Relation, ValueCheck, ValueUse, VariableRole, Widening, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -270,7 +270,7 @@ impl BodyState<'_, '_> {
             ));
             let child_check =
                 answer!(self.check_node_expected(child_site, element, relation, cause, use_)?);
-            check = check.and(child_check);
+            check = check.and(child_check.outcome);
         }
 
         // publish the source array type represented by this literal
@@ -295,11 +295,14 @@ impl BodyState<'_, '_> {
         // relate the result for empty arrays and non-owned targets
         should_relate_result |= elements.is_empty();
         if should_relate_result {
-            let result_check = answer!(self.check_value_relation(cause, relation, array, target)?);
-            check = check.and(result_check);
+            let result = answer!(self.check_value_relation(cause, relation, array, target)?);
+            check = check.and(result.outcome);
         }
 
-        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            outcome: check,
+            target,
+        })))
     }
 
     /// Check one repeated fixed array literal under an expected fixed array.
@@ -348,11 +351,12 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node.into_any(), ty)?;
 
         // relate the result to bind the expected count
-        let result_check = answer!(self.check_value_relation(cause, relation, ty, target)?);
+        let result = answer!(self.check_value_relation(cause, relation, ty, target)?);
 
-        Ok(Answer::Ready(CheckAttempt::Checked(
-            check.and(result_check),
-        )))
+        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            outcome: check.outcome.and(result.outcome),
+            target: result.target,
+        })))
     }
 
     /// Check one tuple literal under an expected tuple type.
@@ -399,11 +403,14 @@ impl BodyState<'_, '_> {
                 element_cause,
                 use_
             )?);
-            check = check.and(child_check);
+            check = check.and(child_check.outcome);
         }
 
         self.commit_node_type(node.into_any(), target)?;
 
-        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            outcome: check,
+            target,
+        })))
     }
 }

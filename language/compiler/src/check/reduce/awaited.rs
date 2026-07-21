@@ -94,8 +94,8 @@ impl CheckState<'_> {
         }
 
         // newtypes await through their backing
-        if let Some(backing) = answer!(self.body(origin.module()).newtype_backing(origin, target)?)
-        {
+        if let Some(instance) = self.decompose_newtype(origin, target)? {
+            let backing = instance.backing;
             let backing = answer!(self.reduce_type_head(origin, backing)?);
             let awaited = answer!(self.reduce_awaited_guarded(origin, backing, active)?);
 

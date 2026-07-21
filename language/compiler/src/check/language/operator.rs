@@ -136,24 +136,39 @@ impl OperatorProtocol {
 }
 
 impl CheckState<'_> {
-    /// Return whether one type supports builtin strict equality.
-    pub(in crate::check) fn supports_strict_equality(
+    /// Return whether two types can be compared by builtin strict equality.
+    pub(in crate::check) fn can_compare_strictly(
         &mut self,
         origin: Origin,
-        ty: dir::GlobalTypeId,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let root = answer!(self.reduce_type_head(origin, ty)?);
+        let left = answer!(self.reduce_type_head(origin, left)?);
+        let right = answer!(self.reduce_type_head(origin, right)?);
 
-        // compare transparent newtypes through their backing representation
-        if let Some(instance) = self.newtype_instance(origin, root)? {
-            return self.supports_strict_equality(origin, instance.backing);
+        // compare transparent newtypes through their backing representations
+        if let Some(instance) = self.decompose_newtype(origin, left)? {
+            return self.can_compare_strictly(origin, instance.backing, right);
+        }
+        if let Some(instance) = self.decompose_newtype(origin, right)? {
+            return self.can_compare_strictly(origin, left, instance.backing);
         }
 
-        // require builtin equality for every possible union member
-        if let dir::Type::Union(union) = self.ty(root)? {
-            let elements = self.type_ids(root.module_id, union.elements)?.to_vec();
+        // require builtin equality for every possible union pairing
+        if let dir::Type::Union(union) = self.ty(left)? {
+            let elements = self.type_ids(left.module_id, union.elements)?.to_vec();
             for element in elements {
-                if !answer!(self.supports_strict_equality(origin, element)?) {
+                if !answer!(self.can_compare_strictly(origin, element, right)?) {
+                    return Ok(Answer::Ready(false));
+                }
+            }
+
+            return Ok(Answer::Ready(true));
+        }
+        if let dir::Type::Union(union) = self.ty(right)? {
+            let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
+            for element in elements {
+                if !answer!(self.can_compare_strictly(origin, left, element)?) {
                     return Ok(Answer::Ready(false));
                 }
             }
@@ -161,18 +176,31 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
+        // nullish values compare without inspecting the other payload
+        let left_is_nullish = matches!(
+            self.ty(left)?,
+            dir::Type::Null | dir::Type::Undefined | dir::Type::Never
+        );
+        let right_is_nullish = matches!(
+            self.ty(right)?,
+            dir::Type::Null | dir::Type::Undefined | dir::Type::Never
+        );
+        if left_is_nullish || right_is_nullish {
+            return Ok(Answer::Ready(true));
+        }
+
         // scalar values compare by value
-        if answer!(self.scalar_families(origin, root)?).is_some()
-            || matches!(
-                self.ty(root)?,
-                dir::Type::Null | dir::Type::Undefined | dir::Type::Never
-            )
-        {
+        let left_is_scalar = answer!(self.scalar_families(origin, left)?).is_some();
+        let right_is_scalar = answer!(self.scalar_families(origin, right)?).is_some();
+        if left_is_scalar && right_is_scalar {
             return Ok(Answer::Ready(true));
         }
 
         // reference values compare by address
-        self.type_is_reference(origin, root)
+        let left_is_reference = answer!(self.type_is_reference(origin, left)?);
+        let right_is_reference = answer!(self.type_is_reference(origin, right)?);
+
+        Ok(Answer::Ready(left_is_reference && right_is_reference))
     }
 
     /// Return one operator protocol interface instance.

@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Answer, BodyState, Cause, CauseId, CauseKind, Constraint, Decision, FlowSite, MemberCandidate,
-    MemberLookup, Origin, OriginId, PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
+    MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, ValueSource, ValueUse, answer,
 };
 
 /// One selected subscript operation.
@@ -78,7 +78,6 @@ impl SubscriptSelection {
     /// Return the key constraint required by the selected operator call.
     pub(in crate::check) fn key_constraint(
         &self,
-        origin: OriginId,
         cause: CauseId,
         index: dir::GlobalTypeId,
     ) -> Option<Constraint> {
@@ -86,11 +85,10 @@ impl SubscriptSelection {
 
         Some(Constraint::value(
             Relation::Assignable,
-            index,
+            ValueSource::Type(index),
             parameter,
-            origin,
             cause,
-            Some(ValueUse::Argument),
+            ValueUse::Argument,
         ))
     }
 
@@ -113,7 +111,7 @@ impl SubscriptSelection {
 
         Some(dir::Projection::SubscriptGet {
             index,
-            read,
+            read: Box::new(read),
             ty: self.ty,
         })
     }
@@ -124,8 +122,8 @@ impl SubscriptSelection {
 
         Some(dir::Storage::Subscript {
             index,
-            read: self.read,
-            write,
+            read: self.read.map(Box::new),
+            write: Box::new(write),
         })
     }
 }
@@ -205,10 +203,9 @@ impl BodyState<'_, '_> {
 
         // commit result
         let key_scope = self.origin_scope(origin)?;
-        let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
-        let anchored = self.solver.origin(key_origin);
+        let anchored = Origin::Node(index_node, key_scope);
         let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-        if let Some(constraint) = selection.key_constraint(key_origin, cause, index) {
+        if let Some(constraint) = selection.key_constraint(cause, index) {
             self.push_constraint(constraint);
         }
         let ty = selection.ty();
@@ -318,10 +315,9 @@ impl BodyState<'_, '_> {
         };
 
         let key_scope = self.origin_scope(origin)?;
-        let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
-        let anchored = self.solver.origin(key_origin);
+        let anchored = Origin::Node(index_node, key_scope);
         let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-        if let Some(constraint) = selection.key_constraint(key_origin, cause, index) {
+        if let Some(constraint) = selection.key_constraint(cause, index) {
             self.push_constraint(constraint);
         }
 
@@ -545,7 +541,7 @@ impl BodyState<'_, '_> {
         let method = SubscriptProtocol::Index;
         let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[index]);
         let sources = [dir::ArgumentSource::Provided(index_node)];
-        let protocol = method.protocol(self, arguments.to_vec());
+        let protocol = method.protocol(self, arguments.to_vec())?;
         let key = method.key(self.strings());
         let Some(call) = answer!(self.select_protocol_call(
             origin,
@@ -627,7 +623,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let method = SubscriptProtocol::IndexSet;
         let arguments = SmallVec::<[dir::GlobalTypeId; 1]>::from_slice(&[index]);
-        let protocol = method.protocol(self, arguments.to_vec());
+        let protocol = method.protocol(self, arguments.to_vec())?;
         let key = method.key(self.strings());
         let Some(member) = answer!(self.select_protocol_member(
             origin,
@@ -689,7 +685,7 @@ impl BodyState<'_, '_> {
         let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[key_type]);
         let sources = [dir::ArgumentSource::Omitted];
         let key = method.key(self.strings());
-        let protocol = method.protocol(self, arguments.to_vec());
+        let protocol = method.protocol(self, arguments.to_vec())?;
         let read_type = self.index_signature_read_type(origin, value_type)?;
 
         self.protocol_call_returns(
@@ -707,7 +703,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<bool>> {
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
-        let protocol = method.protocol(self, vec![key_type]);
+        let protocol = method.protocol(self, vec![key_type])?;
         let member =
             answer!(self.select_protocol_member(origin, receiver, receiver, key, &protocol)?);
         let Some(member) = member else {

@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, Cause, CauseId, CheckFailure, CheckOutcome, DecisionKind, FlowSite, Origin,
-    Relation, ValueUse, answer,
+    Answer, BodyState, CauseId, CheckFailure, CheckOutcome, Constraint, DecisionKind, Dependency,
+    FlowSite, Origin, Relation, ValueCheck, ValueSource, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -24,14 +24,14 @@ pub(in crate::check) enum ExpectedType {
     /// A concrete expected type.
     Type(dir::GlobalTypeId),
     /// The checked type of another source use.
-    Node(FlowSite),
+    Node(dir::GlobalNodeIdAny),
 }
 
 /// Type expected for one checked expression position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct Expectation {
     /// The type expected by this check.
-    pub(in crate::check) expected: ExpectedType,
+    pub(in crate::check) target: dir::GlobalTypeId,
     /// The relation the expression value must satisfy.
     pub(in crate::check) relation: Relation,
     /// Why this expectation exists.
@@ -48,7 +48,7 @@ impl Expectation {
         use_: ValueUse,
     ) -> Self {
         Self {
-            expected: ExpectedType::Type(target),
+            target,
             relation: Relation::Assignable,
             cause,
             use_,
@@ -74,42 +74,12 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let ty = self.check.settled_root(ty)?;
         if let Some(variable) = self.check.root_variable(ty)? {
-            let dependency = self.check.variable_dependency(variable)?;
+            let dependency = Dependency::Variable(variable);
 
             return Ok(Answer::pending([dependency]));
         }
 
         self.check.reduce_type_head(origin, ty)
-    }
-
-    /// Check one source node's committed type against a target.
-    pub(in crate::check) fn check_node_value(
-        &mut self,
-        site: FlowSite,
-        relation: Relation,
-        target: dir::GlobalTypeId,
-        cause: CauseId,
-    ) -> CompilerResult<Answer<(dir::GlobalTypeId, CheckOutcome)>> {
-        let source = answer!(self.node_type_at(site)?);
-
-        // require the enclosing task to wait for undecidable checks
-        match self.check.constrain_type(cause, relation, source, target)? {
-            Answer::Ready(holds) => {
-                // literal freshness completes against the value expression
-                let parent = self.check.solver.cause(cause);
-                let valued = self.check.intern_cause(Cause {
-                    origin: site.origin(),
-                    kind: parent.kind,
-                    parent: parent.parent,
-                });
-                let check = self
-                    .check
-                    .complete_constraint_check(valued, relation, source, target, holds)?;
-
-                Ok(Answer::Ready((source, check)))
-            }
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-        }
     }
 
     /// Attempt one node's judgment once.
@@ -122,10 +92,9 @@ impl BodyState<'_, '_> {
         // check against the expectation when one shapes the node
         let holds = match expectation {
             Some(expectation) => {
-                let check = answer!(self.check_node_kind(site, expectation)?);
-                let () = answer!(self.judge_committed_outcome(site, &expectation, check)?);
+                let check = answer!(self.check_node(site, expectation)?);
 
-                matches!(check, CheckOutcome::Holds)
+                matches!(check.outcome, CheckOutcome::Holds)
             }
             None => {
                 let () = answer!(self.infer_node(site, use_)?);
@@ -138,38 +107,19 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(Checked { ty, holds }))
     }
 
-    /// Record or report one committed expectation outcome at its judgment.
-    fn judge_committed_outcome(
+    /// Report one failed contextual node judgment.
+    fn report_node_failure(
         &mut self,
         site: FlowSite,
         expectation: &Expectation,
         check: CheckOutcome,
     ) -> CompilerResult<Answer<()>> {
-        // accepted committed judgments record their coercion pair
-        if matches!(check, CheckOutcome::Holds)
-            && expectation.relation == Relation::Assignable
-            && let Some(source) = self.check.node_type_maybe(site.node)
-        {
-            let target = answer!(self.expected_type(expectation.expected)?);
-            let origin = Origin::Node(site.node, site.scope);
-            self.check.push_solved_constraint(
-                origin,
-                expectation.cause,
-                expectation.use_,
-                source,
-                target,
-            )?;
-        }
-
         // failed committed judgments report at the judgment
         if let CheckOutcome::Fails(failure) = check
             && failure != CheckFailure::Reported
         {
-            let target = answer!(self.expected_type(expectation.expected)?);
-            let source = match self.check.node_type_maybe(site.node) {
-                Some(source) => source,
-                None => self.check.commit_error_node(site.node)?,
-            };
+            let target = expectation.target;
+            let source = answer!(self.node_type_at(site)?);
 
             // poisoned judgments already reported their cause
             if !self.check.ty(source)?.is_error() && !self.check.ty(target)?.is_error() {
@@ -185,67 +135,6 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(()))
-    }
-
-    /// Resolve one expectation's expected type.
-    pub(in crate::check) fn expected_type(
-        &mut self,
-        expected: ExpectedType,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        match expected {
-            ExpectedType::Type(ty) => Ok(Answer::Ready(ty)),
-            ExpectedType::Node(site) => {
-                let ty = answer!(self.node_type(site.node)?);
-
-                self.flow_type_at(site, ty)
-            }
-        }
-    }
-
-    /// Check one node by its kind against an expectation.
-    pub(in crate::check) fn check_node_kind(
-        &mut self,
-        site: FlowSite,
-        expectation: Expectation,
-    ) -> CompilerResult<Answer<CheckOutcome>> {
-        let node = site.node;
-        let Expectation {
-            expected,
-            relation,
-            cause,
-            use_,
-        } = expectation;
-        let target = answer!(self.expected_type(expected)?);
-
-        match node.local_id.ty {
-            dir::NodeType::Expression => self.check_expression(site, target, relation, cause, use_),
-            dir::NodeType::Block => self.check_block(
-                site,
-                node.into_typed().local_id,
-                target,
-                relation,
-                cause,
-                use_,
-            ),
-            dir::NodeType::Pattern => {
-                answer!(self.check_pattern(node.into_typed(), site.flow, site.scope, target)?);
-
-                Ok(Answer::Ready(CheckOutcome::Holds))
-            }
-            dir::NodeType::AssignPattern => {
-                answer!(self.check_assign_pattern(
-                    node.into_typed(),
-                    site.flow,
-                    site.scope,
-                    target,
-                    self.check.cause_origin(cause),
-                )?);
-
-                Ok(Answer::Ready(CheckOutcome::Holds))
-            }
-            dir::NodeType::TypeExpression => Ok(Answer::Ready(CheckOutcome::Holds)),
-            other => self.reject_untyped_node("check", node, other),
-        }
     }
 
     /// Check one node in place and return its decided kind.
@@ -274,23 +163,147 @@ impl BodyState<'_, '_> {
         relation: Relation,
         cause: CauseId,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<CheckOutcome>> {
+    ) -> CompilerResult<Answer<ValueCheck>> {
         let expectation = Expectation {
-            expected: ExpectedType::Type(target),
+            target,
             relation,
             cause,
             use_,
         };
-        let check = answer!(self.check_node_kind(site, expectation)?);
-        let () = answer!(self.judge_committed_outcome(site, &expectation, check)?);
+        self.check_node(site, expectation)
+    }
 
-        // enclosing judgments stay silent above a reported failure
-        let check = match check {
-            CheckOutcome::Fails(_) => CheckOutcome::Fails(CheckFailure::Reported),
-            check => check,
+    /// Constrain one committed node value against an expected type.
+    pub(in crate::check) fn constrain_node_value(
+        &mut self,
+        site: FlowSite,
+        target: dir::GlobalTypeId,
+        relation: Relation,
+        cause: CauseId,
+        use_: ValueUse,
+    ) -> CompilerResult<Answer<ValueCheck>> {
+        let expectation = Expectation {
+            target,
+            relation,
+            cause,
+            use_,
+        };
+        let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
+
+        self.complete_node_check(site, expectation, check)
+    }
+
+    /// Check one node and record its completed contextual constraint.
+    fn check_node(
+        &mut self,
+        site: FlowSite,
+        expectation: Expectation,
+    ) -> CompilerResult<Answer<ValueCheck>> {
+        let check = match self.check_node_target(site, expectation)? {
+            Answer::Ready(check) => check,
+            Answer::Pending(blockers) => {
+                // park until the node has a committed type
+                let Some(source) = self.check.committed_node_type(site.node) else {
+                    return Ok(Answer::Pending(blockers));
+                };
+
+                // schedule the remaining source to target relation
+                let source = answer!(self.check.flow_type_at(site, source)?);
+                let cause = self.check.solver.cause(expectation.cause);
+                let cause = self.check.intern_cause(cause.with_origin(site.origin()));
+                let constraint = Constraint::value(
+                    expectation.relation,
+                    ValueSource::Type(source),
+                    expectation.target,
+                    cause,
+                    expectation.use_,
+                );
+                self.check.push_constraint(constraint);
+
+                return Ok(Answer::Ready(ValueCheck {
+                    outcome: CheckOutcome::Holds,
+                    target: expectation.target,
+                }));
+            }
         };
 
-        Ok(Answer::Ready(check))
+        self.complete_node_check(site, expectation, check)
+    }
+
+    /// Check one node against an expectation.
+    pub(in crate::check) fn check_node_target(
+        &mut self,
+        site: FlowSite,
+        expectation: Expectation,
+    ) -> CompilerResult<Answer<ValueCheck>> {
+        let node = site.node;
+        let target = expectation.target;
+        let outcome = match node.local_id.ty {
+            dir::NodeType::Expression => return self.check_expression(site, expectation),
+            dir::NodeType::Block => {
+                return self.check_block(
+                    site,
+                    node.into_typed().local_id,
+                    target,
+                    expectation.relation,
+                    expectation.cause,
+                    expectation.use_,
+                );
+            }
+            dir::NodeType::Pattern => {
+                answer!(self.check_pattern(node.into_typed(), site.flow, site.scope, target)?);
+
+                CheckOutcome::Holds
+            }
+            dir::NodeType::AssignPattern => {
+                let origin = self.check.cause_origin(expectation.cause);
+                answer!(self.check_assign_pattern(
+                    node.into_typed(),
+                    site.flow,
+                    site.scope,
+                    target,
+                    origin,
+                )?);
+
+                CheckOutcome::Holds
+            }
+            dir::NodeType::TypeExpression => CheckOutcome::Holds,
+            other => return self.reject_untyped_node("check", node, other),
+        };
+
+        Ok(Answer::Ready(ValueCheck { outcome, target }))
+    }
+
+    /// Complete one contextual node judgment.
+    fn complete_node_check(
+        &mut self,
+        site: FlowSite,
+        expectation: Expectation,
+        check: ValueCheck,
+    ) -> CompilerResult<Answer<ValueCheck>> {
+        let () = answer!(self.report_node_failure(site, &expectation, check.outcome)?);
+
+        // record the completed contextual judgment
+        let constraint = Constraint::value(
+            expectation.relation,
+            ValueSource::Node(site.node),
+            expectation.target,
+            expectation.cause,
+            expectation.use_,
+        );
+        self.check
+            .record_constraint(constraint, check.outcome.state(), Some(check.target))?;
+
+        // enclosing judgments stay silent above a reported failure
+        let outcome = match check.outcome {
+            CheckOutcome::Fails(_) => CheckOutcome::Fails(CheckFailure::Reported),
+            outcome => outcome,
+        };
+
+        Ok(Answer::Ready(ValueCheck {
+            outcome,
+            target: check.target,
+        }))
     }
 
     /// Return one node's type, checking the node in place when untyped.
@@ -298,7 +311,7 @@ impl BodyState<'_, '_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if let Some(ty) = self.check.node_type_maybe(node) {
+        if let Some(ty) = self.check.committed_node_type(node) {
             return Ok(Answer::Ready(ty));
         }
 
@@ -331,7 +344,7 @@ impl BodyState<'_, '_> {
         if self.check.lambdas.contains_key(&node) {
             let _ = answer!(self.check_function_value(node, None)?);
         }
-        if self.node_type_maybe(node).is_some() {
+        if self.committed_node_type(node).is_some() {
             return Ok(Answer::Ready(()));
         }
 

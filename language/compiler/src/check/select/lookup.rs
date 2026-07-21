@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, DecisionKind, MemberCandidate, MemberLookup, MemberRole, Origin,
-    ReceiverSteps, TypeSubstitution, answer,
+    Answer, ApparentInstance, BodyState, DecisionKind, MemberCandidate, MemberLookup, MemberRole,
+    Origin, ReceiverSteps, TypeSubstitution, answer,
 };
 
 /// One active member lookup query.
@@ -228,11 +228,11 @@ impl BodyState<'_, '_> {
 
                 // newtypes dereference to their backing for missing members
                 if matches!(lookup, MemberLookup::Missing)
-                    && let Some(projection) =
-                        answer!(self.newtype_backing_projection(origin, subject)?)
+                    && let Some(instance) = self.decompose_newtype(origin, subject)?
                 {
-                    let value = projection.ty();
-                    let receiver = self.replace_beneath_forms(origin, receiver, value)?;
+                    let value = instance.backing;
+                    let projection = instance.into_projection();
+                    let receiver = answer!(self.replace_form_value(origin, receiver, value)?);
                     let mut lookup = answer!(self.lookup_subject_member(
                         origin, module, receiver, value, space, key, extensions, active,
                     )?);
@@ -287,7 +287,7 @@ impl BodyState<'_, '_> {
             // erased values expose members through their dynamic payload
             dir::Type::Dynamic(dynamic) => {
                 let constraint = dynamic.constraint;
-                let receiver = self.replace_beneath_forms(origin, receiver, constraint)?;
+                let receiver = answer!(self.replace_form_value(origin, receiver, constraint)?);
                 let mut lookup = answer!(self.lookup_bound_member(
                     origin,
                     module,
@@ -436,68 +436,11 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         extensions: ExtensionFilter,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let Some((instance_module, instance)) = self.apparent_instance(lookup_type)? else {
+        let Some(instance) = self.apparent_instance(lookup_type)? else {
             return Ok(Answer::Ready(MemberLookup::Missing));
         };
 
-        self.lookup_symbol_member(
-            origin,
-            module,
-            receiver,
-            instance_module,
-            instance,
-            space,
-            key,
-            extensions,
-        )
-    }
-
-    /// Return one instance's newtype backing with its arguments applied.
-    pub(in crate::check) fn newtype_backing(
-        &mut self,
-        origin: Origin,
-        lookup_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        match answer!(self.newtype_backing_projection(origin, lookup_type)?) {
-            Some(projection) => Ok(Answer::Ready(Some(projection.ty()))),
-            None => Ok(Answer::Ready(None)),
-        }
-    }
-
-    /// Return the payload projection behind one newtype instance.
-    pub(in crate::check) fn newtype_backing_projection(
-        &mut self,
-        origin: Origin,
-        lookup_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::Projection>>> {
-        let Some((instance_module, mut instance)) = self.apparent_instance(lookup_type)? else {
-            return Ok(Answer::Ready(None));
-        };
-
-        // resolve the defining newtype through aliases and imports
-        instance.symbol = self.resolve_symbol_alias(instance.symbol)?;
-        if !self.is_component_module(instance.symbol.module_id) {
-            self.import_external_module(instance.symbol.module_id)?;
-        }
-        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
-            return Ok(Answer::Ready(None));
-        };
-        let value = definition.backing;
-
-        // apply the instance arguments to the declared backing
-        let substitution = self.instance_substitution(instance_module, &instance)?;
-        let value = self.substitute_type(origin.module(), value, &substitution)?;
-        if value == lookup_type {
-            return Ok(Answer::Ready(None));
-        }
-
-        let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
-        Ok(Answer::Ready(Some(dir::Projection::NewtypePayload {
-            symbol: instance.symbol,
-            generic_arguments: self
-                .symbol_generic_argument_bindings(instance.symbol, &arguments)?,
-            ty: value,
-        })))
+        self.lookup_symbol_member(origin, module, receiver, instance, space, key, extensions)
     }
 
     /// Look up one static member on a declaration reference.
@@ -589,7 +532,14 @@ impl BodyState<'_, '_> {
         for element in elements {
             let arm_receiver = if is_direct { *element } else { receiver };
             match answer!(self.lookup_subject_member(
-                origin, module, arm_receiver, *element, space, key, extensions, active
+                origin,
+                module,
+                arm_receiver,
+                *element,
+                space,
+                key,
+                extensions,
+                active
             )?) {
                 MemberLookup::Field(ty) => fields.push(ty),
                 MemberLookup::Found(found) => {
@@ -643,28 +593,18 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
-        instance_module: ModuleId,
-        instance: dir::GenericInstance,
+        instance: ApparentInstance,
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionFilter,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let mut instance = instance;
-        instance.symbol = self.resolve_symbol_alias(instance.symbol)?;
         if !self.is_component_module(instance.symbol.module_id) {
             self.import_external_module(instance.symbol.module_id)?;
         }
 
         // search inherent members before extensions
-        let inherent = answer!(self.lookup_inherent_symbol_member(
-            origin,
-            module,
-            receiver,
-            instance_module,
-            &instance,
-            space,
-            key
-        )?);
+        let inherent =
+            answer!(self.lookup_inherent_symbol_member(origin, receiver, &instance, space, key)?);
         match inherent {
             MemberLookup::Found(_) | MemberLookup::Field(_) => {
                 return Ok(Answer::Ready(inherent));
@@ -675,18 +615,28 @@ impl BodyState<'_, '_> {
         match extensions {
             ExtensionFilter::All => {
                 // extension targets name values, so receivers shed memory forms
-                let receiver = self.value_beneath_forms(origin, receiver)?;
-                let lookup = answer!(
-                    self.lookup_extension_member(origin, module, receiver, &instance, space, key)?
-                );
+                let receiver = answer!(self.strip_form(origin, receiver)?);
+                let lookup = answer!(self.lookup_extension_member(
+                    origin,
+                    module,
+                    receiver,
+                    instance.symbol,
+                    space,
+                    key
+                )?);
 
                 // values also match targets naming their apparent owner,
                 //  so primitives reach extensions of their owning class
                 if matches!(lookup, MemberLookup::Missing) {
-                    let apparent = self.apparent_type(receiver)?;
+                    let apparent = self.intern_apparent_type(module, receiver)?;
                     if apparent != receiver {
                         return self.lookup_extension_member(
-                            origin, module, apparent, &instance, space, key,
+                            origin,
+                            module,
+                            apparent,
+                            instance.symbol,
+                            space,
+                            key,
                         );
                     }
                 }
@@ -792,7 +742,7 @@ impl BodyState<'_, '_> {
             };
             if self.solver.variables.variable_default(variable).is_none() {
                 let rigid = self.generic_parameter_type(parameter)?;
-                self.set_variable_default(variable, rigid)?;
+                self.set_variable_default(variable, rigid);
             }
         }
         let generic_arguments = substitution
@@ -810,10 +760,8 @@ impl BodyState<'_, '_> {
     fn lookup_inherent_symbol_member(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
-        instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &ApparentInstance,
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
@@ -832,9 +780,7 @@ impl BodyState<'_, '_> {
             .collect::<SmallVec<[_; 2]>>();
 
         // substitute applied arguments and the qualified receiver
-        let substitution = self
-            .instance_substitution(instance_module, instance)?
-            .with_receiver(receiver);
+        let substitution = instance.substitution(self)?.with_receiver(receiver);
         let mut candidates = Vec::new();
         for member in members {
             let Some(declared) = answer!(self.declared_member(&member)?) else {
@@ -892,9 +838,8 @@ impl BodyState<'_, '_> {
                 written => written,
             };
 
-            let instance_arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
             let generic_arguments =
-                self.symbol_generic_argument_bindings(instance.symbol, &instance_arguments)?;
+                self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
 
             candidates.push(MemberCandidate {
                 symbol,
@@ -919,12 +864,13 @@ impl BodyState<'_, '_> {
             for argument in &mut arguments {
                 *argument = self.substitute_type(origin.module(), *argument, &substitution)?;
             }
-            let arguments = self.intern_type_ids(module, &arguments)?;
-
-            let heritage = dir::GenericInstance { symbol, arguments };
-            let lookup = answer!(self.lookup_inherent_symbol_member(
-                origin, module, receiver, module, &heritage, space, key
-            )?);
+            let heritage = ApparentInstance {
+                symbol,
+                arguments: arguments.into_iter().collect(),
+            };
+            let lookup = answer!(
+                self.lookup_inherent_symbol_member(origin, receiver, &heritage, space, key)?
+            );
             match lookup {
                 MemberLookup::Missing => continue,
                 lookup => return Ok(Answer::Ready(lookup)),

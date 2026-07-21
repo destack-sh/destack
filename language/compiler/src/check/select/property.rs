@@ -110,7 +110,7 @@ impl BodyState<'_, '_> {
                                 field_cause,
                                 ValueUse::Store,
                             )?);
-                            check = check.and(field_check);
+                            check = check.and(field_check.outcome);
 
                             answer!(self.node_type_at(source_site)?)
                         }

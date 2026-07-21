@@ -2,12 +2,14 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::infer::InferMode;
 use crate::check::{
-    Answer, BodyState, BoundMode, CandidateOutcome, Cause, CauseKind, Constraint, Origin, PlaceUse,
-    ReceiverSteps, Relation, TypeConstraint, TypeSubstitution, ValueUse, answer,
+    Answer, BodyState, CandidateOutcome, Cause, CauseKind, CheckOutcome, Constraint,
+    ConstraintState, Dependency, Expectation, MemoryRank, Origin, PlaceUse, ReceiverSteps,
+    Relation, TypeConstraint, TypeSubstitution, ValueCheck, ValueSource, ValueUse, VariableDomain,
+    answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Callable signature accepted for an invocation.
 pub(in crate::check) struct SignatureSelection {
@@ -23,45 +25,116 @@ pub(in crate::check) struct SignatureSelection {
     pub(in crate::check) receiver_steps: Option<ReceiverSteps>,
 }
 
+/// Result of matching one callable signature.
+pub(in crate::check) enum SignatureMatch {
+    /// The invocation satisfies the selected signature.
+    Selected(SignatureSelection),
+    /// The selected signature rejects one invocation judgment.
+    Invalid {
+        /// The selected signature.
+        selection: SignatureSelection,
+        /// The rejected invocation judgment.
+        rejection: SignatureRejection,
+        /// The inference variables owned by the rejected invocation.
+        variables: VariableDomain,
+    },
+    /// The selected return type does not satisfy its surrounding context.
+    ReturnMismatch(SignatureSelection),
+    /// No coherent signature can be instantiated for the invocation.
+    Inapplicable(SignatureRejection),
+}
+
+/// Result of one invocation constraint judgment.
+enum InvocationJudgment {
+    /// The constraint holds.
+    Holds {
+        /// The completed constraint.
+        constraint: Constraint,
+        /// The concrete target selected by a value check.
+        value_target: Option<dir::GlobalTypeId>,
+    },
+    /// The constraint awaits solver progress.
+    Pending(Constraint),
+    /// The constraint rejects the invocation.
+    Rejects(SignatureRejection),
+}
+
+impl InvocationJudgment {
+    /// Separate a surviving constraint from an invocation rejection.
+    fn into_constraint(
+        self,
+    ) -> Result<(Constraint, ConstraintState, Option<dir::GlobalTypeId>), SignatureRejection> {
+        match self {
+            Self::Holds {
+                constraint,
+                value_target,
+            } => Ok((constraint, ConstraintState::Holds, value_target)),
+            Self::Pending(constraint) => Ok((constraint, ConstraintState::Pending, None)),
+            Self::Rejects(rejection) => Err(rejection),
+        }
+    }
+}
+
+impl SignatureMatch {
+    /// Convert this match into an overload candidate outcome.
+    pub(in crate::check) fn into_candidate(
+        self,
+    ) -> CandidateOutcome<SignatureSelection, SignatureRejection> {
+        match self {
+            Self::Selected(selection) => CandidateOutcome::Accepted(selection),
+            Self::Invalid { rejection, .. } | Self::Inapplicable(rejection) => {
+                CandidateOutcome::Rejected(rejection)
+            }
+            Self::ReturnMismatch(_) => CandidateOutcome::Rejected(SignatureRejection::Inapplicable),
+        }
+    }
+}
+
+impl SignatureSelection {
+    /// Return the greatest memory rank required by the accepted arguments.
+    pub(in crate::check) fn memory_rank(
+        &self,
+        origin: Origin,
+        arguments: &[CallableArgument],
+        state: &mut BodyState<'_, '_>,
+    ) -> CompilerResult<Answer<MemoryRank>> {
+        let mut rank = MemoryRank::Exact;
+
+        for (index, argument) in arguments.iter().copied().enumerate() {
+            let parameter = self
+                .parameters
+                .get(index)
+                .or_else(|| self.parameters.last().filter(|parameter| parameter.is_rest));
+            let Some(parameter) = parameter else {
+                return Err(CompilerError::Internal {
+                    message: format!("accepted signature has no parameter for argument {index}"),
+                });
+            };
+            let argument = match argument.ty {
+                Some(ty) => ty,
+                None => {
+                    let site = state.node_site(argument.source)?;
+
+                    answer!(state.node_type_at(site)?)
+                }
+            };
+            let required = state.memory_rank(origin, argument, parameter.ty)?;
+            rank = rank.max(required);
+        }
+
+        Ok(Answer::Ready(rank))
+    }
+}
+
 /// Argument matched against one callable signature parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum CallableArgument {
-    /// Source expression that can be checked against the parameter.
-    Expression(dir::GlobalNodeIdAny),
-    /// Source occurrence whose value type is already known.
-    Typed {
-        /// Source node used for diagnostics.
-        source: dir::GlobalNodeIdAny,
-        /// Argument type.
-        ty: dir::GlobalTypeId,
-    },
-}
-
-impl CallableArgument {
-    /// Return the source node used for origins and diagnostics.
-    fn source(self) -> dir::GlobalNodeIdAny {
-        match self {
-            Self::Expression(source) => source,
-            Self::Typed { source, .. } => source,
-        }
-    }
-
-    /// Return the argument type when it is already known.
-    fn ty(self) -> Option<dir::GlobalTypeId> {
-        match self {
-            Self::Expression(_) => None,
-            Self::Typed { ty, .. } => Some(ty),
-        }
-    }
-}
-
-/// How one signature candidate is matched.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum CandidatePass {
-    /// Decide applicability eagerly for candidate winnowing.
-    Winnow,
-    /// Commit the winner, queueing undecided work for the solver.
-    Confirm,
+pub(in crate::check) struct CallableArgument {
+    /// Source node used for origins and diagnostics.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// Known argument type, or none when the source expression must be checked.
+    pub(in crate::check) ty: Option<dir::GlobalTypeId>,
+    /// Relation selected from the authored argument expression.
+    pub(in crate::check) relation: Relation,
 }
 
 /// Reason one callable signature rejected an invocation.
@@ -84,6 +157,8 @@ pub(in crate::check) enum SignatureRejection {
     Argument {
         /// Argument index in source order.
         index: usize,
+        /// Relation selected for the argument expression.
+        relation: Relation,
         /// Supplied argument type.
         source: dir::GlobalTypeId,
         /// Parameter type.
@@ -200,7 +275,6 @@ impl BodyState<'_, '_> {
     /// Attempt one callable candidate without recording a decision.
     pub(in crate::check) fn attempt_callable(
         &mut self,
-        pass: CandidatePass,
         origin: Origin,
         function_type: dir::GlobalTypeId,
         owner: Option<dir::GlobalSymbolId>,
@@ -209,7 +283,7 @@ impl BodyState<'_, '_> {
         type_arguments: &[dir::GlobalTypeId],
         arguments: &[CallableArgument],
         expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<CandidateOutcome<SignatureSelection, SignatureRejection>>> {
+    ) -> CompilerResult<Answer<SignatureMatch>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
 
@@ -223,7 +297,6 @@ impl BodyState<'_, '_> {
                 let function = function.signature;
 
                 return self.attempt_callable(
-                    pass,
                     origin,
                     function,
                     owner,
@@ -238,7 +311,6 @@ impl BodyState<'_, '_> {
                 let function = function.signature;
 
                 return self.attempt_callable(
-                    pass,
                     origin,
                     function,
                     owner,
@@ -250,7 +322,7 @@ impl BodyState<'_, '_> {
                 );
             }
             _ => {
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(
+                return Ok(Answer::Ready(SignatureMatch::Inapplicable(
                     SignatureRejection::Inapplicable,
                 )));
             }
@@ -259,7 +331,6 @@ impl BodyState<'_, '_> {
 
         let generic_parameters = self.signature_generic_parameters(&function)?;
         self.match_signature(
-            pass,
             origin,
             module,
             function_type.module_id,
@@ -279,7 +350,6 @@ impl BodyState<'_, '_> {
     /// Match one function signature candidate.
     pub(in crate::check) fn match_signature(
         &mut self,
-        pass: CandidatePass,
         origin: Origin,
         module: ModuleId,
         signature_module: ModuleId,
@@ -293,7 +363,7 @@ impl BodyState<'_, '_> {
         receiver: Option<dir::GlobalTypeId>,
         arguments: &[CallableArgument],
         expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<CandidateOutcome<SignatureSelection, SignatureRejection>>> {
+    ) -> CompilerResult<Answer<SignatureMatch>> {
         // reject arities the signature cannot accept
         let signature_parameters = self
             .signature_parameters(signature_module, function.parameters)?
@@ -315,8 +385,11 @@ impl BodyState<'_, '_> {
                 supplied: supplied_count,
             };
 
-            return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
+            return Ok(Answer::Ready(SignatureMatch::Inapplicable(rejection)));
         }
+
+        // isolate variables allocated while matching this candidate
+        let inference_variables = VariableDomain::after(self.check.solver.variable_count());
 
         // bind the receiver before evaluating generic defaults
         let substitution = receiver.map_or_else(TypeSubstitution::default, |receiver| {
@@ -335,7 +408,7 @@ impl BodyState<'_, '_> {
                 match substitution {
                     Some(substitution) => substitution,
                     None => {
-                        return Ok(Answer::Ready(CandidateOutcome::Rejected(
+                        return Ok(Answer::Ready(SignatureMatch::Inapplicable(
                             SignatureRejection::Inapplicable,
                         )));
                     }
@@ -343,7 +416,7 @@ impl BodyState<'_, '_> {
             }
             [] if type_arguments.is_empty() => substitution,
             [] => {
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(
+                return Ok(Answer::Ready(SignatureMatch::Inapplicable(
                     SignatureRejection::Inapplicable,
                 )));
             }
@@ -370,223 +443,195 @@ impl BodyState<'_, '_> {
             let opened =
                 self.instantiate_parameter_arguments(origin, &unbound, &[], substitution)?;
             let Some(opened) = opened else {
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(
+                return Ok(Answer::Ready(SignatureMatch::Inapplicable(
                     SignatureRejection::Inapplicable,
                 )));
             };
             substitution = opened;
         }
 
-        // relate the implicit receiver before explicit arguments
+        let mut rejection = None;
+        let mut is_return_mismatch = false;
         let mut receiver_steps = None;
-        if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
-            let receiver_substitution = substitution.clone().with_receiver(receiver);
-            let this_parameter =
-                self.substitute_type(origin.module(), this_parameter, &receiver_substitution)?;
-            let steps =
+        let mut constraints = Vec::new();
+
+        // judge the invocation in source order, stopping at its first failure
+        'invocation: {
+            // relate the implicit receiver before explicit arguments
+            if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
+                let receiver_substitution = substitution.clone().with_receiver(receiver);
+                let this_parameter =
+                    self.substitute_type(origin.module(), this_parameter, &receiver_substitution)?;
                 match self.constrain_receiver_argument(origin, module, receiver, this_parameter)? {
-                    Answer::Ready(Some(steps)) => steps,
+                    Answer::Ready(Some(steps)) => receiver_steps = Some(steps),
                     Answer::Ready(None) => {
-                        let rejection = SignatureRejection::Receiver {
+                        rejection = Some(SignatureRejection::Receiver {
                             source: receiver,
                             target: this_parameter,
-                        };
+                        });
 
-                        return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
+                        break 'invocation;
                     }
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                }
+            }
+
+            // substitute parameter types once for candidate inference
+            let mut argument_parameters =
+                SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
+            for (index, argument) in arguments.iter().copied().enumerate() {
+                let parameter = signature_parameters
+                    .get(index)
+                    .or_else(|| signature_parameters.last());
+                let Some(parameter) = parameter else {
+                    return Ok(Answer::Ready(SignatureMatch::Inapplicable(
+                        SignatureRejection::Inapplicable,
+                    )));
                 };
-            receiver_steps = Some(steps);
-        }
-
-        // substitute parameter types once for candidate inference
-        let mut argument_parameters =
-            SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
-        for (index, argument) in arguments.iter().copied().enumerate() {
-            let parameter = signature_parameters
-                .get(index)
-                .or_else(|| signature_parameters.last());
-            let Some(parameter) = parameter else {
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(
-                    SignatureRejection::Inapplicable,
-                )));
-            };
-            let parameter_type =
-                self.substitute_type(origin.module(), parameter.ty, &substitution)?;
-            // receiver placement resolves relative member parameters
-            let parameter_type =
-                answer!(self.receiver_relative_type(origin, receiver, parameter_type)?);
-            argument_parameters.push((index, argument, parameter_type));
-        }
-
-        // use settled expectations when checking nested argument expressions
-        for (_, _, parameter_type) in &mut argument_parameters {
-            *parameter_type = self.settled_root(*parameter_type)?;
-        }
-
-        // materialize const literal arguments before any queued work, so
-        //  confirmation rejects only before its first side effect
-        let mut plain_arguments =
-            SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
-        for (index, argument, parameter_type) in argument_parameters {
-            let is_const = matches!(argument, CallableArgument::Expression(_))
-                && self.uses_const_argument_inference(parameter_type, &substitution);
-            if !is_const {
-                plain_arguments.push((index, argument, parameter_type));
-
-                continue;
+                let parameter_type =
+                    self.substitute_type(origin.module(), parameter.ty, &substitution)?;
+                // receiver placement resolves relative member parameters
+                let parameter_type =
+                    answer!(self.receiver_relative_type(origin, receiver, parameter_type)?);
+                let parameter_type = self.settled_root(parameter_type)?;
+                argument_parameters.push((index, argument, parameter_type));
             }
 
-            let holds =
-                self.match_signature_argument(origin, &substitution, argument, parameter_type)?;
-            if !answer!(holds) {
-                let source = answer!(self.signature_argument_type(argument)?);
-                let rejection = SignatureRejection::Argument {
-                    index,
-                    source,
-                    target: parameter_type,
-                };
+            // materialize const literal arguments before other candidate judgments
+            let mut plain_arguments =
+                SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
+            for (index, argument, parameter_type) in argument_parameters {
+                let is_const = argument.ty.is_none()
+                    && self.uses_const_argument_inference(parameter_type, &substitution);
+                if !is_const {
+                    plain_arguments.push((index, argument, parameter_type));
 
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
-            }
-        }
-
-        // collect the obligations probes judge now and confirmation queues
-        let (bounds, ret) = answer!(self.signature_bounds(
-            origin,
-            module,
-            source,
-            generic_parameters,
-            type_arguments,
-            function,
-            function_return,
-            expected_return,
-            receiver,
-            &substitution,
-        )?);
-
-        // confirmed candidates queue undecided work and accept; expression
-        //  arguments are checked by the caller's commit path
-        if pass == CandidatePass::Confirm {
-            for bound in bounds.into_iter().chain(ret) {
-                self.push_constraint(Constraint::Type(bound));
-            }
-
-            for (_, argument, parameter_type) in plain_arguments {
-                let CallableArgument::Typed { source, ty } = argument else {
                     continue;
-                };
-                // barred parameters settle from the unbarred arguments alone
-                if self.contains_inference_barrier(parameter_type)? {
-                    for variable in self.type_variables(parameter_type)? {
-                        answer!(self.check.solve_variable(variable, BoundMode::Strong)?);
+                }
+
+                let judgment = answer!(self.match_signature_argument(
+                    origin,
+                    &substitution,
+                    index,
+                    argument,
+                    parameter_type,
+                )?);
+                match judgment.into_constraint() {
+                    Ok(constraint) => constraints.push(constraint),
+                    Err(failure) => {
+                        rejection = Some(failure);
+
+                        break 'invocation;
                     }
                 }
-                let parameter_type =
-                    self.erase_inference_barriers(origin.module(), parameter_type)?;
-                let call = self.origin_source(origin)?;
-                let anchored = self.origin_at(origin, source)?;
-                let cause = self.check.intern_cause(Cause::root(
-                    anchored,
-                    CauseKind::Argument { call, index: 0 },
-                ));
-                self.push_constraint(Constraint::r#type(
-                    Relation::Assignable,
-                    ty,
-                    parameter_type,
-                    cause,
-                ));
             }
 
-            return self.accept_signature(
+            // collect the candidate obligations
+            let (bounds, ret) = answer!(self.signature_bounds(
                 origin,
                 module,
-                signature_module,
+                source,
+                generic_parameters,
+                type_arguments,
                 function,
                 function_return,
-                &substitution,
+                expected_return,
                 receiver,
-                receiver_steps,
-            );
-        }
+                &substitution,
+            )?);
 
-        // probing candidates prove their obligations before the arguments
-        for bound in bounds {
-            if !answer!(self.constrain_type(
-                bound.cause,
-                bound.relation,
-                bound.source,
-                bound.target
-            )?) {
+            // prove obligations before matching arguments
+            for bound in bounds {
                 let source_node = source.into_global(module);
-                let rejection = self.signature_bound_rejection(
+                let judgment = answer!(self.match_signature_bound(origin, source_node, bound)?);
+                match judgment.into_constraint() {
+                    Ok(constraint) => constraints.push(constraint),
+                    Err(failure) => {
+                        rejection = Some(failure);
+
+                        break 'invocation;
+                    }
+                }
+            }
+
+            // let the surrounding contextual judgment own return mismatches
+            if let Some(ret) = ret {
+                let state =
+                    match self.constrain_type(ret.cause, ret.relation, ret.source, ret.target)? {
+                        Answer::Ready(true) => ConstraintState::Holds,
+                        Answer::Ready(false) => ConstraintState::Fails,
+                        Answer::Pending(_) => ConstraintState::Pending,
+                    };
+                if state == ConstraintState::Fails {
+                    is_return_mismatch = true;
+
+                    break 'invocation;
+                }
+                constraints.push((Constraint::Type(ret), state, None));
+            }
+
+            // match arguments against substituted parameter types
+            let mut deferred_arguments =
+                SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
+            for (index, argument, parameter_type) in plain_arguments {
+                if self.contains_inference_barrier(parameter_type)? {
+                    deferred_arguments.push((index, argument, parameter_type));
+
+                    continue;
+                }
+
+                let judgment = answer!(self.match_signature_argument(
                     origin,
-                    source_node,
-                    bound.source,
-                    bound.target,
-                )?;
-
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
-            }
-        }
-
-        // an unmet expected return rejects quietly
-        if let Some(ret) = ret
-            && !answer!(self.constrain_type(ret.cause, ret.relation, ret.source, ret.target)?)
-        {
-            return Ok(Answer::Ready(CandidateOutcome::Rejected(
-                SignatureRejection::Inapplicable,
-            )));
-        }
-
-        // match arguments against substituted parameter types
-        let mut deferred_arguments =
-            SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
-        for (index, argument, parameter_type) in plain_arguments {
-            if self.contains_inference_barrier(parameter_type)? {
-                deferred_arguments.push((index, argument, parameter_type));
-
-                continue;
-            }
-
-            let holds =
-                self.match_signature_argument(origin, &substitution, argument, parameter_type)?;
-            if !answer!(holds) {
-                let source = answer!(self.signature_argument_type(argument)?);
-                let rejection = SignatureRejection::Argument {
+                    &substitution,
                     index,
-                    source,
-                    target: parameter_type,
-                };
+                    argument,
+                    parameter_type,
+                )?);
+                match judgment.into_constraint() {
+                    Ok(constraint) => constraints.push(constraint),
+                    Err(failure) => {
+                        rejection = Some(failure);
 
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
+                        break 'invocation;
+                    }
+                }
             }
-        }
 
-        // check NoInfer arguments after generic inference
-        for (index, argument, parameter_type) in deferred_arguments {
-            let parameter_type = self.erase_inference_barriers(origin.module(), parameter_type)?;
-            // barred parameters settle from the unbarred arguments alone
-            for variable in self.type_variables(parameter_type)? {
-                answer!(self.check.solve_variable(variable, BoundMode::Strong)?);
-            }
-            let parameter_type = answer!(self.reduce_type(origin, parameter_type)?);
+            // check NoInfer arguments after generic inference
+            for (index, argument, parameter_type) in deferred_arguments {
+                let parameter_type =
+                    self.erase_inference_barriers(origin.module(), parameter_type)?;
 
-            let holds =
-                self.match_signature_argument(origin, &substitution, argument, parameter_type)?;
-            if !answer!(holds) {
-                let source = answer!(self.signature_argument_type(argument)?);
-                let rejection = SignatureRejection::Argument {
+                // barred parameters settle from the unbarred arguments alone
+                let barred_variables = self.type_variables(parameter_type)?;
+                self.check.solve_variables(inference_variables)?;
+                self.check.default_variables(inference_variables)?;
+                for variable in barred_variables {
+                    if let Some(variable) = self.check.open_variable(variable)? {
+                        return Ok(Answer::pending([Dependency::Variable(variable)]));
+                    }
+                }
+                let parameter_type = answer!(self.reduce_type(origin, parameter_type)?);
+
+                let judgment = answer!(self.match_signature_argument(
+                    origin,
+                    &substitution,
                     index,
-                    source,
-                    target: parameter_type,
-                };
+                    argument,
+                    parameter_type,
+                )?);
+                match judgment.into_constraint() {
+                    Ok(constraint) => constraints.push(constraint),
+                    Err(failure) => {
+                        rejection = Some(failure);
 
-                return Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)));
+                        break 'invocation;
+                    }
+                }
             }
         }
 
-        self.accept_signature(
+        let selection = answer!(self.signature_selection(
             origin,
             module,
             signature_module,
@@ -595,7 +640,39 @@ impl BodyState<'_, '_> {
             &substitution,
             receiver,
             receiver_steps,
-        )
+        )?);
+
+        let matched = match rejection {
+            Some(rejection) => SignatureMatch::Invalid {
+                selection,
+                rejection,
+                variables: inference_variables,
+            },
+            None if is_return_mismatch => SignatureMatch::ReturnMismatch(selection),
+            None => SignatureMatch::Selected(selection),
+        };
+
+        // retain judgments only when the invocation itself is valid
+        if !matches!(matched, SignatureMatch::Invalid { .. }) {
+            for (constraint, state, value_target) in constraints {
+                match state {
+                    ConstraintState::Pending => {
+                        self.check.push_constraint(constraint);
+                    }
+                    ConstraintState::Holds => {
+                        self.check
+                            .record_constraint(constraint, state, value_target)?;
+                    }
+                    ConstraintState::Fails => {
+                        return Err(CompilerError::Internal {
+                            message: "matched signature retained a failed constraint".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(Answer::Ready(matched))
     }
 
     /// Collect the bound and predicate obligations plus the expected-return flow.
@@ -698,8 +775,8 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(self.place_relative_type(origin, place, ty)?))
     }
 
-    /// Build the accepted payload for one matched signature.
-    fn accept_signature(
+    /// Build the selected payload for one instantiated signature.
+    fn signature_selection(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -709,7 +786,7 @@ impl BodyState<'_, '_> {
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
         receiver_steps: Option<ReceiverSteps>,
-    ) -> CompilerResult<Answer<CandidateOutcome<SignatureSelection, SignatureRejection>>> {
+    ) -> CompilerResult<Answer<SignatureSelection>> {
         // resolve the substituted return type
         let return_type = match function_return {
             Some(return_type) => {
@@ -748,15 +825,13 @@ impl BodyState<'_, '_> {
             return_type,
         )?;
 
-        Ok(Answer::Ready(CandidateOutcome::Accepted(
-            SignatureSelection {
-                callable: function_type,
-                parameters,
-                return_type,
-                generic_arguments: arguments,
-                receiver_steps,
-            },
-        )))
+        Ok(Answer::Ready(SignatureSelection {
+            callable: function_type,
+            parameters,
+            return_type,
+            generic_arguments: arguments,
+            receiver_steps,
+        }))
     }
 
     /// Match one supplied argument against one substituted parameter type.
@@ -764,44 +839,138 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         substitution: &TypeSubstitution,
+        index: usize,
         argument: CallableArgument,
         parameter_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let source = argument.source();
+    ) -> CompilerResult<Answer<InvocationJudgment>> {
+        let source = argument.source;
         let call = self.origin_source(origin)?;
         let origin = self.origin_at(origin, source)?;
-        let relation = self.argument_relation(argument);
-        let cause = self
-            .check
-            .intern_cause(Cause::root(origin, CauseKind::Argument { call, index: 0 }));
+        let relation = argument.relation;
+        let cause = self.check.intern_cause(Cause::root(
+            origin,
+            CauseKind::Argument {
+                call,
+                index: index as u32,
+            },
+        ));
+        let constraint = match argument.ty {
+            None => Constraint::value(
+                relation,
+                ValueSource::Node(source),
+                parameter_type,
+                cause,
+                ValueUse::Argument,
+            ),
+            Some(ty) => Constraint::value(
+                relation,
+                ValueSource::Type(ty),
+                parameter_type,
+                cause,
+                ValueUse::Argument,
+            ),
+        };
 
         // preserve exact literal structure for const literal materialization
-        if matches!(argument, CallableArgument::Expression(_))
-            && self.uses_const_argument_inference(parameter_type, substitution)
+        if argument.ty.is_none() && self.uses_const_argument_inference(parameter_type, substitution)
         {
             let site = self.node_site(source)?;
             // const parameters type fresh literal arguments in const mode
-            if self.node_type_maybe(site.node).is_none() {
+            if self.committed_node_type(site.node).is_none() {
                 answer!(self.infer_expression(site, PlaceUse::Read, InferMode::Const)?);
             }
             let ty = answer!(self.node_type_at(site)?);
             let ty = answer!(self.const_literal_expression_type(source, ty)?);
 
-            return self.constrain_type(cause, relation, ty, parameter_type);
+            let state = self.check_value_relation(cause, relation, ty, parameter_type)?;
+
+            return self.signature_argument_judgment(
+                index,
+                argument,
+                parameter_type,
+                constraint,
+                state,
+            );
         }
 
-        // check source expressions with the parameter as their expected type
-        match argument {
-            CallableArgument::Expression(_) => self.check_expression_relation(
-                cause,
-                relation,
-                parameter_type,
-                Some(ValueUse::Argument),
-            ),
-            CallableArgument::Typed { ty, .. } => {
-                self.constrain_type(cause, relation, ty, parameter_type)
+        // check source expressions and relate explicit typed arguments
+        let state = match argument.ty {
+            None => {
+                let site = self.node_site(source)?;
+                let expectation = Expectation {
+                    target: parameter_type,
+                    relation,
+                    cause,
+                    use_: ValueUse::Argument,
+                };
+                self.check_node_target(site, expectation)?
             }
-        }
+            Some(ty) => self.check_value_relation(cause, relation, ty, parameter_type)?,
+        };
+
+        self.signature_argument_judgment(index, argument, parameter_type, constraint, state)
+    }
+
+    /// Classify one argument constraint judgment.
+    fn signature_argument_judgment(
+        &mut self,
+        index: usize,
+        argument: CallableArgument,
+        parameter_type: dir::GlobalTypeId,
+        constraint: Constraint,
+        state: Answer<ValueCheck>,
+    ) -> CompilerResult<Answer<InvocationJudgment>> {
+        let judgment = match state {
+            Answer::Ready(check) if check.outcome == CheckOutcome::Holds => {
+                InvocationJudgment::Holds {
+                    constraint,
+                    value_target: Some(check.target),
+                }
+            }
+            Answer::Pending(_) => InvocationJudgment::Pending(constraint),
+            Answer::Ready(_) => {
+                let source = answer!(self.signature_argument_type(argument)?);
+                let rejection = SignatureRejection::Argument {
+                    index,
+                    relation: argument.relation,
+                    source,
+                    target: parameter_type,
+                };
+
+                InvocationJudgment::Rejects(rejection)
+            }
+        };
+
+        Ok(Answer::Ready(judgment))
+    }
+
+    /// Judge one substituted generic bound.
+    fn match_signature_bound(
+        &mut self,
+        origin: Origin,
+        source_node: dir::GlobalNodeIdAny,
+        bound: TypeConstraint,
+    ) -> CompilerResult<Answer<InvocationJudgment>> {
+        let state = self.constrain_type(bound.cause, bound.relation, bound.source, bound.target)?;
+        let judgment = match state {
+            Answer::Ready(true) => InvocationJudgment::Holds {
+                constraint: Constraint::Type(bound),
+                value_target: None,
+            },
+            Answer::Pending(_) => InvocationJudgment::Pending(Constraint::Type(bound)),
+            Answer::Ready(false) => {
+                let rejection = self.signature_bound_rejection(
+                    origin,
+                    source_node,
+                    bound.source,
+                    bound.target,
+                )?;
+
+                InvocationJudgment::Rejects(rejection)
+            }
+        };
+
+        Ok(Answer::Ready(judgment))
     }
 
     /// Return the current type of one signature argument.
@@ -809,9 +978,9 @@ impl BodyState<'_, '_> {
         &mut self,
         argument: CallableArgument,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        match argument.ty() {
+        match argument.ty {
             Some(ty) => Ok(Answer::Ready(ty)),
-            None => self.node_type(argument.source()),
+            None => self.node_type(argument.source),
         }
     }
 

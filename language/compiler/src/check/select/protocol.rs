@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidatePass, Cause, CauseKind, CheckState,
-    DeclaredMember, Dependency, MemberCandidate, MemberLookup, Origin, ProbeReason, Relation,
+    Answer, BodyState, CandidateOutcome, Cause, CauseKind, CheckState, DeclaredMember, Dependency,
+    MemberCandidate, MemberLookup, Origin, ProbeReason, Relation, SignatureMatch,
     SignatureSelection, TypeSubstitution, answer,
 };
 
@@ -76,8 +76,8 @@ impl CheckState<'_> {
         &self,
         item: dir::LanguageItem,
         arguments: Vec<dir::GlobalTypeId>,
-    ) -> Protocol {
-        Protocol::new(self.language_symbol(item), arguments)
+    ) -> CompilerResult<Protocol> {
+        Ok(Protocol::new(self.language_symbol(item)?, arguments))
     }
 }
 
@@ -91,7 +91,9 @@ impl BodyState<'_, '_> {
         protocol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<ProtocolImplementation>>> {
         let module = origin.module();
-        let lookup_receiver = self.apparent_type(lookup_receiver)?;
+        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+        let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
+        let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let extension = self.select_extension_protocol_implementation(
             origin,
             module,
@@ -102,7 +104,7 @@ impl BodyState<'_, '_> {
             return Ok(extension);
         }
 
-        let Some((instance_module, instance)) = self.apparent_instance(lookup_receiver)? else {
+        let Some(instance) = self.apparent_instance(lookup_receiver)? else {
             return Ok(Answer::Ready(None));
         };
         let Some(definition) = self.definition(instance.symbol)? else {
@@ -113,9 +115,7 @@ impl BodyState<'_, '_> {
             .into_iter()
             .cloned()
             .collect::<SmallVec<[_; 2]>>();
-        let substitution = self
-            .instance_substitution(instance_module, &instance)?
-            .with_receiver(receiver);
+        let substitution = instance.substitution(self)?.with_receiver(receiver);
 
         self.select_heritage_protocol_implementation(
             origin,
@@ -219,7 +219,9 @@ impl BodyState<'_, '_> {
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
         let module = origin.module();
-        let lookup_receiver = self.apparent_type(lookup_receiver)?;
+        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+        let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
+        let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let extension = self.select_extension_protocol_member(
             origin,
             module,
@@ -266,7 +268,9 @@ impl BodyState<'_, '_> {
         argument_sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
         let module = origin.module();
-        let lookup_receiver = self.apparent_type(lookup_receiver)?;
+        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+        let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
+        let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let extension = self.select_extension_protocol_call(
             origin,
             module,
@@ -729,7 +733,6 @@ impl BodyState<'_, '_> {
         };
         let arguments = self.source_callable_arguments(origin, argument_types, argument_sources)?;
         let attempt = self.attempt_callable(
-            CandidatePass::Confirm,
             origin,
             candidate.ty,
             Some(candidate.owner),
@@ -740,8 +743,10 @@ impl BodyState<'_, '_> {
             None,
         )?;
         let signature = match answer!(attempt) {
-            CandidateOutcome::Accepted(signature) => signature,
-            CandidateOutcome::Rejected(_) => return Ok(Answer::Ready(None)),
+            SignatureMatch::Selected(signature) => signature,
+            SignatureMatch::Invalid { .. }
+            | SignatureMatch::ReturnMismatch(_)
+            | SignatureMatch::Inapplicable(_) => return Ok(Answer::Ready(None)),
         };
 
         let mut generic_arguments = candidate.generic_arguments.clone();

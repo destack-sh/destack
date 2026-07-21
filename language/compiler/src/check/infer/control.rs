@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Expectation,
-    ExpectedType, FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation,
-    StaticGate, ValueUse, answer,
+    FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation, StaticGate,
+    ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -112,7 +112,7 @@ impl BodyState<'_, '_> {
             answer!(self.check_node_expected(then_site, target, relation, cause, use_)?);
         let then_type = answer!(self.node_type_at(then_site)?);
         let mut should_relate_result = false;
-        let mut check = then_check;
+        let mut check = then_check.outcome;
 
         // check an else branch, or make the missing branch explicit as void
         let result = if let Some(else_expression) = else_expression {
@@ -120,7 +120,7 @@ impl BodyState<'_, '_> {
             let else_check =
                 answer!(self.check_node_expected(else_site, target, relation, cause, use_)?);
             let else_type = answer!(self.node_type_at(else_site)?);
-            check = check.and(else_check);
+            check = check.and(else_check.outcome);
 
             self.normalized_union_type(module, [then_type, else_type])?
         } else {
@@ -134,10 +134,13 @@ impl BodyState<'_, '_> {
         // relate the result when branch checks did not cover every arm
         if should_relate_result {
             let (_, result_check) = answer!(self.check_node_value(site, relation, target, cause)?);
-            check = check.and(result_check);
+            check = check.and(result_check.outcome);
         }
 
-        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            outcome: check,
+            target,
+        })))
     }
 
     /// Infer one try expression from its body and catch branches.
@@ -362,8 +365,9 @@ impl BodyState<'_, '_> {
                 dir::MatchArm::Block { body, .. } => body.into_global_any(module),
             };
             let body_site = self.node_site(body)?;
-            check = answer!(self.check_node_expected(body_site, target, relation, cause, use_)?)
-                .and(check);
+            let body_check =
+                answer!(self.check_node_expected(body_site, target, relation, cause, use_)?);
+            check = body_check.outcome.and(check);
             values.push(answer!(self.node_type_at(body_site)?));
         }
 
@@ -371,7 +375,10 @@ impl BodyState<'_, '_> {
         let result = self.normalized_union_type(module, values)?;
         self.commit_node_type(site.node, result)?;
 
-        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            outcome: check,
+            target,
+        })))
     }
 
     /// Return the statically present arms of one match expression.
@@ -419,7 +426,7 @@ impl BodyState<'_, '_> {
             .check
             .intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         let expectation = Expectation {
-            expected: ExpectedType::Type(boolean),
+            target: boolean,
             relation: Relation::Assignable,
             cause: self.check.intern_cause(Cause::root(
                 Origin::Node(guard.into_global_any(module), site.scope),

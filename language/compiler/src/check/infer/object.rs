@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidateVerdict, Cause, CauseId, CauseKind, CheckAttempt,
-    CheckOutcome, Decision, FlowSite, Origin, PlaceUse, ProbeReason, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Decision, FlowSite,
+    Origin, PlaceUse, Relation, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -136,48 +136,6 @@ impl BodyState<'_, '_> {
             target_payload = form.value;
         }
 
-        // union targets select their first contextually viable arm
-        if let dir::Type::Union(union) = self.ty(target_payload)? {
-            let elements = SmallVec::<[_; 4]>::from_slice(
-                self.type_ids(target_payload.module_id, union.elements)?,
-            );
-            for element in elements {
-                let element_head = answer!(self.reduce_type_head(origin, element)?);
-                let verdict = self.probe_candidate(ProbeReason::UnionArm, |state| {
-                    let checked = state.check_object_expression(
-                        site,
-                        properties,
-                        element,
-                        element_head,
-                        relation,
-                        cause,
-                        use_,
-                    )?;
-
-                    match checked {
-                        Answer::Ready(CheckAttempt::Checked(CheckOutcome::Holds)) => {
-                            Ok(Answer::Ready(CandidateOutcome::<(), ()>::Accepted(())))
-                        }
-                        Answer::Ready(_) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
-                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-                    }
-                })?;
-                if verdict == CandidateVerdict::Viable {
-                    return self.check_object_expression(
-                        site,
-                        properties,
-                        element,
-                        element_head,
-                        relation,
-                        cause,
-                        use_,
-                    );
-                }
-            }
-
-            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
-        }
-
         let Some(target_fields) = answer!(self.expected_object_fields(origin, target_payload)?)
         else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
@@ -215,7 +173,7 @@ impl BodyState<'_, '_> {
                         field_cause,
                         use_
                     )?);
-                    check = check.and(child_check);
+                    check = check.and(child_check.outcome);
                 }
                 dir::Property::Spread { .. } => {
                     return Ok(Answer::Ready(CheckAttempt::NotApplicable));
@@ -236,10 +194,18 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node.into_any(), source)?;
         if should_relate_result {
             let (_, result_check) = answer!(self.check_node_value(site, relation, target, cause)?);
-            check = check.and(result_check);
+            check = check.and(result_check.outcome);
+
+            return Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+                outcome: check,
+                target: result_check.target,
+            })));
         }
 
-        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+        Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            outcome: check,
+            target,
+        })))
     }
 
     /// Return fields expected by an object literal target.

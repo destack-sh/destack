@@ -179,6 +179,13 @@ pub(in crate::check) enum FlowPredicate {
         /// Whether matching values are kept.
         is_positive: bool,
     },
+    /// Values equal or unequal to one selected expression.
+    Equality {
+        /// The compared expression node.
+        value: dir::GlobalNodeId<dir::Expression>,
+        /// Whether equal values are kept.
+        is_positive: bool,
+    },
     /// Values assignable or not assignable to one target type.
     Type {
         /// The type tested by the predicate.

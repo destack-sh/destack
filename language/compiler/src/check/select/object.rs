@@ -49,8 +49,13 @@ impl BodyState<'_, '_> {
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Object(
-                dir::PatternObjectDestructureResolution { fields, rest },
+            dir::PatternResolution::Destructure(Box::new(
+                dir::PatternDestructureResolution::Object(
+                    dir::PatternObjectDestructureResolution {
+                        fields,
+                        rest: rest.map(Box::new),
+                    },
+                ),
             )),
         )
     }
@@ -93,7 +98,7 @@ impl BodyState<'_, '_> {
             node,
             dir::AssignPatternResolution::Object(dir::AssignPatternObjectResolution {
                 fields,
-                rest,
+                rest: rest.map(Box::new),
             }),
         )?);
 
@@ -138,16 +143,17 @@ impl BodyState<'_, '_> {
                             self.subscript_read_projection(origin, module, owner, key_site)?
                         ) else {
                             self.report_computed_pattern_key_not_valid(module, key.into_any());
+                            self.poison_pattern_field(field.into_global(module))?;
 
                             continue;
                         };
 
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             projection.ty(),
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                         projected.push(dir::PatternFieldResolution {
                             source: field.into_global_any(module),
                             projection,
@@ -173,12 +179,12 @@ impl BodyState<'_, '_> {
                     };
 
                     if let Some(pattern) = pattern {
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             projection.ty(),
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                     }
 
                     rest = Some(dir::PatternFieldResolution {
@@ -201,12 +207,12 @@ impl BodyState<'_, '_> {
                     {
                         let undefined = self.intern_type(module, dir::Type::Undefined)?;
 
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             undefined,
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                         projected.push(dir::PatternFieldResolution {
                             source: field.into_global_any(module),
                             projection: dir::Projection::FieldGet {
@@ -235,12 +241,12 @@ impl BodyState<'_, '_> {
             // flow the projected value into the nested or shorthand hole
             match pattern {
                 Some(pattern) => {
-                    self.project_pattern_input(
+                    answer!(self.check_pattern_projection(
                         flow,
                         scope,
                         projected_value,
                         pattern.into_global_any(module),
-                    )?;
+                    )?);
                 }
                 // shorthand fields bind through their own field node
                 None => {
@@ -311,12 +317,12 @@ impl BodyState<'_, '_> {
                             return Ok(Answer::Ready(None));
                         };
 
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             projection.ty(),
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                         projected.push(dir::AssignPatternFieldResolution {
                             source,
                             projection,
@@ -343,12 +349,12 @@ impl BodyState<'_, '_> {
                     let rest_type = projection.ty();
 
                     if let Some(pattern) = pattern {
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             rest_type,
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                     }
 
                     rest = Some(dir::AssignPatternRestResolution {
@@ -375,12 +381,12 @@ impl BodyState<'_, '_> {
                     if self.is_defaulted_assign_pattern(module, pattern) {
                         let undefined = self.intern_type(module, dir::Type::Undefined)?;
 
-                        self.project_pattern_input(
+                        answer!(self.check_pattern_projection(
                             flow,
                             scope,
                             undefined,
                             pattern.into_global_any(module),
-                        )?;
+                        )?);
                         projected.push(dir::AssignPatternFieldResolution {
                             source: field.into_global_any(module),
                             projection: dir::Projection::FieldGet {
@@ -409,12 +415,12 @@ impl BodyState<'_, '_> {
                     message: "named assignment field has no target pattern".to_string(),
                 });
             };
-            self.project_pattern_input(
+            answer!(self.check_pattern_projection(
                 flow,
                 scope,
                 projected_value,
                 pattern.into_global_any(module),
-            )?;
+            )?);
             projected.push(dir::AssignPatternFieldResolution {
                 source: field.into_global_any(module),
                 projection,
@@ -482,7 +488,7 @@ impl BodyState<'_, '_> {
                 };
 
                 ObjectField::Projection(Box::new(dir::Projection::PropertyGet {
-                    read,
+                    read: Box::new(read),
                     ty: candidate.ty,
                 }))
             }

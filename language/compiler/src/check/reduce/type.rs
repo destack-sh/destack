@@ -71,13 +71,33 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let id = self.settled_root(id)?;
+
+        // key parameter reductions by their assuming scope
+        let scope = match self.type_flags(id)?.has_parameter() {
+            true => self.origin_scope(origin)?,
+            false => None,
+        };
+        if let Some(reduced) = self.reduced_type_graphs.get(&(id, scope)) {
+            return Ok(Answer::Ready(*reduced));
+        }
+
         let mut memo = FxIndexMap::default();
         let mut active = FxIndexSet::default();
 
         // fold the root, then normalize children with aliases kept symbolic
-        let id = answer!(self.reduce_type_head(origin, id)?);
+        let reduced = answer!(self.reduce_type_head(origin, id)?);
+        let answer = self.reduce_type_graph(origin, reduced, &mut memo, &mut active)?;
 
-        self.reduce_type_graph(origin, id, &mut memo, &mut active)
+        // memoize complete closed reductions
+        if let Answer::Ready(reduced) = answer
+            && self.type_variables(id)?.is_empty()
+            && self.type_variables(reduced)?.is_empty()
+        {
+            self.reduced_type_graphs.insert((id, scope), reduced);
+        }
+
+        Ok(answer)
     }
 
     /// Splat one signature's closed tuple rest parameter into positional parameters.
@@ -150,9 +170,8 @@ impl CheckState<'_> {
         let mut expanding = FxIndexSet::default();
         let answer = self.reduce_type_chain(origin, id, &mut expanding)?;
 
-        // memoize closed reductions outside probes
+        // memoize closed reductions
         if let Answer::Ready(reduced) = answer
-            && !self.solver.is_probing()
             && self.type_variables(id)?.is_empty()
             && self.type_variables(reduced)?.is_empty()
         {
@@ -169,11 +188,11 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         expanding: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        ensure_sufficient_stack(|| self.reduce_type_chain_inner(origin, id, expanding))
+        ensure_sufficient_stack(|| self.reduce_type_chain_recursive(origin, id, expanding))
     }
 
     /// Reduce one type chain on the grown stack.
-    fn reduce_type_chain_inner(
+    fn reduce_type_chain_recursive(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
@@ -190,43 +209,7 @@ impl CheckState<'_> {
 
         match self.ty(id)? {
             // open variables wait for their solutions
-            dir::Type::Variable(variable) => {
-                Ok(Answer::pending([self.variable_dependency(variable)?]))
-            }
-            // closed unions drop structural duplicates, which arise when
-            //  instantiation binds several parameters to one interned type
-            //  from different modules
-            dir::Type::Union(union) if !self.type_flags(id)?.has_variable() => {
-                let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
-                let mut kept = Vec::with_capacity(elements.len());
-                for element in elements {
-                    let element = self.settled_root(element)?;
-                    let mut duplicate = false;
-                    for existing in &kept {
-                        if self.union_element_duplicates(*existing, element)? {
-                            duplicate = true;
-
-                            break;
-                        }
-                    }
-                    if !duplicate {
-                        kept.push(element);
-                    }
-                }
-
-                match kept.as_slice() {
-                    [single] => Ok(Answer::Ready(*single)),
-                    kept if kept.len() == union.elements.len() as usize => Ok(Answer::Ready(id)),
-                    kept => {
-                        let elements = self.intern_type_ids(id.module_id, kept)?;
-
-                        Ok(Answer::Ready(self.intern_type(
-                            id.module_id,
-                            dir::Type::Union(dir::UnionType { elements }),
-                        )?))
-                    }
-                }
-            }
+            dir::Type::Variable(variable) => Ok(Answer::pending([Dependency::Variable(variable)])),
             // rest parameters with closed tuple types splat positionally
             dir::Type::FunctionSignature(signature) => {
                 let signature = self.type_signature(id.module_id, signature)?;
@@ -259,14 +242,14 @@ impl CheckState<'_> {
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
                 // members live beneath memory forms, so owners shed them
-                let owner = self.value_beneath_forms(origin, member.owner)?;
+                let owner = answer!(self.strip_form(origin, member.owner)?);
                 // parameter owners qualify through their unique bound
                 let mut qualifier = member.qualifier;
                 if qualifier.is_none()
                     && let dir::Type::Parameter(parameter) = self.ty(owner)?
                 {
                     qualifier = answer!(
-                        self.body(origin.module())
+                        self.body()
                             .projection_qualifier(origin, parameter, member.key)?
                     );
                 }
@@ -288,7 +271,7 @@ impl CheckState<'_> {
                     return self.reduce_type_chain(origin, rebuilt, expanding);
                 }
 
-                let projection = self.body(origin.module()).project_member(origin, &member)?;
+                let projection = self.body().project_member(origin, &member)?;
                 let Some(projected) = answer!(projection) else {
                     return Ok(Answer::Ready(id));
                 };
@@ -310,7 +293,7 @@ impl CheckState<'_> {
                 self.reduce_type_chain(origin, reduced, expanding)
             }
 
-            // borrows absorb payload placement and close their components
+            // borrows absorb payload forms and retain placement around the resulting handle
             dir::Type::Form(form) if let dir::Form::Borrowed(borrow) = form.form => {
                 let borrow = self.type_borrow(id.module_id, borrow)?;
 
@@ -329,24 +312,34 @@ impl CheckState<'_> {
                     // open payloads stay structural until they close
                     Answer::Pending(_) => return Ok(Answer::Ready(id)),
                 };
-                let (inner, closed_access) =
+                let (inner, closed_access, place) =
                     self.reduce_borrow_payload(origin, value, closed_access)?;
                 if inner == form.value
                     && closed_lifetime == borrow.lifetime
                     && closed_access == borrow.access
+                    && place.is_none()
                 {
                     return Ok(Answer::Ready(id));
                 }
 
                 let closed_form =
                     self.intern_borrow(origin.module(), closed_lifetime, closed_access)?;
-                let rebuilt = self.intern_type(
+                let mut rebuilt = self.intern_type(
                     origin.module(),
                     dir::Type::Form(dir::FormType {
                         form: closed_form,
                         value: inner,
                     }),
                 )?;
+                if let Some(place) = place {
+                    rebuilt = self.intern_type(
+                        origin.module(),
+                        dir::Type::Form(dir::FormType {
+                            form: dir::Form::Placed { place },
+                            value: rebuilt,
+                        }),
+                    )?;
+                }
 
                 self.reduce_type_head(origin, rebuilt)
             }
@@ -411,47 +404,55 @@ impl CheckState<'_> {
     fn reduce_borrow_payload(
         &mut self,
         origin: Origin,
-        value: dir::GlobalTypeId,
-        access: dir::GlobalTypeId,
-    ) -> CompilerResult<(dir::GlobalTypeId, dir::GlobalTypeId)> {
-        let dir::Type::Form(inner) = self.ty(value)? else {
-            return Ok((value, access));
-        };
+        mut value: dir::GlobalTypeId,
+        mut access: dir::GlobalTypeId,
+    ) -> CompilerResult<(
+        dir::GlobalTypeId,
+        dir::GlobalTypeId,
+        Option<dir::GlobalTypeId>,
+    )> {
+        let mut place = None;
 
-        match inner.form {
-            // readonly payloads clamp the borrow access
-            dir::Form::Readonly => {
-                let access = self.intern_type(
-                    origin.module(),
-                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
-                )?;
+        // absorb each value form exposed by alias reduction
+        while let dir::Type::Form(inner) = self.ty(value)? {
+            match inner.form {
+                // readonly payloads clamp the borrow access
+                dir::Form::Readonly => {
+                    access = self.intern_type(
+                        origin.module(),
+                        dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
+                    )?;
+                    value = inner.value;
+                }
 
-                Ok((inner.value, access))
-            }
-
-            // borrowed payloads reborrow at the clamped access
-            dir::Form::Borrowed(inner_borrow) => {
-                let inner_access = self.type_borrow(value.module_id, inner_borrow)?.access;
-                let inner_access = self.settled_root(inner_access)?;
-                let access = match self.ty(inner_access)? {
-                    // readonly loans never re-grant write access
-                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
-                        inner_access
+                // borrowed payloads reborrow at the clamped access
+                dir::Form::Borrowed(inner_borrow) => {
+                    let inner_access = self.type_borrow(value.module_id, inner_borrow)?.access;
+                    let inner_access = self.settled_root(inner_access)?;
+                    if matches!(
+                        self.ty(inner_access)?,
+                        dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
+                    ) {
+                        access = inner_access;
                     }
-                    _ => access,
-                };
+                    value = inner.value;
+                }
 
-                Ok((inner.value, access))
+                // ownership forms contribute storage rather than another handle layer
+                dir::Form::Managed | dir::Form::Owned => value = inner.value,
+
+                // placement qualifies the resulting borrow handle
+                dir::Form::Placed { place: current } => {
+                    place = Some(current);
+                    value = inner.value;
+                }
+
+                // raw payloads keep their written form
+                dir::Form::Raw => break,
             }
-
-            // value placement forms disappear under a borrow
-            dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. } => {
-                Ok((inner.value, access))
-            }
-
-            // raw payloads keep their written form
-            dir::Form::Raw => Ok((value, access)),
         }
+
+        Ok((value, access, place))
     }
 
     /// Reduce one type graph with the active reduction path tracked.
@@ -506,7 +507,9 @@ impl CheckState<'_> {
 
             return Ok(Answer::pending(blockers));
         }
-        if replacements.is_empty() {
+        let target = origin.module();
+        let is_union = matches!(root, dir::Type::Union(_));
+        if replacements.is_empty() && id.module_id == target && !is_union {
             active.swap_remove(&id);
             memo.insert(original, id);
 
@@ -514,14 +517,24 @@ impl CheckState<'_> {
         }
 
         // read payloads where the type lives, intern the rebuild where we work
-        let target = origin.module();
         let ty = self.ty(id)?;
         let ty = self.map_type_children(id.module_id, target, ty, &mut |_state, child| {
             Ok(replacements.get(&child).copied().unwrap_or(child))
         })?;
-        let rebuilt = self.intern_type(target, ty)?;
+        let rebuilt = match ty {
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(target, union.elements)?.to_vec();
+
+                self.normalized_union_type(target, elements)?
+            }
+            ty => self.intern_type(target, ty)?,
+        };
         active.swap_remove(&id);
-        let rebuilt = answer!(self.reduce_type_graph(origin, rebuilt, memo, active)?);
+        let rebuilt = if rebuilt == id {
+            rebuilt
+        } else {
+            answer!(self.reduce_type_graph(origin, rebuilt, memo, active)?)
+        };
         memo.insert(original, rebuilt);
 
         Ok(Answer::Ready(rebuilt))

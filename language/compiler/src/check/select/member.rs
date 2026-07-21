@@ -298,7 +298,6 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         let node = node.into_any();
         let origin = site.origin();
-
         let Some(name) = name else {
             return Err(CompilerError::Internal {
                 message: format!("member node {node:?} has no name"),
@@ -785,7 +784,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let owner = self.value_beneath_forms(origin, member.owner)?;
+        let owner = answer!(self.strip_form(origin, member.owner)?);
         let dir::Type::Parameter(parameter) = self.ty(owner)? else {
             return Ok(Answer::Ready(None));
         };
