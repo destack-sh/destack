@@ -1,6 +1,6 @@
 use crate::{
-    InstructionBuilder, New, NewKind, Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar,
-    Symbol, Token, TokenType, ValueType,
+    InstructionBuilder, New, NewKind, Opcode, ParseError, ParseResult, Parser, RegisterId,
+    RegisterRange, Scalar, Symbol, Token, TokenType, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -15,6 +15,10 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        if name == "new.complete" {
+            return self.parse_new_complete(token, results, result_types, function);
+        }
+
         // match the result reference against the operation
         let operation = New::from_name(name)
             .ok_or_else(|| ParseError::new("invalid new operation", token.span))?;
@@ -72,5 +76,41 @@ impl Parser<'_> {
         }
 
         function.emit(instruction, results, &[expected_type], self.empty_span())
+    }
+
+    /// Parse one allocation initialization transition.
+    fn parse_new_complete(
+        &mut self,
+        token: Token,
+        results: &[RegisterId],
+        result_types: &[ValueType],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        // derive the initialized form from the source value
+        let input = self.parse_register()?;
+        let input_type = function
+            .value_type(input)
+            .filter(|ty| ty.is_uninitialized())
+            .ok_or_else(|| {
+                ParseError::new(
+                    "new.complete requires an uninitialized allocation",
+                    token.span,
+                )
+            })?;
+        let result_type = input_type.initialized().ok_or_else(|| {
+            ParseError::new("uninitialized value has no initialized form", token.span)
+        })?;
+        if result_types != [result_type] {
+            return Err(ParseError::new(
+                "new.complete result does not match its allocation",
+                token.span,
+            ));
+        }
+
+        // encode the initialization state transition
+        let mut instruction = InstructionBuilder::new(Opcode::NEW_COMPLETE);
+        instruction.range(RegisterRange::new(input, input_type.word_count()));
+
+        function.emit(instruction, results, &[result_type], self.empty_span())
     }
 }

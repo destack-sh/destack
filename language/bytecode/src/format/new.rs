@@ -71,4 +71,30 @@ impl InstructionFormatter<'_, '_, '_> {
 
         Ok(())
     }
+
+    /// Format one allocation initialization transition.
+    pub(super) fn format_new_complete(&mut self) -> FormatResult<()> {
+        // decode both physical allocation states
+        let (result, result_word_count) = self.register_range_id()?;
+        let (input, input_word_count) = self.register_range_id()?;
+        let input_type = self.formatter.context().register_type(input)?;
+        let ty = input_type.initialized().ok_or(FormatError::SyntaxError {
+            message: "new.complete requires an uninitialized allocation",
+        })?;
+
+        // require both ranges to fit their logical allocation states
+        if result_word_count != ty.word_count() || input_word_count != input_type.word_count() {
+            return Err(FormatError::SyntaxError {
+                message: "new.complete has an invalid register width",
+            });
+        }
+
+        // write the initialized result and source allocation
+        self.write_result(result, ty)?;
+        write!(
+            self.formatter,
+            [space(), token("="), space(), token("new.complete"), space()]
+        )?;
+        self.write_register(input)
+    }
 }

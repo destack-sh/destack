@@ -1,6 +1,6 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId,
-    RegisterRange, Scalar, Symbol, Token, TokenType, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId, Scalar,
+    Symbol, Token, TokenType, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -15,7 +15,6 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match name {
-            "assumeInitialized" => self.parse_assume_initialized(token, results, function),
             "free" => self.parse_reference_lifetime(Opcode::FREE, token, results, function),
             "drop" => self.parse_drop(token, results, function),
             "pin" => self.parse_reference_lifetime(Opcode::PIN, token, results, function),
@@ -23,35 +22,6 @@ impl Parser<'_> {
             "barrier" => self.parse_barrier(token, results, function),
             _ => Err(ParseError::new("unknown reference operation", token.span)),
         }
-    }
-
-    /// Parse one allocation initialization transition.
-    fn parse_assume_initialized(
-        &mut self,
-        token: Token,
-        results: &[RegisterId],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        // derive the initialized form from the source value
-        let input = self.parse_register()?;
-        let input_type = function
-            .value_type(input)
-            .filter(|ty| ty.is_uninitialized())
-            .ok_or_else(|| {
-                ParseError::new(
-                    "assumeInitialized requires an uninitialized allocation",
-                    token.span,
-                )
-            })?;
-        let result_type = input_type.initialized().ok_or_else(|| {
-            ParseError::new("uninitialized value has no initialized form", token.span)
-        })?;
-
-        // encode the initialization state transition
-        let mut instruction = InstructionBuilder::new(Opcode::ASSUME_INITIALIZED);
-        instruction.range(RegisterRange::new(input, input_type.word_count()));
-
-        function.emit(instruction, results, &[result_type], self.empty_span())
     }
 
     /// Parse one managed pin transition or unique release.

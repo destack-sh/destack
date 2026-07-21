@@ -300,8 +300,8 @@ opcodes! {
     }
 
     // lifetime
-    ASSUME_INITIALIZED = 0x0080 {
-        text: "assumeInitialized",
+    NEW_COMPLETE = 0x0080 {
+        text: "new.complete",
         signature: "(value: uninit) => value",
         operands: [ResultRange, RegisterRange],
     }

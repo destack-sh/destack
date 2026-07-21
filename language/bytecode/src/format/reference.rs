@@ -10,7 +10,6 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one reference lifetime or storage operation.
     pub(super) fn format_reference(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
-            Opcode::ASSUME_INITIALIZED => self.format_assume_initialized(),
             Opcode::FREE => self.format_reference_lifetime(opcode),
             Opcode::DROP => self.format_drop(),
             Opcode::PIN | Opcode::UNPIN => self.format_reference_lifetime(opcode),
@@ -19,38 +18,6 @@ impl InstructionFormatter<'_, '_, '_> {
                 message: "invalid reference opcode",
             }),
         }
-    }
-
-    /// Format one allocation initialization transition.
-    fn format_assume_initialized(&mut self) -> FormatResult<()> {
-        // decode both physical allocation states
-        let (result, result_word_count) = self.register_range_id()?;
-        let (input, input_word_count) = self.register_range_id()?;
-        let input_type = self.formatter.context().register_type(input)?;
-        let ty = input_type.initialized().ok_or(FormatError::SyntaxError {
-            message: "assumeInitialized reads an initialized allocation",
-        })?;
-
-        // require both ranges to fit their logical allocation states
-        if result_word_count != ty.word_count() || input_word_count != input_type.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "assumeInitialized has an invalid register width",
-            });
-        }
-
-        // write the initialized result and source allocation
-        self.write_result(result, ty)?;
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("assumeInitialized"),
-                space()
-            ]
-        )?;
-        self.write_register(input)
     }
 
     /// Format one managed pin transition or unique release.

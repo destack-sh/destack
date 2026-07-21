@@ -97,7 +97,6 @@ impl Parser<'_> {
 
             // new and destruction
             "new" => self.parse_new(name, token, results, result_types, function),
-            "assumeInitialized" => self.parse_reference_operation(name, token, results, function),
             "free" | "drop" => self.parse_reference_operation(name, token, results, function),
 
             // address stability

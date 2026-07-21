@@ -161,9 +161,8 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             }
 
             // allocation and destruction
-            Opcode::ASSUME_INITIALIZED | Opcode::FREE | Opcode::DROP => {
-                self.format_reference(opcode)
-            }
+            Opcode::NEW_COMPLETE => self.format_new_complete(),
+            Opcode::FREE | Opcode::DROP => self.format_reference(opcode),
 
             // address stability
             Opcode::PIN | Opcode::UNPIN => self.format_reference(opcode),
