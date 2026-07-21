@@ -89,7 +89,7 @@ pub struct ProgramBuilder {
     /// Initial local static bytes.
     local_static_space: Vec<u8>,
 
-    /// Linked bytecode object.
+    /// Linked bytecode.
     bytecode: CodeBuilder,
     /// Optional native code.
     native: Option<native::CodeBuilder>,
