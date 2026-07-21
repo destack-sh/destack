@@ -24,6 +24,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::Unary { .. }
         | mir::Instruction::Cast { .. }
         | mir::Instruction::Select { .. }
+        | mir::Instruction::NewComplete { .. }
         | mir::Instruction::Assume { .. } => true,
 
         // pure aggregate operations
@@ -114,7 +115,6 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         // allocations have side effects
         mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
-        | mir::Instruction::NewComplete { .. }
         | mir::Instruction::NewSliceZeroed { .. }
         | mir::Instruction::NewSliceUninit { .. } => false,
 
@@ -153,8 +153,8 @@ pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::T
             )
         }
 
-        // assumptions must not be speculated across control flow
-        mir::Instruction::Assume { .. } => false,
+        // assumptions and linear transitions must not cross control flow
+        mir::Instruction::Assume { .. } | mir::Instruction::NewComplete { .. } => false,
 
         // non-saturating float to integer casts can trap on NaN or out of range inputs
         mir::Instruction::Cast {
@@ -257,6 +257,7 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::FunctionPointer { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::LocalAddr { .. }
+        | mir::Instruction::NewComplete { .. }
         | mir::Instruction::Assume { .. } => false,
 
         // memory reads are pure (assuming no volatile)
@@ -284,7 +285,6 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         // allocations have side effects (memory allocation)
         mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
-        | mir::Instruction::NewComplete { .. }
         | mir::Instruction::NewSliceZeroed { .. }
         | mir::Instruction::NewSliceUninit { .. } => true,
 
@@ -349,7 +349,6 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::BarrierWrite { .. }
             | mir::Instruction::NewZeroed { .. }
             | mir::Instruction::NewUninit { .. }
-            | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
             | mir::Instruction::Free { .. }

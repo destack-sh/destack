@@ -233,9 +233,6 @@ impl<'a> FunctionEffectBuilder<'a> {
                 memory: mir::MemoryEffect::unknown(),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
-            mir::Instruction::NewComplete { result_type, .. } => mir::FunctionEffect::memory(
-                mir::MemoryEffect::read_write(self.space_set_for_type(result_type)),
-            ),
             mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => {
                 mir::FunctionEffect::unknown()
             }

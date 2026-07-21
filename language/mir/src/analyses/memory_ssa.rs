@@ -1079,6 +1079,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::TensorCompare { .. }
             | mir::Instruction::TensorSelect { .. }
             | mir::Instruction::TensorConvert { .. }
+            | mir::Instruction::NewComplete { .. }
             | mir::Instruction::Assume { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
@@ -1292,7 +1293,6 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::NewZeroed { .. }
             | mir::Instruction::NewUninit { .. }
-            | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. } => {
                 Self::single_effect(MemoryAccessEffect::read_write(

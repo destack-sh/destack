@@ -323,6 +323,7 @@ impl CostModel {
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
+            | mir::Instruction::NewComplete { .. }
             | mir::Instruction::Assume { .. } => cost.arithmetic += 1,
             mir::Instruction::Breakpoint => cost.branch += 1,
             mir::Instruction::Aggregate { values, .. } => {
@@ -384,7 +385,6 @@ impl CostModel {
             | mir::Instruction::AtomicFence { .. } => cost.atomic += 1,
             mir::Instruction::NewZeroed { .. }
             | mir::Instruction::NewUninit { .. }
-            | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
             | mir::Instruction::Pin { .. }

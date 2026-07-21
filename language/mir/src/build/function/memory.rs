@@ -192,7 +192,7 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Complete one initialized heap allocation.
+    /// Complete initialization of one allocation.
     pub fn new_complete(&mut self, value: Value, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewComplete {

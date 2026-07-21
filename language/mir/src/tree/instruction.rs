@@ -713,7 +713,7 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeId,
     },
-    /// Complete one initialized heap allocation (`new.complete`).
+    /// Complete initialization of one allocation (`new.complete`).
     NewComplete {
         /// The SSA value to define with the completed allocation.
         destination: Value,
