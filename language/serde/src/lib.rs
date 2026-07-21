@@ -9,7 +9,7 @@ mod schema;
 
 pub use codec::*;
 pub use decode::*;
-pub use destack_serde_macros::Reflect;
+pub use destack_serde_macros::{Reflect, SectionEntry};
 pub use encode::*;
 pub use error::*;
 pub use schema::*;
