@@ -212,7 +212,7 @@ impl InstructionFormatter<'_, '_, '_> {
         write!(self.formatter, [space(), token("}")])
     }
 
-    /// Format one fixed control operation.
+    /// Format one directly named control operation.
     pub(super) fn format_control(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             // control flow
@@ -223,7 +223,7 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::RETURN => self.format_return(),
             Opcode::TRAP => self.format_trap(),
             Opcode::UNREACHABLE => {
-                let name = self.fixed_name(opcode)?;
+                let name = self.opcode_name(opcode)?;
 
                 self.write_text(name)
             }
@@ -238,21 +238,21 @@ impl InstructionFormatter<'_, '_, '_> {
             }
             Opcode::PANIC | Opcode::PANIC_VALUE => self.format_panic(opcode),
             Opcode::UNWIND_RESUME => {
-                let name = self.fixed_name(opcode)?;
+                let name = self.opcode_name(opcode)?;
 
                 self.write_text(name)
             }
 
             // collector protocol
             Opcode::SAFEPOINT => {
-                let name = self.fixed_name(opcode)?;
+                let name = self.opcode_name(opcode)?;
 
                 self.write_text(name)
             }
 
             // debug control
             Opcode::BREAKPOINT => {
-                let name = self.fixed_name(opcode)?;
+                let name = self.opcode_name(opcode)?;
 
                 self.write_text(name)
             }
@@ -358,7 +358,7 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_runtime_check(&mut self, opcode: Opcode) -> FormatResult<()> {
         // write the checked runtime value
         let value = self.register_id()?;
-        let name = self.fixed_name(opcode)?;
+        let name = self.opcode_name(opcode)?;
         self.write_text(name)?;
         self.write_token(" ")?;
         self.write_register(value)?;

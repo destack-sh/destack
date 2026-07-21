@@ -21,6 +21,14 @@ pub enum Error {
     InstructionTooLarge(usize),
     /// The instruction opcode is not defined by the bytecode ISA.
     InvalidOpcode(u16),
+    /// One encoded instruction operand is not defined by the bytecode ISA.
+    InvalidOperand,
+    /// One variable operand list exceeds its encoded count range.
+    TooManyOperands(usize),
+    /// One profile counter cannot be represented by the encoded counter count.
+    CounterOutOfRange(u32),
+    /// One profile sampler cannot be represented by the encoded sampler count.
+    SamplerOutOfRange(u32),
     /// One function exceeds the bytecode branch displacement range.
     FunctionTooLarge(usize),
 }
@@ -59,6 +67,25 @@ impl fmt::Display for Error {
                 )
             }
             Self::InvalidOpcode(opcode) => write!(formatter, "invalid bytecode opcode {opcode}"),
+            Self::InvalidOperand => formatter.write_str("invalid bytecode instruction operand"),
+            Self::TooManyOperands(count) => {
+                write!(
+                    formatter,
+                    "bytecode operand list is too large: {count} entries"
+                )
+            }
+            Self::CounterOutOfRange(counter) => {
+                write!(
+                    formatter,
+                    "bytecode profile counter is out of range: {counter}"
+                )
+            }
+            Self::SamplerOutOfRange(sampler) => {
+                write!(
+                    formatter,
+                    "bytecode profile sampler is out of range: {sampler}"
+                )
+            }
             Self::FunctionTooLarge(byte_len) => {
                 write!(
                     formatter,

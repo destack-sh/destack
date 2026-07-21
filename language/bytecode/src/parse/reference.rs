@@ -14,22 +14,19 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        match Opcode::from_name(name) {
-            Some(Opcode::NEW_COMPLETE) => self.parse_new_complete(token, results, function),
-            Some(Opcode::FREE) => {
-                self.parse_reference_lifetime(Opcode::FREE, token, results, function)
-            }
-            Some(Opcode::DROP) => self.parse_drop(token, results, function),
-            Some(opcode @ (Opcode::PIN | Opcode::UNPIN)) => {
-                self.parse_reference_lifetime(opcode, token, results, function)
-            }
-            Some(Opcode::BARRIER) => self.parse_barrier(token, results, function),
+        match name {
+            "assumeInitialized" => self.parse_assume_initialized(token, results, function),
+            "free" => self.parse_reference_lifetime(Opcode::FREE, token, results, function),
+            "drop" => self.parse_drop(token, results, function),
+            "pin" => self.parse_reference_lifetime(Opcode::PIN, token, results, function),
+            "unpin" => self.parse_reference_lifetime(Opcode::UNPIN, token, results, function),
+            "barrier" => self.parse_barrier(token, results, function),
             _ => Err(ParseError::new("unknown reference operation", token.span)),
         }
     }
 
     /// Parse one allocation initialization transition.
-    fn parse_new_complete(
+    fn parse_assume_initialized(
         &mut self,
         token: Token,
         results: &[RegisterId],
@@ -42,7 +39,7 @@ impl Parser<'_> {
             .filter(|ty| ty.is_uninitialized())
             .ok_or_else(|| {
                 ParseError::new(
-                    "new.complete requires an uninitialized allocation",
+                    "assumeInitialized requires an uninitialized allocation",
                     token.span,
                 )
             })?;
@@ -50,8 +47,8 @@ impl Parser<'_> {
             ParseError::new("uninitialized value has no initialized form", token.span)
         })?;
 
-        // encode the complete allocation state transition
-        let mut instruction = InstructionBuilder::new(Opcode::NEW_COMPLETE);
+        // encode the initialization state transition
+        let mut instruction = InstructionBuilder::new(Opcode::ASSUME_INITIALIZED);
         instruction.range(RegisterRange::new(input, input_type.word_count()));
 
         function.emit(instruction, results, &[result_type], self.empty_span())
@@ -67,18 +64,18 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         // derive the exact ownership required by this transition
         let value = self.parse_register()?;
-        let kind = function
+        let reference = function
             .value_type(value)
             .filter(|ty| ty.is_initialized_reference())
             .and_then(ValueType::reference_type)
-            .map(|reference| reference.kind());
+            .ok_or_else(|| ParseError::new("operation requires a reference", token.span))?;
         let is_free = opcode == Opcode::FREE;
         let required = if is_free {
             ReferenceKind::UNIQUE
         } else {
             ReferenceKind::MANAGED
         };
-        if kind != Some(required) {
+        if reference.kind() != required {
             return Err(ParseError::new(
                 if is_free {
                     "free requires a unique reference"
@@ -92,6 +89,7 @@ impl Parser<'_> {
         // encode the lifetime transition
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.register(value);
+        instruction.reference(reference.kind(), reference.space());
 
         function.emit(instruction, results, &[], self.empty_span())
     }
@@ -103,14 +101,14 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // match one address or initialized reference
+        // match one pointer or initialized reference
         let value = self.parse_register()?;
         let value_type = function
             .value_type(value)
             .ok_or_else(|| ParseError::new("drop reads an uninitialized value", token.span))?;
-        if !value_type.is_address() && !value_type.is_initialized_reference() {
+        if !value_type.is_pointer() && !value_type.is_initialized_reference() {
             return Err(ParseError::new(
-                "drop requires a native address or initialized reference",
+                "drop requires a native pointer or initialized reference",
                 token.span,
             ));
         }
@@ -122,6 +120,7 @@ impl Parser<'_> {
         // encode the explicit destruction
         let mut instruction = InstructionBuilder::new(Opcode::DROP);
         instruction.register(value);
+        instruction.value_type(value_type);
         instruction.symbol(Symbol::ty(ty.0));
 
         function.emit(instruction, results, &[], self.empty_span())
@@ -142,14 +141,20 @@ impl Parser<'_> {
         let byte_len = self.parse_register()?;
 
         // match the managed object and byte range types
-        let is_managed = function.value_type(object).is_some_and(|ty| {
-            ty.is_initialized_reference()
-                && ty
-                    .reference_type()
-                    .is_some_and(|reference| reference.kind() == ReferenceKind::MANAGED)
-        });
+        let reference = function
+            .value_type(object)
+            .filter(|ty| ty.is_initialized_reference())
+            .and_then(ValueType::reference_type)
+            .ok_or_else(|| {
+                ParseError::new(
+                    "write barrier requires a managed reference and uint64 byte range",
+                    token.span,
+                )
+            })?;
         let uint64 = ValueType::scalar(Scalar::Uint64);
-        if !is_managed || !function.has_type(offset, uint64) || !function.has_type(byte_len, uint64)
+        if reference.kind() != ReferenceKind::MANAGED
+            || !function.has_type(offset, uint64)
+            || !function.has_type(byte_len, uint64)
         {
             return Err(ParseError::new(
                 "write barrier requires a managed reference and uint64 byte range",
@@ -160,6 +165,7 @@ impl Parser<'_> {
         // encode the write barrier
         let mut instruction = InstructionBuilder::new(Opcode::BARRIER);
         instruction.register(object);
+        instruction.reference(reference.kind(), reference.space());
         instruction.register(offset);
         instruction.register(byte_len);
 

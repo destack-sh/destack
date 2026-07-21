@@ -1,3 +1,4 @@
+use destack_core::{FloatFormat, float_from_bits, float_to_bits};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +37,13 @@ pub enum Scalar {
 }
 
 impl Scalar {
+    /// The reserved scalar width inside parameterized opcode ranges.
+    pub(crate) const OPCODE_STRIDE: u16 = 16;
+    /// The reserved integer width inside parameterized opcode ranges.
+    pub(crate) const INTEGER_OPCODE_STRIDE: u16 = 8;
+    /// The reserved floating-point width inside parameterized opcode ranges.
+    pub(crate) const FLOAT_OPCODE_STRIDE: u16 = 4;
+
     /// Return the scalar with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
@@ -113,6 +121,19 @@ impl Scalar {
         self.integer_index().is_some()
     }
 
+    /// Return whether this is a signed integer representation.
+    pub const fn is_signed_integer(self) -> bool {
+        matches!(self, Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64)
+    }
+
+    /// Return whether this is an unsigned integer representation.
+    pub const fn is_unsigned_integer(self) -> bool {
+        matches!(
+            self,
+            Self::Uint8 | Self::Uint16 | Self::Uint32 | Self::Uint64
+        )
+    }
+
     /// Return the dense floating-point representation index.
     pub const fn float_index(self) -> Option<u16> {
         match self.code() {
@@ -133,6 +154,64 @@ impl Scalar {
             Self::Int16 | Self::Uint16 | Self::Float16 | Self::Bfloat16 => 16,
             Self::Int32 | Self::Uint32 | Self::Float32 => 32,
             Self::Int64 | Self::Uint64 | Self::Float64 => 64,
+        }
+    }
+
+    /// Decode one integer register word into a wide mathematical value.
+    pub const fn integer(self, bits: u64) -> Option<i128> {
+        if self.is_signed_integer() {
+            let shift = u64::BITS as u8 - self.bit_width();
+            let value = ((bits << shift) as i64 >> shift) as i128;
+
+            Some(value)
+        } else if self.is_unsigned_integer() {
+            let width = self.bit_width();
+            let value = if width == u64::BITS as u8 {
+                bits
+            } else {
+                bits & ((1_u64 << width) - 1)
+            };
+
+            Some(value as i128)
+        } else {
+            None
+        }
+    }
+
+    /// Return the inclusive mathematical bounds of one integer representation.
+    pub const fn integer_bounds(self) -> Option<(i128, i128)> {
+        let width = self.bit_width();
+        if self.is_signed_integer() {
+            Some((-(1_i128 << (width - 1)), (1_i128 << (width - 1)) - 1))
+        } else if self.is_unsigned_integer() {
+            Some((0, (1_i128 << width) - 1))
+        } else {
+            None
+        }
+    }
+
+    /// Decode one floating-point register word.
+    pub fn float(self, bits: u64) -> Option<f64> {
+        let format = self.float_format()?;
+
+        Some(float_from_bits(format, bits))
+    }
+
+    /// Encode one floating-point register word.
+    pub fn float_bits(self, value: f64) -> Option<u64> {
+        let format = self.float_format()?;
+
+        Some(float_to_bits(format, value))
+    }
+
+    /// Return the concrete floating-point format.
+    const fn float_format(self) -> Option<FloatFormat> {
+        match self {
+            Self::Float16 => Some(FloatFormat::Float16),
+            Self::Bfloat16 => Some(FloatFormat::Bfloat16),
+            Self::Float32 => Some(FloatFormat::Float32),
+            Self::Float64 => Some(FloatFormat::Float64),
+            _ => None,
         }
     }
 }
@@ -633,10 +712,10 @@ pub enum CastOperation {
     FloatConvert = 7,
     /// Preserve bits while changing their interpretation.
     Bit = 8,
-    /// Convert one address to an unsigned integer.
-    AddressToInt = 9,
-    /// Convert one unsigned integer to an address.
-    IntToAddress = 10,
+    /// Convert one pointer to an unsigned integer.
+    PointerToInt = 9,
+    /// Convert one unsigned integer to a pointer.
+    IntToPointer = 10,
 }
 
 impl CastOperation {
@@ -652,8 +731,8 @@ impl CastOperation {
             "intToFloat.s" | "intToFloat.u" => Some(Self::IntToFloat),
             "floatTruncate" | "floatExtend" | "floatConvert" => Some(Self::FloatConvert),
             "bit" => Some(Self::Bit),
-            "addressToInt" => Some(Self::AddressToInt),
-            "intToAddress" => Some(Self::IntToAddress),
+            "pointerToInt" => Some(Self::PointerToInt),
+            "intToPointer" => Some(Self::IntToPointer),
             _ => None,
         }
     }
@@ -692,8 +771,8 @@ impl CastOperation {
                 }
             }
             Self::Bit => Some("bit"),
-            Self::AddressToInt => Some("addressToInt"),
-            Self::IntToAddress => Some("intToAddress"),
+            Self::PointerToInt => Some("pointerToInt"),
+            Self::IntToPointer => Some("intToPointer"),
             _ => None,
         }
     }
@@ -710,8 +789,8 @@ impl CastOperation {
             6 => Some(Self::IntToFloat),
             7 => Some(Self::FloatConvert),
             8 => Some(Self::Bit),
-            9 => Some(Self::AddressToInt),
-            10 => Some(Self::IntToAddress),
+            9 => Some(Self::PointerToInt),
+            10 => Some(Self::IntToPointer),
             _ => None,
         }
     }
@@ -730,8 +809,8 @@ impl CastOperation {
             | Self::IntToFloat
             | Self::FloatConvert
             | Self::Bit
-            | Self::AddressToInt
-            | Self::IntToAddress => false,
+            | Self::PointerToInt
+            | Self::IntToPointer => false,
         }
     }
 }

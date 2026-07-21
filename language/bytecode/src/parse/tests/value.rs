@@ -9,13 +9,22 @@ fn test_parse_value_operations() {
         r#"
 type User
 
-export function values(r0: int32, r1: boolean, r2: int128): (int32, boolean, typeId, int128) {
+export function values(r0: int32, r1: boolean, r2: int128): (
+    int32,
+    boolean,
+    typeId,
+    int128,
+    ref<managed, space(local)>,
+    ref<managed, space(local)>,
+) {
     r4: int32 = move r0
     r5: int32 = select r1, r0, r4
     r6: boolean = equal r0, r5
-    r7: typeId = type.id User
+    r7: typeId = constant.type User
     r8: int128 = select r1, r2, r2
-    return r5, r6, r7, r8
+    r10: ref<managed, space(local)> = null
+    r11: ref<managed, space(local)> = undefined
+    return r5, r6, r7, r8, r10, r11
 }
 "#,
     )
@@ -27,8 +36,10 @@ export function values(r0: int32, r1: boolean, r2: int128): (int32, boolean, typ
             Opcode::MOVE,
             Opcode::SELECT,
             Opcode::EQUAL,
-            Opcode::TYPE_ID,
+            Opcode::CONSTANT_TYPE,
             Opcode::SELECT_RANGE,
+            Opcode::CONSTANT_NULL,
+            Opcode::CONSTANT_UNDEFINED,
             Opcode::RETURN,
         ]
     );

@@ -10,7 +10,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one reference load.
     pub(super) fn format_load(&mut self) -> FormatResult<()> {
         let result = self.register_id()?;
-        let address = self.register_id()?;
+        let pointer = self.register_id()?;
         let reference = ReferenceType::from_bits(self.u16()?).ok_or(FormatError::SyntaxError {
             message: "reference load has invalid qualifiers",
         })?;
@@ -22,17 +22,17 @@ impl InstructionFormatter<'_, '_, '_> {
             self.formatter,
             [space(), token("="), space(), token("load"), space()]
         )?;
-        self.write_register(address)
+        self.write_register(pointer)
     }
 
     /// Format one reference store.
     pub(super) fn format_store(&mut self) -> FormatResult<()> {
-        let address = self.register_id()?;
+        let pointer = self.register_id()?;
         let value = self.register_id()?;
 
         // write the reference store
         write!(self.formatter, [token("store"), space()])?;
-        self.write_register(address)?;
+        self.write_register(pointer)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(value)
     }
@@ -49,23 +49,23 @@ impl InstructionFormatter<'_, '_, '_> {
         // load one scalar value
         if operation == MemoryOperation::Load {
             self.result(ValueType::scalar(scalar))?;
-            let address = self.register_id()?;
+            let pointer = self.register_id()?;
             write!(self.formatter, [space(), token("="), space()])?;
             self.write_text(operation_name)?;
             self.write_token(".")?;
             self.write_text(scalar_name)?;
             self.write_token(" ")?;
-            self.write_register(address)
+            self.write_register(pointer)
         }
         // store one scalar value
         else {
-            let address = self.register_id()?;
+            let pointer = self.register_id()?;
             let value = self.register_id()?;
             self.write_text(operation_name)?;
             self.write_token(".")?;
             self.write_text(scalar_name)?;
             self.write_token(" ")?;
-            self.write_register(address)?;
+            self.write_register(pointer)?;
             write!(self.formatter, [token(","), space()])?;
             self.write_register(value)
         }
@@ -89,7 +89,7 @@ impl InstructionFormatter<'_, '_, '_> {
         let target = self.register_id()?;
         let source = self.register_id()?;
         let byte_len = self.register_id()?;
-        let name = self.fixed_name(opcode)?;
+        let name = self.opcode_name(opcode)?;
 
         // preserve source to target order in text
         self.write_text(name)?;
@@ -107,7 +107,7 @@ impl InstructionFormatter<'_, '_, '_> {
         let target = self.register_id()?;
         let byte = self.register_id()?;
         let byte_len = self.register_id()?;
-        let name = self.fixed_name(Opcode::FILL_BYTES)?;
+        let name = self.opcode_name(Opcode::FILL_BYTES)?;
 
         // write the fill range
         write!(self.formatter, [token(name), space()])?;
@@ -125,7 +125,7 @@ impl InstructionFormatter<'_, '_, '_> {
         let left = self.register_id()?;
         let right = self.register_id()?;
         let byte_len = self.register_id()?;
-        let name = self.fixed_name(Opcode::COMPARE_BYTES)?;
+        let name = self.opcode_name(Opcode::COMPARE_BYTES)?;
 
         // write the comparison range
         write!(
@@ -141,13 +141,13 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one prefetch hint.
     pub(super) fn format_prefetch(&mut self, opcode: Opcode) -> FormatResult<()> {
-        // decode the hinted address
-        let address = self.register_id()?;
-        let name = self.fixed_name(opcode)?;
+        // decode the hinted pointer
+        let pointer = self.register_id()?;
+        let name = self.opcode_name(opcode)?;
 
         // write the prefetch hint
         self.write_text(name)?;
         self.write_token(" ")?;
-        self.write_register(address)
+        self.write_register(pointer)
     }
 }

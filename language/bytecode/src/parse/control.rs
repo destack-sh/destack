@@ -15,29 +15,26 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let opcode = Opcode::from_name(name)
-            .ok_or_else(|| ParseError::new("unknown control operation", token.span))?;
-
-        match opcode {
+        match name {
             // control flow
-            Opcode::JUMP => self.parse_jump(results, function),
-            Opcode::BRANCH => self.parse_conditional_branch(token, results, function),
-            Opcode::SWITCH => self.parse_switch(token, results, function),
-            Opcode::YIELD => self.parse_yield(token, results, function),
-            Opcode::RETURN => self.parse_return(token, results, function),
-            Opcode::TRAP => self.parse_trap(results, function),
-            Opcode::UNREACHABLE => self.parse_empty_control(opcode, results, function),
+            "jump" => self.parse_jump(results, function),
+            "branch" => self.parse_conditional_branch(token, results, function),
+            "switch" => self.parse_switch(token, results, function),
+            "yield" => self.parse_yield(token, results, function),
+            "return" => self.parse_return(token, results, function),
+            "trap" => self.parse_trap(results, function),
+            "unreachable" => self.parse_empty_control(Opcode::UNREACHABLE, results, function),
 
             // panic and unwind
-            Opcode::CATCH => self.parse_catch(results, function),
-            Opcode::PANIC => self.parse_panic(results, function),
-            Opcode::UNWIND_RESUME => self.parse_empty_control(opcode, results, function),
+            "catch" => self.parse_catch(results, function),
+            "panic" => self.parse_panic(results, function),
+            "unwind.resume" => self.parse_empty_control(Opcode::UNWIND_RESUME, results, function),
 
             // collector protocol
-            Opcode::SAFEPOINT => self.parse_empty_control(opcode, results, function),
+            "safepoint" => self.parse_empty_control(Opcode::SAFEPOINT, results, function),
 
             // debug control
-            Opcode::BREAKPOINT => self.parse_empty_control(opcode, results, function),
+            "breakpoint" => self.parse_empty_control(Opcode::BREAKPOINT, results, function),
             _ => Err(ParseError::new("invalid control operation", token.span)),
         }
     }
@@ -119,8 +116,10 @@ impl Parser<'_> {
 
         // encode cases in source order
         let mut instruction = InstructionBuilder::new(Opcode::SWITCH);
+        let case_count = u16::try_from(cases.len())
+            .map_err(|_| ParseError::new("too many switch cases", token.span))?;
         instruction.register(value);
-        instruction.u16(cases.len() as u16);
+        instruction.u16(case_count);
         for (case, label) in cases {
             instruction.u64(case);
             instruction.branch(label);
@@ -291,9 +290,9 @@ impl Parser<'_> {
         let value_type = function.value_type(value).ok_or_else(|| {
             ParseError::new("null check reads an uninitialized value", token.span)
         })?;
-        if !value_type.is_address() && !value_type.is_initialized_reference() {
+        if !value_type.is_pointer() && !value_type.is_initialized_reference() {
             return Err(ParseError::new(
-                "null check requires an address or reference",
+                "null check requires a pointer or reference",
                 token.span,
             ));
         }

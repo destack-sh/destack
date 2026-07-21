@@ -3,8 +3,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    AtomicAccess, AtomicOperation, CompareExchangeAccess, ExecutionScope, FenceAccess, Opcode,
-    Scalar, StorageSet, ValueType,
+    AtomicAccess, AtomicOperation, CompareExchangeAccess, ExecutionScope, FenceAccess, Scalar,
+    StorageSet, ValueType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -18,14 +18,14 @@ impl InstructionFormatter<'_, '_, '_> {
     ) -> FormatResult<()> {
         self.format_atomic_results(operation, scalar)?;
 
-        // write the operation and target address
+        // write the operation and target pointer
         self.write_token("atomic.")?;
         self.write_text(operation.name())?;
         self.write_token(".")?;
         self.write_text(scalar.name())?;
         self.write_token(" ")?;
-        let address = self.register_id()?;
-        self.write_register(address)?;
+        let pointer = self.register_id()?;
+        self.write_register(pointer)?;
 
         // write the value operand for non-load operations
         if operation != AtomicOperation::Load {
@@ -38,7 +38,7 @@ impl InstructionFormatter<'_, '_, '_> {
         if operation.is_compare_exchange() {
             self.format_compare_exchange_access()
         } else {
-            self.format_atomic_access(operation)
+            self.format_atomic_access()
         }
     }
 
@@ -61,14 +61,7 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format one regular atomic memory access.
-    fn format_atomic_access(&mut self, operation: AtomicOperation) -> FormatResult<()> {
-        // write the timeout carried only by timed waits
-        if operation == AtomicOperation::WaitTimed {
-            let timeout = self.register_id()?;
-            write!(self.formatter, [token(","), space()])?;
-            self.write_register(timeout)?;
-        }
-
+    fn format_atomic_access(&mut self) -> FormatResult<()> {
         // decode the common memory access
         let access = AtomicAccess::from_bits(self.u16()?).ok_or(FormatError::SyntaxError {
             message: "atomic instruction has invalid access bits",
@@ -112,31 +105,6 @@ impl InstructionFormatter<'_, '_, '_> {
         write!(self.formatter, [token(","), space(), token("storage(")])?;
         self.format_storage(access.storage)?;
         self.write_token(")")?;
-
-        Ok(())
-    }
-
-    /// Format one atomic wake operation.
-    pub(super) fn format_wake(&mut self, opcode: Opcode) -> FormatResult<()> {
-        self.result(ValueType::scalar(Scalar::Uint64))?;
-        let address = self.register_id()?;
-        let name = self.fixed_name(opcode)?;
-        write!(self.formatter, [space(), token("="), space()])?;
-        self.write_text(name)?;
-        write!(self.formatter, [space()])?;
-        self.write_register(address)?;
-
-        // write the wake count for bounded wake operations
-        if opcode == Opcode::ATOMIC_WAKE {
-            let count = self.register_id()?;
-            write!(self.formatter, [token(","), space()])?;
-            self.write_register(count)?;
-        }
-        let scope =
-            ExecutionScope::from_code(self.u16()? as u8).ok_or(FormatError::SyntaxError {
-                message: "atomic wake has an invalid execution scope",
-            })?;
-        self.format_scope(scope)?;
 
         Ok(())
     }

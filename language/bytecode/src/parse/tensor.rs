@@ -310,7 +310,9 @@ impl Parser<'_> {
                 .ok_or_else(|| ParseError::new("expected tensor result type", token.span))?
         };
         let operator = self.resolve_tensor_operator(&operator_name, scalar, token)?;
-        instruction.registers(&inputs);
+        instruction
+            .registers(&inputs)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         operands.same_type.extend(inputs.iter().copied());
         operands.tensors.extend(inputs);
         instruction.scalar(scalar);
@@ -906,10 +908,10 @@ impl Parser<'_> {
         Ok(view)
     }
 
-    /// Select one tensor opcode family from its canonical operation name.
+    /// Select one tensor operation from its canonical name.
     fn resolve_tensor_operation(&self, text: &str, token: Token) -> ParseResult<TensorOperation> {
         let mut components = text.split('.');
-        let family = components.next();
+        let prefix = components.next();
         let Some(name) = components.next() else {
             return Err(ParseError::new("expected tensor operation", token.span));
         };
@@ -917,14 +919,14 @@ impl Parser<'_> {
             return Err(ParseError::new("invalid tensor operation", token.span));
         }
 
-        // tensor operation family
-        if family == Some("tensor") {
+        // parse one dedicated tensor operation
+        if prefix == Some("tensor") {
             return TensorOperation::from_name(name)
                 .ok_or_else(|| ParseError::new("expected tensor operation", token.span));
         }
 
-        // elementwise scalar operation family
-        let is_element = match family {
+        // parse one elementwise scalar operation
+        let is_element = match prefix {
             Some("int") => IntegerOperation::from_name(name).is_some(),
             Some("float") => FloatOperation::from_name(name).is_some(),
             _ => false,
@@ -944,7 +946,7 @@ impl Parser<'_> {
         token: Token,
     ) -> ParseResult<u16> {
         let mut components = text.split('.');
-        let family = components.next();
+        let prefix = components.next();
         let operation = components.next();
         let operator = if operation == Some("compare") {
             components.next()
@@ -958,11 +960,11 @@ impl Parser<'_> {
             ));
         };
 
-        // match the operation family against the element representation
-        let expected_family = if scalar.is_float() { "float" } else { "int" };
-        if family != Some(expected_family) {
+        // match the operation prefix against the element representation
+        let expected_prefix = if scalar.is_float() { "float" } else { "int" };
+        if prefix != Some(expected_prefix) {
             return Err(ParseError::new(
-                "tensor operation does not match its scalar family",
+                "tensor operation does not match its scalar representation",
                 token.span,
             ));
         }
@@ -1008,7 +1010,9 @@ impl Parser<'_> {
                 break;
             }
         }
-        instruction.registers(&registers);
+        instruction
+            .registers(&registers)
+            .map_err(|error| ParseError::new(error.to_string(), self.empty_span()))?;
 
         Ok(registers)
     }
@@ -1030,7 +1034,9 @@ impl Parser<'_> {
                 break;
             }
         }
-        instruction.registers(&registers);
+        instruction
+            .registers(&registers)
+            .map_err(|error| ParseError::new(error.to_string(), self.empty_span()))?;
 
         Ok(registers)
     }
@@ -1044,10 +1050,9 @@ impl Parser<'_> {
         self.eat_name(name)?;
         self.eat_token(TokenType::OpenParenthesis)?;
         let values = self.parse_u16_list(TokenType::CloseParenthesis)?;
-        instruction.u16(values.len() as u16);
-        for value in values {
-            instruction.u16(value);
-        }
+        instruction
+            .u16s(&values)
+            .map_err(|error| ParseError::new(error.to_string(), self.empty_span()))?;
 
         Ok(())
     }
@@ -1082,10 +1087,9 @@ impl Parser<'_> {
                 break;
             }
         }
-        instruction.u16(values.len() as u16);
-        for value in values {
-            instruction.u64(value);
-        }
+        instruction
+            .u64s(&values)
+            .map_err(|error| ParseError::new(error.to_string(), self.empty_span()))?;
 
         Ok(())
     }
@@ -1192,10 +1196,9 @@ impl Parser<'_> {
                 break;
             }
         }
-        instruction.u16(values.len() as u16);
-        for value in values {
-            instruction.u16(value);
-        }
+        instruction
+            .u16s(&values)
+            .map_err(|error| ParseError::new(error.to_string(), self.empty_span()))?;
 
         Ok(())
     }

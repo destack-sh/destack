@@ -1,16 +1,7 @@
 use crate::{
-    CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, RegisterId, RegisterRange,
-    Result, SamplerId,
+    CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, ReferenceType, RegisterId,
+    RegisterRange, Result, SamplerId, ValueType,
 };
-
-const OPCODE_MASK: u16 = 0x0fff;
-const CODE_UNIT_COUNT_SHIFT: u16 = 12;
-const COMPACT_CODE_UNIT_COUNT_MAX: usize = 0x0f;
-const EXTENDED_CODE_UNIT_COUNT_MIN: usize = COMPACT_CODE_UNIT_COUNT_MAX + 2;
-const CODE_UNIT_BYTE_LEN: usize = size_of::<u16>();
-const COMPACT_HEADER_BYTE_LEN: usize = size_of::<InstructionHeader>();
-const EXTENDED_HEADER_BYTE_LEN: usize = COMPACT_HEADER_BYTE_LEN + size_of::<u16>();
-const FUNCTION_BYTE_LEN_MAX: usize = i32::MAX as usize;
 
 /// One borrowed instruction in a bytecode stream.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,9 +18,20 @@ pub struct Instruction<'a> {
 struct InstructionHeader(u16);
 
 impl InstructionHeader {
+    /// The bit offset of the compact code-unit count.
+    const CODE_UNIT_COUNT_SHIFT: u16 = 12;
+    /// The greatest compact code-unit count.
+    const COMPACT_CODE_UNIT_COUNT_MAX: usize = 0x0f;
+    /// The smallest valid extended code-unit count.
+    const EXTENDED_CODE_UNIT_COUNT_MIN: usize = Self::COMPACT_CODE_UNIT_COUNT_MAX + 2;
+    /// The compact instruction header byte length.
+    const BYTE_LEN: usize = size_of::<Self>();
+    /// The extended instruction header byte length.
+    const EXTENDED_BYTE_LEN: usize = Self::BYTE_LEN + size_of::<u16>();
+
     /// Create one compact instruction header.
     const fn compact(opcode: Opcode, code_unit_count: u8) -> Self {
-        Self(((code_unit_count as u16) << CODE_UNIT_COUNT_SHIFT) | opcode.code())
+        Self(((code_unit_count as u16) << Self::CODE_UNIT_COUNT_SHIFT) | opcode.code())
     }
 
     /// Create one extended instruction header.
@@ -39,12 +41,12 @@ impl InstructionHeader {
 
     /// Return the encoded opcode.
     const fn opcode(self) -> Opcode {
-        Opcode::from_code(self.0 & OPCODE_MASK)
+        Opcode::from_code(self.0 & Opcode::MAX.code())
     }
 
     /// Return the compact code-unit count, or zero for an extended header.
     const fn compact_code_unit_count(self) -> u8 {
-        (self.0 >> CODE_UNIT_COUNT_SHIFT) as u8
+        (self.0 >> Self::CODE_UNIT_COUNT_SHIFT) as u8
     }
 
     /// Return the exact header bits.
@@ -54,27 +56,32 @@ impl InstructionHeader {
 }
 
 impl<'a> Instruction<'a> {
+    /// The byte length of one encoded code unit.
+    const CODE_UNIT_BYTE_LEN: usize = size_of::<u16>();
+    /// The greatest function byte length supported by relative branches.
+    const FUNCTION_BYTE_LEN_MAX: usize = i32::MAX as usize;
+
     /// Append one instruction and return its function-local byte offset.
     pub fn pack(opcode: Opcode, operands: &[u8], code: &mut Vec<u8>) -> Result<CodeOffset> {
         if !opcode.is_defined() {
             return Err(Error::InvalidOpcode(opcode.code()));
         }
-        if !operands.len().is_multiple_of(CODE_UNIT_BYTE_LEN) {
+        if !operands.len().is_multiple_of(Self::CODE_UNIT_BYTE_LEN) {
             return Err(Error::UnalignedOperands(operands.len()));
         }
 
         // select the shortest self-delimiting header
-        let compact_byte_len = COMPACT_HEADER_BYTE_LEN + operands.len();
-        let compact_code_unit_count = compact_byte_len / CODE_UNIT_BYTE_LEN;
+        let compact_byte_len = InstructionHeader::BYTE_LEN + operands.len();
+        let compact_code_unit_count = compact_byte_len / Self::CODE_UNIT_BYTE_LEN;
         let (header, extended_code_unit_count) =
-            if compact_code_unit_count <= COMPACT_CODE_UNIT_COUNT_MAX {
+            if compact_code_unit_count <= InstructionHeader::COMPACT_CODE_UNIT_COUNT_MAX {
                 (
                     InstructionHeader::compact(opcode, compact_code_unit_count as u8),
                     None,
                 )
             } else {
-                let extended_byte_len = EXTENDED_HEADER_BYTE_LEN + operands.len();
-                let extended_code_unit_count = extended_byte_len / CODE_UNIT_BYTE_LEN;
+                let extended_byte_len = InstructionHeader::EXTENDED_BYTE_LEN + operands.len();
+                let extended_code_unit_count = extended_byte_len / Self::CODE_UNIT_BYTE_LEN;
                 let extended_code_unit_count = u16::try_from(extended_code_unit_count)
                     .map_err(|_| Error::InstructionTooLarge(extended_byte_len))?;
 
@@ -86,13 +93,13 @@ impl<'a> Instruction<'a> {
 
         // require every in-function branch displacement to remain representable
         let header_byte_len = if extended_code_unit_count.is_some() {
-            EXTENDED_HEADER_BYTE_LEN
+            InstructionHeader::EXTENDED_BYTE_LEN
         } else {
-            COMPACT_HEADER_BYTE_LEN
+            InstructionHeader::BYTE_LEN
         };
         let byte_len = header_byte_len + operands.len();
         let end = code.len() + byte_len;
-        if end > FUNCTION_BYTE_LEN_MAX {
+        if end > Self::FUNCTION_BYTE_LEN_MAX {
             return Err(Error::FunctionTooLarge(end));
         }
 
@@ -121,20 +128,23 @@ impl<'a> Instruction<'a> {
 
         // read the compact or extended instruction width
         let (code_unit_count, operand_offset) = if compact_code_unit_count == 0 {
-            let code_unit_count = Self::decode_u16(bytes, COMPACT_HEADER_BYTE_LEN)? as usize;
-            if code_unit_count < EXTENDED_CODE_UNIT_COUNT_MIN {
+            let code_unit_count = Self::decode_u16(bytes, InstructionHeader::BYTE_LEN)? as usize;
+            if code_unit_count < InstructionHeader::EXTENDED_CODE_UNIT_COUNT_MIN {
                 return Err(Error::InvalidInstructionLength(
-                    code_unit_count * CODE_UNIT_BYTE_LEN,
+                    code_unit_count * Self::CODE_UNIT_BYTE_LEN,
                 ));
             }
 
-            (code_unit_count, EXTENDED_HEADER_BYTE_LEN)
+            (code_unit_count, InstructionHeader::EXTENDED_BYTE_LEN)
         } else {
-            (compact_code_unit_count as usize, COMPACT_HEADER_BYTE_LEN)
+            (
+                compact_code_unit_count as usize,
+                InstructionHeader::BYTE_LEN,
+            )
         };
 
         // require a complete even-width instruction
-        let byte_len = code_unit_count * CODE_UNIT_BYTE_LEN;
+        let byte_len = code_unit_count * Self::CODE_UNIT_BYTE_LEN;
         if byte_len < operand_offset {
             return Err(Error::InvalidInstructionLength(byte_len));
         }
@@ -301,6 +311,20 @@ impl<'a> Operands<'a> {
         let word_count = self.u16()?;
 
         Ok(RegisterRange::new(start, word_count))
+    }
+
+    /// Read one reference representation.
+    pub fn reference(&mut self) -> Result<ReferenceType> {
+        let bits = self.u16()?;
+
+        ReferenceType::from_bits(bits).ok_or(Error::InvalidOperand)
+    }
+
+    /// Read one complete value type.
+    pub fn value_type(&mut self) -> Result<ValueType> {
+        let bytes = self.take::<{ ValueType::BYTE_LEN }>()?;
+
+        ValueType::from_bytes(bytes).ok_or(Error::InvalidOperand)
     }
 
     /// Read one function-local profile counter.

@@ -62,19 +62,19 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
         Ok(())
     }
 
-    /// Format one parameterized or fixed opcode.
+    /// Format one directly named or parameterized opcode.
     fn format_opcode(&mut self, opcode: Opcode) -> FormatResult<()> {
-        // format every value conversion through one semantic family
+        // format every value conversion through one path
         if let Some((operation, source, target)) = opcode.cast_operation() {
             return self.format_cast(operation, source, target);
         }
 
-        // format fixed opcode families
-        if opcode.is_fixed() {
-            return self.format_fixed_opcode(opcode);
+        // format directly named opcodes
+        if opcode.name().is_some() {
+            return self.format_named_opcode(opcode);
         }
 
-        // format parameterized opcode families in encoded order
+        // format parameterized opcode ranges in encoded order
         if let Some(scalar) = opcode.constant_scalar() {
             self.format_constant(scalar)
         } else if let Some(operation) = opcode.boolean_operation() {
@@ -107,28 +107,30 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
     }
 
     /// Format one opcode without encoded type parameters.
-    fn format_fixed_opcode(&mut self, opcode: Opcode) -> FormatResult<()> {
+    fn format_named_opcode(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             // values
             Opcode::MOVE
             | Opcode::MOVE_RANGE
             | Opcode::SELECT
             | Opcode::SELECT_RANGE
-            | Opcode::EQUAL
-            | Opcode::TYPE_ID => self.format_value(opcode),
+            | Opcode::EQUAL => self.format_value(opcode),
 
             // constants
-            Opcode::CONSTANT_BYTES
+            Opcode::CONSTANT_TYPE
+            | Opcode::CONSTANT_BYTES
             | Opcode::CONSTANT_INT128
             | Opcode::CONSTANT_UINT128
-            | Opcode::CONSTANT_NULL => self.format_fixed_constant(opcode),
+            | Opcode::CONSTANT_NULL
+            | Opcode::CONSTANT_UNDEFINED => self.format_named_constant(opcode),
 
             // addresses
             Opcode::GLOBAL_ADDRESS
             | Opcode::FRAME_ADDRESS
-            | Opcode::ADDRESS_OFFSET
-            | Opcode::ADDRESS_ELEMENT
-            | Opcode::ADDRESS_DISTANCE => self.format_address(opcode),
+            | Opcode::POINTER_OFFSET
+            | Opcode::POINTER_INDEX
+            | Opcode::POINTER_DISTANCE
+            | Opcode::REFERENCE_POINTER => self.format_pointer(opcode),
 
             // byte ranges
             Opcode::COPY_BYTES
@@ -159,7 +161,9 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             }
 
             // allocation and destruction
-            Opcode::NEW_COMPLETE | Opcode::FREE | Opcode::DROP => self.format_reference(opcode),
+            Opcode::ASSUME_INITIALIZED | Opcode::FREE | Opcode::DROP => {
+                self.format_reference(opcode)
+            }
 
             // address stability
             Opcode::PIN | Opcode::UNPIN => self.format_reference(opcode),
@@ -192,7 +196,8 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::YIELD
             | Opcode::RETURN
             | Opcode::TRAP
-            | Opcode::UNREACHABLE => self.format_control(opcode),
+            | Opcode::UNREACHABLE
+            | Opcode::BREAKPOINT => self.format_control(opcode),
 
             // panic and unwind
             Opcode::CATCH | Opcode::PANIC | Opcode::PANIC_VALUE | Opcode::UNWIND_RESUME => {
@@ -201,7 +206,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
 
             // atomic memory
             Opcode::ATOMIC_FENCE => self.format_fence(),
-            Opcode::ATOMIC_WAKE | Opcode::ATOMIC_WAKE_ALL => self.format_wake(opcode),
 
             // runtime checks
             Opcode::CHECK_NULL | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
@@ -210,9 +214,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
 
             // profile instrumentation
             Opcode::PROFILE_INCREMENT | Opcode::PROFILE_SAMPLE => self.format_profile(opcode),
-
-            // debug control
-            Opcode::BREAKPOINT => self.format_control(opcode),
 
             _ => Err(FormatError::SyntaxError {
                 message: "unsupported bytecode opcode",
@@ -264,10 +265,10 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
         write!(self.formatter, [soft_line_break_or_space()])
     }
 
-    /// Return one required fixed opcode name.
-    pub(super) fn fixed_name(&self, opcode: Opcode) -> FormatResult<&'static str> {
-        opcode.fixed_name().ok_or(FormatError::SyntaxError {
-            message: "fixed opcode has no text name",
+    /// Return one required direct opcode name.
+    pub(super) fn opcode_name(&self, opcode: Opcode) -> FormatResult<&'static str> {
+        opcode.name().ok_or(FormatError::SyntaxError {
+            message: "opcode has no direct text name",
         })
     }
 

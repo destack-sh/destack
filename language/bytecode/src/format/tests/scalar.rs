@@ -19,32 +19,32 @@ export function add(r0: int32, r1: int32): (int32, boolean) {
     );
 }
 
-/// Format scalar and address conversions with one canonical cast form.
+/// Format scalar and pointer conversions with one canonical cast form.
 #[test]
 fn test_format_casts() {
     assert_format_eq(
         r#"
-export function convert(r0:int64,r1:float64,r2:address,r3:uint64):(int32,uint64,address,uint64,float32){
+export function convert(r0:int64,r1:float64,r2:pointer,r3:uint64):(int32,uint64,pointer,uint64,float32){
 r4:int32=cast.truncate r0->int32
 r5:uint64=cast.floatToInt.u r1->uint64
-r6:address=cast.intToAddress r3->address
-r7:uint64=cast.addressToInt r2->uint64
+r6:pointer=cast.intToPointer r3->pointer
+r7:uint64=cast.pointerToInt r2->uint64
 r8:float32=cast.floatTruncate r1->float32
 return r4,r5,r6,r7,r8
 }
 "#,
         r#"
-export function convert(r0: int64, r1: float64, r2: address, r3: uint64): (
+export function convert(r0: int64, r1: float64, r2: pointer, r3: uint64): (
     int32,
     uint64,
-    address,
+    pointer,
     uint64,
     float32
 ) {
     r4: int32 = cast.truncate r0 -> int32
     r5: uint64 = cast.floatToInt.u r1 -> uint64
-    r6: address = cast.intToAddress r3 -> address
-    r7: uint64 = cast.addressToInt r2 -> uint64
+    r6: pointer = cast.intToPointer r3 -> pointer
+    r7: uint64 = cast.pointerToInt r2 -> uint64
     r8: float32 = cast.floatTruncate r1 -> float32
     return r4, r5, r6, r7, r8
 }

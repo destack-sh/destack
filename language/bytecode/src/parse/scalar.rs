@@ -48,9 +48,18 @@ impl Parser<'_> {
             return function.emit(instruction, results, &[ty], self.empty_span());
         }
 
-        // encode the null address literal
-        if ty.is_address() && self.eat_name_if("null") {
-            let instruction = InstructionBuilder::new(Opcode::CONSTANT_NULL);
+        // encode one null pointer or reference niche
+        if (ty.is_pointer() || ty.is_initialized_reference()) && self.eat_name_if("null") {
+            let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_NULL);
+            instruction.value_type(ty);
+
+            return function.emit(instruction, results, &[ty], self.empty_span());
+        }
+
+        // encode one undefined reference niche
+        if ty.is_initialized_reference() && self.eat_name_if("undefined") {
+            let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_UNDEFINED);
+            instruction.value_type(ty);
 
             return function.emit(instruction, results, &[ty], self.empty_span());
         }
@@ -69,6 +78,18 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        if name == "constant.type" {
+            let ty = self.parse_type_name()?;
+            let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_TYPE);
+            instruction.symbol(Symbol::ty(ty.0));
+
+            return function.emit(
+                instruction,
+                results,
+                &[ValueType::type_id()],
+                self.empty_span(),
+            );
+        }
         if name != "constant.bytes" {
             return Err(ParseError::new("unknown constant operation", token.span));
         }
@@ -79,7 +100,7 @@ impl Parser<'_> {
             .get(self.text(constant))
             .copied()
             .ok_or_else(|| ParseError::new("unknown constant", constant.span))?;
-        let types = [ValueType::address(), ValueType::scalar(Scalar::Uint64)];
+        let types = [ValueType::pointer(), ValueType::scalar(Scalar::Uint64)];
         let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_BYTES);
         instruction.symbol(Symbol::constant(constant.0));
 
@@ -137,13 +158,9 @@ impl Parser<'_> {
                 .parse::<f64>()
                 .map_err(|_| ParseError::new("expected floating-point literal", token.span))?,
         };
-        let bits = match scalar {
-            Scalar::Float64 => value.to_bits(),
-            Scalar::Float32 => (value as f32).to_bits() as u64,
-            Scalar::Float16 => Scalar::float16_bits(value as f32) as u64,
-            Scalar::Bfloat16 => Scalar::bfloat16_bits(value as f32) as u64,
-            _ => return Err(ParseError::new("expected floating-point type", token.span)),
-        };
+        let bits = scalar
+            .float_bits(value)
+            .ok_or_else(|| ParseError::new("expected floating-point type", token.span))?;
 
         Ok(bits)
     }
@@ -201,7 +218,7 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let (family, operation_name) = name
+        let (prefix, operation_name) = name
             .split_once('.')
             .ok_or_else(|| ParseError::new("expected numeric operation", token.span))?;
         let (operation_name, signedness) = operation_name
@@ -213,7 +230,7 @@ impl Parser<'_> {
 
         // resolve the operation before consuming its logical inputs
         let (integer, float, input_count) =
-            self.resolve_numeric_operation(family, operation_name, token)?;
+            self.resolve_numeric_operation(prefix, operation_name, token)?;
         let inputs = self.parse_exact_registers(input_count)?;
         let input_type = inputs
             .first()
@@ -296,16 +313,16 @@ impl Parser<'_> {
     /// Resolve one integer or floating point operation and its input count.
     fn resolve_numeric_operation(
         &self,
-        family: &str,
+        prefix: &str,
         name: &str,
         token: Token,
     ) -> ParseResult<(Option<IntegerOperation>, Option<FloatOperation>, usize)> {
-        let integer = if family == "int" {
+        let integer = if prefix == "int" {
             IntegerOperation::from_name(name)
         } else {
             None
         };
-        let float = if family == "float" {
+        let float = if prefix == "float" {
             FloatOperation::from_name(name)
         } else {
             None
@@ -423,88 +440,5 @@ impl Parser<'_> {
             }
         }
         function.emit(instruction, results, &expected_results, self.empty_span())
-    }
-}
-
-impl Scalar {
-    /// Convert one binary32 value to its nearest binary16 encoding.
-    fn float16_bits(value: f32) -> u16 {
-        let bits = value.to_bits();
-        let sign = ((bits >> 16) & 0x8000) as u16;
-        let source_exponent = (bits >> 23) & 0xff;
-        let mantissa = bits & 0x7f_ffff;
-
-        // preserve infinities and quiet NaN payloads
-        if source_exponent == 0xff {
-            if mantissa == 0 {
-                return sign | 0x7c00;
-            }
-
-            let payload = ((mantissa >> 13) as u16) | 0x0200;
-
-            return sign | 0x7c00 | payload;
-        }
-
-        let exponent = source_exponent as i32 - 127 + 15;
-        if exponent >= 31 {
-            return sign | 0x7c00;
-        }
-
-        // round subnormal values into the ten-bit binary16 significand
-        if exponent <= 0 {
-            if exponent < -10 {
-                return sign;
-            }
-
-            let significand = mantissa | 0x80_0000;
-            let shift = (14 - exponent) as u32;
-            let rounded = Self::round_right(significand, shift) as u16;
-
-            return sign | rounded;
-        }
-
-        // round normal values and carry into the exponent when required
-        let rounded = Self::round_right(mantissa, 13);
-        let mut exponent = exponent as u16;
-        let mantissa = if rounded == 0x0400 {
-            exponent += 1;
-            0
-        } else {
-            rounded as u16
-        };
-        if exponent >= 31 {
-            sign | 0x7c00
-        } else {
-            sign | (exponent << 10) | mantissa
-        }
-    }
-
-    /// Convert one binary32 value to its nearest bfloat16 encoding.
-    fn bfloat16_bits(value: f32) -> u16 {
-        let bits = value.to_bits();
-        let exponent = bits & 0x7f80_0000;
-        let mantissa = bits & 0x007f_ffff;
-
-        // preserve and quiet NaN payloads without rounding into infinity
-        if exponent == 0x7f80_0000 && mantissa != 0 {
-            return ((bits >> 16) as u16) | 0x0040;
-        }
-
-        let tie = (bits >> 16) & 1;
-
-        (bits.wrapping_add(0x7fff + tie) >> 16) as u16
-    }
-
-    /// Round one unsigned value right using ties-to-even.
-    fn round_right(value: u32, shift: u32) -> u32 {
-        let rounded = value >> shift;
-        let remainder = value & ((1 << shift) - 1);
-        let halfway = 1 << (shift - 1);
-
-        if remainder > halfway || (remainder == halfway && rounded & 1 != 0) {
-            rounded + 1
-        } else {
-            rounded
-        }
     }
 }

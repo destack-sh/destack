@@ -251,7 +251,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // write the horizontal reduction
         self.write_result(result, ValueType::scalar(vector.scalar))?;
-        let family = if vector.scalar.is_float() {
+        let prefix = if vector.scalar.is_float() {
             "float"
         } else {
             "int"
@@ -266,7 +266,7 @@ impl InstructionFormatter<'_, '_, '_> {
                 space()
             ]
         )?;
-        self.write_text(family)?;
+        self.write_text(prefix)?;
         self.write_token(".")?;
         self.write_text(operation.name())?;
         write!(self.formatter, [token(","), space()])?;
@@ -315,9 +315,9 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one vector load.
     fn format_vector_load(&mut self) -> FormatResult<()> {
         let result = self.register_range_id()?;
-        let address = self.register_id()?;
+        let pointer = self.register_id()?;
         let vector = self.vector_type()?;
-        self.require_vector_value(address, ValueType::address())?;
+        self.require_vector_value(pointer, ValueType::pointer())?;
 
         // write the typed vector load
         self.vector_result(result, vector)?;
@@ -325,17 +325,17 @@ impl InstructionFormatter<'_, '_, '_> {
             self.formatter,
             [space(), token("="), space(), token("load"), space()]
         )?;
-        self.write_register(address)?;
+        self.write_register(pointer)?;
 
         Ok(())
     }
 
     /// Format one vector store.
     fn format_vector_store(&mut self) -> FormatResult<()> {
-        let address = self.register_id()?;
+        let pointer = self.register_id()?;
         let (value, word_count) = self.register_range_id()?;
         let vector = self.vector_type()?;
-        self.require_vector_value(address, ValueType::address())?;
+        self.require_vector_value(pointer, ValueType::pointer())?;
 
         // require the encoded input range to match the register file
         let value_type = self.formatter.context().register_type(value)?;
@@ -347,7 +347,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // write the typed vector store
         write!(self.formatter, [token("store"), space()])?;
-        self.write_register(address)?;
+        self.write_register(pointer)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(value)?;
 
@@ -370,7 +370,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Decode one typed vector operator name.
     fn vector_operator(&self, vector: VectorType, code: u16) -> FormatResult<String> {
-        let family = if vector.scalar.is_float() {
+        let prefix = if vector.scalar.is_float() {
             "float"
         } else {
             "int"
@@ -384,7 +384,7 @@ impl InstructionFormatter<'_, '_, '_> {
             message: "vector instruction has an invalid operation",
         })?;
 
-        Ok(format!("{family}.{operation}"))
+        Ok(format!("{prefix}.{operation}"))
     }
 
     /// Require one register to contain an exact vector operand type.

@@ -15,11 +15,9 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        match Opcode::from_name(name) {
-            Some(Opcode::SLICE_VIEW) => {
-                self.parse_slice_view(token, results, result_types, function)
-            }
-            Some(Opcode::SLICE_LENGTH) => self.parse_slice_length(token, results, function),
+        match name {
+            "slice.view" => self.parse_slice_view(token, results, result_types, function),
+            "slice.length" => self.parse_slice_length(token, results, function),
             _ => Err(ParseError::new("unknown slice operation", token.span)),
         }
     }

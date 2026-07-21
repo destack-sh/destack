@@ -30,7 +30,7 @@ export function add(
 fn test_parse_vector_memory() {
     let (_, opcodes) = TestParser::new(
         r#"
-export function copy(r0: address): void {
+export function copy(r0: pointer): void {
     r1: vector<int32, 4> = load r0
     store r0, r1
     return

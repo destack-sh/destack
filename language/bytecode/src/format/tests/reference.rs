@@ -7,7 +7,7 @@ fn test_format_reference_operations() {
         r#"
 type Point
 
-export function references(r0:address,r1:ref<managed,space(local)>,r2:ref<unique,space(local)>,r3:uint64):ref<managed,space(local)>{
+export function references(r0:pointer,r1:ref<managed,space(local)>,r2:ref<unique,space(local)>,r3:uint64):ref<managed,space(local)>{
 r4:ref<managed,space(local)>=load r0
 store r0,r4
 pin r4
@@ -22,7 +22,7 @@ return r4
 type Point
 
 export function references(
-    r0: address,
+    r0: pointer,
     r1: ref<managed, space(local)>,
     r2: ref<unique, space(local)>,
     r3: uint64,

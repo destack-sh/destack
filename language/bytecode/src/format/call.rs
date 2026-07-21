@@ -121,7 +121,7 @@ impl InstructionFormatter<'_, '_, '_> {
                 write!(self.formatter, [space(), token("="), space()])?;
             }
         }
-        let name = self.fixed_name(opcode)?;
+        let name = self.opcode_name(opcode)?;
         self.write_text(name)?;
         write!(self.formatter, [space()])?;
         self.write_call_target(&target)?;

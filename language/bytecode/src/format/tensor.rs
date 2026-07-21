@@ -403,9 +403,9 @@ impl InstructionFormatter<'_, '_, '_> {
         let operation = operation.ok_or(FormatError::SyntaxError {
             message: "tensor instruction has an invalid scalar operator",
         })?;
-        let family = if scalar.is_float() { "float" } else { "int" };
+        let prefix = if scalar.is_float() { "float" } else { "int" };
 
-        Ok(format!("{family}.{operation}"))
+        Ok(format!("{prefix}.{operation}"))
     }
 
     /// Format one tensor contraction.

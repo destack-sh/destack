@@ -165,8 +165,10 @@ impl Parser<'_> {
 
         // encode the inputs, lane map, and vector representation
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Shuffle));
-        instruction.registers(&[left, right]);
-        instruction.u16(lanes.len() as u16);
+        instruction
+            .registers(&[left, right])
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
+        instruction.u16(vector.lane_count);
         for lane in lanes {
             instruction.u16(lane);
         }
@@ -201,7 +203,9 @@ impl Parser<'_> {
         // encode the matching vector inputs and boolean mask result
         let mask = vector.mask();
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Compare));
-        instruction.registers(&[left, right]);
+        instruction
+            .registers(&[left, right])
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         instruction.vector_type(vector);
         instruction.u16(operator);
 
@@ -241,7 +245,9 @@ impl Parser<'_> {
 
         // encode all input values and the wide result
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Select));
-        instruction.registers(&[condition, left, right]);
+        instruction
+            .registers(&[condition, left, right])
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         instruction.vector_type(vector);
 
         function.emit(instruction, results, &[vector_type], self.empty_span())
@@ -255,20 +261,20 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let operator = self.eat_token(TokenType::Identifier)?;
-        let (family, operation) = self
+        let (prefix, operation) = self
             .text(operator)
             .split_once('.')
             .ok_or_else(|| ParseError::new("expected vector reduction", operator.span))?;
         self.eat_token(TokenType::Comma)?;
         let input = self.parse_register()?;
         let vector = self.vector_type(function, input, token)?;
-        let expected_family = if vector.scalar.is_float() {
+        let expected_prefix = if vector.scalar.is_float() {
             "float"
         } else {
             "int"
         };
         let operation = ReduceOperation::from_name(operation)
-            .filter(|_| family == expected_family)
+            .filter(|_| prefix == expected_prefix)
             .ok_or_else(|| ParseError::new("expected vector reduction", operator.span))?;
 
         // encode the wide input and scalar result
@@ -331,17 +337,17 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let vector = self.vector_result(result_types, token)?;
-        let address = self.parse_register()?;
-        if !function.has_type(address, ValueType::address()) {
+        let pointer = self.parse_register()?;
+        if !function.has_type(pointer, ValueType::pointer()) {
             return Err(ParseError::new(
-                "vector load target is not an address",
+                "vector load target is not a pointer",
                 token.span,
             ));
         }
 
-        // encode the address and wide vector result
+        // encode the pointer and wide vector result
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Load));
-        instruction.register(address);
+        instruction.register(pointer);
         instruction.vector_type(vector);
 
         function.emit(
@@ -365,17 +371,17 @@ impl Parser<'_> {
         let vector_type = ValueType::vector(vector);
 
         // resolve the scalar operation and exact input count
-        let (family, operation_name) = name
+        let (prefix, operation_name) = name
             .split_once('.')
             .ok_or_else(|| ParseError::new("expected vector operation", token.span))?;
-        let expected_family = if vector.scalar.is_float() {
+        let expected_prefix = if vector.scalar.is_float() {
             "float"
         } else {
             "int"
         };
-        if family != expected_family {
+        if prefix != expected_prefix {
             return Err(ParseError::new(
-                "vector operation does not match its scalar family",
+                "vector operation does not match its scalar representation",
                 token.span,
             ));
         }
@@ -400,7 +406,9 @@ impl Parser<'_> {
 
         // encode the input vectors and scalar operation code
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Element));
-        instruction.registers(&inputs);
+        instruction
+            .registers(&inputs)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         instruction.vector_type(vector);
         instruction.u16(operator.0);
 
@@ -428,18 +436,18 @@ impl Parser<'_> {
             .ok_or_else(|| ParseError::new("expected vector input", token.span))
     }
 
-    /// Resolve one vector operator for its exact scalar family.
+    /// Resolve one vector operator for its exact scalar representation.
     fn vector_operator(&self, text: &str, scalar: Scalar, token: Token) -> ParseResult<u16> {
-        let (family, name) = text
+        let (prefix, name) = text
             .split_once('.')
             .ok_or_else(|| ParseError::new("expected vector comparison", token.span))?;
-        let expected_family = if scalar.is_float() { "float" } else { "int" };
-        if family != expected_family {
+        let expected_prefix = if scalar.is_float() { "float" } else { "int" };
+        if prefix != expected_prefix {
             return Err(ParseError::new("expected vector comparison", token.span));
         }
 
-        // accept comparisons from the exact scalar family
-        let operation = match expected_family {
+        // accept comparisons from the exact scalar representation
+        let operation = match expected_prefix {
             "int" => IntegerOperation::from_name(name)
                 .filter(|operation| operation.is_comparison())
                 .map(|operation| operation as u16),

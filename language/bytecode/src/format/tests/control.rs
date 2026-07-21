@@ -36,7 +36,7 @@ fn test_format_checked_control_flow() {
         r#"
 type User
 
-export function choose(r0:int32,r1:int32,r2:typeId,r3:address):int32{
+export function choose(r0:int32,r1:int32,r2:typeId,r3:pointer):int32{
 check.nonzero.int32 r0 else l3
 check.type r2:User else l3
 check.null r3 else l3
@@ -54,7 +54,7 @@ trap bounds
         r#"
 type User
 
-export function choose(r0: int32, r1: int32, r2: typeId, r3: address): int32 {
+export function choose(r0: int32, r1: int32, r2: typeId, r3: pointer): int32 {
     check.nonzero.int32 r0 else l3
     check.type r2: User else l3
     check.null r3 else l3

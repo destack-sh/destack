@@ -14,7 +14,7 @@ type Point
 export function allocate(r0: uint64): ref<managed, space(local)> {
     r1: ref<managed, space(local)> = new.local.managed.zeroed Point
     r2: uninit<slice<Point, managed, space(local)>> = new.local.managed.slice.uninit Point, r0
-    r2: slice<Point, managed, space(local)> = new.complete r2
+    r2: slice<Point, managed, space(local)> = assumeInitialized r2
     return r1
 }
 "#,
@@ -39,7 +39,7 @@ export function allocate(r0: uint64): ref<managed, space(local)> {
                 is_fallible: false,
             })
             .expect("new opcode"),
-            Opcode::NEW_COMPLETE,
+            Opcode::ASSUME_INITIALIZED,
             Opcode::RETURN,
         ]
     );

@@ -38,9 +38,9 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // dispatch operations by their ISA family
-        let family = name.split_once('.').map_or(name, |(family, _)| family);
-        match family {
+        // dispatch operations by their first name component
+        let prefix = name.split_once('.').map_or(name, |(prefix, _)| prefix);
+        match prefix {
             // constants
             "constant" => self.parse_constant_operation(name, token, results, function),
 
@@ -74,18 +74,16 @@ impl Parser<'_> {
             {
                 self.parse_vector_operation(name, token, results, result_types, function)
             }
-            "select" | "move" | "equal" | "type" => {
-                self.parse_value_operation(name, token, results, function)
-            }
+            "select" | "equal" => self.parse_value_operation(name, token, results, function),
+            "move" if name == "move" => self.parse_value_operation(name, token, results, function),
 
             // addresses
-            "global" | "frame" | "address" => {
-                self.parse_address_operation(name, token, results, function)
+            "global" | "frame" | "reference" | "pointer" => {
+                self.parse_pointer_operation(name, token, results, function)
             }
 
             // byte ranges, prefetch, and memory
-            "copyBytes" | "moveBytes" | "fillBytes" | "compareBytes" | "prefetchRead"
-            | "prefetchWrite" | "load" | "store" => {
+            "copy" | "move" | "fill" | "compare" | "prefetch" | "load" | "store" => {
                 self.parse_memory_operation(name, token, results, result_types, function)
             }
             "atomic" => self.parse_atomic_operation(name, token, results, result_types, function),
@@ -98,10 +96,8 @@ impl Parser<'_> {
             "dynamic" => self.parse_dynamic_operation(name, token, results, result_types, function),
 
             // new and destruction
-            "new" if name != "new.complete" => {
-                self.parse_new(name, token, results, result_types, function)
-            }
-            "new" => self.parse_reference_operation(name, token, results, function),
+            "new" => self.parse_new(name, token, results, result_types, function),
+            "assumeInitialized" => self.parse_reference_operation(name, token, results, function),
             "free" | "drop" => self.parse_reference_operation(name, token, results, function),
 
             // address stability
@@ -116,9 +112,8 @@ impl Parser<'_> {
 
             // control flow
             "branch" if name != "branch" => self.parse_branch(name, token, results, function),
-            "jump" | "branch" | "switch" | "yield" | "return" | "trap" | "unreachable" => {
-                self.parse_control_operation(name, token, results, function)
-            }
+            "jump" | "branch" | "switch" | "yield" | "return" | "trap" | "unreachable"
+            | "breakpoint" => self.parse_control_operation(name, token, results, function),
 
             // panic and unwind
             "panic" | "unwind" | "catch" => {
@@ -129,9 +124,6 @@ impl Parser<'_> {
             "check" => self.parse_check_operation(name, token, results, function),
             "cast" => self.parse_cast_operation(name, token, results, result_types, function),
             "profile" => self.parse_profile_operation(name, token, results, function),
-
-            // debug control
-            "breakpoint" => self.parse_control_operation(name, token, results, function),
 
             _ => Err(ParseError::new("unknown bytecode operation", token.span)),
         }
@@ -147,7 +139,7 @@ impl Parser<'_> {
         let is_named = token.ty == TokenType::Identifier
             && matches!(
                 self.text(token),
-                "true" | "false" | "Infinity" | "-Infinity" | "NaN" | "bits" | "null"
+                "true" | "false" | "Infinity" | "-Infinity" | "NaN" | "bits" | "null" | "undefined"
             );
 
         is_number || is_named

@@ -12,7 +12,6 @@ impl InstructionFormatter<'_, '_, '_> {
         match opcode {
             Opcode::MOVE | Opcode::MOVE_RANGE => self.format_move(opcode),
             Opcode::SELECT | Opcode::SELECT_RANGE => self.format_select(opcode),
-            Opcode::TYPE_ID => self.format_type_id(),
             Opcode::EQUAL => self.format_equal(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid value opcode",
@@ -95,25 +94,12 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_register(right)
     }
 
-    /// Format one linked runtime type identity.
-    fn format_type_id(&mut self) -> FormatResult<()> {
-        self.result(ValueType::type_id())?;
-        let symbol = self.symbol()?;
-
-        // write the linked runtime type
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("type.id"), space()]
-        )?;
-        self.write_text(&symbol)
-    }
-
     /// Format exact equality between matching one-register values.
     fn format_equal(&mut self) -> FormatResult<()> {
         self.result(ValueType::scalar(Scalar::Boolean))?;
         let left = self.register_id()?;
         let right = self.register_id()?;
-        let name = Opcode::EQUAL.fixed_name().ok_or(FormatError::SyntaxError {
+        let name = Opcode::EQUAL.name().ok_or(FormatError::SyntaxError {
             message: "equality has no canonical name",
         })?;
 

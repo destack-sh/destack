@@ -14,6 +14,15 @@ pub enum MemoryOperation {
 }
 
 impl MemoryOperation {
+    /// Decode one stable memory operation code.
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::Load),
+            1 => Some(Self::Store),
+            _ => None,
+        }
+    }
+
     /// Return the canonical bytecode text name.
     pub const fn name(self) -> &'static str {
         match self {
@@ -51,10 +60,6 @@ pub enum AtomicOperation {
     FetchMinimum = 10,
     /// Atomically select the maximum value.
     FetchMaximum = 11,
-    /// Wait for one atomic value to change.
-    Wait = 12,
-    /// Wait for one atomic value to change until one timeout.
-    WaitTimed = 13,
 }
 
 impl AtomicOperation {
@@ -73,8 +78,6 @@ impl AtomicOperation {
             "rmw.xor" => Some(Self::FetchXor),
             "rmw.min" => Some(Self::FetchMinimum),
             "rmw.max" => Some(Self::FetchMaximum),
-            "wait" => Some(Self::Wait),
-            "waitTimed" => Some(Self::WaitTimed),
             _ => None,
         }
     }
@@ -94,8 +97,6 @@ impl AtomicOperation {
             Self::FetchXor => "rmw.xor",
             Self::FetchMinimum => "rmw.min",
             Self::FetchMaximum => "rmw.max",
-            Self::Wait => "wait",
-            Self::WaitTimed => "waitTimed",
         }
     }
 
@@ -114,8 +115,6 @@ impl AtomicOperation {
             9 => Some(Self::FetchXor),
             10 => Some(Self::FetchMinimum),
             11 => Some(Self::FetchMaximum),
-            12 => Some(Self::Wait),
-            13 => Some(Self::WaitTimed),
             _ => None,
         }
     }
@@ -131,16 +130,14 @@ impl AtomicOperation {
             Self::FetchAdd | Self::FetchSubtract | Self::FetchMinimum | Self::FetchMaximum => {
                 scalar.is_integer() || scalar.is_float()
             }
-            Self::FetchAnd | Self::FetchOr | Self::FetchXor | Self::Wait | Self::WaitTimed => {
-                scalar.is_integer()
-            }
+            Self::FetchAnd | Self::FetchOr | Self::FetchXor => scalar.is_integer(),
         }
     }
 
     /// Return whether this operation accepts one memory order.
     pub const fn accepts(self, order: AtomicOrder) -> bool {
         match self {
-            Self::Load | Self::Wait | Self::WaitTimed => matches!(
+            Self::Load => matches!(
                 order,
                 AtomicOrder::Relaxed | AtomicOrder::Acquire | AtomicOrder::SequentiallyConsistent
             ),
@@ -168,11 +165,7 @@ impl AtomicOperation {
 
     /// Return the logical result type for this operation and scalar.
     pub const fn result_type(self, scalar: Scalar) -> ValueType {
-        if matches!(self, Self::Wait | Self::WaitTimed) {
-            ValueType::scalar(Scalar::Uint32)
-        } else {
-            ValueType::scalar(scalar)
-        }
+        ValueType::scalar(scalar)
     }
 }
 
@@ -292,30 +285,6 @@ impl ExecutionScope {
             2 => Some(Self::Workgroup),
             3 => Some(Self::Device),
             4 => Some(Self::System),
-            _ => None,
-        }
-    }
-}
-
-/// One atomic wait completion status.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum WaitStatus {
-    /// The stored value did not equal the expected value.
-    NotEqual = 0,
-    /// The timeout elapsed before a wake.
-    TimedOut = 1,
-    /// Another execution context woke the waiter.
-    Woken = 2,
-}
-
-impl WaitStatus {
-    /// Decode one stable wait status code.
-    pub const fn from_code(code: u8) -> Option<Self> {
-        match code {
-            0 => Some(Self::NotEqual),
-            1 => Some(Self::TimedOut),
-            2 => Some(Self::Woken),
             _ => None,
         }
     }

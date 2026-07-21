@@ -19,6 +19,9 @@ pub struct New {
 }
 
 impl New {
+    /// The number of stable `new` operation encodings.
+    pub(crate) const CODE_COUNT: u16 = 32;
+
     /// Return the reference representation produced by this operation.
     pub const fn reference(self) -> ReferenceType {
         ReferenceType::new(self.ownership, self.space)
@@ -40,6 +43,64 @@ impl New {
                 ValueType::uninit_slice(ty, self.ownership, self.space)
             }
         }
+    }
+
+    /// Encode this operation inside the `new` opcode range.
+    pub(crate) const fn code(self) -> Option<u16> {
+        let space = match self.space {
+            Space::LOCAL => 0,
+            Space::SHARED => 1,
+            _ => return None,
+        };
+        let ownership = match self.ownership {
+            ReferenceKind::MANAGED => 0,
+            ReferenceKind::UNIQUE => 1,
+            _ => return None,
+        };
+        let code = space
+            | (ownership << 1)
+            | ((self.kind as u16) << 2)
+            | ((self.initialization as u16) << 3)
+            | ((self.is_fallible as u16) << 4);
+
+        Some(code)
+    }
+
+    /// Decode one operation inside the `new` opcode range.
+    pub(crate) const fn from_code(code: u16) -> Option<Self> {
+        if code >= Self::CODE_COUNT {
+            return None;
+        }
+
+        let space = if code & 1 == 0 {
+            Space::LOCAL
+        } else {
+            Space::SHARED
+        };
+        let ownership = if code & (1 << 1) == 0 {
+            ReferenceKind::MANAGED
+        } else {
+            ReferenceKind::UNIQUE
+        };
+        let kind = if code & (1 << 2) == 0 {
+            NewKind::Value
+        } else {
+            NewKind::Slice
+        };
+        let initialization = if code & (1 << 3) == 0 {
+            Initialization::Zeroed
+        } else {
+            Initialization::Uninit
+        };
+        let is_fallible = code & (1 << 4) != 0;
+
+        Some(Self {
+            space,
+            ownership,
+            kind,
+            initialization,
+            is_fallible,
+        })
     }
 
     /// Parse one canonical `new` operation name.

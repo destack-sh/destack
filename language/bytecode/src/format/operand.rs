@@ -1,8 +1,8 @@
 use destack_fir::format::{FormatError, FormatResult};
 
 use crate::{
-    CodeOffset, CounterId, Error, Label, RegisterId, RegisterRange, SamplerId, Scalar, Symbol,
-    ValueType, VectorType,
+    CodeOffset, CounterId, Error, Label, ReferenceType, RegisterId, RegisterRange, SamplerId,
+    Scalar, Symbol, ValueType, VectorType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -87,6 +87,11 @@ impl<'code> InstructionFormatter<'code, '_, '_> {
         Scalar::from_code(self.u16()? as u8).ok_or(FormatError::SyntaxError {
             message: "instruction has an invalid scalar operand",
         })
+    }
+
+    /// Read one reference representation operand.
+    pub(super) fn reference(&mut self) -> FormatResult<ReferenceType> {
+        self.operands.reference().map_err(FormatError::from)
     }
 
     /// Read one complete bytecode value type operand.

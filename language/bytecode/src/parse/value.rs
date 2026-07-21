@@ -1,6 +1,6 @@
 use crate::{
     InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar,
-    Symbol, Token, TokenType, ValueType,
+    Token, TokenType, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -14,11 +14,10 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        match Opcode::from_name(name) {
-            Some(Opcode::MOVE) => self.parse_move(token, results, function),
-            Some(Opcode::SELECT) => self.parse_select(token, results, function),
-            Some(Opcode::TYPE_ID) => self.parse_type_id(results, function),
-            Some(Opcode::EQUAL) => self.parse_equal(token, results, function),
+        match name {
+            "move" => self.parse_move(token, results, function),
+            "select" => self.parse_select(token, results, function),
+            "equal" => self.parse_equal(token, results, function),
             _ => Err(ParseError::new("unknown value operation", token.span)),
         }
     }
@@ -96,24 +95,6 @@ impl Parser<'_> {
         }
 
         function.emit(instruction, results, &[ty], self.empty_span())
-    }
-
-    /// Parse one linked runtime type identity.
-    fn parse_type_id(
-        &mut self,
-        results: &[RegisterId],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let ty = self.parse_type_name()?;
-        let mut instruction = InstructionBuilder::new(Opcode::TYPE_ID);
-        instruction.symbol(Symbol::ty(ty.0));
-
-        function.emit(
-            instruction,
-            results,
-            &[ValueType::type_id()],
-            self.empty_span(),
-        )
     }
 
     /// Parse exact equality between matching one-register values.

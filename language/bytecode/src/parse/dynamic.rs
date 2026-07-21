@@ -15,14 +15,10 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        match Opcode::from_name(name) {
-            Some(Opcode::DYNAMIC_BIND) => {
-                self.parse_dynamic_bind(token, results, result_types, function)
-            }
-            Some(Opcode::DYNAMIC_PAYLOAD) => {
-                self.parse_dynamic_payload(token, results, result_types, function)
-            }
-            Some(Opcode::DYNAMIC_TYPE) => self.parse_dynamic_type(token, results, function),
+        match name {
+            "dynamic.bind" => self.parse_dynamic_bind(token, results, result_types, function),
+            "dynamic.payload" => self.parse_dynamic_payload(token, results, result_types, function),
+            "dynamic.type" => self.parse_dynamic_type(token, results, function),
             _ => Err(ParseError::new("unknown dynamic operation", token.span)),
         }
     }

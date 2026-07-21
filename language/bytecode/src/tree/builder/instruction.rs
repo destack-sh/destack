@@ -1,6 +1,6 @@
 use crate::{
-    CounterId, Label, Opcode, ReferenceKind, RegisterId, RegisterRange, SamplerId, Scalar, Space,
-    Symbol, ValueType, VectorType,
+    CounterId, Error, Label, Opcode, ReferenceKind, RegisterId, RegisterRange, Result, SamplerId,
+    Scalar, Space, Symbol, ValueType, VectorType,
 };
 
 /// Encoded operands for one instruction under construction.
@@ -55,12 +55,14 @@ impl InstructionBuilder {
     }
 
     /// Append one counted register list.
-    pub fn registers(&mut self, registers: &[RegisterId]) {
+    pub fn registers(&mut self, registers: &[RegisterId]) -> Result<()> {
+        self.encode_count(registers.len())?;
         self.registers.extend_from_slice(registers);
-        self.u16(registers.len() as u16);
         for register in registers {
             self.u16(register.0);
         }
+
+        Ok(())
     }
 
     /// Append one contiguous register range.
@@ -75,21 +77,45 @@ impl InstructionBuilder {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
 
+    /// Append one counted unsigned 16-bit list.
+    pub fn u16s(&mut self, values: &[u16]) -> Result<()> {
+        self.encode_count(values.len())?;
+        for value in values {
+            self.u16(*value);
+        }
+
+        Ok(())
+    }
+
     /// Append one unsigned 32-bit operand.
     pub fn u32(&mut self, value: u32) {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
 
     /// Append one function-local profile counter.
-    pub fn counter(&mut self, counter: CounterId) {
-        self.counter_count = self.counter_count.max(counter.0 + 1);
+    pub fn counter(&mut self, counter: CounterId) -> Result<()> {
+        let count = counter
+            .0
+            .checked_add(1)
+            .ok_or(Error::CounterOutOfRange(counter.0))?;
+
+        self.counter_count = self.counter_count.max(count);
         self.u32(counter.0);
+
+        Ok(())
     }
 
     /// Append one function-local profile sampler.
-    pub fn sampler(&mut self, sampler: SamplerId) {
-        self.sampler_count = self.sampler_count.max(sampler.0 + 1);
+    pub fn sampler(&mut self, sampler: SamplerId) -> Result<()> {
+        let count = sampler
+            .0
+            .checked_add(1)
+            .ok_or(Error::SamplerOutOfRange(sampler.0))?;
+
+        self.sampler_count = self.sampler_count.max(count);
         self.u32(sampler.0);
+
+        Ok(())
     }
 
     /// Append one signed 32-bit operand.
@@ -100,6 +126,16 @@ impl InstructionBuilder {
     /// Append one unsigned 64-bit operand.
     pub fn u64(&mut self, value: u64) {
         self.bytes.extend_from_slice(&value.to_le_bytes());
+    }
+
+    /// Append one counted unsigned 64-bit list.
+    pub fn u64s(&mut self, values: &[u64]) -> Result<()> {
+        self.encode_count(values.len())?;
+        for value in values {
+            self.u64(*value);
+        }
+
+        Ok(())
     }
 
     /// Append one unsigned 128-bit operand.
@@ -145,5 +181,13 @@ impl InstructionBuilder {
     /// Append one complete value type operand.
     pub fn value_type(&mut self, ty: ValueType) {
         self.bytes.extend_from_slice(&ty.bytes());
+    }
+
+    /// Append one encoded variable operand count.
+    fn encode_count(&mut self, count: usize) -> Result<()> {
+        let count = u16::try_from(count).map_err(|_| Error::TooManyOperands(count))?;
+        self.u16(count);
+
+        Ok(())
     }
 }

@@ -1,16 +1,18 @@
-use crate::{FunctionId, Opcode};
+use crate::{
+    FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, Space, TypeId, ValueType,
+};
 
 use super::TestParser;
 
 /// Parse reference loads, stores, lifetime operations, barriers, drops, and releases.
 #[test]
 fn test_parse_reference_operations() {
-    let (_, opcodes) = TestParser::new(
+    let (object, opcodes) = TestParser::new(
         r#"
 type Point
 
 export function references(
-    r0: address,
+    r0: pointer,
     r1: ref<managed, space(local)>,
     r2: ref<unique, space(local)>,
     r3: uint64,
@@ -40,5 +42,45 @@ export function references(
             Opcode::FREE,
             Opcode::RETURN,
         ]
+    );
+
+    // retain the managed reference representation for collector operations
+    let instruction = object
+        .instruction(FunctionId(0), 4)
+        .expect("valid instruction")
+        .expect("barrier instruction");
+    let mut operands = instruction.operands();
+    assert_eq!(operands.register().expect("object register"), RegisterId(4));
+    assert_eq!(
+        operands.reference().expect("object representation"),
+        ReferenceType::new(ReferenceKind::MANAGED, Space::LOCAL)
+    );
+
+    // retain both the value representation and concrete destructor type
+    let instruction = object
+        .instruction(FunctionId(0), 5)
+        .expect("valid instruction")
+        .expect("drop instruction");
+    let mut operands = instruction.operands();
+    assert_eq!(operands.register().expect("value register"), RegisterId(0));
+    assert_eq!(
+        operands.value_type().expect("value representation"),
+        ValueType::pointer()
+    );
+    assert_eq!(operands.u32().expect("dropped type"), TypeId(0).0);
+
+    // retain the unique local representation required to free the allocation
+    let instruction = object
+        .instruction(FunctionId(0), 6)
+        .expect("valid instruction")
+        .expect("free instruction");
+    let mut operands = instruction.operands();
+    assert_eq!(
+        operands.register().expect("reference register"),
+        RegisterId(2)
+    );
+    assert_eq!(
+        operands.reference().expect("reference representation"),
+        ReferenceType::new(ReferenceKind::UNIQUE, Space::LOCAL)
     );
 }

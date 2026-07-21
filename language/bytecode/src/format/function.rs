@@ -144,10 +144,19 @@ impl Function {
                         copied_text(&name),
                         token(":"),
                         space(),
-                        copied_text(&ty),
-                        hard_line_break()
+                        copied_text(&ty)
                     ]
                 )?;
+                if let Some(registers) = slot.registers() {
+                    write!(formatter, [space(), token("="), space()])?;
+                    format_register(registers.start.0, formatter)?;
+                    let word_count = registers.word_count.to_string();
+                    write!(
+                        formatter,
+                        [token("["), copied_text(&word_count), token("]")]
+                    )?;
+                }
+                write!(formatter, [hard_line_break()])?;
             }
 
             Ok(())

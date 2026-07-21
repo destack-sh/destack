@@ -36,14 +36,14 @@ impl Parser<'_> {
         }
 
         // byte range and prefetch operations
-        match Opcode::from_name(name) {
-            Some(opcode @ (Opcode::COPY_BYTES | Opcode::MOVE_BYTES)) => {
-                self.parse_byte_transfer(opcode, token, results, function)
-            }
-            Some(Opcode::FILL_BYTES) => self.parse_byte_fill(token, results, function),
-            Some(Opcode::COMPARE_BYTES) => self.parse_byte_compare(token, results, function),
-            Some(opcode @ (Opcode::PREFETCH_READ | Opcode::PREFETCH_WRITE)) => {
-                self.parse_prefetch(opcode, token, results, function)
+        match name {
+            "copy.bytes" => self.parse_byte_transfer(Opcode::COPY_BYTES, token, results, function),
+            "move.bytes" => self.parse_byte_transfer(Opcode::MOVE_BYTES, token, results, function),
+            "fill.bytes" => self.parse_byte_fill(token, results, function),
+            "compare.bytes" => self.parse_byte_compare(token, results, function),
+            "prefetch.read" => self.parse_prefetch(Opcode::PREFETCH_READ, token, results, function),
+            "prefetch.write" => {
+                self.parse_prefetch(Opcode::PREFETCH_WRITE, token, results, function)
             }
             _ => Err(ParseError::new("unknown memory operation", token.span)),
         }
@@ -66,16 +66,16 @@ impl Parser<'_> {
             .reference_type()
             .filter(|_| ty.is_initialized_reference())
         {
-            let address = self.parse_register()?;
-            if !function.has_type(address, ValueType::address()) {
+            let pointer = self.parse_register()?;
+            if !function.has_type(pointer, ValueType::pointer()) {
                 return Err(ParseError::new(
-                    "reference load requires a native address",
+                    "reference load requires a native pointer",
                     token.span,
                 ));
             }
 
             let mut instruction = InstructionBuilder::new(Opcode::LOAD);
-            instruction.register(address);
+            instruction.register(pointer);
             instruction.reference(reference.kind(), reference.space());
 
             function.emit(instruction, results, &[ty], self.empty_span())
@@ -100,10 +100,10 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let address = self.parse_register()?;
-        if !function.has_type(address, ValueType::address()) {
+        let pointer = self.parse_register()?;
+        if !function.has_type(pointer, ValueType::pointer()) {
             return Err(ParseError::new(
-                "store requires a native address",
+                "store requires a native pointer",
                 token.span,
             ));
         }
@@ -118,7 +118,7 @@ impl Parser<'_> {
         // store one reference word
         if ty.is_initialized_reference() {
             let mut instruction = InstructionBuilder::new(Opcode::STORE);
-            instruction.register(address);
+            instruction.register(pointer);
             instruction.register(value);
 
             function.emit(instruction, results, &[], self.empty_span())
@@ -126,7 +126,7 @@ impl Parser<'_> {
         // store one fixed width vector range
         else if let Some(vector) = ty.vector_type() {
             let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Store));
-            instruction.register(address);
+            instruction.register(pointer);
             instruction.range(RegisterRange::new(value, vector.word_count()));
             instruction.vector_type(vector);
 
@@ -158,11 +158,11 @@ impl Parser<'_> {
             MemoryOperation::Store
         };
 
-        // require one native target address
-        let address = self.parse_register()?;
-        if !function.has_type(address, ValueType::address()) {
+        // require one native target pointer
+        let pointer = self.parse_register()?;
+        if !function.has_type(pointer, ValueType::pointer()) {
             return Err(ParseError::new(
-                "memory operation requires a native address",
+                "memory operation requires a native pointer",
                 token.span,
             ));
         }
@@ -179,7 +179,7 @@ impl Parser<'_> {
                     token.span,
                 ));
             }
-            instruction.register(address);
+            instruction.register(pointer);
 
             function.emit(instruction, results, &[ty], self.empty_span())
         }
@@ -193,7 +193,7 @@ impl Parser<'_> {
                     token.span,
                 ));
             }
-            instruction.register(address);
+            instruction.register(pointer);
             instruction.register(value);
 
             function.emit(instruction, results, &[], self.empty_span())
@@ -215,12 +215,12 @@ impl Parser<'_> {
         self.eat_token(TokenType::Comma)?;
         let byte_len = self.parse_register()?;
 
-        // match both addresses and the byte length
-        let are_addresses_valid = function.has_type(source, ValueType::address())
-            && function.has_type(target, ValueType::address());
-        if !are_addresses_valid || !function.has_type(byte_len, ValueType::scalar(Scalar::Uint64)) {
+        // match both pointers and the byte length
+        let are_pointers_valid = function.has_type(source, ValueType::pointer())
+            && function.has_type(target, ValueType::pointer());
+        if !are_pointers_valid || !function.has_type(byte_len, ValueType::scalar(Scalar::Uint64)) {
             return Err(ParseError::new(
-                "byte transfer requires addresses and a uint64 byte length",
+                "byte transfer requires pointers and a uint64 byte length",
                 token.span,
             ));
         }
@@ -247,12 +247,12 @@ impl Parser<'_> {
         let byte = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let byte_len = self.parse_register()?;
-        if !function.has_type(target, ValueType::address())
+        if !function.has_type(target, ValueType::pointer())
             || !function.has_type(byte, ValueType::scalar(Scalar::Uint8))
             || !function.has_type(byte_len, ValueType::scalar(Scalar::Uint64))
         {
             return Err(ParseError::new(
-                "byte fill requires an address, uint8 byte, and uint64 byte length",
+                "byte fill requires a pointer, uint8 byte, and uint64 byte length",
                 token.span,
             ));
         }
@@ -273,19 +273,19 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // parse both addresses and compared byte length
+        // parse both pointers and compared byte length
         let left = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let right = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let byte_len = self.parse_register()?;
 
-        // match both addresses and the byte length
-        let are_addresses_valid = function.has_type(left, ValueType::address())
-            && function.has_type(right, ValueType::address());
-        if !are_addresses_valid || !function.has_type(byte_len, ValueType::scalar(Scalar::Uint64)) {
+        // match both pointers and the byte length
+        let are_pointers_valid = function.has_type(left, ValueType::pointer())
+            && function.has_type(right, ValueType::pointer());
+        if !are_pointers_valid || !function.has_type(byte_len, ValueType::scalar(Scalar::Uint64)) {
             return Err(ParseError::new(
-                "byte comparison requires addresses and a uint64 byte length",
+                "byte comparison requires pointers and a uint64 byte length",
                 token.span,
             ));
         }
@@ -312,15 +312,15 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // require one native address
-        let address = self.parse_register()?;
-        if !function.has_type(address, ValueType::address()) {
-            return Err(ParseError::new("prefetch requires an address", token.span));
+        // require one native pointer
+        let pointer = self.parse_register()?;
+        if !function.has_type(pointer, ValueType::pointer()) {
+            return Err(ParseError::new("prefetch requires a pointer", token.span));
         }
 
         // encode the prefetch hint
         let mut instruction = InstructionBuilder::new(opcode);
-        instruction.register(address);
+        instruction.register(pointer);
 
         function.emit(instruction, results, &[], self.empty_span())
     }

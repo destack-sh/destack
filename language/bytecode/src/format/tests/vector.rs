@@ -24,14 +24,14 @@ export function splat(r0: int32): vector<int32, 4> {
 fn test_format_vector_memory() {
     assert_format_eq(
         r#"
-export function copy(r0:address):void{
+export function copy(r0:pointer):void{
 r1:vector<int32,4>=load r0
 store r0,r1
 return
 }
 "#,
         r#"
-export function copy(r0: address): void {
+export function copy(r0: pointer): void {
     r1: vector<int32, 4> = load r0
     store r0, r1
     return

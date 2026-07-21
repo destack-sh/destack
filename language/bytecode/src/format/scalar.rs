@@ -4,22 +4,41 @@ use destack_fir::write;
 
 use crate::{
     BooleanOperation, CastOperation, FloatOperation, IntegerOperation, Opcode, Operand, RegisterId,
-    Scalar, ValueType,
+    Scalar, ValueType, Word,
 };
 
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
-    /// Format one fixed constant instruction.
-    pub(super) fn format_fixed_constant(&mut self, opcode: Opcode) -> FormatResult<()> {
+    /// Format one directly named constant instruction.
+    pub(super) fn format_named_constant(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
+            Opcode::CONSTANT_TYPE => self.format_type_constant(),
             Opcode::CONSTANT_BYTES => self.format_constant_bytes(),
             Opcode::CONSTANT_INT128 | Opcode::CONSTANT_UINT128 => self.format_wide_constant(opcode),
-            Opcode::CONSTANT_NULL => self.format_null(),
+            Opcode::CONSTANT_NULL | Opcode::CONSTANT_UNDEFINED => self.format_nullish(opcode),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid constant opcode",
             }),
         }
+    }
+
+    /// Format one linked runtime type identity.
+    fn format_type_constant(&mut self) -> FormatResult<()> {
+        self.result(ValueType::type_id())?;
+        let symbol = self.symbol()?;
+
+        write!(
+            self.formatter,
+            [
+                space(),
+                token("="),
+                space(),
+                token("constant.type"),
+                space()
+            ]
+        )?;
+        self.write_text(&symbol)
     }
 
     /// Format one immutable byte sequence constant.
@@ -31,8 +50,8 @@ impl InstructionFormatter<'_, '_, '_> {
             });
         }
 
-        // write the address and byte length results
-        self.write_result(result, ValueType::address())?;
+        // write the pointer and byte length results
+        self.write_result(result, ValueType::pointer())?;
         write!(self.formatter, [token(","), space()])?;
         self.write_result(RegisterId(result.0 + 1), ValueType::scalar(Scalar::Uint64))?;
 
@@ -71,13 +90,19 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_text(&value)
     }
 
-    /// Format one null native address constant.
-    fn format_null(&mut self) -> FormatResult<()> {
-        self.result(ValueType::address())?;
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("null")]
-        )
+    /// Format one nullish pointer or reference constant.
+    fn format_nullish(&mut self, opcode: Opcode) -> FormatResult<()> {
+        let result = self.register_id()?;
+        let ty = self.value_type()?;
+        self.write_result(result, ty)?;
+        let literal = if opcode == Opcode::CONSTANT_NULL {
+            "null"
+        } else {
+            "undefined"
+        };
+
+        write!(self.formatter, [space(), token("="), space()])?;
+        self.write_text(literal)
     }
 
     /// Format one scalar constant.
@@ -118,9 +143,9 @@ impl InstructionFormatter<'_, '_, '_> {
         } else {
             vec![result]
         };
-        let family = if scalar.is_float() { "float" } else { "int" };
+        let prefix = if scalar.is_float() { "float" } else { "int" };
 
-        let name = format!("{family}.{operation}");
+        let name = format!("{prefix}.{operation}");
 
         self.format_scalar_operation(&name, &results)
     }
@@ -290,17 +315,13 @@ impl Scalar {
             Self::Uint32 => (bits as u32).to_string(),
             Self::Int64 => (bits as i64).to_string(),
             Self::Uint64 => bits.to_string(),
-            Self::Float16 => {
-                Self::float_literal(Self::float16(bits as u16) as f64, bits as u16 as u64)
+            Self::Float16 | Self::Bfloat16 | Self::Float32 | Self::Float64 => {
+                let Some(value) = self.float(bits) else {
+                    unreachable!("floating-point scalars have one concrete format");
+                };
+
+                Self::float_literal(value, Word::scalar(bits, self).bits())
             }
-            Self::Bfloat16 => Self::float_literal(
-                f32::from_bits((bits as u32) << 16) as f64,
-                bits as u16 as u64,
-            ),
-            Self::Float32 => {
-                Self::float_literal(f32::from_bits(bits as u32) as f64, bits as u32 as u64)
-            }
-            Self::Float64 => Self::float_literal(f64::from_bits(bits), bits),
         }
     }
 
@@ -315,31 +336,5 @@ impl Scalar {
         } else {
             value.to_string()
         }
-    }
-
-    /// Decode one IEEE binary16 value.
-    fn float16(bits: u16) -> f32 {
-        let sign = ((bits & 0x8000) as u32) << 16;
-        let exponent = (bits >> 10) & 0x1f;
-        let mantissa = bits & 0x03ff;
-        let value = if exponent == 0 {
-            if mantissa == 0 {
-                sign
-            } else {
-                let mut mantissa = mantissa as u32;
-                let mut exponent = 113u32;
-                while mantissa & 0x0400 == 0 {
-                    mantissa <<= 1;
-                    exponent -= 1;
-                }
-                sign | (exponent << 23) | ((mantissa & 0x03ff) << 13)
-            }
-        } else if exponent == 0x1f {
-            sign | 0x7f80_0000 | ((mantissa as u32) << 13)
-        } else {
-            sign | (((exponent as u32) + 112) << 23) | ((mantissa as u32) << 13)
-        };
-
-        f32::from_bits(value)
     }
 }

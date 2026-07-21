@@ -31,7 +31,7 @@ export function calculate(r0: int32, r1: int32): (int32, boolean) {
     );
 }
 
-/// Parse scalar and address conversions through one cast family.
+/// Parse scalar and pointer conversions through one cast form.
 #[test]
 fn test_parse_casts() {
     let (_, opcodes) = TestParser::new(
@@ -39,13 +39,13 @@ fn test_parse_casts() {
 export function convert(
     r0: int64,
     r1: float64,
-    r2: address,
+    r2: pointer,
     r3: uint64,
-): (int32, uint64, address, uint64, float32) {
+): (int32, uint64, pointer, uint64, float32) {
     r4: int32 = cast.truncate r0 -> int32
     r5: uint64 = cast.floatToInt.u r1 -> uint64
-    r6: address = cast.intToAddress r3 -> address
-    r7: uint64 = cast.addressToInt r2 -> uint64
+    r6: pointer = cast.intToPointer r3 -> pointer
+    r7: uint64 = cast.pointerToInt r2 -> uint64
     r8: float32 = cast.floatTruncate r1 -> float32
     return r4, r5, r6, r7, r8
 }
@@ -68,8 +68,8 @@ export function convert(
                 ValueType::scalar(Scalar::Uint64),
             )
             .expect("float to integer cast opcode"),
-            Opcode::CAST_INT_TO_ADDRESS,
-            Opcode::CAST_ADDRESS_TO_INT,
+            Opcode::CAST_INT_TO_POINTER,
+            Opcode::CAST_POINTER_TO_INT,
             Opcode::cast(
                 CastOperation::FloatConvert,
                 ValueType::scalar(Scalar::Float64),

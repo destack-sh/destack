@@ -7,8 +7,8 @@ fn test_format_function() {
         r#"
 type Pair
 export function update(r0:int32,r1:uint64):int32{
-slot s0:Pair
-r2:address=frame.address s0
+slot s0:Pair=r0[1]
+r2:pointer=frame.address s0
 r3:int32=move r0
 return r3
 }
@@ -17,9 +17,9 @@ return r3
 type Pair
 
 export function update(r0: int32, r1: uint64): int32 {
-    slot s0: Pair
+    slot s0: Pair = r0[1]
 
-    r2: address = frame.address s0
+    r2: pointer = frame.address s0
     r3: int32 = move r0
     return r3
 }

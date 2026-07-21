@@ -20,10 +20,6 @@ impl Parser<'_> {
         if name == "atomic.fence" {
             return self.parse_atomic_fence(results, function);
         }
-        if name == "atomic.wake" || name == "atomic.wakeAll" {
-            return self.parse_atomic_wake(name, token, results, function);
-        }
-
         self.parse_atomic_access(name, token, results, result_types, function)
     }
 
@@ -60,56 +56,6 @@ impl Parser<'_> {
         function.emit(instruction, results, &[], self.empty_span())
     }
 
-    /// Parse one bounded or unbounded atomic wake.
-    fn parse_atomic_wake(
-        &mut self,
-        name: &str,
-        token: Token,
-        results: &[RegisterId],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let opcode = if name == "atomic.wake" {
-            Opcode::ATOMIC_WAKE
-        } else {
-            Opcode::ATOMIC_WAKE_ALL
-        };
-        let address = self.parse_register()?;
-        if !function.has_type(address, ValueType::address()) {
-            return Err(ParseError::new(
-                "atomic wake requires a native address",
-                token.span,
-            ));
-        }
-
-        // encode the result and target address
-        let mut instruction = InstructionBuilder::new(opcode);
-        instruction.register(address);
-
-        // parse the bounded wake count
-        if opcode == Opcode::ATOMIC_WAKE {
-            self.eat_token(TokenType::Comma)?;
-            let count = self.parse_register()?;
-            if !function.has_type(count, ValueType::scalar(Scalar::Uint64)) {
-                return Err(ParseError::new(
-                    "atomic wake count is not uint64",
-                    token.span,
-                ));
-            }
-            instruction.register(count);
-        }
-
-        // encode the optional execution scope
-        let scope = self.parse_optional_scope()?;
-        instruction.u16(scope as u16);
-
-        function.emit(
-            instruction,
-            results,
-            &[ValueType::scalar(Scalar::Uint64)],
-            self.empty_span(),
-        )
-    }
-
     /// Parse one typed atomic memory access.
     fn parse_atomic_access(
         &mut self,
@@ -121,11 +67,11 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         let (operation, scalar) = self.parse_atomic_name(name, token)?;
 
-        // parse the address and optional scalar value
-        let address = self.parse_register()?;
-        if !function.has_type(address, ValueType::address()) {
+        // parse the pointer and optional scalar value
+        let pointer = self.parse_register()?;
+        if !function.has_type(pointer, ValueType::pointer()) {
             return Err(ParseError::new(
-                "atomic operation requires a native address",
+                "atomic operation requires a native pointer",
                 token.span,
             ));
         }
@@ -149,7 +95,7 @@ impl Parser<'_> {
         let opcode = Opcode::atomic(operation, scalar)
             .ok_or_else(|| ParseError::new("invalid atomic operation", token.span))?;
         let mut instruction = InstructionBuilder::new(opcode);
-        instruction.register(address);
+        instruction.register(pointer);
         if let Some(value) = value {
             instruction.register(value);
         }
@@ -160,10 +106,6 @@ impl Parser<'_> {
         {
             instruction.register(replacement);
         }
-        if let Some(timeout) = self.parse_atomic_timeout(operation, token, function)? {
-            instruction.register(timeout);
-        }
-
         // encode operation specific memory access
         self.eat_token(TokenType::Comma)?;
         let access = self.parse_atomic_access_bits(operation, token)?;
@@ -248,29 +190,6 @@ impl Parser<'_> {
         Ok(Some(replacement))
     }
 
-    /// Parse the timeout required by one timed wait.
-    fn parse_atomic_timeout(
-        &mut self,
-        operation: AtomicOperation,
-        token: Token,
-        function: &FunctionParser,
-    ) -> ParseResult<Option<RegisterId>> {
-        if operation != AtomicOperation::WaitTimed {
-            return Ok(None);
-        }
-
-        self.eat_token(TokenType::Comma)?;
-        let timeout = self.parse_register()?;
-        if !function.has_type(timeout, ValueType::scalar(Scalar::Uint64)) {
-            return Err(ParseError::new(
-                "atomic wait timeout is not uint64",
-                token.span,
-            ));
-        }
-
-        Ok(Some(timeout))
-    }
-
     /// Parse the memory access required by one atomic operation.
     fn parse_atomic_access_bits(
         &mut self,
@@ -328,10 +247,15 @@ impl Parser<'_> {
 
     /// Parse an optional accelerated execution scope.
     fn parse_optional_scope(&mut self) -> ParseResult<ExecutionScope> {
+        let position = self.cursor.position();
         if !self.eat_token_if(TokenType::Comma) {
             return Ok(ExecutionScope::System);
         }
-        self.eat_name("scope")?;
+        if !self.eat_name_if("scope") {
+            self.cursor.seek(position);
+
+            return Ok(ExecutionScope::System);
+        }
         self.eat_token(TokenType::OpenParenthesis)?;
         let token = self.eat_token(TokenType::Identifier)?;
         let scope = ExecutionScope::from_name(self.text(token))

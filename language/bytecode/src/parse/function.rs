@@ -13,8 +13,8 @@ use crate::{
 pub(super) struct FunctionParser {
     /// Physical bytecode function builder.
     pub(super) builder: FunctionBuilder,
-    /// The frame slots declared before the function body.
-    pub(super) frame_slot_count: u32,
+    /// Physical frame slots in declaration order.
+    frame_slots: Vec<FrameSlot>,
     /// Register types established by parameters and instructions.
     pub(super) register_types: Vec<Option<ValueType>>,
     /// Logical function result types in return order.
@@ -30,12 +30,17 @@ impl FunctionParser {
     pub(super) fn new() -> Self {
         Self {
             builder: FunctionBuilder::new(),
-            frame_slot_count: 0,
+            frame_slots: Vec::new(),
             register_types: Vec::new(),
             results: Vec::new(),
             resume_parameters: Vec::new(),
             environment: None,
         }
+    }
+
+    /// Return whether one dense frame slot has been declared.
+    pub(super) fn contains_frame_slot(&self, slot: u32) -> bool {
+        (slot as usize) < self.frame_slots.len()
     }
 
     /// Encode one complete instruction into this function.
@@ -313,15 +318,12 @@ impl Parser<'_> {
         }
 
         self.eat_token(TokenType::OpenBrace)?;
-        let slot_start = self.object.frame_slot_count() as u32;
         let resume_parameters = self.object.push_value_types(resume_parameters);
 
         // parse the complete logical frame first
         while self.peek_name("slot") {
-            let slot_index = self.object.frame_slot_count() as u32 - slot_start;
-            self.parse_frame_slot(slot_index)?;
+            self.parse_frame_slot(&mut function)?;
         }
-        function.frame_slot_count = self.object.frame_slot_count() as u32 - slot_start;
 
         // parse labels and instructions after frame declarations
         while !self.eat_token_if(TokenType::CloseBrace) {
@@ -340,7 +342,18 @@ impl Parser<'_> {
             }
         }
 
-        let slot_len = self.object.frame_slot_count() as u32 - slot_start;
+        // require every register-backed slot to name a complete value range
+        for slot in &function.frame_slots {
+            if slot
+                .registers()
+                .is_some_and(|registers| !function.contains_range(registers))
+            {
+                return Err(ParseError::new(
+                    "frame slot references an invalid register range",
+                    self.empty_span(),
+                ));
+            }
+        }
 
         // finish the physical function body
         let environment = function.environment;
@@ -359,6 +372,13 @@ impl Parser<'_> {
         let operation_offsets = self
             .object
             .push_operation_offsets(body.operation_offsets.iter().copied());
+
+        // append the resolved frame rows in function order
+        let slot_start = self.object.frame_slot_count() as u32;
+        for slot in function.frame_slots.iter().copied() {
+            self.object.push_frame_slot(slot);
+        }
+        let slot_len = function.frame_slots.len() as u32;
 
         // publish the complete function row
         let function = Function::new(
@@ -484,16 +504,33 @@ impl Parser<'_> {
     }
 
     /// Parse one frame slot.
-    fn parse_frame_slot(&mut self, slot_index: u32) -> ParseResult<()> {
+    fn parse_frame_slot(&mut self, function: &mut FunctionParser) -> ParseResult<()> {
         self.eat_name("slot")?;
         let slot = self.eat_token(TokenType::Identifier)?;
+        let slot_index = function.frame_slots.len();
         let expected = format!("s{slot_index}");
         if self.text(slot) != expected {
             return Err(ParseError::new("frame slots must be dense", slot.span));
         }
         self.eat_token(TokenType::Colon)?;
         let ty = self.parse_storage_type()?;
-        self.object.push_frame_slot(FrameSlot { ty });
+        let slot = if self.eat_token_if(TokenType::Equal) {
+            let register = self.parse_register()?;
+            self.eat_token(TokenType::OpenBracket)?;
+            let word_count = self.parse_u16()?;
+            self.eat_token(TokenType::CloseBracket)?;
+            if word_count == 0 {
+                return Err(ParseError::new(
+                    "frame register range must not be empty",
+                    slot.span,
+                ));
+            }
+
+            FrameSlot::from_registers(ty, RegisterRange::new(register, word_count))
+        } else {
+            FrameSlot::new(ty)
+        };
+        function.frame_slots.push(slot);
 
         Ok(())
     }
@@ -550,16 +587,14 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        match Opcode::from_name(name) {
-            Some(Opcode::FUNCTION_ADDRESS) => self.parse_function_address(results, function),
-            Some(Opcode::FUNCTION_BIND) => {
-                self.parse_function_bind(token, results, result_types, function)
-            }
-            Some(Opcode::FUNCTION_POINTER) => self.parse_function_pointer(token, results, function),
-            Some(Opcode::FUNCTION_ENVIRONMENT) => {
+        match name {
+            "function.address" => self.parse_function_address(results, function),
+            "function.bind" => self.parse_function_bind(token, results, result_types, function),
+            "function.pointer" => self.parse_function_pointer(token, results, function),
+            "function.environment" => {
                 self.parse_function_environment(token, results, result_types, function)
             }
-            Some(Opcode::FUNCTION_ENVIRONMENT_CURRENT) => {
+            "function.environment.current" => {
                 self.parse_current_environment(token, results, result_types, function)
             }
             _ => Err(ParseError::new("unknown function operation", token.span)),
