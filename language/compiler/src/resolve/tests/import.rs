@@ -105,6 +105,50 @@ dep.value;
 }
 
 #[test]
+fn test_collect_namespace_path_from_call_callee() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+import * as dep from "./dep.ds";
+
+dep.make().value;
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export declare function make(): { value: number };
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+import * as dep from "./dep.ds";
+/// @import.namespace symbol=dep module=dep.ds
+
+dep.make().value;
+/// @reference.namespace source=dep module=dep.ds
+/// @reference.bound source=dep.make targets=[dep.make]
+
+/// @import.language item=collections.Array symbol=collections.array.Array
+/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.BigInt symbol=math.bigint.BigInt
+/// @import.language item=math.Number symbol=math.number.Number
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary symbols=1 language=6
+/// @resolve.stats roots=2 expressions=5 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:1,hit:0,cycle:0
+/// @reference.summary references=2
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_records_nested_namespace_import_path() {
     let compiler = TestSession::builder()
         .module(

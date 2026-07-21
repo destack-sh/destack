@@ -36,8 +36,6 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
     /// Namespace path references collected from active roots.
     pub(in crate::resolve) path_references: Vec<PathReference>,
-    /// Nesting depth within a member chain, so only its outermost member collects.
-    pub(in crate::resolve) member_chain_depth: usize,
     /// Source-visible global keys referenced by active roots.
     pub(in crate::resolve) global_keys: IndexSet<dir::StaticKey>,
     /// Language items used by active roots without source imports.
@@ -112,7 +110,6 @@ impl<'a> ResolveState<'a> {
             stats: ResolveStats::default(),
             module_clauses: Vec::new(),
             path_references: Vec::new(),
-            member_chain_depth: 0,
             global_keys: IndexSet::new(),
             language_items: IndexSet::new(),
             function_stack: Vec::new(),

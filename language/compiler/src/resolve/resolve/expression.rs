@@ -26,10 +26,9 @@ impl ResolveState<'_> {
                     },
                 });
             }
-            dir::Expression::Member { .. } => {
-                // collect the path once, at the outermost member of a chain
-                if self.member_chain_depth == 0
-                    && let Some(path) = tree.reference_path(id)
+            dir::Expression::Member { left, .. } => {
+                // collect the complete contiguous name path
+                if let Some(path) = tree.reference_path(id)
                     && path.segments.len() > 1
                 {
                     self.collect_path_reference(PathReference {
@@ -40,10 +39,8 @@ impl ResolveState<'_> {
 
                 self.use_apparent_member_language_items();
 
-                // mark the nested members so only the outermost collects
-                self.member_chain_depth += 1;
-                dir::walk_expression(self, tree, id, expression);
-                self.member_chain_depth -= 1;
+                // skip covered member prefixes, but resume normal visiting across expressions
+                self.walk_member_receiver(tree, *left);
             }
             dir::Expression::ForEach {
                 operator: dir::ForEachOperator::Of,
@@ -119,6 +116,28 @@ impl ResolveState<'_> {
                 target: Some(_), ..
             } => {}
             _ => dir::walk_expression(self, tree, id, expression),
+        }
+    }
+
+    /// Walk the receiver beneath one collected member path.
+    fn walk_member_receiver(
+        &mut self,
+        tree: &dir::Tree,
+        mut receiver: dir::LocalNodeId<dir::Expression>,
+    ) {
+        loop {
+            let expression = tree.get(receiver);
+            let dir::Expression::Member { left, .. } = expression else {
+                self.stats.expressions += 1;
+                self.walk_expression(tree, receiver, expression);
+
+                return;
+            };
+
+            // contiguous prefixes are already represented by the collected path
+            self.stats.expressions += 1;
+            self.use_apparent_member_language_items();
+            receiver = *left;
         }
     }
 
