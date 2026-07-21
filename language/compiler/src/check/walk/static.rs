@@ -35,12 +35,11 @@ impl WalkState<'_, '_> {
     /// function f() {}
     /// ```
     fn decide_static_gate(&mut self, decorated: dir::LocalNodeIdAny) -> CompilerResult<StaticGate> {
-        let decorated_global = decorated.into_global(self.module);
         if let Some(gate) = self
             .check
             .module(self.module)
             .static_presence
-            .get(&decorated_global)
+            .get(&decorated)
             .copied()
         {
             return Ok(gate);
@@ -57,13 +56,13 @@ impl WalkState<'_, '_> {
                 StaticGuard::Rejected(error) => {
                     self.check
                         .report_invalid_static_if_invocation(self.module, error.node())?;
-                    self.commit_static_gate(decorated_global, StaticGate::Absent);
+                    self.commit_static_gate(decorated, StaticGate::Absent);
 
                     return Ok(StaticGate::Absent);
                 }
                 StaticGuard::Condition(condition) => match self.evaluate_static_gate(condition)? {
                     StaticGate::Absent => {
-                        self.commit_static_gate(decorated_global, StaticGate::Absent);
+                        self.commit_static_gate(decorated, StaticGate::Absent);
 
                         return Ok(StaticGate::Absent);
                     }
@@ -72,23 +71,20 @@ impl WalkState<'_, '_> {
             }
         }
 
-        self.commit_static_gate(decorated_global, StaticGate::Present);
+        self.commit_static_gate(decorated, StaticGate::Present);
 
         Ok(StaticGate::Present)
     }
 
     /// Commit one static gate decision.
-    fn commit_static_gate(&mut self, decorated: dir::GlobalNodeIdAny, gate: StaticGate) {
+    fn commit_static_gate(&mut self, decorated: dir::LocalNodeIdAny, gate: StaticGate) {
+        let module = self.check.module_mut(self.module);
         if gate == StaticGate::Absent {
-            self.check
-                .module_mut(self.module)
-                .statics
-                .set_absent(decorated);
+            module.statics.insert_absent_root(decorated);
         }
-        self.check
-            .module_mut(self.module)
-            .static_presence
-            .insert(decorated, gate);
+
+        // retain the decision for repeated decorator walks
+        module.static_presence.insert(decorated, gate);
     }
 
     /// Decide whether one node is present under its static decorators.
@@ -421,7 +417,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<StaticGate> {
         self.module(node.module_id)
             .static_presence
-            .get(&node)
+            .get(&node.local_id)
             .copied()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check node {} has no static gate", self.node_label(node)),

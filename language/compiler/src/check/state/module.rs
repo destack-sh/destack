@@ -80,7 +80,7 @@ pub(in crate::check) struct CheckModuleState {
 
     // statically false gates
     /// Presence decisions for decorated source nodes.
-    pub(in crate::check) static_presence: FxIndexMap<dir::GlobalNodeIdAny, StaticGate>,
+    pub(in crate::check) static_presence: FxIndexMap<dir::LocalNodeIdAny, StaticGate>,
     /// Declarations whose guards decided statically false.
     pub(in crate::check) absent_symbols: FxIndexSet<dir::GlobalSymbolId>,
 
@@ -388,8 +388,7 @@ impl CheckState<'_> {
         let view = module.view();
         let mut current = Some(node.local_id);
         while let Some(local) = current {
-            let global = local.into_global(node.module_id);
-            if module.statics.is_absent(global) {
+            if module.statics.contains_absent_root(local) {
                 return true;
             }
             current = view.get_parent_any(local);
