@@ -59,6 +59,11 @@ impl Code {
         sections.entries(self.functions)
     }
 
+    /// Return the contiguous linked instruction bytes.
+    pub fn bytes<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
+        sections.entries(self.code)
+    }
+
     /// Return one linked bytecode function by its Program table index.
     pub fn function<'a>(
         &self,
@@ -77,7 +82,7 @@ impl Code {
         let function = self.function(sections, function_index)?;
         let code = function.code()?;
 
-        Some(code.instructions(sections.entries(self.code)))
+        Some(code.instructions(self.bytes(sections)))
     }
 
     /// Read one instruction by logical operation index.
@@ -99,8 +104,33 @@ impl Code {
             return Ok(None);
         };
 
-        code.instruction(sections.entries(self.code), offset)
-            .map(Some)
+        code.instruction(self.bytes(sections), offset).map(Some)
+    }
+
+    /// Return the logical operation at one exact function byte offset.
+    pub fn operation_at(
+        &self,
+        sections: SectionImage<'_>,
+        function_index: usize,
+        offset: CodeOffset,
+    ) -> Option<u32> {
+        let function = self.function(sections, function_index)?;
+        let offsets = function.operation_offsets(sections.entries(self.operation_offsets));
+        let operation = offsets.binary_search(&offset).ok()?;
+
+        u32::try_from(operation).ok()
+    }
+
+    /// Return one function-relative byte offset by logical operation index.
+    pub fn operation_offset(
+        &self,
+        sections: SectionImage<'_>,
+        function_index: usize,
+        operation: u32,
+    ) -> Option<CodeOffset> {
+        let function = self.function(sections, function_index)?;
+
+        function.operation_offset(sections.entries(self.operation_offsets), operation)
     }
 }
 

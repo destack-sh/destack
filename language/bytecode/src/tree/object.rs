@@ -10,9 +10,6 @@ use crate::{
     Instructions, StringEntry, Type, TypeId, ValueType,
 };
 
-pub(super) const OBJECT_MAGIC: u32 = u32::from_le_bytes(*b"DSBC");
-pub(super) const OBJECT_VERSION: u16 = 1;
-
 /// Relocatable Destack bytecode for one module.
 #[derive(Clone, Debug, Reflect)]
 pub struct Object {
@@ -55,7 +52,7 @@ pub struct Object {
 /// Bytecode object load failure.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObjectLoadError {
-    /// The byte region cannot contain an object root.
+    /// The byte region cannot contain an object header.
     Truncated,
     /// The byte region does not satisfy object alignment.
     Misaligned,
@@ -63,7 +60,7 @@ pub enum ObjectLoadError {
     InvalidMagic,
     /// The bytecode version is not supported.
     UnsupportedVersion(u16),
-    /// The root length does not match the byte region.
+    /// The header length does not match the byte region.
     InvalidLength,
     /// One typed section lies outside the byte region or violates entry alignment.
     InvalidSection,
@@ -87,15 +84,15 @@ impl fmt::Display for ObjectLoadError {
 
 impl std::error::Error for ObjectLoadError {}
 
-/// Fixed root stored at byte zero of every bytecode object.
+/// Fixed header stored at byte zero of every bytecode object.
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, SectionEntry)]
-pub(super) struct Root {
+pub(super) struct ObjectHeader {
     /// Stable object format marker.
     pub(super) magic: u32,
     /// Stable object format version.
     pub(super) version: u16,
-    /// Reserved root word.
+    /// Reserved header word.
     pub(super) reserved: u16,
     /// Complete object image byte length.
     pub(super) byte_len: u64,
@@ -133,12 +130,17 @@ pub(super) struct Root {
     pub(super) operation_offsets: SectionSlice<CodeOffset>,
 }
 
-impl Root {
-    /// Create one empty bytecode object root.
+impl ObjectHeader {
+    /// The stable bytecode object marker.
+    const MAGIC: u32 = u32::from_le_bytes(*b"DSBC");
+    /// The stable bytecode object version.
+    const VERSION: u16 = 1;
+
+    /// Create one empty bytecode object header.
     pub(super) fn new() -> Self {
         Self {
-            magic: OBJECT_MAGIC,
-            version: OBJECT_VERSION,
+            magic: Self::MAGIC,
+            version: Self::VERSION,
             reserved: 0,
             byte_len: 0,
             strings: SectionSlice::empty(),
@@ -167,22 +169,22 @@ impl Root {
             return Err(ObjectLoadError::Misaligned);
         }
 
-        // SAFETY: the byte region is large and aligned enough for the fixed root.
-        let root = unsafe { &*bytes.as_ptr().cast::<Self>() };
-        if root.magic != OBJECT_MAGIC {
+        // SAFETY: the byte region is large and aligned enough for the fixed header.
+        let header = unsafe { &*bytes.as_ptr().cast::<Self>() };
+        if header.magic != Self::MAGIC {
             return Err(ObjectLoadError::InvalidMagic);
         }
-        if root.version != OBJECT_VERSION {
-            return Err(ObjectLoadError::UnsupportedVersion(root.version));
+        if header.version != Self::VERSION {
+            return Err(ObjectLoadError::UnsupportedVersion(header.version));
         }
-        if usize::try_from(root.byte_len).ok() != Some(bytes.len()) {
+        if usize::try_from(header.byte_len).ok() != Some(bytes.len()) {
             return Err(ObjectLoadError::InvalidLength);
         }
 
         // require every section descriptor to fit the mapped image
-        root.check_sections()?;
+        header.check_sections()?;
 
-        Ok(*root)
+        Ok(*header)
     }
 
     /// Require every typed section to fit this object image.
@@ -228,9 +230,9 @@ impl Root {
 impl Object {
     /// Load one compiler-produced object from retained aligned storage.
     pub fn load(storage: SectionStorage) -> Result<Self, ObjectLoadError> {
-        let root = Root::load(storage.bytes())?;
+        let header = ObjectHeader::load(storage.bytes())?;
 
-        Ok(Self::from_root(root, storage))
+        Ok(Self::from_header(header, storage))
     }
 
     /// Copy and load one bytecode object.
@@ -379,23 +381,23 @@ impl Object {
         self.sections().entries(self.operation_offsets)
     }
 
-    /// Build one object owner from its fixed root and retained storage.
-    pub(super) fn from_root(root: Root, storage: SectionStorage) -> Self {
+    /// Build one object owner from its fixed header and retained storage.
+    pub(super) fn from_header(header: ObjectHeader, storage: SectionStorage) -> Self {
         Self {
-            strings: root.strings,
-            string_bytes: root.string_bytes,
-            types: root.types,
-            function_types: root.function_types,
-            value_types: root.value_types,
-            globals: root.globals,
-            constants: root.constants,
-            constant_bytes: root.constant_bytes,
-            frame_slots: root.frame_slots,
-            functions: root.functions,
-            code: root.code,
-            instruction_relocations: root.instruction_relocations,
-            constant_relocations: root.constant_relocations,
-            operation_offsets: root.operation_offsets,
+            strings: header.strings,
+            string_bytes: header.string_bytes,
+            types: header.types,
+            function_types: header.function_types,
+            value_types: header.value_types,
+            globals: header.globals,
+            constants: header.constants,
+            constant_bytes: header.constant_bytes,
+            frame_slots: header.frame_slots,
+            functions: header.functions,
+            code: header.code,
+            instruction_relocations: header.instruction_relocations,
+            constant_relocations: header.constant_relocations,
+            operation_offsets: header.operation_offsets,
             storage,
         }
     }
@@ -423,5 +425,5 @@ impl<'de> Deserialize<'de> for Object {
     }
 }
 
-const _: () = assert!(align_of::<Root>() == 16);
-const _: () = assert!(size_of::<Root>() == 240);
+const _: () = assert!(align_of::<ObjectHeader>() == 16);
+const _: () = assert!(size_of::<ObjectHeader>() == 240);

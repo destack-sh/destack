@@ -1,6 +1,6 @@
 use destack_core::{EntryRange, LocalStringPool, Optional, SectionBuilder, StringId};
 
-use crate::tree::object::Root;
+use crate::tree::object::ObjectHeader;
 use crate::{
     CodeOffset, CodeRange, Constant, ConstantId, ConstantRelocation, FrameSlot, Function,
     FunctionId, FunctionType, FunctionTypeId, Global, GlobalId, InstructionRelocation, Object,
@@ -324,8 +324,8 @@ impl ObjectBuilder {
         }
 
         let mut sections = SectionBuilder::new();
-        let mut root = Root::new();
-        let root_section = sections.insert([root]);
+        let mut header = ObjectHeader::new();
+        let header_section = sections.insert([header]);
 
         // pack strings and type tables
         let strings = sections.insert(string_entries);
@@ -347,27 +347,27 @@ impl ObjectBuilder {
         let constant_relocations = sections.insert(self.constant_relocations);
         let operation_offsets = sections.insert(self.operation_offsets);
 
-        // finalize the fixed root after all section offsets are known
-        root.byte_len = sections.view().byte_len() as u64;
-        root.strings = strings;
-        root.string_bytes = string_bytes;
-        root.types = types;
-        root.function_types = function_types;
-        root.value_types = value_types;
+        // finalize the fixed header after all section offsets are known
+        header.byte_len = sections.view().byte_len() as u64;
+        header.strings = strings;
+        header.string_bytes = string_bytes;
+        header.types = types;
+        header.function_types = function_types;
+        header.value_types = value_types;
 
-        root.globals = globals;
-        root.constants = constants;
-        root.constant_bytes = constant_bytes;
-        root.frame_slots = frame_slots;
-        root.functions = functions;
+        header.globals = globals;
+        header.constants = constants;
+        header.constant_bytes = constant_bytes;
+        header.frame_slots = frame_slots;
+        header.functions = functions;
 
-        root.code = code;
-        root.instruction_relocations = instruction_relocations;
-        root.constant_relocations = constant_relocations;
-        root.operation_offsets = operation_offsets;
-        sections.replace(root_section, [root]);
+        header.code = code;
+        header.instruction_relocations = instruction_relocations;
+        header.constant_relocations = constant_relocations;
+        header.operation_offsets = operation_offsets;
+        sections.replace(header_section, [header]);
         let storage = sections.build();
 
-        Object::from_root(root, storage)
+        Object::from_header(header, storage)
     }
 }
