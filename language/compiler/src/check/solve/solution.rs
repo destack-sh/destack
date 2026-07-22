@@ -399,13 +399,11 @@ impl CheckState<'_> {
             && lower_candidates.is_empty()
             && upper_candidates.is_empty()
             && !has_external_dependency;
-        // a closed equation pins the solution; open equations defer
-        //  until their composite closes
+        // a closed equation pins the solution; open equations, return
+        //  cycles, and unconstrained recursion defer
         let solution = if let Some(equation) = equation {
             Some(equation)
-        } else if has_open_equation {
-            None
-        } else if has_return_cycle || is_unconstrained_recursion {
+        } else if has_open_equation || has_return_cycle || is_unconstrained_recursion {
             None
         } else if !lower_candidates.is_empty() {
             let joined = self.best_common(root, &lower_candidates)?;

@@ -324,7 +324,7 @@ impl Parser {
         // reject duplicate definitions of one declared name
         if self.tree.is_defined_type(placeholder_id) {
             return Err(ParseError::new(
-                &format!("type '{name}' is already defined"),
+                format!("type '{name}' is already defined"),
                 item_start,
             ));
         }

@@ -135,8 +135,6 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one expression into a borrow of its place or reference.
-
-    /// Lower one expression into a borrow of its place or reference.
     pub(in crate::lower) fn lower_borrowed_place(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -509,8 +507,6 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
     }
-
-    /// Lower one value expression by form.
 
     /// Lower one value expression by form.
     fn lower_expression_value(

@@ -4,7 +4,6 @@ use super::tokenizer::Tokenizer;
 use destack_dir::{
     Token, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start, is_whitespace,
 };
-use destack_source::FileType;
 use destack_unicode::UnicodeEmoji;
 
 impl Tokenizer {
@@ -681,9 +680,7 @@ impl Tokenizer {
         // scan an identifier immediately after the tick
         let remaining = self.scanner.remaining();
         let mut characters = remaining.char_indices();
-        let Some((_, first)) = characters.next() else {
-            return None;
-        };
+        let (_, first) = characters.next()?;
         if !is_identifier_start(first) {
             return None;
         }
