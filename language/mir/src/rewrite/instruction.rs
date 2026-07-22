@@ -2559,20 +2559,20 @@ pub fn instruction_map(
         },
         mir::Instruction::NewZeroed {
             destination,
-            layout,
+            storage_type,
             result_type,
         } => mir::Instruction::NewZeroed {
             destination: remap(*destination),
-            layout: *layout,
+            storage_type: *storage_type,
             result_type: *result_type,
         },
         mir::Instruction::NewUninit {
             destination,
-            layout,
+            storage_type,
             result_type,
         } => mir::Instruction::NewUninit {
             destination: remap(*destination),
-            layout: *layout,
+            storage_type: *storage_type,
             result_type: *result_type,
         },
         mir::Instruction::NewComplete {
@@ -3301,20 +3301,20 @@ pub fn instruction_map_with_locals(
         },
         mir::Instruction::NewZeroed {
             destination,
-            layout,
+            storage_type,
             result_type,
         } => mir::Instruction::NewZeroed {
             destination: remap(*destination),
-            layout: *layout,
+            storage_type: *storage_type,
             result_type: *result_type,
         },
         mir::Instruction::NewUninit {
             destination,
-            layout,
+            storage_type,
             result_type,
         } => mir::Instruction::NewUninit {
             destination: remap(*destination),
-            layout: *layout,
+            storage_type: *storage_type,
             result_type: *result_type,
         },
         mir::Instruction::NewComplete {

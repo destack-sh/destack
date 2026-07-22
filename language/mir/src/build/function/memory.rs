@@ -163,13 +163,13 @@ impl<'a> FunctionBuilder<'a> {
     /// Allocate zeroed heap storage.
     pub fn new_zeroed(
         &mut self,
-        layout: LocalNodeId<Type>,
+        storage_type: LocalNodeId<Type>,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewZeroed {
             destination,
-            layout,
+            storage_type,
             result_type,
         });
         self.define_value(destination, result_type);
@@ -179,13 +179,13 @@ impl<'a> FunctionBuilder<'a> {
     /// Allocate uninitialized heap storage.
     pub fn new_uninit(
         &mut self,
-        layout: LocalNodeId<Type>,
+        storage_type: LocalNodeId<Type>,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewUninit {
             destination,
-            layout,
+            storage_type,
             result_type,
         });
         self.define_value(destination, result_type);

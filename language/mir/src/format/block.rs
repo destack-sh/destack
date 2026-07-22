@@ -233,22 +233,22 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         }
 
         Terminator::NewZeroedTry {
-            layout,
+            storage_type,
             success,
             failure,
             ..
         } => {
-            write!(f, [token("new.zeroed.try"), space(), layout])?;
+            write!(f, [token("new.zeroed.try"), space(), storage_type])?;
             format_allocation_continuation(success, failure, f)
         }
 
         Terminator::NewUninitTry {
-            layout,
+            storage_type,
             success,
             failure,
             ..
         } => {
-            write!(f, [token("new.uninit.try"), space(), layout])?;
+            write!(f, [token("new.uninit.try"), space(), storage_type])?;
             format_allocation_continuation(success, failure, f)
         }
 

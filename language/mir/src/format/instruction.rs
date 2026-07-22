@@ -1433,7 +1433,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::NewZeroed {
                 destination,
-                layout,
+                storage_type,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -1445,14 +1445,14 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("new.zeroed"),
                         space(),
-                        layout
+                        storage_type
                     ]
                 )
             }
 
             Instruction::NewUninit {
                 destination,
-                layout,
+                storage_type,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -1464,7 +1464,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("new.uninit"),
                         space(),
-                        layout
+                        storage_type
                     ]
                 )
             }

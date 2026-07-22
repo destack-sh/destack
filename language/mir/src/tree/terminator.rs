@@ -265,8 +265,8 @@ pub enum Terminator {
 
     /// Fallible zeroed typed heap allocation.
     NewZeroedTry {
-        /// The type of the struct to allocate.
-        layout: TypeId,
+        /// The type stored in the allocation.
+        storage_type: TypeId,
         /// The block to jump to when allocation succeeds.
         success: BlockTarget,
         /// The block to jump to when allocation fails.
@@ -274,8 +274,8 @@ pub enum Terminator {
     },
     /// Fallible uninitialized typed heap allocation.
     NewUninitTry {
-        /// The type of the struct to allocate.
-        layout: TypeId,
+        /// The type stored in the allocation.
+        storage_type: TypeId,
         /// The block to jump to when allocation succeeds.
         success: BlockTarget,
         /// The block to jump to when allocation fails.

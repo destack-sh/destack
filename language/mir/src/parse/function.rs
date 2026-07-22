@@ -1194,21 +1194,21 @@ impl Parser {
 
         match opcode.as_str() {
             "new.zeroed.try" => {
-                let layout = self.parse_type()?;
+                let storage_type = self.parse_type()?;
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewZeroedTry {
-                    layout,
+                    storage_type,
                     success,
                     failure,
                 })
             }
             "new.uninit.try" => {
-                let layout = self.parse_type()?;
+                let storage_type = self.parse_type()?;
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewUninitTry {
-                    layout,
+                    storage_type,
                     success,
                     failure,
                 })

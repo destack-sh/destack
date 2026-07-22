@@ -140,16 +140,16 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         Instruction::DynamicBind { concrete, .. } => walk_type_id(visitor, tree, concrete),
         Instruction::Call { call, .. } => walk_call(visitor, tree, call),
         Instruction::NewZeroed {
-            layout,
+            storage_type,
             result_type,
             ..
         }
         | Instruction::NewUninit {
-            layout,
+            storage_type,
             result_type,
             ..
         } => {
-            walk_type_id(visitor, tree, layout);
+            walk_type_id(visitor, tree, storage_type);
             walk_type_id(visitor, tree, result_type);
         }
         Instruction::NewSliceZeroed {
@@ -174,7 +174,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::LocalSet { .. }
         | Instruction::FunctionAddr { .. }
         | Instruction::FunctionBind { .. }
-        | Instruction::FunctionPointer { .. }
         | Instruction::FunctionEnvironment { .. }
         | Instruction::FunctionEnvironmentCurrent { .. }
         | Instruction::Store { .. }
@@ -259,8 +258,9 @@ pub fn walk_terminator<V: NodeVisitor + ?Sized>(
         Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
             walk_call(visitor, tree, call);
         }
-        Terminator::NewZeroedTry { layout, .. } | Terminator::NewUninitTry { layout, .. } => {
-            walk_type_id(visitor, tree, layout)
+        Terminator::NewZeroedTry { storage_type, .. }
+        | Terminator::NewUninitTry { storage_type, .. } => {
+            walk_type_id(visitor, tree, storage_type)
         }
         Terminator::NewSliceZeroedTry { element, .. }
         | Terminator::NewSliceUninitTry { element, .. } => walk_type_id(visitor, tree, element),

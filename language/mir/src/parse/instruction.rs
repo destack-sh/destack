@@ -1047,18 +1047,18 @@ impl Parser {
 
                     // allocation operations
                     "new.zeroed" => {
-                        let layout = self.parse_type()?;
+                        let storage_type = self.parse_type()?;
                         Instruction::NewZeroed {
                             destination,
-                            layout,
+                            storage_type,
                             result_type: destination_type,
                         }
                     }
                     "new.uninit" => {
-                        let layout = self.parse_type()?;
+                        let storage_type = self.parse_type()?;
                         Instruction::NewUninit {
                             destination,
-                            layout,
+                            storage_type,
                             result_type: destination_type,
                         }
                     }

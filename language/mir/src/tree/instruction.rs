@@ -13,7 +13,7 @@ use crate::{
     Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
-/// Instructions produce SSA values and perform "operations".
+/// One MIR instruction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Instruction {
     /// Recovered invalid instruction syntax.
@@ -690,8 +690,8 @@ pub enum Instruction {
     NewZeroed {
         /// The SSA value to define with the allocated reference.
         destination: Value,
-        /// The type of the struct to allocate.
-        layout: TypeId,
+        /// The type stored in the allocation.
+        storage_type: TypeId,
         /// The result type of the allocation.
         result_type: TypeId,
     },
@@ -701,8 +701,8 @@ pub enum Instruction {
     NewUninit {
         /// The SSA value to define with the initialization token.
         destination: Value,
-        /// The type of the struct to allocate.
-        layout: TypeId,
+        /// The type stored in the allocation.
+        storage_type: TypeId,
         /// The result type of the allocation.
         result_type: TypeId,
     },
