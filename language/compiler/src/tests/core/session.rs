@@ -248,6 +248,16 @@ impl TestSession {
         render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics, false)
     }
 
+    /// Render diagnostics with colored source annotations for a key closure.
+    pub(crate) fn render_terminal_diagnostics_for(&self, keys: &[ArtifactKey]) -> String {
+        let diagnostics = self
+            .repository
+            .diagnostics_for_keys(self.revision, keys)
+            .expect("test diagnostics should be readable");
+
+        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics, true)
+    }
+
     /// Render diagnostics with colored source annotations.
     pub(crate) fn render_terminal_diagnostics(&self, key: Option<ArtifactKey>) -> String {
         let diagnostics = self
@@ -1240,7 +1250,7 @@ impl TestSession {
     }
 
     /// Read the component graph for one profile.
-    fn component_graph(&self, profile: ProfileId) -> Arc<ComponentGraph> {
+    pub(crate) fn component_graph(&self, profile: ProfileId) -> Arc<ComponentGraph> {
         let version = self.require_artifact(ArtifactKey::component_graph(profile));
         self.artifacts()
             .component_graph(&version)

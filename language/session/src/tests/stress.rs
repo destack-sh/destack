@@ -449,11 +449,11 @@ export const result = value;
     assert_eq!(
         TraceCounts::from_trace(&cold_trace),
         TraceCounts {
-            artifacts: 5037,
-            built: 3184,
+            artifacts: 5322,
+            built: 3192,
             memory_cached: 0,
             store_cached: 0,
-            parked: 1853,
+            parked: 2130,
             failed: 0,
         },
     );
@@ -475,11 +475,11 @@ export const result = value;
     assert_eq!(
         TraceCounts::from_trace(&edited_trace),
         TraceCounts {
-            artifacts: 18,
+            artifacts: 19,
             built: 11,
             memory_cached: 0,
             store_cached: 0,
-            parked: 7,
+            parked: 8,
             failed: 0,
         },
     );
@@ -542,11 +542,11 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
     assert_eq!(
         TraceCounts::from_trace(&left_trace),
         TraceCounts {
-            artifacts: 11,
-            built: 6,
+            artifacts: 13,
+            built: 7,
             memory_cached: 1,
             store_cached: 0,
-            parked: 4,
+            parked: 5,
             failed: 0,
         },
     );

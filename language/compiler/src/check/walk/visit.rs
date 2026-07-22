@@ -53,6 +53,32 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Walk one foreign member declaration on demand.
+    pub(in crate::check) fn demand_module_declaration(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        // demand needs every template walked; active walks resume in their
+        //  own frame; unloaded modules are sealed
+        if !self.templates_ready
+            || self.active_walks.contains(&symbol.module_id)
+            || !self.modules.contains_key(&symbol.module_id)
+        {
+            return Ok(());
+        }
+
+        let input = self.module(symbol.module_id);
+        let parsed = input.parsed.clone();
+        let expanded = input.expanded.clone();
+        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+
+        let mut walk = WalkState::new(symbol.module_id, tree, self);
+        walk.demand_symbol_declaration(symbol)?;
+        walk.commit();
+
+        Ok(())
+    }
+
     /// Visit DIR and collect check constraints and obligations.
     ///
     /// Example:
@@ -65,10 +91,11 @@ impl CheckState<'_> {
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
-        let mut walk = WalkState::new(module, tree, self);
-
         // walk and queue expanded module roots, inducing each root's memory
-        //  parameters before later roots apply its declarations
+        //  parameters before later roots apply its declarations; infer module
+        //  state for interface members too, since consumers evaluate their
+        //  constant values
+        let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
             walk.walk_expression(*root, tree.get(*root))?;
             walk.queue_module_expression(*root)?;

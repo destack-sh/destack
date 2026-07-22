@@ -45,6 +45,12 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) modules: FxIndexMap<ModuleId, CheckModuleState>,
     /// Loaded out-of-component modules keyed by module id.
     pub(in crate::check) external_modules: FxIndexMap<ModuleId, CheckExternalModuleState>,
+    /// Members whose bodies this check infers.
+    pub(in crate::check) inference_modules: FxIndexSet<ModuleId>,
+    /// Modules with an active walk state, innermost last.
+    pub(in crate::check) active_walks: FxIndexSet<ModuleId>,
+    /// Whether every member template is declared and walked.
+    pub(in crate::check) templates_ready: bool,
     /// Checked component artifact containing each external module.
     pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckComponentKey>,
 
@@ -70,8 +76,6 @@ pub(in crate::check) struct CheckState<'a> {
     /// Generic parameter variance derivations per handle context.
     pub(in crate::check) variances:
         FxIndexMap<(dir::GlobalGenericParameterId, VarianceContext), VarianceState>,
-    /// Elided result lifetimes inferred from their bodies, never induced.
-    pub(in crate::check) body_inferred_parameters: FxIndexSet<dir::TypeVariableId>,
     /// Declarations already walked, on demand or in root order.
     pub(in crate::check) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
     /// Declarations currently walking, innermost last.
@@ -132,6 +136,7 @@ impl<'a> CheckState<'a> {
         global: Arc<GlobalEnvironment>,
         environment: Arc<Environment>,
         external_components: FxIndexMap<ModuleId, CheckComponentKey>,
+        inference_modules: FxIndexSet<ModuleId>,
         emit_events: bool,
     ) -> Self {
         Self {
@@ -143,6 +148,9 @@ impl<'a> CheckState<'a> {
             environment,
             modules: FxIndexMap::default(),
             external_modules: FxIndexMap::default(),
+            inference_modules,
+            active_walks: FxIndexSet::default(),
+            templates_ready: false,
             external_components,
             decorators: Vec::new(),
             declaration_types: FxIndexMap::default(),
@@ -152,7 +160,6 @@ impl<'a> CheckState<'a> {
             generics: GenericIndex::new(),
             scopes: FxIndexMap::default(),
             variances: FxIndexMap::default(),
-            body_inferred_parameters: FxIndexSet::default(),
             walked_declarations: FxIndexSet::default(),
             walking_declarations: Vec::new(),
             cyclic_inductions: FxIndexMap::default(),
@@ -170,6 +177,11 @@ impl<'a> CheckState<'a> {
             emit_events,
             stream_events: should_stream_check_events(),
         }
+    }
+
+    /// Return whether this check infers one member's bodies.
+    pub(in crate::check) fn infers_module(&self, module: ModuleId) -> bool {
+        self.inference_modules.contains(&module)
     }
 
     /// Load all modules in one check component.
@@ -197,6 +209,7 @@ impl<'a> CheckState<'a> {
         for module in modules.iter().copied() {
             self.walk_module_templates(module)?;
         }
+        self.templates_ready = true;
 
         // walk modules in stable component order
         for module in modules.iter().copied() {

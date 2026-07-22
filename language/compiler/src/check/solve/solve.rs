@@ -248,7 +248,11 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let origins = origins.into_iter().collect::<Vec<_>>();
+        // keep inferred members' origins; interface members report in their own component
+        let origins = origins
+            .into_iter()
+            .filter(|(origin, _)| self.infers_module(origin.module()))
+            .collect::<Vec<_>>();
 
         // report in source order for deterministic diagnostics
         let mut keyed = Vec::new();

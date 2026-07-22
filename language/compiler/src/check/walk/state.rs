@@ -50,6 +50,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         tree: dir::View<'check>,
         check: &'check mut CheckState<'state>,
     ) -> Self {
+        check.active_walks.insert(module);
         let state = check.module_mut(module);
         let flow = FlowState::from_points(take(&mut state.flows));
         let node_flows = take(&mut state.node_flows);
@@ -88,6 +89,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         state.flows = flows;
         state.node_flows = node_flows;
         state.node_scopes = node_scopes;
+        self.check.active_walks.swap_remove(&module);
     }
 
     /// Enter one source node occurrence at the current flow point.

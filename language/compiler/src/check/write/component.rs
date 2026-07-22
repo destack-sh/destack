@@ -11,7 +11,13 @@ impl CheckState<'_> {
     pub(in crate::check) fn write(
         mut self,
     ) -> CompilerResult<(Vec<DirCheckedComponentEntry>, DiagnosticCollection)> {
-        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        // write inferred members only; interface members write in their own component
+        let modules = self
+            .modules
+            .keys()
+            .copied()
+            .filter(|module| self.infers_module(*module))
+            .collect::<Vec<_>>();
         let failed_applications = self.failed_generic_applications()?;
         for module in modules.iter().copied() {
             self.write_module(module, &failed_applications)?;

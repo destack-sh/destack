@@ -1,4 +1,4 @@
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use std::iter;
 use std::sync::Arc;
 
@@ -55,12 +55,14 @@ impl Compiler {
 
         // project external components reached by this component
         let external_components = external_components(&graph, component_id)?;
-        for component in external_components.components.keys() {
-            dependencies.project(graph_key, ComponentGraphProjection::Members(*component));
-            dependencies.project(
-                graph_key,
-                ComponentGraphProjection::Dependencies(*component),
-            );
+        let components = external_components
+            .components
+            .iter()
+            .map(|key| key.component)
+            .collect::<FxIndexSet<_>>();
+        for component in components {
+            dependencies.project(graph_key, ComponentGraphProjection::Members(component));
+            dependencies.project(graph_key, ComponentGraphProjection::Dependencies(component));
         }
         self.require_component_check_dependencies(profile, &external_components, &mut dependencies);
 
@@ -80,9 +82,10 @@ impl Compiler {
             .component_graph(profile)
             .map_err(CompilerError::from)?;
 
-        // validate the requested component key against the graph
+        // validate the requested inference entry against the graph
         let modules = graph.members(component_id).to_vec();
-        if modules.is_empty() || graph.entry(component_id) != Some(entry) {
+        if modules.is_empty() || graph.inference_component_entry(entry) != Some((component_id, entry))
+        {
             return Err(CompilerError::Internal {
                 message: format!(
                     "checked component key entry={entry:?} component={component_id} does not \
@@ -90,6 +93,16 @@ impl Compiler {
                 ),
             });
         }
+        let inference_component = graph
+            .inference_component(entry)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("inference entry {entry:?} is absent from the component graph"),
+            })?;
+        let inference_modules = graph
+            .inference_members(inference_component)
+            .iter()
+            .copied()
+            .collect::<FxIndexSet<_>>();
 
         // load context shared across the component check
         let external_components = external_components(&graph, component_id)?;
@@ -110,6 +123,7 @@ impl Compiler {
             global,
             environment,
             external_components.modules,
+            inference_modules,
             emit_events,
         );
         check.load(modules.as_slice())?;
@@ -180,10 +194,10 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
-        // resolve the owning component behind the checked facade
+        // resolve the owning inference component behind the checked facade
         let (component, entry) =
             graph
-                .component_entry(module)
+                .inference_component_entry(module)
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("module {module:?} is absent from the component graph"),
                 })?;
@@ -208,10 +222,10 @@ impl Compiler {
             .component_graph(profile)
             .map_err(CompilerError::from)?;
 
-        // resolve the owning component behind the checked facade
+        // resolve the owning inference component behind the checked facade
         let (component, entry) =
             graph
-                .component_entry(module)
+                .inference_component_entry(module)
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("module {module:?} is absent from the component graph"),
                 })?;
@@ -237,10 +251,12 @@ impl Compiler {
             dependencies.require(ArtifactKey::dir_expanded(*module, profile));
         }
 
-        // require checked tables for external components
-        for (component, entry) in &external_components.components {
+        // require checked tables for external inference components
+        for key in &external_components.components {
             dependencies.require(ArtifactKey::dir_checked_component(
-                *entry, *component, profile,
+                key.entry,
+                key.component,
+                profile,
             ));
         }
     }
@@ -251,24 +267,24 @@ fn external_components(
     graph: &ComponentGraph,
     component: ComponentId,
 ) -> CompilerResult<ExternalComponents> {
-    let mut components = FxIndexMap::default();
+    let mut components = FxIndexSet::default();
     let mut modules = FxIndexMap::default();
 
-    // walk component dependencies transitively
+    // bind each transitive dependency member to its checked component
     for dependency in graph.transitive_dependencies(component) {
-        let entry = graph
-            .entry(dependency)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("component {dependency} has no entry module"),
-            })?;
-        components.insert(dependency, entry);
-
-        // bind dependency members to their component check
-        let key = CheckComponentKey {
-            entry,
-            component: dependency,
-        };
         for module in graph.members(dependency) {
+            let entry = graph
+                .inference_component_entry(*module)
+                .map(|(_, entry)| entry);
+            let entry = entry.ok_or_else(|| CompilerError::Internal {
+                message: format!("module {module:?} has no inference entry"),
+            })?;
+            let key = CheckComponentKey {
+                entry,
+                component: dependency,
+            };
+
+            components.insert(key);
             modules.insert(*module, key);
         }
     }
@@ -281,8 +297,8 @@ fn external_components(
 
 /// External checked component inputs reached from one component.
 struct ExternalComponents {
-    /// The external component entries reached through the condensation.
-    components: FxIndexMap<ComponentId, ModuleId>,
+    /// The checked component keys reached through the condensation.
+    components: FxIndexSet<CheckComponentKey>,
     /// The external modules keyed to their checked component.
     modules: FxIndexMap<ModuleId, CheckComponentKey>,
 }

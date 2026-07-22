@@ -8,7 +8,13 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Report runtime conditions whose checked type is one boolean literal.
     pub(in crate::check) fn report_constant_conditions(&mut self) -> CompilerResult<()> {
-        let modules: Vec<ModuleId> = self.modules.keys().copied().collect();
+        // report inferred members only; interface members report in their own component
+        let modules: Vec<ModuleId> = self
+            .modules
+            .keys()
+            .copied()
+            .filter(|module| self.infers_module(*module))
+            .collect();
 
         // report each checked module
         for module in modules {

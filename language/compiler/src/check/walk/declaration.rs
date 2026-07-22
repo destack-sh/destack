@@ -334,9 +334,12 @@ impl WalkState<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        // demand only this module's type declarations
-        if symbol.module_id != self.module || !self.check.symbol_kind(symbol).is_type_definition() {
+        // demand only type declarations, entering foreign member frames
+        if !self.check.symbol_kind(symbol).is_type_definition() {
             return Ok(());
+        }
+        if symbol.module_id != self.module {
+            return self.check.demand_module_declaration(symbol);
         }
         let Some(declaration) = self
             .check
@@ -1401,7 +1404,6 @@ impl WalkState<'_, '_> {
             None,
             result,
             tracked,
-            declaration.body.is_some(),
         )?;
         let is_function_value =
             declaration.signature.form == dir::FunctionForm::Lambda || declaration.name.is_none();
