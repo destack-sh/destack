@@ -1,6 +1,39 @@
 use crate::tests::TestSession;
 
 #[test]
+fn test_lower_struct_class_reference_cycle() {
+    let session = TestSession::single(
+        r#"
+struct Wrapper {
+    node: Node;
+}
+
+class Node {
+    wrapper: Wrapper;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Wrapper {
+    node: ref<Node, managed, mutable>;
+}
+
+type Node {
+    wrapper: Wrapper;
+}
+/// @layout.struct name=Wrapper size=8 align=8
+/// @layout.field owner=Wrapper index=0 name=node offset=0 size=8 align=8
+/// @layout.struct name=Node size=8 align=8
+/// @layout.field owner=Node index=0 name=wrapper offset=0 size=8 align=8
+"#,
+    );
+}
+
+#[test]
 fn test_lower_class_construction_methods_and_field_reads() {
     let session = TestSession::single(
         r#"
@@ -67,7 +100,8 @@ entry(v0: int32):
     v8: int32 = int.add v4, v7
     return v8
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(count@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
     );
 }
@@ -120,7 +154,8 @@ entry(v0: ref<Counter, managed, readonly>):
     v2: int32 = load v1
     return v2
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(count@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
     );
 }
@@ -198,7 +233,8 @@ b1:
 b2:
     return v0
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(count@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
     );
 }
@@ -288,7 +324,8 @@ b4:
     v8: int32 = load v7
     return v8
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(count@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
     );
 }
@@ -337,7 +374,9 @@ entry(v0: ref<Chain, managed, mutable>):
     v2: int32 = load v1
     return v2
 }
-/// @layout.struct name=Chain size=16 align=8 fields=(next@0+8, weight@8+4)
+/// @layout.struct name=Chain size=16 align=8
+/// @layout.field owner=Chain index=0 name=next offset=0 size=8 align=8
+/// @layout.field owner=Chain index=1 name=weight offset=8 size=4 align=4
 "#,
     );
 }
@@ -391,7 +430,8 @@ entry(v0: ref<Counter, managed, mutable>):
     v2: int32 = call main.peek(v1)
     return v2
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(count@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
     );
 }
@@ -442,7 +482,8 @@ entry(v0: int32):
     v4: int32 = field.get v3, 0
     return v4
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(count@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
 "#,
     );
 }

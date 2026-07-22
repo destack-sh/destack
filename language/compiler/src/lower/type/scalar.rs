@@ -6,7 +6,7 @@ use crate::{CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
     /// Lower one checked type to its concrete MIR form.
-    pub(in crate::lower) fn lower_type(&self, ty: &dir::Type) -> CompilerResult<mir::Type> {
+    pub(in crate::lower) fn scalar_type(&self, ty: &dir::Type) -> CompilerResult<mir::Type> {
         match ty {
             dir::Type::Void => Ok(mir::Type::Void),
             // singleton types store no runtime value: reads materialize from the type

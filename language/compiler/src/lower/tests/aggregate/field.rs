@@ -31,7 +31,9 @@ entry(v0: Point):
     v3: int32 = int.add v1, v2
     return v3
 }
-/// @layout.struct name=Point size=8 align=4 fields=(x@0+4, y@4+4)
+/// @layout.struct name=Point size=8 align=4
+/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -80,8 +82,12 @@ entry(v0: Frame):
     v5: int32 = int.mul v2, v4
     return v5
 }
-/// @layout.struct name=Size size=8 align=4 fields=(width@0+4, height@4+4)
-/// @layout.struct name=Frame size=12 align=4 fields=(corner@0+4, size@4+8)
+/// @layout.struct name=Size size=8 align=4
+/// @layout.field owner=Size index=0 name=width offset=0 size=4 align=4
+/// @layout.field owner=Size index=1 name=height offset=4 size=4 align=4
+/// @layout.struct name=Frame size=12 align=4
+/// @layout.field owner=Frame index=0 name=corner offset=0 size=4 align=4
+/// @layout.field owner=Frame index=1 name=size offset=4 size=8 align=4
 "#,
     );
 }

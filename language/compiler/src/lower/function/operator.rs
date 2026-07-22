@@ -75,7 +75,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // reject non-boolean logical joins: they produce union values
         if !matches!(
-            self.lowerer.coerced_type(expression)?,
+            self.coerced_type(expression)?,
             dir::Type::Primitive(dir::PrimitiveType::Boolean)
         ) {
             return Err(LowerError::Unsupported {
@@ -115,15 +115,13 @@ impl FunctionLowerer<'_, '_, '_> {
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // the checked resolution names the updated place
-        let resolution = self.lowerer.place_resolution(target)?;
+        let resolution = self.place_resolution(target)?;
         let place = self.place(&resolution)?;
 
         // rewrite the place by one over its checked carrier
-        let carrier = self.lowerer.coerced_type(target)?;
-        let one = self.lower_constant(
-            dir::ScalarLiteral::Integer(1),
-            self.lowerer.lower_type(&carrier)?,
-        )?;
+        let carrier = self.coerced_type(target)?;
+        let one_type = self.lowerer.scalar_type(&carrier)?;
+        let one = self.lower_constant(dir::ScalarLiteral::Integer(1), one_type)?;
         let operator = match operator {
             dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PreIncrement => {
                 dir::BinaryOperator::Add
@@ -301,7 +299,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(OperandClass::Int { signed: true });
         }
 
-        let ty = self.lowerer.lower_type(operand)?;
+        let ty = self.lowerer.scalar_type(operand)?;
 
         self.mir_operand_class(&ty)
     }

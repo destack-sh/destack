@@ -276,8 +276,10 @@ b3:
 b4:
     jump b3
 }
-/// @layout.variant name=type@7 size=1 align=1 encoding=direct(tag@0+1) cases=(0@1, 1@1)
-/// @layout.variant name=type@19 size=1 align=1 encoding=direct(tag@0+1) cases=(0@1, 1@1)
+/// @layout.variant name=type@6 size=1 align=1
+/// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@6 index=1 discriminant=1 payload_offset=1
 "#,
     );
 }

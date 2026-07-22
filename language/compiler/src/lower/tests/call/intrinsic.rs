@@ -176,10 +176,29 @@ entry:
     atomic.fence release
     return
 }
-/// @layout.variant name=MemoryOrdering size=8 align=8 encoding=direct(tag@0+8) cases=(0@8, 1@8, 2@8, 3@8, 4@8)
-/// @layout.variant name=AtomicScope size=8 align=8 encoding=direct(tag@0+8) cases=(0@8, 1@8, 2@8, 3@8, 4@8, 5@8, 6@8, 7@8)
-/// @layout.variant name=MemoryScope size=8 align=8 encoding=direct(tag@0+8) cases=(0@8)
-/// @layout.variant name=MemoryRegionSet size=8 align=8 encoding=direct(tag@0+8) cases=(0@8)
+/// @layout.variant name=MemoryOrdering size=8 align=8
+/// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=1 discriminant=1 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=2 discriminant=2 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=3 discriminant=3 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=4 discriminant=4 payload_offset=8
+/// @layout.variant name=AtomicScope size=8 align=8
+/// @layout.discriminant owner=AtomicScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=AtomicScope index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=AtomicScope index=1 discriminant=1 payload_offset=8
+/// @layout.case owner=AtomicScope index=2 discriminant=2 payload_offset=8
+/// @layout.case owner=AtomicScope index=3 discriminant=3 payload_offset=8
+/// @layout.case owner=AtomicScope index=4 discriminant=4 payload_offset=8
+/// @layout.case owner=AtomicScope index=5 discriminant=5 payload_offset=8
+/// @layout.case owner=AtomicScope index=6 discriminant=6 payload_offset=8
+/// @layout.case owner=AtomicScope index=7 discriminant=7 payload_offset=8
+/// @layout.variant name=MemoryScope size=8 align=8
+/// @layout.discriminant owner=MemoryScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=MemoryScope index=0 discriminant=0 payload_offset=8
+/// @layout.variant name=MemoryRegionSet size=8 align=8
+/// @layout.discriminant owner=MemoryRegionSet kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=MemoryRegionSet index=0 discriminant=0 payload_offset=8
 "#,
     );
 }
@@ -285,10 +304,29 @@ entry:
     atomic.fence acquire
     return
 }
-/// @layout.variant name=MemoryOrdering size=8 align=8 encoding=direct(tag@0+8) cases=(0@8, 1@8, 2@8, 3@8, 4@8)
-/// @layout.variant name=AtomicScope size=8 align=8 encoding=direct(tag@0+8) cases=(0@8, 1@8, 2@8, 3@8, 4@8, 5@8, 6@8, 7@8)
-/// @layout.variant name=MemoryScope size=8 align=8 encoding=direct(tag@0+8) cases=(0@8)
-/// @layout.variant name=MemoryRegionSet size=8 align=8 encoding=direct(tag@0+8) cases=(0@8)
+/// @layout.variant name=MemoryOrdering size=8 align=8
+/// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=1 discriminant=1 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=2 discriminant=2 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=3 discriminant=3 payload_offset=8
+/// @layout.case owner=MemoryOrdering index=4 discriminant=4 payload_offset=8
+/// @layout.variant name=AtomicScope size=8 align=8
+/// @layout.discriminant owner=AtomicScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=AtomicScope index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=AtomicScope index=1 discriminant=1 payload_offset=8
+/// @layout.case owner=AtomicScope index=2 discriminant=2 payload_offset=8
+/// @layout.case owner=AtomicScope index=3 discriminant=3 payload_offset=8
+/// @layout.case owner=AtomicScope index=4 discriminant=4 payload_offset=8
+/// @layout.case owner=AtomicScope index=5 discriminant=5 payload_offset=8
+/// @layout.case owner=AtomicScope index=6 discriminant=6 payload_offset=8
+/// @layout.case owner=AtomicScope index=7 discriminant=7 payload_offset=8
+/// @layout.variant name=MemoryScope size=8 align=8
+/// @layout.discriminant owner=MemoryScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=MemoryScope index=0 discriminant=0 payload_offset=8
+/// @layout.variant name=MemoryRegionSet size=8 align=8
+/// @layout.discriminant owner=MemoryRegionSet kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=MemoryRegionSet index=0 discriminant=0 payload_offset=8
 "#,
     );
 }
@@ -473,7 +511,9 @@ entry:
     v4: uint64 = int.add v2, v3
     return v4
 }
-/// @layout.struct name=Pair size=16 align=8 fields=(low@8+4, high@0+8)
+/// @layout.struct name=Pair size=16 align=8
+/// @layout.field owner=Pair index=0 name=low offset=8 size=4 align=4
+/// @layout.field owner=Pair index=1 name=high offset=0 size=8 align=8
 "#,
     );
 }

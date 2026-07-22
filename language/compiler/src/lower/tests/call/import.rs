@@ -90,7 +90,9 @@ entry(v0: int32):
 }
 
 external function point.diagonal(int32, int32): point.Point
-/// @layout.struct name=point.Point size=8 align=4 fields=(x@0+4, y@4+4)
+/// @layout.struct name=point.Point size=8 align=4
+/// @layout.field owner=point.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=point.Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -145,7 +147,9 @@ entry(v0: int32):
 }
 
 external function point.Point.length<L0: lifetime>(ref<point.Point, borrowed, lifetime(L0), exclusive>): int32
-/// @layout.struct name=point.Point size=8 align=4 fields=(x@0+4, y@4+4)
+/// @layout.struct name=point.Point size=8 align=4
+/// @layout.field owner=point.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=point.Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -202,7 +206,8 @@ entry:
 external function box.Box.constructor(ref<box.Box, borrowed, exclusive>, int32): void
 
 external function box.Box.weigh(ref<box.Box, managed, mutable>): int32
-/// @layout.struct name=box.Box size=4 align=4 fields=(weight@0+4)
+/// @layout.struct name=box.Box size=4 align=4
+/// @layout.field owner=box.Box index=0 name=weight offset=0 size=4 align=4
 "#,
     );
 }

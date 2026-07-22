@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_inferred_generic_calls_to_materialized_instances() {
+fn test_lower_inferred_generic_calls_to_concrete_instances() {
     let session = TestSession::single(
         r#"
 function pick<T>(chosen: T, other: T, flag: boolean): T {
@@ -25,15 +25,15 @@ function main.choose(v0: int32, v1: int32, v2: boolean): float64 {
     local l0: int32
 
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call main.pick#int32(v0, v1, v2)
+    v3: int32 = call main.pick(v0, v1, v2)
     local.set l0, v3
     v4: float64 = 1.5
     v5: float64 = 2.5
-    v6: float64 = call main.pick#float64(v4, v5, v2)
+    v6: float64 = call main.pick_1(v4, v5, v2)
     return v6
 }
 
-function main.pick#int32(v0: int32, v1: int32, v2: boolean): int32 {
+function main.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -44,7 +44,7 @@ b2:
     return v1
 }
 
-function main.pick#float64(v0: float64, v1: float64, v2: boolean): float64 {
+function main.pick_1(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
     branch v2, b1, b2
 
@@ -54,6 +54,141 @@ b1:
 b2:
     return v1
 }
+"#,
+    );
+
+    // distinct runtime representations must remain distinct after display naming is erased
+    let lowered = session.mir_lowered("main.ds");
+    let strings = session.repository().string_pool();
+    let symbols: Vec<_> = lowered
+        .tree
+        .iter_nodes::<destack_mir::Function>()
+        .filter_map(|(_, function)| {
+            (strings.get(function.name) == "main.pick").then_some(function.symbol)
+        })
+        .collect();
+    assert_eq!(symbols.len(), 2);
+    assert_ne!(symbols[0], symbols[1]);
+}
+
+#[test]
+fn test_lower_generic_function_over_structural_representation() {
+    let session = TestSession::single(
+        r#"
+function identity<T>(value: T): T {
+    return value;
+}
+
+function keep(value: (int32, boolean)): (int32, boolean) {
+    return identity(value);
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function main.keep(v0: (int32, boolean)): (int32, boolean) {
+entry(v0: (int32, boolean)):
+    v1: (int32, boolean) = call main.identity(v0)
+    return v1
+}
+
+function main.identity(v0: (int32, boolean)): (int32, boolean) {
+entry(v0: (int32, boolean)):
+    return v0
+}
+/// @layout.tuple name=type@2 size=8 align=4
+/// @layout.element owner=type@2 index=0 offset=0 size=4 align=4
+/// @layout.element owner=type@2 index=1 offset=4 size=1 align=1
+"#,
+    );
+}
+
+#[test]
+fn test_lower_generic_struct_arguments_to_distinct_instances() {
+    let session = TestSession::single(
+        r#"
+struct Box<T> {
+    value: ^T;
+}
+
+function readInt(value: Box<int32>): int32 {
+    return value.value;
+}
+
+function readFloat(value: Box<float64>): float64 {
+    return value.value;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Box {
+    value: int32;
+}
+
+@copy
+type Box_1 {
+    value: float64;
+}
+
+function main.readInt(v0: Box): int32 {
+entry(v0: Box):
+    v1: int32 = field.get v0, 0
+    return v1
+}
+
+function main.readFloat(v0: Box_1): float64 {
+entry(v0: Box_1):
+    v1: float64 = field.get v0, 0
+    return v1
+}
+/// @layout.struct name=Box size=4 align=4
+/// @layout.field owner=Box index=0 name=value offset=0 size=4 align=4
+/// @layout.struct name=Box_1 size=8 align=8
+/// @layout.field owner=Box_1 index=0 name=value offset=0 size=8 align=8
+"#,
+    );
+
+    // nominal specializations retain independent persistent identities
+    let lowered = session.mir_lowered("main.ds");
+    let strings = session.repository().string_pool();
+    let symbols: Vec<_> = lowered
+        .tree
+        .iter_nodes::<destack_mir::TypeDeclaration>()
+        .filter_map(|(_, declaration)| {
+            (strings.get(declaration.name) == "Box")
+                .then(|| lowered.tree.type_symbol(declaration.ty))
+                .flatten()
+        })
+        .collect();
+    assert_eq!(symbols.len(), 2);
+    assert_ne!(symbols[0], symbols[1]);
+}
+
+#[test]
+fn test_reject_value_parameterized_nominal_instances() {
+    let session = TestSession::single(
+        r#"
+struct Fixed<comptime N: int> {
+    value: int32;
+}
+
+function read(value: Fixed<1>): int32 {
+    return value.value;
+}
+"#,
+    );
+
+    session.assert_mir_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=unsupported-native-construct message="native compilation does not support a value-parameterized nominal instance"
+/// @diagnostic.label file="main.ds"
 "#,
     );
 }
@@ -86,7 +221,7 @@ function main.narrow(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 1
     v2: float64 = 2
-    v3: float64 = call main.pick#float64(v1, v2, v0)
+    v3: float64 = call main.pick(v1, v2, v0)
     return v3
 }
 
@@ -94,11 +229,11 @@ function main.wide(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 30.5
     v2: float64 = 40.5
-    v3: float64 = call main.pick#float64(v1, v2, v0)
+    v3: float64 = call main.pick(v1, v2, v0)
     return v3
 }
 
-function main.pick#float64(v0: float64, v1: float64, v2: boolean): float64 {
+function main.pick(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
     branch v2, b1, b2
 
@@ -138,17 +273,17 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         r#"
 function main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call main.retry#int32(v0, v1, v2)
+    v3: int32 = call main.retry(v0, v1, v2)
     return v3
 }
 
-function main.retry#int32(v0: int32, v1: int32, v2: boolean): int32 {
+function main.retry(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call main.pick#int32(v0, v1, v2)
+    v3: int32 = call main.pick(v0, v1, v2)
     return v3
 }
 
-function main.pick#int32(v0: int32, v1: int32, v2: boolean): int32 {
+function main.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -193,11 +328,11 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         r#"
 function main.choose(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call lib.pick#int32(v0, v1, v2)
+    v3: int32 = call lib.pick(v0, v1, v2)
     return v3
 }
 
-function lib.pick#int32(v0: int32, v1: int32, v2: boolean): int32 {
+function lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -251,17 +386,17 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         r#"
 function main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call lib.retry#int32(v0, v1, v2)
+    v3: int32 = call lib.retry(v0, v1, v2)
     return v3
 }
 
-function lib.retry#int32(v0: int32, v1: int32, v2: boolean): int32 {
+function lib.retry(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call lib.pick#int32(v0, v1, v2)
+    v3: int32 = call lib.pick(v0, v1, v2)
     return v3
 }
 
-function lib.pick#int32(v0: int32, v1: int32, v2: boolean): int32 {
+function lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -311,11 +446,11 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         r#"
 function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call app.main.pick#int32(v0, v1, v2)
+    v3: int32 = call app.main.pick(v0, v1, v2)
     return v3
 }
 
-function app.main.pick#int32(v0: int32, v1: int32, v2: boolean): int32 {
+function app.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 

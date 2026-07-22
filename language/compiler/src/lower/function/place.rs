@@ -13,19 +13,25 @@ pub(in crate::lower) enum PlaceRoot {
     Reference {
         /// The reference value.
         value: mir::Value,
-        /// The referenced aggregate type.
-        pointee: mir::LocalNodeId<mir::Type>,
         /// The access exposed through the reference.
         access: mir::Access,
     },
+}
+
+/// One typed field projection within a place.
+pub(in crate::lower) struct PlaceProjection {
+    /// The field index within its aggregate.
+    pub(in crate::lower) field: u32,
+    /// The projected value type.
+    pub(in crate::lower) ty: mir::LocalNodeId<mir::Type>,
 }
 
 /// One resolved place: a base with its projection path.
 pub(in crate::lower) struct Place {
     /// The base holding the outermost aggregate.
     pub(in crate::lower) root: PlaceRoot,
-    /// The field indices projecting from the base to the place.
-    pub(in crate::lower) path: Vec<u32>,
+    /// The typed projections from the base to the place.
+    pub(in crate::lower) path: Vec<PlaceProjection>,
 }
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -57,7 +63,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     Some(layer) => layer.stored,
                     None => self.lowerer.peel_owned(*receiver)?,
                 };
-                let dir::Type::Instance(instance) = self.lowerer.ty(stored)? else {
+                let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
                         construct: "a write into a structural receiver".to_string(),
@@ -65,17 +71,16 @@ impl FunctionLowerer<'_, '_, '_> {
                     .into());
                 };
                 let index = self.projection_field_index(&instance, field)?;
+                let ty = self.lower_type(place.ty)?;
 
                 // the receiver chain reads through its checked member resolutions
-                let dir::Expression::Member { left, .. } =
-                    *self.lowerer.source().tree().get(source)
-                else {
+                let dir::Expression::Member { left, .. } = *self.source().tree().get(source) else {
                     return Err(CompilerError::Internal {
                         message: "checked DIR fielded a non-member place".to_string(),
                     });
                 };
                 let mut place = self.receiver_place(left)?;
-                place.path.push(index);
+                place.path.push(PlaceProjection { field: index, ty });
 
                 Ok(place)
             }
@@ -93,33 +98,32 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Place> {
         // reference receivers root the place at their reference value
-        let ty = self.lowerer.coerced_type_id(expression)?;
+        let ty = self.coerced_type_id(expression)?;
         if let Some(layer) = self.lowerer.peel_reference(ty)? {
-            let pointee = self.reference_pointee(layer.stored)?;
             let value = self.lower_expression(expression)?;
 
             return Ok(Place {
                 root: PlaceRoot::Reference {
                     value,
-                    pointee,
                     access: layer.access,
                 },
                 path: Vec::new(),
             });
         }
 
-        match *self.lowerer.source().tree().get(expression) {
+        match *self.source().tree().get(expression) {
             // base.field keeps projecting
             dir::Expression::Member { left, .. } => {
                 let index = self.member_field_index(expression)?;
+                let ty = self.lower_type(self.node_type_id(expression)?)?;
                 let mut place = self.receiver_place(left)?;
-                place.path.push(index);
+                place.path.push(PlaceProjection { field: index, ty });
 
                 Ok(place)
             }
             // the identifier names the base binding
             dir::Expression::Identifier { .. } => {
-                let node = expression.into_global_any(self.lowerer.source);
+                let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
                 let local = self.place_base(symbol.local_id)?;
 
@@ -134,25 +138,6 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into()),
         }
-    }
-
-    /// Return the lowered pointee behind one reference base type.
-    fn reference_pointee(
-        &mut self,
-        base: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let dir::Type::Instance(ref instance) = self.lowerer.ty(base)? else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "a write through a structural reference".to_string(),
-            }
-            .into());
-        };
-
-        Ok(self
-            .lowerer
-            .lower_nominal(self.builder.tree_mut(), instance)?
-            .ty)
     }
 
     /// Return the mutable local behind one place base symbol.
@@ -171,24 +156,17 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return the declaration field index behind one checked projection.
     fn projection_field_index(
-        &mut self,
-        instance: &dir::GenericInstance,
+        &self,
+        instance: &dir::GenericApplication,
         field: &dir::ProjectionField,
     ) -> CompilerResult<u32> {
-        let nominal = self
-            .lowerer
-            .lower_nominal(self.builder.tree_mut(), instance)?;
+        let fields = self.lowerer.nominal_fields(instance.symbol)?;
         let index = match field {
-            dir::ProjectionField::Key(key) => {
-                nominal.fields.iter().position(|field| field.key == *key)
-            }
+            dir::ProjectionField::Key(key) => fields.iter().position(|field| field.key == *key),
             dir::ProjectionField::Member(symbol) => {
                 let symbol = symbol.local_id;
 
-                nominal
-                    .fields
-                    .iter()
-                    .position(|field| field.symbol == symbol)
+                fields.iter().position(|field| field.symbol == symbol)
             }
         };
 
@@ -199,29 +177,16 @@ impl FunctionLowerer<'_, '_, '_> {
             })
     }
 
-    /// Project one field address and its type through an aggregate reference.
-    pub(in crate::lower) fn field_address(
+    /// Project one field address through an aggregate reference.
+    pub(in crate::lower) fn emit_field_address(
         &mut self,
         reference: mir::Value,
-        pointee: mir::LocalNodeId<mir::Type>,
         index: u32,
+        field: mir::LocalNodeId<mir::Type>,
         access: mir::Access,
-    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // the pointee struct names the projected field type
-        let mir::Type::Struct { fields, .. } = self.builder.tree().get(pointee) else {
-            return Err(CompilerError::Internal {
-                message: "lowered MIR addressed a field outside a struct pointee".to_string(),
-            });
-        };
-        let Some(field) = fields.get(index as usize).copied() else {
-            return Err(CompilerError::Internal {
-                message: "lowered MIR addressed a field missing from its pointee".to_string(),
-            });
-        };
-        let field = self.builder.tree().get(field).ty;
-
+    ) -> mir::Value {
         // interior addresses borrow from the object reference
-        let address = self.builder.tree_mut().insert(mir::Type::Reference {
+        let address = self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Local,
@@ -229,9 +194,8 @@ impl FunctionLowerer<'_, '_, '_> {
             pointee: field,
             nullability: mir::Nullability::None,
         });
-        let address = self.builder.field_addr(reference, index, address);
 
-        Ok((address, field))
+        self.builder.field_addr(reference, index, address)
     }
 
     /// Read the current value of one place.
@@ -240,19 +204,15 @@ impl FunctionLowerer<'_, '_, '_> {
             // locals project by value
             PlaceRoot::Local(local) => {
                 let mut value = self.builder.local_get(local);
-                for index in &place.path {
-                    value = self.builder.field_get(value, *index);
+                for projection in &place.path {
+                    value = self.builder.field_get(value, projection.field);
                 }
 
                 Ok(value)
             }
             // references project by address and load the leaf
-            PlaceRoot::Reference {
-                value,
-                pointee,
-                access,
-            } => {
-                let (address, leaf) = self.address_path(value, pointee, access, &place.path)?;
+            PlaceRoot::Reference { value, access } => {
+                let (address, leaf) = self.emit_address_path(value, access, &place.path)?;
 
                 Ok(self.builder.load(address, leaf))
             }
@@ -275,10 +235,9 @@ impl FunctionLowerer<'_, '_, '_> {
             // references store through the leaf address
             PlaceRoot::Reference {
                 value: reference,
-                pointee,
                 access,
             } => {
-                let (address, _) = self.address_path(reference, pointee, access, &place.path)?;
+                let (address, _) = self.emit_address_path(reference, access, &place.path)?;
                 self.builder.store(address, value);
 
                 Ok(())
@@ -287,33 +246,34 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Project one address chain to the leaf of a path.
-    fn address_path(
+    fn emit_address_path(
         &mut self,
         reference: mir::Value,
-        pointee: mir::LocalNodeId<mir::Type>,
         access: mir::Access,
-        path: &[u32],
+        path: &[PlaceProjection],
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        if path.is_empty() {
+        let Some((first, remaining)) = path.split_first() else {
             return Err(CompilerError::Internal {
                 message: "lowered MIR addressed a reference place without a field".to_string(),
             });
-        }
+        };
 
         // descend one address per path element
-        let mut current = (reference, pointee);
-        for index in path {
-            current = self.field_address(current.0, current.1, *index, access)?;
+        let mut current = self.emit_field_address(reference, first.field, first.ty, access);
+        let mut leaf = first.ty;
+        for projection in remaining {
+            current = self.emit_field_address(current, projection.field, projection.ty, access);
+            leaf = projection.ty;
         }
 
-        Ok(current)
+        Ok((current, leaf))
     }
 
     /// Write one value into a local place, rebuilding the aggregates on the path.
     fn write_local_place(
         &mut self,
         local: mir::LocalNodeId<mir::Local>,
-        path: &[u32],
+        path: &[PlaceProjection],
         value: mir::Value,
     ) {
         // bare locals store directly
@@ -325,15 +285,19 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // load the aggregate at every level above the written field
         let mut loaded = vec![self.builder.local_get(local)];
-        for index in &path[..path.len() - 1] {
-            let inner = self.builder.field_get(loaded[loaded.len() - 1], *index);
+        for projection in &path[..path.len() - 1] {
+            let inner = self
+                .builder
+                .field_get(loaded[loaded.len() - 1], projection.field);
             loaded.push(inner);
         }
 
         // rebuild each level bottom-up around the written value
         let mut value = value;
-        for (level, index) in path.iter().enumerate().rev() {
-            value = self.builder.field_set(loaded[level], *index, value);
+        for (level, projection) in path.iter().enumerate().rev() {
+            value = self
+                .builder
+                .field_set(loaded[level], projection.field, value);
         }
         self.builder.local_set(local, value);
     }

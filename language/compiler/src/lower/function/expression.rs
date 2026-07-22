@@ -5,7 +5,6 @@ use crate::lower::FunctionLowerer;
 use crate::lower::function::body::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// One value while its checked coercion path is being lowered.
 enum CoercionValue {
     /// One source expression that has not been evaluated.
     Expression(dir::LocalNodeId<dir::Expression>),
@@ -20,12 +19,11 @@ enum CoercionValue {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one value expression, honoring its checked coercion.
     pub(in crate::lower) fn lower_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        let Some(coercion) = self.lowerer.coercion(expression) else {
+        let Some(coercion) = self.coercion(expression) else {
             return self.lower_expression_value(expression);
         };
         let value = self.coercion_source(expression, coercion.source)?;
@@ -40,7 +38,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<CoercionValue> {
-        let source = self.lowerer.reduced_type_id(source)?;
+        let source = self.lowerer.reduced_type(source)?;
 
         Ok(match self.lowerer.ty(source)? {
             dir::Type::Literal(literal) => CoercionValue::Literal(literal),
@@ -80,9 +78,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(CoercionValue::Runtime(value))
             }
             dir::CoercionKind::Borrow => {
-                let target = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), adjustment.target)?;
+                let target = self.lower_type(adjustment.target)?;
                 let value = match value {
                     CoercionValue::Expression(expression) => {
                         self.lower_borrowed_place(expression, target)?
@@ -106,9 +102,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "lowered scalar coercion source has no MIR type".to_string(),
                     });
                 };
-                let target = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), adjustment.target)?;
+                let target = self.lower_type(adjustment.target)?;
                 let value = if self.builder.tree().get(source) == self.builder.tree().get(target) {
                     value
                 } else {
@@ -141,30 +135,32 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one expression into a borrow of its place or reference.
+
+    /// Lower one expression into a borrow of its place or reference.
     pub(in crate::lower) fn lower_borrowed_place(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         target: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
         // reference sources borrow as a zero-cost kind change
-        let source = self.lowerer.node_type_id(expression)?;
-        if self.lowerer.type_is_reference(source)? {
+        let source = self.node_type_id(expression)?;
+        if self.lowerer.has_reference_representation(source)? {
             let value = self.lower_expression_value(expression)?;
 
             return Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target));
         }
 
         // value sources borrow the storage holding them
-        match self.lowerer.source().tree().get(expression).clone() {
+        match self.source().tree().get(expression).clone() {
             dir::Expression::Identifier { .. } => {
-                let node = expression.into_global_any(self.lowerer.source);
+                let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
                 match self.values.get(&symbol.local_id).copied() {
                     Some(Binding::Local(local)) => Ok(self.builder.local_addr(local, target)),
                     // borrowed parameters gain a frame home on first borrow
                     Some(Binding::Value(value)) => {
                         let ty = self.lowerer.symbol_type(symbol)?;
-                        let slot = self.lowerer.lower_type_id(self.builder.tree_mut(), ty)?;
+                        let slot = self.lower_type(ty)?;
                         let local = self.builder.local(slot, mir::Mutability::Mutable);
                         self.builder.local_set(local, value);
                         self.values.insert(symbol.local_id, Binding::Local(local));
@@ -186,7 +182,6 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Apply one union adjustment.
     fn lower_union_adjustment(
         &mut self,
         value: CoercionValue,
@@ -194,9 +189,7 @@ impl FunctionLowerer<'_, '_, '_> {
         target: dir::GlobalTypeId,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
-        let carrier = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), target)?;
+        let carrier = self.lower_type(target)?;
 
         // indexed variants preserve the checked source case correspondence
         if let mir::Type::Variant { .. } = self.builder.tree().get(carrier) {
@@ -458,7 +451,7 @@ impl FunctionLowerer<'_, '_, '_> {
         index: u32,
         member: dir::GlobalTypeId,
     ) -> CompilerResult<CoercionValue> {
-        let member = self.lowerer.reduced_type_id(member)?;
+        let member = self.lowerer.reduced_type(member)?;
 
         Ok(match self.lowerer.ty(member)? {
             dir::Type::Literal(literal) => CoercionValue::Literal(literal),
@@ -474,7 +467,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: CoercionValue,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<mir::Value>> {
-        let reduced = self.lowerer.reduced_type_id(target)?;
+        let reduced = self.lowerer.reduced_type(target)?;
         if matches!(
             self.lowerer.ty(reduced)?,
             dir::Type::Literal(_) | dir::Type::Null | dir::Type::Undefined
@@ -496,24 +489,18 @@ impl FunctionLowerer<'_, '_, '_> {
             CoercionValue::Expression(expression) => self.lower_expression_value(expression),
             CoercionValue::Runtime(value) => Ok(value),
             CoercionValue::Literal(literal) => {
-                let target = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), target)?;
+                let target = self.lower_type(target)?;
                 let target = self.builder.tree().get(target).clone();
 
                 self.lower_constant(literal, target)
             }
             CoercionValue::Null => {
-                let target = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), target)?;
+                let target = self.lower_type(target)?;
 
                 Ok(self.builder.constant(mir::Constant::Null, target))
             }
             CoercionValue::Undefined => {
-                let target = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), target)?;
+                let target = self.lower_type(target)?;
 
                 Ok(self.builder.constant(mir::Constant::Undefined, target))
             }
@@ -521,19 +508,21 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one value expression by form.
+
+    /// Lower one value expression by form.
     fn lower_expression_value(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
         // materialize comptime-folded values directly as constants
-        if let dir::Type::Literal(literal) = self.lowerer.node_type(expression)? {
+        if let dir::Type::Literal(literal) = self.node_type(expression)? {
             return self.lower_scalar_literal(expression, literal);
         }
 
-        match self.lowerer.source().tree().get(expression).clone() {
+        match self.source().tree().get(expression).clone() {
             // value
             dir::Expression::Identifier { .. } => {
-                let node = expression.into_global_any(self.lowerer.source);
+                let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
                 let Some(binding) = self.values.get(&symbol.local_id).copied() else {
                     return Err(LowerError::Unsupported {
@@ -560,7 +549,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 operator,
                 right,
             } => {
-                let resolution = self.lowerer.operator_resolution(expression)?;
+                let resolution = self.operator_resolution(expression)?;
                 match resolution {
                     dir::OperatorResolution::Builtin => match operator {
                         dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
@@ -588,7 +577,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // -value
             dir::Expression::Unary { operator, right } => {
-                match self.lowerer.operator_resolution(expression)? {
+                match self.operator_resolution(expression)? {
                     dir::OperatorResolution::Builtin => self.lower_unary(operator, right),
                     // protocol operators dispatch as right.method()
                     dir::OperatorResolution::Call(resolution) => match &resolution.target {
@@ -642,14 +631,14 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // Meters(5)
             dir::Expression::Call { .. }
-                if let Some(resolution) = self.lowerer.construct_resolution(expression) =>
+                if let Some(resolution) = self.construct_resolution(expression) =>
             {
                 self.lower_construct(&resolution)
             }
 
             // new Counter(start)
             dir::Expression::New { .. } => {
-                let Some(resolution) = self.lowerer.construct_resolution(expression) else {
+                let Some(resolution) = self.construct_resolution(expression) else {
                     return Err(CompilerError::Internal {
                         message: "checked DIR is missing a construct resolution for one new"
                             .to_string(),

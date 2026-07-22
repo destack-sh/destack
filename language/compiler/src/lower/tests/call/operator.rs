@@ -30,6 +30,7 @@ function combine(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
+@copy
 type Vector {
     x: int32;
     y: int32;
@@ -71,7 +72,9 @@ entry:
     v10: int32 = field.get v9, 0
     return v10
 }
-/// @layout.struct name=Vector size=8 align=4 fields=(x@0+4, y@4+4)
+/// @layout.struct name=Vector size=8 align=4
+/// @layout.field owner=Vector index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=Vector index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -101,6 +104,7 @@ function invert(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
+@copy
 type Charge {
     amount: int32;
 }
@@ -129,7 +133,8 @@ entry:
     v5: int32 = field.get v4, 0
     return v5
 }
-/// @layout.struct name=Charge size=4 align=4 fields=(amount@0+4)
+/// @layout.struct name=Charge size=4 align=4
+/// @layout.field owner=Charge index=0 name=amount offset=0 size=4 align=4
 "#,
     );
 }

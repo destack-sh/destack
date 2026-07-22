@@ -1,17 +1,58 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::ModuleLowerer;
+use crate::lower::{
+    GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeLowerer, TypeSubstitution,
+};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One lowered nominal declaration.
-pub(crate) struct Nominal {
+pub(in crate::lower) struct NominalRepresentation {
     /// The declared MIR type: the stored value or reference pointee.
-    pub(in crate::lower) ty: mir::LocalNodeId<mir::Type>,
+    pub(in crate::lower) storage: mir::LocalNodeId<mir::Type>,
     /// The value-position MIR type: a managed reference for reference nominals.
     pub(in crate::lower) value: mir::LocalNodeId<mir::Type>,
     /// The instance fields in declaration order.
     pub(in crate::lower) fields: Vec<NominalField>,
+}
+
+/// The lowering state of one nominal representation.
+pub(in crate::lower) enum NominalState {
+    /// A nominal identity declared before its dependencies are lowered.
+    Declared {
+        /// The stored type available during recursive lowering.
+        storage: mir::LocalNodeId<mir::Type>,
+        /// The value type available during recursive lowering.
+        value: mir::LocalNodeId<mir::Type>,
+    },
+    /// A lowered nominal representation.
+    Lowered(NominalRepresentation),
+}
+
+impl NominalState {
+    /// Return the nominal's stored type.
+    fn storage(&self) -> mir::LocalNodeId<mir::Type> {
+        match self {
+            Self::Declared { storage, .. } => *storage,
+            Self::Lowered(nominal) => nominal.storage,
+        }
+    }
+
+    /// Return the nominal's value-position type.
+    fn value(&self) -> mir::LocalNodeId<mir::Type> {
+        match self {
+            Self::Declared { value, .. } => *value,
+            Self::Lowered(nominal) => nominal.value,
+        }
+    }
+
+    /// Return the completed nominal representation.
+    fn as_lowered(&self) -> Option<&NominalRepresentation> {
+        match self {
+            Self::Lowered(nominal) => Some(nominal),
+            Self::Declared { .. } => None,
+        }
+    }
 }
 
 /// One lowered nominal instance field.
@@ -22,11 +63,36 @@ pub(in crate::lower) struct NominalField {
     pub(in crate::lower) symbol: dir::LocalSymbolId,
 }
 
+/// The identity and MIR types of one lowered nominal instance.
+pub(in crate::lower) struct NominalInstance {
+    /// The concrete representation identity.
+    pub(in crate::lower) key: GenericInstanceKey,
+    /// The stored value or reference pointee type.
+    pub(in crate::lower) storage: mir::LocalNodeId<mir::Type>,
+    /// The value-position type.
+    pub(in crate::lower) value: mir::LocalNodeId<mir::Type>,
+}
+
+/// Generic bindings and lifetime application for one nominal use.
+struct NominalArguments {
+    /// The runtime representation identity.
+    key: GenericInstanceKey,
+    /// The concrete representation parameter bindings.
+    type_substitution: TypeSubstitution,
+    /// The lifetime slots declared by the nominal representation.
+    lifetime_parameters: LifetimeParameters,
+    /// The lifetime terms applied at this use.
+    lifetimes: Vec<mir::Lifetime>,
+}
+
 impl ModuleLowerer<'_> {
-    /// Lower every declared nominal type.
-    pub(in crate::lower) fn lower_nominals(&mut self, tree: &mut mir::Tree) -> CompilerResult<()> {
-        // collect the concrete value nominals declared by this module
-        let mut nominals = Vec::new();
+    /// Lower every concrete nominal declaration owned by this module.
+    pub(in crate::lower) fn lower_nominal_declarations(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+    ) -> CompilerResult<()> {
+        // collect declarations before mutating the lowering state
+        let mut symbols = Vec::new();
         for (symbol, definition) in self.local().definitions.iter_definitions() {
             let is_nominal = matches!(
                 definition,
@@ -36,94 +102,265 @@ impl ModuleLowerer<'_> {
                     | dir::Definition::Class(_)
             );
             if is_nominal
-                && !self.definition_is_generic(symbol.module_id, definition)?
                 && symbol.module_id == self.module
+                && !self.definition_is_parameterized(symbol.module_id, definition)?
             {
-                nominals.push(symbol);
+                symbols.push(symbol);
             }
         }
 
-        for symbol in nominals {
-            self.ensure_nominal(tree, symbol)?;
+        // lower each concrete representation and its field dependencies
+        let pointer_bytes = builder.pointer_bytes();
+        let type_substitution = TypeSubstitution::default();
+        let lifetime_parameters = LifetimeParameters::default();
+        let mut types = self.type_lowerer(
+            builder.tree_mut(),
+            pointer_bytes,
+            &type_substitution,
+            &lifetime_parameters,
+        );
+        for symbol in symbols {
+            types.lower_nominal(symbol, &[])?;
         }
 
         Ok(())
     }
+}
 
-    /// Lower one nominal declaration on demand, following its dependencies.
-    pub(in crate::lower) fn ensure_nominal(
+impl TypeLowerer<'_, '_> {
+    /// Lower one nominal declaration and its representation dependencies.
+    pub(in crate::lower) fn lower_nominal(
         &mut self,
-        tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let symbol = self.resolve_symbol_alias(symbol)?;
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<NominalInstance> {
+        let arguments = self.nominal_arguments(symbol, arguments)?;
 
-        // reuse the nominal already lowered for this symbol
-        if let Some(nominal) = self.nominals.get(&symbol) {
-            return Ok(nominal.value);
+        // reuse the reserved or completed value carrier
+        if let Some(nominal) = self.lowerer.nominals.get(&arguments.key) {
+            let storage = nominal.storage();
+            let value = nominal.value();
+
+            return Ok(self.apply_nominal_arguments(
+                arguments.key,
+                storage,
+                value,
+                &arguments.lifetimes,
+            ));
         }
-        // recursive class fields reference their reserved nominal
-        if let Some(reserved) = self.reserved.get(&symbol) {
-            return Ok(*reserved);
-        }
 
-        let global = symbol;
-        let nominal = match self.definition(global)?.cloned() {
-            Some(dir::Definition::Struct(definition)) => {
-                self.lower_struct(tree, symbol, definition)?
-            }
-            Some(dir::Definition::Newtype(definition)) => {
-                self.lower_newtype(tree, symbol, definition)?
-            }
-            Some(dir::Definition::Enum(definition)) => self.lower_enum(tree, symbol, definition)?,
-            Some(dir::Definition::Class(definition)) => {
-                // reserve the declared node so recursive fields can reference it
-                let pointee = tree.insert(mir::Type::Void);
-                let value = self.managed_reference(tree, pointee);
-                self.reserved.insert(symbol, value);
-                let nominal = self.lower_class(tree, symbol, definition, pointee, value);
-                self.reserved.shift_remove(&symbol);
-
-                nominal?
+        // reserve the representation before following recursive fields
+        let Some(definition) = self.lowerer.definition(symbol)?.cloned() else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR is missing a nominal definition".to_string(),
+            });
+        };
+        let path = self.lowerer.symbol_path(symbol)?;
+        let base = mir::Symbol::named(self.lowerer.strings.intern(&path));
+        let instance = base.instantiate(&arguments.key.representations, self.tree);
+        let ty = self.tree.reserve_type(instance);
+        let value = match &definition {
+            dir::Definition::Class(_) => self.insert_managed_reference(ty),
+            dir::Definition::Struct(_) | dir::Definition::Newtype(_) | dir::Definition::Enum(_) => {
+                ty
             }
             _ => {
                 return Err(LowerError::Unsupported {
-                    anchor: self.module.into(),
+                    anchor: self.lowerer.module.into(),
                     construct: "an interface nominal".to_string(),
                 }
                 .into());
             }
         };
-        let ty = nominal.value;
-        self.nominals.insert(symbol, nominal);
+        self.lowerer.nominals.insert(
+            arguments.key.clone(),
+            NominalState::Declared { storage: ty, value },
+        );
 
-        // declare the nominal under its canonical name
-        let Some(name) = self.symbol_name(symbol)? else {
+        // fill the reserved representation under its own type substitution
+        let fields = {
+            let mut types = self.lowerer.type_lowerer(
+                self.tree,
+                self.pointer_bytes,
+                &arguments.type_substitution,
+                &arguments.lifetime_parameters,
+            );
+            match definition {
+                dir::Definition::Struct(definition) => types.lower_struct(symbol, definition, ty),
+                dir::Definition::Newtype(definition) => types.lower_newtype(symbol, definition, ty),
+                dir::Definition::Enum(definition) => types.lower_enum(symbol, definition, ty),
+                dir::Definition::Class(definition) => types.lower_class(symbol, definition, ty),
+                _ => Err(CompilerError::Internal {
+                    message: "nominal lowering entered a non-nominal definition".to_string(),
+                }),
+            }
+        };
+        let fields = match fields {
+            Ok(fields) => fields,
+            Err(error) => {
+                self.lowerer.nominals.shift_remove(&arguments.key);
+
+                return Err(error);
+            }
+        };
+        let nominal = NominalRepresentation {
+            storage: ty,
+            value,
+            fields,
+        };
+        self.lowerer
+            .nominals
+            .insert(arguments.key.clone(), NominalState::Lowered(nominal));
+
+        // declare the nominal under its canonical instance name
+        let Some(name) = self.lowerer.symbol_name(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "checked DIR declared a nominal without a name".to_string(),
             });
         };
-        let name = match symbol.module_id == self.module {
-            true => name,
+        let name = match symbol.module_id == self.lowerer.module {
+            true => self.lowerer.strings.get(name).to_string(),
             false => {
-                let path = &self.modules[&symbol.module_id].path;
-                let qualified = format!("{path}.{}", self.strings.get(name));
-
-                self.strings.intern(&qualified)
+                let path = &self.lowerer.state(symbol.module_id)?.path;
+                format!("{path}.{}", self.lowerer.strings.get(name))
             }
         };
-        let declared = self.nominals.get(&symbol).map(|nominal| nominal.ty);
-        tree.insert(mir::TypeAlias {
-            name,
-            lifetimes: Vec::new(),
-            ty: declared.unwrap_or(ty),
-        });
+        let name = self.lowerer.strings.intern(&name);
+        let lifetimes = arguments
+            .lifetime_parameters
+            .declarations(self.lowerer.strings);
+        self.tree.set_type_lifetimes(ty, lifetimes.clone());
+        self.tree.insert_type_declaration(name, lifetimes, ty);
 
-        Ok(ty)
+        Ok(self.apply_nominal_arguments(arguments.key, ty, value, &arguments.lifetimes))
     }
 
+    /// Bind one nominal use to its representation and lifetime arguments.
+    fn nominal_arguments(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<NominalArguments> {
+        let Some(definition) = self.lowerer.definition(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR is missing a nominal definition".to_string(),
+            });
+        };
+        let Some(template_id) = definition.template() else {
+            if !arguments.is_empty() {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR applied arguments to a non-generic nominal".to_string(),
+                });
+            }
+
+            return Ok(NominalArguments {
+                key: GenericInstanceKey::non_generic(symbol),
+                type_substitution: TypeSubstitution::default(),
+                lifetime_parameters: LifetimeParameters::default(),
+                lifetimes: Vec::new(),
+            });
+        };
+
+        // bind complete positional arguments through the enclosing substitution
+        let template_module = symbol.module_id;
+        let generics = &self.lowerer.state(template_module)?.generics;
+        let template = generics.get_template(template_id);
+        if template.parameters.len() != arguments.len() {
+            return Err(CompilerError::Internal {
+                message: "checked DIR applied an incomplete nominal argument list".to_string(),
+            });
+        }
+        let parameters: Vec<_> = template
+            .parameters
+            .iter()
+            .map(|parameter| {
+                let binding = generics.get_parameter(*parameter);
+
+                (parameter.into_global(template_module), binding.kind)
+            })
+            .collect();
+        let mut type_arguments = Vec::new();
+        let mut representations = Vec::new();
+        let mut lifetimes = Vec::new();
+        for ((_parameter, kind), argument) in parameters.into_iter().zip(arguments) {
+            match kind {
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime) => {
+                    lifetimes.push(
+                        self.lowerer
+                            .lower_lifetime(*argument, self.lifetime_parameters)?,
+                    );
+                }
+                dir::GenericParameterKind::Type => {
+                    type_arguments.push(*argument);
+                    representations.push(self.type_substitution.resolve(self.lowerer, *argument)?);
+                }
+                dir::GenericParameterKind::Value | dir::GenericParameterKind::Memory(_) => {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a value-parameterized nominal instance".to_string(),
+                    }
+                    .into());
+                }
+            }
+        }
+        let template = template_id.into_global(template_module);
+        let type_substitution = TypeSubstitution::bind(
+            self.lowerer,
+            template,
+            &type_arguments,
+            self.type_substitution,
+        )?;
+        let lifetime_parameters = LifetimeParameters::from_template(self.lowerer, template)?;
+        let key = self.generic_instance_key(symbol, &representations)?;
+
+        Ok(NominalArguments {
+            key,
+            type_substitution,
+            lifetime_parameters,
+            lifetimes,
+        })
+    }
+
+    /// Apply lifetime arguments without changing one nominal representation.
+    fn apply_nominal_arguments(
+        &mut self,
+        key: GenericInstanceKey,
+        storage: mir::TypeId,
+        value: mir::TypeId,
+        lifetimes: &[mir::Lifetime],
+    ) -> NominalInstance {
+        if lifetimes.is_empty() {
+            return NominalInstance {
+                key,
+                storage,
+                value,
+            };
+        }
+
+        let applied_storage = self.tree.intern_type(mir::Type::WithLifetimes {
+            base: storage,
+            lifetimes: lifetimes.to_vec(),
+        });
+        let applied_value = match value == storage {
+            true => applied_storage,
+            false => self.tree.intern_type(mir::Type::WithLifetimes {
+                base: value,
+                lifetimes: lifetimes.to_vec(),
+            }),
+        };
+
+        NominalInstance {
+            key,
+            storage: applied_storage,
+            value: applied_value,
+        }
+    }
+}
+
+impl ModuleLowerer<'_> {
     /// Gather one definition's instance fields in declaration order.
     pub(in crate::lower) fn instance_fields(
+        &self,
         members: &[dir::DefinitionMember],
     ) -> Vec<NominalField> {
         let mut fields = Vec::new();
@@ -144,44 +381,43 @@ impl ModuleLowerer<'_> {
         fields
     }
 
-    /// Lower and return the nominal behind one instance type.
-    pub(in crate::lower) fn lower_nominal(
-        &mut self,
-        tree: &mut mir::Tree,
-        instance: &dir::GenericInstance,
-    ) -> CompilerResult<&Nominal> {
-        let symbol = self.resolve_symbol_alias(instance.symbol)?;
-        self.ensure_nominal(tree, symbol)?;
-        let nominal = self
-            .nominals
-            .get(&symbol)
-            .ok_or_else(|| CompilerError::Internal {
-                message: "nominal lowering completed without recording its declaration".to_string(),
-            })?;
-
-        Ok(nominal)
-    }
-
-    /// Return whether one nominal declaration satisfies one marker interface.
-    pub(in crate::lower) fn conforms(
+    /// Return one nominal declaration's instance fields in declaration order.
+    pub(in crate::lower) fn nominal_fields(
         &self,
         symbol: dir::GlobalSymbolId,
-        interface: dir::AutoInterface,
-    ) -> CompilerResult<bool> {
-        // conformance rows key the nominal's own checked instance type
-        let autos = &self.state(symbol.module_id)?.autos;
-        for conformance in autos.conformances() {
-            if conformance.interface != interface {
-                continue;
+    ) -> CompilerResult<Vec<NominalField>> {
+        let Some(definition) = self.definition(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR is missing a nominal definition".to_string(),
+            });
+        };
+        let members = match definition {
+            dir::Definition::Class(definition) => &definition.members,
+            dir::Definition::Struct(definition) => &definition.members,
+            dir::Definition::Enum(definition) => &definition.members,
+            dir::Definition::Newtype(_) => return Ok(Vec::new()),
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR selected fields from a non-nominal definition"
+                        .to_string(),
+                });
             }
-            let dir::Type::Instance(instance) = self.ty(conformance.target)? else {
-                continue;
-            };
-            if instance.symbol == symbol {
-                return Ok(true);
-            }
-        }
+        };
 
-        Ok(false)
+        Ok(self.instance_fields(members))
+    }
+
+    /// Return one completed nominal by declaration symbol.
+    pub(in crate::lower) fn nominal(
+        &self,
+        key: &GenericInstanceKey,
+    ) -> CompilerResult<&NominalRepresentation> {
+        let Some(nominal) = self.nominals.get(key).and_then(NominalState::as_lowered) else {
+            return Err(CompilerError::Internal {
+                message: "nominal lowering has not completed the declaration".to_string(),
+            });
+        };
+
+        Ok(nominal)
     }
 }

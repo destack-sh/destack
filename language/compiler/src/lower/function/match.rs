@@ -29,10 +29,8 @@ impl FunctionLowerer<'_, '_, '_> {
         arms: &[dir::LocalNodeId<dir::MatchArm>],
     ) -> CompilerResult<mir::Value> {
         // the matched carrier names the case set the arms select from
-        let carrier = self.lowerer.coerced_type_id(value)?;
-        let carrier = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), carrier)?;
+        let carrier = self.coerced_type_id(value)?;
+        let carrier = self.lower_type(carrier)?;
         let matched = self.lower_expression(value)?;
 
         // resolve each arm's case through its sealed pattern
@@ -40,7 +38,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut targets = Vec::new();
         let mut default = None;
         for arm in arms {
-            let (pattern, guard, body) = match *self.lowerer.source().tree().get(*arm) {
+            let (pattern, guard, body) = match *self.source().tree().get(*arm) {
                 dir::MatchArm::Expression {
                     pattern,
                     guard,
@@ -109,7 +107,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // allocate every case body before building selection edges
         for case in cases {
             let block = self.builder.block();
-            let selector = self.lowerer.source().tree().get(*case).selector;
+            let selector = self.source().tree().get(*case).selector;
             match selector {
                 dir::SwitchSelector::Case(_) => {}
                 dir::SwitchSelector::Default => {
@@ -125,12 +123,11 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // evaluate selectors lazily in source order
         for case in &lowered_cases {
-            let selector = self.lowerer.source().tree().get(case.case).selector;
+            let selector = self.source().tree().get(case.case).selector;
             let dir::SwitchSelector::Case(selector) = selector else {
                 continue;
             };
-            let dir::OperatorResolution::Builtin = self.lowerer.operator_resolution(case.case)?
-            else {
+            let dir::OperatorResolution::Builtin = self.operator_resolution(case.case)? else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "a protocol switch equality".to_string(),
@@ -166,7 +163,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         case: dir::LocalNodeId<dir::SwitchCase>,
     ) -> CompilerResult<bool> {
-        let body = self.lowerer.source().tree().get(case).body;
+        let body = self.source().tree().get(case).body;
 
         self.lower_block(body)
     }
@@ -177,7 +174,7 @@ impl FunctionLowerer<'_, '_, '_> {
         pattern: dir::LocalNodeId<dir::Pattern>,
         carrier: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Option<u32>> {
-        match self.lowerer.pattern_resolution(pattern)? {
+        match self.pattern_resolution(pattern)? {
             // wildcards and bare bindings take the default arm
             dir::PatternResolution::Ignore => Ok(None),
             dir::PatternResolution::Bind(dir::PatternBindingResolution {

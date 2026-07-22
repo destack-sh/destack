@@ -1,34 +1,61 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{ModuleLowerer, Nominal, NominalField};
+use crate::lower::{ModuleLowerer, NominalField, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
+    /// Return one enum member's declaration position.
+    pub(in crate::lower) fn enum_case_index(
+        &self,
+        member: &dir::EnumMemberType,
+    ) -> CompilerResult<u32> {
+        let dir::Type::Application(instance) = self.ty(member.owner)? else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR typed an enum member without its owner instance".to_string(),
+            });
+        };
+        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR typed an enum member outside an enum definition".to_string(),
+            });
+        };
+        let Some(index) = definition.variant_position(member.member) else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR selected a case missing from its enum".to_string(),
+            });
+        };
+
+        Ok(index as u32)
+    }
+}
+
+impl TypeLowerer<'_, '_> {
     /// Lower one value enum declaration to its MIR variant type.
     pub(in crate::lower) fn lower_enum(
         &mut self,
-        tree: &mut mir::Tree,
-        symbol: dir::GlobalSymbolId,
+        _symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
-    ) -> CompilerResult<Nominal> {
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<Vec<NominalField>> {
         // require an integer representation supported by MIR variants
         let dir::EnumBackingType::Integer(integer) = definition.backing else {
             return Err(LowerError::Unsupported {
-                anchor: self.module.into(),
+                anchor: self.lowerer.module.into(),
                 construct: "a string-backed enum".to_string(),
             }
             .into());
         };
-        let discriminant =
-            self.lower_type(&dir::Type::Primitive(dir::PrimitiveType::Integer(integer)))?;
-        let discriminant = tree.insert(discriminant);
+        let discriminant = self
+            .lowerer
+            .scalar_type(&dir::Type::Primitive(dir::PrimitiveType::Integer(integer)))?;
+        let discriminant = self.tree.intern_type(discriminant);
         let width = integer
             .width()
             .unwrap_or_else(|| u16::from(self.pointer_bytes) * 8);
 
         // build the variant cases in declaration order
-        let storage = tree.insert(mir::Type::Void);
+        let storage = self.tree.intern_type(mir::Type::Void);
         let mut fields = Vec::new();
         let mut variants = Vec::new();
         for variant in definition.variants() {
@@ -59,22 +86,18 @@ impl ModuleLowerer<'_> {
             });
         }
 
-        // conformance decides whether values copy or move
-        let copy = match self.conforms(symbol, dir::AutoInterface::Copy)? {
-            true => mir::Copy::Yes,
-            false => mir::Copy::No,
-        };
-        let ty = tree.insert(mir::Type::Variant {
-            discriminant,
-            storage,
-            cases: variants,
-            copy,
-        });
-
-        Ok(Nominal {
+        // value enums carry only their copyable integer discriminant
+        let copy = mir::Copy::Yes;
+        self.tree.define_type(
             ty,
-            value: ty,
-            fields,
-        })
+            mir::Type::Variant {
+                discriminant,
+                storage,
+                cases: variants,
+                copy,
+            },
+        );
+
+        Ok(fields)
     }
 }

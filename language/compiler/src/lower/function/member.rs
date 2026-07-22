@@ -12,30 +12,20 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
         // construct the case value for enum member reads
-        if let dir::Type::EnumMember(member) = self.lowerer.node_type(expression)? {
+        if let dir::Type::EnumMember(member) = self.node_type(expression)? {
             return self.lower_enum_member(&member);
         }
 
         let index = self.member_field_index(expression)?;
-        let receiver = self.lowerer.coerced_type_id(left)?;
+        let receiver = self.coerced_type_id(left)?;
+        let result_type = self.lower_type(self.node_type_id(expression)?)?;
         let value = self.lower_expression(left)?;
 
         // load fields through addresses for reference receivers
         if let Some(layer) = self.lowerer.peel_reference(receiver)? {
-            let dir::Type::Instance(ref instance) = self.lowerer.ty(layer.stored)? else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a member read through a structural reference".to_string(),
-                }
-                .into());
-            };
-            let pointee = self
-                .lowerer
-                .lower_nominal(self.builder.tree_mut(), instance)?
-                .ty;
-            let (address, field) = self.field_address(value, pointee, index, layer.access)?;
+            let address = self.emit_field_address(value, index, result_type, layer.access);
 
-            return Ok(self.builder.load(address, field));
+            return Ok(self.builder.load(address, result_type));
         }
 
         Ok(self.builder.field_get(value, index))
@@ -43,45 +33,19 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one enum member read to its case construction.
     fn lower_enum_member(&mut self, member: &dir::EnumMemberType) -> CompilerResult<mir::Value> {
-        // the owner names the declared variant type
-        let dir::Type::Instance(instance) = self.lowerer.ty(member.owner)? else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR typed an enum member without its owner instance".to_string(),
-            });
-        };
-        let nominal = self
-            .lowerer
-            .lower_nominal(self.builder.tree_mut(), &instance)?;
-        let case = Self::enum_case_index(&nominal, member)?;
+        // materialize the owner carrier and select the declared case
+        let ty = self.lower_type(member.owner)?;
+        let case = self.lowerer.enum_case_index(member)?;
 
-        Ok(self.builder.variant_new(nominal.ty, case, None))
-    }
-
-    /// Return the declared case position of one enum member.
-    pub(in crate::lower) fn enum_case_index(
-        nominal: &crate::lower::Nominal,
-        member: &dir::EnumMemberType,
-    ) -> CompilerResult<u32> {
-        let symbol = member.member.local_id;
-        let Some(case) = nominal
-            .fields
-            .iter()
-            .position(|field| field.symbol == symbol)
-        else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR selected a case missing from its enum".to_string(),
-            });
-        };
-
-        Ok(case as u32)
+        Ok(self.builder.variant_new(ty, case, None))
     }
 
     /// Return the declaration field index behind one member expression.
     pub(in crate::lower) fn member_field_index(
-        &mut self,
+        &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<u32> {
-        let resolution = self.lowerer.member_resolution(expression)?;
+        let resolution = self.member_resolution(expression)?;
 
         // read tuple elements by position
         if let dir::MemberTarget::Element(index) = resolution.target {
@@ -94,21 +58,17 @@ impl FunctionLowerer<'_, '_, '_> {
             Some(layer) => layer.stored,
             None => self.lowerer.peel_owned(receiver)?,
         };
-        let dir::Type::Instance(instance) = self.lowerer.ty(stored)? else {
+        let dir::Type::Application(ref instance) = self.lowerer.ty(stored)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a member read on a structural receiver".to_string(),
             }
             .into());
         };
-        let nominal = self
-            .lowerer
-            .lower_nominal(self.builder.tree_mut(), &instance)?;
+        let fields = self.lowerer.nominal_fields(instance.symbol)?;
         let index = match &resolution.target {
             // point.x through the field key
-            dir::MemberTarget::Field(key) => {
-                nominal.fields.iter().position(|field| field.key == *key)
-            }
+            dir::MemberTarget::Field(key) => fields.iter().position(|field| field.key == *key),
             // point.x through the field declaration
             dir::MemberTarget::Symbol(candidate) => {
                 if !candidate.adjustments.is_empty() {
@@ -120,10 +80,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 let symbol = candidate.symbol.local_id;
 
-                nominal
-                    .fields
-                    .iter()
-                    .position(|field| field.symbol == symbol)
+                fields.iter().position(|field| field.symbol == symbol)
             }
             other => {
                 return Err(LowerError::Unsupported {

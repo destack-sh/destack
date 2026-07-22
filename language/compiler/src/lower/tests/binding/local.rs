@@ -91,7 +91,9 @@ entry:
     v4: int32 = field.get v3, 0
     return v4
 }
-/// @layout.struct name=Point size=8 align=4 fields=(x@0+4, y@4+4)
+/// @layout.struct name=Point size=8 align=4
+/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }

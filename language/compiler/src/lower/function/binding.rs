@@ -13,10 +13,9 @@ impl FunctionLowerer<'_, '_, '_> {
         declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) -> CompilerResult<()> {
         for declarator_id in declarators {
-            let declarator = self.lowerer.source().tree().get(*declarator_id);
+            let declarator = self.source().tree().get(*declarator_id);
             let (pattern, value) = (declarator.pattern, declarator.value);
-            let dir::Pattern::Binding { pattern: None, .. } =
-                self.lowerer.source().tree().get(pattern)
+            let dir::Pattern::Binding { pattern: None, .. } = self.source().tree().get(pattern)
             else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -33,7 +32,7 @@ impl FunctionLowerer<'_, '_, '_> {
             };
 
             // resolve the binding symbol at the pattern node
-            let node = pattern.into_global_any(self.lowerer.source);
+            let node = pattern.into_global_any(self.source);
             let Some(symbol) = self.lowerer.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
                     message: "checked DIR is missing a symbol for one let binding".to_string(),
@@ -46,7 +45,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::Mutability::Immutable => Binding::Value(value),
                 _ => {
                     let ty = self.lowerer.symbol_type(symbol)?;
-                    let ty = self.lowerer.lower_type_id(self.builder.tree_mut(), ty)?;
+                    let ty = self.lower_type(ty)?;
                     let local = self.builder.local(ty, mir::Mutability::Mutable);
                     self.builder.local_set(local, value);
 
@@ -68,17 +67,14 @@ impl FunctionLowerer<'_, '_, '_> {
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // the checked resolution names the writable place
-        let dir::AssignPatternResolution::Place(resolution) =
-            self.lowerer.assign_resolution(left)?
-        else {
+        let dir::AssignPatternResolution::Place(resolution) = self.assign_resolution(left)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a destructuring assignment".to_string(),
             }
             .into());
         };
-        let dir::AssignPattern::Place { expression: target } =
-            *self.lowerer.source().tree().get(left)
+        let dir::AssignPattern::Place { expression: target } = *self.source().tree().get(left)
         else {
             return Err(CompilerError::Internal {
                 message: "checked DIR resolved a non-place pattern as a place".to_string(),
@@ -95,7 +91,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // apply the checked builtin operation for compound assignment
-        let dir::OperatorResolution::Builtin = self.lowerer.operator_resolution(statement)? else {
+        let dir::OperatorResolution::Builtin = self.operator_resolution(statement)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a protocol compound assignment".to_string(),
@@ -107,7 +103,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "compound assignment has no binary operator".to_string(),
             });
         };
-        let carrier = self.lowerer.coerced_type(target)?;
+        let carrier = self.coerced_type(target)?;
         let operator = self.binary_operator(operator, &carrier)?;
         let current = self.read_place(&place)?;
         let value = self.lower_expression(right)?;

@@ -10,7 +10,7 @@ impl FunctionLowerer<'_, '_, '_> {
         body: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // return the value of expression bodies directly
-        let dir::Expression::Block(block) = *self.lowerer.source().tree().get(body) else {
+        let dir::Expression::Block(block) = *self.source().tree().get(body) else {
             let value = self.lower_expression(body)?;
             self.builder.return_(Some(value));
 
@@ -25,7 +25,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
-        match self.lowerer.source().tree().get(block).tail_expression {
+        match self.source().tree().get(block).tail_expression {
             // run valueless tails for control flow, not for a result
             Some(tail) if self.tail_is_valueless(tail)? => {
                 if !self.lower_statement(tail)? {
@@ -48,7 +48,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
-        let dir::Expression::Block(block) = *self.lowerer.source().tree().get(expression) else {
+        let dir::Expression::Block(block) = *self.source().tree().get(expression) else {
             return self.lower_statement(expression);
         };
 
@@ -68,7 +68,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
-        match self.lowerer.source().tree().get(block).tail_expression {
+        match self.source().tree().get(block).tail_expression {
             // keep lowering valueless tails as statements
             Some(tail) if self.tail_is_valueless(tail)? => self.lower_statement(tail),
             // discard the tail value in statement blocks
@@ -86,7 +86,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         statement: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
-        match self.lowerer.source().tree().get(statement).clone() {
+        match self.source().tree().get(statement).clone() {
             // return value
             dir::Expression::Return { value } => {
                 let value = value
@@ -141,15 +141,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 else_expression,
             } => self.lower_if(&condition, then_expression, else_expression),
 
-            // switch (value) { ... }
-            dir::Expression::Switch { value, cases } => self.lower_switch(value, &cases),
-
             // debugger
             dir::Expression::Debugger => {
                 self.builder.breakpoint();
 
                 Ok(false)
             }
+
+            // switch (value) { ... }
+            dir::Expression::Switch { value, cases } => self.lower_switch(value, &cases),
 
             // while (cond) { ... }
             dir::Expression::While {
@@ -171,7 +171,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // outer: while (cond) { ... }
             dir::Expression::Label { label, body } => {
-                match self.lowerer.source().tree().get(body).clone() {
+                match self.source().tree().get(body).clone() {
                     dir::Expression::While {
                         form,
                         condition,
@@ -200,7 +200,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // Meters(5)
             dir::Expression::Call { .. }
-                if let Some(resolution) = self.lowerer.construct_resolution(statement) =>
+                if let Some(resolution) = self.construct_resolution(statement) =>
             {
                 self.lower_construct(&resolution)?;
 
@@ -224,19 +224,14 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return whether one block tail yields no value.
     fn tail_is_valueless(&self, tail: dir::LocalNodeId<dir::Expression>) -> CompilerResult<bool> {
-        let ty = self.lowerer.node_type(tail)?;
+        let ty = self.node_type(tail)?;
 
         Ok(matches!(ty, dir::Type::Never | dir::Type::Void))
     }
 
     /// Return the leading statement count of one block.
     fn block_statement_count(&self, block: dir::LocalNodeId<dir::Block>) -> usize {
-        self.lowerer
-            .source()
-            .tree()
-            .get(block)
-            .leading_expressions
-            .len()
+        self.source().tree().get(block).leading_expressions.len()
     }
 
     /// Return one leading statement of one block by position.
@@ -245,6 +240,6 @@ impl FunctionLowerer<'_, '_, '_> {
         block: dir::LocalNodeId<dir::Block>,
         index: usize,
     ) -> dir::LocalNodeId<dir::Expression> {
-        self.lowerer.source().tree().get(block).leading_expressions[index]
+        self.source().tree().get(block).leading_expressions[index]
     }
 }

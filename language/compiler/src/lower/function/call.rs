@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{AmbientCallable, FunctionLowerer};
+use crate::lower::{CallableImplementation, FunctionLowerer, GenericInstanceKey};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -10,17 +10,17 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let resolution = self.lowerer.call_resolution(expression)?;
+        let resolution = self.call_resolution(expression)?;
 
         match &resolution.target {
             // free(...)
             dir::CallTarget::Symbol(candidate) => {
                 // sealed intrinsic and binding callables bypass declared functions
-                match self.lowerer.ambient_callable(candidate.symbol)? {
-                    Some(AmbientCallable::Intrinsic { name }) => {
+                match self.lowerer.callable_implementation(candidate.symbol)? {
+                    Some(CallableImplementation::Intrinsic { name }) => {
                         return self.lower_intrinsic_call(name, &resolution);
                     }
-                    Some(AmbientCallable::Binding { .. }) => {
+                    Some(CallableImplementation::Binding { .. }) => {
                         return self.lower_binding_call(candidate.symbol, &resolution);
                     }
                     None => {}
@@ -30,10 +30,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 if candidate.receiver.is_some() || !candidate.adjustments.is_empty() {
                     self.lower_method_call(expression, &resolution, candidate)
                 }
-                // generic<T>(...) selects its materialized instance
+                // generic<T>(...) selects its concrete instance
                 else if candidate.generic_scope.is_some() {
                     self.lower_generic_call(&resolution)
-                } else if self.has_type_generic_arguments(candidate)? {
+                } else if self.has_instance_arguments(candidate)? {
                     self.lower_instance_call(candidate, &resolution)
                 }
                 // local or imported (...)
@@ -49,7 +49,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return whether one candidate binds generic arguments beyond lifetimes.
-    fn has_type_generic_arguments(&self, candidate: &dir::CallCandidate) -> CompilerResult<bool> {
+    fn has_instance_arguments(&self, candidate: &dir::CallCandidate) -> CompilerResult<bool> {
         for binding in &candidate.generic_arguments {
             let parameter = binding.parameter;
             let generics = &self.lowerer.state(parameter.module_id)?.generics;
@@ -68,7 +68,7 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
-        let function = self.function_for(symbol, &[])?;
+        let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
         let values = self.lower_provided_arguments(resolution)?;
 
         Ok(self.builder.call_function(function, values))
@@ -101,7 +101,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
         // resolve the declared MIR function behind the symbol
-        let function = self.function_for(symbol, &[])?;
+        let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
         let values = self.lower_provided_arguments(resolution)?;
 
         Ok(self.builder.call_function(function, values))
@@ -115,15 +115,13 @@ impl FunctionLowerer<'_, '_, '_> {
         candidate: &dir::CallCandidate,
     ) -> CompilerResult<Option<mir::Value>> {
         // the callee member names the receiver expression
-        let dir::Expression::Call { left: callee, .. } =
-            *self.lowerer.source().tree().get(expression)
+        let dir::Expression::Call { left: callee, .. } = *self.source().tree().get(expression)
         else {
             return Err(CompilerError::Internal {
                 message: "checked DIR called a method outside a call expression".to_string(),
             });
         };
-        let dir::Expression::Member { left: receiver, .. } =
-            *self.lowerer.source().tree().get(callee)
+        let dir::Expression::Member { left: receiver, .. } = *self.source().tree().get(callee)
         else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -146,7 +144,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let receiver = match candidate.adjustments.as_slice() {
             [] => self.lower_expression(receiver)?,
             [dir::Projection::Borrow { ty, .. }] => {
-                let target = self.lowerer.lower_type_id(self.builder.tree_mut(), *ty)?;
+                let target = self.lower_type(*ty)?;
 
                 self.lower_borrowed_place(receiver, target)?
             }
@@ -160,7 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // resolve the declared MIR function behind the method symbol
-        let function = self.function_for(candidate.symbol, &[])?;
+        let function = self.function(&GenericInstanceKey::non_generic(candidate.symbol))?;
 
         // bind the arguments after the receiver
         let mut values = vec![receiver];
@@ -181,34 +179,30 @@ impl FunctionLowerer<'_, '_, '_> {
         .into())
     }
 
-    /// Lower one call to a materialized generic instance.
+    /// Lower one call to a concrete generic instance.
     fn lower_instance_call(
         &mut self,
         candidate: &dir::CallCandidate,
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
-        // the substituted arguments select the declared instance by carrier
+        // the substituted arguments select the declared instance
         let arguments = self
             .lowerer
-            .instance_arguments(candidate, &self.lowerer.substitution)?;
+            .instance_arguments(candidate, &self.type_substitution)?;
         let key = self
-            .lowerer
-            .instance_key(self.builder.tree_mut(), &arguments)?;
-        let function = self.function_for(candidate.symbol, &key)?;
+            .type_lowerer()
+            .generic_instance_key(candidate.symbol, &arguments)?;
+        let function = self.function(&key)?;
         let values = self.lower_provided_arguments(resolution)?;
 
         Ok(self.builder.call_function(function, values))
     }
 
     /// Return the MIR function behind one callable symbol and its instance key.
-    fn function_for(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        key: &[mir::Type],
-    ) -> CompilerResult<mir::FunctionId> {
+    fn function(&self, key: &GenericInstanceKey) -> CompilerResult<mir::FunctionId> {
         self.lowerer
             .functions
-            .get(&(symbol, key.to_vec()))
+            .get(key)
             .copied()
             .ok_or_else(|| CompilerError::Internal {
                 message: "checked DIR is missing a declared function behind one call symbol"
@@ -245,19 +239,9 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<mir::Value> {
-        let expression = self.argument_expression(source)?;
-
-        self.lower_expression(expression)
-    }
-
-    /// Return the value expression provided by one checked argument source.
-    pub(in crate::lower) fn argument_expression(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
         // unwrap the provided value from argument nodes
         if let Ok(argument) = source.local_id.try_into_typed::<dir::Argument>() {
-            let value = match self.lowerer.source().tree().get(argument) {
+            let value = match self.source().tree().get(argument) {
                 dir::Argument::Positional { value }
                 | dir::Argument::Named { value, .. }
                 | dir::Argument::Labeled { value, .. } => *value,
@@ -275,7 +259,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             };
 
-            return Ok(value);
+            return self.lower_expression(value);
         }
 
         // lower the source as the value expression itself
@@ -288,6 +272,6 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        Ok(expression)
+        self.lower_expression(expression)
     }
 }

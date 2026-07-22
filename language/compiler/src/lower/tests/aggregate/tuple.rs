@@ -20,9 +20,12 @@ entry(v0: (int32, float64)):
     v3: (float64, int32) = aggregate (v1, v2)
     return v3
 }
-/// @layout.tuple name=type@2 size=16 align=8 elements=(@8+4, @0+8)
-/// @layout.tuple name=type@5 size=16 align=8 elements=(@0+8, @8+4)
-/// @layout.tuple name=type@11 size=16 align=8 elements=(@0+8, @8+4)
+/// @layout.tuple name=type@2 size=16 align=8
+/// @layout.element owner=type@2 index=0 offset=8 size=4 align=4
+/// @layout.element owner=type@2 index=1 offset=0 size=8 align=8
+/// @layout.tuple name=type@3 size=16 align=8
+/// @layout.element owner=type@3 index=0 offset=0 size=8 align=8
+/// @layout.element owner=type@3 index=1 offset=8 size=4 align=4
 "#,
     );
 }
@@ -56,9 +59,12 @@ entry(v0: Point, v1: Point):
     v2: (Point, Point) = aggregate (v0, v1)
     return v2
 }
-/// @layout.struct name=Point size=8 align=4 fields=(x@0+4, y@4+4)
-/// @layout.tuple name=type@6 size=16 align=4 elements=(@0+8, @8+8)
-/// @layout.tuple name=type@10 size=16 align=4 elements=(@0+8, @8+8)
+/// @layout.struct name=Point size=8 align=4
+/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
+/// @layout.tuple name=type@5 size=16 align=4
+/// @layout.element owner=type@5 index=0 offset=0 size=8 align=4
+/// @layout.element owner=type@5 index=1 offset=8 size=8 align=4
 "#,
     );
 }

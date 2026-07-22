@@ -2,43 +2,36 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::CompilerResult;
-use crate::lower::{ModuleLowerer, Nominal, NominalField};
+use crate::lower::{NominalField, TypeLowerer};
 
-impl ModuleLowerer<'_> {
+impl TypeLowerer<'_, '_> {
     /// Lower one newtype declaration to its MIR type.
     pub(in crate::lower) fn lower_newtype(
         &mut self,
-        tree: &mut mir::Tree,
-        symbol: dir::GlobalSymbolId,
+        _symbol: dir::GlobalSymbolId,
         definition: dir::NewtypeDefinition,
-    ) -> CompilerResult<Nominal> {
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<Vec<NominalField>> {
         // tagged newtypes lower their checked variants directly
         if definition.is_tagged() {
-            return self.lower_tagged_newtype(tree, symbol, definition);
+            return self.lower_tagged_newtype(definition, ty);
         }
 
         // wrap the backing type transparently
-        let inner = self.lower_type_id(tree, definition.backing)?;
-        let copy = match self.conforms(symbol, dir::AutoInterface::Copy)? {
-            true => mir::Copy::Yes,
-            false => mir::Copy::No,
-        };
-        let ty = tree.insert(mir::Type::Newtype { inner, copy });
+        let inner = self.lower(definition.backing)?;
+        let copy = self.tree.get(inner).copy(self.tree);
+        self.tree
+            .define_type(ty, mir::Type::Newtype { inner, copy });
 
-        Ok(Nominal {
-            ty,
-            value: ty,
-            fields: Vec::new(),
-        })
+        Ok(Vec::new())
     }
 
     /// Lower one tagged newtype declaration to its variant carrier.
     fn lower_tagged_newtype(
         &mut self,
-        tree: &mut mir::Tree,
-        symbol: dir::GlobalSymbolId,
         definition: dir::NewtypeDefinition,
-    ) -> CompilerResult<Nominal> {
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<Vec<NominalField>> {
         // lower each checked case and its exact backing leaf together
         let mut cases = Vec::new();
         let mut payloads = Vec::new();
@@ -47,20 +40,21 @@ impl ModuleLowerer<'_> {
                 key: variant.key,
                 symbol: variant.symbol.local_id,
             });
-            payloads.push(self.lower_type_id(tree, variant.backing)?);
+            payloads.push(self.lower(variant.backing)?);
         }
 
-        // conformance decides whether values copy or move
-        let copy = match self.conforms(symbol, dir::AutoInterface::Copy)? {
-            true => mir::Copy::Yes,
-            false => mir::Copy::No,
+        // concrete payload representations decide whether values copy or move
+        let is_copy = payloads
+            .iter()
+            .all(|payload| self.tree.get(*payload).copy(self.tree) == mir::Copy::Yes);
+        let copy = if is_copy {
+            mir::Copy::Yes
+        } else {
+            mir::Copy::No
         };
-        let ty = self.variant_type(tree, payloads, copy);
+        let variant = self.variant_type(payloads, copy);
+        self.tree.define_type(ty, variant);
 
-        Ok(Nominal {
-            ty,
-            value: ty,
-            fields: cases,
-        })
+        Ok(cases)
     }
 }

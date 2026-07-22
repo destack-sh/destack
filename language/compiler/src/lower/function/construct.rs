@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::FunctionLowerer;
+use crate::lower::{FunctionLowerer, GenericInstanceKey};
 
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -33,17 +33,12 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::ConstructResolution,
         candidate: &dir::ClassConstructCandidate,
     ) -> CompilerResult<mir::Value> {
+        // lower the return form and its class representation
+        let carrier = self.lower_type(resolution.return_type)?;
+        let nominal = self.lower_nominal(resolution.return_type)?;
+        let pointee = nominal.storage;
+
         // the checked return form decides where the instance stores
-        let carrier = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
-        let symbol = self.lowerer.resolve_symbol_alias(candidate.symbol)?;
-        let Some(nominal) = self.lowerer.nominals.get(&symbol) else {
-            return Err(CompilerError::Internal {
-                message: "class return type lowered without its nominal declaration".to_string(),
-            });
-        };
-        let pointee = nominal.ty;
         let is_reference = matches!(
             self.builder.tree().get(carrier),
             mir::Type::Reference { .. }
@@ -54,7 +49,11 @@ impl FunctionLowerer<'_, '_, '_> {
             // owned destinations construct in place inside a local slot
             false => {
                 let slot = self.builder.local(pointee, mir::Mutability::Mutable);
-                let address = self.exclusive_borrow(pointee);
+                let address = self.type_lowerer().insert_reference(
+                    mir::ReferenceKind::Borrowed,
+                    mir::Access::Exclusive,
+                    pointee,
+                );
                 let address = self.builder.local_addr(slot, address);
 
                 (Some(slot), address)
@@ -64,15 +63,19 @@ impl FunctionLowerer<'_, '_, '_> {
         // constructors initialize the storage through an exclusive borrow
         match &candidate.constructor {
             dir::ClassConstructor::Declared { symbol } => {
-                let Some(function) = self.lowerer.functions.get(&(*symbol, Vec::new())).copied()
-                else {
+                let key = GenericInstanceKey::non_generic(*symbol);
+                let Some(function) = self.lowerer.functions.get(&key).copied() else {
                     return Err(CompilerError::Internal {
                         message: "checked DIR is missing a declared constructor function"
                             .to_string(),
                     });
                 };
                 // heap references borrow exclusively; local addresses already do
-                let exclusive = self.exclusive_borrow(pointee);
+                let exclusive = self.type_lowerer().insert_reference(
+                    mir::ReferenceKind::Borrowed,
+                    mir::Access::Exclusive,
+                    pointee,
+                );
                 let receiver = match is_reference {
                     true => self
                         .builder
@@ -114,28 +117,13 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(object)
     }
 
-    /// Insert one exclusive borrow over construction storage.
-    fn exclusive_borrow(
-        &mut self,
-        pointee: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
-        self.lowerer.insert_reference(
-            self.builder.tree_mut(),
-            mir::ReferenceKind::Borrowed,
-            mir::Access::Exclusive,
-            pointee,
-        )
-    }
-
     /// Lower one newtype construction to a single-value aggregate.
     fn lower_newtype_construct(
         &mut self,
         resolution: &dir::ConstructResolution,
     ) -> CompilerResult<mir::Value> {
         // the construct resolution names the newtype before contextual coercion
-        let ty = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let ty = self.lower_type(resolution.return_type)?;
 
         // wrap the single bound raw value
         let [binding] = resolution.arguments.as_slice() else {
@@ -176,30 +164,27 @@ impl FunctionLowerer<'_, '_, '_> {
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<mir::Value> {
         // the checked node type names the constructed nominal
-        let dir::Type::Instance(instance) = self.lowerer.coerced_type(expression)? else {
+        let ty = self.coerced_type_id(expression)?;
+        let dir::Type::Application(_) = self.lowerer.ty(ty)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a structural object construction".to_string(),
             }
             .into());
         };
-        let nominal = self
-            .lowerer
-            .lower_nominal(self.builder.tree_mut(), &instance)?;
-        let (ty, fields) = (
-            nominal.ty,
-            nominal
-                .fields
-                .iter()
-                .map(|field| field.key)
-                .collect::<Vec<_>>(),
-        );
+        let nominal = self.lower_nominal(ty)?;
+        let ty = self.lower_type(ty)?;
+        let nominal = self.lowerer.nominal(&nominal.key)?;
+        let fields = nominal
+            .fields
+            .iter()
+            .map(|field| field.key)
+            .collect::<Vec<_>>();
 
         // gather each property value under its field key
         let mut values = Vec::with_capacity(properties.len());
         for property in properties {
-            let dir::Property::Field { key, value, .. } =
-                self.lowerer.source().tree().get(*property)
+            let dir::Property::Field { key, value, .. } = self.source().tree().get(*property)
             else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -243,14 +228,13 @@ impl FunctionLowerer<'_, '_, '_> {
         elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<mir::Value> {
         // the checked node type names the tuple carrier
-        let ty = self.lowerer.coerced_type_id(expression)?;
-        let ty = self.lowerer.lower_type_id(self.builder.tree_mut(), ty)?;
+        let ty = self.coerced_type_id(expression)?;
+        let ty = self.lower_type(ty)?;
 
         // lower the element values in order
         let mut values = Vec::with_capacity(elements.len());
         for element in elements {
-            let dir::Argument::Positional { value } = self.lowerer.source().tree().get(*element)
-            else {
+            let dir::Argument::Positional { value } = self.source().tree().get(*element) else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "a spread tuple element".to_string(),

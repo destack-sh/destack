@@ -11,23 +11,23 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        let target = self.lowerer.node_type(expression)?;
-        let target = self.lowerer.lower_type(&target)?;
+        let target = self.node_type(expression)?;
+        let target = self.lowerer.scalar_type(&target)?;
 
         // materialize literal sources directly at the cast target
-        if let dir::Type::Literal(literal) = self.lowerer.node_type(value)? {
+        if let dir::Type::Literal(literal) = self.node_type(value)? {
             return self.lower_constant(literal, target);
         }
 
-        let source = self.lowerer.coerced_type(value)?;
-        let source = self.lowerer.lower_type(&source)?;
+        let source = self.coerced_type(value)?;
+        let source = self.lowerer.scalar_type(&source)?;
         let lowered = self.lower_expression(value)?;
         if source == target {
             return Ok(lowered);
         }
 
         let operator = self.cast_operator(&source, &target)?;
-        let target = self.builder.tree_mut().insert(target);
+        let target = self.builder.tree_mut().intern_type(target);
 
         Ok(self.builder.cast(operator, lowered, target))
     }

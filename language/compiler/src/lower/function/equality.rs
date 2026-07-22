@@ -70,7 +70,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.lowerer.coerced_type_id(expression)?;
+        let ty = self.coerced_type_id(expression)?;
         let Some(layer) = self.lowerer.peel_reference(ty)? else {
             return Ok(ty);
         };
@@ -87,11 +87,11 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<LoweredOperand> {
         let carrier = self.operand_carrier(expression)?;
-        let coerced = self.lowerer.coerced_type_id(expression)?;
+        let coerced = self.coerced_type_id(expression)?;
 
         // leave standalone nullish values unmaterialized until they meet a reference
         if carrier == coerced {
-            match self.lowerer.node_type(expression)? {
+            match self.node_type(expression)? {
                 dir::Type::Null => return Ok(LoweredOperand::Null),
                 dir::Type::Undefined => return Ok(LoweredOperand::Undefined),
                 _ => {}
@@ -101,9 +101,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // read non-reference values through their borrowed views
         if carrier != coerced {
-            let pointee = self
-                .lowerer
-                .lower_type_id(self.builder.tree_mut(), carrier)?;
+            let pointee = self.lower_type(carrier)?;
             value = self.builder.load(value, pointee);
         }
 
@@ -116,11 +114,11 @@ impl FunctionLowerer<'_, '_, '_> {
         mut carrier: dir::GlobalTypeId,
         mut value: mir::Value,
     ) -> CompilerResult<LoweredOperand> {
-        carrier = self.lowerer.reduced_type_id(carrier)?;
+        carrier = self.lowerer.reduced_type(carrier)?;
 
         // transparent newtypes compare through their backing representation
         loop {
-            let dir::Type::Instance(instance) = self.lowerer.ty(carrier)? else {
+            let dir::Type::Application(instance) = self.lowerer.ty(carrier)? else {
                 break;
             };
             let Some(dir::Definition::Newtype(definition)) =
@@ -136,7 +134,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             value = self.builder.field_get(value, 0);
-            carrier = self.lowerer.reduced_type_id(definition.backing)?;
+            carrier = self.lowerer.reduced_type(definition.backing)?;
         }
 
         // value enums compare through their integer discriminants
@@ -203,11 +201,11 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return whether one checked type has one value and no runtime payload.
     fn type_is_singleton(&self, mut ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         loop {
-            ty = self.lowerer.reduced_type_id(ty)?;
+            ty = self.lowerer.reduced_type(ty)?;
 
             match self.lowerer.ty(ty)? {
                 dir::Type::Literal(_) | dir::Type::Null | dir::Type::Undefined => return Ok(true),
-                dir::Type::Instance(instance) => {
+                dir::Type::Application(instance) => {
                     let Some(dir::Definition::Newtype(definition)) =
                         self.lowerer.definition(instance.symbol)?
                     else {
@@ -226,7 +224,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return whether one operand type is a value enum or its member.
     pub(super) fn is_enum_operand(&self, operand: &dir::Type) -> CompilerResult<bool> {
         let symbol = match operand {
-            dir::Type::Instance(instance) => instance.symbol,
+            dir::Type::Application(instance) => instance.symbol,
             dir::Type::EnumMember(member) => member.member,
             _ => return Ok(false),
         };
@@ -331,7 +329,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // reject different cases before projecting either payload
-        let boolean = self.builder.tree_mut().insert(mir::Type::Boolean);
+        let boolean = self.builder.tree_mut().intern_type(mir::Type::Boolean);
         let result = self.builder.local(boolean, mir::Mutability::Immutable);
         let compare = self.builder.block();
         let unequal = self.builder.block();
@@ -380,14 +378,14 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         carrier: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let carrier = self.lowerer.reduced_type_id(carrier)?;
+        let carrier = self.lowerer.reduced_type(carrier)?;
         match self.lowerer.ty(carrier)? {
             dir::Type::Union(union) => Ok(self
                 .lowerer
                 .types(carrier.module_id)?
                 .type_ids(union.elements)
                 .to_vec()),
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let Some(dir::Definition::Newtype(definition)) =
                     self.lowerer.definition(instance.symbol)?
                 else {

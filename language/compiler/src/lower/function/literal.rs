@@ -55,9 +55,9 @@ impl FunctionLowerer<'_, '_, '_> {
         literal: dir::ScalarLiteral,
     ) -> CompilerResult<mir::Type> {
         // use the node's own type when concretely typed
-        let ty = self.lowerer.node_type_id(expression)?;
+        let ty = self.node_type_id(expression)?;
         if !matches!(self.lowerer.ty(ty)?, dir::Type::Literal(_)) {
-            let carrier = self.lowerer.lower_type_id(self.builder.tree_mut(), ty)?;
+            let carrier = self.lower_type(ty)?;
 
             return Ok(self.builder.tree().get(carrier).clone());
         }
@@ -68,26 +68,13 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // read the numeric carrier from the checked Widen coercion
             dir::ScalarLiteral::Integer(_) | dir::ScalarLiteral::Float(_) => {
-                let Some(coercion) = self.lowerer.coercion(expression) else {
+                let Some(coercion) = self.coercion(expression) else {
                     return Err(CompilerError::Internal {
                         message: "checked DIR is missing a carrier coercion on one numeric literal"
                             .to_string(),
                     });
                 };
-                let Some(adjustment) = coercion
-                    .adjustments
-                    .iter()
-                    .find(|adjustment| adjustment.kind == dir::CoercionKind::Widen)
-                else {
-                    return Err(CompilerError::Internal {
-                        message:
-                            "checked DIR is missing a widening adjustment on one numeric literal"
-                                .to_string(),
-                    });
-                };
-                let carrier = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), adjustment.target)?;
+                let carrier = self.lower_type(coercion.target())?;
 
                 Ok(self.builder.tree().get(carrier).clone())
             }

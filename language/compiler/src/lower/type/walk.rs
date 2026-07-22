@@ -16,7 +16,7 @@ impl ModuleLowerer<'_> {
 
         match self.ty(id)? {
             // nominal instances share their declared MIR type
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 // storage carriers wrap their value type directly
                 if let Some(argument) = self.storage_carrier_argument(id, &instance)? {
                     let value = self.lower_type_id(tree, argument)?;
@@ -191,7 +191,7 @@ impl ModuleLowerer<'_> {
     fn storage_carrier_argument(
         &self,
         id: dir::GlobalTypeId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let item = self.language_item(instance.symbol)?;
         if !matches!(
@@ -215,7 +215,7 @@ impl ModuleLowerer<'_> {
     fn storage_carrier(
         &self,
         tree: &mut mir::Tree,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         value: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let ty = match self.language_item(instance.symbol)? {

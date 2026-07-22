@@ -2,11 +2,11 @@ use destack_dir as dir;
 
 use destack_source::ModuleId;
 
-use crate::lower::{LowerModuleState, ModuleLowerer};
+use crate::lower::{FunctionLowerer, LowerModuleState, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
 
-/// Sealed intrinsic or binding decoration on one callable.
-pub(in crate::lower) enum AmbientCallable {
+/// The implementation selected for one externally implemented callable.
+pub(in crate::lower) enum CallableImplementation {
     /// A compiler intrinsic operation.
     Intrinsic {
         /// The sealed dotted operation name.
@@ -36,21 +36,15 @@ impl ModuleLowerer<'_> {
             None => unreachable!("the lowered module is always loaded"),
         }
     }
+}
 
-    /// Return the sealed check output of the module the current body reads.
-    pub(in crate::lower) fn source(&self) -> &LowerModuleState {
-        match self.modules.get(&self.source) {
-            Some(state) => state,
-            None => unreachable!("the source module is always loaded"),
-        }
-    }
-
+impl FunctionLowerer<'_, '_, '_> {
     /// Return the checked type behind one expression node.
     pub(in crate::lower) fn node_type(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::Type> {
-        self.ty(self.node_type_id(expression)?)
+        self.lowerer.ty(self.node_type_id(expression)?)
     }
 
     /// Return the checked type id behind one expression node.
@@ -62,7 +56,7 @@ impl ModuleLowerer<'_> {
 
         self.source()
             .types
-            .get_node_type_id(node)
+            .get_reduced_node_type_id(node)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "checked DIR is missing a type for node {}",
@@ -70,14 +64,16 @@ impl ModuleLowerer<'_> {
                 ),
             })
     }
+}
 
+impl ModuleLowerer<'_> {
     /// Return the checked type of one symbol.
     pub(in crate::lower) fn symbol_type(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.types(symbol.module_id)?
-            .get_symbol_type_id(symbol)
+            .get_reduced_symbol_type_id(symbol)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("checked DIR is missing a type for symbol {symbol:?}"),
             })
@@ -91,31 +87,6 @@ impl ModuleLowerer<'_> {
         Ok(&self.state(module)?.types)
     }
 
-    /// Return the terminal checked reduction of one type id.
-    pub(in crate::lower) fn reduced_type_id(
-        &self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut current = ty;
-        let mut seen = Vec::new();
-
-        // follow reductions through each owning module's sealed table
-        loop {
-            if seen.contains(&current) {
-                return Err(CompilerError::Internal {
-                    message: format!("checked DIR contains a type reduction cycle at {current:?}"),
-                });
-            }
-            seen.push(current);
-
-            let reduced = self.types(current.module_id)?.get_reduced_type_id(current);
-            if reduced == current {
-                return Ok(current);
-            }
-            current = reduced;
-        }
-    }
-
     /// Return the sealed definition of one symbol in its owning module.
     pub(in crate::lower) fn definition(
         &self,
@@ -124,47 +95,14 @@ impl ModuleLowerer<'_> {
         Ok(self.state(symbol.module_id)?.definitions.definition(symbol))
     }
 
-    /// Resolve one symbol through imported aliases.
-    pub(in crate::lower) fn resolve_symbol_alias(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GlobalSymbolId> {
-        let mut current = symbol;
-        let mut visited = Vec::new();
-
-        // follow each resolved import until reaching its declaring symbol
-        loop {
-            if visited.contains(&current) {
-                return Err(CompilerError::Internal {
-                    message: format!("symbol alias {symbol:?} forwards in a cycle"),
-                });
-            }
-            visited.push(current);
-
-            let target = self
-                .state(current.module_id)?
-                .imports
-                .symbol_target(current.local_id);
-            match target {
-                Some(dir::ImportTarget::Symbol(target)) => current = target,
-                Some(dir::ImportTarget::Namespace(_)) => {
-                    return Err(CompilerError::Internal {
-                        message: format!("nominal symbol {symbol:?} resolves to a namespace"),
-                    });
-                }
-                None => return Ok(current),
-            }
-        }
-    }
-
     /// Return the sealed intrinsic or binding decoration on one callable.
     ///
     /// Check seals the dotted operation name as a static on the decorator
     /// application, so classification is a pure table read.
-    pub(in crate::lower) fn ambient_callable(
+    pub(in crate::lower) fn callable_implementation(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<AmbientCallable>> {
+    ) -> CompilerResult<Option<CallableImplementation>> {
         let state = self.state(symbol.module_id)?;
         let Some(node) = state.bindings.get_symbol(symbol.local_id).declaration else {
             return Ok(None);
@@ -186,14 +124,16 @@ impl ModuleLowerer<'_> {
             let name = self.decorator_name(application)?;
 
             return Ok(Some(match item {
-                dir::LanguageItem::Binding => AmbientCallable::Binding { name },
-                _ => AmbientCallable::Intrinsic { name },
+                dir::LanguageItem::Binding => CallableImplementation::Binding { name },
+                _ => CallableImplementation::Intrinsic { name },
             }));
         }
 
         Ok(None)
     }
+}
 
+impl ModuleLowerer<'_> {
     /// Return the language item sealed on one symbol's declaration, when named.
     pub(in crate::lower) fn language_item(
         &self,
@@ -256,11 +196,11 @@ impl ModuleLowerer<'_> {
         Ok(Some(self.strings.get(name).to_string()))
     }
 
-    /// Return whether one definition declares non-lifetime generic parameters.
+    /// Return whether one definition declares any generic parameters.
     ///
     /// Heritage clauses allocate template rows even on concrete nominals, so
-    /// genericness reads the declared parameters, not the row's presence.
-    pub(in crate::lower) fn definition_is_generic(
+    /// parameterization reads the declared parameters, not the row's presence.
+    pub(in crate::lower) fn definition_is_parameterized(
         &self,
         module: destack_source::ModuleId,
         definition: &dir::Definition,
@@ -271,14 +211,8 @@ impl ModuleLowerer<'_> {
 
         let generics = &self.state(module)?.generics;
         let template = generics.get_template(template);
-        for parameter in &template.parameters {
-            let binding = generics.get_parameter(*parameter);
-            if binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
-                return Ok(true);
-            }
-        }
 
-        Ok(false)
+        Ok(!template.parameters.is_empty())
     }
 
     /// Return the declared name of one symbol in its owning module.
@@ -291,6 +225,27 @@ impl ModuleLowerer<'_> {
         Ok(bindings.get_symbol(symbol.local_id).name())
     }
 
+    /// Return the module-qualified lexical path of one named symbol.
+    pub(in crate::lower) fn symbol_path(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<String> {
+        let state = self.state(symbol.module_id)?;
+        let local_path = state.bindings.symbol_path(symbol.local_id);
+        let mut names = Vec::with_capacity(local_path.symbols().len());
+        for symbol in local_path.symbols() {
+            let Some(name) = state.bindings.get_symbol(*symbol).name() else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR runtime symbol path contains an unnamed owner"
+                        .to_string(),
+                });
+            };
+            names.push(self.strings.get(name));
+        }
+
+        Ok(format!("{}.{}", state.path, names.join(".")))
+    }
+
     /// Return one checked type by id.
     pub(in crate::lower) fn ty(&self, ty: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         self.types(ty.module_id)?
@@ -300,18 +255,38 @@ impl ModuleLowerer<'_> {
             })
     }
 
-    /// Return the checked return type behind one callable type.
-    pub(in crate::lower) fn signature_return(
+    /// Return the sealed reduction of one checked type id.
+    pub(in crate::lower) fn reduced_type(
         &self,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let (signature, owner) = self.signature_of(ty)?;
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        Ok(self.types(ty.module_id)?.get_reduced_type_id(ty))
+    }
 
-        Ok(self.types(owner)?.signature(signature).return_type)
+    /// Return one canonical checked singleton in a well-known memory domain.
+    pub(in crate::lower) fn memory_literal(
+        &self,
+        ty: dir::GlobalTypeId,
+        kind: dir::MemoryParameter,
+    ) -> CompilerResult<dir::MemoryLiteral> {
+        let ty = self.reduced_type(ty)?;
+        let actual = self.ty(ty)?;
+        let dir::Type::Memory(literal) = actual else {
+            return Err(CompilerError::Internal {
+                message: format!("checked DIR left a {kind:?} singleton as {actual:?}"),
+            });
+        };
+        if literal.kind_language_item() != kind.language_item() {
+            return Err(CompilerError::Internal {
+                message: format!("checked DIR supplied the wrong {kind:?} singleton"),
+            });
+        }
+
+        Ok(literal)
     }
 
     /// Return the signature type and its pool-owning module behind one callable.
-    pub(in crate::lower) fn signature_of(
+    pub(in crate::lower) fn signature(
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::FunctionSignatureId, ModuleId)> {
@@ -357,7 +332,7 @@ impl ModuleLowerer<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalSymbolId> {
-        self.source()
+        self.state(node.module_id)?
             .resolutions
             .name_resolution(node)
             .and_then(|resolution| resolution.symbols().first().copied())
@@ -368,13 +343,15 @@ impl ModuleLowerer<'_> {
                 ),
             })
     }
+}
 
-    /// Return the checked call resolution of one applying node.
-    pub(in crate::lower) fn call_resolution<T: dir::Node>(
+impl FunctionLowerer<'_, '_, '_> {
+    /// Return the checked call resolution of one applying expression.
+    pub(in crate::lower) fn call_resolution(
         &self,
-        node: dir::LocalNodeId<T>,
+        expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::CallResolution> {
-        let node = node.into_global_any(self.source);
+        let node = expression.into_global_any(self.source);
 
         self.source()
             .resolutions
@@ -383,25 +360,6 @@ impl ModuleLowerer<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "checked DIR is missing a call resolution for node {}",
-                    node.local_id.id
-                ),
-            })
-    }
-
-    /// Return the checked operator resolution of one applying node.
-    pub(in crate::lower) fn operator_resolution<T: dir::Node>(
-        &self,
-        node: dir::LocalNodeId<T>,
-    ) -> CompilerResult<dir::OperatorResolution> {
-        let node = node.into_global_any(self.source);
-
-        self.source()
-            .resolutions
-            .operator_resolution(node)
-            .cloned()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked DIR is missing an operator resolution for node {}",
                     node.local_id.id
                 ),
             })
@@ -494,6 +452,25 @@ impl ModuleLowerer<'_> {
             })
     }
 
+    /// Return the checked operator resolution of one applying node.
+    pub(in crate::lower) fn operator_resolution<T: dir::Node>(
+        &self,
+        node: dir::LocalNodeId<T>,
+    ) -> CompilerResult<dir::OperatorResolution> {
+        let node = node.into_global_any(self.source);
+
+        self.source()
+            .resolutions
+            .operator_resolution(node)
+            .cloned()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "checked DIR is missing an operator resolution for node {}",
+                    node.local_id.id
+                ),
+            })
+    }
+
     /// Return the checked coercion on one expression node.
     pub(in crate::lower) fn coercion(
         &self,
@@ -510,7 +487,7 @@ impl ModuleLowerer<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::Type> {
-        self.ty(self.coerced_type_id(expression)?)
+        self.lowerer.ty(self.coerced_type_id(expression)?)
     }
 
     /// Return one node's type id after its checked coercion applies.

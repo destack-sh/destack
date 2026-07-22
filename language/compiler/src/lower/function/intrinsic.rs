@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_mir::{IntrinsicInstruction, IntrinsicTerminator};
 
-use crate::lower::FunctionLowerer;
+use crate::lower::{FunctionLowerer, LayoutBuilder};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The target constant one sealed intrinsic name folds to at lower.
@@ -87,9 +87,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operation: mir::Intrinsic,
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
         let values = self.lower_provided_arguments(resolution)?;
 
         Ok(Some(self.builder.intrinsic(operation, result, values)))
@@ -192,9 +190,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let access = self.atomic_access(resolution, 1)?;
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.atomic_load(pointer, access, result)))
     }
@@ -221,9 +217,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
         let access = self.atomic_access(resolution, 2)?;
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(
             self.builder
@@ -249,9 +243,7 @@ impl FunctionLowerer<'_, '_, '_> {
             mir::MemoryOrdering::AcquireRelease => mir::MemoryOrdering::Acquire,
             ordering => ordering,
         };
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.atomic_compare_exchange(
             pointer,
@@ -270,9 +262,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
         let operand = self.argument_value(resolution, 0)?;
-        let target = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let target = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.cast(operator, operand, target)))
     }
@@ -285,9 +275,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let data = self.argument_value(resolution, 0)?;
         let length = self.argument_value(resolution, 1)?;
         let start = self.builder.iconst(0, 64, false);
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.slice_view(data, start, length, result)))
     }
@@ -299,10 +287,8 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         let slice = self.argument_value(resolution, 0)?;
         let index = self.argument_value(resolution, 1)?;
-        let element = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
-        let pointer = self.element_pointer(slice, index, element)?;
+        let element = self.lower_type(resolution.return_type)?;
+        let pointer = self.emit_element_address(slice, index, element)?;
 
         Ok(Some(self.builder.load(pointer, element)))
     }
@@ -320,21 +306,20 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "lowered MIR stored an untyped slice element".to_string(),
             });
         };
-        let pointer = self.element_pointer(slice, index, element)?;
+        let pointer = self.emit_element_address(slice, index, element)?;
         self.builder.store(pointer, value);
 
         Ok(None)
     }
 
     /// Address one slice element behind an exclusive borrow carrier.
-    fn element_pointer(
+    fn emit_element_address(
         &mut self,
         slice: mir::Value,
         index: mir::Value,
         element: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        let pointer = self.lowerer.insert_reference(
-            self.builder.tree_mut(),
+        let pointer = self.type_lowerer().insert_reference(
             mir::ReferenceKind::Borrowed,
             mir::Access::Exclusive,
             element,
@@ -349,9 +334,7 @@ impl FunctionLowerer<'_, '_, '_> {
         constant: mir::Constant,
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.constant(constant, result)))
     }
@@ -364,9 +347,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
         self.builder.store(pointer, value);
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.intrinsic(
             mir::Intrinsic::Transmute,
@@ -381,9 +362,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::CallResolution,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.load(pointer, result)))
     }
@@ -407,9 +386,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
         let old = self.builder.load(pointer, result);
         self.builder.store(pointer, value);
 
@@ -479,9 +456,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let slice = self.argument_value(resolution, 0)?;
         let start = self.argument_value(resolution, 1)?;
         let length = self.argument_value(resolution, 2)?;
-        let result = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.slice_view(slice, start, length, result)))
     }
@@ -563,9 +538,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             LayoutIntrinsic::Dangling => {
                 let layout = self.subject_layout(resolution)?;
-                let pointer = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+                let pointer = self.lower_type(resolution.return_type)?;
                 let address =
                     self.builder
                         .iconst(layout.alignment.max(1) as i128, pointer_bits, false);
@@ -588,9 +561,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         .intrinsic(mir::Intrinsic::Transmute, domain, vec![pointer]);
                 let bytes = self.builder.imul(count, step);
                 let moved = self.builder.iadd(address, bytes);
-                let result = self
-                    .lowerer
-                    .lower_type_id(self.builder.tree_mut(), resolution.return_type)?;
+                let result = self.lower_type(resolution.return_type)?;
 
                 self.builder
                     .intrinsic(mir::Intrinsic::Transmute, result, vec![moved])
@@ -628,24 +599,23 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let arguments = self
             .lowerer
-            .instance_arguments(candidate, &self.lowerer.substitution)?;
+            .instance_arguments(candidate, &self.type_substitution)?;
         let Some(subject) = arguments.first() else {
             return Err(CompilerError::Internal {
                 message: "checked DIR bound a layout intrinsic without a subject type".to_string(),
             });
         };
-        let subject = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), *subject)?;
+        let subject = self.lower_type(*subject)?;
 
         let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
         let mut layouts = mir::LayoutTable::default();
-        let id = self.lowerer.lower_layout(
+        let mut builder = LayoutBuilder::new(
+            self.lowerer.module,
             self.builder.tree_mut(),
             &mut layouts,
             pointer_bytes,
-            subject,
-        )?;
+        );
+        let id = builder.layout_type(subject)?;
 
         Ok(layouts.entries[id.index()].clone())
     }
@@ -663,7 +633,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::CallResolution,
         index: usize,
     ) -> CompilerResult<mir::Value> {
-        let source = self.bound_argument_expression(resolution, index)?;
+        let source = self.argument_expression(resolution, index)?;
 
         self.lower_expression(source)
     }
@@ -675,24 +645,15 @@ impl FunctionLowerer<'_, '_, '_> {
         index: usize,
         construct: &str,
     ) -> CompilerResult<u32> {
-        let source = self.bound_argument_expression(resolution, index)?;
-        let dir::Type::EnumMember(member) = self.lowerer.node_type(source)? else {
+        let source = self.argument_expression(resolution, index)?;
+        let dir::Type::EnumMember(member) = self.node_type(source)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("{construct} that is not comptime-known"),
             }
             .into());
         };
-        let dir::Type::Instance(instance) = self.lowerer.ty(member.owner)? else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR typed an enum member without its owner instance".to_string(),
-            });
-        };
-        let nominal = self
-            .lowerer
-            .lower_nominal(self.builder.tree_mut(), &instance)?;
-
-        Self::enum_case_index(nominal, &member)
+        self.lowerer.enum_case_index(&member)
     }
 
     /// Read one comptime boolean argument.
@@ -702,8 +663,8 @@ impl FunctionLowerer<'_, '_, '_> {
         index: usize,
         construct: &str,
     ) -> CompilerResult<bool> {
-        let source = self.bound_argument_expression(resolution, index)?;
-        match self.lowerer.node_type(source)? {
+        let source = self.argument_expression(resolution, index)?;
+        match self.node_type(source)? {
             dir::Type::Literal(dir::ScalarLiteral::Boolean(value)) => Ok(value),
             _ => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -714,7 +675,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return one provided argument's value expression node.
-    fn bound_argument_expression(
+    fn argument_expression(
         &mut self,
         resolution: &dir::CallResolution,
         index: usize,
@@ -732,7 +693,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
         let argument = argument.local_id.into_typed::<dir::Argument>();
-        let Some(value) = self.lowerer.source().tree().get(argument).value() else {
+        let Some(value) = self.source().tree().get(argument).value() else {
             return Err(CompilerError::Internal {
                 message: "checked DIR bound a valueless intrinsic argument".to_string(),
             });

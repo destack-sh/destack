@@ -40,7 +40,9 @@ entry(v0: Point, v1: int32):
     v7: Point = local.get l0
     return v7
 }
-/// @layout.struct name=Point size=8 align=4 fields=(x@0+4, y@4+4)
+/// @layout.struct name=Point size=8 align=4
+/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -99,8 +101,12 @@ entry(v0: Frame, v1: int32):
     v10: Frame = local.get l0
     return v10
 }
-/// @layout.struct name=Size size=8 align=4 fields=(width@0+4, height@4+4)
-/// @layout.struct name=Frame size=12 align=4 fields=(corner@0+4, size@4+8)
+/// @layout.struct name=Size size=8 align=4
+/// @layout.field owner=Size index=0 name=width offset=0 size=4 align=4
+/// @layout.field owner=Size index=1 name=height offset=4 size=4 align=4
+/// @layout.struct name=Frame size=12 align=4
+/// @layout.field owner=Frame index=0 name=corner offset=0 size=4 align=4
+/// @layout.field owner=Frame index=1 name=size offset=4 size=8 align=4
 "#,
     );
 }
@@ -144,7 +150,8 @@ entry(v0: Counter):
     v7: Counter = local.get l0
     return v7
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(hits@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=hits offset=0 size=4 align=4
 "#,
     );
 }

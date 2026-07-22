@@ -4,32 +4,24 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{CallDemands, FunctionLowerer, LowerModuleState, Nominal};
+use crate::lower::{
+    ExternalCallables, FunctionLowerer, GenericInstanceKey, LayoutBuilder, LowerModuleState,
+    NominalState,
+};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Lowering state for one module: the checked DIR read side.
 pub(crate) struct ModuleLowerer<'a> {
     /// The module being lowered.
     pub(in crate::lower) module: ModuleId,
-    /// The module whose DIR the current body reads: foreign for instance copies.
-    pub(in crate::lower) source: ModuleId,
     /// The source string pool.
     pub(in crate::lower) strings: &'a StringPool,
-    /// The target pointer size in bytes.
-    pub(in crate::lower) pointer_bytes: u8,
     /// The sealed check output of every reachable module.
     pub(in crate::lower) modules: FxIndexMap<ModuleId, LowerModuleState>,
-    /// The MIR function declared for each callable symbol and instance carrier key.
-    pub(in crate::lower) functions:
-        FxIndexMap<(dir::GlobalSymbolId, Vec<mir::Type>), mir::FunctionId>,
-    /// The MIR nominal lowered for each declaration symbol.
-    pub(in crate::lower) nominals: FxIndexMap<dir::GlobalSymbolId, Nominal>,
-    /// The reference reserved for each class nominal still lowering.
-    pub(in crate::lower) reserved: FxIndexMap<dir::GlobalSymbolId, mir::LocalNodeId<mir::Type>>,
-    /// The lifetime slot declared for each parameter of the current function.
-    pub(in crate::lower) lifetime_slots: FxIndexMap<dir::LocalGenericParameterId, u16>,
-    /// The argument substituted for each generic parameter of the current instance.
-    pub(in crate::lower) substitution: FxIndexMap<dir::GlobalGenericParameterId, dir::GlobalTypeId>,
+    /// The MIR function declared for each generic instance key.
+    pub(in crate::lower) functions: FxIndexMap<GenericInstanceKey, mir::FunctionId>,
+    /// The state of each nominal representation being lowered or already lowered.
+    pub(in crate::lower) nominals: FxIndexMap<GenericInstanceKey, NominalState>,
 }
 
 impl<'a> ModuleLowerer<'a> {
@@ -38,30 +30,27 @@ impl<'a> ModuleLowerer<'a> {
         module: ModuleId,
         strings: &'a StringPool,
         modules: FxIndexMap<ModuleId, LowerModuleState>,
-        pointer_bytes: u8,
     ) -> Self {
         Self {
             module,
-            source: module,
             strings,
-            pointer_bytes,
             modules,
             functions: FxIndexMap::default(),
             nominals: FxIndexMap::default(),
-            reserved: FxIndexMap::default(),
-            lifetime_slots: FxIndexMap::default(),
-            substitution: FxIndexMap::default(),
         }
     }
 
     /// Lower the module to MIR, returning the artifact and its diagnostics.
-    pub(crate) fn lower(&mut self) -> CompilerResult<(MirLowered, Vec<Box<dyn DiagnosticLike>>)> {
+    pub(crate) fn lower(
+        &mut self,
+        pointer_bytes: u8,
+    ) -> CompilerResult<(MirLowered, Vec<Box<dyn DiagnosticLike>>)> {
         let mut builder = mir::ModuleBuilder::new();
-        builder.set_pointer_bytes(self.pointer_bytes);
+        builder.set_pointer_bytes(pointer_bytes);
         let mut errors = Vec::new();
 
-        // lower every declared nominal type
-        self.lower_nominals(builder.tree_mut())?;
+        // lower every concrete nominal declaration owned by this module
+        self.lower_nominal_declarations(&mut builder)?;
 
         // declare every callable header so bodies can call in any order
         let mut bodies = Vec::new();
@@ -86,29 +75,29 @@ impl<'a> ModuleLowerer<'a> {
                     continue;
                 }
             };
-            self.lower_declaration(&mut builder, declaration, &mut bodies, &mut errors)?;
+            self.declare_root(&mut builder, declaration, &mut bodies, &mut errors)?;
         }
 
-        // materialize every generic instantiation the scanned bodies demand
-        let mut demands = CallDemands::default();
-        match self.materialize_instances(&mut builder, &bodies) {
-            Ok((instances, demanded)) => {
+        // declare every concrete generic instance reachable from a body
+        let mut references = ExternalCallables::default();
+        match self.declare_reachable_instances(&mut builder, &bodies) {
+            Ok((instances, callables)) => {
                 bodies.extend(instances);
-                demands = demanded;
+                references = callables;
             }
             Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
             Err(error) => return Err(error),
         }
 
         // declare an import for every foreign callable the bodies call
-        match self.declare_imported_functions(&mut builder, demands.imports) {
+        match self.declare_imported_functions(&mut builder, references.imports) {
             Ok(()) => {}
             Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
             Err(error) => return Err(error),
         }
 
         // declare a dotted host extern for every sealed binding the bodies call
-        for symbol in demands.bindings {
+        for symbol in references.bindings {
             match self.declare_binding_function(&mut builder, symbol) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
@@ -118,20 +107,18 @@ impl<'a> ModuleLowerer<'a> {
 
         // lower every declared body, keeping failures isolated per function
         for body in bodies {
-            self.lifetime_slots = body.lifetimes.clone();
-            self.substitution = body.substitution.clone();
-            self.source = body.source;
-            let lowered = FunctionLowerer::run(self, &mut builder, body);
-            match lowered {
+            match FunctionLowerer::lower(self, &mut builder, body) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
             }
         }
-        self.source = self.module;
 
         // compute layouts for every aggregate type in the module
-        self.lower_layouts(&mut builder)?;
+        let pointer_bytes = builder.pointer_bytes();
+        let (tree, layouts) = builder.tree_and_layouts_mut();
+        let mut layouts = LayoutBuilder::new(self.module, tree, layouts, pointer_bytes);
+        layouts.layout_reachable_types()?;
 
         // publish the MIR names into the shared pool, string ids are content hashed
         let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings) =

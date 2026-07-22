@@ -51,7 +51,9 @@ entry:
     v4: int32 = call main.Point.length(v3)
     return v4
 }
-/// @layout.struct name=Point size=8 align=4 fields=(x@0+4, y@4+4)
+/// @layout.struct name=Point size=8 align=4
+/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -108,7 +110,49 @@ entry:
     v5: int32 = field.get v4, 0
     return v5
 }
-/// @layout.struct name=Counter size=4 align=4 fields=(count@0+4)
+/// @layout.struct name=Counter size=4 align=4
+/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_lower_method_returning_this_to_its_owner_representation() {
+    let session = TestSession::single(
+        r#"
+class User {
+    id: int32;
+
+    identity(): this {
+        return this;
+    }
+}
+
+function keep(user: User): User {
+    return user.identity();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type User {
+    id: int32;
+}
+
+function main.User.identity(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
+entry(v0: ref<User, managed, mutable>):
+    return v0
+}
+
+function main.keep(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
+entry(v0: ref<User, managed, mutable>):
+    v1: ref<User, managed, mutable> = call main.User.identity(v0)
+    return v1
+}
+/// @layout.struct name=User size=4 align=4
+/// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,
     );
 }
@@ -135,6 +179,7 @@ function probe(status: Status): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
+@copy
 type Status = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
 function main.Status.isActive<L0: lifetime>(v0: ref<Status, borrowed, lifetime(L0), exclusive>): boolean {
@@ -156,7 +201,10 @@ entry(v0: Status):
     v2: boolean = call main.Status.isActive(v1)
     return v2
 }
-/// @layout.variant name=Status size=8 align=8 encoding=direct(tag@0+8) cases=(1@8, 2@8)
+/// @layout.variant name=Status size=8 align=8
+/// @layout.discriminant owner=Status kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
+/// @layout.case owner=Status index=0 discriminant=1 payload_offset=8
+/// @layout.case owner=Status index=1 discriminant=2 payload_offset=8
 "#,
     );
 }
@@ -215,7 +263,8 @@ entry:
     v3: int32 = call main.Box.unwrap(v2)
     return v3
 }
-/// @layout.struct name=Box size=4 align=4 fields=(weight@0+4)
+/// @layout.struct name=Box size=4 align=4
+/// @layout.field owner=Box index=0 name=weight offset=0 size=4 align=4
 "#,
     );
 }
