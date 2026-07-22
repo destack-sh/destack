@@ -11,176 +11,227 @@ use super::{
 /// One emitted object under construction.
 #[derive(Debug)]
 pub struct ObjectBuilder {
-    /// The object being assembled.
-    object: Object,
+    /// Modules referenced directly by this object.
+    dependencies: Vec<ModuleId>,
+    /// Target layout shared by every emitted code form.
+    target: mir::TargetLayout,
+
+    /// Object-local type declarations.
+    types: Vec<Type>,
+    /// Object-local physical layouts.
+    layouts: mir::LayoutTable,
+    /// Object-local drop declarations.
+    drops: mir::DropTable,
+    /// Object-local dispatch declarations.
+    dispatch: mir::DispatchTable,
+    /// Object-local function declarations.
+    functions: Vec<Function>,
+    /// Object-local global declarations and definitions.
+    globals: Vec<Global>,
+
+    /// Logical function frame shapes.
+    frames: Vec<Frame>,
+    /// Live frame states at managed safepoints.
+    frame_states: Vec<FrameState>,
+
+    /// Heap allocation sites.
+    allocations: Vec<AllocationSite>,
+    /// Addressable memory sites.
+    memory: Vec<MemorySite>,
+    /// Function call sites.
+    calls: Vec<CallSite>,
+    /// Control flow edges.
+    edges: Vec<EdgeSite>,
+    /// Suspension sites.
+    suspensions: Vec<SuspensionSite>,
+    /// Explicit profile counter sites.
+    counters: Vec<CounterSite>,
+    /// Explicit profile sample sites.
+    samples: Vec<SampleSite>,
+
+    /// Relocatable native code when emitted for this module.
+    native: Option<native::Object>,
+    /// Relocatable WebAssembly when emitted for this module.
+    wasm: Option<wasm::Object>,
 }
 
 impl ObjectBuilder {
     /// Create one empty emitted object for a target layout.
     pub fn new(target: mir::TargetLayout) -> Self {
         Self {
-            object: Object {
-                dependencies: Vec::new(),
-                target,
-                types: Vec::new(),
-                layouts: mir::LayoutTable::new(),
-                drops: mir::DropTable::new(),
-                dispatch: mir::DispatchTable::new(),
-                functions: Vec::new(),
-                globals: Vec::new(),
-                frames: Vec::new(),
-                frame_states: Vec::new(),
-                allocations: Vec::new(),
-                memory: Vec::new(),
-                calls: Vec::new(),
-                edges: Vec::new(),
-                suspensions: Vec::new(),
-                counters: Vec::new(),
-                samples: Vec::new(),
-                bytecode: None,
-                native: None,
-                wasm: None,
-            },
+            dependencies: Vec::new(),
+            target,
+            types: Vec::new(),
+            layouts: mir::LayoutTable::new(),
+            drops: mir::DropTable::new(),
+            dispatch: mir::DispatchTable::new(),
+            functions: Vec::new(),
+            globals: Vec::new(),
+            frames: Vec::new(),
+            frame_states: Vec::new(),
+            allocations: Vec::new(),
+            memory: Vec::new(),
+            calls: Vec::new(),
+            edges: Vec::new(),
+            suspensions: Vec::new(),
+            counters: Vec::new(),
+            samples: Vec::new(),
+            native: None,
+            wasm: None,
         }
     }
 
     /// Set directly referenced modules.
     pub fn dependencies(mut self, dependencies: impl IntoIterator<Item = ModuleId>) -> Self {
-        self.object.dependencies = dependencies.into_iter().collect();
-        self.object.dependencies.sort_unstable();
-        self.object.dependencies.dedup();
+        self.dependencies = dependencies.into_iter().collect();
+        self.dependencies.sort_unstable();
+        self.dependencies.dedup();
 
         self
     }
 
     /// Set object-local type declarations.
     pub fn types(mut self, types: impl IntoIterator<Item = Type>) -> Self {
-        self.object.types = types.into_iter().collect();
+        self.types = types.into_iter().collect();
 
         self
     }
 
     /// Set object-local physical layouts.
     pub fn layouts(mut self, layouts: mir::LayoutTable) -> Self {
-        self.object.layouts = layouts;
+        self.layouts = layouts;
 
         self
     }
 
     /// Set object-local drop declarations.
     pub fn drops(mut self, drops: mir::DropTable) -> Self {
-        self.object.drops = drops;
+        self.drops = drops;
 
         self
     }
 
     /// Set object-local dispatch declarations.
     pub fn dispatch(mut self, dispatch: mir::DispatchTable) -> Self {
-        self.object.dispatch = dispatch;
+        self.dispatch = dispatch;
 
         self
     }
 
     /// Set object-local function declarations.
     pub fn functions(mut self, functions: impl IntoIterator<Item = Function>) -> Self {
-        self.object.functions = functions.into_iter().collect();
+        self.functions = functions.into_iter().collect();
 
         self
     }
 
     /// Set object-local global declarations and definitions.
     pub fn globals(mut self, globals: impl IntoIterator<Item = Global>) -> Self {
-        self.object.globals = globals.into_iter().collect();
+        self.globals = globals.into_iter().collect();
 
         self
     }
 
     /// Set logical function frame shapes.
     pub fn frames(mut self, frames: impl IntoIterator<Item = Frame>) -> Self {
-        self.object.frames = frames.into_iter().collect();
+        self.frames = frames.into_iter().collect();
 
         self
     }
 
     /// Set live frame states at managed safepoints.
     pub fn frame_states(mut self, states: impl IntoIterator<Item = FrameState>) -> Self {
-        self.object.frame_states = states.into_iter().collect();
+        self.frame_states = states.into_iter().collect();
 
         self
     }
 
     /// Set heap allocation sites.
     pub fn allocations(mut self, sites: impl IntoIterator<Item = AllocationSite>) -> Self {
-        self.object.allocations = sites.into_iter().collect();
+        self.allocations = sites.into_iter().collect();
 
         self
     }
 
     /// Set addressable memory sites.
     pub fn memory(mut self, sites: impl IntoIterator<Item = MemorySite>) -> Self {
-        self.object.memory = sites.into_iter().collect();
+        self.memory = sites.into_iter().collect();
 
         self
     }
 
     /// Set function call sites.
     pub fn calls(mut self, sites: impl IntoIterator<Item = CallSite>) -> Self {
-        self.object.calls = sites.into_iter().collect();
+        self.calls = sites.into_iter().collect();
 
         self
     }
 
     /// Set control flow edge sites.
     pub fn edges(mut self, sites: impl IntoIterator<Item = EdgeSite>) -> Self {
-        self.object.edges = sites.into_iter().collect();
+        self.edges = sites.into_iter().collect();
 
         self
     }
 
     /// Set suspension sites.
     pub fn suspensions(mut self, sites: impl IntoIterator<Item = SuspensionSite>) -> Self {
-        self.object.suspensions = sites.into_iter().collect();
+        self.suspensions = sites.into_iter().collect();
 
         self
     }
 
     /// Set explicit profile counter sites.
     pub fn counters(mut self, sites: impl IntoIterator<Item = CounterSite>) -> Self {
-        self.object.counters = sites.into_iter().collect();
+        self.counters = sites.into_iter().collect();
 
         self
     }
 
     /// Set explicit profile sample sites.
     pub fn samples(mut self, sites: impl IntoIterator<Item = SampleSite>) -> Self {
-        self.object.samples = sites.into_iter().collect();
-
-        self
-    }
-
-    /// Set relocatable bytecode.
-    pub fn bytecode(mut self, bytecode: bytecode::Object) -> Self {
-        self.object.bytecode = Some(bytecode);
+        self.samples = sites.into_iter().collect();
 
         self
     }
 
     /// Set relocatable native code.
     pub fn native(mut self, native: native::Object) -> Self {
-        self.object.native = Some(native);
+        self.native = Some(native);
 
         self
     }
 
     /// Set relocatable WebAssembly.
     pub fn wasm(mut self, wasm: wasm::Object) -> Self {
-        self.object.wasm = Some(wasm);
+        self.wasm = Some(wasm);
 
         self
     }
 
-    /// Build the relocatable object.
-    pub fn build(self) -> Object {
-        self.object
+    /// Build the relocatable object with required bytecode.
+    pub fn build(self, bytecode: bytecode::Object) -> Object {
+        Object {
+            dependencies: self.dependencies,
+            target: self.target,
+            types: self.types,
+            layouts: self.layouts,
+            drops: self.drops,
+            dispatch: self.dispatch,
+            functions: self.functions,
+            globals: self.globals,
+            frames: self.frames,
+            frame_states: self.frame_states,
+            allocations: self.allocations,
+            memory: self.memory,
+            calls: self.calls,
+            edges: self.edges,
+            suspensions: self.suspensions,
+            counters: self.counters,
+            samples: self.samples,
+            bytecode,
+            native: self.native,
+            wasm: self.wasm,
+        }
     }
 }

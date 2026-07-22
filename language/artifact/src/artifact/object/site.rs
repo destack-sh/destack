@@ -4,15 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use super::Point;
 
-/// One heap allocation operation.
+/// One allocation site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AllocationSite {
     /// The operation performing the allocation.
     pub point: Point,
-    /// The allocation operation.
-    pub operation: AllocationOperation,
-    /// The byte initialization mode.
-    pub initialization: AllocationInitialization,
     /// The storage space receiving the allocation.
     pub space: mir::Space,
     /// The type produced by the allocation.
@@ -97,24 +93,6 @@ pub struct SampleSite {
     pub sampler: mir::SamplerId,
     /// The sampled value type.
     pub value_type: mir::TypeId,
-}
-
-/// Heap allocation operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum AllocationOperation {
-    /// Allocate one typed value.
-    Value,
-    /// Allocate repeated typed storage.
-    Slice,
-}
-
-/// Allocation byte initialization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum AllocationInitialization {
-    /// Initialize allocated bytes to zero.
-    Zeroed,
-    /// Leave allocated bytes uninitialized.
-    Uninit,
 }
 
 /// Call continuation mode.
