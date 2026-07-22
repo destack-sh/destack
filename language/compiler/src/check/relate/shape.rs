@@ -3,7 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, TypeSubstitution, answer};
+use crate::check::{
+    Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation, TypeSubstitution, answer,
+};
 
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
@@ -30,7 +32,7 @@ impl CheckState<'_> {
                 )
             }
             dir::Type::Key(_) => true,
-            dir::Type::Instance(_) => self.static_key_from_type(ty)?.is_some(),
+            dir::Type::Application(_) => self.static_key_from_type(ty)?.is_some(),
             dir::Type::Union(union) => {
                 let elements = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(
                     self.type_ids(ty.module_id, union.elements)?,
@@ -63,7 +65,7 @@ impl CheckState<'_> {
             dir::Type::Any | dir::Type::Object | dir::Type::Parameter(_) => true,
             dir::Type::Shape(_) => true,
             dir::Type::Dynamic(dynamic) => answer!(self.is_keyed_type(origin, dynamic.constraint)?),
-            dir::Type::Instance(instance) => matches!(
+            dir::Type::Application(instance) => matches!(
                 self.symbol_kind(instance.symbol),
                 dir::SymbolKind::Class | dir::SymbolKind::Struct | dir::SymbolKind::Interface
             ),
@@ -455,6 +457,83 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
+    /// Constrain one fresh shape write whose composites still hold open leaves.
+    pub(in crate::check) fn constrain_fresh_shape_writable(
+        &mut self,
+        cause: CauseId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let origin = self.cause_origin(cause);
+        let (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) =
+            (self.ty(source)?, self.ty(target)?)
+        else {
+            return Ok(Answer::Ready(false));
+        };
+
+        let source_fields = self
+            .shape_fields(source.module_id, source_shape.fields)?
+            .to_vec();
+        let target_fields = self
+            .shape_fields(target.module_id, target_shape.fields)?
+            .to_vec();
+        let target_indexes = self
+            .shape_index_signatures(target.module_id, target_shape.index_signatures)?
+            .to_vec();
+
+        // require each target field, filling omissions from optionality
+        let mut decision = Answer::Ready(true);
+        for target_field in &target_fields {
+            let source_field = source_fields
+                .iter()
+                .find(|source| source.key == target_field.key);
+
+            match source_field {
+                None => {
+                    if !target_field.is_optional {
+                        return Ok(Answer::Ready(false));
+                    }
+                }
+                Some(source_field) => {
+                    if source_field.is_optional && !target_field.is_optional {
+                        return Ok(Answer::Ready(false));
+                    }
+                    let kind = CauseKind::Field {
+                        key: target_field.key,
+                    };
+                    let field_cause = self.intern_cause(Cause::slot(origin, kind, cause));
+                    decision = decision.and(self.constrain_type(
+                        field_cause,
+                        Relation::Writable,
+                        source_field.ty,
+                        target_field.ty,
+                    )?);
+                    if decision.is_ready_false() {
+                        return Ok(decision);
+                    }
+                }
+            }
+        }
+
+        // require every extra field through a declared index signature
+        for source_field in &source_fields {
+            let declared = target_fields
+                .iter()
+                .any(|target| target.key == source_field.key);
+            if declared {
+                continue;
+            }
+
+            let indexed = self.decide_indexed_field_write(origin, source_field, &target_indexes)?;
+            decision = decision.and(indexed);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
     /// Decide whether one field writes through any target index signature.
     fn decide_indexed_field_write(
         &mut self,
@@ -703,7 +782,7 @@ impl CheckState<'_> {
                         .collect(),
                 ))
             }
-            dir::Type::Instance(instance) => match self.definition(instance.symbol)? {
+            dir::Type::Application(instance) => match self.definition(instance.symbol)? {
                 Some(dir::Definition::Interface(interface)) if !interface.is_nominal => {
                     Ok(Some(self.nominal_member_keys(instance.symbol)?))
                 }
@@ -834,7 +913,7 @@ impl CheckState<'_> {
         // constructors return the declared instance in place of `this`
         let module = origin.module();
         let instance = self.declaration_instance(module, source.symbol)?;
-        let instance = self.intern_type(module, dir::Type::Instance(instance))?;
+        let instance = self.intern_type(module, dir::Type::Application(instance))?;
         let substitution = TypeSubstitution::default().with_receiver(instance);
         let mut signatures = SmallVec::new();
         for constructor in constructors {

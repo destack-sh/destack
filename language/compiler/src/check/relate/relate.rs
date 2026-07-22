@@ -101,8 +101,8 @@ impl CheckState<'_> {
                 // open nominal pairs prove satisfaction through heritage or a
                 //  sole conforming extension, binding their open holes
                 if let (
-                    dir::Type::Instance(argument_instance),
-                    dir::Type::Instance(constraint_instance),
+                    dir::Type::Application(argument_instance),
+                    dir::Type::Application(constraint_instance),
                 ) = (self.ty(argument)?, self.ty(constraint)?)
                     && matches!(
                         self.definition(constraint_instance.symbol)?,
@@ -345,7 +345,7 @@ impl CheckState<'_> {
             // decompose open composites before reducing the whole graph
             (None, None, _) => {
                 let structural = match relation {
-                    Relation::Writable | Relation::Castable => Relation::Assignable,
+                    Relation::Castable => Relation::Assignable,
                     relation => relation,
                 };
 
@@ -386,7 +386,10 @@ impl CheckState<'_> {
                     || !self.type_variables(target)?.is_empty()
                 {
                     return match structural {
-                        Relation::Equal | Relation::Assignable | Relation::Widens => {
+                        Relation::Equal
+                        | Relation::Assignable
+                        | Relation::Widens
+                        | Relation::Writable => {
                             match self.constrain_structural(cause, structural, source, target)? {
                                 Some(answer) => Ok(answer),
                                 None => Ok(self.pending_on_open_leaves(source, target)?),
@@ -440,9 +443,23 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // fresh writable shapes conform covariantly with strict excess keys
+        if relation == Relation::Writable
+            && let (dir::Type::Shape(_), dir::Type::Shape(_)) = (self.ty(source)?, self.ty(target)?)
+        {
+            return Ok(Some(
+                self.constrain_fresh_shape_writable(cause, source, target)?,
+            ));
+        }
+        // other writable composites alias their targets and assign
+        let relation = match relation {
+            Relation::Writable => Relation::Assignable,
+            relation => relation,
+        };
+
         // same-symbol applications constrain arguments under their default handle context
         let same_symbol = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
+            (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol
                     && source_instance.arguments.len() == target_instance.arguments.len() =>
             {
@@ -483,7 +500,7 @@ impl CheckState<'_> {
 
         // test known nominal roots through heritage before waiting on arguments
         if matches!(relation, Relation::Assignable | Relation::Widens)
-            && let (dir::Type::Instance(_), dir::Type::Instance(_)) =
+            && let (dir::Type::Application(_), dir::Type::Application(_)) =
                 (self.ty(source)?, self.ty(target)?)
         {
             return Ok(Some(
