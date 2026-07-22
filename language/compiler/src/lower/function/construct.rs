@@ -19,11 +19,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_class_construct(resolution, candidate)
             }
             // Shape.Circle(2.0)
-            dir::ConstructTarget::Variant(_) => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "an enum variant construction".to_string(),
+            dir::ConstructTarget::Variant(candidate) => {
+                self.lower_variant_construct(resolution, candidate)
             }
-            .into()),
         }
     }
 
@@ -157,6 +155,64 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.aggregate(ty, vec![value]))
     }
 
+    /// Lower one tagged case construction into its variant carrier.
+    fn lower_variant_construct(
+        &mut self,
+        resolution: &dir::ConstructResolution,
+        candidate: &dir::VariantConstructCandidate,
+    ) -> CompilerResult<mir::Value> {
+        // the construct resolution names the tagged owner before contextual coercion
+        let carrier = self.lower_type(resolution.return_type)?;
+
+        // select the constructed case in carrier order
+        let Some(dir::Definition::Newtype(definition)) =
+            self.lowerer.definition(candidate.case.owner)?
+        else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR selected a tagged case outside a newtype definition"
+                    .to_string(),
+            });
+        };
+        let Some(index) = definition.tagged_variant_position(candidate.case.member) else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR selected a case missing from its tagged owner".to_string(),
+            });
+        };
+
+        // singleton case backings carry no runtime payload
+        let payload_is_void = match self.builder.tree().get(carrier) {
+            mir::Type::Variant { cases, .. } => cases
+                .get(index)
+                .is_some_and(|case| matches!(self.builder.tree().get(case.ty), mir::Type::Void)),
+            _ => false,
+        };
+
+        // wrap the single bound payload value
+        let payload = match resolution.arguments.as_slice() {
+            [] => None,
+            [binding] => {
+                let dir::ArgumentSource::Provided(source) = binding.argument else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a defaulted case payload".to_string(),
+                    }
+                    .into());
+                };
+                let value = self.lower_argument(source)?;
+
+                (!payload_is_void).then_some(value)
+            }
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR bound multiple payloads to one case construction"
+                        .to_string(),
+                });
+            }
+        };
+
+        Ok(self.builder.variant_new(carrier, index as u32, payload))
+    }
+
     /// Lower one struct expression to an aggregate value.
     pub(in crate::lower) fn lower_struct_expression(
         &mut self,
@@ -204,9 +260,19 @@ impl FunctionLowerer<'_, '_, '_> {
             values.push((name.static_key(), *value));
         }
 
-        // lower the field values in declaration order
+        // collect the field storage types behind the nominal
+        let storage_fields = match self.builder.tree().get(ty) {
+            mir::Type::Struct { fields, .. } => fields.clone(),
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "checked nominal lowered without struct storage".to_string(),
+                });
+            }
+        };
+
+        // lower the field values in declaration order, eliding void storage
         let mut ordered = Vec::with_capacity(fields.len());
-        for field in fields {
+        for (index, field) in fields.into_iter().enumerate() {
             let Some((_, value)) = values.iter().find(|(key, _)| *key == field) else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -214,6 +280,20 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 .into());
             };
+
+            // singleton literal fields store no runtime value
+            let storage = storage_fields
+                .get(index)
+                .map(|field| self.builder.tree().get(*field).ty);
+            let is_void =
+                storage.is_some_and(|ty| matches!(self.builder.tree().get(ty), mir::Type::Void));
+            let is_literal = matches!(
+                self.source().tree().get(*value),
+                dir::Expression::ScalarLiteral(_)
+            );
+            if is_void && is_literal {
+                continue;
+            }
 
             ordered.push(self.lower_expression(*value)?);
         }

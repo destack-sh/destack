@@ -130,3 +130,64 @@ entry:
 "#,
     );
 }
+
+#[test]
+fn test_lower_tagged_case_construction_to_variant_new() {
+    let session = TestSession::single(
+        r#"
+struct Circle {
+    kind: "circle";
+    radius: float64;
+}
+
+struct Square {
+    kind: "square";
+    side: int32;
+}
+
+@derive(Tagged)
+newtype Shape = Circle | Square;
+
+function make(radius: float64): Shape {
+    return Shape.Circle(Circle { kind: "circle", radius });
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Circle {
+    kind: void;
+    radius: float64;
+}
+
+@copy
+type Square {
+    kind: void;
+    side: int32;
+}
+
+@copy
+type Shape = variant<uint8, Circle> { 0uint8 = Circle; 1uint8 = Square; };
+
+function main.make(v0: float64): Shape {
+entry(v0: float64):
+    v1: Circle = aggregate (v0)
+    v2: Shape = variant.new 0, v1
+    return v2
+}
+/// @layout.struct name=Circle size=8 align=8
+/// @layout.field owner=Circle index=0 name=kind offset=8 size=0 align=1
+/// @layout.field owner=Circle index=1 name=radius offset=0 size=8 align=8
+/// @layout.struct name=Square size=4 align=4
+/// @layout.field owner=Square index=0 name=kind offset=4 size=0 align=1
+/// @layout.field owner=Square index=1 name=side offset=0 size=4 align=4
+/// @layout.variant name=Shape size=16 align=8
+/// @layout.discriminant owner=Shape kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=Shape index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=Shape index=1 discriminant=1 payload_offset=8
+"#,
+    );
+}

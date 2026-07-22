@@ -430,7 +430,10 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the logical members of one union type.
-    fn union_members(&self, ty: dir::GlobalTypeId) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+    pub(in crate::lower) fn union_members(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let dir::Type::Union(union) = self.lowerer.ty(ty)? else {
             return Err(CompilerError::Internal {
                 message: "checked union adjustment targets a non-union type".to_string(),

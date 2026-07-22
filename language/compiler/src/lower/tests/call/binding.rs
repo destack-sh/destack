@@ -73,3 +73,37 @@ external function host.user.inspect<L0: lifetime>(ref<User, borrowed, lifetime(L
 "#,
     );
 }
+
+#[test]
+fn test_lower_omitted_optional_argument_to_undefined() {
+    let session = TestSession::single(
+        r#"
+function greet(name?: boolean | undefined): void {}
+
+function run(): void {
+    greet();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function main.greet(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }): void {
+entry(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }):
+    return
+}
+
+function main.run(): void {
+entry:
+    v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
+    call main.greet(v0)
+    return
+}
+/// @layout.variant name=type@3 size=1 align=1
+/// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_cases=1..1 niche_start=2
+/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
+"#,
+    );
+}

@@ -81,12 +81,21 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Vec<mir::Value>> {
         let mut values = Vec::with_capacity(resolution.arguments.len());
         for binding in &resolution.arguments {
-            let dir::ArgumentSource::Provided(source) = binding.argument else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a defaulted or spread argument".to_string(),
+            let source = match binding.argument {
+                dir::ArgumentSource::Provided(source) => source,
+                // omitted optional parameters receive their undefined slot
+                dir::ArgumentSource::Omitted => {
+                    values.push(self.lower_omitted_argument(binding.ty)?);
+
+                    continue;
                 }
-                .into());
+                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Rest(_) => {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a static or rest argument".to_string(),
+                    }
+                    .into());
+                }
             };
             values.push(self.lower_argument(source)?);
         }
@@ -235,6 +244,26 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one provided argument source to its value.
+    /// Lower one omitted optional argument to its undefined slot value.
+    fn lower_omitted_argument(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<mir::Value> {
+        let reduced = self.lowerer.reduced_type(ty)?;
+        let carrier = self.lower_type(reduced)?;
+
+        // inject the undefined case into union carriers
+        if let dir::Type::Union(_) = self.lowerer.ty(reduced)? {
+            let members = self.union_members(reduced)?;
+            for (index, member) in members.into_iter().enumerate() {
+                let member = self.lowerer.reduced_type(member)?;
+                if matches!(self.lowerer.ty(member)?, dir::Type::Undefined) {
+                    return Ok(self.builder.variant_new(carrier, index as u32, None));
+                }
+            }
+        }
+
+        // reference-like carriers store undefined directly
+        Ok(self.builder.constant(mir::Constant::Undefined, carrier))
+    }
+
     pub(in crate::lower) fn lower_argument(
         &mut self,
         source: dir::GlobalNodeIdAny,
