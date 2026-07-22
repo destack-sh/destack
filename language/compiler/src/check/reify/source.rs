@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_formatter::format_file_tree;
 use destack_repository::{FormatterOptions, Module};
@@ -23,9 +24,12 @@ impl CheckState<'_> {
         &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        let failed_applications = self.failed_generic_applications()?;
+        let mut sealed = FxIndexMap::default();
         let mut sources = Vec::with_capacity(modules.len());
         for module_id in modules {
-            let coercions = self.implicit_coercions(module_id)?;
+            let coercions =
+                self.implicit_coercions(module_id, &failed_applications, &mut sealed)?;
             if let Some(source) = self.render_annotated_source(module_id, &coercions)? {
                 sources.push(source);
             }
@@ -675,11 +679,14 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             if node.local_id.ty != dir::NodeType::Expression {
                 continue;
             }
-            // carrier widening keeps the written literal (it would just be noisy)
-            if matches!(
-                coercion.adjustments.as_slice(),
-                [adjustment] if adjustment.kind == dir::CoercionKind::Widen
-            ) {
+            // representation-preserving adjustments keep the written source
+            let renders = coercion.adjustments.iter().any(|adjustment| {
+                !matches!(
+                    adjustment.kind,
+                    dir::CoercionKind::Widen | dir::CoercionKind::Direct
+                )
+            });
+            if !renders {
                 continue;
             }
             if !self.state.source_tree().has_node_id(node.local_id.id) {

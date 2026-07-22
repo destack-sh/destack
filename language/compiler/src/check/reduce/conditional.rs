@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CandidateOutcome, CheckState, Dependency, Origin, ProbeReason, Relation, Variance,
-    answer,
+    Answer, CandidateOutcome, CheckState, Dependency, Origin, Relation, Variance, answer,
 };
 
 use super::substitute::InferSubstitution;
@@ -278,7 +277,7 @@ impl CheckState<'_> {
         binders: &[InferBinder],
         blockers: &mut SmallVec<[Dependency; 2]>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let matched = self.confirm_candidate(ProbeReason::Conditional, |state| {
+        let matched = self.confirm_candidate(|state| {
             match state.match_infer_pattern(origin, right, then_type, binders, left)? {
                 Answer::Ready(Some(branch)) => {
                     Ok(Answer::Ready(CandidateOutcome::Accepted(branch)))

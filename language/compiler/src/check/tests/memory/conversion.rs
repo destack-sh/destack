@@ -914,9 +914,9 @@ declare const condition: boolean;
 declare const first: User;
 declare const second: User;
 
-const selected: Borrowed<User, "static", "readonly"> = (condition
+const selected: Borrowed<User, "static", "readonly"> = condition
     ? (first as Borrowed<User, "static", "readonly">)
-    : (second as Borrowed<User, "static", "readonly">)) as Borrowed<User, "static", "readonly">;
+    : (second as Borrowed<User, "static", "readonly">);
 
 === checked ===
 class User {}
@@ -942,7 +942,6 @@ const selected: &readonly User = condition ? first : second;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
 /// @resolution.name source=condition target=condition
-/// @coercion.node source="condition ? first : second" from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 /// @resolution.name source=first target=first
 /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 /// @resolution.name source=second target=second
@@ -982,10 +981,9 @@ class Counter {
 
     emit(&readonly this): void {
         const entry: Entry<"frame"> = Entry<"frame"> {
-            unit: (this.unit == undefined
+            unit: this.unit == undefined
                 ? (undefined as Borrowed<string, "frame", "readonly"> | undefined)
-                : (&readonly this.unit as | Borrowed<string, "frame", "readonly">
-                  | undefined)) as Borrowed<string, "frame", "readonly"> | undefined,
+                : (&readonly this.unit as Borrowed<string, "frame", "readonly"> | undefined),
         };
     }
 }
@@ -1025,9 +1023,8 @@ class Counter {
             /// @resolution.member source=this.unit receiver=Borrowed<Counter, Counter.emit.L0, "readonly"> kind=symbol target=Counter.unit
             /// @resolution.operator source="this.unit == undefined" kind=builtin
             /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.emit.L0, "readonly">
-            /// @coercion.node source="this.unit == undefined ? undefined : &readonly this.unit" from=undefined | Borrowed<string, "frame", "readonly"> adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined }] origin=implicit
-            /// @coercion.node source=undefined from=undefined adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined }] origin=implicit
-            /// @coercion.node source="&readonly this.unit" from=Borrowed<string, "frame", "readonly"> adjustments=[{ kind: direct, target: Borrowed<string, "frame", "readonly"> }, { kind: union, target: Borrowed<string, "frame", "readonly"> | undefined }] origin=implicit
+            /// @coercion.node source=undefined from=undefined adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined, cases: (1) }] origin=implicit
+            /// @coercion.node source="&readonly this.unit" from=Borrowed<string, "frame", "readonly"> adjustments=[{ kind: union, target: Borrowed<string, "frame", "readonly"> | undefined, cases: (0) }] origin=implicit
             /// @resolution.member source=this.unit receiver=Borrowed<Counter, Counter.emit.L0, "readonly"> kind=symbol target=Counter.unit
             /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.emit.L0, "readonly">
 
@@ -1070,7 +1067,7 @@ declare const second: User;
 const selected: Borrowed<User, "static", "readonly"> = match (choice) {
     "first" => first as Borrowed<User, "static", "readonly">
     _ => second as Borrowed<User, "static", "readonly">
-} as Borrowed<User, "static", "readonly">;
+};
 
 === checked ===
 class User {}
@@ -1095,7 +1092,6 @@ const selected: &readonly User = match (choice) {
 /// @type.symbol symbol=selected source=selected type=Borrowed<User, "static", "readonly">
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
-/// @coercion.node from=User adjustments=[{ kind: borrow, target: Borrowed<User, "static", "readonly"> }] origin=implicit
 /// @resolution.name source=choice target=choice
 
     "first" => first

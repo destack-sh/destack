@@ -19,7 +19,7 @@ impl CheckState<'_> {
         let symbol_types = self.resolved_symbol_types(module, failed_applications, &mut sealed)?;
         let reduced_types = self.resolved_reduced_types(module, &node_types, &symbol_types)?;
         let symbol_literals = self.static_symbol_literals(module)?;
-        let coercions = self.implicit_coercions(module)?;
+        let coercions = self.implicit_coercions(module, failed_applications, &mut sealed)?;
 
         // record inferred types and checked reduced types
         let state = self.module_mut(module);
@@ -232,7 +232,7 @@ impl CheckState<'_> {
     }
 
     /// Seal one embedded type id, recording the first failure aside.
-    fn seal_or_record(
+    pub(super) fn seal_or_record(
         &mut self,
         id: dir::GlobalTypeId,
         failed_applications: &FxIndexSet<dir::GlobalTypeId>,
@@ -436,7 +436,7 @@ impl CheckState<'_> {
                     self.seal_type(solution, failed_applications, sealed)?
                 }
                 None => {
-                    // written unsolved variables in clean modules are missed judgments
+                    // written unsolved variables in clean modules are missed checks
                     let origin = self.solver.variable(variable)?.origin;
                     let origin = self.solver.origin(origin);
                     let module = origin.module();

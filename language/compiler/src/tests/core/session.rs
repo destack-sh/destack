@@ -453,9 +453,7 @@ elements=({})\n",
                     let cases: Vec<_> = shape
                         .cases
                         .iter()
-                        .map(|case| {
-                            format!("{}@{}", case.discriminant.bits(), case.payload_offset)
-                        })
+                        .map(|case| format!("{}@{}", case.discriminant.bits(), case.payload_offset))
                         .collect();
                     rows.push_str(&format!(
                         "/// @layout.variant name={name} size={size} align={alignment} \

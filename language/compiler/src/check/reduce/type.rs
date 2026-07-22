@@ -148,6 +148,30 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(splatted)))
     }
 
+    /// Reduce the head of one type to an honest value form, keeping authored names.
+    pub(in crate::check) fn reduce_named_head(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut id = self.settled_root(id)?;
+        loop {
+            let reduced = match self.ty(id)? {
+                // resolve meta heads: they name computations, not values
+                dir::Type::Member(_) | dir::Type::Operation(_) => {
+                    answer!(self.reduce_type_head(origin, id)?)
+                }
+                // drop redundant forms while the payload keeps its spelling
+                dir::Type::Form(_) => answer!(self.reduce_redundant_forms(origin, id)?),
+                _ => return Ok(Answer::Ready(id)),
+            };
+            if reduced == id {
+                return Ok(Answer::Ready(id));
+            }
+            id = reduced;
+        }
+    }
+
     /// Reduce the head of one type to its simplest available form.
     pub(in crate::check) fn reduce_type_head(
         &mut self,
@@ -351,25 +375,9 @@ impl CheckState<'_> {
                     Answer::Pending(_) => return Ok(Answer::Ready(id)),
                 };
 
-                // default ownership forms reduce to their payload
-                let is_default_ownership =
-                    answer!(self.is_default_ownership_form(origin, form.form, value)?);
-                if is_default_ownership {
+                // redundant wrappers reduce to their payload
+                if answer!(self.is_redundant_form(origin, form.form, value)?) {
                     return self.reduce_type_chain(origin, value, expanding);
-                }
-
-                // placement does not qualify types without runtime values
-                if matches!(form.form, dir::Form::Placed { .. }) && !self.ty(value)?.is_placeable()
-                {
-                    return self.reduce_type_chain(origin, value, expanding);
-                }
-
-                if form.form == dir::Form::Readonly {
-                    // readonly views over immutable payloads grant nothing less
-                    let mut active = SmallVec::new();
-                    if answer!(self.type_is_immutable(origin, value, &mut active)?) {
-                        return self.reduce_type_chain(origin, value, expanding);
-                    }
                 }
 
                 if value == form.value {

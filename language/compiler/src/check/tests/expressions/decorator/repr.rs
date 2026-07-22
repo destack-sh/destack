@@ -17,7 +17,7 @@ struct Header {
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("C" as Representation)
+@repr("C")
 struct Header {
     value: uint8;
 }
@@ -51,7 +51,7 @@ newtype Handle = int32;
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("transparent" as Representation)
+@repr("transparent")
 newtype Handle = int32;
 
 === checked ===
@@ -81,7 +81,7 @@ struct Handle {
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("transparent" as Representation)
+@repr("transparent")
 struct Handle {
     value: uint8;
 }
@@ -115,7 +115,7 @@ class Handle {}
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("C" as Representation)
+@repr("C")
 class Handle {}
 
 === checked ===
@@ -145,7 +145,7 @@ class Handle {
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("C" as Representation)
+@repr("C")
 class Handle {
     virtual read(): uint8 {
         return 0;
@@ -193,7 +193,7 @@ abstract class Base {
     abstract read(): uint8;
 }
 
-@repr("C" as Representation)
+@repr("C")
 abstract class Handle extends Base {}
 
 === checked ===
@@ -233,7 +233,7 @@ struct Header {}
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("transparent" as Representation)
+@repr("transparent")
 struct Header {}
 
 === checked ===
@@ -266,8 +266,8 @@ struct Header {}
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("C" as Representation)
-@repr("C" as Representation)
+@repr("C")
+@repr("C")
 struct Header {}
 
 === checked ===
@@ -305,7 +305,7 @@ enum Mode {
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("C" as Representation)
+@repr("C")
 enum Mode {
     Read = "read",
 }
@@ -345,7 +345,7 @@ enum Mode {
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
-@repr("uint8" as Representation)
+@repr("uint8")
 enum Mode {
     Read = 256,
 }

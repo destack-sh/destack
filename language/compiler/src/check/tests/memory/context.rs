@@ -222,7 +222,7 @@ type Argument = Options | (() => void);
 
 declare function register(argument?: Argument): void;
 
-register({ skip: true });
+register({ skip: true } as Argument | undefined);
 
 === checked ===
 type Options = { skip?: boolean };

@@ -1,12 +1,11 @@
-use std::mem::take;
-
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, SelectedDecorator};
 
 impl CheckState<'_> {
     /// Check and apply every decorator in component walk order.
     pub(in crate::check) fn check_decorators(&mut self) -> CompilerResult<()> {
-        let applications = take(&mut self.decorators);
+        // applications stay recorded: write reads their comptime subtrees
+        let applications = self.decorators.clone();
         let mut selections = Vec::<SelectedDecorator>::with_capacity(applications.len());
 
         // select one backing for each decorator

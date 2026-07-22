@@ -372,12 +372,44 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(value));
         };
 
-        let inner = answer!(self.replace_form_value(origin, form.value, value)?);
+        let payload = answer!(self.replace_form_value(origin, form.value, value)?);
         let rebuilt = self.intern_type(
             origin.module(),
             dir::Type::Form(dir::FormType {
                 form: form.form,
-                value: inner,
+                value: payload,
+            }),
+        )?;
+
+        Ok(Answer::Ready(rebuilt))
+    }
+
+    /// Remove the forms one fresh write sees through from a place type.
+    ///
+    /// A fresh value initializes readonly places, materializes into owned
+    /// storage, and constructs at explicit placements directly.
+    pub(in crate::check) fn strip_fresh_forms(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let head = answer!(self.reduce_type_head(origin, ty)?);
+        let dir::Type::Form(form) = self.ty(head)? else {
+            return Ok(Answer::Ready(head));
+        };
+
+        let payload = answer!(self.strip_fresh_forms(origin, form.value)?);
+        if matches!(
+            form.form,
+            dir::Form::Readonly | dir::Form::Owned | dir::Form::Placed { .. }
+        ) {
+            return Ok(Answer::Ready(payload));
+        }
+        let rebuilt = self.intern_type(
+            origin.module(),
+            dir::Type::Form(dir::FormType {
+                form: form.form,
+                value: payload,
             }),
         )?;
 
@@ -431,6 +463,54 @@ impl CheckState<'_> {
         };
 
         Ok(Answer::Ready(form.ownership() == Some(default)))
+    }
+
+    /// Drop one type's redundant explicit forms, keeping its authored payload.
+    pub(in crate::check) fn reduce_redundant_forms(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut id = id;
+        loop {
+            let dir::Type::Form(form) = self.ty(id)? else {
+                return Ok(Answer::Ready(id));
+            };
+            // decide on the reduced payload, return the authored spelling
+            let value = answer!(self.reduce_type_head(origin, form.value)?);
+            let drops = answer!(self.is_redundant_form(origin, form.form, value)?);
+            if !drops {
+                return Ok(Answer::Ready(id));
+            }
+            id = form.value;
+        }
+    }
+
+    /// Return whether one explicit form grants its payload nothing.
+    pub(in crate::check) fn is_redundant_form(
+        &mut self,
+        origin: Origin,
+        form: dir::Form,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        if answer!(self.is_default_ownership_form(origin, form, value)?) {
+            return Ok(Answer::Ready(true));
+        }
+
+        // placement does not qualify types without runtime values
+        if matches!(form, dir::Form::Placed { .. }) && !self.ty(value)?.is_placeable() {
+            return Ok(Answer::Ready(true));
+        }
+
+        // readonly views over immutable payloads grant nothing less
+        if form == dir::Form::Readonly {
+            let mut active = SmallVec::new();
+            if answer!(self.type_is_immutable(origin, value, &mut active)?) {
+                return Ok(Answer::Ready(true));
+            }
+        }
+
+        Ok(Answer::Ready(false))
     }
 
     /// Reduce one unary form constructor application.

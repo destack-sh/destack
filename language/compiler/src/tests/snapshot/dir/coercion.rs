@@ -34,15 +34,46 @@ fn coercion_adjustments_label(
     builder: &DirSnapshotBuilder<'_>,
     adjustments: &[dir::CoercionAdjustment],
 ) -> String {
-    let adjustments = adjustments.iter().map(|adjustment| {
-        let kind = adjustment.kind.as_str();
-        let target = builder.global_type_label(adjustment.target);
-
-        format!("{{ kind: {kind}, target: {target} }}")
-    });
+    let adjustments = adjustments
+        .iter()
+        .map(|adjustment| coercion_adjustment_label(builder, adjustment));
     let adjustments = adjustments.collect::<Vec<_>>().join(", ");
 
     format!("[{adjustments}]")
+}
+
+/// Return one coercion adjustment label.
+fn coercion_adjustment_label(
+    builder: &DirSnapshotBuilder<'_>,
+    adjustment: &dir::CoercionAdjustment,
+) -> String {
+    let kind = adjustment.kind.as_str();
+    let target = builder.global_type_label(adjustment.target);
+    if adjustment.cases.is_empty() {
+        return format!("{{ kind: {kind}, target: {target} }}");
+    }
+
+    let cases = adjustment
+        .cases
+        .iter()
+        .map(|case| coercion_case_label(builder, case))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    format!("{{ kind: {kind}, target: {target}, cases: ({cases}) }}")
+}
+
+/// Return one union coercion case label.
+fn coercion_case_label(builder: &DirSnapshotBuilder<'_>, case: &dir::CoercionCase) -> String {
+    let target = case
+        .target
+        .map_or_else(|| "value".to_string(), |target| target.to_string());
+    if case.adjustments.is_empty() {
+        return target;
+    }
+    let adjustments = coercion_adjustments_label(builder, &case.adjustments);
+
+    format!("{{ target: {target}, adjustments: {adjustments} }}")
 }
 
 /// Return the snapshot label for one cast origin.
