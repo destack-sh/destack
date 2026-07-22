@@ -96,10 +96,12 @@ impl SymbolMangler {
             Type::Dynamic {
                 constraint,
                 nullability,
+                space,
             } => {
                 self.hasher.write_u8(10);
                 self.write_type(*constraint, tree);
                 nullability.hash(&mut self.hasher);
+                space.hash(&mut self.hasher);
             }
             Type::WithLifetimes { base, lifetimes } => {
                 self.hasher.write_u8(11);

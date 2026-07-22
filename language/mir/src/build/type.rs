@@ -102,10 +102,12 @@ impl ModuleBuilder {
         &mut self,
         constraint: LocalNodeId<Type>,
         nullability: Nullability,
+        space: Space,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Dynamic {
             constraint,
             nullability,
+            space,
         })
     }
 

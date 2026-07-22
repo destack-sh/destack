@@ -462,12 +462,25 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (constraint, _) = self.parse_type_use_part()?;
-        let nullability = self.parse_nullability()?.unwrap_or(Nullability::None);
+        let mut nullability = Nullability::None;
+        let mut space = Space::Local;
+
+        // parse each explicit dynamic qualifier
+        while self.eat_token_if(TokenType::Comma) {
+            if self.eat_token_if(TokenType::Space) {
+                space = self.parse_space_group()?;
+            } else if let Some(value) = self.parse_nullability()? {
+                nullability = value;
+            } else {
+                return Err(ParseError::invalid("dynamic qualifier", self.pos()));
+            }
+        }
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Dynamic {
             constraint,
             nullability,
+            space,
         })
     }
 

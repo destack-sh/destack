@@ -269,10 +269,15 @@ fn format_type_inner<'a>(
         Type::Dynamic {
             constraint,
             nullability,
+            space: ty_space,
         } => {
             write!(f, [token("dynamic"), token("<")])?;
             format_type_id(*constraint, f)?;
             format_nullability(*nullability, f)?;
+            if !ty_space.is_local() {
+                write!(f, [token(","), space()])?;
+                format_space_group(*ty_space, f)?;
+            }
             write!(f, [token(">")])
         }
         Type::WithLifetimes { base, lifetimes } => format_type_application(*base, lifetimes, f),

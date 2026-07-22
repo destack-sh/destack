@@ -356,6 +356,8 @@ pub enum Type {
         constraint: TypeId,
         /// The nullish values allowed by this erased value.
         nullability: Nullability,
+        /// The space of the erased managed payload.
+        space: Space,
     },
     /// Type use with applied lifetime arguments.
     WithLifetimes {

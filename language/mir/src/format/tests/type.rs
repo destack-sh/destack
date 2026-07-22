@@ -226,6 +226,11 @@ function erased(v0: dynamic<Writer>): dynamic<Writer> {
 entry(v0: dynamic<Writer>):
     return v0
 }
+
+function shared(v0: dynamic<Writer, space(shared)>): dynamic<Writer, space(shared)> {
+entry(v0: dynamic<Writer, space(shared)>):
+    return v0
+}
 "#,
     );
 }

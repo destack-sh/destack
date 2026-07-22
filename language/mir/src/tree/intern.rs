@@ -165,9 +165,11 @@ impl Tree {
             Type::Dynamic {
                 constraint,
                 nullability,
+                space,
             } => Type::Dynamic {
                 constraint: self.intern_representation(constraint),
                 nullability,
+                space,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.intern_representation(value),
@@ -368,9 +370,11 @@ impl Tree {
             Type::Dynamic {
                 constraint,
                 nullability,
+                space,
             } => Type::Dynamic {
                 constraint: self.instantiate_type_lifetimes(constraint, arguments),
                 nullability,
+                space,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.instantiate_type_lifetimes(value, arguments),
