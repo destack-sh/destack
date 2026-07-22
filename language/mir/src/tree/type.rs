@@ -243,14 +243,6 @@ impl TensorViewFormat {
             order: TensorDimensionOrder::RowMajor,
         }
     }
-
-    /// Return the pointer-sized descriptor slot count for a view of `rank`.
-    pub const fn descriptor_slots(self, rank: u32) -> u32 {
-        match self {
-            TensorViewFormat::Dense { .. } => 1u32.saturating_add(rank),
-            TensorViewFormat::Strided => 1u32.saturating_add(rank.saturating_mul(2)),
-        }
-    }
 }
 
 /// Placement descriptor for tensor storage.
