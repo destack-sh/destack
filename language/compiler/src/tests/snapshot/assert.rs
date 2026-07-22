@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -5,7 +6,8 @@ use destack_source::{DiffOptions, format_diff};
 
 const BLESS_ENV: &str = "DESTACK_BLESS";
 
-static BLESS_LOCK: Mutex<()> = Mutex::new(());
+/// Line deltas from earlier rewrites, keyed by file and original caller line.
+static BLESS_DELTAS: Mutex<Option<HashMap<PathBuf, Vec<(u32, i64)>>>> = Mutex::new(None);
 
 /// Assert one complete inline snapshot and bless its raw literal when requested.
 #[track_caller]
@@ -36,10 +38,23 @@ fn is_blessing() -> bool {
 
 /// Rewrite the raw snapshot nearest one call site.
 fn bless_snapshot(file: &str, line: u32, expected: &str, actual: &str) {
-    let _guard = BLESS_LOCK.lock().expect("lock snapshot blessing");
+    let mut deltas = BLESS_DELTAS.lock().expect("lock snapshot blessing");
+    let deltas = deltas.get_or_insert_with(HashMap::new);
     let path = source_path(file);
     let source = std::fs::read_to_string(&path).expect("read snapshot source");
-    let call_offset = line_offset(&source, line);
+
+    // correct the compiled caller line by earlier rewrites in this file
+    let shift = deltas
+        .get(&path)
+        .map(|writes| {
+            writes
+                .iter()
+                .filter(|(at, _)| *at < line)
+                .map(|(_, delta)| *delta)
+                .sum::<i64>()
+        })
+        .unwrap_or(0);
+    let call_offset = line_offset(&source, (line as i64 + shift).max(1) as u32);
     let range = raw_strings(&source)
         .into_iter()
         .filter(|(start, end)| source[*start..*end].trim_matches('\n') == expected)
@@ -53,6 +68,13 @@ fn bless_snapshot(file: &str, line: u32, expected: &str, actual: &str) {
 
     // preserve the conventional leading and trailing newline around snapshots
     let replacement = format!("\n{actual}\n");
+    let removed = source[range.0..range.1].matches('\n').count() as i64;
+    let added = replacement.matches('\n').count() as i64;
+    deltas
+        .entry(path.clone())
+        .or_default()
+        .push((line, added - removed));
+
     let mut source = source;
     source.replace_range(range.0..range.1, &replacement);
     std::fs::write(path, source).expect("write snapshot source");
