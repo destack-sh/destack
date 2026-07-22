@@ -1,6 +1,6 @@
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeType, NodeVisitor,
-    Terminator, Tree, Type, TypeAlias, TypeId,
+    Block, Call, Callee, CheckConstraint, Field, Function, Global, Instruction, Local, LocalNodeId,
+    NodeType, NodeVisitor, Terminator, Tree, Type, TypeDeclaration, TypeId,
 };
 
 /// Walk any node.
@@ -41,10 +41,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let ty = tree.get(id);
             visitor.visit_type(tree, id, ty);
         }
-        NodeType::TypeAlias => {
+        NodeType::TypeDeclaration => {
             let id = LocalNodeId::new(node_id);
-            let type_alias = tree.get(id);
-            visitor.visit_type_alias(tree, id, type_alias);
+            let type_declaration = tree.get(id);
+            visitor.visit_type_declaration(tree, id, type_declaration);
         }
         NodeType::Field => {
             let id = LocalNodeId::new(node_id);
@@ -67,6 +67,18 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
     function: &Function,
 ) {
     visitor.visit_any(tree, NodeType::Function, id.id);
+
+    for parameter in &function.parameters {
+        walk_type_id(visitor, tree, &parameter.ty);
+    }
+    walk_type_id(visitor, tree, &function.return_type);
+    if let Some(environment) = &function.environment {
+        walk_type_id(visitor, tree, environment);
+    }
+    for ty in function.value_types().iter().flatten() {
+        walk_type_id(visitor, tree, ty);
+    }
+
     for local_id in function.locals() {
         let local = tree.get(*local_id);
         visitor.visit_local(tree, *local_id, local);
@@ -86,6 +98,10 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Block, id.id);
 
+    for parameter in &block.parameters {
+        walk_type_id(visitor, tree, &parameter.ty);
+    }
+
     for inst_id in &block.instructions {
         let instruction = tree.get(*inst_id);
         visitor.visit_instruction(tree, *inst_id, instruction);
@@ -100,9 +116,130 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<Instruction>,
-    _instruction: &Instruction,
+    instruction: &Instruction,
 ) {
     visitor.visit_any(tree, NodeType::Instruction, id.id);
+
+    match instruction {
+        Instruction::Cast { to_type, .. } => walk_type_id(visitor, tree, to_type),
+        Instruction::LocalAddr { result_type, .. }
+        | Instruction::GlobalAddr { result_type, .. }
+        | Instruction::Load { result_type, .. }
+        | Instruction::FieldAddr { result_type, .. }
+        | Instruction::ElementAddr { result_type, .. }
+        | Instruction::VariantNew { result_type, .. }
+        | Instruction::SliceView { result_type, .. }
+        | Instruction::DynamicPayload { result_type, .. }
+        | Instruction::NewComplete { result_type, .. }
+        | Instruction::Pin { result_type, .. }
+        | Instruction::AtomicLoad { result_type, .. } => {
+            walk_type_id(visitor, tree, result_type);
+        }
+        Instruction::DynamicBind { concrete, .. } => walk_type_id(visitor, tree, concrete),
+        Instruction::Call { call, .. } => walk_call(visitor, tree, call),
+        Instruction::NewZeroed {
+            layout,
+            result_type,
+            ..
+        }
+        | Instruction::NewUninit {
+            layout,
+            result_type,
+            ..
+        }
+        | Instruction::FrameAllocZeroed {
+            layout,
+            result_type,
+            ..
+        }
+        | Instruction::FrameAllocUninit {
+            layout,
+            result_type,
+            ..
+        } => {
+            walk_type_id(visitor, tree, layout);
+            walk_type_id(visitor, tree, result_type);
+        }
+        Instruction::NewSliceZeroed {
+            element,
+            result_type,
+            ..
+        }
+        | Instruction::NewSliceUninit {
+            element,
+            result_type,
+            ..
+        } => {
+            walk_type_id(visitor, tree, element);
+            walk_type_id(visitor, tree, result_type);
+        }
+        Instruction::Error
+        | Instruction::Const { .. }
+        | Instruction::Binary { .. }
+        | Instruction::Unary { .. }
+        | Instruction::Select { .. }
+        | Instruction::LocalGet { .. }
+        | Instruction::LocalSet { .. }
+        | Instruction::FunctionAddr { .. }
+        | Instruction::FunctionBind { .. }
+        | Instruction::FunctionPointer { .. }
+        | Instruction::FunctionEnvironment { .. }
+        | Instruction::FunctionEnvironmentCurrent { .. }
+        | Instruction::Store { .. }
+        | Instruction::Aggregate { .. }
+        | Instruction::FieldGet { .. }
+        | Instruction::FieldSet { .. }
+        | Instruction::ElementGet { .. }
+        | Instruction::ElementSet { .. }
+        | Instruction::VariantTag { .. }
+        | Instruction::VariantPayload { .. }
+        | Instruction::SliceLength { .. }
+        | Instruction::DynamicType { .. }
+        | Instruction::VectorSplat { .. }
+        | Instruction::VectorExtract { .. }
+        | Instruction::VectorInsert { .. }
+        | Instruction::VectorShuffle { .. }
+        | Instruction::VectorSelect { .. }
+        | Instruction::VectorReduce { .. }
+        | Instruction::VectorCompare { .. }
+        | Instruction::VectorConvert { .. }
+        | Instruction::TensorSplat { .. }
+        | Instruction::TensorLoad { .. }
+        | Instruction::TensorExtract { .. }
+        | Instruction::TensorStore { .. }
+        | Instruction::TensorFill { .. }
+        | Instruction::TensorCopy { .. }
+        | Instruction::TensorReshape { .. }
+        | Instruction::TensorBroadcast { .. }
+        | Instruction::TensorTranspose { .. }
+        | Instruction::TensorCast { .. }
+        | Instruction::TensorView { .. }
+        | Instruction::TensorSlice { .. }
+        | Instruction::TensorPad { .. }
+        | Instruction::TensorConcat { .. }
+        | Instruction::TensorCompare { .. }
+        | Instruction::TensorSelect { .. }
+        | Instruction::TensorReduce { .. }
+        | Instruction::TensorIndexReduce { .. }
+        | Instruction::TensorDot { .. }
+        | Instruction::TensorConvolution { .. }
+        | Instruction::TensorGather { .. }
+        | Instruction::TensorScatter { .. }
+        | Instruction::TensorConvert { .. }
+        | Instruction::Drop { .. }
+        | Instruction::Free { .. }
+        | Instruction::Unpin { .. }
+        | Instruction::BarrierWrite { .. }
+        | Instruction::AtomicStore { .. }
+        | Instruction::AtomicCompareExchange { .. }
+        | Instruction::AtomicRmw { .. }
+        | Instruction::AtomicFence { .. }
+        | Instruction::Assume { .. }
+        | Instruction::ProfileIncrement { .. }
+        | Instruction::ProfileSample { .. }
+        | Instruction::Breakpoint
+        | Instruction::Intrinsic { .. } => {}
+    }
 }
 
 /// Walk a Terminator.
@@ -110,9 +247,43 @@ pub fn walk_terminator<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<Terminator>,
-    _terminator: &Terminator,
+    terminator: &Terminator,
 ) {
     visitor.visit_any(tree, NodeType::Terminator, id.id);
+
+    match terminator {
+        Terminator::Check { constraint, .. } => match constraint {
+            CheckConstraint::IsType { expected, .. }
+            | CheckConstraint::IsSubtype { expected, .. } => {
+                walk_type_id(visitor, tree, expected);
+            }
+            CheckConstraint::Bounds { .. }
+            | CheckConstraint::Null { .. }
+            | CheckConstraint::DivZero { .. }
+            | CheckConstraint::ShiftRange { .. }
+            | CheckConstraint::Narrow { .. }
+            | CheckConstraint::Overflow { .. } => {}
+        },
+        Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
+            walk_call(visitor, tree, call);
+        }
+        Terminator::NewZeroedTry { layout, .. } | Terminator::NewUninitTry { layout, .. } => {
+            walk_type_id(visitor, tree, layout)
+        }
+        Terminator::NewSliceZeroedTry { element, .. }
+        | Terminator::NewSliceUninitTry { element, .. } => walk_type_id(visitor, tree, element),
+        Terminator::Error
+        | Terminator::Return { .. }
+        | Terminator::Jump { .. }
+        | Terminator::Branch { .. }
+        | Terminator::Switch { .. }
+        | Terminator::VariantSwitch { .. }
+        | Terminator::Yield { .. }
+        | Terminator::Panic { .. }
+        | Terminator::UnwindResume
+        | Terminator::Trap { .. }
+        | Terminator::Unreachable => {}
+    }
 }
 
 /// Walk a Local.
@@ -120,9 +291,10 @@ pub fn walk_local<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<Local>,
-    _local: &Local,
+    local: &Local,
 ) {
     visitor.visit_any(tree, NodeType::Local, id.id);
+    walk_type_id(visitor, tree, &local.ty);
 }
 
 /// Walk a Type.
@@ -224,16 +396,16 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk a TypeAlias.
-pub fn walk_type_alias<V: NodeVisitor + ?Sized>(
+/// Walk a TypeDeclaration.
+pub fn walk_type_declaration<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
-    id: LocalNodeId<TypeAlias>,
-    type_alias: &TypeAlias,
+    id: LocalNodeId<TypeDeclaration>,
+    type_declaration: &TypeDeclaration,
 ) {
-    visitor.visit_any(tree, NodeType::TypeAlias, id.id);
-    let aliased_ty = tree.get(type_alias.ty);
-    visitor.visit_type(tree, type_alias.ty, aliased_ty);
+    visitor.visit_any(tree, NodeType::TypeDeclaration, id.id);
+    let declared_ty = tree.get(type_declaration.ty);
+    visitor.visit_type(tree, type_declaration.ty, declared_ty);
 }
 
 /// Walk a Field.
@@ -254,12 +426,24 @@ fn walk_type_id<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, reference
     visitor.visit_type(tree, *reference, ty);
 }
 
+/// Walk the types owned by one call operation.
+fn walk_call<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, call: &Call) {
+    walk_type_id(visitor, tree, &call.signature);
+
+    match &call.callee {
+        Callee::Virtual { class, .. } => walk_type_id(visitor, tree, class),
+        Callee::Dynamic { constraint, .. } => walk_type_id(visitor, tree, constraint),
+        Callee::Direct { .. } | Callee::Indirect { .. } => {}
+    }
+}
+
 /// Walk a Global.
 pub fn walk_global<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<Global>,
-    _global: &Global,
+    global: &Global,
 ) {
     visitor.visit_any(tree, NodeType::Global, id.id);
+    walk_type_id(visitor, tree, &global.ty);
 }

@@ -110,6 +110,16 @@ pub struct Layout {
 }
 
 impl Layout {
+    /// Create one scalar layout of the given size and alignment.
+    pub const fn scalar(size: u32, alignment: u32) -> Self {
+        Self {
+            shape: LayoutShape::Scalar,
+            size,
+            alignment,
+            trace_map: TraceMap::Empty,
+        }
+    }
+
     /// Return the byte width of this layout.
     pub const fn byte_len(&self) -> usize {
         self.size as usize

@@ -4,7 +4,7 @@ use crate as mir;
 
 use crate::{AliasResult, TargetLayout};
 
-use super::{TypeKey, ValueDefinitions, ValueTypes};
+use super::{ValueDefinitions, ValueTypes};
 
 /// A reference-backed memory location.
 ///
@@ -16,7 +16,7 @@ pub struct ReferenceLocation {
     /// Size of the access in bytes, if known.
     pub size: Option<u64>,
     /// Type being accessed, when known.
-    pub access_type: Option<TypeKey>,
+    pub access_type: Option<mir::TypeId>,
     /// Reference kind for the reference, when known.
     pub reference_kind: Option<mir::ReferenceKind>,
     /// Space for the reference, when known.
@@ -329,28 +329,11 @@ impl ReferenceLocation {
         }
     }
 
-    /// Create a location with type information.
-    pub fn with_type(reference: mir::Value, access_type: TypeKey) -> Self {
-        let (reference_kind, reference_space) = match &access_type {
-            TypeKey::Reference { kind, space, .. } | TypeKey::TensorView { kind, space, .. } => {
-                (Some(*kind), Some(*space))
-            }
-            _ => (None, None),
-        };
-        Self {
-            reference,
-            size: None,
-            access_type: Some(access_type),
-            reference_kind,
-            reference_space,
-        }
-    }
-
     /// Create a fully specified location.
     pub fn new(
         reference: mir::Value,
         size: Option<u64>,
-        access_type: Option<TypeKey>,
+        access_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_space: Option<mir::Space>,
     ) -> Self {
@@ -444,10 +427,11 @@ impl MemoryRegion {
     /// Create a reference access with optional access type and inferred size.
     pub fn from_reference(
         reference: mir::Value,
-        access_type: Option<TypeKey>,
+        access_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_space: Option<mir::Space>,
         pointer_width_bits: u16,
+        tree: &mir::Tree,
     ) -> Self {
         Self::from_reference_with_size(
             reference,
@@ -456,22 +440,24 @@ impl MemoryRegion {
             reference_space,
             None,
             pointer_width_bits,
+            tree,
         )
     }
 
     /// Create a reference access with an explicit size override.
     pub fn from_reference_with_size(
         reference: mir::Value,
-        access_type: Option<TypeKey>,
+        access_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_space: Option<mir::Space>,
         size: Option<u64>,
         pointer_width_bits: u16,
+        tree: &mir::Tree,
     ) -> Self {
         let inferred_size = size.or_else(|| {
             access_type
                 .as_ref()
-                .and_then(|access_type| access_type.byte_size(pointer_width_bits))
+                .and_then(|access_type| tree.get(*access_type).byte_size(tree, pointer_width_bits))
         });
 
         Self::Reference {
@@ -1017,8 +1003,11 @@ impl<'a> MemoryRegionBuilder<'a> {
             _ => panic!("element.address requires an indexed value, got {ty_id:?}"),
         };
 
-        let key = TypeKey::from_type(element_id, self.tree);
-        match key.byte_size(self.target_layout.pointer_bits()) {
+        match self
+            .tree
+            .get(element_id)
+            .byte_size(self.tree, self.target_layout.pointer_bits())
+        {
             Some(size) if size > 0 => size,
             _ => panic!("element.address requires a byte-sized element, got {element_id:?}"),
         }

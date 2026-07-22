@@ -1,6 +1,6 @@
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, Terminator, Tree, Type,
-    TypeAlias, assert_node,
+    TypeDeclaration, assert_node,
 };
 use destack_source::DiagnosticSeverity;
 
@@ -221,8 +221,25 @@ b0:
     // diagnostic and later items
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(tree.iter_nodes::<TypeAlias>().count(), 1);
+    assert_eq!(tree.iter_nodes::<TypeDeclaration>().count(), 1);
     assert_eq!(tree.iter_nodes::<Function>().count(), 1);
+}
+
+/// Reject a named type whose definition is only its own identity.
+#[test]
+fn test_parse_rejects_direct_self_type_definition() {
+    let source = "type Recursive = Recursive;";
+
+    let (_, diagnostics) = TestParser::new(source).parse_with_diagnostics();
+    let position = source.rfind("Recursive").unwrap();
+
+    // exactly the self-definition rejection at the defining reference
+    assert_eq!(diagnostics.len(), 1);
+    let diagnostic = diagnostics.iter().next().unwrap();
+    assert_eq!(diagnostic.message, "type declaration cannot define itself");
+    let span = diagnostic.primary.target.span().unwrap();
+    assert_eq!(span.start as usize, position);
+    assert_eq!(span.end as usize, position + "Recursive".len());
 }
 
 /// Recovering parse restores lifetime names after a broken type declaration.
@@ -245,7 +262,7 @@ b0:
     // both type declarations fail independently
     assert_eq!(diagnostics.len(), 2);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(tree.iter_nodes::<TypeAlias>().count(), 0);
+    assert_eq!(tree.iter_nodes::<TypeDeclaration>().count(), 0);
     assert_eq!(tree.iter_nodes::<Function>().count(), 1);
 }
 
@@ -261,14 +278,14 @@ type Pair {
 
     // parse
     let (tree, diagnostics) = TestParser::new(source).parse_with_diagnostics();
-    let (_, alias) = tree.iter_nodes::<TypeAlias>().next().unwrap();
+    let (_, declaration) = tree.iter_nodes::<TypeDeclaration>().next().unwrap();
 
-    // diagnostic and alias
+    // diagnostic and declaration
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // recovered fields
-    assert_node!(tree, alias.ty, Type::Struct { fields, .. } => {
+    assert_node!(tree, declaration.ty, Type::Struct { fields, .. } => {
         assert_eq!(fields.len(), 2);
         assert_node!(tree, fields[0], Field { ty, .. } => {
             assert_error_type(&tree, *ty);

@@ -10,7 +10,7 @@ use crate::{
     FormatMirNode, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, MirFormatContext,
     MirFormatter, Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder,
     TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
-    TypeAlias, TypeDeclarationSpans, TypeId, write_comments_before,
+    TypeDeclaration, TypeDeclarationSpans, TypeId, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -39,16 +39,16 @@ pub(super) fn format_type_expanded<'a>(
 pub(super) fn format_type_declaration<'a>(
     name: &str,
     attributes: &[Attribute],
-    alias_id: Option<LocalNodeId<TypeAlias>>,
+    declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     type_id: LocalNodeId<Type>,
     ty: &Type,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    let attributes = alias_id
-        .map(|alias_id| f.context().tree.attributes(alias_id))
+    let attributes = declaration_id
+        .map(|declaration_id| f.context().tree.attributes(declaration_id))
         .unwrap_or(attributes);
-    let lifetimes = alias_id
-        .map(|alias_id| f.context().tree.get(alias_id).lifetimes.clone())
+    let lifetimes = declaration_id
+        .map(|declaration_id| f.context().tree.get(declaration_id).lifetimes.clone())
         .unwrap_or_default();
 
     // synthetic copy marker
@@ -57,14 +57,14 @@ pub(super) fn format_type_declaration<'a>(
     }
 
     // declaration attributes
-    if let Some(alias_id) = alias_id {
+    if let Some(declaration_id) = declaration_id {
         let tree = f.context().tree;
 
         if !attributes.is_empty() {
-            if let Some(keyword_span) = tree.keyword_span(alias_id) {
+            if let Some(keyword_span) = tree.keyword_span(declaration_id) {
                 write_attributes_before_anchor(
                     attributes,
-                    tree.attribute_spans(alias_id),
+                    tree.attribute_spans(declaration_id),
                     keyword_span.start,
                     tree,
                     f,
@@ -81,7 +81,7 @@ pub(super) fn format_type_declaration<'a>(
         std::mem::replace(&mut f.context_mut().current_lifetimes, lifetimes.clone());
     let result = match ty {
         Type::Struct { fields, .. } => {
-            format_struct_type_declaration(name, alias_id, &lifetimes, fields, f)
+            format_struct_type_declaration(name, declaration_id, &lifetimes, fields, f)
         }
         _ => {
             write!(f, [token("type"), space(), copied_text(name)])?;
@@ -124,7 +124,7 @@ fn has_copy_attribute(attributes: &[Attribute], f: &MirFormatter<'_, '_>) -> boo
 /// Format one struct type declaration.
 fn format_struct_type_declaration<'a>(
     name: &str,
-    alias_id: Option<LocalNodeId<TypeAlias>>,
+    declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     lifetimes: &[LifetimeParameter],
     fields: &[LocalNodeId<Field>],
     f: &mut MirFormatter<'a, '_>,
@@ -138,11 +138,11 @@ fn format_struct_type_declaration<'a>(
     }
 
     let tree = f.context().tree;
-    let field_spans = alias_id
-        .map(|alias_id| tree.type_field_spans(alias_id).to_vec())
+    let field_spans = declaration_id
+        .map(|declaration_id| tree.type_field_spans(declaration_id).to_vec())
         .unwrap_or_default();
-    let declaration_spans =
-        alias_id.and_then(|alias_id| tree.type_declaration_spans(alias_id).cloned());
+    let declaration_spans = declaration_id
+        .and_then(|declaration_id| tree.type_declaration_spans(declaration_id).cloned());
 
     write!(f, [hard_line_break()])?;
     write!(
@@ -236,11 +236,11 @@ fn format_type_inner<'a>(
     f: &mut MirFormatter<'a, '_>,
     id: LocalNodeId<Type>,
     ty: &Type,
-    use_alias: bool,
+    use_declaration: bool,
 ) -> FormatResult<()> {
-    if use_alias && let Some(alias_name) = f.context().type_alias_name(id) {
-        let alias_name = alias_name.to_string();
-        return write!(f, [copied_text(&alias_name)]);
+    if use_declaration && let Some(declaration_name) = f.context().type_declaration_name(id) {
+        let declaration_name = declaration_name.to_string();
+        return write!(f, [copied_text(&declaration_name)]);
     }
 
     match ty {
@@ -843,17 +843,21 @@ fn format_access<'a>(access: Access, f: &mut MirFormatter<'a, '_>) -> FormatResu
     }
 }
 
-impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
+impl<'a> FormatMirNode<'a, TypeDeclaration> for TypeDeclaration {
     fn format_node(
         &self,
-        id: LocalNodeId<TypeAlias>,
+        id: LocalNodeId<TypeDeclaration>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         let attributes = f.context().tree.attributes(id);
-        let name = f.context().strings.get(self.name);
+        let name = f
+            .context()
+            .type_declaration_name(self.ty)
+            .unwrap_or_else(|| f.context().strings.get(self.name))
+            .to_string();
         let type_id = self.ty;
         let ty = f.context().tree.get(type_id);
-        format_type_declaration(name, attributes, Some(id), type_id, ty, f)
+        format_type_declaration(&name, attributes, Some(id), type_id, ty, f)
     }
 }
 

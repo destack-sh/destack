@@ -6,7 +6,7 @@ use super::{TestParser, comment_texts};
 fn test_parse_declaration_comments() {
     TestParser::new(
         r#"
-// aliases
+// declarations
 type Callable = (int32) => int32;
 
 // imports
@@ -26,7 +26,7 @@ entry(v0: Callable):
     )
     .assert_format(
         r#"
-// aliases
+// declarations
 type Callable = (int32) => int32;
 
 // imports

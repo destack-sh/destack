@@ -1,8 +1,8 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Callee, Copy, ExecutionScope, FenceAccess, Lifetime, MemoryOrdering, MirFormatOptions,
-    Mutability, Nullability, ReferenceKind, Space, StorageSet, TargetLayout, Type, TypeId,
-    format_mir,
+    Access, Callee, Copy, ExecutionScope, FenceAccess, Lifetime, LifetimeParameter, MemoryOrdering,
+    MirFormatOptions, Mutability, Nullability, ReferenceKind, Space, StorageSet, Symbol,
+    TargetLayout, Type, TypeId, format_mir,
 };
 
 /// Format one test MIR tree.
@@ -1017,7 +1017,7 @@ fn test_build_frame_alloc_zeroed() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
-    let raw_ref_type = module.tree_mut().insert_type(Type::Reference {
+    let raw_ref_type = module.tree_mut().intern_type(Type::Reference {
         kind: ReferenceKind::Raw,
         lifetime: Lifetime::empty(),
         space: Space::Frame,
@@ -1310,6 +1310,104 @@ fn test_build_field_get_tuple() {
 function getFirst(v0: (int32, boolean)): int32 {
 entry(v0: (int32, boolean)):
     v1: int32 = field.get v0, 0
+    return v1
+}";
+    assert_eq!(output, expected);
+}
+
+/// Field projection substitutes the lifetime arguments of an identified aggregate.
+#[test]
+fn test_build_field_get_from_lifetime_applied_type() {
+    // define the referenced user type
+    let mut module = ModuleBuilder::new();
+    let int32 = module.type_i32();
+    let user_field_name = module.strings().intern("id");
+    let user_field = module.field(Some(user_field_name), int32);
+    let user_name = module.strings().intern("User");
+    let user = module.tree_mut().reserve_type(Symbol::named(user_name));
+    module.tree_mut().define_type(
+        user,
+        Type::Struct {
+            fields: vec![user_field],
+            copy: Copy::Yes,
+        },
+    );
+    module
+        .tree_mut()
+        .insert_type_declaration(user_name, Vec::new(), user);
+
+    // define a lifetime-polymorphic aggregate borrowing the user
+    let borrowed_user = module.reference_type_with_lifetime(
+        ReferenceKind::Borrowed,
+        Lifetime::slot(0),
+        user,
+        Access::Readonly,
+        Space::Local,
+        Nullability::None,
+    );
+    let view_field_name = module.strings().intern("user");
+    let view_field = module.field(Some(view_field_name), borrowed_user);
+    let view_name = module.strings().intern("View");
+    let lifetime_name = module.strings().intern("L0");
+    let lifetime_parameters = vec![LifetimeParameter::new(Some(lifetime_name))];
+    let view = module.tree_mut().reserve_type(Symbol::named(view_name));
+    module.tree_mut().define_type(
+        view,
+        Type::Struct {
+            fields: vec![view_field],
+            copy: Copy::Yes,
+        },
+    );
+    module
+        .tree_mut()
+        .set_type_lifetimes(view, lifetime_parameters.clone());
+    module
+        .tree_mut()
+        .insert_type_declaration(view_name, lifetime_parameters, view);
+
+    // project the field from one concrete lifetime application
+    let static_view = module.tree_mut().intern_type(Type::WithLifetimes {
+        base: view,
+        lifetimes: vec![Lifetime::static_storage()],
+    });
+    let static_user = module.reference_type_with_lifetime(
+        ReferenceKind::Borrowed,
+        Lifetime::static_storage(),
+        user,
+        Access::Readonly,
+        Space::Local,
+        Nullability::None,
+    );
+    let header = module
+        .function_header("getStatic")
+        .parameter(static_view)
+        .result(static_user);
+    let mut builder = module.function(header);
+    let entry = builder.block();
+    builder.switch_to_block(entry);
+    let value = builder.function_parameter(0);
+    let user = builder.field_get(value, 0);
+    builder.return_(Some(user));
+    builder.seal_block(entry);
+    builder.finish().unwrap();
+
+    // require the complete declared and projected MIR
+    let (tree, strings) = module.finish_tree();
+    let output = format_test_mir(&tree, &strings);
+    let expected = "\
+@copy
+type User {
+    id: int32;
+}
+
+@copy
+type View<L0: lifetime> {
+    user: ref<User, borrowed, lifetime(L0), readonly>;
+}
+
+function getStatic(v0: View<lifetime(static)>): ref<User, borrowed, lifetime(static), readonly> {
+entry(v0: View<lifetime(static)>):
+    v1: ref<User, borrowed, lifetime(static), readonly> = field.get v0, 0
     return v1
 }";
     assert_eq!(output, expected);

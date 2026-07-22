@@ -54,7 +54,7 @@ impl<'a> FunctionBuilder<'a> {
             })
             .collect();
         let result = declared.return_type;
-        let signature = self.tree.insert_type(Type::FunctionSignature {
+        let signature = self.tree.intern_type(Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters,
             result,

@@ -1,4 +1,4 @@
-use crate::{Block, Function, Global, Local, TypeAlias, assert_node};
+use crate::{Block, Function, Global, Local, TypeDeclaration, assert_node};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType};
 
 use super::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
@@ -19,13 +19,13 @@ entry:
 
     let (tree, _) = TestParser::new(source).parse();
 
-    let (type_alias_id, _) = tree.iter_nodes::<TypeAlias>().next().unwrap();
+    let (type_declaration_id, _) = tree.iter_nodes::<TypeDeclaration>().next().unwrap();
     let (global_id, _) = tree.iter_nodes::<Global>().next().unwrap();
     let (function_id, function) = tree.iter_nodes::<Function>().next().unwrap();
     let block_id = function.block(0);
 
     assert_eq!(
-        tree.get_main_span(type_alias_id),
+        tree.get_main_span(type_declaration_id),
         Some(span_for_text(source, "Callable"))
     );
     assert_eq!(
@@ -42,7 +42,10 @@ entry:
     );
 
     assert_eq!(
-        tree.get_side_span(type_alias_id, NodeSpanType::Region(NodeSpanRegion::Type)),
+        tree.get_side_span(
+            type_declaration_id,
+            NodeSpanType::Region(NodeSpanRegion::Type)
+        ),
         Some(span_for_text(source, "() => void"))
     );
     assert_eq!(
@@ -59,7 +62,7 @@ entry:
     );
 
     assert_eq!(
-        tree.get_span(type_alias_id),
+        tree.get_span(type_declaration_id),
         Some(span_for_text(source, "type Callable = () => void"))
     );
     assert_eq!(

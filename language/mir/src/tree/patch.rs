@@ -10,7 +10,7 @@ use crate::{LocalNodeIdAny, Tree};
 pub struct Patch {
     /// The patch name.
     pub name: String,
-    /// The tree containing nodes introduced by this patch.
+    /// The rewritten MIR tree.
     pub tree: Tree,
     /// Replacement roots keyed by the base node they replace.
     pub replacement_by_node: BTreeMap<LocalNodeIdAny, LocalNodeIdAny>,
@@ -19,16 +19,6 @@ pub struct Patch {
 }
 
 impl Patch {
-    /// Create an empty named patch over one base tree.
-    pub fn new(base: &Tree, name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            tree: Tree::from_base(base, 0),
-            replacement_by_node: BTreeMap::new(),
-            dead_nodes: BTreeSet::new(),
-        }
-    }
-
     /// Create a named patch from an already rewritten tree.
     pub fn from_tree(name: impl Into<String>, tree: Tree) -> Self {
         Self {

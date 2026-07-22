@@ -4,7 +4,6 @@ mod cursor;
 mod error;
 mod function;
 mod instruction;
-mod key;
 mod module;
 mod parser;
 mod trivia;

@@ -313,7 +313,7 @@ impl TensorDimension {
     }
 }
 
-/// Concrete type in MIR (post-monomorphization).
+/// Concrete runtime type in MIR.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Type {
     /// Invalid type produced while recovering malformed MIR text.
@@ -633,6 +633,28 @@ impl Type {
         )
     }
 
+    /// Return the byte size when it follows directly from the type.
+    pub fn byte_size(&self, tree: &Tree, pointer_width_bits: u16) -> Option<u64> {
+        match self {
+            Type::Int { width, .. } => byte_width(*width),
+            Type::Isize | Type::Usize => byte_width(pointer_width_bits),
+            Type::Float(format) => byte_width(format.width()),
+            Type::WithLifetimes { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
+            Type::Uninit { value } | Type::ManuallyDrop { value } => {
+                tree.get(*value).byte_size(tree, pointer_width_bits)
+            }
+            Type::Newtype { inner, .. } => tree.get(*inner).byte_size(tree, pointer_width_bits),
+            Type::FixedArray {
+                element, length, ..
+            } => {
+                let element_size = tree.get(*element).byte_size(tree, pointer_width_bits)?;
+
+                element_size.checked_mul(*length)
+            }
+            _ => None,
+        }
+    }
+
     /// Whether this type is a raw pointer.
     pub fn is_raw_pointer(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Raw)
@@ -768,11 +790,13 @@ impl Type {
     /// - Affine references are move only
     /// - Aggregates store their copy property explicitly
     /// - Function pointers are always copyable
-    pub fn copy(&self) -> Copy {
+    pub fn copy(&self, tree: &Tree) -> Copy {
         match self {
             // parse recovery nodes are never copyable semantic values
             Type::Error => Copy::No,
-            Type::WithLifetimes { .. } => Copy::No,
+
+            // lifetime application preserves the represented type's copy property
+            Type::WithLifetimes { base, .. } => tree.get(*base).copy(tree),
 
             // primitives are always trivially copyable
             Type::Void
@@ -826,6 +850,11 @@ impl Type {
             | Type::Function { .. } => Copy::Yes,
         }
     }
+}
+
+/// Convert one bit width to bytes when byte aligned.
+fn byte_width(width: u16) -> Option<u64> {
+    width.is_multiple_of(8).then_some(u64::from(width / 8))
 }
 
 /// A concrete MIR floating-point type.
@@ -885,17 +914,17 @@ impl Node for Field {
     const TYPE: NodeType = NodeType::Field;
 }
 
-/// A named type alias in MIR text format.
+/// A named type declaration in MIR text format.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TypeAlias {
-    /// Alias name (without the leading `@`).
+pub struct TypeDeclaration {
+    /// The declaration name.
     pub name: StringId,
     /// Lifetime parameters in type-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
-    /// The aliased type.
+    /// The identified type.
     pub ty: TypeId,
 }
 
-impl Node for TypeAlias {
-    const TYPE: NodeType = NodeType::TypeAlias;
+impl Node for TypeDeclaration {
+    const TYPE: NodeType = NodeType::TypeDeclaration;
 }

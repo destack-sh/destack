@@ -80,14 +80,14 @@ impl ModuleBuilder {
     pub fn declare_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
         let FunctionHeader {
             name,
+            symbol,
             lifetimes,
             parameters,
             result,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let function_id = self
-            .tree
-            .insert(Function::declare(name, lifetimes, parameters, result));
+        let function = Function::declare(name, lifetimes, parameters, result).with_symbol(symbol);
+        let function_id = self.tree.insert(function);
         finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id
@@ -97,14 +97,14 @@ impl ModuleBuilder {
     pub fn external_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
         let FunctionHeader {
             name,
+            symbol,
             lifetimes,
             parameters,
             result,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let function_id = self
-            .tree
-            .insert(Function::import(name, lifetimes, parameters, result));
+        let function = Function::import(name, lifetimes, parameters, result).with_symbol(symbol);
+        let function_id = self.tree.insert(function);
         finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id

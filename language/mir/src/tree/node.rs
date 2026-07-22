@@ -39,8 +39,8 @@ pub enum NodeType {
     Local,
     /// A type.
     Type,
-    /// A named type alias.
-    TypeAlias,
+    /// A named type declaration.
+    TypeDeclaration,
     /// A struct field.
     Field,
     /// A global variable or constant.
@@ -58,7 +58,7 @@ impl NodeType {
             NodeType::Terminator => "terminator",
             NodeType::Local => "local",
             NodeType::Type => "type",
-            NodeType::TypeAlias => "type_alias",
+            NodeType::TypeDeclaration => "type_declaration",
             NodeType::Field => "field",
             NodeType::Global => "global",
         }

@@ -11,17 +11,17 @@ use crate::{
 impl ModuleBuilder {
     /// Create a void type.
     pub fn type_void(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Void)
+        self.tree.intern_type(Type::Void)
     }
 
     /// Create a boolean type.
     pub fn type_boolean(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Boolean)
+        self.tree.intern_type(Type::Boolean)
     }
 
     /// Create an integer type.
     pub fn type_int(&mut self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Int {
+        self.tree.intern_type(Type::Int {
             width,
             is_signed: signed,
         })
@@ -29,12 +29,12 @@ impl ModuleBuilder {
 
     /// Create a pointer-sized signed integer type.
     pub fn type_isize(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Isize)
+        self.tree.intern_type(Type::Isize)
     }
 
     /// Create a pointer-sized unsigned integer type.
     pub fn type_usize(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Usize)
+        self.tree.intern_type(Type::Usize)
     }
 
     /// Create a 32-bit signed integer type.
@@ -59,7 +59,7 @@ impl ModuleBuilder {
 
     /// Create a float type.
     pub fn type_float(&mut self, float_type: FloatType) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Float(float_type))
+        self.tree.intern_type(Type::Float(float_type))
     }
 
     /// Create a 16-bit IEEE-754 float type.
@@ -84,17 +84,17 @@ impl ModuleBuilder {
 
     /// Create a type descriptor handle type.
     pub fn type_type_descriptor(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::TypeDescriptor)
+        self.tree.intern_type(Type::TypeDescriptor)
     }
 
     /// Create a type id value type.
     pub fn type_type_id(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::TypeId)
+        self.tree.intern_type(Type::TypeId)
     }
 
     /// Create a dynamic erased value type.
     pub fn type_dynamic(&mut self, constraint: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Dynamic { constraint })
+        self.tree.intern_type(Type::Dynamic { constraint })
     }
 
     /// Create a reference type.
@@ -126,7 +126,7 @@ impl ModuleBuilder {
         space: Space,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Reference {
+        self.tree.intern_type(Type::Reference {
             kind,
             lifetime,
             space,
@@ -262,7 +262,7 @@ impl ModuleBuilder {
         lanes: u32,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Vector {
+        self.tree.intern_type(Type::Vector {
             element,
             lanes,
             copy,
@@ -278,7 +278,7 @@ impl ModuleBuilder {
         sharding: TensorSharding,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Tensor {
+        self.tree.intern_type(Type::Tensor {
             element,
             shape,
             format,
@@ -299,7 +299,7 @@ impl ModuleBuilder {
         sharding: TensorSharding,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::TensorView {
+        self.tree.intern_type(Type::TensorView {
             kind,
             lifetime: Lifetime::empty(),
             space,
@@ -319,7 +319,7 @@ impl ModuleBuilder {
         length: u64,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::FixedArray {
+        self.tree.intern_type(Type::FixedArray {
             element,
             length,
             copy,
@@ -346,7 +346,7 @@ impl ModuleBuilder {
         access: Access,
         space: Space,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Slice {
+        self.tree.intern_type(Type::Slice {
             kind,
             lifetime,
             element,
@@ -374,7 +374,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         let elements = elements.into_iter().collect();
 
-        self.tree.insert_type(Type::Tuple { elements, copy })
+        self.tree.intern_type(Type::Tuple { elements, copy })
     }
 
     /// Create a struct type with explicit copy.
@@ -383,7 +383,7 @@ impl ModuleBuilder {
         fields: Vec<LocalNodeId<Field>>,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Struct { fields, copy })
+        self.tree.intern_type(Type::Struct { fields, copy })
     }
 
     /// Create a sum type with explicit copy.
@@ -399,7 +399,7 @@ impl ModuleBuilder {
             .map(|(discriminant, ty)| VariantCase { discriminant, ty })
             .collect();
 
-        self.tree.insert_type(Type::Variant {
+        self.tree.intern_type(Type::Variant {
             discriminant,
             storage,
             cases,
@@ -409,7 +409,7 @@ impl ModuleBuilder {
 
     /// Create a field definition for a struct type.
     pub fn field(&mut self, name: Option<StringId>, ty: LocalNodeId<Type>) -> LocalNodeId<Field> {
-        self.tree.insert(Field { name, ty })
+        self.tree.intern_field(Field { name, ty }, Vec::new())
     }
 
     /// Create a bare function signature type.
@@ -423,7 +423,7 @@ impl ModuleBuilder {
             .map(|ty| crate::SignatureParameter::new(TypeId::from(ty)))
             .collect();
 
-        self.tree.insert_type(Type::FunctionSignature {
+        self.tree.intern_type(Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters,
             result,
@@ -432,7 +432,7 @@ impl ModuleBuilder {
 
     /// Create a function pointer type.
     pub fn type_function_pointer(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::FunctionPointer { signature })
+        self.tree.intern_type(Type::FunctionPointer { signature })
     }
 
     /// Create a function value type.
@@ -441,7 +441,7 @@ impl ModuleBuilder {
         signature: LocalNodeId<Type>,
         environment: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Function {
+        self.tree.intern_type(Type::Function {
             signature,
             environment,
         })

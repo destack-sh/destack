@@ -7,6 +7,7 @@ mod function;
 mod global;
 mod immediate;
 mod instruction;
+mod intern;
 mod intrinsic;
 mod lifetime;
 mod local;

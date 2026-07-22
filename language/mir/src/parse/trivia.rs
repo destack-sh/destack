@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use destack_source::Span;
 
-use crate::{Block, Function, Global, TypeAlias};
+use crate::{Block, Function, Global, TypeDeclaration};
 
 use super::Parser;
 
@@ -44,7 +44,7 @@ impl Parser {
     fn top_level_anchor_ids(&self) -> Vec<u32> {
         self.sorted_anchor_ids(
             self.tree
-                .iter_nodes::<TypeAlias>()
+                .iter_nodes::<TypeDeclaration>()
                 .map(|(id, _)| id.id)
                 .chain(self.tree.iter_nodes::<Global>().map(|(id, _)| id.id))
                 .chain(self.tree.iter_nodes::<Function>().map(|(id, _)| id.id)),

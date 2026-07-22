@@ -75,7 +75,7 @@ impl Global {
     ) -> Self {
         Self {
             name,
-            symbol: Symbol(name),
+            symbol: Symbol::named(name),
             ty,
             mutability,
             space: Space::Local,
@@ -98,7 +98,7 @@ impl Global {
     pub fn import(name: StringId, ty: TypeId, mutability: Mutability) -> Self {
         Self {
             name,
-            symbol: Symbol(name),
+            symbol: Symbol::named(name),
             ty,
             mutability,
             space: Space::Local,

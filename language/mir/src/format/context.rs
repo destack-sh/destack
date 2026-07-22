@@ -13,7 +13,7 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 use crate::source::TokenType;
 use crate::{
     Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
-    TargetLayout, Tree, TreeImpl, Type, TypeAlias, Value,
+    TargetLayout, Tree, TreeImpl, Type, TypeDeclaration, Value,
 };
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, 'a, MirFormatContext<'a>>;
@@ -95,8 +95,8 @@ pub struct MirFormatContext<'a> {
     pub block_names: HashMap<LocalNodeId<Block>, String>,
     /// Map from global ID to its unique display name.
     pub global_names: HashMap<LocalNodeId<Global>, String>,
-    /// Map from type ID to its alias name (if any).
-    pub type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
+    /// Map from type ID to its declaration name (if any).
+    pub type_declaration_by_type: HashMap<LocalNodeId<Type>, String>,
     /// The function currently being formatted.
     pub current_function: Option<LocalNodeId<Function>>,
     /// Lifetime parameters currently in scope.
@@ -119,20 +119,15 @@ impl<'a> MirFormatContext<'a> {
         strings: &'a StringPool,
         options: MirFormatOptions,
     ) -> FormatResult<Self> {
-        // collect explicit type aliases
-        let type_alias_by_type: HashMap<_, _> = tree
-            .iter_nodes::<TypeAlias>()
-            .map(|(_, alias)| {
-                let ty = alias.ty;
-                let name = strings.get(alias.name).to_string();
-                (ty, name)
-            })
-            .collect();
-
-        // assign unique function and global names
+        // assign unique declaration names
+        let type_declaration_names = build_unique_type_declaration_names(tree, strings);
         let function_names = build_unique_function_names(tree, strings);
         let block_names = build_unique_block_names(tree, strings);
         let global_names = build_unique_global_names(tree, strings);
+        let type_declaration_by_type = tree
+            .iter_nodes::<TypeDeclaration>()
+            .map(|(id, declaration)| (declaration.ty, type_declaration_names[&id].clone()))
+            .collect();
 
         // assemble the format context
         Ok(Self {
@@ -145,7 +140,7 @@ impl<'a> MirFormatContext<'a> {
             function_names,
             block_names,
             global_names,
-            type_alias_by_type,
+            type_declaration_by_type,
             current_function: None,
             current_lifetimes: Vec::new(),
         })
@@ -209,10 +204,12 @@ impl<'a> MirFormatContext<'a> {
         self.strings.get(global.name)
     }
 
-    /// Get the alias name for a type, if one exists.
-    pub fn type_alias_name(&self, ty: LocalNodeId<Type>) -> Option<&str> {
-        // resolve the alias name when present
-        self.type_alias_by_type.get(&ty).map(|name| name.as_str())
+    /// Get the declaration name for a type, if one exists.
+    pub fn type_declaration_name(&self, ty: LocalNodeId<Type>) -> Option<&str> {
+        // resolve the declaration name when present
+        self.type_declaration_by_type
+            .get(&ty)
+            .map(|name| name.as_str())
     }
 
     /// Get the lifetime parameter name for a slot, if one is in scope.
@@ -229,6 +226,18 @@ impl<'a> MirFormatContext<'a> {
         let function = self.tree.get(function_id);
         function.value_type(value)
     }
+}
+
+/// Build unique display names for type declarations.
+fn build_unique_type_declaration_names(
+    tree: &Tree,
+    strings: &StringPool,
+) -> HashMap<LocalNodeId<TypeDeclaration>, String> {
+    let names = tree
+        .iter_nodes::<TypeDeclaration>()
+        .map(|(id, declaration)| (id, strings.get(declaration.name).to_string()));
+
+    build_unique_names(names)
 }
 
 /// Build unique display names for functions.
@@ -641,7 +650,7 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Item {
     /// One named type alias.
-    TypeAlias(LocalNodeId<TypeAlias>),
+    TypeDeclaration(LocalNodeId<TypeDeclaration>),
     /// One global variable or constant.
     Global(LocalNodeId<Global>),
     /// One function definition.
@@ -652,7 +661,7 @@ impl Item {
     /// Return the item node id.
     fn node_id(self) -> u32 {
         match self {
-            Self::TypeAlias(id) => id.id,
+            Self::TypeDeclaration(id) => id.id,
             Self::Global(id) => id.id,
             Self::Function(id) => id.id,
         }
@@ -670,9 +679,9 @@ impl<'a> Format<'a, MirFormatContext<'a>> for FormatItems {
         // explicit top level items
         let mut items = Vec::new();
 
-        for (id, _) in tree.iter_nodes::<TypeAlias>() {
+        for (id, _) in tree.iter_nodes::<TypeDeclaration>() {
             let start = top_level_item_start(tree, id);
-            items.push((start, Item::TypeAlias(id)));
+            items.push((start, Item::TypeDeclaration(id)));
         }
 
         for (id, _) in tree.iter_nodes::<Global>() {
@@ -701,7 +710,7 @@ impl<'a> Format<'a, MirFormatContext<'a>> for FormatItems {
             let next_boundary = items.get(index + 1).and_then(|(start, _)| *start);
 
             match item {
-                Item::TypeAlias(id) => {
+                Item::TypeDeclaration(id) => {
                     format_top_level_item(tree, *id, next_boundary, has_output, f)?;
                 }
                 Item::Global(id) => {

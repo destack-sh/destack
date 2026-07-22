@@ -1,20 +1,22 @@
 use destack_serde::Reflect;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
+use std::hash::Hash;
 
-use destack_core::{Arena, StringId};
+use destack_core::{Arena, StringId, stable_hash_value};
 use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use crate::source::{Token, TokenType};
 use crate::{
     Access, Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
     FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
     LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeType, Nullability, Origin,
-    OriginTable, Path, Projection, ReferenceKind, Space, SwitchCase, SwitchCaseSlice,
+    OriginTable, Path, Projection, ReferenceKind, Space, SwitchCase, SwitchCaseSlice, Symbol,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
-    TensorScatterDimensionNumbers, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeId,
+    TensorScatterDimensionNumbers, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
     TypedValueSpan, Value, ValueSlice,
 };
 
@@ -28,6 +30,37 @@ fn empty_source_span() -> Span {
 pub(crate) struct NodeIndexEntry {
     /// The packed local id and node type.
     packed: u32,
+}
+
+/// One stored MIR type.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub(crate) enum TypeEntry {
+    /// A structural type interned by equality.
+    Structural {
+        /// The MIR type.
+        ty: Type,
+    },
+    /// An identified type reserved for its recursive definition.
+    Reserved {
+        /// The persistent identity of the type.
+        symbol: Symbol,
+    },
+    /// A completely defined identified type.
+    Identified {
+        /// The MIR type.
+        ty: Type,
+        /// The persistent identity of the type.
+        symbol: Symbol,
+    },
+}
+
+/// One canonical MIR type index key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub(crate) enum TypeIndexKey {
+    /// The structural lookup hash of an anonymous type.
+    Structural(u64),
+    /// The persistent symbol of an identified type.
+    Identified(Symbol),
 }
 
 impl NodeIndexEntry {
@@ -63,7 +96,7 @@ impl NodeIndexEntry {
             3 => NodeType::Terminator,
             4 => NodeType::Local,
             5 => NodeType::Type,
-            6 => NodeType::TypeAlias,
+            6 => NodeType::TypeDeclaration,
             7 => NodeType::Field,
             8 => NodeType::Global,
             _ => unreachable!("invalid MIR node type tag in packed node index"),
@@ -80,7 +113,7 @@ impl NodeIndexEntry {
             NodeType::Terminator => 3,
             NodeType::Local => 4,
             NodeType::Type => 5,
-            NodeType::TypeAlias => 6,
+            NodeType::TypeDeclaration => 6,
             NodeType::Field => 7,
             NodeType::Global => 8,
         }
@@ -131,10 +164,15 @@ pub struct Tree {
     pub(crate) instructions: Arena<Instruction>,
     pub(crate) terminators: Arena<Terminator>,
     pub(crate) locals: Arena<Local>,
-    pub(crate) types: Arena<Type>,
-    pub(crate) type_aliases: Arena<TypeAlias>,
+    pub(crate) types: Arena<TypeEntry>,
+    pub(crate) type_declarations: Arena<TypeDeclaration>,
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
+
+    /// Canonical type ids grouped by structural hash or identified symbol.
+    pub(crate) type_index: HashMap<TypeIndexKey, SmallVec<[TypeId; 1]>>,
+    /// Structural field ids grouped by hash.
+    pub(crate) field_index: HashMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
 
     /// Lifetime parameters keyed by type node.
     pub(crate) lifetimes_by_type: HashMap<LocalNodeId<Type>, Vec<LifetimeParameter>>,
@@ -163,7 +201,7 @@ impl Debug for Tree {
             .field("terminators", &self.terminators.len())
             .field("locals", &self.locals.len())
             .field("types", &self.types.len())
-            .field("type_aliases", &self.type_aliases.len())
+            .field("type_declarations", &self.type_declarations.len())
             .field("fields", &self.fields.len())
             .field("globals", &self.globals.len())
             .field("tokens", &self.tokens.len())
@@ -209,9 +247,11 @@ impl Tree {
             terminators: Arena::new(),
             locals: Arena::new(),
             types: Arena::new(),
-            type_aliases: Arena::new(),
+            type_declarations: Arena::new(),
             fields: Arena::new(),
             globals: Arena::new(),
+            type_index: HashMap::new(),
+            field_index: HashMap::new(),
             lifetimes_by_type: HashMap::new(),
 
             values: Vec::new(),
@@ -248,6 +288,14 @@ impl Tree {
         }
 
         Lifetime::new(terms)
+    }
+
+    /// Split one optional lifetime application into its base and arguments.
+    pub fn split_lifetime_application(&self, ty: TypeId) -> (TypeId, &[Lifetime]) {
+        match self.get(ty) {
+            Type::WithLifetimes { base, lifetimes } => (*base, lifetimes),
+            _ => (ty, &[]),
+        }
     }
 
     /// Return the transparent representation type.
@@ -561,15 +609,6 @@ impl Tree {
         }
     }
 
-    /// Create a new tail tree after one immutable base tree.
-    pub fn from_base(base: &Tree, capacity: usize) -> Self {
-        let mut tree = Self::with_capacity(capacity);
-        tree.first_global_id = base.next_global_id();
-        tree.next_global_id = base.next_global_id();
-
-        tree
-    }
-
     /// Return the first global node id stored in this tree.
     #[inline]
     pub fn first_global_id(&self) -> u32 {
@@ -582,39 +621,38 @@ impl Tree {
         self.next_global_id
     }
 
-    /// Insert a node into the tree and return its id.
+    /// Insert a mutable node into the tree and return its id.
     /// The node will have no source DIR node associated (synthesized).
     pub fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeMut<T>,
     {
-        let global_id = self.next_global_id;
-        self.next_global_id += 1;
+        let local_id = <Self as TreeMut<T>>::allocate(self, node);
 
-        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
-        self.node_index_by_node_id
-            .push(NodeIndexEntry::new(local_id, T::TYPE));
-        self.source_id_by_node_id.push(None);
-        self.origin_by_node_id.append();
-        self.source_index.append(empty_source_span());
-
-        LocalNodeId::new(global_id)
+        self.insert_node(local_id)
     }
 
     /// Insert a node into the tree with a source DIR node id for diagnostics.
     pub fn insert_from<T>(&mut self, node: T, source_dir_id: u32) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeMut<T>,
     {
+        let id = self.insert(node);
+        self.set_source(id.id, source_dir_id);
+
+        id
+    }
+
+    /// Record one already allocated node in the shared node index.
+    pub(crate) fn insert_node<T: Node>(&mut self, local_id: u32) -> LocalNodeId<T> {
         let global_id = self.next_global_id;
         self.next_global_id += 1;
 
-        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
-        self.source_id_by_node_id.push(Some(source_dir_id));
+        self.source_id_by_node_id.push(None);
         self.origin_by_node_id.append();
         self.source_index.append(empty_source_span());
 
@@ -625,7 +663,7 @@ impl Tree {
     pub fn insert_derived<T>(&mut self, node: T, from: u32, derivation: StringId) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeMut<T>,
     {
         let id = self.insert(node);
         let index = self.node_index(id.id);
@@ -639,7 +677,7 @@ impl Tree {
     pub fn insert_synthetic<T>(&mut self, node: T, derivation: StringId) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeMut<T>,
     {
         let id = self.insert(node);
         let index = self.node_index(id.id);
@@ -679,22 +717,6 @@ impl Tree {
         None
     }
 
-    /// Insert a type node into the tree.
-    pub fn insert_type(&mut self, ty: Type) -> LocalNodeId<Type> {
-        self.insert(ty)
-    }
-
-    /// Replace a type node.
-    pub fn set_type(&mut self, type_id: LocalNodeId<Type>, ty: Type) -> Type {
-        let local_id = self.node_local_id(type_id.id);
-        std::mem::replace(self.types.get_mut(local_id), ty)
-    }
-
-    /// Insert a type node into the tree with a source DIR id.
-    pub fn insert_type_from(&mut self, ty: Type, source_dir_id: u32) -> LocalNodeId<Type> {
-        self.insert_from(ty, source_dir_id)
-    }
-
     /// Return lifetime parameters declared by one type.
     pub fn type_lifetimes(&self, ty: LocalNodeId<Type>) -> &[LifetimeParameter] {
         self.lifetimes_by_type
@@ -705,6 +727,11 @@ impl Tree {
 
     /// Set lifetime parameters declared by one type.
     pub fn set_type_lifetimes(&mut self, ty: LocalNodeId<Type>, lifetimes: Vec<LifetimeParameter>) {
+        assert!(
+            self.is_identified_type(ty),
+            "structural MIR types cannot own lifetime parameters"
+        );
+
         if lifetimes.is_empty() {
             self.lifetimes_by_type.remove(&ty);
         } else {
@@ -826,7 +853,7 @@ impl Tree {
             if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
                 type_id
             } else {
-                self.insert_type(Type::Void)
+                self.intern_type(Type::Void)
             };
 
         // reuse the canonical erased environment reference when present
@@ -847,7 +874,7 @@ impl Tree {
         }
 
         // otherwise create the canonical erased environment reference
-        self.insert_type(Type::Reference {
+        self.intern_type(Type::Reference {
             kind: ReferenceKind::Managed,
             lifetime: Lifetime::empty(),
             space: Space::Local,
@@ -882,10 +909,10 @@ impl Tree {
     pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeMut<T>,
     {
         let local_id = self.node_local_id(id.id);
-        <Self as TreeImpl<T>>::get_mut(self, local_id)
+        <Self as TreeMut<T>>::get_mut(self, local_id)
     }
 
     /// Replace one function block's instruction list.
@@ -967,7 +994,7 @@ impl Tree {
 
     /// Set the attributes for a node.
     #[inline]
-    pub fn set_attributes<T>(&mut self, id: LocalNodeId<T>, attributes: Vec<Attribute>)
+    pub(crate) fn set_attributes<T>(&mut self, id: LocalNodeId<T>, attributes: Vec<Attribute>)
     where
         T: Node,
     {
@@ -976,18 +1003,6 @@ impl Tree {
         } else {
             self.attributes_by_node_id.insert(id.id, attributes);
         }
-    }
-
-    /// Push a new attribute onto a node.
-    #[inline]
-    pub fn push_attribute<T>(&mut self, id: LocalNodeId<T>, attribute: Attribute)
-    where
-        T: Node,
-    {
-        self.attributes_by_node_id
-            .entry(id.id)
-            .or_default()
-            .push(attribute);
     }
 
     /// Get the span for a node.
@@ -1259,16 +1274,20 @@ impl Tree {
         self.function_header_spans_by_node_id.insert(id.id, spans);
     }
 
-    /// Return the parsed field spans for one type alias.
-    pub fn type_field_spans(&self, id: LocalNodeId<TypeAlias>) -> &[FieldSpan] {
+    /// Return the parsed field spans for one type declaration.
+    pub fn type_field_spans(&self, id: LocalNodeId<TypeDeclaration>) -> &[FieldSpan] {
         self.type_field_spans_by_node_id
             .get(&id.id)
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
 
-    /// Set the parsed field spans for one type alias.
-    pub fn set_type_field_spans(&mut self, id: LocalNodeId<TypeAlias>, spans: Vec<FieldSpan>) {
+    /// Set the parsed field spans for one type declaration.
+    pub fn set_type_field_spans(
+        &mut self,
+        id: LocalNodeId<TypeDeclaration>,
+        spans: Vec<FieldSpan>,
+    ) {
         if spans.is_empty() {
             self.type_field_spans_by_node_id.remove(&id.id);
         } else {
@@ -1276,18 +1295,18 @@ impl Tree {
         }
     }
 
-    /// Return the parsed type declaration spans for one type alias.
+    /// Return the parsed type declaration spans for one type declaration.
     pub fn type_declaration_spans(
         &self,
-        id: LocalNodeId<TypeAlias>,
+        id: LocalNodeId<TypeDeclaration>,
     ) -> Option<&TypeDeclarationSpans> {
         self.type_declaration_spans_by_node_id.get(&id.id)
     }
 
-    /// Set the parsed type declaration spans for one type alias.
+    /// Set the parsed type declaration spans for one type declaration.
     pub fn set_type_declaration_spans(
         &mut self,
-        id: LocalNodeId<TypeAlias>,
+        id: LocalNodeId<TypeDeclaration>,
         spans: TypeDeclarationSpans,
     ) {
         self.type_declaration_spans_by_node_id.insert(id.id, spans);
@@ -1548,7 +1567,7 @@ impl Tree {
     pub fn set<T>(&mut self, id: LocalNodeId<T>, replacement: T)
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeMut<T>,
     {
         *self.get_mut(id) = replacement;
     }
@@ -1564,7 +1583,7 @@ impl Tree {
     ) -> LocalNodeId<T>
     where
         T: Node + Clone,
-        Self: TreeImpl<T>,
+        Self: TreeMut<T>,
     {
         // preserve the original payload, DIR source, and origin at a new id
         let original = self.get(id).clone();
@@ -1591,10 +1610,14 @@ impl Tree {
 
 /// Trait for mapping node types to arenas.
 pub trait TreeImpl<T: Node> {
-    /// Allocate a node in the arena and return its local index.
-    fn allocate(tree: &mut Tree, node: T) -> u32;
     /// Get a node from the arena by local index.
     fn get(tree: &Tree, idx: u32) -> &T;
+}
+
+/// Mutable MIR node arena operations.
+pub trait TreeMut<T: Node>: TreeImpl<T> {
+    /// Allocate a node in the arena and return its local index.
+    fn allocate(tree: &mut Tree, node: T) -> u32;
     /// Get a mutable node from the arena by local index.
     fn get_mut(tree: &mut Tree, idx: u32) -> &mut T;
 }
@@ -1603,13 +1626,15 @@ macro_rules! impl_tree {
     ($ty:ty, $field:ident) => {
         impl TreeImpl<$ty> for Tree {
             #[inline]
-            fn allocate(tree: &mut Tree, node: $ty) -> u32 {
-                tree.$field.allocate(node)
-            }
-
-            #[inline]
             fn get(tree: &Tree, idx: u32) -> &$ty {
                 tree.$field.get(idx)
+            }
+        }
+
+        impl TreeMut<$ty> for Tree {
+            #[inline]
+            fn allocate(tree: &mut Tree, node: $ty) -> u32 {
+                tree.$field.allocate(node)
             }
 
             #[inline]
@@ -1625,7 +1650,34 @@ impl_tree!(Block, blocks);
 impl_tree!(Instruction, instructions);
 impl_tree!(Terminator, terminators);
 impl_tree!(Local, locals);
-impl_tree!(Type, types);
-impl_tree!(TypeAlias, type_aliases);
-impl_tree!(Field, fields);
 impl_tree!(Global, globals);
+
+impl TreeImpl<TypeDeclaration> for Tree {
+    #[inline]
+    fn get(tree: &Tree, idx: u32) -> &TypeDeclaration {
+        tree.type_declarations.get(idx)
+    }
+}
+
+impl TreeImpl<Type> for Tree {
+    #[inline]
+    fn get(tree: &Tree, idx: u32) -> &Type {
+        match tree.types.get(idx) {
+            TypeEntry::Structural { ty } | TypeEntry::Identified { ty, .. } => ty,
+            // parse recovery leaves failed definitions reserved: they read poisoned
+            TypeEntry::Reserved { .. } => &Type::Error,
+        }
+    }
+}
+
+impl TreeImpl<Field> for Tree {
+    #[inline]
+    fn get(tree: &Tree, idx: u32) -> &Field {
+        tree.fields.get(idx)
+    }
+}
+
+/// Return the stable structural hash of one MIR value.
+pub(crate) fn mir_hash(value: &impl Hash) -> u64 {
+    stable_hash_value(value)
+}

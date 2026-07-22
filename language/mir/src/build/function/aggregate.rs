@@ -3,7 +3,7 @@ use crate::{
     BinaryOperator, Instruction, LocalNodeId, TensorConvertMode, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
     TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value, VectorConvertMode,
+    TensorScatterDimensionNumbers, TensorScatterMode, Tree, Type, TypeId, Value, VectorConvertMode,
     VectorReduceOperator,
 };
 
@@ -26,10 +26,13 @@ impl<'a> FunctionBuilder<'a> {
     pub fn field_get(&mut self, aggregate: Value, field: u32) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
-        let field_type = self.tree.get(aggregate_type).field_type(field, self.tree);
-        let field_type = field_type.ok_or(BuildError::InvalidFieldIndex {
-            aggregate: aggregate_type,
-            index: field,
+        let field_type = self.projected_type(aggregate_type, |tree, aggregate| {
+            aggregate
+                .field_type(field, tree)
+                .ok_or(BuildError::InvalidFieldIndex {
+                    aggregate: aggregate_type,
+                    index: field,
+                })
         });
         let field_type = self.expect_build(field_type);
         self.insert_instruction(Instruction::FieldGet {
@@ -80,7 +83,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn variant_tag(&mut self, variant: Value) -> Value {
         let destination = self.allocate_value();
         let variant_type = self.expect_value_type(variant, "variant.tag variant");
-        let tag_type = self.expect_build(self.variant_discriminant_type(variant_type));
+        let tag_type = self.variant_discriminant_type(variant_type);
+        let tag_type = self.expect_build(tag_type);
         self.insert_instruction(Instruction::VariantTag {
             destination,
             variant,
@@ -94,7 +98,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn variant_payload(&mut self, variant: Value, case: u32) -> Value {
         let destination = self.allocate_value();
         let variant_type = self.expect_value_type(variant, "variant.payload variant");
-        let payload_type = self.expect_build(self.variant_case_type(variant_type, case));
+        let payload_type = self.variant_case_type(variant_type, case);
+        let payload_type = self.expect_build(payload_type);
         self.insert_instruction(Instruction::VariantPayload {
             destination,
             variant,
@@ -127,7 +132,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn element_get(&mut self, aggregate: Value, index: u32) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "element.get aggregate");
-        let element_type = self.expect_build(self.fixed_array_element_type(aggregate_type, index));
+        let element_type = self.fixed_array_element_type(aggregate_type, index);
+        let element_type = self.expect_build(element_type);
         self.insert_instruction(Instruction::ElementGet {
             destination,
             aggregate,
@@ -142,7 +148,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn element_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "element.set aggregate");
-        self.expect_build(self.fixed_array_element_type(aggregate_type, index));
+        let element_type = self.fixed_array_element_type(aggregate_type, index);
+        self.expect_build(element_type);
         self.insert_instruction(Instruction::ElementSet {
             destination,
             aggregate,
@@ -257,7 +264,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn vector_extract(&mut self, vector: Value, index: Value) -> Value {
         let destination = self.allocate_value();
         let vector_type = self.expect_value_type(vector, "vector.extract vector");
-        let element_type = self.expect_build(self.vector_element_type(vector_type));
+        let element_type = self.vector_element_type(vector_type);
+        let element_type = self.expect_build(element_type);
         self.insert_instruction(Instruction::VectorExtract {
             destination,
             vector,
@@ -319,7 +327,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn vector_reduce(&mut self, operator: VectorReduceOperator, vector: Value) -> Value {
         let destination = self.allocate_value();
         let vector_type = self.expect_value_type(vector, "vector.reduce vector");
-        let element_type = self.expect_build(self.vector_element_type(vector_type));
+        let element_type = self.vector_element_type(vector_type);
+        let element_type = self.expect_build(element_type);
         self.insert_instruction(Instruction::VectorReduce {
             destination,
             operator,
@@ -393,7 +402,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tensor_load(&mut self, view: Value, indices: Vec<Value>) -> Value {
         let destination = self.allocate_value();
         let view_type = self.expect_value_type(view, "tensor.load view");
-        let element_type = self.expect_build(self.tensor_view_element_type(view_type));
+        let element_type = self.tensor_view_element_type(view_type);
+        let element_type = self.expect_build(element_type);
         let indices = indices.into_iter().collect::<Vec<_>>();
         let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorLoad {
@@ -409,7 +419,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tensor_extract(&mut self, tensor: Value, indices: Vec<Value>) -> Value {
         let destination = self.allocate_value();
         let tensor_type = self.expect_value_type(tensor, "tensor.extract tensor");
-        let element_type = self.expect_build(self.tensor_element_type(tensor_type));
+        let element_type = self.tensor_element_type(tensor_type);
+        let element_type = self.expect_build(element_type);
         let indices = indices.into_iter().collect::<Vec<_>>();
         let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorExtract {
@@ -799,22 +810,22 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Resolve the discriminant type of a variant type.
     fn variant_discriminant_type(
-        &self,
+        &mut self,
         variant_type: LocalNodeId<Type>,
     ) -> BuildResult<LocalNodeId<Type>> {
-        match self.tree.get(variant_type) {
+        self.projected_type(variant_type, |_, variant| match variant {
             Type::Variant { discriminant, .. } => Ok(*discriminant),
             _ => Err(BuildError::InvalidVariantOwner { ty: variant_type }),
-        }
+        })
     }
 
     /// Resolve one statically selected variant case payload type.
     fn variant_case_type(
-        &self,
+        &mut self,
         variant_type: LocalNodeId<Type>,
         case: u32,
     ) -> BuildResult<LocalNodeId<Type>> {
-        match self.tree.get(variant_type) {
+        self.projected_type(variant_type, |_, variant| match variant {
             Type::Variant { cases, .. } => match cases.get(case as usize) {
                 Some(entry) => Ok(entry.ty),
                 None => Err(BuildError::InvalidCaseIndex {
@@ -823,16 +834,29 @@ impl<'a> FunctionBuilder<'a> {
                 }),
             },
             _ => Err(BuildError::InvalidVariantOwner { ty: variant_type }),
-        }
+        })
+    }
+
+    /// Select and instantiate one type projected from an applied owner.
+    fn projected_type(
+        &mut self,
+        owner: LocalNodeId<Type>,
+        project: impl FnOnce(&Tree, &Type) -> BuildResult<LocalNodeId<Type>>,
+    ) -> BuildResult<LocalNodeId<Type>> {
+        let (base, arguments) = self.tree.split_lifetime_application(owner);
+        let arguments = arguments.to_vec();
+        let projected = project(self.tree, self.tree.get(base))?;
+
+        Ok(self.tree.instantiate_type_lifetimes(projected, &arguments))
     }
 
     /// Resolve one statically selected fixed-array element type.
     fn fixed_array_element_type(
-        &self,
+        &mut self,
         array_type: LocalNodeId<Type>,
         index: u32,
     ) -> BuildResult<LocalNodeId<Type>> {
-        match self.tree.get(array_type) {
+        self.projected_type(array_type, |_, array| match array {
             Type::FixedArray {
                 element, length, ..
             } if u64::from(index) < *length => Ok(*element),
@@ -841,18 +865,18 @@ impl<'a> FunctionBuilder<'a> {
                 index,
             }),
             _ => Err(BuildError::InvalidElementOwner { ty: array_type }),
-        }
+        })
     }
 
     /// Resolve the element type of one vector type.
     fn vector_element_type(
-        &self,
+        &mut self,
         vector_type: LocalNodeId<Type>,
     ) -> BuildResult<LocalNodeId<Type>> {
-        match self.tree.get(vector_type) {
+        self.projected_type(vector_type, |_, vector| match vector {
             Type::Vector { element, .. } => Ok(*element),
             _ => Err(BuildError::InvalidVectorOwner { ty: vector_type }),
-        }
+        })
     }
 
     /// Resolve the element type of one tensor type.

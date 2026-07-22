@@ -115,7 +115,7 @@ impl AvailableExpressions {
         // extend the set with expressions in the block prefix
         for &instruction_id in block_data.instructions.iter().take(instruction_index) {
             let instruction = tree.get(instruction_id);
-            if let Some(key) = PureExpression::from_instruction(instruction, tree) {
+            if let Some(key) = PureExpression::from_instruction(instruction) {
                 state.insert(key);
             }
         }
@@ -140,7 +140,7 @@ impl AvailableExpressions {
         if let Some(&instruction_id) = tree.get(block).instructions.get(instruction_index) {
             let instruction = tree.get(instruction_id);
 
-            if let Some(key) = PureExpression::from_instruction(instruction, tree) {
+            if let Some(key) = PureExpression::from_instruction(instruction) {
                 state.insert(key);
             }
         }
@@ -161,7 +161,7 @@ fn transfer_block(
     // extend the available set with block expressions
     for &instruction_id in &block_data.instructions {
         let instruction = tree.get(instruction_id);
-        if let Some(key) = PureExpression::from_instruction(instruction, tree) {
+        if let Some(key) = PureExpression::from_instruction(instruction) {
             state.insert(key);
         }
     }
@@ -194,7 +194,7 @@ mod tests {
         for &instruction_id in &block_data.instructions {
             let instruction = tree.get(instruction_id);
 
-            if let Some(key) = PureExpression::from_instruction(instruction, tree) {
+            if let Some(key) = PureExpression::from_instruction(instruction) {
                 return key;
             }
         }
@@ -403,11 +403,10 @@ entry(v0: int32, v1: int32, v2: int32):
         // capture the expression keys
         let entry_block = function.entry().expect("missing entry block");
         let block_data = test.tree.get(entry_block);
-        let first_key =
-            PureExpression::from_instruction(test.tree.get(block_data.instructions[0]), &test.tree)
-                .expect("missing first expression");
+        let first_key = PureExpression::from_instruction(test.tree.get(block_data.instructions[0]))
+            .expect("missing first expression");
         let second_key =
-            PureExpression::from_instruction(test.tree.get(block_data.instructions[1]), &test.tree)
+            PureExpression::from_instruction(test.tree.get(block_data.instructions[1]))
                 .expect("missing second expression");
 
         // confirm no expressions are available before the first instruction

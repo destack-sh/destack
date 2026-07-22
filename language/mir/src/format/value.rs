@@ -74,7 +74,7 @@ impl<'a> Format<'a, MirFormatContext<'a>> for Constant {
 
 /// Format a type id by canonical MIR name.
 pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    if let Some(name) = f.context().type_alias_name(ty).map(str::to_string) {
+    if let Some(name) = f.context().type_declaration_name(ty).map(str::to_string) {
         return write!(f, [copied_text(&name)]);
     }
 

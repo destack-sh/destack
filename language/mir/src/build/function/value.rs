@@ -44,7 +44,7 @@ impl<'a> FunctionBuilder<'a> {
             width,
             is_signed: signed,
         };
-        let ty_id = self.tree.insert_type(ty);
+        let ty_id = self.tree.intern_type(ty);
         self.insert_instruction(Instruction::Const {
             destination,
             value: constant,
@@ -83,7 +83,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             value: Constant::Boolean { value },
         });
-        let ty_id = self.tree.insert_type(Type::Boolean);
+        let ty_id = self.tree.intern_type(Type::Boolean);
         self.define_value(destination, ty_id);
         destination
     }
@@ -99,7 +99,7 @@ impl<'a> FunctionBuilder<'a> {
                 format: float_type,
             },
         });
-        let ty_id = self.tree.insert_type(Type::Float(float_type));
+        let ty_id = self.tree.intern_type(Type::Float(float_type));
         self.define_value(destination, ty_id);
         destination
     }
@@ -127,7 +127,7 @@ impl<'a> FunctionBuilder<'a> {
             right: right_value,
         });
         if operator.is_comparison() {
-            let bool_type = self.tree.insert_type(Type::Boolean);
+            let bool_type = self.tree.intern_type(Type::Boolean);
             self.define_value(destination, bool_type);
         } else {
             self.define_value(destination, left_type_id);

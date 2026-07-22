@@ -10,7 +10,7 @@ use crate::{
 fn test_format_declaration_comments() {
     assert_format_eq(
         r#"
-// aliases
+// declarations
 type Callable = (int32) => int32;
 
 // imports
@@ -28,7 +28,7 @@ entry(v0: Callable):
 }
 "#,
         r#"
-// aliases
+// declarations
 type Callable = (int32) => int32;
 
 // imports
@@ -115,11 +115,11 @@ entry:
         .map(|(function_id, _)| function_id)
         .next()
         .unwrap_or_else(|| panic!("missing parsed function"));
-    let int32 = tree.insert_type(Type::Int {
+    let int32 = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
     });
-    let environment = tree.insert_type(Type::Reference {
+    let environment = tree.intern_type(Type::Reference {
         kind: ReferenceKind::Managed,
         lifetime: Lifetime::empty(),
         space: Space::Local,

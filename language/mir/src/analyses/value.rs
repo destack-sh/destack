@@ -564,6 +564,34 @@ impl ValueTypes {
         }
     }
 
+    /// Return the unsigned integer width for a value when it is known.
+    pub fn unsigned_int_width(
+        &self,
+        value: mir::Value,
+        pointer_width_bits: u16,
+        tree: &mir::Tree,
+    ) -> Option<u16> {
+        let type_id = self.expect_value_type(value);
+
+        // accept unsigned integer types
+        match tree.get(type_id) {
+            mir::Type::Int {
+                width,
+                is_signed: false,
+            } => Some(*width),
+            mir::Type::Usize => Some(pointer_width_bits),
+            _ => None,
+        }
+    }
+
+    /// Return whether one value can safely replace another value.
+    pub fn can_substitute(&self, destination: mir::Value, replacement: mir::Value) -> bool {
+        let destination_type = self.expect_value_type(destination);
+        let replacement_type = self.expect_value_type(replacement);
+
+        destination_type == replacement_type
+    }
+
     /// Return the raw value type table.
     pub fn values(&self) -> &[Option<mir::LocalNodeId<mir::Type>>] {
         &self.values

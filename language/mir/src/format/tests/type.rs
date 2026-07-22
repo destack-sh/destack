@@ -1,9 +1,9 @@
 use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_options};
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, MirFormatOptions, Tree, Type,
-    TypeAlias,
+    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, MirFormatOptions, Symbol, Tree,
+    Type,
 };
-use destack_core::StringPool;
+use destack_core::{StringId, StringPool};
 
 /// Formats pointer-sized builtin types canonically.
 #[test]
@@ -263,29 +263,34 @@ fn test_format_synthetic_copy_marker() {
     let mut tree = Tree::new();
     let strings = StringPool::new();
 
-    let int32_type = tree.insert_type(Type::Int {
+    let int32_type = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
     });
-    let alias_name = strings.intern("Pair");
+    let declaration_name = strings.intern("Pair");
 
-    let left = tree.insert(Field {
-        name: None,
-        ty: int32_type,
-    });
-    let right = tree.insert(Field {
-        name: None,
-        ty: int32_type,
-    });
-    let struct_type = tree.insert_type(Type::Struct {
+    let left = tree.intern_field(
+        Field {
+            name: None,
+            ty: int32_type,
+        },
+        Vec::new(),
+    );
+    let right = tree.intern_field(
+        Field {
+            name: None,
+            ty: int32_type,
+        },
+        Vec::new(),
+    );
+    let struct_type = tree.intern_type(Type::Struct {
         fields: vec![left, right],
         copy: Copy::Yes,
     });
-    tree.insert(TypeAlias {
-        name: alias_name,
-        lifetimes: Vec::new(),
-        ty: struct_type,
-    });
+    let representation = tree.get(struct_type).clone();
+    let pair = tree.reserve_type(Symbol::named(declaration_name));
+    tree.define_type(pair, representation);
+    tree.insert_type_declaration(declaration_name, Vec::new(), pair);
 
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
 
@@ -302,41 +307,67 @@ type Pair {
     );
 }
 
+/// Formats duplicate type declaration names uniquely.
+#[test]
+fn test_format_duplicate_type_declaration_names_uniquely() {
+    let mut tree = Tree::new();
+    let strings = StringPool::new();
+    let name = strings.intern("Value");
+    let int32 = tree.intern_type(Type::INT32);
+    let float64 = tree.intern_type(Type::FLOAT64);
+    let first = tree.reserve_type(Symbol::named(StringId::for_text("Value.first")));
+    tree.define_type(first, tree.get(int32).clone());
+    tree.insert_type_declaration(name, Vec::new(), first);
+    let second = tree.reserve_type(Symbol::named(StringId::for_text("Value.second")));
+    tree.define_type(second, tree.get(float64).clone());
+    tree.insert_type_declaration(name, Vec::new(), second);
+
+    let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
+
+    assert_output_eq(
+        r#"
+type Value = int32;
+
+type Value_1 = float64;
+"#
+        .trim(),
+        output,
+    );
+}
+
 /// Formats attributed struct fields without parsed field spans.
 #[test]
 fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     let mut tree = Tree::new();
     let strings = StringPool::new();
 
-    let int32_type = tree.insert_type(Type::Int {
+    let int32_type = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
     });
     let attribute_name = strings.intern("packed");
-    let alias_name = strings.intern("Point");
+    let declaration_name = strings.intern("Point");
     let field_name = strings.intern("x");
 
-    let field_id = tree.insert(Field {
-        name: Some(field_name),
-        ty: int32_type,
-    });
-    tree.set_attributes(
-        field_id,
+    let field_id = tree.intern_field(
+        Field {
+            name: Some(field_name),
+            ty: int32_type,
+        },
         vec![Attribute {
             name: AttributeIdentifier::identifier(attribute_name),
             args: AttributeArgs::None,
         }],
     );
 
-    let struct_type = tree.insert_type(Type::Struct {
+    let struct_type = tree.intern_type(Type::Struct {
         fields: vec![field_id],
         copy: Copy::Yes,
     });
-    tree.insert(TypeAlias {
-        name: alias_name,
-        lifetimes: Vec::new(),
-        ty: struct_type,
-    });
+    let representation = tree.get(struct_type).clone();
+    let point = tree.reserve_type(Symbol::named(declaration_name));
+    tree.define_type(point, representation);
+    tree.insert_type_declaration(declaration_name, Vec::new(), point);
 
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
 

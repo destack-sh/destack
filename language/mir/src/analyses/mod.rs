@@ -26,7 +26,6 @@ mod profile;
 mod range;
 mod scalar_evolution;
 mod signature;
-mod r#type;
 mod value;
 
 pub use alias::*;
@@ -57,7 +56,6 @@ pub use profile::*;
 pub use range::*;
 pub use scalar_evolution::*;
 pub use signature::*;
-pub use r#type::*;
 pub use value::*;
 
 #[cfg(test)]

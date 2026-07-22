@@ -71,7 +71,7 @@ impl ParseError {
     }
 
     /// Create one invalid MIR error with a known source length.
-    fn with_length(message: impl Into<String>, position: usize, length: usize) -> Self {
+    pub(super) fn with_length(message: impl Into<String>, position: usize, length: usize) -> Self {
         Self {
             kind: ParseErrorKind::Invalid,
             message: message.into(),

@@ -3,7 +3,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global, GlobalInitializer,
-    Linkage, LocalNodeId, Mutability, Symbol, Type, TypeAlias, TypeDeclarationSpans, TypeId,
+    Linkage, LocalNodeId, Mutability, Symbol, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -54,18 +54,18 @@ impl Parser {
         if self.peek_token(TokenType::Type) {
             if linkage != Linkage::Local {
                 return Err(ParseError::new(
-                    "type aliases cannot be external or export",
+                    "type declarations cannot be external or export",
                     self.pos(),
                 ));
             }
             if mutability == Mutability::Immutable {
                 return Err(ParseError::new(
-                    "type aliases cannot be readonly",
+                    "type declarations cannot be readonly",
                     self.pos(),
                 ));
             }
 
-            self.parse_type_alias(item_start, attributes, attribute_spans)?;
+            self.parse_type_declaration(item_start, attributes, attribute_spans)?;
         } else if self.peek_token(TokenType::Global) {
             self.parse_global(item_start, linkage, mutability, attributes, attribute_spans)?;
         } else if self.peek_token(TokenType::Function) {
@@ -133,7 +133,7 @@ impl Parser {
                     && !self.function_map.contains_key(&name)
                 {
                     let name_id = self.strings.intern(&name);
-                    let void_type = self.tree.insert_type(Type::Void);
+                    let void_type = self.tree.intern_type(Type::Void);
                     let placeholder =
                         Function::declare(name_id, Vec::new(), Vec::new(), TypeId::from(void_type));
                     let function_id = self.tree.insert(placeholder);
@@ -147,10 +147,11 @@ impl Parser {
             if self.peek_token(TokenType::Type) {
                 self.bump();
                 if let Some(name) = self.scan_symbol_name()
-                    && !self.type_alias_map.contains_key(&name)
+                    && !self.type_declaration_map.contains_key(&name)
                 {
-                    let type_id = self.tree.insert_type(Type::Void);
-                    self.type_alias_map.insert(name, type_id);
+                    let symbol = Symbol::named(self.strings.intern(&name));
+                    let type_id = self.tree.reserve_type(symbol);
+                    self.type_declaration_map.insert(name, type_id);
                 }
 
                 continue;
@@ -254,41 +255,42 @@ impl Parser {
         }
     }
 
-    /// Parse a type alias definition.
-    pub(super) fn parse_type_alias(
+    /// Parse a type declaration definition.
+    pub(super) fn parse_type_declaration(
         &mut self,
         item_start: usize,
         attributes: Vec<Attribute>,
         attribute_spans: Vec<Span>,
-    ) -> ParseResult<LocalNodeId<TypeAlias>> {
-        // alias header
+    ) -> ParseResult<LocalNodeId<TypeDeclaration>> {
+        // declaration header
         let keyword_token = self.eat_token(TokenType::Type)?;
         let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
 
-        // alias name
+        // declaration name
         let (name, name_start) = self.parse_symbol_name()?;
         let name_span = self.span_at(name_start, name.len());
-        if self.type_alias_definitions.contains(&name) {
+        if self.type_declaration_definitions.contains(&name) {
             return Err(ParseError::invalid(
-                &format!("duplicate type alias '{name}'"),
+                &format!("duplicate type declaration '{name}'"),
                 name_start,
             ));
         }
         let lifetimes = self.parse_lifetime_parameters()?;
 
         // resolve placeholder
-        let placeholder_id = match self.type_alias_map.get(&name).copied() {
+        let placeholder_id = match self.type_declaration_map.get(&name).copied() {
             Some(existing) => existing,
             None => {
-                let placeholder = self.tree.insert(Type::Void);
-                self.type_alias_map.insert(name.clone(), placeholder);
+                let symbol = Symbol::named(self.strings.intern(&name));
+                let placeholder = self.tree.reserve_type(symbol);
+                self.type_declaration_map.insert(name.clone(), placeholder);
                 placeholder
             }
         };
 
-        // alias target type
+        // declaration target type
         let (ty, type_span, field_spans, declaration_spans) =
             if self.peek_token(TokenType::OpenBrace) {
                 let type_start = self.pos();
@@ -309,14 +311,40 @@ impl Parser {
                 )
             };
 
-        // record alias
+        // reject direct self definitions
+        if ty == placeholder_id {
+            let length = type_span.end.saturating_sub(type_span.start) as usize;
+            return Err(ParseError::with_length(
+                "type declaration cannot define itself",
+                type_span.start as usize,
+                length,
+            ));
+        }
+
+        // reject duplicate definitions of one declared name
+        if self.tree.is_defined_type(placeholder_id) {
+            return Err(ParseError::new(
+                &format!("type '{name}' is already defined"),
+                item_start,
+            ));
+        }
+
+        // define the identified representation
+        let mut resolved = self.tree.get(ty).clone();
+        if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
+            set_type_copy(&mut resolved, copy, item_start)?;
+        }
+        self.tree.define_type(placeholder_id, resolved);
+        self.types.copy_type_entries(ty, placeholder_id);
+        self.layouts.copy_type_entries(ty, placeholder_id);
+        self.dispatch.copy_type_entries(ty, placeholder_id);
+        self.drops.copy_type_entries(ty, placeholder_id);
+
+        // record declaration
         let name_id = self.strings.intern(&name);
-        let alias = TypeAlias {
-            name: name_id,
-            lifetimes: lifetimes.clone(),
-            ty: TypeId::from(placeholder_id),
-        };
-        let id = self.tree.insert(alias);
+        let id = self
+            .tree
+            .insert_type_declaration(name_id, lifetimes.clone(), placeholder_id);
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
@@ -329,18 +357,7 @@ impl Parser {
         self.tree.set_type_field_spans(id, field_spans);
         self.tree.set_type_declaration_spans(id, declaration_spans);
 
-        if ty != placeholder_id {
-            let mut resolved = self.tree.get(ty).clone();
-            if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
-                set_type_copy(&mut resolved, copy, item_start)?;
-            }
-            self.tree.set(placeholder_id, resolved);
-            self.types.copy_type_entries(ty, placeholder_id);
-            self.layouts.copy_type_entries(ty, placeholder_id);
-            self.dispatch.copy_type_entries(ty, placeholder_id);
-            self.drops.copy_type_entries(ty, placeholder_id);
-        }
-        self.type_alias_definitions.insert(name);
+        self.type_declaration_definitions.insert(name);
         self.pop_lifetime_scope();
 
         // optional declaration terminator
@@ -463,7 +480,7 @@ impl Parser {
         let name_id = self.strings.intern(&name);
         let global = Global {
             name: name_id,
-            symbol: Symbol(name_id),
+            symbol: Symbol::named(name_id),
             ty,
             mutability,
             space,

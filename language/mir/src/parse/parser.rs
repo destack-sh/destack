@@ -8,13 +8,12 @@ use destack_source::{
 
 use crate::source::{Lexer, TokenType};
 use crate::{
-    Block, DispatchTable, DropTable, EffectTable, Field, Function, Global, LayoutTable,
-    LifetimeParameter, LifetimeSlot, Local, LocalNodeId, MemoryTable, Node, ProfileTable,
-    TargetLayout, Tree, Type, TypeTable, Value, finalize_function_names,
+    Block, DispatchTable, DropTable, EffectTable, Function, Global, LayoutTable, LifetimeParameter,
+    LifetimeSlot, Local, LocalNodeId, MemoryTable, Node, ProfileTable, TargetLayout, Tree, Type,
+    TypeTable, Value, finalize_function_names,
 };
 
 use super::error::{ParseError, ParseResult};
-use super::key::{FieldKey, TypeKey};
 
 /// The result of parsing one MIR source file.
 #[derive(Debug)]
@@ -149,10 +148,10 @@ pub struct Parser {
     pub(super) function_map: HashMap<String, LocalNodeId<Function>>,
     /// Map from global names to their ids (for forward references).
     pub(super) global_map: HashMap<String, LocalNodeId<Global>>,
-    /// Map from type alias names to their ids (for references).
-    pub(super) type_alias_map: HashMap<String, LocalNodeId<Type>>,
-    /// Set of type aliases that have been defined.
-    pub(super) type_alias_definitions: HashSet<String>,
+    /// Map from type declaration names to their ids (for references).
+    pub(super) type_declaration_map: HashMap<String, LocalNodeId<Type>>,
+    /// Set of type declarations that have been defined.
+    pub(super) type_declaration_definitions: HashSet<String>,
     /// Map from symbolic block names to their predeclared block ids.
     pub(super) block_name_map: HashMap<String, LocalNodeId<Block>>,
     /// Blocks predeclared for the current function body in source order.
@@ -161,10 +160,6 @@ pub struct Parser {
     pub(super) value_name_map: HashMap<String, Value>,
     /// Map from symbolic local names to their local ids.
     pub(super) local_name_map: HashMap<String, LocalNodeId<Local>>,
-    /// Type interner for canonical type ids.
-    pub(super) type_intern: HashMap<TypeKey, LocalNodeId<Type>>,
-    /// Field interner for canonical field ids.
-    pub(super) field_intern: HashMap<FieldKey, LocalNodeId<Field>>,
     /// The function currently being parsed.
     pub(super) current_function: Option<LocalNodeId<Function>>,
     /// Optional explicit SSA value names for the current function.
@@ -206,14 +201,12 @@ impl Parser {
             diagnostics: DiagnosticCollector::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
-            type_alias_map: HashMap::new(),
-            type_alias_definitions: HashSet::new(),
+            type_declaration_map: HashMap::new(),
+            type_declaration_definitions: HashSet::new(),
             block_name_map: HashMap::new(),
             predeclared_blocks: Vec::new(),
             value_name_map: HashMap::new(),
             local_name_map: HashMap::new(),
-            type_intern: HashMap::new(),
-            field_intern: HashMap::new(),
             current_function: None,
             value_names: Vec::new(),
             value_types: Vec::new(),

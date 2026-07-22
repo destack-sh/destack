@@ -4,8 +4,6 @@ use crate as mir;
 
 use crate::ConstantPropagation;
 
-use super::TypeKey;
-
 /// Canonical pure expression for value numbering.
 ///
 /// Two instructions with the same expression compute the same value, assuming no
@@ -35,7 +33,7 @@ pub enum PureExpression {
     Cast {
         operator: mir::CastOperator,
         argument: mir::Value,
-        to_type: TypeKey,
+        to_type: mir::TypeId,
     },
     /// Conditional select (pure, can be CSE'd).
     Select {
@@ -59,7 +57,7 @@ impl PureExpression {
     /// Returns `None` for instructions with side effects such as calls and stores.
     /// Returns `None` for instructions that are not pure computations like loads.
     /// Returns `None` for instructions that cannot be safely deduplicated.
-    pub fn from_instruction(instruction: &mir::Instruction, tree: &mir::Tree) -> Option<Self> {
+    pub fn from_instruction(instruction: &mir::Instruction) -> Option<Self> {
         match instruction {
             mir::Instruction::Error => {
                 panic!("invalid MIR instruction reached optimizer");
@@ -101,15 +99,11 @@ impl PureExpression {
                 argument,
                 to_type,
                 ..
-            } => {
-                let type_key = TypeKey::from_type(*to_type, tree);
-
-                Some(Self::Cast {
-                    operator: *operator,
-                    argument: *argument,
-                    to_type: type_key,
-                })
-            }
+            } => Some(Self::Cast {
+                operator: *operator,
+                argument: *argument,
+                to_type: *to_type,
+            }),
 
             // pure value selection operations
             mir::Instruction::Select {
@@ -339,8 +333,6 @@ pub struct ValueEquivalence<'a> {
     constants: Option<&'a ConstantPropagation>,
     /// Cache of pairwise equivalence results.
     cache: HashMap<(mir::Value, mir::Value), bool>,
-    /// Cached type keys.
-    type_keys: HashMap<mir::LocalNodeId<mir::Type>, TypeKey>,
 }
 
 impl<'a> ValueEquivalence<'a> {
@@ -355,7 +347,6 @@ impl<'a> ValueEquivalence<'a> {
             definitions,
             constants: None,
             cache: HashMap::new(),
-            type_keys: HashMap::new(),
         }
     }
 
@@ -372,7 +363,6 @@ impl<'a> ValueEquivalence<'a> {
             definitions,
             constants: Some(constants),
             cache: HashMap::new(),
-            type_keys: HashMap::new(),
         }
     }
 
@@ -515,12 +505,10 @@ impl<'a> ValueEquivalence<'a> {
                     return false;
                 }
 
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
                 let left_arg = *left_arg;
                 let right_arg = *right_arg;
 
-                left_key == right_key && self.equivalent(left_arg, right_arg)
+                left_type == right_type && self.equivalent(left_arg, right_arg)
             }
             (
                 mir::Instruction::Select {
@@ -568,10 +556,7 @@ impl<'a> ValueEquivalence<'a> {
                 let Some(right_type) = function.value_type(*right_destination) else {
                     return false;
                 };
-                let left_key = self.type_key(left_type);
-                let right_key = self.type_key(right_type);
-
-                left_key == right_key && self.arguments_equivalent(*left_values, *right_values)
+                left_type == right_type && self.arguments_equivalent(*left_values, *right_values)
             }
             (
                 mir::Instruction::FieldGet {
@@ -653,19 +638,6 @@ impl<'a> ValueEquivalence<'a> {
             .iter()
             .zip(right_args.iter())
             .all(|(left, right)| self.equivalent(*left, *right))
-    }
-
-    fn type_key(&mut self, ty: impl Into<mir::TypeId>) -> Option<TypeKey> {
-        let ty = ty.into();
-
-        if let Some(existing) = self.type_keys.get(&ty) {
-            return Some(existing.clone());
-        }
-
-        let key = TypeKey::from_type(ty, self.tree);
-        self.type_keys.insert(ty, key.clone());
-
-        Some(key)
     }
 
     fn constant_pair(

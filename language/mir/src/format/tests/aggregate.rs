@@ -33,9 +33,9 @@ entry(v0: int32, v1: float64, v2: boolean):
     );
 }
 
-/// Formats tuple aggregate construction with a named alias canonically.
+/// Formats tuple aggregate construction with a named type canonically.
 #[test]
-fn test_format_tuple_alias_aggregate() {
+fn test_format_named_tuple_aggregate() {
     assert_format_eq(
         r#"
 type Triple = (int32, float64, boolean);

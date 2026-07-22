@@ -587,7 +587,7 @@ impl Function {
         // function signature
         Self {
             name,
-            symbol: Symbol(name),
+            symbol: Symbol::named(name),
             parameters,
             lifetimes,
             parameter_names,
@@ -680,6 +680,13 @@ impl Function {
     /// Set the linkage and return self (builder pattern).
     pub fn with_linkage(mut self, linkage: Linkage) -> Self {
         self.linkage = linkage;
+        self
+    }
+
+    /// Set the persistent symbol and return self.
+    pub fn with_symbol(mut self, symbol: Symbol) -> Self {
+        self.symbol = symbol;
+
         self
     }
 

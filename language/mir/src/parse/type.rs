@@ -2,14 +2,13 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeParameter,
-    LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space,
-    TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
-    TensorShardingAxis, TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Access, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm,
+    LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space, TensorDimension,
+    TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis,
+    TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
-use super::key::{FieldKey, TypeKey};
 use super::parser::Parser;
 
 /// Parsed reference-like type qualifiers.
@@ -415,9 +414,9 @@ impl Parser {
             "uninit" => self.parse_uninit_type()?,
             "variant" => self.parse_variant_type()?,
             _ => {
-                if let Some(alias_id) = self.type_alias_map.get(name).copied() {
+                if let Some(declaration_id) = self.type_declaration_map.get(name).copied() {
                     self.bump();
-                    return Ok(alias_id);
+                    return Ok(declaration_id);
                 }
 
                 return Err(ParseError::invalid("type", start));
@@ -689,7 +688,7 @@ impl Parser {
 
             // field node
             let field = Field { name, ty };
-            fields.push(self.intern_field(field, attributes));
+            fields.push(self.tree.intern_field(field, attributes));
 
             // field delimiter
             if self.eat_token_maybe(TokenType::Semicolon) || self.eat_token_maybe(TokenType::Comma)
@@ -1285,46 +1284,13 @@ impl Parser {
         Ok(order)
     }
 
-    /// Return a canonical field id for the provided field shape.
-    fn intern_field(&mut self, field: Field, attributes: Vec<Attribute>) -> LocalNodeId<Field> {
-        // reuse existing field
-        let key = FieldKey::from_field(&field, &attributes);
-        if let Some(existing) = self.field_intern.get(&key) {
-            if !attributes.is_empty() {
-                self.tree.set_attributes(*existing, attributes);
-            }
-            return *existing;
-        }
-
-        // insert a new field
-        let field_id = self.tree.insert(field);
-        if !attributes.is_empty() {
-            self.tree.set_attributes(field_id, attributes);
-        }
-        self.field_intern.insert(key, field_id);
-        field_id
-    }
-
     /// Return a canonical type id for the provided type shape.
     pub(super) fn intern_type(&mut self, ty: Type) -> ParseResult<LocalNodeId<Type>> {
-        // reuse existing type
-        let key = TypeKey::from_type(&ty);
-        if let Some(existing) = self.type_intern.get(&key) {
-            return Ok(*existing);
-        }
-
-        // insert a new type
-        let type_id = self.tree.insert_type(ty);
-        self.type_intern.insert(key, type_id);
-
-        Ok(type_id)
+        Ok(self.tree.intern_type(ty))
     }
 
     /// Return the canonical parse-recovery type.
     pub(super) fn error_type(&mut self) -> LocalNodeId<Type> {
-        match self.intern_type(Type::Error) {
-            Ok(ty) => ty,
-            Err(_) => self.tree.insert_type(Type::Error),
-        }
+        self.tree.intern_type(Type::Error)
     }
 }

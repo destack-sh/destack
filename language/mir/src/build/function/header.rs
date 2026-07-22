@@ -1,12 +1,14 @@
 use destack_core::{StringId, StringPool};
 
-use crate::{FunctionParameter, LifetimeParameter, LocalNodeId, Type, Value};
+use crate::{FunctionParameter, LifetimeParameter, LocalNodeId, Symbol, Type, Value};
 
 /// Header used to declare or build one MIR function.
 #[derive(Debug, Clone)]
 pub struct FunctionHeader {
     /// The function name.
     pub name: StringId,
+    /// The persistent function identity.
+    pub symbol: Symbol,
     /// Lifetime parameters in function-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
     /// Parameter types in SSA parameter order.
@@ -22,6 +24,8 @@ pub struct FunctionHeaderBuilder<'a> {
     strings: &'a mut StringPool,
     /// The function name.
     name: StringId,
+    /// The persistent function identity.
+    symbol: Symbol,
     /// Lifetime parameters in function-local slot order.
     lifetimes: Vec<LifetimeParameter>,
     /// Parameter types in SSA parameter order.
@@ -36,9 +40,17 @@ impl<'a> FunctionHeaderBuilder<'a> {
         Self {
             strings,
             name,
+            symbol: Symbol::named(name),
             lifetimes: Vec::new(),
             parameters: Vec::new(),
         }
+    }
+
+    /// Set the persistent function identity.
+    pub fn symbol(mut self, symbol: Symbol) -> Self {
+        self.symbol = symbol;
+
+        self
     }
 
     /// Add one lifetime parameter.
@@ -77,6 +89,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
     pub fn result(self, result: LocalNodeId<Type>) -> FunctionHeader {
         FunctionHeader {
             name: self.name,
+            symbol: self.symbol,
             lifetimes: self.lifetimes,
             parameters: self.parameters,
             result,

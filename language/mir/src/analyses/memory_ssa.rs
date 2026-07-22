@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::{
     AliasAnalysis, Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalysis,
     FunctionAnalysisCache, MemoryRegion, NodeTable, ReferenceLocation, StorageRoot, TargetLayout,
-    TypeKey, ValueDefinitions, ValueTypes, collect_reachable_blocks, compute_dominance_frontiers,
+    ValueDefinitions, ValueTypes, collect_reachable_blocks, compute_dominance_frontiers,
 };
 
 /// Identifier for a memory access in MemorySSA.
@@ -909,8 +909,6 @@ struct MemoryAccessCollector<'a> {
     memory_table: &'a mir::MemoryTable,
     /// Explicit effect table.
     effect_table: &'a mir::EffectTable,
-    /// Type key cache.
-    type_keys: HashMap<mir::LocalNodeId<mir::Type>, TypeKey>,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -934,7 +932,6 @@ impl<'a> MemoryAccessCollector<'a> {
             definitions: definitions.clone(),
             memory_table,
             effect_table,
-            type_keys: HashMap::new(),
             target_layout,
         }
     }
@@ -1097,6 +1094,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         reference_kind,
                         reference_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     false,
                 );
@@ -1117,6 +1115,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         reference_kind,
                         reference_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     false,
                 );
@@ -1138,6 +1137,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         target_kind,
                         target_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     false,
                 );
@@ -1154,6 +1154,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         source_kind,
                         source_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     false,
                 );
@@ -1175,6 +1176,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         reference_kind,
                         reference_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     false,
                 );
@@ -1194,6 +1196,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         reference_kind,
                         reference_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     false,
                 );
@@ -1213,6 +1216,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         reference_kind,
                         reference_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     true,
                 );
@@ -1232,6 +1236,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         reference_kind,
                         reference_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     true,
                 );
@@ -1252,6 +1257,7 @@ impl<'a> MemoryAccessCollector<'a> {
                         reference_kind,
                         reference_space,
                         self.target_layout.pointer_bits(),
+                        self.tree,
                     ),
                     true,
                 );
@@ -1375,6 +1381,7 @@ impl<'a> MemoryAccessCollector<'a> {
                     reference_space,
                     access.byte_len,
                     self.target_layout.pointer_bits(),
+                    self.tree,
                 )
             }
             mir::MemoryTarget::Local(local) => MemoryRegion::Local(local),
@@ -1577,6 +1584,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 src_space,
                                 size,
                                 self.target_layout.pointer_bits(),
+                                self.tree,
                             ),
                             false,
                         );
@@ -1591,6 +1599,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 dst_space,
                                 size,
                                 self.target_layout.pointer_bits(),
+                                self.tree,
                             ),
                             false,
                         );
@@ -1626,6 +1635,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 dst_space,
                                 size,
                                 self.target_layout.pointer_bits(),
+                                self.tree,
                             ),
                             false,
                         );
@@ -1665,6 +1675,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 left_space,
                                 size,
                                 self.target_layout.pointer_bits(),
+                                self.tree,
                             ),
                             false,
                         );
@@ -1679,6 +1690,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 right_space,
                                 size,
                                 self.target_layout.pointer_bits(),
+                                self.tree,
                             ),
                             false,
                         );
@@ -1712,6 +1724,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 reference_kind,
                                 reference_space,
                                 self.target_layout.pointer_bits(),
+                                self.tree,
                             ),
                             false,
                         );
@@ -1746,6 +1759,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             reference_kind,
                             reference_space,
                             self.target_layout.pointer_bits(),
+                            self.tree,
                         );
                         let mut effect = match is_load {
                             true => MemoryAccessEffect::read(region, true),
@@ -1833,13 +1847,9 @@ impl<'a> MemoryAccessCollector<'a> {
     }
 
     /// Resolve the access type for a reference value.
-    fn reference_location_type(&mut self, reference: mir::Value) -> Option<TypeKey> {
-        // reuse cached type keys
-        let pointee_type = self
-            .value_types
-            .reference_referent_type(reference, self.tree)?;
-
-        Some(self.type_key(pointee_type))
+    fn reference_location_type(&self, reference: mir::Value) -> Option<mir::TypeId> {
+        self.value_types
+            .reference_referent_type(reference, self.tree)
     }
 
     /// Resolve the reference kind for a reference value.
@@ -1850,19 +1860,6 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Resolve the TS++ space for a reference value.
     fn reference_space(&self, reference: mir::Value) -> Option<mir::Space> {
         self.value_types.reference_space(reference, self.tree)
-    }
-
-    /// Get or compute a type key.
-    fn type_key(&mut self, ty_id: mir::LocalNodeId<mir::Type>) -> TypeKey {
-        // reuse cached key when available
-        if let Some(existing) = self.type_keys.get(&ty_id) {
-            return existing.clone();
-        }
-
-        // build and cache the new key
-        let key = TypeKey::from_type(ty_id, self.tree);
-        self.type_keys.insert(ty_id, key.clone());
-        key
     }
 }
 

@@ -2,34 +2,27 @@ use std::collections::HashSet;
 
 use crate as mir;
 
-use crate::TypeKey;
-
 /// Signature key used for matching function types.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SignatureKey {
-    /// Parameter type keys and caller obligations for the signature.
-    pub parameters: Vec<(TypeKey, Vec<mir::BorrowObligation>)>,
-    /// Return type key for the signature.
-    pub result: TypeKey,
+    /// Parameter types and caller obligations for the signature.
+    pub parameters: Vec<(mir::TypeId, Vec<mir::BorrowObligation>)>,
+    /// Return type for the signature.
+    pub result: mir::TypeId,
 }
 
 impl SignatureKey {
     /// Build a signature key from a function definition.
-    pub fn from_function(tree: &mir::Tree, function: &mir::Function) -> Self {
-        // collect parameter type keys
+    pub fn from_function(function: &mir::Function) -> Self {
+        // collect parameter types
         let parameters = function
             .parameters
             .iter()
-            .map(|parameter| {
-                (
-                    TypeKey::from_type_id(&parameter.ty, tree),
-                    parameter.obligations.clone(),
-                )
-            })
+            .map(|parameter| (parameter.ty, parameter.obligations.clone()))
             .collect();
 
-        // collect result type key
-        let result = TypeKey::from_type_id(&function.return_type, tree);
+        // collect the result type
+        let result = function.return_type;
 
         Self { parameters, result }
     }
@@ -39,19 +32,11 @@ impl SignatureKey {
         // resolve the function pointer signature
         let (_, parameters, result) = tree.get(*signature).function_signature_parts()?;
 
-        // collect parameter type keys
+        // collect parameter types
         let parameters = parameters
             .iter()
-            .map(|parameter| {
-                (
-                    TypeKey::from_type_id(&parameter.ty, tree),
-                    parameter.obligations.clone(),
-                )
-            })
+            .map(|parameter| (parameter.ty, parameter.obligations.clone()))
             .collect();
-
-        // collect result type key
-        let result = TypeKey::from_type_id(&result, tree);
 
         Some(Self { parameters, result })
     }
@@ -69,7 +54,7 @@ impl SignatureKey {
             .map(mir::FunctionParameter::signature_parameter)
             .collect();
 
-        tree.insert_type(mir::Type::FunctionSignature {
+        tree.intern_type(mir::Type::FunctionSignature {
             lifetimes,
             parameters,
             result: function.return_type,

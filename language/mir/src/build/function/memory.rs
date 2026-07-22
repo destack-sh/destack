@@ -16,7 +16,7 @@ impl<'a> FunctionBuilder<'a> {
             return ty;
         }
 
-        self.tree.insert_type(Type::Usize)
+        self.tree.intern_type(Type::Usize)
     }
 
     /// Create a local variable (stack slot).
@@ -35,7 +35,7 @@ impl<'a> FunctionBuilder<'a> {
         space: Space,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Reference {
+        self.tree.intern_type(Type::Reference {
             kind,
             lifetime: Lifetime::empty(),
             space,
@@ -129,7 +129,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Create a linear uninitialized allocation token type.
     pub fn type_uninit(&mut self, value: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Uninit { value })
+        self.tree.intern_type(Type::Uninit { value })
     }
 
     /// Allocate zeroed heap storage.

@@ -149,8 +149,8 @@ impl ModuleBuilder {
     }
 
     /// Insert one type node directly.
-    pub fn insert_type(&mut self, ty: Type) -> LocalNodeId<Type> {
-        self.tree.insert_type(ty)
+    pub fn intern_type(&mut self, ty: Type) -> LocalNodeId<Type> {
+        self.tree.intern_type(ty)
     }
 
     /// Split this builder into its tree and layout table.
