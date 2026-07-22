@@ -223,7 +223,6 @@ impl PureExpression {
             | mir::Instruction::FunctionAddr { .. }
             | mir::Instruction::FunctionBind { .. }
             | mir::Instruction::FunctionEnvironment { .. }
-            | mir::Instruction::FunctionPointer { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldAddr { .. }

@@ -228,23 +228,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_function_reference(*function, f)?;
                 write!(f, [token(","), space(), environment])
             }
-            Instruction::FunctionPointer {
-                destination,
-                function,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("function.pointer"),
-                        space()
-                    ]
-                )?;
-                write!(f, [function])
-            }
             Instruction::FunctionEnvironment {
                 destination,
                 function,

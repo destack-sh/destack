@@ -75,7 +75,6 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::FunctionBind { .. }
-        | mir::Instruction::FunctionPointer { .. }
         | mir::Instruction::FunctionEnvironment { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. } => true,
 
@@ -254,7 +253,6 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::FunctionBind { .. }
         | mir::Instruction::FunctionEnvironment { .. }
-        | mir::Instruction::FunctionPointer { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::NewComplete { .. }
@@ -536,13 +534,6 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             function: *function,
             environment: substitute(environment),
-        },
-        mir::Instruction::FunctionPointer {
-            destination,
-            function,
-        } => mir::Instruction::FunctionPointer {
-            destination: *destination,
-            function: substitute(function),
         },
         mir::Instruction::FunctionEnvironment {
             destination,
@@ -2219,13 +2210,6 @@ pub fn instruction_map(
             function: *function,
             environment: remap(*environment),
         },
-        mir::Instruction::FunctionPointer {
-            destination,
-            function,
-        } => mir::Instruction::FunctionPointer {
-            destination: remap(*destination),
-            function: remap(*function),
-        },
         mir::Instruction::FunctionEnvironment {
             destination,
             function,
@@ -2824,13 +2808,6 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             function: *function,
             environment: remap(*environment),
-        },
-        mir::Instruction::FunctionPointer {
-            destination,
-            function,
-        } => mir::Instruction::FunctionPointer {
-            destination: remap(*destination),
-            function: remap(*function),
         },
         mir::Instruction::FunctionEnvironment {
             destination,

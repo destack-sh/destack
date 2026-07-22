@@ -100,17 +100,6 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Project the function pointer from one function value.
-    pub fn function_pointer(&mut self, function: Value, function_type: LocalNodeId<Type>) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FunctionPointer {
-            destination,
-            function,
-        });
-        self.define_value(destination, function_type);
-        destination
-    }
-
     /// Project the environment from one function value.
     pub fn function_environment(
         &mut self,

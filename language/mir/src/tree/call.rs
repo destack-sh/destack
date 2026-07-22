@@ -21,7 +21,7 @@ pub enum CallSite {
 pub enum CallDispatch {
     /// Direct function call.
     Direct,
-    /// Indirect call through a function pointer.
+    /// Indirect call through a function value or pointer.
     Indirect,
     /// Virtual call through an object dispatch slot.
     Virtual {
@@ -43,7 +43,7 @@ pub enum Callee {
         /// The function to call.
         function: FunctionId,
     },
-    /// Function pointer target.
+    /// Indirect function value or pointer target.
     Indirect {
         /// The function pointer or function value to call.
         value: Value,

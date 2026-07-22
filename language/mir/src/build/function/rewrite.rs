@@ -72,8 +72,7 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::FunctionBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
-                Instruction::FunctionPointer { function, .. }
-                | Instruction::FunctionEnvironment { function, .. } => {
+                Instruction::FunctionEnvironment { function, .. } => {
                     Self::replace_value_in_slot(function, from, to);
                 }
                 Instruction::FunctionEnvironmentCurrent { .. } => {}

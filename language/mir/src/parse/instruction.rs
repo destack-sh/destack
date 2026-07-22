@@ -401,13 +401,6 @@ impl Parser {
                             environment,
                         }
                     }
-                    "function.pointer" => {
-                        let function = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::FunctionPointer {
-                            destination,
-                            function,
-                        }
-                    }
                     "function.environment" => {
                         let function = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::FunctionEnvironment {

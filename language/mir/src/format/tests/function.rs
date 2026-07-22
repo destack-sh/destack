@@ -97,11 +97,10 @@ function caller(): int32 {
 entry:
     v0: ref<void, managed, mutable> = function.environment.current
     v1: (int32) => int32 = function.bind callee, v0
-    v2: fn(int32) => int32 = function.pointer v1
-    v3: ref<void, managed, mutable> = function.environment v1
-    v4: int32 = 1
-    v5: int32 = call.indirect v1(v4): (int32) => int32
-    return v5
+    v2: ref<void, managed, mutable> = function.environment v1
+    v3: int32 = 1
+    v4: int32 = call.indirect v1(v3): (int32) => int32
+    return v4
 }
 "#,
     );

@@ -132,13 +132,6 @@ pub enum Instruction {
         /// The environment value to capture.
         environment: Value,
     },
-    /// Project the function pointer from one function value (function.pointer).
-    FunctionPointer {
-        /// The SSA value to define with the function pointer.
-        destination: Value,
-        /// The function value to project.
-        function: Value,
-    },
     /// Project the environment from one function value (function.environment).
     FunctionEnvironment {
         /// The SSA value to define with the environment.
@@ -897,7 +890,6 @@ impl Instruction {
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
             Instruction::FunctionBind { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
-            Instruction::FunctionPointer { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironmentCurrent { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
@@ -995,8 +987,7 @@ impl Instruction {
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
             Instruction::FunctionBind { environment, .. } => smallvec![*environment],
-            Instruction::FunctionPointer { function, .. }
-            | Instruction::FunctionEnvironment { function, .. } => smallvec![*function],
+            Instruction::FunctionEnvironment { function, .. } => smallvec![*function],
             Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
@@ -1164,8 +1155,7 @@ impl Instruction {
             | Instruction::TensorSplat {
                 value: environment, ..
             } => smallvec![*environment],
-            Instruction::FunctionPointer { .. }
-            | Instruction::FunctionEnvironment { .. }
+            Instruction::FunctionEnvironment { .. }
             | Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
             Instruction::VectorInsert { vector, value, .. }
             | Instruction::TensorPad {

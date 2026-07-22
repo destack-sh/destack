@@ -318,7 +318,6 @@ impl CostModel {
             | mir::Instruction::DynamicType { .. }
             | mir::Instruction::DynamicRead { .. }
             | mir::Instruction::DynamicFind { .. }
-            | mir::Instruction::FunctionPointer { .. }
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::ProfileIncrement { .. }
