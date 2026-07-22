@@ -300,3 +300,37 @@ value satisfies -1n;
 "#,
     );
 }
+
+#[test]
+fn test_number_template_accepts_value_spelling_at_store() {
+    // a closed numeric span admits every spelling of its value
+    let session = TestSession::single(
+        r#"
+const canonical: `${1000}` = "1000";
+const exponent: `${1000}` = "1e3";
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds", r#"
+"#,
+    );
+}
+
+#[test]
+fn test_number_template_rejects_other_value_at_store() {
+    let session = TestSession::single(
+        r#"
+const wrong: `${1000}` = "1001";
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=not-assignable message="type '\"1001\"' is not assignable to type '`${1000}`'"
+/// @diagnostic.label line=2 column=26 span="\"1001\"" line_source="const wrong: `${1000}` = \"1001\";"
+/// @diagnostic.related line=2 column=14 span="`${1000}`" line_source="const wrong: `${1000}` = \"1001\";" message="expected due to this annotation"
+"#,
+    );
+}

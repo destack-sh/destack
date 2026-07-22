@@ -278,6 +278,16 @@ impl CheckState<'_> {
             dir::Type::Primitive(dir::PrimitiveType::Bigint) => template.integer().is_some(),
             dir::Type::Primitive(dir::PrimitiveType::Boolean) => text == "true" || text == "false",
             dir::Type::Range(range) => template.range(&range).is_some(),
+            // numeric literal spans match every spelling of their value
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+                template.integer() == Some(value) || template.number() == Some(value as f64)
+            }
+            dir::Type::Literal(dir::ScalarLiteral::Float(value)) => {
+                template.number() == Some(value)
+            }
+            dir::Type::Literal(dir::ScalarLiteral::Bigint(value)) => {
+                template.integer() == Some(value)
+            }
             dir::Type::Literal(literal) => {
                 literal.template_text(self.strings()).as_deref() == Some(text)
             }
@@ -438,6 +448,12 @@ impl CheckState<'_> {
         span: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
         let text = match self.ty(span)? {
+            // numeric literals admit many spellings, never one fixed text
+            dir::Type::Literal(
+                dir::ScalarLiteral::Integer(_)
+                | dir::ScalarLiteral::Float(_)
+                | dir::ScalarLiteral::Bigint(_),
+            ) => None,
             dir::Type::Literal(literal) => literal.template_text(self.strings()),
             dir::Type::Key(dir::StaticKey::Name(name)) => {
                 Some(self.strings().get(name).to_string())
