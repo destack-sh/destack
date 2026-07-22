@@ -9,6 +9,15 @@ use crate::{
 use super::mir_hash;
 
 impl Tree {
+    /// Find one equal structural type.
+    pub fn find_type(&self, ty: &Type) -> Option<TypeId> {
+        let hash = mir_hash(ty);
+        let key = TypeIndexKey::Structural(hash);
+        let ids = self.type_index.get(&key)?;
+
+        ids.iter().copied().find(|id| self.get(*id) == ty)
+    }
+
     /// Intern one structural type.
     pub fn intern_type(&mut self, ty: Type) -> TypeId {
         // reuse an equal structural type

@@ -18,6 +18,12 @@ use crate::{
 )]
 pub struct Symbol(u64);
 
+/// Stable structural fingerprint of one MIR type.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct TypeFingerprint(u128);
+
 impl Symbol {
     /// Create the symbol of one resolved declaration name.
     pub fn named(name: StringId) -> Self {
@@ -30,13 +36,13 @@ impl Symbol {
             return self;
         }
 
-        let mut mangler = SymbolMangler::new(self);
-        representations.len().hash(&mut mangler.hasher);
+        let mut hasher = TypeHasher::for_instance(self);
+        representations.len().hash(&mut hasher.hasher);
         for representation in representations {
-            mangler.write_type(*representation, tree);
+            hasher.write_type(*representation, tree);
         }
 
-        Self(mangler.hasher.finish_u64())
+        Self(hasher.hasher.finish_u64())
     }
 
     /// Return the stable symbol bits.
@@ -45,15 +51,33 @@ impl Symbol {
     }
 }
 
-/// Structural writer for one persistent generic instance symbol.
-struct SymbolMangler {
+impl Tree {
+    /// Compute the stable structural fingerprint of one type.
+    pub fn type_fingerprint(&self, ty: TypeId) -> TypeFingerprint {
+        let mut hasher = TypeHasher::new();
+        hasher.write_type(ty, self);
+
+        TypeFingerprint(hasher.hasher.finish_u128())
+    }
+}
+
+/// Stable structural type hasher.
+struct TypeHasher {
     /// The stable hash under construction.
     hasher: StableHasher,
 }
 
-impl SymbolMangler {
-    /// Begin one domain-separated instance symbol.
-    fn new(base: Symbol) -> Self {
+impl TypeHasher {
+    /// Create a type fingerprint hasher.
+    fn new() -> Self {
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"destack.mir.type.v1");
+
+        Self { hasher }
+    }
+
+    /// Create a generic instance hasher.
+    fn for_instance(base: Symbol) -> Self {
         let mut hasher = StableHasher::new();
         hasher.update_len_prefixed(b"destack.mir.instance.v1");
         hasher.write_u64(base.raw());
