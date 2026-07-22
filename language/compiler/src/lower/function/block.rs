@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::lower::FunctionLowerer;
 use crate::{CompilerResult, LowerError};
 
-impl FunctionLowerer<'_, '_> {
+impl FunctionLowerer<'_, '_, '_> {
     /// Lower one function body expression.
     pub(in crate::lower) fn lower_body(
         &mut self,
@@ -141,6 +141,16 @@ impl FunctionLowerer<'_, '_> {
                 else_expression,
             } => self.lower_if(&condition, then_expression, else_expression),
 
+            // switch (value) { ... }
+            dir::Expression::Switch { value, cases } => self.lower_switch(value, &cases),
+
+            // debugger
+            dir::Expression::Debugger => {
+                self.builder.breakpoint();
+
+                Ok(false)
+            }
+
             // while (cond) { ... }
             dir::Expression::While {
                 form,
@@ -160,25 +170,27 @@ impl FunctionLowerer<'_, '_> {
             dir::Expression::Loop { body } => self.lower_loop(None, body),
 
             // outer: while (cond) { ... }
-            dir::Expression::Label { label, body } => match self.lowerer.source().tree().get(body).clone() {
-                dir::Expression::While {
-                    form,
-                    condition,
-                    body,
-                } => self.lower_while(Some(label), form, condition, body),
-                dir::Expression::For {
-                    initialization,
-                    condition,
-                    increment,
-                    body,
-                } => self.lower_for(Some(label), initialization, condition, increment, body),
-                dir::Expression::Loop { body } => self.lower_loop(Some(label), body),
-                other => Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: format!("a labeled '{}' statement", other.variant_name()),
+            dir::Expression::Label { label, body } => {
+                match self.lowerer.source().tree().get(body).clone() {
+                    dir::Expression::While {
+                        form,
+                        condition,
+                        body,
+                    } => self.lower_while(Some(label), form, condition, body),
+                    dir::Expression::For {
+                        initialization,
+                        condition,
+                        increment,
+                        body,
+                    } => self.lower_for(Some(label), initialization, condition, increment, body),
+                    dir::Expression::Loop { body } => self.lower_loop(Some(label), body),
+                    other => Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: format!("a labeled '{}' statement", other.variant_name()),
+                    }
+                    .into()),
                 }
-                .into()),
-            },
+            }
 
             // break label
             dir::Expression::Break { label, value } => self.lower_break(label, value),
@@ -190,7 +202,7 @@ impl FunctionLowerer<'_, '_> {
             dir::Expression::Call { .. }
                 if let Some(resolution) = self.lowerer.construct_resolution(statement) =>
             {
-                self.lower_construct(statement, &resolution)?;
+                self.lower_construct(&resolution)?;
 
                 Ok(false)
             }
@@ -219,7 +231,12 @@ impl FunctionLowerer<'_, '_> {
 
     /// Return the leading statement count of one block.
     fn block_statement_count(&self, block: dir::LocalNodeId<dir::Block>) -> usize {
-        self.lowerer.source().tree().get(block).leading_expressions.len()
+        self.lowerer
+            .source()
+            .tree()
+            .get(block)
+            .leading_expressions
+            .len()
     }
 
     /// Return one leading statement of one block by position.

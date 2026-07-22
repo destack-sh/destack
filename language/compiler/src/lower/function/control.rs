@@ -3,10 +3,10 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::LoopFrame;
+use crate::lower::function::body::ControlFrame;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-impl FunctionLowerer<'_, '_> {
+impl FunctionLowerer<'_, '_, '_> {
     /// Lower one if statement, returning whether every arm terminated.
     pub(in crate::lower) fn lower_if(
         &mut self,
@@ -202,9 +202,9 @@ impl FunctionLowerer<'_, '_> {
             }
             .into());
         }
-        let exit = self.loop_frame(label)?.exit;
+        let target = self.break_target(label)?;
 
-        self.builder.jump(exit);
+        self.builder.jump(target);
         Ok(true)
     }
 
@@ -213,7 +213,7 @@ impl FunctionLowerer<'_, '_> {
         &mut self,
         label: Option<StringId>,
     ) -> CompilerResult<bool> {
-        let target = self.loop_frame(label)?.continue_target;
+        let target = self.continue_target(label)?;
 
         self.builder.jump(target);
         Ok(true)
@@ -227,13 +227,9 @@ impl FunctionLowerer<'_, '_> {
         exit: mir::LocalNodeId<mir::Block>,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<bool> {
-        self.loops.push(LoopFrame {
-            label,
-            continue_target,
-            exit,
-        });
+        self.enter_control(label, exit, Some(continue_target));
         let terminated = self.lower_block(body)?;
-        self.loops.pop();
+        self.leave_control();
 
         Ok(terminated)
     }
@@ -251,20 +247,67 @@ impl FunctionLowerer<'_, '_> {
         self.lower_expression(condition)
     }
 
-    /// Return the loop frame one break or continue targets.
-    fn loop_frame(&self, label: Option<StringId>) -> CompilerResult<&LoopFrame> {
+    /// Enter one statement's break and continue targets.
+    pub(in crate::lower) fn enter_control(
+        &mut self,
+        label: Option<StringId>,
+        break_target: mir::LocalNodeId<mir::Block>,
+        continue_target: Option<mir::LocalNodeId<mir::Block>>,
+    ) {
+        self.controls.push(ControlFrame {
+            label,
+            break_target,
+            continue_target,
+        });
+    }
+
+    /// Leave the innermost break and continue target.
+    pub(in crate::lower) fn leave_control(&mut self) {
+        self.controls.pop();
+    }
+
+    /// Return the block one break targets.
+    fn break_target(
+        &self,
+        label: Option<StringId>,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Block>> {
         let frame = match label {
-            None => self.loops.last(),
+            None => self.controls.last(),
             Some(label) => self
-                .loops
+                .controls
                 .iter()
                 .rev()
                 .find(|frame| frame.label == Some(label)),
         };
 
-        frame.ok_or_else(|| CompilerError::Internal {
-            message: "checked DIR is missing an enclosing loop for one break or continue"
-                .to_string(),
-        })
+        let Some(frame) = frame else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR is missing an enclosing statement for one break".to_string(),
+            });
+        };
+
+        Ok(frame.break_target)
+    }
+
+    /// Return the block one continue targets.
+    fn continue_target(
+        &self,
+        label: Option<StringId>,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Block>> {
+        let frame = self.controls.iter().rev().find(|frame| {
+            frame.continue_target.is_some()
+                && match label {
+                    Some(label) => frame.label == Some(label),
+                    None => true,
+                }
+        });
+
+        let Some(target) = frame.and_then(|frame| frame.continue_target) else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR is missing an enclosing loop for one continue".to_string(),
+            });
+        };
+
+        Ok(target)
     }
 }

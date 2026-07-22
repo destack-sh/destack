@@ -14,14 +14,14 @@ pub(in crate::lower) enum Binding {
     Local(mir::LocalNodeId<mir::Local>),
 }
 
-/// One enclosing loop's control targets.
-pub(in crate::lower) struct LoopFrame {
-    /// The label naming this loop, when one does.
+/// One enclosing statement's control targets.
+pub(in crate::lower) struct ControlFrame {
+    /// The label naming this statement, when one does.
     pub(in crate::lower) label: Option<StringId>,
-    /// The block continue re-enters.
-    pub(in crate::lower) continue_target: mir::LocalNodeId<mir::Block>,
-    /// The exit block break jumps to.
-    pub(in crate::lower) exit: mir::LocalNodeId<mir::Block>,
+    /// The block `break` enters.
+    pub(in crate::lower) break_target: mir::LocalNodeId<mir::Block>,
+    /// The block `continue` enters when the statement is a loop.
+    pub(in crate::lower) continue_target: Option<mir::LocalNodeId<mir::Block>>,
 }
 
 /// One declared function body awaiting lowering.
@@ -35,8 +35,7 @@ pub(in crate::lower) struct Body {
     /// The lifetime slot declared for each induced lifetime parameter.
     pub(in crate::lower) lifetimes: FxIndexMap<dir::LocalGenericParameterId, u16>,
     /// The argument substituted for each generic parameter of this instance.
-    pub(in crate::lower) substitution:
-        FxIndexMap<dir::GlobalGenericParameterId, dir::GlobalTypeId>,
+    pub(in crate::lower) substitution: FxIndexMap<dir::GlobalGenericParameterId, dir::GlobalTypeId>,
     /// The module whose DIR declares this body.
     pub(in crate::lower) source: destack_source::ModuleId,
     /// The DIR body expression.
@@ -44,23 +43,23 @@ pub(in crate::lower) struct Body {
 }
 
 /// Lowering state for one function body.
-pub(in crate::lower) struct FunctionLowerer<'a, 'b> {
+pub(in crate::lower) struct FunctionLowerer<'a, 'b, 'c> {
     /// The module lowering state.
-    pub(in crate::lower) lowerer: &'a ModuleLowerer<'a>,
+    pub(in crate::lower) lowerer: &'a mut ModuleLowerer<'b>,
     /// The MIR function builder.
-    pub(in crate::lower) builder: mir::FunctionBuilder<'b>,
+    pub(in crate::lower) builder: mir::FunctionBuilder<'c>,
     /// The lowered binding for each symbol.
     pub(in crate::lower) values: FxIndexMap<dir::LocalSymbolId, Binding>,
     /// The receiver reference of the enclosing method, when one exists.
     pub(in crate::lower) this: Option<mir::Value>,
-    /// The enclosing loops, innermost last.
-    pub(in crate::lower) loops: Vec<LoopFrame>,
+    /// The enclosing control statements, innermost last.
+    pub(in crate::lower) controls: Vec<ControlFrame>,
 }
 
-impl FunctionLowerer<'_, '_> {
+impl FunctionLowerer<'_, '_, '_> {
     /// Lower one declared function body.
     pub(in crate::lower) fn run(
-        lowerer: &ModuleLowerer<'_>,
+        lowerer: &mut ModuleLowerer<'_>,
         builder: &mut mir::ModuleBuilder,
         body: Body,
     ) -> CompilerResult<()> {
@@ -75,7 +74,7 @@ impl FunctionLowerer<'_, '_> {
             builder,
             values: FxIndexMap::default(),
             this: None,
-            loops: Vec::new(),
+            controls: Vec::new(),
         };
 
         // bind the receiver and the parameters in header order

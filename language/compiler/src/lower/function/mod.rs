@@ -1,10 +1,11 @@
 mod binding;
-mod body;
 mod block;
+mod body;
 mod call;
 mod cast;
 mod construct;
 mod control;
+mod equality;
 mod expression;
 mod function;
 mod literal;
