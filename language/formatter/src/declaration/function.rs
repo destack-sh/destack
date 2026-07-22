@@ -213,6 +213,7 @@ fn single_lambda_generic_parameter_needs_trailing_separator(
 
     let generic_parameter = f.context().tree.get(signature.generic_parameters[0]);
     let is_plain_parameter = match generic_parameter {
+        GenericParameter::Lifetime { .. } => true,
         GenericParameter::Type {
             constraint,
             default,

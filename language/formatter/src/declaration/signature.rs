@@ -195,6 +195,23 @@ where
     Ok(())
 }
 
+/// Return whether one annotation spells the plain Lifetime bound.
+fn is_lifetime_bound(f: &DestackFormatter<'_, '_>, ty: LocalNodeId<TypeExpression>) -> bool {
+    let TypeExpression::Reference {
+        path,
+        generic_arguments,
+    } = f.context().tree.get(ty)
+    else {
+        return false;
+    };
+
+    generic_arguments.is_empty()
+        && path.segments.len() == 1
+        && path
+            .last_segment()
+            .is_some_and(|name| f.context().strings.get(name) == "Lifetime")
+}
+
 /// Write one parameter default value.
 fn write_parameter_default<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -366,6 +383,7 @@ pub(crate) fn function_grouping_generic_parameter_is_plain(
     generic_parameter_id: LocalNodeId<GenericParameter>,
 ) -> bool {
     match context.tree.get(generic_parameter_id) {
+        GenericParameter::Lifetime { .. } => true,
         GenericParameter::Type {
             constraint,
             default,
@@ -1077,6 +1095,9 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         match self {
+            GenericParameter::Lifetime { name } => {
+                write!(f, [*name])?;
+            }
             GenericParameter::Type {
                 name,
                 is_const,
@@ -1120,6 +1141,16 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
                 default,
                 is_comptime,
             } => {
+                // normalize tick names to their bare lifetime spelling
+                let is_bare_tick = !matches!(self, GenericParameter::VariadicValue { .. })
+                    && default.is_none()
+                    && f.context().strings.get(*name).starts_with('\'')
+                    && declared_type.is_none_or(|ty| is_lifetime_bound(f, ty));
+                if is_bare_tick {
+                    write!(f, [*name])?;
+                    return Ok(());
+                }
+
                 // comptime
                 if *is_comptime {
                     write!(f, [Keyword::Comptime, space()])?;

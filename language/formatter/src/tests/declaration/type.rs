@@ -512,3 +512,58 @@ fn test_format_member_decorator_comment_layout() {
         ],
     );
 }
+
+/// Named borrow lifetimes should keep their written tick form.
+#[test]
+fn test_format_borrow_lifetime_roundtrip() {
+    assert_format!(
+        "type View = &'a readonly Buffer;",
+        "type View = &'a readonly Buffer;",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// The static lifetime literal should keep its tick form.
+#[test]
+fn test_format_static_lifetime_roundtrip() {
+    assert_format!(
+        "type View = &'static Buffer;",
+        "type View = &'static Buffer;",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// Bare tick generic parameters should print without comptime.
+#[test]
+fn test_format_bare_lifetime_parameter_roundtrip() {
+    assert_format!(
+        "function first<'a>(a: &'a Node, b: &Node): &'a Node {\n    return a;\n}",
+        "function first<'a>(a: &'a Node, b: &Node): &'a Node {\n    return a;\n}",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// Explicit comptime lifetime bounds should normalize to the bare tick name.
+#[test]
+fn test_format_comptime_lifetime_parameter_normalizes_bare() {
+    assert_format!(
+        "declare function only<comptime 'a: Lifetime>(value: Borrowed<Node, 'a>): Borrowed<Node, 'a>;",
+        "declare function only<'a>(value: Borrowed<Node, 'a>): Borrowed<Node, 'a>;",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// Lifetime unions should print as ordinary type algebra.
+#[test]
+fn test_format_lifetime_union_roundtrip() {
+    assert_format!(
+        "type Joined = Borrowed<Node, 'a | 'b>;",
+        "type Joined = Borrowed<Node, 'a | 'b>;",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}

@@ -2801,6 +2801,9 @@ fn write_type_expression_body_inner<'ast>(
         TypeExpression::ScalarLiteral { value } => {
             format_scalar_literal(value, f.context().span(node_id), f)?;
         }
+        TypeExpression::Lifetime { name } => {
+            write!(f, [*name])?;
+        }
         TypeExpression::Literal { value } => {
             write!(f, [value])?;
         }
@@ -2974,11 +2977,16 @@ fn write_type_expression_body_inner<'ast>(
             write_prefix_type_operand(f, node_id, *target_type)?;
         }
         TypeExpression::BorrowedOf {
+            lifetime,
             mutability,
             variance,
             target_type,
         } => {
             write!(f, [token("&")])?;
+
+            if let Some(lifetime) = lifetime {
+                write!(f, [lifetime, space()])?;
+            }
 
             if let Some(mutability) = mutability {
                 match mutability {
