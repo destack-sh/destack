@@ -27,11 +27,6 @@ pub(in crate::check) enum Relation {
 
 impl Relation {
     /// Return the relation for slots inside one related value.
-    ///
-    /// Value interiors have no store site to witness a conversion, so
-    /// assignability restricts to identity-witnessed widening inside.
-    /// Constraint judgments never move a value and read interior slots
-    /// per use, so their slots relate by full assignability.
     pub(in crate::check) fn interior(self) -> Relation {
         match self {
             Self::Assignable | Self::Widens => Self::Widens,
@@ -41,10 +36,6 @@ impl Relation {
     }
 
     /// Return the edge one handle-context payload relates by.
-    ///
-    /// Value relations restrict to identity-witnessed widening.
-    /// Unlike `interior`, constraint judgments pass through unchanged, so
-    /// payloads nested under further forms keep the constraint flavor.
     pub(in crate::check) fn payload_edge(self) -> Relation {
         match self {
             Self::Assignable | Self::Widens => Self::Widens,

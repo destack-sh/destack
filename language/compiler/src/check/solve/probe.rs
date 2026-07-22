@@ -26,6 +26,14 @@ impl<T, R> Answer<CandidateOutcome<T, R>> {
     }
 }
 
+/// Result of running one candidate attempt to quiescence.
+enum CandidateAttempt<T, R> {
+    /// The attempt produced an outcome.
+    Outcome(Answer<CandidateOutcome<T, R>>),
+    /// One drained constraint failed, rejecting the candidate.
+    Failed,
+}
+
 /// Verdict of one winnowed candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum CandidateVerdict {
@@ -35,25 +43,6 @@ pub(in crate::check) enum CandidateVerdict {
     Indeterminate,
     /// The candidate does not apply.
     Rejected,
-}
-
-/// The judgment one probe speculates on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ProbeReason {
-    /// One signature candidate against a call.
-    Signature,
-    /// One extension target against a receiver.
-    Extension,
-    /// One extension's interface declarations against a receiver.
-    Implements,
-    /// One extension against a protocol member set.
-    Protocol,
-    /// One receiver adjustment step.
-    Receiver,
-    /// One conditional type pattern match.
-    Conditional,
-    /// One union arm against a related value.
-    UnionArm,
 }
 
 /// Check state mark before one probe.
@@ -98,24 +87,67 @@ impl BodyState<'_, '_> {
     /// Probe one candidate under a rollback, returning its verdict.
     pub(in crate::check) fn probe_candidate<T, R>(
         &mut self,
-        reason: ProbeReason,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
     ) -> CompilerResult<Answer<CandidateVerdict>> {
-        let mark = self.check.open_probe(reason);
-        let outcome = attempt(self);
+        let mark = self.check.open_probe();
+        let outcome = match self.attempt_candidate(&mark, &mut attempt) {
+            Ok(CandidateAttempt::Outcome(outcome)) => Ok(outcome),
+            Ok(CandidateAttempt::Failed) => {
+                return self.check.reject_probe(mark);
+            }
+            Err(error) => Err(error),
+        };
 
         self.check.settle_probe(mark, outcome)
+    }
+
+    /// Run one candidate attempt, settling its evidence before deciding.
+    ///
+    /// A pending attempt may only await variables the candidate owns or
+    /// touched, so one drain to quiescence either completes it or proves
+    /// the candidate undecidable.
+    fn attempt_candidate<T, R>(
+        &mut self,
+        mark: &ProbeMark,
+        attempt: &mut impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+    ) -> CompilerResult<CandidateAttempt<T, R>> {
+        let outcome = attempt(self)?;
+        let Answer::Pending(_) = outcome else {
+            return Ok(CandidateAttempt::Outcome(outcome));
+        };
+
+        // drain and settle what the attempt owns before giving up on it,
+        //  so pinned holes wake and re-verify their optimistic holds
+        let scope = mark.solver.variable_scope();
+        let failures = self
+            .check
+            .drain_constraint_tasks(scope, mark.solver.bound_history_mark())?;
+        if !failures.is_empty() {
+            return Ok(CandidateAttempt::Failed);
+        }
+
+        Ok(CandidateAttempt::Outcome(attempt(self)?))
     }
 
     /// Probe one candidate, describing a rejection before the rollback.
     pub(in crate::check) fn probe_candidate_noted<T, R>(
         &mut self,
-        reason: ProbeReason,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
         describe: impl FnOnce(&mut Self, &R) -> CompilerResult<String>,
     ) -> CompilerResult<Answer<(CandidateVerdict, Option<String>)>> {
-        let mark = self.check.open_probe(reason);
-        let outcome = attempt(self);
+        let mark = self.check.open_probe();
+        let outcome = match self.attempt_candidate(&mark, &mut attempt) {
+            Ok(CandidateAttempt::Outcome(outcome)) => Ok(outcome),
+            Ok(CandidateAttempt::Failed) => {
+                let verdict = self.check.reject_probe(mark)?;
+
+                return Ok(match verdict {
+                    Answer::Ready(verdict) => Answer::Ready((verdict, None)),
+                    Answer::Pending(blockers) => Answer::Pending(blockers),
+                });
+            }
+            Err(error) => Err(error),
+        };
 
         // rejection payloads reference probe types, so describe them
         //  before the rollback frees their interned slots
@@ -136,10 +168,9 @@ impl BodyState<'_, '_> {
     /// Probe one candidate, then confirm a viable outcome in place.
     pub(in crate::check) fn confirm_candidate<T, R>(
         &mut self,
-        reason: ProbeReason,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
     ) -> CompilerResult<Answer<Option<T>>> {
-        match self.probe_candidate(reason, &mut attempt)? {
+        match self.probe_candidate(&mut attempt)? {
             Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
             Answer::Ready(CandidateVerdict::Rejected) => Ok(Answer::Ready(None)),
             Answer::Ready(CandidateVerdict::Viable | CandidateVerdict::Indeterminate) => {
@@ -153,10 +184,9 @@ impl CheckState<'_> {
     /// Probe one candidate under a rollback, returning its verdict.
     pub(in crate::check) fn probe_candidate<T, R>(
         &mut self,
-        reason: ProbeReason,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
     ) -> CompilerResult<Answer<CandidateVerdict>> {
-        let mark = self.open_probe(reason);
+        let mark = self.open_probe();
         let outcome = attempt(self);
 
         self.settle_probe(mark, outcome)
@@ -165,23 +195,32 @@ impl CheckState<'_> {
     /// Probe one candidate, then confirm a viable outcome in place.
     pub(in crate::check) fn confirm_candidate<T, R>(
         &mut self,
-        reason: ProbeReason,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
     ) -> CompilerResult<Answer<Option<T>>> {
-        match self.probe_candidate(reason, &mut attempt)? {
+        match self.probe_candidate(&mut attempt)? {
             Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
             Answer::Ready(CandidateVerdict::Rejected) => Ok(Answer::Ready(None)),
             Answer::Ready(CandidateVerdict::Viable | CandidateVerdict::Indeterminate) => {
+                // the confirmed attempt settles its own evidence at completion
                 Ok(attempt(self)?.accepted())
             }
         }
     }
 
+    /// Close one probe whose drained constraints failed.
+    fn reject_probe(&mut self, mark: ProbeMark) -> CompilerResult<Answer<CandidateVerdict>> {
+        self.record_event(CheckEvent::ProbeFinished {
+            verdict: Some(CandidateVerdict::Rejected),
+        });
+        self.end_probe(mark)?;
+
+        Ok(Answer::Ready(CandidateVerdict::Rejected))
+    }
+
     /// Begin one probe, recording its start event.
-    fn open_probe(&mut self, reason: ProbeReason) -> ProbeMark {
+    fn open_probe(&mut self) -> ProbeMark {
         let mark = self.begin_probe();
         self.record_event(CheckEvent::ProbeStarted {
-            reason,
             variables: self.solver.variable_count(),
         });
 
@@ -230,8 +269,9 @@ impl CheckState<'_> {
         &mut self,
         mark: &ProbeMark,
     ) -> CompilerResult<Answer<CandidateVerdict>> {
-        let variables = mark.solver.variable_domain();
-        let failures = self.drain_constraint_tasks(variables)?;
+        // the candidate settles what it owns and what it adopted
+        let scope = mark.solver.variable_scope();
+        let failures = self.drain_constraint_tasks(scope, mark.solver.bound_history_mark())?;
         if !failures.is_empty() {
             return Ok(Answer::Ready(CandidateVerdict::Rejected));
         }
@@ -244,7 +284,7 @@ impl CheckState<'_> {
         self.classify_probe_blockers(mark, blockers.into())
     }
 
-    /// Classify dependencies returned directly by one candidate judgment.
+    /// Classify dependencies returned directly by one candidate attempt.
     fn classify_probe_blockers(
         &self,
         mark: &ProbeMark,

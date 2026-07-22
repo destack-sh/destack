@@ -7,9 +7,9 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     BoundSide, Cause, CauseArena, CauseId, Constraint, ConstraintId, ConstraintState,
-    ConstraintTable, Dependency, ObligationEntry, ObligationId, ObligationTable, Origin,
-    OriginArena, OriginId, RelationCache, RelationCacheSnapshot, Task, TypeBound, Variable,
-    VariableDomain, VariableRole, VariableTable, Widening, WorkQueue,
+    ConstraintTable, Dependency, GenericParameterId, InferenceScope, ObligationEntry, ObligationId,
+    ObligationTable, Origin, OriginArena, OriginId, RelationCache, RelationCacheSnapshot, Task,
+    TypeBound, Variable, VariableRole, VariableTable, Widening, WorkQueue,
 };
 
 /// Solver state for one checked component.
@@ -27,8 +27,12 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) obligations: ObligationTable,
     /// Interned work origins.
     pub(in crate::check) origins: OriginArena,
-    /// Interned judgment causes.
+    /// Interned constraint causes.
     pub(in crate::check) causes: CauseArena,
+    /// Variables opened for generic parameters, keyed by typing position.
+    instantiations: FxIndexMap<(OriginId, GenericParameterId), dir::TypeVariableId>,
+    /// Variables in bound-append order, the adoption history for tasks.
+    bound_history: Vec<dir::TypeVariableId>,
     /// Tasks parked on unresolved dependencies.
     waiters: FxIndexMap<Dependency, SmallVec<[Task; 2]>>,
     /// Undo entries recorded by active snapshots.
@@ -52,14 +56,21 @@ pub(in crate::check) struct SolverSnapshot {
     waiters: FxIndexMap<Dependency, SmallVec<[Task; 2]>>,
     /// The undo log length before the probe.
     undo: usize,
+    /// The bound history length before the probe.
+    bound_history: usize,
     /// Relation cache snapshot before the probe.
     relations: RelationCacheSnapshot,
 }
 
 impl SolverSnapshot {
-    /// Return the variables allocated after this snapshot.
-    pub(in crate::check) fn variable_domain(&self) -> VariableDomain {
-        VariableDomain::after(self.variables)
+    /// Return the scope owning the variables allocated after this snapshot.
+    pub(in crate::check) fn variable_scope(&self) -> InferenceScope {
+        InferenceScope::open(self.variables)
+    }
+
+    /// Return the bound-history watermark taken at this snapshot.
+    pub(in crate::check) fn bound_history_mark(&self) -> usize {
+        self.bound_history
     }
 
     /// Return whether one variable existed before this snapshot.
@@ -105,8 +116,13 @@ enum Undo {
         id: ConstraintId,
         /// The previous constraint state.
         previous_state: ConstraintState,
-        /// The previous concrete value target.
-        previous_target: Option<dir::GlobalTypeId>,
+        /// The previous runtime coercion.
+        previous_coercion: Option<Box<dir::Coercion>>,
+    },
+    /// Undo one recorded instantiation.
+    Instantiation {
+        /// The typing position that opened the parameter.
+        key: (OriginId, GenericParameterId),
     },
 }
 
@@ -121,6 +137,8 @@ impl Solver {
             obligations: ObligationTable::new(),
             origins: OriginArena::default(),
             causes: CauseArena::default(),
+            instantiations: FxIndexMap::default(),
+            bound_history: Vec::new(),
             waiters: FxIndexMap::default(),
             undo: Vec::new(),
             snapshot_depth: 0,
@@ -138,6 +156,7 @@ impl Solver {
             queue: replace(&mut self.queue, WorkQueue::new()),
             waiters: std::mem::take(&mut self.waiters),
             undo: self.undo.len(),
+            bound_history: self.bound_history.len(),
             relations: self.relations.snapshot(),
         }
     }
@@ -151,6 +170,7 @@ impl Solver {
         }
 
         self.relations.rollback(snapshot.relations);
+        self.bound_history.truncate(snapshot.bound_history);
         self.queue = snapshot.queue;
         self.waiters = snapshot.waiters;
         self.constraints.truncate(snapshot.constraints);
@@ -192,12 +212,33 @@ impl Solver {
         self.origins.intern(origin)
     }
 
-    /// Intern one judgment cause.
+    /// Return the bound-history watermark marking one task's start.
+    pub(in crate::check) fn snapshot_watermark(&self) -> usize {
+        self.bound_history.len()
+    }
+
+    /// Return the pre-scope holes bounded with new evidence since one watermark.
+    pub(in crate::check) fn adopted_since(
+        &self,
+        mark: usize,
+        scope: InferenceScope,
+    ) -> SmallVec<[dir::TypeVariableId; 4]> {
+        let mut adopted = SmallVec::new();
+        for variable in &self.bound_history[mark.min(self.bound_history.len())..] {
+            if !scope.owns(*variable) && !adopted.contains(variable) {
+                adopted.push(*variable);
+            }
+        }
+
+        adopted
+    }
+
+    /// Intern one constraint cause.
     pub(in crate::check) fn intern_cause(&mut self, cause: Cause) -> CauseId {
         self.causes.intern(cause)
     }
 
-    /// Return one interned judgment cause.
+    /// Return one interned constraint cause.
     pub(in crate::check) fn cause(&self, id: CauseId) -> Cause {
         self.causes.get(id)
     }
@@ -217,6 +258,7 @@ impl Solver {
         let pushed = self.variables.push_bound(id, side, bound)?;
         if pushed {
             self.record_undo(Undo::Bound { id, side });
+            self.bound_history.push(id);
         }
 
         Ok(pushed)
@@ -269,6 +311,11 @@ impl Solver {
 
     /// Allocate one constraint.
     pub(in crate::check) fn allocate_constraint(&mut self, constraint: Constraint) -> ConstraintId {
+        // one task collects one constraint, however often walks repeat it
+        if let Some(id) = self.constraints.lookup(&constraint) {
+            return id;
+        }
+
         let id = ConstraintId::at(self.constraints.count());
         self.constraints.insert(id, constraint);
 
@@ -280,10 +327,10 @@ impl Solver {
         &mut self,
         id: ConstraintId,
         state: ConstraintState,
-        value_target: Option<dir::GlobalTypeId>,
+        coercion: Option<Box<dir::Coercion>>,
     ) -> CompilerResult<()> {
         self.record_constraint(id)?;
-        self.constraints.set_result(id, state, value_target);
+        self.constraints.set_result(id, state, coercion);
 
         Ok(())
     }
@@ -374,9 +421,9 @@ impl Solver {
             .collect()
     }
 
-    /// Pop the next queued type or value judgment.
-    pub(in crate::check) fn pop_judgment(&mut self) -> Option<Task> {
-        self.queue.pop_judgment()
+    /// Pop the next queued check task.
+    pub(in crate::check) fn pop_check(&mut self) -> Option<Task> {
+        self.queue.pop_check()
     }
 
     /// Pop the next queued obligation.
@@ -394,6 +441,28 @@ impl Solver {
         if self.snapshot_depth > 0 {
             self.undo.push(undo);
         }
+    }
+
+    /// Return the variable already opened for one parameter at one typing position.
+    pub(in crate::check) fn instantiation(
+        &self,
+        origin: OriginId,
+        parameter: GenericParameterId,
+    ) -> Option<dir::TypeVariableId> {
+        self.instantiations.get(&(origin, parameter)).copied()
+    }
+
+    /// Record the variable opened for one parameter at one typing position.
+    pub(in crate::check) fn record_instantiation(
+        &mut self,
+        origin: OriginId,
+        parameter: GenericParameterId,
+        variable: dir::TypeVariableId,
+    ) {
+        self.record_undo(Undo::Instantiation {
+            key: (origin, parameter),
+        });
+        self.instantiations.insert((origin, parameter), variable);
     }
 
     /// Record one variable if a snapshot is active.
@@ -416,7 +485,7 @@ impl Solver {
             self.undo.push(Undo::Constraint {
                 id,
                 previous_state: self.constraints.state(id)?,
-                previous_target: self.constraints.value_target(id)?,
+                previous_coercion: self.constraints.coercion(id)?.cloned().map(Box::new),
             });
         }
 
@@ -448,10 +517,13 @@ impl Solver {
             Undo::Constraint {
                 id,
                 previous_state,
-                previous_target,
+                previous_coercion,
             } => {
                 self.constraints
-                    .set_result(id, previous_state, previous_target);
+                    .set_result(id, previous_state, previous_coercion);
+            }
+            Undo::Instantiation { key } => {
+                self.instantiations.swap_remove(&key);
             }
         }
 

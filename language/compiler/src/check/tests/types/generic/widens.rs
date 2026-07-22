@@ -1492,6 +1492,7 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @diagnostic.error id=not-assignable message="type '&readonly Holder<Circle>' is not assignable to type '&readonly Holder<Circle | Square>'"
 /// @diagnostic.label line=12 column=51 span="&readonly holder" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;"
 /// @diagnostic.related line=12 column=15 span="&" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"
 "#,
     );
 }

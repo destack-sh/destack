@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, Cause, CauseKind, CheckState, Expectation, FlowSite, PlaceUse, ValueUse,
+    Answer, Cause, CauseKind, CheckState, Dependency, Expectation, FlowSite, PlaceUse, ValueUse,
 };
 use destack_dir as dir;
 
@@ -87,6 +87,23 @@ impl FunctionBody {
             Expectation::assignable(return_type, cause, ValueUse::Output)
         });
         let checked = state.attempt_node(self.site, PlaceUse::Read, expectation)?;
+
+        // the body produces its return cell once its return evidence is in;
+        //  parking on the cell itself means every return already bounded it
+        if let Some(return_type) = self.return_type {
+            let root = check.settled_root(return_type)?;
+            if let Some(variable) = check.root_variable(root)? {
+                let produced = match &checked {
+                    Answer::Ready(_) => true,
+                    Answer::Pending(blockers) => blockers
+                        .iter()
+                        .any(|blocker| *blocker == Dependency::Variable(variable)),
+                };
+                if produced {
+                    check.settle_produced(variable)?;
+                }
+            }
+        }
 
         Ok(match checked {
             Answer::Ready(checked) => Answer::Ready(checked.holds),

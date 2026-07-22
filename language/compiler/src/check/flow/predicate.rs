@@ -85,16 +85,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one source node type as viewed through one flow site.
-    pub(in crate::check) fn node_type_at(
-        &mut self,
-        site: FlowSite,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = answer!(self.node_type(site.node)?);
-
-        self.flow_type_at(site, ty)
-    }
-
     /// Return one type as viewed at one flow point.
     pub(in crate::check) fn flow_type_at(
         &mut self,

@@ -14,6 +14,8 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::check) enum VariableRole {
     /// Ordinary inference variable.
     Regular,
+    /// Contextually typed parameter slot, received by assignment.
+    Parameter,
     /// Variable inferred from a callable body return.
     Return,
     /// Variable instantiating one declared generic parameter.
@@ -35,7 +37,7 @@ impl VariableRole {
     pub(in crate::check) fn is_inference(self) -> bool {
         matches!(
             self,
-            Self::Regular | Self::Return | Self::Instantiation { .. }
+            Self::Regular | Self::Parameter | Self::Return | Self::Instantiation { .. }
         )
     }
 
@@ -43,7 +45,7 @@ impl VariableRole {
     pub(in crate::check) fn parameter(self) -> Option<dir::GlobalGenericParameterId> {
         match self {
             Self::Instantiation { parameter } => Some(parameter),
-            Self::Regular | Self::Return | Self::Memory { .. } => None,
+            Self::Regular | Self::Parameter | Self::Return | Self::Memory { .. } => None,
         }
     }
 }
@@ -59,31 +61,31 @@ pub(in crate::check) enum Widening {
     WhenWritten,
 }
 
-/// Variables one solver drain may fix.
+/// Variables opened by one task, owned as a dense arena interval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct VariableDomain {
-    /// The first variable in the domain.
+pub(in crate::check) struct InferenceScope {
+    /// The first owned variable.
     first: u32,
 }
 
-impl VariableDomain {
-    /// Every variable in the component solver.
-    pub(in crate::check) const ALL: Self = Self { first: 0 };
+impl InferenceScope {
+    /// The scope owning every component variable.
+    pub(in crate::check) const ROOT: Self = Self { first: 0 };
 
-    /// Return the variables allocated after one solver snapshot.
-    pub(in crate::check) fn after(count: usize) -> Self {
+    /// Open a scope owning every variable allocated from one count on.
+    pub(in crate::check) fn open(count: usize) -> Self {
         Self {
             first: count as u32,
         }
     }
 
-    /// Return whether the domain contains one variable.
-    pub(in crate::check) fn contains(self, variable: dir::TypeVariableId) -> bool {
+    /// Return whether this scope owns one variable.
+    pub(in crate::check) fn owns(self, variable: dir::TypeVariableId) -> bool {
         variable.0 >= self.first
     }
 
-    /// Return the variable indices in this domain below one table length.
-    pub(in crate::check) fn range(self, count: usize) -> Range<usize> {
+    /// Return the owned variable indices below one arena length.
+    pub(in crate::check) fn indices(self, count: usize) -> Range<usize> {
         self.first as usize..count
     }
 }

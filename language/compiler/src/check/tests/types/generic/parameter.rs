@@ -199,7 +199,7 @@ take([1, 2]);
 === annotated ===
 declare function take(values: Slice<float64>): void;
 
-take([1, 2]);
+take([1, 2] as Slice<float64>);
 
 === checked ===
 declare function take(values: Slice<float64>): void;

@@ -13,9 +13,11 @@ impl Task {
             Self::Relate(id) => event
                 .text("task", "relate")
                 .text("constraint", context.constraint_label(*id)),
-            Self::Check(id) => event
+            Self::Check { site, expectation } => event
                 .text("task", "check")
-                .text("constraint", context.constraint_label(*id)),
+                .text("site", context.flow_site_label(*site))
+                .text("relation", context.relation_label(expectation.relation))
+                .text("target", context.type_label(expectation.target)),
             Self::Infer { site, use_ } => event
                 .text("task", "infer")
                 .text("site", context.flow_site_label(*site))

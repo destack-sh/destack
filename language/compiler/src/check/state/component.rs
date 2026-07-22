@@ -384,7 +384,7 @@ impl CheckState<'_> {
         self.solver.intern_origin(origin)
     }
 
-    /// Intern one judgment cause into the solver.
+    /// Intern one constraint cause into the solver.
     pub(in crate::check) fn intern_cause(&mut self, cause: Cause) -> CauseId {
         self.solver.intern_cause(cause)
     }

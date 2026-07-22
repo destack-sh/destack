@@ -12,8 +12,8 @@ use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Capture, Cause, CauseId, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
-    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticGate, ValueCheck, answer,
+    Answer, Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
+    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticGate,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -504,22 +504,6 @@ impl CheckState<'_> {
         self.commit_node_type(node, ty)?;
 
         Ok(ty)
-    }
-
-    /// Check one source node's runtime value type.
-    pub(in crate::check) fn check_node_value(
-        &mut self,
-        site: FlowSite,
-        relation: Relation,
-        target: dir::GlobalTypeId,
-        cause: CauseId,
-    ) -> CompilerResult<Answer<(dir::GlobalTypeId, ValueCheck)>> {
-        let source = answer!(self.node_type_at(site)?);
-        let cause = self.solver.cause(cause).with_origin(site.origin());
-        let cause = self.intern_cause(cause);
-        let check = answer!(self.check_value_relation(cause, relation, source, target)?);
-
-        Ok(Answer::Ready((source, check)))
     }
 
     /// Return one source node's recorded flow site.

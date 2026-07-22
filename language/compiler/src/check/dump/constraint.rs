@@ -1,6 +1,6 @@
 use destack_artifact::ArtifactEvent;
 
-use crate::check::{Constraint, ConstraintId, DumpContext, ValueSource};
+use crate::check::{Constraint, ConstraintId, DumpContext};
 
 impl Constraint {
     /// Render this constraint as one trace event.
@@ -15,15 +15,10 @@ impl Constraint {
                 context.type_label(constraint.source),
                 context.type_label(constraint.target),
             ),
-            Self::Value(constraint) => {
-                let source = match constraint.source {
-                    ValueSource::Node(node) => context.node_label(node),
-                    ValueSource::Type(ty) => context.type_label(ty),
-                };
-                let target = context.type_label(constraint.target);
-
-                (source, target)
-            }
+            Self::Value(constraint) => (
+                context.node_label(constraint.node),
+                context.type_label(constraint.target),
+            ),
         };
 
         ArtifactEvent::new("relation.checked")

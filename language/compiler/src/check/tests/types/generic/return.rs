@@ -560,7 +560,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=4 types=38 constraints=7 obligations=8 solutions=4 bounds=3 decisions=19
+/// @check.stats.solve variables=4 types=38 constraints=7 obligations=8 solutions=4 bounds=2 decisions=19
 "#,
     );
 }

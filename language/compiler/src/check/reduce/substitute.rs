@@ -147,6 +147,16 @@ impl CheckState<'_> {
                 continue;
             }
 
+            // an opened parameter types its origin once, so re-walks reuse it
+            let origin_id = self.solver.intern_origin(origin);
+            if let Some(existing) = self.solver.instantiation(origin_id, parameter) {
+                let argument = self.variable_type(existing)?;
+                substitution.parameters.push(parameter);
+                substitution.arguments.push(argument);
+
+                continue;
+            }
+
             // open every omitted parameter while only explicit parameters consume source arguments
             let primitive_constraint = match binding.constraint {
                 Some(constraint) => matches!(
@@ -164,6 +174,8 @@ impl CheckState<'_> {
             };
             let variable =
                 self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
+            self.solver
+                .record_instantiation(origin_id, parameter, variable);
 
             // declared defaults complete the parameter when inference stays dry
             if let Some(default) = binding.default {

@@ -1,6 +1,4 @@
-use std::mem::size_of;
-
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 
 use crate::check::{CauseId, CheckState, Relation};
@@ -23,7 +21,7 @@ impl ConstraintId {
 }
 
 /// One solver constraint.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Constraint {
     /// Pure relation between two types.
     Type(TypeConstraint),
@@ -32,7 +30,7 @@ pub(in crate::check) enum Constraint {
 }
 
 /// Pure relation between two types.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct TypeConstraint {
     /// The relation to enforce.
     pub(in crate::check) relation: Relation,
@@ -44,30 +42,26 @@ pub(in crate::check) struct TypeConstraint {
     pub(in crate::check) cause: CauseId,
     /// The generic application invalidated when this relation fails.
     pub(in crate::check) invalidated_application: Option<dir::LocalTypeId>,
+    /// Whether this constraint derives from a primary constraint.
+    ///
+    /// Derived constraints verify and reject candidates, but their failures
+    /// duplicate the primary constraint and never report.
+    pub(in crate::check) is_derived: bool,
 }
 
 /// Relation between one source value occurrence and one target type.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct ValueConstraint {
     /// The relation to enforce.
     pub(in crate::check) relation: Relation,
-    /// The source value.
-    pub(in crate::check) source: ValueSource,
+    /// The value node being checked.
+    pub(in crate::check) node: dir::GlobalNodeIdAny,
     /// The expected target.
     pub(in crate::check) target: dir::GlobalTypeId,
     /// Why this constraint exists.
     pub(in crate::check) cause: CauseId,
     /// The checked value role.
     pub(in crate::check) use_: ValueUse,
-}
-
-/// Source of one contextual value constraint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum ValueSource {
-    /// A source node requiring contextual checking.
-    Node(dir::GlobalNodeIdAny),
-    /// An already typed value.
-    Type(dir::GlobalTypeId),
 }
 
 /// Runtime value use checked by one value constraint.
@@ -140,6 +134,24 @@ impl Constraint {
             target,
             cause,
             invalidated_application: None,
+            is_derived: false,
+        })
+    }
+
+    /// Create a derived relation forwarding one primary constraint's evidence.
+    pub(in crate::check) fn derived(
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        cause: CauseId,
+    ) -> Self {
+        Self::Type(TypeConstraint {
+            relation,
+            source,
+            target,
+            cause,
+            invalidated_application: None,
+            is_derived: true,
         })
     }
 
@@ -156,20 +168,21 @@ impl Constraint {
             target: bound,
             cause,
             invalidated_application: Some(application),
+            is_derived: false,
         })
     }
 
     /// Create a value constraint.
     pub(in crate::check) fn value(
         relation: Relation,
-        source: ValueSource,
+        node: dir::GlobalNodeIdAny,
         target: dir::GlobalTypeId,
         cause: CauseId,
         use_: ValueUse,
     ) -> Self {
         Self::Value(ValueConstraint {
             relation,
-            source,
+            node,
             target,
             cause,
             use_,
@@ -189,6 +202,14 @@ impl Constraint {
         match self {
             Self::Type(constraint) => constraint.cause,
             Self::Value(constraint) => constraint.cause,
+        }
+    }
+
+    /// Return whether this constraint derives from a primary constraint.
+    pub(in crate::check) fn is_derived(&self) -> bool {
+        match self {
+            Self::Type(constraint) => constraint.is_derived,
+            Self::Value(_) => false,
         }
     }
 
@@ -226,8 +247,10 @@ pub(in crate::check) struct ConstraintTable {
     constraints: Vec<Constraint>,
     /// Constraint states indexed by constraint id.
     states: Vec<ConstraintState>,
-    /// Concrete targets selected by completed value checks.
-    value_targets: Vec<Option<dir::GlobalTypeId>>,
+    /// Runtime coercions produced by completed value checks.
+    coercions: Vec<Option<Box<dir::Coercion>>>,
+    /// Ids of collected constraints by value, so one task collects once.
+    interned: FxIndexMap<Constraint, ConstraintId>,
 }
 
 impl ConstraintTable {
@@ -236,19 +259,27 @@ impl ConstraintTable {
         Self::default()
     }
 
+    /// Return the id one constraint already collected under.
+    pub(in crate::check) fn lookup(&self, constraint: &Constraint) -> Option<ConstraintId> {
+        self.interned.get(constraint).copied()
+    }
+
     /// Append one constraint at the next id.
     pub(in crate::check) fn insert(&mut self, id: ConstraintId, constraint: Constraint) {
         debug_assert_eq!(self.constraints.len(), id.index());
         self.constraints.push(constraint);
         self.states.push(ConstraintState::Pending);
-        self.value_targets.push(None);
+        self.coercions.push(None);
+        self.interned.insert(constraint, id);
     }
 
     /// Truncate constraints undone by one probe rollback.
     pub(in crate::check) fn truncate(&mut self, count: usize) {
         self.constraints.truncate(count);
         self.states.truncate(count);
-        self.value_targets.truncate(count);
+        self.coercions.truncate(count);
+        // every id interns one entry in allocation order, so the tables truncate together
+        self.interned.truncate(count);
     }
 
     /// Return one constraint.
@@ -278,16 +309,16 @@ impl ConstraintTable {
             })
     }
 
-    /// Return the concrete target selected by one completed value check.
-    pub(in crate::check) fn value_target(
+    /// Return the runtime coercion produced by one completed value check.
+    pub(in crate::check) fn coercion(
         &self,
         id: ConstraintId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        self.value_targets
+    ) -> CompilerResult<Option<&dir::Coercion>> {
+        self.coercions
             .get(id.index())
-            .copied()
+            .map(|coercion| coercion.as_deref())
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("check constraint {id:?} has no value target slot"),
+                message: format!("check constraint {id:?} has no coercion slot"),
             })
     }
 
@@ -296,10 +327,10 @@ impl ConstraintTable {
         &mut self,
         id: ConstraintId,
         state: ConstraintState,
-        value_target: Option<dir::GlobalTypeId>,
+        coercion: Option<Box<dir::Coercion>>,
     ) {
         self.states[id.index()] = state;
-        self.value_targets[id.index()] = value_target;
+        self.coercions[id.index()] = coercion;
     }
 
     /// Return whether one constraint finished solving.
@@ -345,7 +376,7 @@ impl CheckState<'_> {
 pub(in crate::check) enum CheckFailure {
     /// The relation itself did not hold.
     Relation,
-    /// The failure was already reported at a finer judgment.
+    /// The failure was already reported at a finer constraint.
     Reported,
     /// Direct property literal missed one required key.
     MissingRequiredProperty {
@@ -373,13 +404,22 @@ pub(in crate::check) enum CheckOutcome {
     Fails(CheckFailure),
 }
 
-/// Completed relation judgment for one runtime value.
+/// Result of checking one source node against a contextual target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct ValueCheck {
-    /// Whether the value relation held.
+    /// Whether the target-directed check held.
     pub(in crate::check) outcome: CheckOutcome,
     /// The concrete contextual target checked against the value.
     pub(in crate::check) target: dir::GlobalTypeId,
+}
+
+/// Solved relation between one runtime value and its target type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::check) struct ValueRelation {
+    /// Whether the value relation held.
+    pub(in crate::check) outcome: CheckOutcome,
+    /// The runtime coercion required by the related value.
+    pub(in crate::check) coercion: Option<Box<dir::Coercion>>,
 }
 
 impl CheckOutcome {
@@ -408,9 +448,3 @@ pub(in crate::check) enum CheckAttempt {
     /// The expression form checked against this target.
     Checked(ValueCheck),
 }
-
-// lock the queued constraint shapes
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Constraint>() == 72);
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<ValueConstraint>() == 64);

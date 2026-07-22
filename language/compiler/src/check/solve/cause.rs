@@ -3,17 +3,17 @@ use destack_dir as dir;
 
 use crate::check::{Origin, Variance};
 
-/// One interned reason a judgment exists.
+/// One interned reason a constraint exists.
 ///
-/// Causes form a tree from each judgment back to the written syntax that
+/// Causes form a tree from each constraint back to the written syntax that
 /// demanded it, so any failure explains itself by walking its chain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct Cause {
-    /// The source this judgment anchors to.
+    /// The source this constraint anchors to.
     pub(in crate::check) origin: Origin,
-    /// Why this judgment exists.
+    /// Why this constraint exists.
     pub(in crate::check) kind: CauseKind,
-    /// The judgment that spawned this one.
+    /// The constraint that spawned this one.
     pub(in crate::check) parent: Option<CauseId>,
 }
 
@@ -27,7 +27,7 @@ impl Cause {
         }
     }
 
-    /// Create one child cause descending from a parent judgment.
+    /// Create one child cause descending from a parent constraint.
     pub(in crate::check) fn slot(origin: Origin, kind: CauseKind, parent: CauseId) -> Self {
         Self {
             origin,
@@ -35,14 +35,9 @@ impl Cause {
             parent: Some(parent),
         }
     }
-
-    /// Return this cause at another source origin.
-    pub(in crate::check) fn with_origin(self, origin: Origin) -> Self {
-        Self { origin, ..self }
-    }
 }
 
-/// Why one judgment exists.
+/// Why one constraint exists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum CauseKind {
     /// A value flows into an annotated binding.
@@ -84,24 +79,24 @@ pub(in crate::check) enum CauseKind {
     },
     /// A value satisfies one written relation, like `satisfies` or a cast.
     Expression,
-    /// A judgment descends into one structural field.
+    /// A constraint descends into one structural field.
     Field {
         /// The field key.
         key: dir::StaticKey,
     },
-    /// A judgment descends into one positional element.
+    /// A constraint descends into one positional element.
     Element {
         /// The zero-based element position.
         index: u32,
     },
-    /// A judgment descends into one signature parameter, contravariantly.
+    /// A constraint descends into one signature parameter, contravariantly.
     Parameter {
         /// The zero-based parameter position.
         index: u32,
     },
-    /// A judgment descends into the signature return slot.
+    /// A constraint descends into the signature return slot.
     ReturnSlot,
-    /// A judgment descends into one type argument under its variance.
+    /// A constraint descends into one type argument under its variance.
     TypeArgument {
         /// The applied symbol.
         symbol: dir::GlobalSymbolId,
@@ -110,12 +105,12 @@ pub(in crate::check) enum CauseKind {
         /// The variance the argument relates under.
         variance: Variance,
     },
-    /// A judgment descends into one memory form payload.
+    /// A constraint descends into one memory form payload.
     Payload,
 }
 
 impl CauseKind {
-    /// Return whether this kind descends inside a parent judgment.
+    /// Return whether this kind descends inside a parent constraint.
     pub(in crate::check) fn is_slot(self) -> bool {
         matches!(
             self,
@@ -163,5 +158,17 @@ impl CauseArena {
     /// Return one interned cause.
     pub(in crate::check) fn get(&self, id: CauseId) -> Cause {
         self.causes[id.index()]
+    }
+
+    /// Return whether one cause is a strict ancestor of another.
+    pub(in crate::check) fn is_ancestor(&self, ancestor: CauseId, mut cause: CauseId) -> bool {
+        while let Some(parent) = self.get(cause).parent {
+            if parent == ancestor {
+                return true;
+            }
+            cause = parent;
+        }
+
+        false
     }
 }

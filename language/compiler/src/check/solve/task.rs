@@ -3,14 +3,14 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CauseId, CheckFailure, ConstraintId, FlowSite, FunctionBody, ObligationFailure, ObligationId,
-    PlaceUse, Relation, ValueUse,
+    CauseId, CheckFailure, ConstraintId, Expectation, FlowSite, FunctionBody, ObligationFailure,
+    ObligationId, PlaceUse, Relation, ValueUse,
 };
 
-/// Failed judgments returned by one solver task run.
+/// Failures returned by one solver task run.
 pub(in crate::check) type TaskFailures = SmallVec<[TaskFailure; 1]>;
 
-/// One failed judgment returned by a solver task.
+/// One failure returned by a solver task.
 #[derive(Debug, Clone)]
 pub(in crate::check) enum TaskFailure {
     /// One value or type constraint does not hold.
@@ -19,10 +19,10 @@ pub(in crate::check) enum TaskFailure {
     Obligation(ObligationFailure),
 }
 
-/// One failed constraint judgment.
+/// One failed constraint.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct ConstraintFailure {
-    /// The judgment cause that produced the constraint.
+    /// The cause that produced the constraint.
     pub(in crate::check) cause: CauseId,
     /// The relation that failed.
     pub(in crate::check) relation: Relation,
@@ -43,8 +43,13 @@ const TASK_PRIORITY_COUNT: usize = 4;
 pub(in crate::check) enum Task {
     /// Solve one type relation constraint.
     Relate(ConstraintId),
-    /// Check one source node value constraint.
-    Check(ConstraintId),
+    /// Check one source node against its contextual target.
+    Check {
+        /// The checked source site.
+        site: FlowSite,
+        /// The contextual target applied at the site.
+        expectation: Expectation,
+    },
     /// Infer one source use.
     Infer {
         /// The inferred source use.
@@ -63,7 +68,7 @@ impl Task {
     fn priority(&self) -> TaskPriority {
         match self {
             Self::Relate(_) => TaskPriority::Relate,
-            Self::Check(_) | Self::CheckBody(_) => TaskPriority::Check,
+            Self::Check { .. } | Self::CheckBody(_) => TaskPriority::Check,
             Self::Infer { .. } => TaskPriority::Infer,
             Self::Oblige(_) => TaskPriority::Oblige,
         }
@@ -85,10 +90,10 @@ enum TaskPriority {
 
 impl TaskPriority {
     /// Priorities that produce checked types and resolutions.
-    const JUDGMENTS: [Self; 3] = [Self::Relate, Self::Check, Self::Infer];
+    const CHECKS: [Self; 3] = [Self::Relate, Self::Check, Self::Infer];
 
-    /// Priorities that settle value and type constraints.
-    const CONSTRAINTS: [Self; 2] = [Self::Relate, Self::Check];
+    /// Priorities that settle relation constraints.
+    const CONSTRAINTS: [Self; 1] = [Self::Relate];
 
     /// Return the dense array index for this priority.
     fn index(self) -> usize {
@@ -127,9 +132,9 @@ impl WorkQueue {
         }
     }
 
-    /// Pop the next type or value judgment.
-    pub(in crate::check) fn pop_judgment(&mut self) -> Option<Task> {
-        TaskPriority::JUDGMENTS
+    /// Pop the next check task.
+    pub(in crate::check) fn pop_check(&mut self) -> Option<Task> {
+        TaskPriority::CHECKS
             .into_iter()
             .find_map(|priority| self.pop_at(priority))
     }

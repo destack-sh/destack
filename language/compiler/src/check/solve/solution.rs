@@ -3,10 +3,19 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BoundSide, CauseId, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation,
-    TypeBound, VariableBounds, VariableDomain, VariableRole, Widening, answer,
+    Answer, BoundSide, CauseId, CheckEvent, CheckState, Constraint, Dependency, InferenceScope,
+    Origin, Relation, TypeBound, VariableBounds, VariableRole, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
+
+/// Outcome of settling one task's scope.
+#[derive(Debug)]
+pub(in crate::check) struct ScopeSettlement {
+    /// Whether settlement solved at least one component.
+    pub(in crate::check) settled: bool,
+    /// The owned variables that stay open.
+    pub(in crate::check) open: SmallVec<[dir::TypeVariableId; 2]>,
+}
 
 /// How one bound depends on open variables during component solving.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,43 +86,79 @@ impl CheckState<'_> {
         self.solver.variable_role(variable)
     }
 
-    /// Solve every ready variable dependency component.
-    pub(in crate::check) fn solve_variables(
+    /// Settle every variable one completed task touched.
+    pub(in crate::check) fn settle_task(
         &mut self,
-        domain: VariableDomain,
-    ) -> CompilerResult<bool> {
-        self.solve_variable_components(domain, false)
-    }
-
-    /// Apply declared defaults to every remaining dry variable dependency component.
-    pub(in crate::check) fn default_variables(
-        &mut self,
-        domain: VariableDomain,
-    ) -> CompilerResult<bool> {
-        self.solve_variable_components(domain, true)
-    }
-
-    /// Complete every open variable in one failed judgment with the error type.
-    pub(in crate::check) fn poison_variables(
-        &mut self,
-        domain: VariableDomain,
-    ) -> CompilerResult<()> {
-        // retain every solution available from evidence or declared defaults
-        while self.solve_variables(domain)? {}
-        while self.default_variables(domain)? {
-            while self.solve_variables(domain)? {}
-        }
-
-        // taint only variables the failed judgment could not determine
-        let variable_count = self.solver.variable_count();
-        for index in domain.range(variable_count) {
-            let variable = dir::TypeVariableId(index as u32);
-            let state = *self.solver.variable(variable)?;
-            if state.solution.is_some() {
-                continue;
+        scope: InferenceScope,
+        mark: usize,
+        is_defaulting: bool,
+    ) -> CompilerResult<ScopeSettlement> {
+        // solve dependency chains to quiescence, dependencies first
+        let mut settled = false;
+        loop {
+            // relate closed evidence onward before solving components
+            let mut forwarded = false;
+            let adopted = self.solver.adopted_since(mark, scope);
+            for index in scope.indices(self.solver.variable_count()) {
+                let variable = dir::TypeVariableId(index as u32);
+                if self.solver.variable(variable)?.solution.is_none() {
+                    forwarded |= self.forward_evidence(variable)?;
+                }
+            }
+            for variable in &adopted {
+                if self.solver.variable(*variable)?.solution.is_none() {
+                    forwarded |= self.forward_evidence(*variable)?;
+                }
             }
 
-            let origin = self.solver.origin(state.origin);
+            // solve each owned dependency component under the caller's phase
+            let components = self.scope_variable_components(scope)?;
+            let mut solved = false;
+            for variables in &components {
+                if variables.is_empty() {
+                    continue;
+                }
+                solved |= self.solve_variable_component(variables, is_defaulting)?;
+            }
+
+            // settle adopted holes from evidence, leaving defaults to their owners
+            for variable in &adopted {
+                if self.solver.variable(*variable)?.solution.is_none() {
+                    solved |= self.solve_variable_component(&[*variable], false)?;
+                }
+            }
+
+            if !solved && !forwarded {
+                break;
+            }
+            settled = true;
+        }
+
+        // collect the owned variables that stay open
+        let mut open = SmallVec::new();
+        for index in scope.indices(self.solver.variable_count()) {
+            let variable = dir::TypeVariableId(index as u32);
+            if self.solver.variable(variable)?.solution.is_none() {
+                open.push(variable);
+            }
+        }
+
+        Ok(ScopeSettlement { settled, open })
+    }
+
+    /// Complete every open variable of one failed scope with the error type.
+    pub(in crate::check) fn poison_scope(&mut self, scope: InferenceScope) -> CompilerResult<()> {
+        // retain every solution available from evidence or declared defaults
+        let mark = self.solver.snapshot_watermark();
+        let settlement = self.settle_task(scope, mark, true)?;
+
+        // taint only variables the failed task could not determine
+        for variable in settlement.open {
+            if self.solver.variable(variable)?.solution.is_some() {
+                continue;
+            }
+            let origin_id = self.solver.variable(variable)?.origin;
+            let origin = self.solver.origin(origin_id);
             let error = self.intern_type(origin.module(), dir::Type::Error)?;
             self.commit_solution(variable, error)?;
         }
@@ -121,22 +166,88 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Solve every ready variable dependency component.
-    fn solve_variable_components(
+    /// Settle one produced cell from its accumulated evidence.
+    pub(in crate::check) fn settle_produced(
         &mut self,
-        domain: VariableDomain,
-        is_defaulting: bool,
+        variable: dir::TypeVariableId,
     ) -> CompilerResult<bool> {
+        if self.solver.variable(variable)?.solution.is_some() {
+            return Ok(false);
+        }
+
+        self.solve_variable_component(&[variable], true)
+    }
+
+    /// Relate one variable's closed lower evidence onto its open uppers.
+    ///
+    /// Evidence flows through open slots: candidates relate onward into
+    /// the inference variables of the slot's own targets.
+    fn forward_evidence(&mut self, variable: dir::TypeVariableId) -> CompilerResult<bool> {
+        // collect the closed evidence and the open targets
+        let mut lowers = SmallVec::<[TypeBound; 2]>::new();
+        let mut uppers = SmallVec::<[TypeBound; 2]>::new();
+        for bound in self
+            .solver
+            .variables
+            .side_bounds(variable, BoundSide::Lower)?
+        {
+            if self.type_variables(bound.ty)?.is_empty() {
+                lowers.push(bound);
+            }
+        }
+        for bound in self
+            .solver
+            .variables
+            .side_bounds(variable, BoundSide::Upper)?
+        {
+            if !self.type_variables(bound.ty)?.is_empty() {
+                uppers.push(bound);
+            }
+        }
+        if lowers.is_empty() || uppers.is_empty() {
+            return Ok(false);
+        }
+
+        // evidence flows onward as first-class constraints, so an
+        //  unsatisfiable transit rejects the task that induced it
+        let bounds_before = self.solver.variables.bound_count();
+        let constraints_before = self.solver.constraint_count();
+        for upper in &uppers {
+            for lower in &lowers {
+                let relation = match upper.relation {
+                    Relation::Equal => lower.relation,
+                    relation => relation,
+                };
+                self.push_constraint(Constraint::derived(
+                    relation,
+                    lower.ty,
+                    upper.ty,
+                    upper.cause,
+                ));
+            }
+        }
+
+        let progressed = self.solver.variables.bound_count() > bounds_before
+            || self.solver.constraint_count() > constraints_before;
+
+        Ok(progressed)
+    }
+
+    /// Partition the open variables of one scope into dependency components.
+    fn scope_variable_components(
+        &mut self,
+        scope: InferenceScope,
+    ) -> CompilerResult<Vec<SmallVec<[dir::TypeVariableId; 2]>>> {
         let variable_count = self.solver.variable_count();
-        let variable_range = domain.range(variable_count);
-        let first_index = variable_range.start;
+        let indices = scope.indices(variable_count);
+        let first_index = indices.start;
         let first_variable = first_index as u32;
-        let mut edge_offsets = Vec::with_capacity(variable_range.len() + 1);
-        let mut edge_targets = Vec::new();
+        let mut edge_offsets = Vec::with_capacity(indices.len() + 1);
+        let mut edge_targets = Vec::<u32>::new();
         edge_offsets.push(0);
 
         // build dependencies from every open root to variables in its bounds
-        for index in variable_range.clone() {
+        for index in indices.clone() {
             let variable = dir::TypeVariableId(index as u32);
             let state = self.solver.variable(variable)?;
             let edge_start = edge_targets.len();
@@ -144,7 +255,7 @@ impl CheckState<'_> {
                 for side in [BoundSide::Lower, BoundSide::Upper] {
                     for bound in self.solver.variables.side_bounds(variable, side)? {
                         for dependency in self.type_variables(bound.ty)? {
-                            if domain.contains(dependency)
+                            if scope.owns(dependency)
                                 && !edge_targets[edge_start..]
                                     .contains(&(dependency.0 - first_variable))
                             {
@@ -157,12 +268,12 @@ impl CheckState<'_> {
             edge_offsets.push(edge_targets.len() as u32);
         }
 
-        // partition mutually dependent variables for simultaneous fixation
+        // partition mutually dependent variables for simultaneous settlement
         let graph = DenseGraph::new(&edge_offsets, &edge_targets);
         let partition = graph.strongly_connected_components();
         let mut components =
             vec![SmallVec::<[dir::TypeVariableId; 2]>::new(); partition.component_count() as usize];
-        for index in variable_range {
+        for index in indices {
             let variable = dir::TypeVariableId(index as u32);
             let state = self.solver.variable(variable)?;
             if state.solution.is_none() {
@@ -171,16 +282,7 @@ impl CheckState<'_> {
             }
         }
 
-        // solve every grounded component from its proper lower or upper bounds
-        let mut solved = false;
-        for variables in components {
-            if variables.is_empty() {
-                continue;
-            }
-            solved |= self.solve_variable_component(&variables, is_defaulting)?;
-        }
-
-        Ok(solved)
+        Ok(components)
     }
 
     /// Solve one mutually dependent variable component.
@@ -196,6 +298,8 @@ impl CheckState<'_> {
         let mut has_external_dependency = false;
         let mut has_recursive_bound = false;
         let mut has_return_cycle = false;
+        let mut equation = None;
+        let mut has_open_equation = false;
 
         // collect proper bounds while retaining structural cycles as errors
         for variable in variables {
@@ -234,6 +338,9 @@ impl CheckState<'_> {
                 match self.bound_dependency(bound.ty, variables)? {
                     BoundDependency::Closed => {
                         closed_upper.push(*bound);
+                        if bound.relation == Relation::Equal {
+                            equation = Some(bound.ty);
+                        }
                         if bound.relation != Relation::Satisfies {
                             upper_candidates.push(bound.ty);
                         }
@@ -244,8 +351,12 @@ impl CheckState<'_> {
                     BoundDependency::Nested => {
                         has_recursive_bound = true;
                         has_return_cycle |= is_return && bound.relation != Relation::Equal;
+                        has_open_equation |= bound.relation == Relation::Equal;
                     }
-                    BoundDependency::External => has_external_dependency = true,
+                    BoundDependency::External => {
+                        has_external_dependency = true;
+                        has_open_equation |= bound.relation == Relation::Equal;
+                    }
                 }
             }
 
@@ -288,7 +399,13 @@ impl CheckState<'_> {
             && lower_candidates.is_empty()
             && upper_candidates.is_empty()
             && !has_external_dependency;
-        let solution = if has_return_cycle || is_unconstrained_recursion {
+        // a closed equation pins the solution; open equations defer
+        //  until their composite closes
+        let solution = if let Some(equation) = equation {
+            Some(equation)
+        } else if has_open_equation {
+            None
+        } else if has_return_cycle || is_unconstrained_recursion {
             None
         } else if !lower_candidates.is_empty() {
             let joined = self.best_common(root, &lower_candidates)?;
@@ -328,7 +445,7 @@ impl CheckState<'_> {
             }
             None => return Ok(false),
         };
-        let solution = self.reduce_type_head(origin, solution)?;
+        let solution = self.reduce_named_head(origin, solution)?;
         let Answer::Ready(solution) = solution else {
             return Err(CompilerError::Internal {
                 message: format!(

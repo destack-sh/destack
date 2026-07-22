@@ -10,9 +10,8 @@ impl CheckEvent {
         log: &mut ArtifactEventLog,
     ) {
         let event = match self {
-            Self::ProbeStarted { reason, variables } => ArtifactEvent::new("probe.started")
+            Self::ProbeStarted { variables } => ArtifactEvent::new("probe.started")
                 .debug()
-                .text("reason", format!("{reason:?}"))
                 .usize("variables", *variables),
             Self::ProbeFinished { verdict } => {
                 let verdict = match verdict {

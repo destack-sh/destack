@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CandidateVerdict, CheckState, ConstraintId, Dependency, DumpContext, ObligationId, ProbeReason,
-    Task, TypeBound, Widening,
+    CandidateVerdict, CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task,
+    TypeBound, Widening,
 };
 
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
@@ -42,8 +42,6 @@ pub(in crate::check) struct VariableBounds {
 pub(in crate::check) enum CheckEvent {
     /// One speculative probe started.
     ProbeStarted {
-        /// The judgment the probe speculates on.
-        reason: ProbeReason,
         /// The number of variables present before the probe.
         variables: usize,
     },
