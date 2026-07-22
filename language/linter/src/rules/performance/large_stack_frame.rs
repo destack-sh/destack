@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when one function requires excessive stack storage.
+declare_lint_stub! {
+    /// Disallow functions that require excessive stack storage.
     pub LARGE_STACK_FRAME {
         id: "large-stack-frame",
-        description: "Warn when one function requires excessive stack storage",
+        summary: "Disallow functions that require excessive stack storage",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when the same regular expression is built repeatedly.
+declare_lint_stub! {
+    /// Disallow repeated construction of the same regular expression.
     pub REPEATED_REGEX_CONSTRUCTION {
         id: "repeated-regex-construction",
-        description: "Warn when the same regular expression is built repeatedly",
+        summary: "Disallow repeated construction of the same regular expression",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

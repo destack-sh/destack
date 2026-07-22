@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Require compound assignment where equivalent.
     pub OPERATOR_ASSIGNMENT {
         id: "operator-assignment",
-        description: "Require compound assignment where equivalent",
+        summary: "Require compound assignment where equivalent",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow useless return statements.
     pub NO_USELESS_RETURN {
         id: "no-useless-return",
-        description: "Disallow useless return statements",
+        summary: "Disallow useless return statements",
         category: Suspicious,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

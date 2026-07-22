@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Prefer optional chaining to equivalent guarded property access.
     pub PREFER_OPTIONAL_CHAIN {
         id: "prefer-optional-chain",
-        description: "Prefer optional chaining to equivalent guarded property access",
+        summary: "Prefer optional chaining to equivalent guarded property access",
         category: Style,
         level: Warning,
-        fixable: Always,
+        fixable: Automatic,
         check: DirModule(check),
     }
 }

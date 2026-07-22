@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Enforce comment punctuation.
     pub COMMENT_PUNCTUATION {
         id: "comment-punctuation",
-        description: "Enforce comment punctuation",
+        summary: "Enforce comment punctuation",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

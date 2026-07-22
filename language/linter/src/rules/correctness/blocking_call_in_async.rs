@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow resolved blocking operations in asynchronous execution.
     pub BLOCKING_CALL_IN_ASYNC {
         id: "blocking-call-in-async",
-        description: "Disallow resolved blocking operations in asynchronous execution",
+        summary: "Disallow resolved blocking operations in asynchronous execution",
         category: Correctness,
         level: Error,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

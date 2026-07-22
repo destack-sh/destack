@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow unnecessary ternary expressions.
     pub NO_UNNEEDED_TERNARY {
         id: "no-unneeded-ternary",
-        description: "Disallow unnecessary ternary expressions",
+        summary: "Disallow unnecessary ternary expressions",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

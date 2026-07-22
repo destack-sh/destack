@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Prefer tuple destructuring over indexed access.
     pub PREFER_TUPLE_DESTRUCTURE {
         id: "prefer-tuple-destructure",
-        description: "Prefer tuple destructuring over indexed access",
+        summary: "Prefer tuple destructuring over indexed access",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

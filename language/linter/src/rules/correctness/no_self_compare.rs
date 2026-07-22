@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow comparisons of a value with itself.
     pub NO_SELF_COMPARE {
         id: "no-self-compare",
-        description: "Disallow comparisons of a value with itself",
+        summary: "Disallow comparisons of a value with itself",
         category: Correctness,
-        level: Error,
-        fixable: Never,
+        level: Warning,
+        fixable: None,
         check: DirModule(check),
     }
 }

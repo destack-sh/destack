@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow constructors that only repeat implicit construction behavior.
     pub NO_USELESS_CONSTRUCTOR {
         id: "no-useless-constructor",
-        description: "Disallow constructors that only repeat implicit construction behavior",
+        summary: "Disallow constructors that only repeat implicit construction behavior",
         category: Suspicious,
         level: Warning,
-        fixable: Always,
+        fixable: Automatic,
         check: DirModule(check),
     }
 }

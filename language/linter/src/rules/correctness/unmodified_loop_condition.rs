@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow loops whose condition dependencies never change.
     pub UNMODIFIED_LOOP_CONDITION {
         id: "unmodified-loop-condition",
-        description: "Disallow loops whose condition dependencies never change",
+        summary: "Disallow loops whose condition dependencies never change",
         category: Correctness,
         level: Error,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

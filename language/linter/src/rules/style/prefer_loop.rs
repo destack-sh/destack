@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Prefer explicit `loop` for infinite loops.
     pub PREFER_LOOP {
         id: "prefer-loop",
-        description: "Prefer explicit `loop` for infinite loops",
+        summary: "Prefer explicit `loop` for infinite loops",
         category: Style,
         level: Warning,
-        fixable: Always,
+        fixable: Automatic,
         check: DirModule(check),
     }
 }

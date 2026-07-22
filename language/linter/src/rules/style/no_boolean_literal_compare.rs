@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow comparing to boolean literals.
     pub NO_BOOLEAN_LITERAL_COMPARE {
         id: "no-boolean-literal-compare",
-        description: "Disallow comparing to boolean literals",
+        summary: "Disallow comparing to boolean literals",
         category: Style,
         level: Warning,
-        fixable: Always,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when significant destruction is extended by a scrutinee.
+declare_lint_stub! {
+    /// Disallow scrutinees that unnecessarily extend significant destruction.
     pub SIGNIFICANT_DROP_IN_SCRUTINEE {
         id: "significant-drop-in-scrutinee",
-        description: "Warn when significant destruction is extended by a scrutinee",
+        summary: "Disallow scrutinees that unnecessarily extend significant destruction",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow useless computed keys.
     pub NO_USELESS_COMPUTED_KEY {
         id: "no-useless-computed-key",
-        description: "Disallow useless computed keys",
+        summary: "Disallow useless computed keys",
         category: Suspicious,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

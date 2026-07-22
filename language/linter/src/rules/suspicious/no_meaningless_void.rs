@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow void expressions that accomplish nothing.
     pub NO_MEANINGLESS_VOID {
         id: "no-meaningless-void",
-        description: "Disallow void expressions that accomplish nothing",
+        summary: "Disallow void expressions that accomplish nothing",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

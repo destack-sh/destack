@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Prefer tuple assignment for swaps.
     pub PREFER_TUPLE_SWAP {
         id: "prefer-tuple-swap",
-        description: "Prefer tuple assignment for swaps",
+        summary: "Prefer tuple assignment for swaps",
         category: Style,
         level: Warning,
-        fixable: Always,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

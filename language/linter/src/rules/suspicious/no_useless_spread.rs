@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow spreads that have no observable effect.
     pub NO_USELESS_SPREAD {
         id: "no-useless-spread",
-        description: "Disallow spreads that have no observable effect",
+        summary: "Disallow spreads that have no observable effect",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

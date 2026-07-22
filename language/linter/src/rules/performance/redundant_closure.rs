@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow closures that only forward their arguments to another callable.
     pub REDUNDANT_CLOSURE {
         id: "redundant-closure",
-        description: "Disallow closures that only forward their arguments to another callable",
+        summary: "Disallow closures that only forward their arguments to another callable",
         category: Performance,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

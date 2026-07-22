@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
-    /// Warn on match arms with identical checked bodies.
+declare_lint_stub! {
+    /// Disallow match arms with identical checked bodies.
     pub NO_DUPLICATE_MATCH_ARMS {
         id: "no-duplicate-match-arms",
-        description: "Warn on match arms with identical checked bodies",
+        summary: "Disallow match arms with identical checked bodies",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

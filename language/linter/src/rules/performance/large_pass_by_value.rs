@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when a large represented value is passed by value.
+declare_lint_stub! {
+    /// Disallow passing excessively large represented values by value.
     pub LARGE_PASS_BY_VALUE {
         id: "large-pass-by-value",
-        description: "Warn when a large represented value is passed by value",
+        summary: "Disallow passing excessively large represented values by value",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

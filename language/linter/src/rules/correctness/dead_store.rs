@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow stored values that are never observed.
     pub DEAD_STORE {
         id: "dead-store",
-        description: "Disallow stored values that are never observed",
+        summary: "Disallow stored values that are never observed",
         category: Correctness,
-        level: Error,
-        fixable: Never,
+        level: Warning,
+        fixable: None,
         check: MirModule(check),
     }
 }

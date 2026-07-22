@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow suspension while holding a guard or exclusive resource.
     pub SUSPENSION_HOLDING_GUARD {
         id: "suspension-holding-guard",
-        description: "Disallow suspension while holding a guard or exclusive resource",
+        summary: "Disallow suspension while holding a guard or exclusive resource",
         category: Correctness,
         level: Error,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow negation of left operand in relational operators.
     pub NO_UNSAFE_NEGATION {
         id: "no-unsafe-negation",
-        description: "Disallow negation of left operand in relational operators",
+        summary: "Disallow negation of left operand in relational operators",
         category: Correctness,
-        level: Error,
-        fixable: Always,
+        level: Warning,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

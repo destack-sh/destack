@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when an allocating operation executes on a repeated path.
+declare_lint_stub! {
+    /// Disallow allocating operations on repeated paths.
     pub ALLOCATION_IN_LOOP {
         id: "allocation-in-loop",
-        description: "Warn when an allocating operation executes on a repeated path",
+        summary: "Disallow allocating operations on repeated paths",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when independent asynchronous operations are awaited sequentially.
+declare_lint_stub! {
+    /// Prefer concurrent execution of independent asynchronous operations.
     pub INDEPENDENT_AWAIT {
         id: "independent-await",
-        description: "Warn when independent asynchronous operations are awaited sequentially",
+        summary: "Prefer concurrent execution of independent asynchronous operations",
         category: Performance,
         level: Warning,
-        fixable: Sometimes,
+        fixable: None,
         check: MirModule(check),
     }
 }

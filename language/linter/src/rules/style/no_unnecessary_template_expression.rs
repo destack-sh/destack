@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow template expressions without formatting or conversion.
     pub NO_UNNECESSARY_TEMPLATE_EXPRESSION {
         id: "no-unnecessary-template-expression",
-        description: "Disallow template expressions without formatting or conversion",
+        summary: "Disallow template expressions without formatting or conversion",
         category: Style,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

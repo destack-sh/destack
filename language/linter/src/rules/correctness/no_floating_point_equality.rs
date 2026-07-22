@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow direct == comparison of floats.
     pub NO_FLOATING_POINT_EQUALITY {
         id: "no-floating-point-equality",
-        description: "Disallow direct == comparison of floats",
+        summary: "Disallow direct == comparison of floats",
         category: Correctness,
-        level: Error,
-        fixable: Never,
+        level: Warning,
+        fixable: None,
         check: DirModule(check),
     }
 }

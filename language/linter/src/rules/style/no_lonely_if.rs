@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow lonely if in else.
     pub NO_LONELY_IF {
         id: "no-lonely-if",
-        description: "Disallow lonely if in else",
+        summary: "Disallow lonely if in else",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

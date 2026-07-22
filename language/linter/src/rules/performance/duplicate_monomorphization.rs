@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirProgram};
 
-declare_lint! {
-    /// Warn when equivalent generic instances duplicate generated program work.
+declare_lint_stub! {
+    /// Disallow equivalent generic instances that duplicate generated program work.
     pub DUPLICATE_MONOMORPHIZATION {
         id: "duplicate-monomorphization",
-        description: "Warn when equivalent generic instances duplicate generated program work",
+        summary: "Disallow equivalent generic instances that duplicate generated program work",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirProgram(check),
     }
 }

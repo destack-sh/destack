@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow nested ternary expressions.
     pub NO_NESTED_TERNARY {
         id: "no-nested-ternary",
-        description: "Disallow nested ternary expressions",
+        summary: "Disallow nested ternary expressions",
         category: Style,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

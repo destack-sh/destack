@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirProgram, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow substantial alpha-equivalent checked code.
     pub NO_DUPLICATE_CODE {
         id: "no-duplicate-code",
-        description: "Disallow substantial alpha-equivalent checked code",
+        summary: "Disallow substantial alpha-equivalent checked code",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirProgram(check),
     }
 }

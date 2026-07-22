@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Suggest merging nested if statements.
     pub NO_COLLAPSIBLE_IF {
         id: "no-collapsible-if",
-        description: "Suggest merging nested if statements",
+        summary: "Suggest merging nested if statements",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

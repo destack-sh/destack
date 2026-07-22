@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow numeric literals that approximate well-known constants.
     pub NO_APPROX_CONSTANT {
         id: "no-approx-constant",
-        description: "Disallow numeric literals that approximate well-known constants",
+        summary: "Disallow numeric literals that approximate well-known constants",
         category: Correctness,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

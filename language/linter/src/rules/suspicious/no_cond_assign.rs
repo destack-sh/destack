@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow assignment in conditions.
     pub NO_COND_ASSIGN {
         id: "no-cond-assign",
-        description: "Disallow assignment in conditions",
+        summary: "Disallow assignment in conditions",
         category: Suspicious,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

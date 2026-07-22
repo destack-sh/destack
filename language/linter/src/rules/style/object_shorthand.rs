@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Require object property shorthand where equivalent.
     pub OBJECT_SHORTHAND {
         id: "object-shorthand",
-        description: "Require object property shorthand where equivalent",
+        summary: "Require object property shorthand where equivalent",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

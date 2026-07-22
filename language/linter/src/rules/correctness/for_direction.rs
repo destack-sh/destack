@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow for loops with incorrect direction.
     pub FOR_DIRECTION {
         id: "for-direction",
-        description: "Disallow for loops with incorrect direction",
+        summary: "Disallow for loops with incorrect direction",
         category: Correctness,
         level: Error,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

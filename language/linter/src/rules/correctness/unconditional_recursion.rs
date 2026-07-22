@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirProgram};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow functions that recurse before every possible return.
     pub UNCONDITIONAL_RECURSION {
         id: "unconditional-recursion",
-        description: "Disallow functions that recurse before every possible return",
+        summary: "Disallow functions that recurse before every possible return",
         category: Correctness,
         level: Error,
-        fixable: Never,
+        fixable: None,
         check: MirProgram(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow empty destructuring patterns.
     pub NO_EMPTY_PATTERN {
         id: "no-empty-pattern",
-        description: "Disallow empty destructuring patterns",
+        summary: "Disallow empty destructuring patterns",
         category: Suspicious,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

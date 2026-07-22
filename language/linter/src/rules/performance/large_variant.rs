@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when one variant disproportionately enlarges an inline union.
+declare_lint_stub! {
+    /// Disallow variants that disproportionately enlarge an inline union.
     pub LARGE_VARIANT {
         id: "large-variant",
-        description: "Warn when one variant disproportionately enlarges an inline union",
+        summary: "Disallow variants that disproportionately enlarge an inline union",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

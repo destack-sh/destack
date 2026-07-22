@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow credentials and secret material embedded in source values.
     pub HARDCODED_SECRET {
         id: "hardcoded-secret",
-        description: "Disallow credentials and secret material embedded in source values",
+        summary: "Disallow credentials and secret material embedded in source values",
         category: Security,
-        level: Error,
-        fixable: Never,
+        level: Warning,
+        fixable: None,
         check: DirModule(check),
     }
 }

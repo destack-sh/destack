@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Require explicit types at exported and public API boundaries.
     pub EXPLICIT_PUBLIC_TYPES {
         id: "explicit-public-types",
-        description: "Require explicit types at exported and public API boundaries",
+        summary: "Require explicit types at exported and public API boundaries",
         category: Style,
         level: Warning,
-        fixable: Always,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

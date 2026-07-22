@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when a parameter is never consumed or mutated.
+declare_lint_stub! {
+    /// Disallow passing parameters by value when they are never consumed or mutated.
     pub NEEDLESS_PASS_BY_VALUE {
         id: "needless-pass-by-value",
-        description: "Warn when a parameter is never consumed or mutated",
+        summary: "Disallow passing parameters by value when they are never consumed or mutated",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

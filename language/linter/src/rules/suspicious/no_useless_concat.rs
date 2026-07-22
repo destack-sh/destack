@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow useless string concatenation.
     pub NO_USELESS_CONCAT {
         id: "no-useless-concat",
-        description: "Disallow useless string concatenation",
+        summary: "Disallow useless string concatenation",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

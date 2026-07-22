@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow template interpolation in regular strings.
     pub NO_TEMPLATE_CURLY_IN_STRING {
         id: "no-template-curly-in-string",
-        description: "Disallow template interpolation in regular strings",
+        summary: "Disallow template interpolation in regular strings",
         category: Suspicious,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

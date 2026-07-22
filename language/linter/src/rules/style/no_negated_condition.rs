@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Prefer positive conditions when both branches are present.
     pub NO_NEGATED_CONDITION {
         id: "no-negated-condition",
-        description: "Prefer positive conditions when both branches are present",
+        summary: "Prefer positive conditions when both branches are present",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

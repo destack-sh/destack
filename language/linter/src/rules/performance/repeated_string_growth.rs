@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when repeated string growth causes cumulative copying.
+declare_lint_stub! {
+    /// Disallow repeated string growth that causes cumulative copying.
     pub REPEATED_STRING_GROWTH {
         id: "repeated-string-growth",
-        description: "Warn when repeated string growth causes cumulative copying",
+        summary: "Disallow repeated string growth that causes cumulative copying",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

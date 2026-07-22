@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow length checks duplicated by the guarded operation.
     pub NO_USELESS_LENGTH_CHECK {
         id: "no-useless-length-check",
-        description: "Disallow length checks duplicated by the guarded operation",
+        summary: "Disallow length checks duplicated by the guarded operation",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow escape sequences that do not change the parsed value.
     pub NO_USELESS_ESCAPE {
         id: "no-useless-escape",
-        description: "Disallow escape sequences that do not change the parsed value",
+        summary: "Disallow escape sequences that do not change the parsed value",
         category: Suspicious,
         level: Warning,
-        fixable: Always,
+        fixable: Automatic,
         check: DirModule(check),
     }
 }

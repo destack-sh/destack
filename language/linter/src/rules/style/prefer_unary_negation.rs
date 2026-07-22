@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Prefer unary negation over multiplying by -1.
     pub PREFER_UNARY_NEGATION {
         id: "prefer-unary-negation",
-        description: "Prefer unary negation over multiplying by -1",
+        summary: "Prefer unary negation over multiplying by -1",
         category: Style,
         level: Warning,
-        fixable: Always,
+        fixable: Automatic,
         check: DirModule(check),
     }
 }

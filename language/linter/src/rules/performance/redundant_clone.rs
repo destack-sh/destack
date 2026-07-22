@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow clones proven unnecessary by ownership and liveness.
     pub REDUNDANT_CLONE {
         id: "redundant-clone",
-        description: "Disallow clones proven unnecessary by ownership and liveness",
+        summary: "Disallow clones proven unnecessary by ownership and liveness",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when values retained across suspension create a large coroutine.
+declare_lint_stub! {
+    /// Disallow excessive coroutine state retained across suspension.
     pub LARGE_COROUTINE_STATE {
         id: "large-coroutine-state",
-        description: "Warn when values retained across suspension create a large coroutine",
+        summary: "Disallow excessive coroutine state retained across suspension",
         category: Performance,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: MirModule(check),
     }
 }

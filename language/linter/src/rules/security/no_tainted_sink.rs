@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirProgram};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow values carrying a source taint from reaching matching sinks.
     pub NO_TAINTED_SINK {
         id: "no-tainted-sink",
-        description: "Disallow values carrying a source taint from reaching matching sinks",
+        summary: "Disallow values carrying a source taint from reaching matching sinks",
         category: Security,
         level: Error,
-        fixable: Never,
+        fixable: None,
         check: MirProgram(check),
     }
 }

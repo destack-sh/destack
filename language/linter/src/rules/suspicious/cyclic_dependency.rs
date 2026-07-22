@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirProgram, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Disallow cyclic dependencies between source modules.
     pub CYCLIC_DEPENDENCY {
         id: "cyclic-dependency",
-        description: "Disallow cyclic dependencies between source modules",
+        summary: "Disallow cyclic dependencies between source modules",
         category: Suspicious,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirProgram(check),
     }
 }

@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{Lint, LintResult, MirModule};
 
-declare_lint! {
-    /// Warn when a value only contributes to recursive calls of its own function.
+declare_lint_stub! {
+    /// Disallow values that only contribute to recursive calls of their own function.
     pub ONLY_USED_IN_RECURSION {
         id: "only-used-in-recursion",
-        description: "Warn when a value only contributes to recursive calls of its own function",
+        summary: "Disallow values that only contribute to recursive calls of their own function",
         category: Suspicious,
         level: Warning,
-        fixable: Sometimes,
+        fixable: None,
         check: MirModule(check),
     }
 }

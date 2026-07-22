@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Require a safety rationale for every unsafe declaration and expression.
     pub UNDOCUMENTED_UNSAFE {
         id: "undocumented-unsafe",
-        description: "Require a safety rationale for every unsafe declaration and expression",
+        summary: "Require a safety rationale for every unsafe declaration and expression",
         category: Security,
         level: Warning,
-        fixable: Never,
+        fixable: None,
         check: DirModule(check),
     }
 }

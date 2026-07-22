@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Require the canonical extension declaration form for its visibility.
     pub CONSISTENT_EXTENSION_STYLE {
         id: "consistent-extension-style",
-        description: "Require the canonical extension declaration form for its visibility",
+        summary: "Require the canonical extension declaration form for its visibility",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }

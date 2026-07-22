@@ -1,16 +1,16 @@
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint;
+use crate::rules::declare_lint_stub;
 use crate::{DirModule, Lint, LintResult};
 
-declare_lint! {
+declare_lint_stub! {
     /// Prefer match over complex if-else-if or switch statements.
     pub PREFER_MATCH {
         id: "prefer-match",
-        description: "Prefer match over complex if-else-if or switch statements",
+        summary: "Prefer match over complex if-else-if or switch statements",
         category: Style,
         level: Warning,
-        fixable: Sometimes,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }
