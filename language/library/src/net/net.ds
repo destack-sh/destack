@@ -1,4 +1,5 @@
-import { AsyncResult, todo } from "destack:error";
+import { AsyncResult } from "destack:async";
+import { todo } from "destack:error";
 import { HostError } from "destack:error/host";
 import {
     AddressLookupQuery,

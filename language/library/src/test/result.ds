@@ -1,5 +1,6 @@
+import { AsyncResult } from "destack:async";
 import { Promise } from "destack:async";
-import { AsyncResult, Error, Result } from "destack:error";
+import { Error, Result } from "destack:error";
 import { Dynamic } from "destack:memory";
 
 import { Artifact } from "./artifact.ds";

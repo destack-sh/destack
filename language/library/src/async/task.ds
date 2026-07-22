@@ -1,7 +1,8 @@
-import { AsyncResult, todo } from "destack:error";
+import { todo } from "destack:error";
 import { AsyncDispose } from "destack:memory";
 
 import { Promise } from "./promise.ds";
+import { AsyncResult } from "./result.ds";
 
 /// Structured owner of spawned tasks.
 ///

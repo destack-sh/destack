@@ -1,4 +1,5 @@
-import { AsyncResult, Error, Result } from "destack:error";
+import { AsyncResult } from "destack:async";
+import { Error, Result } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
 /// Channel send failure kind.

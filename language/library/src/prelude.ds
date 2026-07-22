@@ -192,7 +192,6 @@ global {
 
     // destack:error
     export {
-        AsyncResult,
         abort,
         captureStackTrace,
         Err,
@@ -237,6 +236,7 @@ global {
 
     // destack:async
     export {
+        AsyncResult,
         AsyncGenerator,
         AsyncIterable,
         AsyncIterator,
