@@ -35,7 +35,7 @@ impl CheckState<'_> {
         let root = answer!(self.reduce_type_head(origin, ty)?);
         let families = match self.ty(root)? {
             dir::Type::EnumMember(member) => Some(smallvec![ScalarFamily::Enum(member.owner)]),
-            dir::Type::Instance(instance)
+            dir::Type::Application(instance)
                 if matches!(
                     self.definition(instance.symbol)?,
                     Some(dir::Definition::Enum(_))
@@ -44,12 +44,12 @@ impl CheckState<'_> {
                 Some(smallvec![ScalarFamily::Enum(root)])
             }
             // scalar markers classify as their whole domain
-            dir::Type::Instance(instance)
+            dir::Type::Application(instance)
                 if self.language_item(instance.symbol)? == Some(dir::LanguageItem::Integer) =>
             {
                 Some(smallvec![ScalarFamily::Domain(dir::ScalarDomain::Integer)])
             }
-            dir::Type::Instance(instance)
+            dir::Type::Application(instance)
                 if self.language_item(instance.symbol)? == Some(dir::LanguageItem::Float) =>
             {
                 Some(smallvec![ScalarFamily::Domain(dir::ScalarDomain::Float)])

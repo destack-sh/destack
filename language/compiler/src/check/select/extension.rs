@@ -147,7 +147,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
-        interface: &dir::GenericInstance,
+        interface: &dir::GenericApplication,
         excluded: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<Answer<bool>> {
         let mut blockers = SmallVec::<[Dependency; 2]>::new();

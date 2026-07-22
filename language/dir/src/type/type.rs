@@ -53,7 +53,7 @@ pub enum Type {
     /// Type declaration reference before application, like `Box` in `Box.empty`.
     Reference(TypeReference),
     /// Applied type declaration, like `User` or `Map<string, User>`.
-    Instance(GenericInstance),
+    Application(GenericApplication),
     /// This type in a method signature, like `this` in `clone(): this`.
     This,
     /// Member type selected from an owner type, like `T.Output`.
@@ -170,7 +170,7 @@ impl Type {
             Self::This => "This",
             Self::Range(_) => "Range",
             Self::Reference(_) => "Reference",
-            Self::Instance(_) => "Instance",
+            Self::Application(_) => "Application",
             Self::Refined(_) => "Refined",
             Self::Member(_) => "Member",
             Self::EnumMember(_) => "EnumMember",
@@ -328,7 +328,7 @@ impl Type {
             | Self::Memory(_)
             | Self::Static(_)
             | Self::Intrinsic
-            | Self::Instance(_)
+            | Self::Application(_)
             | Self::EnumMember(_)
             | Self::Form(_)
             | Self::Dynamic(_)
@@ -365,7 +365,7 @@ impl Type {
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
             Self::Reference(reference) => Some(reference.symbol),
-            Self::Instance(instance) => Some(instance.symbol),
+            Self::Application(instance) => Some(instance.symbol),
             _ => None,
         }
     }
@@ -781,7 +781,7 @@ pub struct TypeReference {
 }
 
 /// One declaration applied to its complete positional arguments.
-/// A non-generic reference is an instance with no arguments.
+/// A non-generic reference is an application with no arguments.
 ///
 /// Examples:
 /// ```ds
@@ -789,7 +789,7 @@ pub struct TypeReference {
 /// Map<string, User>     // two positional arguments
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct GenericInstance {
+pub struct GenericApplication {
     /// The referenced declaration symbol.
     pub symbol: GlobalSymbolId,
     /// The complete positional argument list in declaration order.

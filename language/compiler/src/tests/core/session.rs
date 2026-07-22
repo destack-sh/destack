@@ -9,7 +9,7 @@ use destack_artifact::{
     MemoryBlobStore, NullArtifactStore,
 };
 use destack_dir as dir;
-use destack_mir::{MirFormatOptions, format_mir};
+use destack_mir::{MirFormatContext, MirFormatOptions, format_mir};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Host, ProviderError, Ref, Repository,
     Revision, Settings, TraceSnapshot,
@@ -338,6 +338,18 @@ impl TestSession {
         assert_snapshot(self.diagnostic_snapshot(key), expected);
     }
 
+    /// Return one successfully lowered MIR artifact.
+    pub(crate) fn mir_lowered(&self, path: &str) -> Arc<destack_artifact::MirLowered> {
+        let key = self.mir_lowered_key(path);
+        let version = self
+            .require_artifact_result(key)
+            .unwrap_or_else(|error| panic!("test MIR artifact failed: {error}"));
+
+        self.artifacts()
+            .mir_lowered(&version)
+            .unwrap_or_else(|| panic!("test MIR artifact should exist"))
+    }
+
     /// Assert one rendered MIR snapshot.
     #[track_caller]
     fn assert_mir(&self, path: &str, expected: &str, artifact_key: fn(&Self, &str) -> ArtifactKey) {
@@ -377,7 +389,12 @@ impl TestSession {
         .expect("test MIR should format");
 
         // append the aggregate layouts under their declared names
-        let layouts = Self::render_mir_layouts(&lowered.tree, &lowered.layouts, strings.as_ref());
+        let layouts = Self::render_mir_layouts(
+            &lowered.tree,
+            lowered.target,
+            &lowered.layouts,
+            strings.as_ref(),
+        );
         match layouts.is_empty() {
             true => formatted,
             false => format!("{formatted}\n{layouts}"),
@@ -387,88 +404,126 @@ impl TestSession {
     /// Render the aggregate layout rows of one MIR module.
     fn render_mir_layouts(
         tree: &destack_mir::Tree,
+        target: destack_mir::TargetLayout,
         layouts: &destack_mir::LayoutTable,
         strings: &destack_core::StringPool,
     ) -> String {
-        // name layouts through their type aliases
-        let mut names = std::collections::HashMap::new();
-        for (_, alias) in tree.iter_nodes::<destack_mir::TypeAlias>() {
-            names.insert(alias.ty, strings.get(alias.name).to_string());
+        let context = MirFormatContext::new(tree, target, strings, MirFormatOptions::default())
+            .expect("test MIR layout names should format");
+
+        // order named layouts by their declarations
+        let mut named_types = BTreeSet::new();
+        let mut owners = Vec::new();
+        for (_, declaration) in tree.iter_nodes::<destack_mir::TypeDeclaration>() {
+            named_types.insert(declaration.ty);
+            let name = context
+                .type_declaration_name(declaration.ty)
+                .unwrap_or_else(|| strings.get(declaration.name));
+            owners.push((declaration.ty, name.to_string()));
         }
 
-        // render aggregate entries in type node order
-        let mut entries: Vec<_> = layouts.types.iter().collect();
-        entries.sort_by_key(|(ty, _)| ty.id);
+        // follow named layouts with anonymous types in node order
+        let mut anonymous: Vec<_> = layouts
+            .types
+            .keys()
+            .filter(|ty| !named_types.contains(ty))
+            .copied()
+            .collect();
+        anonymous.sort_by_key(|ty| ty.id);
+        owners.extend(
+            anonymous
+                .into_iter()
+                .map(|ty| (ty, format!("type@{}", ty.id))),
+        );
+
+        // render one owner and its independently asserted components
         let mut rows = String::new();
-        for (ty, id) in entries {
+        for (ty, name) in owners {
+            let Some(id) = layouts.types.get(&ty) else {
+                continue;
+            };
             let layout = &layouts.entries[id.index()];
-            let name = names
-                .get(ty)
-                .cloned()
-                .unwrap_or_else(|| format!("type@{}", ty.id));
             let (size, alignment) = (layout.size, layout.alignment);
 
-            match &layout.shape {
-                // one row per struct with named field placements
-                destack_mir::LayoutShape::Struct(shape) => {
-                    let fields: Vec<_> = shape
-                        .fields
-                        .iter()
-                        .map(|field| {
-                            let field_name = field
-                                .name
-                                .map(|name| strings.get(name).to_string())
-                                .unwrap_or_default();
+            match (&layout.shape, tree.get(ty)) {
+                // render one struct row followed by its fields
+                (destack_mir::LayoutShape::Struct(shape), destack_mir::Type::Struct { .. }) => {
+                    rows.push_str(&format!(
+                        "/// @layout.struct name={name} size={size} align={alignment}\n"
+                    ));
 
-                            format!("{field_name}@{}+{}", field.offset, field.size)
-                        })
-                        .collect();
-                    rows.push_str(&format!(
-                        "/// @layout.struct name={name} size={size} align={alignment} \
-fields=({})\n",
-                        fields.join(", ")
-                    ));
+                    // render fields in declaration order
+                    for (index, field) in shape.fields.iter().enumerate() {
+                        rows.push_str(&format!("/// @layout.field owner={name} index={index}"));
+                        if let Some(field_name) = field.name {
+                            let field_name = strings.get(field_name);
+                            rows.push_str(&format!(" name={field_name}"));
+                        }
+
+                        // append the physical placement
+                        rows.push_str(&format!(
+                            " offset={} size={} align={}\n",
+                            field.offset, field.size, field.alignment
+                        ));
+                    }
                 }
-                // one row per tuple with positional element placements
-                destack_mir::LayoutShape::Tuple(shape) => {
-                    let elements: Vec<_> = shape
-                        .elements
-                        .iter()
-                        .map(|element| format!("@{}+{}", element.offset, element.size))
-                        .collect();
+                // render one tuple row followed by its elements
+                (destack_mir::LayoutShape::Tuple(shape), destack_mir::Type::Tuple { .. }) => {
                     rows.push_str(&format!(
-                        "/// @layout.tuple name={name} size={size} align={alignment} \
-elements=({})\n",
-                        elements.join(", ")
+                        "/// @layout.tuple name={name} size={size} align={alignment}\n"
                     ));
+
+                    // render elements in logical order
+                    for (index, element) in shape.elements.iter().enumerate() {
+                        rows.push_str(&format!(
+                            "/// @layout.element owner={name} index={index} offset={} size={} align={}\n",
+                            element.offset, element.size, element.alignment
+                        ));
+                    }
                 }
-                // one row per variant with its encoding and case placements
-                destack_mir::LayoutShape::Variant(shape) => {
-                    let encoding = match &shape.encoding {
+                // render one variant row followed by its encoding and cases
+                (destack_mir::LayoutShape::Variant(shape), destack_mir::Type::Variant { .. }) => {
+                    rows.push_str(&format!(
+                        "/// @layout.variant name={name} size={size} align={alignment}\n"
+                    ));
+
+                    // render the physical discriminant encoding
+                    match &shape.encoding {
                         destack_mir::VariantEncoding::Direct { field } => {
-                            format!("direct(tag@{}+{})", field.offset, field.byte_len)
+                            rows.push_str(&format!(
+                                "/// @layout.discriminant owner={name} kind=direct offset={} byte_len={} bit_offset={} bit_len={}\n",
+                                field.offset, field.byte_len, field.bit_offset, field.bit_len
+                            ));
                         }
                         destack_mir::VariantEncoding::Niche {
-                            field, niche_start, ..
+                            field,
+                            untagged_case,
+                            niche_case_start,
+                            niche_case_end,
+                            niche_start,
                         } => {
-                            format!(
-                                "niche(@{}+{}, start={})",
+                            rows.push_str(&format!(
+                                "/// @layout.discriminant owner={name} kind=niche offset={} byte_len={} bit_offset={} bit_len={} untagged={} niche_cases={}..{} niche_start={}\n",
                                 field.offset,
                                 field.byte_len,
+                                field.bit_offset,
+                                field.bit_len,
+                                untagged_case,
+                                niche_case_start,
+                                niche_case_end,
                                 niche_start.bits()
-                            )
+                            ));
                         }
-                    };
-                    let cases: Vec<_> = shape
-                        .cases
-                        .iter()
-                        .map(|case| format!("{}@{}", case.discriminant.bits(), case.payload_offset))
-                        .collect();
-                    rows.push_str(&format!(
-                        "/// @layout.variant name={name} size={size} align={alignment} \
-encoding={encoding} cases=({})\n",
-                        cases.join(", ")
-                    ));
+                    }
+
+                    // render cases in logical order
+                    for (index, case) in shape.cases.iter().enumerate() {
+                        rows.push_str(&format!(
+                            "/// @layout.case owner={name} index={index} discriminant={} payload_offset={}\n",
+                            case.discriminant.bits(),
+                            case.payload_offset
+                        ));
+                    }
                 }
                 _ => continue,
             }

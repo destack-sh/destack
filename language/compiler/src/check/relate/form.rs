@@ -82,7 +82,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         match (self.ty(source)?, self.ty(target)?) {
             // same-symbol instances relate their arguments under the handle
-            (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
+            (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
                 let symbol = source_instance.symbol;
@@ -380,7 +380,9 @@ impl CheckState<'_> {
                     if self.is_space_bound_reference(origin, source)? {
                         // intrinsically placed nominals satisfy their own space
                         let nominal = match self.ty(source)? {
-                            dir::Type::Instance(instance) => self.nominal_space(instance.symbol)?,
+                            dir::Type::Application(instance) => {
+                                self.nominal_space(instance.symbol)?
+                            }
                             _ => None,
                         };
                         if nominal != Some(dir::Space::Shared) {

@@ -248,7 +248,7 @@ fn seed_function_states(
     for (function_id, linkage) in function_ids {
         // read the function signature
         let function = tree.get(*function_id);
-        let signature = SignatureKey::from_function(tree, function);
+        let signature = SignatureKey::from_function(function);
         let is_indirect = call_data.indirect_signatures.contains(&signature);
 
         // mark functions reachable from outside or indirectly as exposed

@@ -33,7 +33,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
             dir::Type::Reference(reference) => self.reference_symbol_label(reference.symbol),
-            dir::Type::Instance(instance) => self.instance_type_label(types, instance),
+            dir::Type::Application(instance) => self.instance_type_label(types, instance),
             dir::Type::This => "this".to_string(),
             dir::Type::Member(member) => self.member_type_label(types, types.member(*member)),
             dir::Type::Refined(refined) => {
@@ -196,7 +196,7 @@ impl DirSnapshotBuilder<'_> {
     fn instance_type_label(
         &self,
         types: &dir::TypeTable<'_>,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> String {
         if instance.arguments.is_empty() {
             return self.reference_symbol_label(instance.symbol);

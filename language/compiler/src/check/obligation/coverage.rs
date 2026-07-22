@@ -442,7 +442,7 @@ impl CheckState<'_> {
                 // one constructor covers every instantiation of its symbol
                 let value_head = answer!(self.reduce_type_head(origin, value)?);
                 match self.ty(value_head)? {
-                    dir::Type::Instance(value_instance) => {
+                    dir::Type::Application(value_instance) => {
                         // inherited constructors cover through heritage
                         if value_instance.symbol != nominal.symbol {
                             let closure = answer!(self.heritage_closure(

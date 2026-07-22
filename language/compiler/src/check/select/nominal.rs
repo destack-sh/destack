@@ -157,7 +157,7 @@ impl BodyState<'_, '_> {
         let tag = answer!(self.written_construct_tag(origin, module, ty)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
         let instance = match self.ty(tag)? {
-            dir::Type::Instance(instance) => instance,
+            dir::Type::Application(instance) => instance,
             _ => return self.reject_pattern(node, origin, tag),
         };
 
@@ -177,7 +177,7 @@ impl BodyState<'_, '_> {
         };
         for arm in arms {
             let arm = answer!(self.reduce_type_head(origin, arm)?);
-            if let dir::Type::Instance(arm_instance) = self.ty(arm)?
+            if let dir::Type::Application(arm_instance) = self.ty(arm)?
                 && arm_instance.symbol == instance.symbol
             {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));

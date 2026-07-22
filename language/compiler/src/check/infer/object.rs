@@ -199,7 +199,7 @@ impl BodyState<'_, '_> {
             )))),
             // structural interfaces type literals contextually; nominal
             //  interfaces require their declared wrapper
-            dir::Type::Instance(instance)
+            dir::Type::Application(instance)
                 if matches!(
                     self.definition(instance.symbol)?,
                     Some(dir::Definition::Interface(interface)) if !interface.is_nominal

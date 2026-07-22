@@ -190,7 +190,7 @@ impl ElaborateState<'_> {
     /// Return whether a type needs a generated destructor.
     fn type_needs_destructor(&self, ty: mir::LocalNodeId<mir::Type>) -> bool {
         // copy values never need destructors
-        if self.tree.get(ty).copy().is_yes() {
+        if self.tree.get(ty).copy(&self.tree).is_yes() {
             return false;
         }
         if self.drops.hook(ty).is_some() {
@@ -240,7 +240,7 @@ impl ElaborateState<'_> {
         if DestructorEmitter::type_emits(&self.drops, &self.tree, ty) {
             return true;
         }
-        if self.tree.get(ty).copy().is_yes() || !seen.insert(ty) {
+        if self.tree.get(ty).copy(&self.tree).is_yes() || !seen.insert(ty) {
             return false;
         }
 
@@ -256,7 +256,7 @@ impl ElaborateState<'_> {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         let name = self.drop_name(ty)?;
-        let pointer = self.tree.insert_type(mir::Type::Reference {
+        let pointer = self.tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Local,
@@ -749,7 +749,7 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
         let signature = self
             .builder
             .tree_mut()
-            .insert_type(mir::Type::FunctionSignature {
+            .intern_type(mir::Type::FunctionSignature {
                 lifetimes: Vec::new(),
                 parameters: vec![mir::SignatureParameter::new(parameter)],
                 result: void,
@@ -781,7 +781,7 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
         let signature = self
             .builder
             .tree_mut()
-            .insert_type(mir::Type::FunctionSignature {
+            .intern_type(mir::Type::FunctionSignature {
                 lifetimes: Vec::new(),
                 parameters: parameters
                     .iter()

@@ -216,7 +216,7 @@ impl BodyState<'_, '_> {
             ),
 
             // applied declarations read their definition members
-            dir::Type::Instance(_)
+            dir::Type::Application(_)
             | dir::Type::Literal(_)
             | dir::Type::Primitive(_)
             | dir::Type::Array(_)

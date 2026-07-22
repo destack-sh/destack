@@ -134,7 +134,7 @@ impl CheckState<'_> {
         }
 
         // reject distinct concrete runtime identities
-        if let (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance)) =
+        if let (dir::Type::Application(source_instance), dir::Type::Application(target_instance)) =
             (source_type, target_type)
         {
             return self.generic_instances_may_overlap(
@@ -191,9 +191,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source_module: ModuleId,
-        source: &dir::GenericInstance,
+        source: &dir::GenericApplication,
         target_module: ModuleId,
-        target: &dir::GenericInstance,
+        target: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         if source.symbol == target.symbol {
             let source_arguments = self.type_ids(source_module, source.arguments)?.to_vec();

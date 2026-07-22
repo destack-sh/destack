@@ -376,7 +376,7 @@ impl BodyState<'_, '_> {
         };
         let target = answer!(self.reduce_type_head(origin, expected_return)?);
         let symbol = match self.ty(target)? {
-            dir::Type::Instance(instance)
+            dir::Type::Application(instance)
                 if matches!(self.symbol_kind(instance.symbol), dir::SymbolKind::Newtype) =>
             {
                 instance.symbol

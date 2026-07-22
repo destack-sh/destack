@@ -101,7 +101,7 @@ impl CheckState<'_> {
                     self.satisfies_overwrite_stable(origin, form.value, active)
                 }
             },
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 self.satisfies_overwrite_stable_instance(origin, ty.module_id, instance, active)
             }
             dir::Type::Array(_) => Ok(Answer::Ready(true)),
@@ -142,7 +142,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: dir::GenericInstance,
+        instance: dir::GenericApplication,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
         let Some(definition) = self.definition(instance.symbol)?.cloned() else {
@@ -189,7 +189,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {

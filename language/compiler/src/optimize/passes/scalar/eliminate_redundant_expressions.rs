@@ -496,7 +496,7 @@ fn process_block(
 
         // apply aggregate forwarding when available
         if let Some((dest, replacement, inst_id)) = aggregate_simplification {
-            if value_types.can_substitute(dest, replacement, tree) {
+            if value_types.can_substitute(dest, replacement) {
                 substitutions.insert(dest, replacement);
                 to_remove.insert(inst_id);
             }
@@ -509,7 +509,7 @@ fn process_block(
             let local = *local;
 
             if let Some(existing) = value_table.get_local(local)
-                && value_types.can_substitute(destination, existing, tree)
+                && value_types.can_substitute(destination, existing)
             {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -559,7 +559,7 @@ fn process_block(
 
             // forward from an existing load when possible
             if let Some(existing) = value_table.get_memory(clobber, &use_access.effect, alias)
-                && value_types.can_substitute(destination, existing, tree)
+                && value_types.can_substitute(destination, existing)
             {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -579,7 +579,7 @@ fn process_block(
         }
 
         // try to get an expression key
-        let Some(key) = PureExpression::from_instruction(instruction, tree) else {
+        let Some(key) = PureExpression::from_instruction(instruction) else {
             continue;
         };
 
@@ -594,7 +594,7 @@ fn process_block(
         // check if we've seen this expression in any dominating scope
         if let Some(existing_value) = value_table.get(&key) {
             // found a match: mark for substitution and removal
-            if value_types.can_substitute(destination, existing_value, tree) {
+            if value_types.can_substitute(destination, existing_value) {
                 substitutions.insert(destination, existing_value);
                 to_remove.insert(instruction_id);
             }

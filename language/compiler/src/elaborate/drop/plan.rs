@@ -83,7 +83,7 @@ impl<'a> DropPlan<'a> {
             let Some(ty) = ty else {
                 continue;
             };
-            if self.tree.get(*ty).copy().is_no() {
+            if self.tree.get(*ty).copy(self.tree).is_no() {
                 owned.insert(value);
             }
         }
@@ -488,7 +488,7 @@ impl<'a> DropPlan<'a> {
             return false;
         };
 
-        self.tree.get(ty).copy().is_no()
+        self.tree.get(ty).copy(self.tree).is_no()
     }
 
     /// Return whether one value is a borrowed reference-like value.

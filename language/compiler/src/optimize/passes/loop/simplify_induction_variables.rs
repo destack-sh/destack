@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, ScalarEvolution, Scev, TypeKey,
+    BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, ScalarEvolution, Scev,
     constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -106,7 +106,7 @@ struct CanonicalScev {
     /// Recurrence expression.
     scev: Scev,
     /// Type for the recurrence value.
-    ty: TypeKey,
+    ty: mir::TypeId,
     /// Canonical value to keep.
     value: mir::Value,
 }
@@ -117,7 +117,7 @@ struct CanonicalSignature {
     /// Signature of incoming values for this parameter.
     signature: ParamSignature,
     /// Type for the recurrence value.
-    ty: TypeKey,
+    ty: mir::TypeId,
     /// Canonical value to keep.
     value: mir::Value,
 }
@@ -168,7 +168,7 @@ fn run_simplify_induction_variables(
         for (param_index, param) in header_parameters.iter().enumerate() {
             let param_value = param.value;
 
-            let param_type = TypeKey::from_type(param.ty, tree);
+            let param_type = param.ty;
 
             // derive a structural type key for comparisons
             let signature = param_signature(lp.header, param_index, tree, cfg, &forwarding);
@@ -258,7 +258,7 @@ fn run_simplify_induction_variables(
                 if !has_signature {
                     canonical_signatures.push(CanonicalSignature {
                         signature,
-                        ty: param_type.clone(),
+                        ty: param_type,
                         value: canonical_value,
                     });
                 }
@@ -1081,11 +1081,11 @@ b2(v8: int32):
 
         let canonical_signatures = [CanonicalSignature {
             signature: signature_left.unwrap(),
-            ty: TypeKey::from_type(param_left.ty, &test.optimized.tree),
+            ty: param_left.ty,
             value: param_left.value,
         }];
         let canonical_value = signature_right.and_then(|signature| {
-            let param_right_ty = TypeKey::from_type(param_right.ty, &test.optimized.tree);
+            let param_right_ty = param_right.ty;
             canonical_signatures.iter().find_map(|entry| {
                 if entry.ty == param_right_ty && entry.signature == signature {
                     Some(entry.value)

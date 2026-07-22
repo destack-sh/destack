@@ -107,7 +107,7 @@ impl CheckState<'_> {
                     Ok(Answer::Ready(false))
                 }
             },
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 self.satisfies_copy_instance(origin, ty.module_id, instance, active)
             }
             dir::Type::Array(_) | dir::Type::Slice(_) => Ok(Answer::Ready(false)),
@@ -159,7 +159,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: dir::GenericInstance,
+        instance: dir::GenericApplication,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
         if matches!(
@@ -217,7 +217,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {

@@ -244,7 +244,7 @@ impl DirSnapshotBuilder<'_> {
         // collect the instance arguments and child type ids before recursing,
         // since the recursion needs a mutable borrow of self
         let instance = match ty {
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let arguments: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(types.type_ids(instance.arguments));
 

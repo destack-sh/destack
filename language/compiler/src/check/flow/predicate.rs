@@ -355,7 +355,7 @@ impl CheckState<'_> {
                     let arguments = self.intern_type_ids(origin.module(), &arguments)?;
                     let ty = self.intern_type(
                         origin.module(),
-                        dir::Type::Instance(dir::GenericInstance {
+                        dir::Type::Application(dir::GenericApplication {
                             symbol: nominal.symbol,
                             arguments,
                         }),

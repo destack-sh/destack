@@ -162,12 +162,12 @@ impl CheckState<'_> {
             }
             // interface-typed values already store as their own dynamic
             //  carrier, so wrapping and unwrapping the written type is identity
-            (dir::Type::Instance(instance), dir::Type::Dynamic(dynamic))
+            (dir::Type::Application(instance), dir::Type::Dynamic(dynamic))
                 if self.is_interface_instance(Some(&instance))? =>
             {
                 self.decide_relation(origin, relation, source, dynamic.constraint)?
             }
-            (dir::Type::Dynamic(dynamic), dir::Type::Instance(instance))
+            (dir::Type::Dynamic(dynamic), dir::Type::Application(instance))
                 if self.is_interface_instance(Some(&instance))? =>
             {
                 self.decide_relation(origin, relation, dynamic.constraint, target)?
@@ -253,13 +253,13 @@ impl CheckState<'_> {
             (dir::Type::Reference(_), dir::Type::Shape(_)) => {
                 self.decide_reference_shape_assignable(origin, source, target)?
             }
-            (dir::Type::Shape(_), dir::Type::Instance(reference)) => {
+            (dir::Type::Shape(_), dir::Type::Application(reference)) => {
                 self.decide_source_against_reference(origin, source, target.module_id, &reference)?
             }
-            (dir::Type::Instance(reference), dir::Type::Shape(_)) => {
+            (dir::Type::Application(reference), dir::Type::Shape(_)) => {
                 self.decide_reference_against_target(origin, source.module_id, &reference, target)?
             }
-            (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
+            (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
                 // relate argument pairs by their parameter variances
@@ -282,7 +282,7 @@ impl CheckState<'_> {
                     &target_arguments,
                 )?
             }
-            (dir::Type::Instance(_), dir::Type::Instance(_)) => {
+            (dir::Type::Application(_), dir::Type::Application(_)) => {
                 self.decide_nominal_assignable(origin, source, target)?
             }
 
@@ -320,7 +320,7 @@ impl CheckState<'_> {
 
         // shape values construct structs and fill structural interfaces
         //  member-wise; object-literal syntax never reaches the struct path
-        if let (dir::Type::Shape(_), dir::Type::Instance(instance)) =
+        if let (dir::Type::Shape(_), dir::Type::Application(instance)) =
             (self.ty(source)?, self.ty(target_value)?)
         {
             let is_struct = matches!(

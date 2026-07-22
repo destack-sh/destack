@@ -157,7 +157,7 @@ impl CheckState<'_> {
                     }
                 }
             }
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 if let Some(definition) = self.loaded_definition(instance.symbol) {
                     for member in definition.members() {
                         if let Some(key) = member.key() {

@@ -267,7 +267,7 @@ impl BodyState<'_, '_> {
             dir::Type::Shape(shape) => {
                 self.select_shape_subscript(origin, receiver, receiver_type, index, use_, &shape)
             }
-            dir::Type::Instance(_)
+            dir::Type::Application(_)
             | dir::Type::Reference(_)
             | dir::Type::Form(_)
             | dir::Type::Parameter(_)

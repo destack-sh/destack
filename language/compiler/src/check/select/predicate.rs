@@ -150,7 +150,7 @@ impl BodyState<'_, '_> {
         let arguments = self.intern_type_ids(module, &arguments)?;
         let target = self.intern_type(
             module,
-            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
         )?;
 
         Ok(Answer::Ready(Some((symbol, target))))
@@ -278,7 +278,7 @@ impl BodyState<'_, '_> {
                     dir::RangeEnd::Open
                 },
             }),
-            dir::Type::Instance(dir::GenericInstance { symbol, .. })
+            dir::Type::Application(dir::GenericApplication { symbol, .. })
             | dir::Type::Reference(dir::TypeReference { symbol }) => {
                 match self.symbol_kind(symbol) {
                     dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface => {
@@ -554,7 +554,7 @@ impl BodyState<'_, '_> {
 
         self.intern_type(
             module,
-            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
         )
     }
 

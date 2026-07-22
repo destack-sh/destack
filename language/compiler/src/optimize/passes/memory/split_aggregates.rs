@@ -494,7 +494,7 @@ fn split_allocation(
     let mut new_alloc_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
 
     for &elem_type in &candidate.element_types {
-        let result_type = tree.insert_type(mir::Type::Reference {
+        let result_type = tree.intern_type(mir::Type::Reference {
             kind: candidate.reference_spec.kind,
             lifetime: mir::Lifetime::empty(),
             space: candidate.reference_spec.space,

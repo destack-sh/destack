@@ -437,7 +437,7 @@ fn process_block(
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa)
-                    && value_types.can_substitute(destination, existing, tree)
+                    && value_types.can_substitute(destination, existing)
                 {
                     substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);
@@ -476,7 +476,7 @@ fn process_block(
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa)
-                    && value_types.can_substitute(destination, existing, tree)
+                    && value_types.can_substitute(destination, existing)
                 {
                     substitutions.insert(destination, existing);
                     to_remove.insert(instruction_id);

@@ -183,7 +183,7 @@ impl CheckState<'_> {
 
         // create one static variant symbol for each validated backing arm
         let instance = self.declaration_instance(module, symbol)?;
-        let owner_ty = self.intern_type(module, dir::Type::Instance(instance))?;
+        let owner_ty = self.intern_type(module, dir::Type::Application(instance))?;
         let mut members = Vec::with_capacity(cases.len());
         for (key, variant) in cases {
             let member = self.insert_tagged_variant_symbol(symbol, key)?;
@@ -268,7 +268,7 @@ impl CheckState<'_> {
             }
 
             // accept a directly discriminated nominal arm or flatten a nested newtype
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let value = self.declared_nominal_discriminant(instance.symbol, discriminant)?;
                 if let Some(dir::ScalarLiteral::String(value)) = value {
                     variants.push(TaggedVariant {

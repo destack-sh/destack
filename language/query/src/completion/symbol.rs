@@ -133,7 +133,7 @@ impl CompletionBuilder<'_, '_> {
 
         self.module
             .read_global_type(type_id, |ty, type_module| match ty {
-                dir::Type::Instance(reference) => {
+                dir::Type::Application(reference) => {
                     let symbol = reference.symbol;
                     let canonical_symbol = self.canonical_symbol(symbol);
                     if seen_symbols.insert(canonical_symbol) {

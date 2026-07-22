@@ -11,7 +11,7 @@ impl CheckState<'_> {
         module: ModuleId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
-        let dir::Type::Instance(instance) = self.ty(value)? else {
+        let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
         let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
@@ -43,7 +43,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
         // the value names an enum declaration instance
-        let dir::Type::Instance(instance) = self.ty(value)? else {
+        let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
         let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
@@ -82,7 +82,7 @@ impl CheckState<'_> {
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         // the value names an enum declaration instance
-        let dir::Type::Instance(instance) = self.ty(value)? else {
+        let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
         let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {

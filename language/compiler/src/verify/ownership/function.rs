@@ -1390,7 +1390,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return false;
         };
 
-        self.tree.get(ty).copy().is_no()
+        self.tree.get(ty).copy(self.tree).is_no()
     }
 
     /// Return the direct move-only child count for one aggregate.
@@ -1403,22 +1403,29 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         match self.tree.get(ty) {
             mir::Type::Struct { fields, .. } => fields
                 .iter()
-                .filter(|field| self.tree.get(self.tree.get(**field).ty).copy().is_no())
+                .filter(|field| {
+                    self.tree
+                        .get(self.tree.get(**field).ty)
+                        .copy(self.tree)
+                        .is_no()
+                })
                 .count() as u64,
             mir::Type::Tuple { elements, .. } => elements
                 .iter()
-                .filter(|element| self.tree.get(**element).copy().is_no())
+                .filter(|element| self.tree.get(**element).copy(self.tree).is_no())
                 .count() as u64,
             mir::Type::FixedArray {
                 element, length, ..
             } => {
-                if self.tree.get(*element).copy().is_no() {
+                if self.tree.get(*element).copy(self.tree).is_no() {
                     *length
                 } else {
                     0
                 }
             }
-            mir::Type::Newtype { inner, .. } => u64::from(self.tree.get(*inner).copy().is_no()),
+            mir::Type::Newtype { inner, .. } => {
+                u64::from(self.tree.get(*inner).copy(self.tree).is_no())
+            }
             _ => 0,
         }
     }

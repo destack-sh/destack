@@ -159,11 +159,11 @@ impl CheckState<'_> {
         // check each implemented interface independently
         for heritage in implements {
             let arguments = self.intern_type_ids(source.module_id, &heritage.arguments)?;
-            let interface = dir::GenericInstance {
+            let interface = dir::GenericApplication {
                 symbol: heritage.symbol,
                 arguments,
             };
-            let reported = self.intern_type(source.module_id, dir::Type::Instance(interface))?;
+            let reported = self.intern_type(source.module_id, dir::Type::Application(interface))?;
             let result = self.check_extension_interface(
                 origin,
                 source,
@@ -193,7 +193,7 @@ impl CheckState<'_> {
         reported: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
-        interface: &dir::GenericInstance,
+        interface: &dir::GenericApplication,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let Some(definition) = self.definition(interface.symbol)? else {
             return Ok(Answer::Ready(ObligationCheck::holds()));

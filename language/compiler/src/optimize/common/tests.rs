@@ -164,9 +164,9 @@ impl TestProgram {
     pub(crate) fn type_id_by_name(&self, name: &str) -> mir::TypeId {
         self.optimized
             .tree
-            .iter_nodes::<mir::TypeAlias>()
-            .find(|(_, alias)| self.strings.get(alias.name) == name)
-            .map(|(_, alias)| alias.ty)
+            .iter_nodes::<mir::TypeDeclaration>()
+            .find(|(_, declaration)| self.strings.get(declaration.name) == name)
+            .map(|(_, declaration)| declaration.ty)
             .unwrap_or_else(|| panic!("missing type {name}"))
     }
 
@@ -473,7 +473,7 @@ impl TestProgram {
         // insert the function reference type
         self.optimized
             .tree
-            .insert_type(mir::Type::FunctionSignature {
+            .intern_type(mir::Type::FunctionSignature {
                 lifetimes: Vec::new(),
                 parameters: param_tys,
                 result: return_ty,
@@ -1355,11 +1355,11 @@ entry:
     fn test_instruction_is_speculatable_rejects_borrow_addresses() {
         let mut tree = mir::Tree::new();
 
-        let pointee = tree.insert_type(mir::Type::Int {
+        let pointee = tree.intern_type(mir::Type::Int {
             width: 32,
             is_signed: true,
         });
-        let borrowed_ref = tree.insert_type(mir::Type::Reference {
+        let borrowed_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Frame,
@@ -1403,11 +1403,11 @@ entry:
     fn test_instruction_is_speculatable_allows_raw_addresses() {
         let mut tree = mir::Tree::new();
 
-        let pointee = tree.insert_type(mir::Type::Int {
+        let pointee = tree.intern_type(mir::Type::Int {
             width: 32,
             is_signed: true,
         });
-        let raw_ref = tree.insert_type(mir::Type::Reference {
+        let raw_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Frame,
@@ -1415,7 +1415,7 @@ entry:
             pointee,
             nullability: mir::Nullability::None,
         });
-        let borrowed_ref = tree.insert_type(mir::Type::Reference {
+        let borrowed_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Frame,

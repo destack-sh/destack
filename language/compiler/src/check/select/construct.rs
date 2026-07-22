@@ -185,7 +185,7 @@ impl BodyState<'_, '_> {
                 Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             };
             match self.ty(candidate)? {
-                dir::Type::Instance(instance) if instance.symbol == symbol => {
+                dir::Type::Application(instance) if instance.symbol == symbol => {
                     if matched.is_some() {
                         return Ok(Answer::Ready(None));
                     }
@@ -232,7 +232,7 @@ impl BodyState<'_, '_> {
             let arguments = self.intern_type_ids(module, &[])?;
             let target = self.intern_type(
                 module,
-                dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+                dir::Type::Application(dir::GenericApplication { symbol, arguments }),
             )?;
 
             return Ok(Answer::Ready(target));
@@ -285,7 +285,7 @@ impl BodyState<'_, '_> {
         let arguments = self.intern_type_ids(module, &substitution.arguments)?;
         let target = self.intern_type(
             module,
-            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
         )?;
 
         Ok(Answer::Ready(target))
@@ -327,7 +327,7 @@ impl BodyState<'_, '_> {
         let target = answer!(self.select_construct_target(site, ty, expected_return)?);
         let target = answer!(self.reduce_type_head(origin, target)?);
         let instance = match self.ty(target)? {
-            dir::Type::Instance(instance) => instance,
+            dir::Type::Application(instance) => instance,
             _ => return self.reject_not_constructible(node, origin, target, ""),
         };
 
@@ -531,7 +531,7 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         constructors: Vec<dir::ClassConstructorDefinition>,
         extends: Option<dir::NominalHeritage>,
         active: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
@@ -572,11 +572,11 @@ impl BodyState<'_, '_> {
         };
         let module = origin.module();
         let arguments = self.intern_type_ids(module, &extends.arguments)?;
-        let instance = dir::GenericInstance {
+        let instance = dir::GenericApplication {
             symbol: extends.symbol,
             arguments,
         };
-        let base_receiver = self.intern_type(module, dir::Type::Instance(instance))?;
+        let base_receiver = self.intern_type(module, dir::Type::Application(instance))?;
         let base_constructors = answer!(self.collect_class_construct_candidates(
             origin,
             base_receiver,
@@ -625,7 +625,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
         function_type: dir::GlobalTypeId,
         arguments: &[CallableArgument],
@@ -796,7 +796,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         instance_module: ModuleId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         constructor: dir::ClassConstructor,
         signature: SignatureSelection,
         result: ConstructResult,

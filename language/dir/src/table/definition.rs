@@ -1275,6 +1275,11 @@ impl EnumDefinition {
         })
     }
 
+    /// Return one variant's declaration position.
+    pub fn variant_position(&self, symbol: GlobalSymbolId) -> Option<usize> {
+        self.variants().position(|variant| variant.symbol == symbol)
+    }
+
     /// Return the enum variant with one member key.
     pub fn variant_by_key(&self, key: StaticKey) -> Option<&EnumVariantDefinition> {
         self.variants().find(|variant| variant.key == key)

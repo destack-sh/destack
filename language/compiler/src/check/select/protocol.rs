@@ -32,10 +32,10 @@ impl Protocol {
         &self,
         check: &mut CheckState<'_>,
         module: ModuleId,
-    ) -> CompilerResult<dir::GenericInstance> {
+    ) -> CompilerResult<dir::GenericApplication> {
         let arguments = check.intern_type_ids(module, &self.arguments)?;
 
-        Ok(dir::GenericInstance {
+        Ok(dir::GenericApplication {
             symbol: self.symbol,
             arguments,
         })

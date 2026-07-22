@@ -88,11 +88,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Mark one identifier source's place with one move site.
-    fn mark_moved_identifier(
-        &mut self,
-        source: dir::LocalNodeId<dir::Expression>,
-        site: MoveSite,
-    ) {
+    fn mark_moved_identifier(&mut self, source: dir::LocalNodeId<dir::Expression>, site: MoveSite) {
         // only identifier sources move a tracked place
         if !matches!(self.tree.get(source), dir::Expression::Identifier { .. }) {
             return;
@@ -110,7 +106,8 @@ impl WalkState<'_, '_> {
             return;
         }
 
-        self.flow_mut().mark_moved(AssignedPlace::Symbol(symbol), site);
+        self.flow_mut()
+            .mark_moved(AssignedPlace::Symbol(symbol), site);
     }
 
     /// Mark one local flow place as assigned.

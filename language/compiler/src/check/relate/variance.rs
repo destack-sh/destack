@@ -503,7 +503,7 @@ impl CheckState<'_> {
             }
 
             // applications compose with the base parameter variances
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let arguments = self.type_ids(ty.module_id, instance.arguments)?.to_vec();
 
                 self.measure_application(instance.symbol, &arguments, position, context, parameter)?

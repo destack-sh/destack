@@ -207,7 +207,7 @@ impl ModuleQueryContext<'_> {
 
         let members = match ty {
             // resolve declaration and extension members
-            dir::Type::Instance(reference) => {
+            dir::Type::Application(reference) => {
                 self.resolve_reference_members(program, reference.symbol)
             }
 
@@ -293,7 +293,7 @@ impl ModuleQueryContext<'_> {
                         };
 
                         self.read_global_type(value.value, |inner, _| {
-                            let dir::Type::Instance(reference) = inner else {
+                            let dir::Type::Application(reference) = inner else {
                                 return false;
                             };
 

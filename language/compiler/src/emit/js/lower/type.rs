@@ -883,7 +883,7 @@ impl ModuleLowerer<'_> {
                 self.module.id,
                 source_id,
             ),
-            dir::Type::Instance(reference) => {
+            dir::Type::Application(reference) => {
                 let arguments = self.types.type_ids(reference.arguments);
                 let type_id = self
                     .try_lower_reference_type_from_source(source_id)?

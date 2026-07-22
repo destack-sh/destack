@@ -183,7 +183,7 @@ fn run_pre(
                 continue;
             }
 
-            let Some(key) = PureExpression::from_instruction(instruction, tree) else {
+            let Some(key) = PureExpression::from_instruction(instruction) else {
                 continue;
             };
             let Some(destination) = instruction.destination() else {
@@ -595,7 +595,7 @@ fn rename_block(
             continue;
         }
 
-        let Some(key) = PureExpression::from_instruction(instruction, tree) else {
+        let Some(key) = PureExpression::from_instruction(instruction) else {
             continue;
         };
         let Some(destination) = instruction.destination() else {

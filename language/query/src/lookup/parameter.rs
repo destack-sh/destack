@@ -312,7 +312,7 @@ impl ModuleQueryContext<'_> {
 
         self.read_global_type(type_id, |ty, type_context| {
             // direct nominal references
-            if let dir::Type::Instance(reference) = ty {
+            if let dir::Type::Application(reference) = ty {
                 let symbol = reference.symbol;
                 let canonical_symbol = self.canonical_symbol(symbol);
                 if seen_symbols.insert(canonical_symbol) {

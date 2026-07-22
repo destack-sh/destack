@@ -13,7 +13,7 @@ pub(in crate::check) struct HeritageApplication {
     /// The source clause that introduced the application.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The applied nominal or interface instance.
-    pub(in crate::check) instance: dir::GenericInstance,
+    pub(in crate::check) instance: dir::GenericApplication,
 }
 
 /// One duplicate heritage application with incompatible arguments.
@@ -22,7 +22,7 @@ pub(in crate::check) struct HeritageConflict {
     /// The source clause that introduced the conflicting application.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The conflicting inherited application.
-    pub(in crate::check) current: dir::GenericInstance,
+    pub(in crate::check) current: dir::GenericApplication,
 }
 
 /// One heritage branch that exposes a cycle.
@@ -166,11 +166,13 @@ impl CheckState<'_> {
 
         // nominal sources meet nominal constraints through their declarations
         let instances = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Instance(source), dir::Type::Instance(target)) => Some((source, target)),
+            (dir::Type::Application(source), dir::Type::Application(target)) => {
+                Some((source, target))
+            }
             _ => None,
         };
         let target_instance = match self.ty(target)? {
-            dir::Type::Instance(target) => Some(target),
+            dir::Type::Application(target) => Some(target),
             _ => None,
         };
 
@@ -239,9 +241,9 @@ impl CheckState<'_> {
         &mut self,
         cause: CauseId,
         source: dir::GlobalTypeId,
-        source_instance: &dir::GenericInstance,
+        source_instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
-        target_instance: &dir::GenericInstance,
+        target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         let origin = self.cause_origin(cause);
 
@@ -344,9 +346,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
-        source_instance: &dir::GenericInstance,
+        source_instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
-        target_instance: &dir::GenericInstance,
+        target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         // same-symbol interface applications compare by declared variance
         if source_instance.symbol == target_instance.symbol {
@@ -472,7 +474,7 @@ impl CheckState<'_> {
     /// Return whether one instance target names an interface.
     pub(in crate::check) fn is_interface_instance(
         &mut self,
-        instance: Option<&dir::GenericInstance>,
+        instance: Option<&dir::GenericApplication>,
     ) -> CompilerResult<bool> {
         let Some(instance) = instance else {
             return Ok(false);
@@ -492,7 +494,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let (source_instance, target_instance) = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Instance(source), dir::Type::Instance(target)) => (source, target),
+            (dir::Type::Application(source), dir::Type::Application(target)) => (source, target),
             _ => return Ok(Answer::Ready(false)),
         };
 
@@ -505,7 +507,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target_module: ModuleId,
-        target_instance: &dir::GenericInstance,
+        target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         // shapes satisfy structural interfaces member-wise
         let is_structural_interface = matches!(
@@ -525,7 +527,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        target_instance: &dir::GenericInstance,
+        target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         // collect the written literal fields
         let written = match self.ty(source)? {
@@ -602,7 +604,7 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
-        let dir::Type::Instance(target_instance) = self.ty(target)? else {
+        let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
         let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol)? else {
@@ -659,7 +661,7 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
-        let dir::Type::Instance(target_instance) = self.ty(target)? else {
+        let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
         let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol)? else {
@@ -686,7 +688,7 @@ impl CheckState<'_> {
         let receiver = answer!(self.reduce_type_head(origin, target)?);
         let chain = self.form_chain(origin, receiver)?;
         let target = chain.base();
-        let dir::Type::Instance(instance) = self.ty(target)? else {
+        let dir::Type::Application(instance) = self.ty(target)? else {
             return Ok(Answer::Ready(SmallVec::new()));
         };
 
@@ -699,7 +701,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<SmallVec<[dir::TypeField; 8]>>> {
         let Some(dir::Definition::Struct(definition)) = self.definition(instance.symbol)?.cloned()
         else {
@@ -852,7 +854,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source_module: ModuleId,
-        source_instance: &dir::GenericInstance,
+        source_instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // require each target field from the source fields
@@ -917,7 +919,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<HeritageClosure>> {
         let mut closure = HeritageClosure::default();
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
@@ -950,7 +952,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         branch_source: Option<dir::GlobalNodeIdAny>,
         independent: bool,
         active: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
@@ -1038,9 +1040,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         target: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
+    ) -> CompilerResult<Answer<Option<dir::GenericApplication>>> {
         let closure = answer!(self.heritage_closure(origin, instance_module, instance)?);
         if let Some(application) = closure.application(target) {
             return Ok(Answer::Ready(Some(application.instance)));
@@ -1054,9 +1056,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source_module: ModuleId,
-        source: &dir::GenericInstance,
+        source: &dir::GenericApplication,
         target_module: ModuleId,
-        target: &dir::GenericInstance,
+        target: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         if source.arguments.len() != target.arguments.len() {
             return Ok(Answer::Ready(false));
@@ -1095,15 +1097,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
         let arguments = self.intern_type_ids(origin.module(), &arguments)?;
-        let instance = dir::GenericInstance {
+        let instance = dir::GenericApplication {
             symbol: instance.symbol,
             arguments,
         };
 
-        self.intern_type(origin.module(), dir::Type::Instance(instance))
+        self.intern_type(origin.module(), dir::Type::Application(instance))
     }
 }

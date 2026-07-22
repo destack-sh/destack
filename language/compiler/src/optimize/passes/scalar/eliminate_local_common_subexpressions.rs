@@ -195,7 +195,7 @@ fn eliminate_common_subexpressions_in_block(
         }
 
         // try to get an expression key for this instruction
-        let Some(key) = PureExpression::from_instruction(instruction, tree) else {
+        let Some(key) = PureExpression::from_instruction(instruction) else {
             continue;
         };
 

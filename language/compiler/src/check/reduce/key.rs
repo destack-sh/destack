@@ -238,7 +238,7 @@ impl CheckState<'_> {
         if let Some(static_key) = static_key
             && matches!(
                 self.ty(left)?,
-                dir::Type::Reference(_) | dir::Type::Instance(_) | dir::Type::Refined(_)
+                dir::Type::Reference(_) | dir::Type::Application(_) | dir::Type::Refined(_)
             )
         {
             return self.reduce_static_member_projection(origin, left, static_key, key);
@@ -296,7 +296,7 @@ impl CheckState<'_> {
             }
             // unprojected member-bearing receivers stay symbolic
             (
-                dir::Type::Instance(_)
+                dir::Type::Application(_)
                 | dir::Type::Reference(_)
                 | dir::Type::Refined(_)
                 | dir::Type::Intersection(_),
@@ -456,7 +456,7 @@ impl CheckState<'_> {
             }
 
             // nominal instance keys follow public instance members through heritage
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 answer!(self.instance_keyof_set(origin, instance.symbol)?)
             }
 
@@ -678,7 +678,7 @@ impl CheckState<'_> {
 
                 dir::StaticKey::Index(index)
             }
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 if !self.is_unique_symbol_instance(ty, instance.symbol)? {
                     return Ok(None);
                 }
@@ -746,7 +746,7 @@ impl CheckState<'_> {
                     dir::Type::Shape(shape) => {
                         Some(self.shape_fields(target.module_id, shape.fields)?.to_vec())
                     }
-                    dir::Type::Instance(instance) => {
+                    dir::Type::Application(instance) => {
                         answer!(self.interface_instance_fields(
                             origin,
                             target.module_id,

@@ -22,12 +22,12 @@ impl ApparentInstance {
         check: &mut CheckState<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let arguments = check.intern_type_ids(module, &self.arguments)?;
-        let instance = dir::GenericInstance {
+        let instance = dir::GenericApplication {
             symbol: self.symbol,
             arguments,
         };
 
-        check.intern_type(module, dir::Type::Instance(instance))
+        check.intern_type(module, dir::Type::Application(instance))
     }
 
     /// Return the generic substitution represented by this instance.
@@ -77,7 +77,7 @@ impl CheckState<'_> {
         let instance = match self.ty(receiver)? {
             dir::Type::Form(form) => return self.apparent_instance(form.value),
             dir::Type::EnumMember(member) => return self.apparent_instance(member.owner),
-            dir::Type::Instance(instance) => ApparentInstance {
+            dir::Type::Application(instance) => ApparentInstance {
                 symbol: self.resolve_symbol_alias(instance.symbol)?,
                 arguments: self
                     .type_ids(receiver.module_id, instance.arguments)?

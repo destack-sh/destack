@@ -131,7 +131,7 @@ fn run_interprocedural_constant_prop(
         }
 
         let function = tree.get(function_id);
-        let signature = SignatureKey::from_function(tree, function);
+        let signature = SignatureKey::from_function(function);
 
         // skip functions reachable through indirect calls
         if call_data.indirect_signatures.contains(&signature) {

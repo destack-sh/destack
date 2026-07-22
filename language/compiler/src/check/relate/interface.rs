@@ -44,7 +44,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target_module: ModuleId,
-        target_instance: &dir::GenericInstance,
+        target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         let module = origin.module();
         let requirements =
@@ -91,7 +91,7 @@ impl CheckState<'_> {
         for inherited in requirements.inherited {
             let interface = self.intern_type(
                 module,
-                dir::Type::Instance(dir::GenericInstance {
+                dir::Type::Application(dir::GenericApplication {
                     symbol: inherited.instance.symbol,
                     arguments: inherited.instance.arguments,
                 }),
@@ -116,7 +116,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target_module: ModuleId,
-        target_instance: &dir::GenericInstance,
+        target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         let dir::Type::Shape(shape) = self.ty(source)? else {
             return Ok(Answer::Ready(false));
@@ -192,7 +192,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<InterfaceRequirements>> {
         let substitution = self
@@ -273,7 +273,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<Vec<dir::TypeField>>>> {
         if !matches!(
@@ -347,7 +347,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         owner: dir::GlobalSymbolId,
         owner_arguments: &[dir::GenericArgumentBinding],
-        interface: &dir::GenericInstance,
+        interface: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         // prove extension owners through their declared implemented interfaces
         if matches!(self.definition(owner)?, Some(dir::Definition::Extension(_))) {
@@ -367,7 +367,7 @@ impl CheckState<'_> {
         }
 
         // prove nominal owners through the regular implements relation
-        let interface = self.intern_type(module, dir::Type::Instance(*interface))?;
+        let interface = self.intern_type(module, dir::Type::Application(*interface))?;
 
         self.decide_relation(origin, Relation::Implements, receiver, interface)
     }
@@ -402,10 +402,10 @@ impl CheckState<'_> {
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let (instance_module, instance) = match self.ty(receiver)? {
             dir::Type::Form(form) => match self.ty(form.value)? {
-                dir::Type::Instance(instance) => (form.value.module_id, Some(instance)),
+                dir::Type::Application(instance) => (form.value.module_id, Some(instance)),
                 _ => (receiver.module_id, None),
             },
-            dir::Type::Instance(instance) => (receiver.module_id, Some(instance)),
+            dir::Type::Application(instance) => (receiver.module_id, Some(instance)),
             _ => (receiver.module_id, None),
         };
         let Some(instance) = instance else {
@@ -431,7 +431,7 @@ impl CheckState<'_> {
         interface_module: ModuleId,
         extension_symbol: dir::GlobalSymbolId,
         extension_arguments: &[dir::GlobalTypeId],
-        interface: &dir::GenericInstance,
+        interface: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         let Some((implements, substitution)) =
             self.applied_extension_implements(module, extension_symbol, extension_arguments)?
@@ -484,7 +484,7 @@ impl CheckState<'_> {
 
         // substitute applied extension arguments into implemented interfaces
         let arguments = self.intern_type_ids(module, extension_arguments)?;
-        let extension = dir::GenericInstance {
+        let extension = dir::GenericApplication {
             symbol: extension_symbol,
             arguments,
         };
@@ -501,7 +501,7 @@ impl CheckState<'_> {
         interface_module: ModuleId,
         substitution: &TypeSubstitution,
         implements: &[dir::NominalHeritage],
-        interface: &dir::GenericInstance,
+        interface: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         // compare each declared implemented interface
         let interface_arguments = self
@@ -583,7 +583,7 @@ impl CheckState<'_> {
         module: ModuleId,
         substitution: &TypeSubstitution,
         heritage: &dir::NominalHeritage,
-    ) -> CompilerResult<Answer<dir::GenericInstance>> {
+    ) -> CompilerResult<Answer<dir::GenericApplication>> {
         let mut arguments = Vec::new();
 
         // substitute and normalize each inherited argument; open roots pass
@@ -600,7 +600,7 @@ impl CheckState<'_> {
         }
         let arguments = self.intern_type_ids(module, &arguments)?;
 
-        Ok(Answer::Ready(dir::GenericInstance {
+        Ok(Answer::Ready(dir::GenericApplication {
             symbol: heritage.symbol,
             arguments,
         }))

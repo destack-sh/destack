@@ -61,7 +61,7 @@ impl CheckState<'_> {
             | dir::Type::Intrinsic
             | dir::Type::Range(_) => Ok(Answer::Ready(true)),
             dir::Type::Reference(_) => Ok(Answer::Ready(false)),
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let Some(definition) = self.definition(instance.symbol)? else {
                     return Ok(Answer::Ready(false));
                 };

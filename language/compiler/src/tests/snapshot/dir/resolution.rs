@@ -1512,7 +1512,7 @@ fn type_label_with_bindings(
             .map(|binding| builder.global_type_label(binding.argument))
             .unwrap_or_else(|| builder.global_type_label(type_id)),
         dir::Type::Reference(reference) => builder.reference_symbol_label(reference.symbol),
-        dir::Type::Instance(instance) => {
+        dir::Type::Application(instance) => {
             generic_instance_type_label(builder, type_id.module_id, &instance, bindings)
         }
         _ => builder.global_type_label(type_id),
@@ -1523,7 +1523,7 @@ fn type_label_with_bindings(
 fn generic_instance_type_label(
     builder: &DirSnapshotBuilder<'_>,
     module: destack_source::ModuleId,
-    instance: &dir::GenericInstance,
+    instance: &dir::GenericApplication,
     bindings: &[dir::GenericArgumentBinding],
 ) -> String {
     let Some(types) = type_table(builder, module) else {

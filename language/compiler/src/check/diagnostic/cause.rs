@@ -356,7 +356,7 @@ impl CheckState<'_> {
             }
 
             // same-symbol applications blame arguments by variance
-            (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
+            (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol
                     && source_instance.arguments.len() == target_instance.arguments.len() =>
             {

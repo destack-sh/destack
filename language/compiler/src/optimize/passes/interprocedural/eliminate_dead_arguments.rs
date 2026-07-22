@@ -113,7 +113,7 @@ fn run_eliminate_dead_arguments(tree: &mut mir::Tree, effects: &mut mir::EffectT
         }
 
         let function = tree.get(function_id);
-        let signature = SignatureKey::from_function(tree, function);
+        let signature = SignatureKey::from_function(function);
 
         // skip functions that might be called indirectly
         if call_data.indirect_signatures.contains(&signature) {

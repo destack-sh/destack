@@ -78,7 +78,7 @@ impl CheckState<'_> {
 
         // unwrap compiler-recognized promises
         let instance = match self.ty(target)? {
-            dir::Type::Instance(instance) => Some(instance),
+            dir::Type::Application(instance) => Some(instance),
             _ => None,
         };
         let inner = match instance {

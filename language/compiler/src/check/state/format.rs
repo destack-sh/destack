@@ -74,7 +74,7 @@ impl CheckState<'_> {
             dir::Type::Reference(reference) => {
                 self.format_symbol_path_maybe_at(module, reference.symbol)
             }
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let name = self.format_symbol_path_maybe_at(module, instance.symbol);
                 if instance.arguments.is_empty() {
                     name

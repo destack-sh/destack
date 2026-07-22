@@ -305,7 +305,7 @@ impl CheckState<'_> {
                 *argument = self.substitute_type(origin.module(), *argument, &substitution)?;
             }
             let arguments = self.intern_type_ids(module, &arguments)?;
-            let instance = dir::GenericInstance {
+            let instance = dir::GenericApplication {
                 symbol: heritage.symbol,
                 arguments,
             };
@@ -343,7 +343,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GenericInstance> {
+    ) -> CompilerResult<dir::GenericApplication> {
         let parameters = self
             .symbol_template(symbol)?
             .map(|template| self.generic_template_parameters(template))
@@ -356,6 +356,6 @@ impl CheckState<'_> {
         }
         let arguments = self.intern_type_ids(module, &arguments)?;
 
-        Ok(dir::GenericInstance { symbol, arguments })
+        Ok(dir::GenericApplication { symbol, arguments })
     }
 }

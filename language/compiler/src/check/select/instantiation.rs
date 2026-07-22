@@ -139,7 +139,7 @@ impl BodyState<'_, '_> {
 
                         self.intern_type(
                             module,
-                            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+                            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
                         )?
                     }
                     _ => self.substitute_type(module, declared, &substitution)?,

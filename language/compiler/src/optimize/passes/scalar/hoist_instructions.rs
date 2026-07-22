@@ -465,7 +465,7 @@ fn build_expression_index(
         let normalized = instruction_substitute_uses_in_tree(&instruction, value_rewrites, tree);
 
         // skip instructions without a stable key
-        let Some(key) = PureExpression::from_instruction(&normalized, tree) else {
+        let Some(key) = PureExpression::from_instruction(&normalized) else {
             continue;
         };
 

@@ -38,7 +38,7 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
             dir::Type::Primitive(primitive) => self.primitive(*primitive),
             dir::Type::Literal(literal) => self.literal(*literal),
             dir::Type::Reference(reference) => return self.symbol(reference.symbol),
-            dir::Type::Instance(instance) => return self.instance(*instance),
+            dir::Type::Application(instance) => return self.instance(*instance),
             dir::Type::Parameter(parameter) => return self.generic_parameter(*parameter),
             dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Member(member) => return self.member(*self.module.types().member(*member)),
@@ -145,7 +145,7 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
     }
 
     /// Format one generic instance.
-    fn instance(&self, instance: dir::GenericInstance) -> Option<String> {
+    fn instance(&self, instance: dir::GenericApplication) -> Option<String> {
         let symbol = self.symbol(instance.symbol)?;
         let arguments = self.module.types().type_ids(instance.arguments);
 

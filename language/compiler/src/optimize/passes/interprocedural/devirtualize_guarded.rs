@@ -395,7 +395,7 @@ impl Promotion {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
     ) -> (mir::LocalNodeId<mir::Instruction>, mir::Value) {
-        let type_id = tree.insert_type(mir::Type::TypeId);
+        let type_id = tree.intern_type(mir::Type::TypeId);
         let destination = function.next_typed_value(type_id);
         let instruction = tree.insert(mir::Instruction::DynamicType {
             destination,

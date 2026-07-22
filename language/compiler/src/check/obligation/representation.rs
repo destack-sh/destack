@@ -39,7 +39,7 @@ impl CheckState<'_> {
         let value = answer!(self.strip_form(origin, ty)?);
         let value = answer!(self.reduce_type_head(origin, value)?);
         let symbol = match self.ty(value)? {
-            dir::Type::Instance(instance) => Some(instance.symbol),
+            dir::Type::Application(instance) => Some(instance.symbol),
             dir::Type::Reference(reference) => Some(reference.symbol),
             _ => None,
         };
@@ -100,7 +100,7 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(ObligationCheck::holds()));
                 }
                 let use_fields = match self.ty(chain.base())? {
-                    dir::Type::Instance(instance) => {
+                    dir::Type::Application(instance) => {
                         let declaration = self
                             .module(instance.symbol.module_id)
                             .symbol_declaration_node(instance.symbol.local_id)?
@@ -228,7 +228,7 @@ impl CheckState<'_> {
                 .map(|element| (*element, source))
                 .collect(),
             dir::Type::EnumMember(member) => SmallVec::from_slice(&[(member.owner, source)]),
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 return self.representation_instance_failure(
                     origin, owner, &instance, source, check, visited,
                 );
@@ -244,7 +244,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         owner: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         source: dir::GlobalNodeIdAny,
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,

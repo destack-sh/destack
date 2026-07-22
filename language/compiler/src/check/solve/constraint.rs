@@ -445,4 +445,3 @@ pub(in crate::check) enum CheckAttempt {
     /// The expression form checked against this target.
     Checked(ValueCheck),
 }
-

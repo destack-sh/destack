@@ -256,7 +256,7 @@ impl BodyState<'_, '_> {
                 self.shape_fields(current.module_id, shape.fields)?.to_vec(),
             ))),
             // instances spread their visible fields
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let keys = self.nominal_member_keys(instance.symbol)?;
                 let mut fields = Vec::with_capacity(keys.len());
                 let mut seen = SmallVec::<[dir::StaticKey; 8]>::new();

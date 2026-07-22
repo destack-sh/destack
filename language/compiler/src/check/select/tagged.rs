@@ -14,7 +14,7 @@ pub(in crate::check) struct VariantOwner {
     /// The variant owner type.
     pub(in crate::check) owner: dir::GlobalTypeId,
     /// The variant owner instance.
-    pub(in crate::check) instance: dir::GenericInstance,
+    pub(in crate::check) instance: dir::GenericApplication,
 }
 
 /// One tagged case named by a pattern.
@@ -125,7 +125,7 @@ impl BodyState<'_, '_> {
     {
         let owner = answer!(self.reduce_type_head(origin, owner)?);
         let symbol = match self.ty(owner)? {
-            dir::Type::Instance(instance) => instance.symbol,
+            dir::Type::Application(instance) => instance.symbol,
             dir::Type::Reference(reference) => reference.symbol,
             _ => return Ok(Answer::Ready(None)),
         };
@@ -170,7 +170,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<dir::VariantCase>>> {
         let owner = answer!(self.reduce_type_head(origin, owner)?);
         let symbol = match self.ty(owner)? {
-            dir::Type::Instance(instance) => instance.symbol,
+            dir::Type::Application(instance) => instance.symbol,
             dir::Type::Reference(reference) => reference.symbol,
             _ => return Ok(Answer::Ready(None)),
         };
@@ -297,7 +297,7 @@ impl BodyState<'_, '_> {
 
         // collect every visible owner instance from the input
         match self.ty(input)? {
-            dir::Type::Instance(instance) if instance.symbol == symbol => {
+            dir::Type::Application(instance) if instance.symbol == symbol => {
                 owners.push(VariantOwner {
                     owner: input,
                     instance,
@@ -309,7 +309,7 @@ impl BodyState<'_, '_> {
 
                 for arm in arms {
                     let arm = answer!(self.reduce_type_head(origin, arm)?);
-                    if let dir::Type::Instance(instance) = self.ty(arm)?
+                    if let dir::Type::Application(instance) = self.ty(arm)?
                         && instance.symbol == symbol
                     {
                         owners.push(VariantOwner {
@@ -424,7 +424,7 @@ impl BodyState<'_, '_> {
 
         // name the case from the variant symbol's declared key
         let owner_head = answer!(self.reduce_type_head(origin, member.owner)?);
-        let dir::Type::Instance(owner_instance) = self.ty(owner_head)? else {
+        let dir::Type::Application(owner_instance) = self.ty(owner_head)? else {
             return self.reject_construct(site, node, origin, argument_nodes, &[]);
         };
         let Some(key) = self.tagged_variant_key(owner_instance.symbol, member.member)? else {
@@ -447,7 +447,7 @@ impl BodyState<'_, '_> {
         // explicit type arguments bind the opened owner holes directly
         let mut type_arguments = type_arguments;
         if !type_arguments.is_empty() {
-            let dir::Type::Instance(owner_open) = self.ty(owner.owner)? else {
+            let dir::Type::Application(owner_open) = self.ty(owner.owner)? else {
                 return self.reject_construct(site, node, origin, argument_nodes, &[]);
             };
             let holes = self
@@ -548,7 +548,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<VariantOwner>>> {
         let owner = answer!(self.reduce_type_head(origin, owner)?);
         let (owner, instance) = match self.ty(owner)? {
-            dir::Type::Instance(instance) => (owner, instance),
+            dir::Type::Application(instance) => (owner, instance),
             dir::Type::Reference(reference) => {
                 // generic owners open inference holes
                 let arguments = if let Some(template) = self.symbol_template(reference.symbol)?
@@ -570,11 +570,11 @@ impl BodyState<'_, '_> {
                     dir::TypeListId::EMPTY
                 };
 
-                let instance = dir::GenericInstance {
+                let instance = dir::GenericApplication {
                     symbol: reference.symbol,
                     arguments,
                 };
-                let owner = self.intern_type(origin.module(), dir::Type::Instance(instance))?;
+                let owner = self.intern_type(origin.module(), dir::Type::Application(instance))?;
 
                 (owner, instance)
             }
@@ -647,7 +647,7 @@ impl BodyState<'_, '_> {
         discriminant: dir::StaticKey,
     ) -> CompilerResult<Answer<Vec<TaggedPayloadField>>> {
         match self.ty(leaf)? {
-            dir::Type::Instance(_) => {
+            dir::Type::Application(_) => {
                 self.tagged_instance_payload_fields(origin, leaf, discriminant)
             }
             dir::Type::Shape(shape) => {
@@ -678,7 +678,7 @@ impl BodyState<'_, '_> {
         arm: dir::GlobalTypeId,
         tag_key: dir::StaticKey,
     ) -> CompilerResult<Answer<Vec<TaggedPayloadField>>> {
-        let dir::Type::Instance(instance) = self.ty(arm)? else {
+        let dir::Type::Application(instance) = self.ty(arm)? else {
             return Err(CompilerError::Internal {
                 message: format!("tagged nominal leaf {arm:?} is not an instance"),
             });
@@ -974,9 +974,9 @@ impl CheckState<'_> {
     fn tagged_domain_instance(
         &mut self,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GenericInstance>> {
+    ) -> CompilerResult<Option<dir::GenericApplication>> {
         let instance = match self.ty(value)? {
-            dir::Type::Instance(instance) => instance,
+            dir::Type::Application(instance) => instance,
             dir::Type::Reference(reference) => {
                 if let Some(template) = self.symbol_template(reference.symbol)?
                     && !self.generic_template_parameters(template).is_empty()
@@ -984,7 +984,7 @@ impl CheckState<'_> {
                     return Ok(None);
                 }
 
-                dir::GenericInstance {
+                dir::GenericApplication {
                     symbol: reference.symbol,
                     arguments: dir::TypeListId::EMPTY,
                 }

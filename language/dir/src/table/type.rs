@@ -133,29 +133,14 @@ impl<'a> TypeTable<'a> {
 
     /// Get the reduced type id for a checked type.
     pub fn get_reduced_type_id(&self, type_id: GlobalTypeId) -> GlobalTypeId {
-        let mut current = type_id;
-        // follow reductions until they reach a fixed point
-        let mut seen = Vec::new();
-        while !seen.contains(&current) {
-            seen.push(current);
-            let Some(reduced) = self.get_direct_reduced_type_id(current) else {
-                return current;
-            };
-            current = reduced;
-        }
-
-        panic!("DIR type reduction cycle contains {current:?}");
-    }
-
-    /// Get the directly stored reduced type id for a checked type.
-    fn get_direct_reduced_type_id(&self, type_id: GlobalTypeId) -> Option<GlobalTypeId> {
+        // stored reductions are fixed points, so one lookup resolves
         for segment in self.segments.iter().rev() {
             if let Some(reduced) = segment.get_reduced_type_id(type_id) {
-                return Some(reduced);
+                return reduced;
             }
         }
 
-        None
+        type_id
     }
 
     /// Get the reduced checked type id for a node.
@@ -344,7 +329,7 @@ impl<'a> TypeTable<'a> {
             | Type::Reference(_) => {}
 
             // declaration applications
-            Type::Instance(instance) => {
+            Type::Application(instance) => {
                 for child in self.type_ids(instance.arguments) {
                     visit(*child);
                 }

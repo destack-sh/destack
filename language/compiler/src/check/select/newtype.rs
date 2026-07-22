@@ -104,7 +104,7 @@ impl BodyState<'_, '_> {
         let return_arguments = self.intern_type_ids(module, &return_arguments)?;
         let return_type = self.intern_type(
             module,
-            dir::Type::Instance(dir::GenericInstance {
+            dir::Type::Application(dir::GenericApplication {
                 symbol,
                 arguments: return_arguments,
             }),
@@ -386,7 +386,7 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(Vec::new()));
         };
         let expected_return = answer!(self.reduce_type_head(origin, expected_return)?);
-        let dir::Type::Instance(instance) = self.ty(expected_return)? else {
+        let dir::Type::Application(instance) = self.ty(expected_return)? else {
             return Ok(Answer::Ready(Vec::new()));
         };
         if instance.symbol != symbol {

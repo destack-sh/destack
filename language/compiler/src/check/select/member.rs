@@ -706,7 +706,7 @@ impl BodyState<'_, '_> {
         member: &dir::MemberType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let owner = self.settled_root(member.owner)?;
-        let dir::Type::Instance(instance) = self.ty(owner)? else {
+        let dir::Type::Application(instance) = self.ty(owner)? else {
             return Ok(Answer::Ready(None));
         };
         let implements = match self.definition(instance.symbol)? {
@@ -750,7 +750,7 @@ impl BodyState<'_, '_> {
         for bound in self.parameter_bounds(origin, parameter)? {
             // only interface bounds can declare projected members
             let bound = answer!(self.reduce_type_head(origin, bound)?);
-            let dir::Type::Instance(instance) = self.ty(bound)? else {
+            let dir::Type::Application(instance) = self.ty(bound)? else {
                 continue;
             };
             let members = match self.definition(instance.symbol)? {
@@ -792,7 +792,7 @@ impl BodyState<'_, '_> {
         for bound in self.parameter_bounds(origin, parameter)? {
             // only interface bounds can declare projected members
             let bound = answer!(self.reduce_type_head(origin, bound)?);
-            let dir::Type::Instance(instance) = self.ty(bound)? else {
+            let dir::Type::Application(instance) = self.ty(bound)? else {
                 continue;
             };
             let members = match self.definition(instance.symbol)? {
@@ -837,7 +837,7 @@ impl BodyState<'_, '_> {
             dir::Type::Reference(reference) => {
                 return Ok(Answer::Ready(candidate.owner == reference.symbol));
             }
-            dir::Type::Instance(instance) => instance,
+            dir::Type::Application(instance) => instance,
             _ => return Ok(Answer::Ready(false)),
         };
 
@@ -872,7 +872,7 @@ impl BodyState<'_, '_> {
             let arguments = self.intern_type_ids(module, &arguments)?;
             let pattern = self.intern_type(
                 module,
-                dir::Type::Instance(dir::GenericInstance {
+                dir::Type::Application(dir::GenericApplication {
                     symbol: heritage.symbol,
                     arguments,
                 }),
@@ -929,7 +929,7 @@ impl BodyState<'_, '_> {
             current = answer!(self.reduce_type_head(origin, current)?);
             let dir::Type::Form(form) = self.ty(current)? else {
                 // bare nominal instances live in their declared or inherited space
-                if let dir::Type::Instance(instance) = self.ty(current)?
+                if let dir::Type::Application(instance) = self.ty(current)?
                     && let Some(space) = self.check.nominal_space(instance.symbol)?
                 {
                     let place = self.intern_type(
@@ -993,7 +993,7 @@ impl BodyState<'_, '_> {
             | dir::Type::Refined(_)
             | dir::Type::Object
             | dir::Type::Reference(_)
-            | dir::Type::Instance(_)
+            | dir::Type::Application(_)
             | dir::Type::Member(_)
             | dir::Type::EnumMember(_)
             | dir::Type::Form(_)

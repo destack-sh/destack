@@ -299,7 +299,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 Self::reference(name)
             }
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let Some(name) = self.symbol_name(instance.symbol) else {
                     return Ok(None);
                 };

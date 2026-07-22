@@ -473,7 +473,7 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(true))
             }
-            (dir::Type::Instance(pattern), dir::Type::Instance(actual))
+            (dir::Type::Application(pattern), dir::Type::Application(actual))
                 if pattern.symbol == actual.symbol =>
             {
                 let pattern_arguments = self.type_ids(pattern_module, pattern.arguments)?.to_vec();

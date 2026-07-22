@@ -733,9 +733,7 @@ impl CheckState<'_> {
             Obligation::PatternCoverage(obligation) => {
                 self.check_pattern_coverage(origin, obligation)
             }
-            Obligation::UseAfterMove(obligation) => {
-                self.check_use_after_move(origin, *obligation)
-            }
+            Obligation::UseAfterMove(obligation) => self.check_use_after_move(origin, *obligation),
             Obligation::WritablePlace(obligation) => self.check_writable_place(origin, obligation),
             Obligation::Representation(obligation) => {
                 self.check_representation(origin, obligation.ty)

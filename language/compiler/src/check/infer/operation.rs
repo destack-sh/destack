@@ -206,7 +206,7 @@ impl BodyState<'_, '_> {
                 let arguments = self.check.intern_type_ids(module, &[residual])?;
                 let target = self.intern_type(
                     module,
-                    dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+                    dir::Type::Application(dir::GenericApplication { symbol, arguments }),
                 )?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_constraint(Constraint::r#type(Relation::Implements, ret, target, cause));

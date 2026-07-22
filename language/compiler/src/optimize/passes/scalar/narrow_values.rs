@@ -399,7 +399,7 @@ fn narrow_value_to_width(
 
     // cache or create the narrower integer type
     let ty_id = *type_cache.entry((width, signed)).or_insert_with(|| {
-        tree.insert_type(mir::Type::Int {
+        tree.intern_type(mir::Type::Int {
             width,
             is_signed: signed,
         })

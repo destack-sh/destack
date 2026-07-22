@@ -10,7 +10,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let Some(item) = self.language_item(instance.symbol)? else {
             return Ok(Answer::Ready(None));
@@ -129,7 +129,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         item: dir::LanguageItem,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let Some(mapping) = item.string_mapping() else {
             return Ok(Answer::Ready(None));
@@ -152,7 +152,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
@@ -169,7 +169,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
@@ -186,7 +186,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let [element] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
@@ -203,7 +203,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let [element] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
@@ -220,7 +220,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let [element, count] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
@@ -240,7 +240,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let [constraint] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
@@ -259,7 +259,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let Some(signature) =
             answer!(self.function_signature_from_application(origin, module, instance)?)
@@ -282,7 +282,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let Some(signature) =
             answer!(self.function_signature_from_application(origin, module, instance)?)
@@ -301,7 +301,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let [parameters, return_type] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));

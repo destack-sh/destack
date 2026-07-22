@@ -31,14 +31,14 @@ impl CheckState<'_> {
         origin: Origin,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<NewtypeInstance>> {
-        let dir::Type::Instance(instance) = self.ty(value)? else {
+        let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
         let symbol = self.resolve_symbol_alias(instance.symbol)?;
         let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
             return Ok(None);
         };
-        let instance = dir::GenericInstance { symbol, ..instance };
+        let instance = dir::GenericApplication { symbol, ..instance };
         let declared_backing = definition.backing;
 
         // apply the written arguments to the declared backing

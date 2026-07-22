@@ -19,7 +19,7 @@ impl CheckState<'_> {
             let value = answer!(self.strip_form(origin, obligation.ty)?);
             let value = answer!(self.reduce_type_head(origin, value)?);
             let symbol = match self.ty(value)? {
-                dir::Type::Instance(instance) => Some(instance.symbol),
+                dir::Type::Application(instance) => Some(instance.symbol),
                 dir::Type::Reference(reference) => Some(reference.symbol),
                 _ => None,
             };

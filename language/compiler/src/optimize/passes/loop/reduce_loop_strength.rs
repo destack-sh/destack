@@ -1736,7 +1736,7 @@ impl<'a> ScevMaterializer<'a> {
             width,
             is_signed: signed,
         };
-        let type_id = self.tree.insert_type(ty);
+        let type_id = self.tree.intern_type(ty);
         self.type_cache.insert((width, signed), type_id);
 
         Some(type_id)

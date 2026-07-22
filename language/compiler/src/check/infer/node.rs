@@ -258,7 +258,7 @@ impl BodyState<'_, '_> {
             Answer::Ready(root) => root,
             Answer::Pending(_) => return Ok(Answer::Ready(false)),
         };
-        let dir::Type::Instance(instance) = self.check.ty(root)? else {
+        let dir::Type::Application(instance) = self.check.ty(root)? else {
             return Ok(Answer::Ready(false));
         };
 

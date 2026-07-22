@@ -294,7 +294,7 @@ impl ModuleQueryContext<'_> {
         type_id: dir::GlobalTypeId,
     ) -> Option<dir::GlobalSymbolId> {
         self.read_global_type(type_id, |ty, type_module| match ty {
-            dir::Type::Instance(reference) => Some(reference.symbol),
+            dir::Type::Application(reference) => Some(reference.symbol),
             dir::Type::Form(value) => self.resolve_nominal_type_symbol(value.value),
             dir::Type::Dynamic(dynamic) => self.resolve_nominal_type_symbol(dynamic.constraint),
             dir::Type::Operation(operation) => self.resolve_nominal_type_symbol_from_operation(

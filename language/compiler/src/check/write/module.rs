@@ -138,7 +138,7 @@ impl CheckState<'_> {
         // seal the satisfied markers on each nominal's own instance
         for symbol in nominals {
             let instance = self.declaration_instance(module, symbol)?;
-            let target = self.intern_type(module, dir::Type::Instance(instance))?;
+            let target = self.intern_type(module, dir::Type::Application(instance))?;
             let origin = Origin::Symbol(symbol);
             for interface in dir::AutoInterface::REPRESENTATION {
                 let holds = match self.satisfies_auto_interface(origin, target, interface)? {

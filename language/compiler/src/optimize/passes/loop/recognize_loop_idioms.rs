@@ -6,8 +6,8 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, BlockParamForwarding, ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation,
-    RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueDefinitions, ValueRange,
-    ValueTypes, build_use_def_maps, build_value_use_counts, constant_for_value, constant_is_zero,
+    RangeAnalysis, ScalarEvolution, Scev, UseDefMaps, ValueDefinitions, ValueRange, ValueTypes,
+    build_use_def_maps, build_value_use_counts, constant_for_value, constant_is_zero,
     instruction_has_side_effects, instruction_is_borrow_address, instruction_is_speculatable,
 };
 
@@ -394,13 +394,13 @@ fn run_recognize_loop_idioms(
                 continue;
             };
 
-            let dest_key = TypeKey::from_type(dest_element, tree);
-            let src_key = TypeKey::from_type(src_element, tree);
-            if dest_key != src_key {
+            if dest_element != src_element {
                 continue;
             }
 
-            let Some(element_size) = dest_key.byte_size(ctx.target_layout().pointer_bits()) else {
+            let element = tree.get(dest_element);
+            let Some(element_size) = element.byte_size(tree, ctx.target_layout().pointer_bits())
+            else {
                 continue;
             };
 

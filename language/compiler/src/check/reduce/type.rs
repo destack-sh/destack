@@ -55,7 +55,7 @@ impl CheckState<'_> {
             dir::Type::Any | dir::Type::Object | dir::Type::Unknown => Ok(true),
 
             // interface instances are constraints, not represented values
-            dir::Type::Instance(instance) => Ok(matches!(
+            dir::Type::Application(instance) => Ok(matches!(
                 self.symbol_kind(instance.symbol),
                 dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
             )),
@@ -244,7 +244,7 @@ impl CheckState<'_> {
             }
 
             // transparent alias references expand to their substituted bodies
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 // reduce intrinsic references to their builtin forms
                 if let Some(reduced) =
                     answer!(self.reduce_intrinsic_reference(origin, id.module_id, &instance)?)
@@ -550,7 +550,7 @@ impl CheckState<'_> {
 
     /// Return whether one type is a transparent alias application.
     fn is_alias_instance(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let dir::Type::Instance(instance) = self.ty(id)? else {
+        let dir::Type::Application(instance) = self.ty(id)? else {
             return Ok(false);
         };
         if !matches!(
@@ -568,7 +568,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // expand transparent alias definitions only
         let value = {

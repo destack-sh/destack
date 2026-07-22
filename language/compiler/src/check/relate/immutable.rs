@@ -74,7 +74,7 @@ impl CheckState<'_> {
                 Ok(decision)
             }
             // nominal immutability is seeded by language semantics
-            dir::Type::Instance(instance) => Ok(Answer::Ready(matches!(
+            dir::Type::Application(instance) => Ok(Answer::Ready(matches!(
                 self.language_item(instance.symbol)?,
                 Some(dir::LanguageItem::String | dir::LanguageItem::BigInt)
             ))),

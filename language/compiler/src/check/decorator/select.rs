@@ -173,7 +173,7 @@ impl BodyState<'_, '_> {
         let type_arguments = self.intern_type_ids(module, &[])?;
         let ty = self.intern_type(
             module,
-            dir::Type::Instance(dir::GenericInstance {
+            dir::Type::Application(dir::GenericApplication {
                 symbol: application.symbol,
                 arguments: type_arguments,
             }),
