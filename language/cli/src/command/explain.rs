@@ -115,8 +115,8 @@ struct LintEntry {
     id: &'static str,
     /// The rule category.
     category: &'static str,
-    /// The rule description.
-    description: &'static str,
+    /// The concise rule summary.
+    summary: &'static str,
     /// Whether the rule provides a fix.
     fixable: bool,
     /// The standard level before configuration overrides.
@@ -255,7 +255,7 @@ fn lint_entry(rule: &'static linter::Lint) -> LintEntry {
     LintEntry {
         id: rule.id.as_ref(),
         category: rule.category.name(),
-        description: rule.description.as_ref(),
+        summary: rule.summary.as_ref(),
         fixable: rule.is_fixable(),
         level: rule.default_level.name(),
         tier: rule.tier().name(),
@@ -368,7 +368,7 @@ fn print_lints(entries: Vec<LintEntry>) {
                     );
                     let details = format_details(&details, is_color_enabled);
 
-                    ListEntry::new(format!("  {id} - {}", entry.description))
+                    ListEntry::new(format!("  {id} - {}", entry.summary))
                         .line(format!("  {details}"))
                 })
                 .collect();
@@ -406,7 +406,7 @@ fn output_lint(args: &ExplainArgs, entry: LintEntry) -> i32 {
     console::info(&format!("tier: {}", entry.tier));
     console::info(&format!("scope: {}", entry.scope));
     console::info(&format!("fixable: {}", entry.fixable));
-    console::info(&format!("description: {}", entry.description));
+    console::info(&format!("summary: {}", entry.summary));
 
     0
 }

@@ -107,8 +107,8 @@ struct LintListEntry {
     category: &'static str,
     /// Standard level before configuration overrides.
     level: &'static str,
-    /// Human-readable description.
-    description: &'static str,
+    /// Concise rule summary.
+    summary: &'static str,
     /// Whether the rule provides a fix.
     fixable: bool,
     /// Compiler representation inspected by the rule.
@@ -124,7 +124,7 @@ fn list_rules(args: &LintArgs) -> i32 {
         .map(|rule| LintListEntry {
             id: rule.id.as_ref(),
             category: rule.category.name(),
-            description: rule.description.as_ref(),
+            summary: rule.summary.as_ref(),
             fixable: rule.is_fixable(),
             level: rule.default_level.name(),
             tier: rule.tier().name(),
@@ -151,7 +151,7 @@ fn list_rules(args: &LintArgs) -> i32 {
             );
             ListEntry::new(entry.id)
                 .line(details)
-                .line(entry.description.to_string())
+                .line(entry.summary.to_string())
         })
         .collect::<Vec<_>>();
     let printer = ListPrinter::plain();
