@@ -1,7 +1,10 @@
 use super::identifier::classify_keyword_bytes;
 use super::scanner::EOF_CHAR;
 use super::tokenizer::Tokenizer;
-use destack_dir::{Token, TokenLiteral, TokenType, is_identifier_start, is_whitespace};
+use destack_dir::{
+    Token, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start, is_whitespace,
+};
+use destack_source::FileType;
 use destack_unicode::UnicodeEmoji;
 
 impl Tokenizer {
@@ -655,8 +658,15 @@ impl Tokenizer {
         (TokenType::Remainder, None)
     }
 
-    /// Parse one single-quoted string token.
+    /// Parse one single-quoted string, character, or lifetime token.
     fn read_single_quote_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
+        // scan lifetime
+        if let Some(length) = self.peek_lifetime_name() {
+            self.scanner.advance_bytes(length);
+
+            return (TokenType::Lifetime, None);
+        }
+
         let (is_terminated, has_invalid_escape) = self.eat_quoted_string('\'');
         let literal = TokenLiteral::String {
             is_terminated,
@@ -664,6 +674,34 @@ impl Tokenizer {
         };
 
         (TokenType::Literal, Some(literal))
+    }
+
+    /// Return the byte length of one tick name after the opening quote.
+    fn peek_lifetime_name(&self) -> Option<usize> {
+        // scan an identifier immediately after the tick
+        let remaining = self.scanner.remaining();
+        let mut characters = remaining.char_indices();
+        let Some((_, first)) = characters.next() else {
+            return None;
+        };
+        if !is_identifier_start(first) {
+            return None;
+        }
+        let mut length = first.len_utf8();
+        for (index, character) in characters {
+            if !is_identifier_continue(character) {
+                length = index;
+                break;
+            }
+            length = index + character.len_utf8();
+        }
+
+        // a closing quote spells a character literal, not a lifetime
+        if remaining.as_bytes().get(length) == Some(&b'\'') {
+            return None;
+        }
+
+        Some(length)
     }
 
     /// Parse one double-quoted string token.

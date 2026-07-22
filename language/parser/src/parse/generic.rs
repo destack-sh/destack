@@ -276,8 +276,27 @@ impl Parser {
             self.eat_token(TokenType::Spread)?;
         }
 
+        // declare tick names as lifetime parameters
+        if !is_comptime && !is_variadic && self.peek_is(TokenType::Lifetime) {
+            let range = self.peek_token().range();
+            let name = self.intern_range(range);
+            self.bump();
+            let parameter_id = self.insert_node(GenericParameter::Lifetime { name }, range);
+            self.tree.set_main_range(parameter_id, range);
+
+            return Ok(parameter_id);
+        }
+
         // generic parameters are always named
-        let (name, name_range) = self.eat_binding_identifier_with_range(function)?;
+        let (name, name_range) = if self.peek_is(TokenType::Lifetime) {
+            let range = self.peek_token().range();
+            let name = self.intern_range(range);
+            self.bump();
+
+            (name, range)
+        } else {
+            self.eat_binding_identifier_with_range(function)?
+        };
 
         // generic parameters are type parameters by default
         // value parameters opt in with `comptime`

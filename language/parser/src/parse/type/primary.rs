@@ -30,6 +30,8 @@ enum TypePrefix {
     },
     /// One borrowed reference prefix.
     Borrowed {
+        /// The named borrow lifetime.
+        lifetime: Option<LocalNodeId<TypeExpression>>,
         /// The mutability modifier.
         mutability: Option<Mutability>,
         /// The variance modifier.
@@ -164,10 +166,16 @@ impl Parser {
 
         // parse one owned or borrowed reference prefix
         let token = self.eat_reference_prefix_operator()?.token;
+        let lifetime =
+            match token.is(TokenType::ElementwiseAnd) && self.peek_is(TokenType::Lifetime) {
+                true => Some(self.parse_lifetime_type()),
+                false => None,
+            };
         let mutability = Some(self.parse_reference_mutability());
         let variance = self.parse_variance_bound_if_present();
         let prefix = if token.is(TokenType::ElementwiseAnd) {
             TypePrefix::Borrowed {
+                lifetime,
                 mutability,
                 variance,
                 range: token.range(),
@@ -214,11 +222,13 @@ impl Parser {
                 range,
             ),
             TypePrefix::Borrowed {
+                lifetime,
                 mutability,
                 variance,
                 range,
             } => (
                 TypeExpression::BorrowedOf {
+                    lifetime,
                     mutability,
                     variance,
                     target_type,
@@ -244,6 +254,15 @@ impl Parser {
         ty
     }
 
+    /// Parse one peeked tick name into a lifetime type expression.
+    fn parse_lifetime_type(&mut self) -> LocalNodeId<TypeExpression> {
+        let range = self.peek_token().range();
+        let name = self.intern_range(range);
+        self.bump();
+
+        self.insert_node(TypeExpression::Lifetime { name }, range)
+    }
+
     /// Parse one primary type without prefix or postfix operations.
     fn parse_type_primary(
         &mut self,
@@ -252,6 +271,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         match self.peek_token_type() {
             TokenType::Identifier => self.parse_identifier_type_primary(start, context),
+            TokenType::Lifetime => Ok(self.parse_lifetime_type()),
             TokenType::OpenParenthesis if self.peek_parenthesized_function_type(context) => {
                 self.parse_function_type(start, DeclarationHeader::default(), context)
             }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_source::{File, FileId, Span};
+use destack_source::{File, FileId, FileType, Span};
 
 use super::scanner::Scanner;
 
@@ -30,6 +30,12 @@ impl Tokenizer {
     #[inline]
     pub(crate) fn span_str(&self, span: Span) -> &str {
         self.file.span_str(span)
+    }
+
+    /// Return the tokenized file's type.
+    #[inline]
+    pub(super) fn file_type(&self) -> FileType {
+        self.file.ty
     }
 
     /// Return whether no source bytes remain.

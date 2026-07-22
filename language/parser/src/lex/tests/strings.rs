@@ -37,11 +37,11 @@ fn test_lex_single_quoted_single_character_strings() {
     );
 }
 
-/// Single-quoted string forms should lex as terminated string literals.
+/// Immediately closed tick names should lex as character literal strings.
 #[test]
-fn test_lex_single_quoted_strings() {
+fn test_lex_single_quoted_character_forms() {
     assert_tokenize_eq_roundtrip!(
-        "'ab' 'multi word' '../ivm/catch.ts'",
+        "'ab' '../ivm/catch.ts'",
         token(
             TokenType::Literal,
             4,
@@ -53,18 +53,42 @@ fn test_lex_single_quoted_strings() {
         token(TokenType::Whitespace, 1, None),
         token(
             TokenType::Literal,
-            12,
+            17,
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
         ),
+    );
+}
+
+/// Tick names without a closing quote should lex as lifetimes.
+#[test]
+fn test_lex_tick_names_as_lifetimes() {
+    assert_tokenize_eq_roundtrip!(
+        "'a 'static &'a",
+        token(TokenType::Lifetime, 2, None),
         token(TokenType::Whitespace, 1, None),
+        token(TokenType::Lifetime, 7, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::ElementwiseAnd, 1, None),
+        token(TokenType::Lifetime, 2, None),
+    );
+}
+
+/// A tick name wins over a distant closing quote on the same line.
+#[test]
+fn test_lex_tick_name_over_multi_word_string() {
+    assert_tokenize_eq_roundtrip!(
+        "'multi word'",
+        token(TokenType::Lifetime, 6, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 4, None),
         token(
             TokenType::Literal,
-            17,
+            1,
             Some(TokenLiteral::String {
-                is_terminated: true,
+                is_terminated: false,
                 has_invalid_escape: false,
             })
         ),
@@ -412,14 +436,14 @@ fn test_lex_unterminated_single_quote_inside_parentheses() {
 /// Unterminated single-quoted strings should be marked as unterminated.
 #[test]
 fn test_lex_unterminated_single_quote_is_marked() {
-    let (semantic_tokens, trivia_tokens) = lex_source_tokens("'abc");
+    let (semantic_tokens, trivia_tokens) = lex_source_tokens("'. ");
 
     assert_eq!(
         semantic_tokens,
         vec![
             token(
                 TokenType::Literal,
-                4,
+                3,
                 Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: false,

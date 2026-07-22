@@ -3,6 +3,7 @@ mod comments;
 mod conditional;
 mod declaration;
 mod index;
+mod lifetime;
 mod literal;
 mod mapped;
 mod operator;

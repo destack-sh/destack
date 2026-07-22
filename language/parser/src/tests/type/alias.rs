@@ -330,7 +330,7 @@ fn test_parse_borrowed_reference_type_alias() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Borrowed");
-            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { mutability, variance, target_type } => {
+            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { lifetime: None, mutability, variance, target_type } => {
                 assert_eq!(*mutability, Some(Mutability::Mutable));
                 assert!(variance.is_none());
                 assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
@@ -357,10 +357,10 @@ fn test_parse_borrowed_reference_type_chain_compact() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Borrowed");
-            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { mutability, variance, target_type } => {
+            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { lifetime: None, mutability, variance, target_type } => {
                 assert_eq!(*mutability, Some(Mutability::Mutable));
                 assert!(variance.is_none());
-                assert_node!(parser.tree, *target_type, TypeExpression::BorrowedOf { mutability, variance, target_type } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::BorrowedOf { lifetime: None, mutability, variance, target_type } => {
                     assert_eq!(*mutability, Some(Mutability::Mutable));
                     assert!(variance.is_none());
                     assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
@@ -389,7 +389,7 @@ fn test_parse_readonly_borrowed_reference_type_alias() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Borrowed");
-            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { mutability, variance, target_type } => {
+            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { lifetime: None, mutability, variance, target_type } => {
                 assert_eq!(*mutability, Some(Mutability::Immutable));
                 assert!(variance.is_none());
                 assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
