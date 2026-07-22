@@ -1,7 +1,6 @@
+import { Result } from "destack:error";
 import { Default } from "destack:memory";
 import { FromResidual } from "destack:ops";
-
-import { Result } from "destack:error";
 
 import { Promise } from "./promise.ds";
 

@@ -236,10 +236,10 @@ global {
 
     // destack:async
     export {
-        AsyncResult,
         AsyncGenerator,
         AsyncIterable,
         AsyncIterator,
+        AsyncResult,
         Generator,
         GeneratorResult,
         Promise,
