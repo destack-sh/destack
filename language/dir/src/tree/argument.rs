@@ -25,6 +25,8 @@ pub enum GenericParameter {
         default: Option<LocalNodeId<TypeExpression>>,
         is_const: bool,
     },
+    /// Lifetime parameter.
+    Lifetime { name: StringId },
     /// Value parameter.
     Value {
         name: StringId,
@@ -53,6 +55,7 @@ impl GenericParameter {
         match self {
             Self::Type { name, .. }
             | Self::VariadicType { name, .. }
+            | Self::Lifetime { name }
             | Self::Value { name, .. }
             | Self::VariadicValue { name, .. } => Some(StaticKey::Name(*name)),
             Self::Error => None,
@@ -64,6 +67,7 @@ impl GenericParameter {
         match self {
             Self::Type { .. }
             | Self::VariadicType { .. }
+            | Self::Lifetime { .. }
             | Self::Value { .. }
             | Self::VariadicValue { .. } => Some(SymbolSpace::Declaration),
             Self::Error => None,
@@ -74,7 +78,7 @@ impl GenericParameter {
     pub fn symbol_kind(&self) -> Option<SymbolKind> {
         match self {
             Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolKind::GenericTypeParameter),
-            Self::Value { .. } | Self::VariadicValue { .. } => {
+            Self::Lifetime { .. } | Self::Value { .. } | Self::VariadicValue { .. } => {
                 Some(SymbolKind::GenericValueParameter)
             }
             Self::Error => None,

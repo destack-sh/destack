@@ -352,7 +352,7 @@ pub enum TokenType {
     DocLineComment,
     /// Doc block comment, e.g. `/** doc comment *//`
     DocBlockComment,
-    // (tags are not parsed as tokens)
+
     /// --------------------------------------------------
     /// Identifiers / Literals
     /// --------------------------------------------------
@@ -373,6 +373,8 @@ pub enum TokenType {
     TemplateStringEnd,
     /// Template string without interpolation (`no interpolation`)
     TemplateString,
+    /// Lifetime name, e.g. `'a` or `'static`.
+    Lifetime,
 
     /// --------------------------------------------------
     /// Symbols
@@ -636,6 +638,7 @@ impl Display for TokenType {
             TokenType::TemplateStringMiddle => write!(f, "TemplateStringMiddle"),
             TokenType::TemplateStringEnd => write!(f, "TemplateStringEnd"),
             TokenType::TemplateString => write!(f, "TemplateString"),
+            TokenType::Lifetime => write!(f, "Lifetime"),
 
             // symbols
             TokenType::Colon => write!(f, ":"),

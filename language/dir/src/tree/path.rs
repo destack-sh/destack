@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 
 use crate::StringId;
 
@@ -22,6 +22,14 @@ pub struct Path {
 }
 
 impl Path {
+    /// Create a path from one segment.
+    #[inline]
+    pub fn from_segment(segment: StringId) -> Self {
+        Self {
+            segments: smallvec![segment],
+        }
+    }
+
     /// Return the last path segment.
     #[inline]
     pub fn last_segment(&self) -> Option<StringId> {

@@ -54,6 +54,24 @@ impl ExportKey {
     }
 }
 
+/// How one exported symbol's type reaches its consumers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum ExportForm {
+    /// The declaration writes its complete type.
+    Declared,
+    /// A literal binding carries its written value.
+    Literal,
+    /// The type exists only after inference.
+    Inferred,
+}
+
+impl ExportForm {
+    /// Return whether consumers couple to the exporter's inference.
+    pub fn couples(self) -> bool {
+        matches!(self, Self::Inferred)
+    }
+}
+
 /// One local export from a symbol declared in the current module.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LocalExport {
@@ -61,6 +79,8 @@ pub struct LocalExport {
     pub key: ExportKey,
     /// The local symbol exposed by the export.
     pub source: LocalSymbolId,
+    /// The declared form of the exported symbol's type.
+    pub form: ExportForm,
     /// The export clause item that declared this export.
     pub item: Option<LocalNodeId<DependencyItem>>,
 }

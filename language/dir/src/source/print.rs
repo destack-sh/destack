@@ -37,6 +37,7 @@ impl Token {
             TokenType::TemplateStringMiddle => source[offset..offset + len].to_string(),
             TokenType::TemplateStringEnd => source[offset..offset + len].to_string(),
             TokenType::TemplateString => source[offset..offset + len].to_string(),
+            TokenType::Lifetime => source[offset..offset + len].to_string(),
 
             // --------------------------------------------------
             // Symbols

@@ -1309,6 +1309,12 @@ impl NewtypeDefinition {
             .find(|variant| variant.symbol == symbol)
     }
 
+    /// Return one derived Tagged variant's declaration position.
+    pub fn tagged_variant_position(&self, symbol: GlobalSymbolId) -> Option<usize> {
+        self.tagged_variants()
+            .position(|variant| variant.symbol == symbol)
+    }
+
     /// Return the derived Tagged variant with one member key.
     pub fn tagged_variant_by_key(&self, key: StaticKey) -> Option<&TaggedVariantDefinition> {
         self.tagged_variants()

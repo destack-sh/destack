@@ -306,6 +306,15 @@ pub enum TypeExpression {
     /// ```
     Literal { value: TypeLiteral },
 
+    /// Lifetime name.
+    ///
+    /// Examples:
+    /// ```
+    /// 'a
+    /// 'static
+    /// ```
+    Lifetime { name: StringId },
+
     /// Bare `intrinsic` marker in type space.
     ///
     /// Examples:
@@ -543,7 +552,7 @@ pub enum TypeExpression {
     /// Examples:
     /// ```
     /// ^T
-    /// ^mut T
+    /// ^readonly T
     /// ```
     OwnedOf {
         mutability: Option<Mutability>,
@@ -556,9 +565,11 @@ pub enum TypeExpression {
     /// Examples:
     /// ```
     /// &T
-    /// &mut T
+    /// &readonly T
+    /// &'a readonly T
     /// ```
     BorrowedOf {
+        lifetime: Option<LocalNodeId<TypeExpression>>,
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         target_type: LocalNodeId<TypeExpression>,
@@ -569,7 +580,7 @@ pub enum TypeExpression {
     /// Examples:
     /// ```
     /// *T
-    /// *mut T
+    /// *readonly T
     /// ```
     PointerOf {
         mutability: Option<Mutability>,

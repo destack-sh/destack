@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{ExportKey, NamedExport, StarExport};
+use crate::{ExportForm, ExportKey, LocalSymbolId, NamedExport, StarExport};
 
 /// Resolved module exports for one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -49,6 +49,14 @@ impl ExportTable {
     /// Iterate star exports in declaration order.
     pub fn star_exports(&self) -> impl Iterator<Item = &StarExport> {
         self.star_exports.iter()
+    }
+
+    /// Return the declared form behind one locally exported symbol.
+    pub fn local_form(&self, symbol: LocalSymbolId) -> Option<ExportForm> {
+        self.export_by_key.values().find_map(|export| match export {
+            NamedExport::Local(local) if local.source == symbol => Some(local.form),
+            _ => None,
+        })
     }
 
     /// Return modules targeted by re-export edges.

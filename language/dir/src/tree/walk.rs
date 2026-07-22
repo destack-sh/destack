@@ -300,6 +300,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
     match type_expression {
         TypeExpression::ScalarLiteral { .. } => {}
         TypeExpression::Literal { .. } => {}
+        TypeExpression::Lifetime { .. } => {}
         TypeExpression::Intrinsic => {}
         TypeExpression::Tuple { elements, .. } => {
             for element_id in elements {
@@ -421,15 +422,24 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             variance: _,
             target_type,
         }
-        | TypeExpression::BorrowedOf {
-            mutability: _,
-            variance: _,
-            target_type,
-        }
         | TypeExpression::PointerOf {
             mutability: _,
             target_type,
         } => {
+            let target_type_node = tree.get(*target_type);
+            visitor.visit_type_expression(tree, *target_type, target_type_node);
+        }
+        TypeExpression::BorrowedOf {
+            lifetime,
+            mutability: _,
+            variance: _,
+            target_type,
+        } => {
+            if let Some(lifetime) = lifetime {
+                let lifetime_node = tree.get(*lifetime);
+                visitor.visit_type_expression(tree, *lifetime, lifetime_node);
+            }
+
             let target_type_node = tree.get(*target_type);
             visitor.visit_type_expression(tree, *target_type, target_type_node);
         }
@@ -1329,6 +1339,7 @@ pub fn walk_generic_parameter<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
+        GenericParameter::Lifetime { name: _ } => {}
         GenericParameter::Error => {}
     }
 }
