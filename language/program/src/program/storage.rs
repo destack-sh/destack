@@ -74,6 +74,15 @@ impl ProgramStorage<'_> {
         }
     }
 
+    /// Return one heap address as an offset within its selected space.
+    pub fn heap_offset(&self, space: Space, address: usize) -> Option<usize> {
+        match space {
+            Space::Local => address.checked_sub(self.heap.heap_base_address()),
+            Space::Shared => address.checked_sub(self.shared_heap.heap_base_address()),
+            Space::Frame | Space::Static => None,
+        }
+    }
+
     /// Free one uniquely owned heap allocation.
     pub fn free(&mut self, edge: HeapEdge) -> HeapResult<()> {
         match edge {

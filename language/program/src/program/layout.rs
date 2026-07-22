@@ -212,6 +212,24 @@ impl ScalarFormat {
     pub const fn is_signed(self) -> bool {
         matches!(self, Self::Int { is_signed: 1, .. })
     }
+
+    /// Return the scalar storage width in bytes.
+    pub const fn byte_len(self) -> usize {
+        match self {
+            Self::Int { width, .. } => (width as usize).div_ceil(u8::BITS as usize),
+            Self::Float {
+                format: FloatType::Float16 | FloatType::Bfloat16,
+            } => 2,
+            Self::Float {
+                format: FloatType::Float32,
+            }
+            | Self::Character => 4,
+            Self::Float {
+                format: FloatType::Float64,
+            } => 8,
+            Self::Boolean => 1,
+        }
+    }
 }
 
 impl From<bytecode::Scalar> for ScalarFormat {
