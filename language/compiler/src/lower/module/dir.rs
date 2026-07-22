@@ -7,10 +7,7 @@ use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
     /// Return the sealed check output of one loaded module.
-    pub(in crate::lower) fn state(
-        &self,
-        module: ModuleId,
-    ) -> CompilerResult<&LowerModuleState> {
+    pub(in crate::lower) fn state(&self, module: ModuleId) -> CompilerResult<&LowerModuleState> {
         self.modules
             .get(&module)
             .ok_or_else(|| CompilerError::Internal {
@@ -33,7 +30,6 @@ impl ModuleLowerer<'_> {
             None => unreachable!("the source module is always loaded"),
         }
     }
-
 
     /// Return the checked type behind one expression node.
     pub(in crate::lower) fn node_type(
@@ -81,12 +77,70 @@ impl ModuleLowerer<'_> {
         Ok(&self.state(module)?.types)
     }
 
+    /// Return the terminal checked reduction of one type id.
+    pub(in crate::lower) fn reduced_type_id(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut current = ty;
+        let mut seen = Vec::new();
+
+        // follow reductions through each owning module's sealed table
+        loop {
+            if seen.contains(&current) {
+                return Err(CompilerError::Internal {
+                    message: format!("checked DIR contains a type reduction cycle at {current:?}"),
+                });
+            }
+            seen.push(current);
+
+            let reduced = self.types(current.module_id)?.get_reduced_type_id(current);
+            if reduced == current {
+                return Ok(current);
+            }
+            current = reduced;
+        }
+    }
+
     /// Return the sealed definition of one symbol in its owning module.
     pub(in crate::lower) fn definition(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<&dir::Definition>> {
         Ok(self.state(symbol.module_id)?.definitions.definition(symbol))
+    }
+
+    /// Resolve one symbol through imported aliases.
+    pub(in crate::lower) fn resolve_symbol_alias(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
+        let mut current = symbol;
+        let mut visited = Vec::new();
+
+        // follow each resolved import until reaching its declaring symbol
+        loop {
+            if visited.contains(&current) {
+                return Err(CompilerError::Internal {
+                    message: format!("symbol alias {symbol:?} forwards in a cycle"),
+                });
+            }
+            visited.push(current);
+
+            let target = self
+                .state(current.module_id)?
+                .imports
+                .symbol_target(current.local_id);
+            match target {
+                Some(dir::ImportTarget::Symbol(target)) => current = target,
+                Some(dir::ImportTarget::Namespace(_)) => {
+                    return Err(CompilerError::Internal {
+                        message: format!("nominal symbol {symbol:?} resolves to a namespace"),
+                    });
+                }
+                None => return Ok(current),
+            }
+        }
     }
 
     /// Return the declared name of one symbol in its owning module.
@@ -165,7 +219,8 @@ impl ModuleLowerer<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalSymbolId> {
-        self.source().resolutions
+        self.source()
+            .resolutions
             .name_resolution(node)
             .and_then(|resolution| resolution.symbols().first().copied())
             .ok_or_else(|| CompilerError::Internal {
@@ -176,14 +231,15 @@ impl ModuleLowerer<'_> {
             })
     }
 
-    /// Return the checked call resolution of one applying expression.
-    pub(in crate::lower) fn call_resolution(
+    /// Return the checked call resolution of one applying node.
+    pub(in crate::lower) fn call_resolution<T: dir::Node>(
         &self,
-        expression: dir::LocalNodeId<dir::Expression>,
+        node: dir::LocalNodeId<T>,
     ) -> CompilerResult<dir::CallResolution> {
-        let node = expression.into_global_any(self.source);
+        let node = node.into_global_any(self.source);
 
-        self.source().resolutions
+        self.source()
+            .resolutions
             .call_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
@@ -194,12 +250,32 @@ impl ModuleLowerer<'_> {
             })
     }
 
+    /// Return the checked operator resolution of one applying node.
+    pub(in crate::lower) fn operator_resolution<T: dir::Node>(
+        &self,
+        node: dir::LocalNodeId<T>,
+    ) -> CompilerResult<dir::OperatorResolution> {
+        let node = node.into_global_any(self.source);
+
+        self.source()
+            .resolutions
+            .operator_resolution(node)
+            .cloned()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "checked DIR is missing an operator resolution for node {}",
+                    node.local_id.id
+                ),
+            })
+    }
+
     /// Return the checked construct resolution on one call expression.
     pub(in crate::lower) fn construct_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::ConstructResolution> {
-        self.source().resolutions
+        self.source()
+            .resolutions
             .construct_resolution(expression.into_global_any(self.source))
             .cloned()
     }
@@ -211,7 +287,8 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<dir::PlaceResolution> {
         let node = expression.into_global_any(self.source);
 
-        self.source().resolutions
+        self.source()
+            .resolutions
             .place_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
@@ -229,7 +306,8 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<dir::AssignPatternResolution> {
         let node = pattern.into_global_any(self.source);
 
-        self.source().resolutions
+        self.source()
+            .resolutions
             .assign_pattern_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
@@ -247,7 +325,8 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<dir::MemberResolution> {
         let node = expression.into_global_any(self.source);
 
-        self.source().resolutions
+        self.source()
+            .resolutions
             .member_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
@@ -265,7 +344,8 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<dir::PatternResolution> {
         let node = pattern.into_global_any(self.source);
 
-        self.source().resolutions
+        self.source()
+            .resolutions
             .pattern_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
@@ -281,8 +361,10 @@ impl ModuleLowerer<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::Coercion> {
-        self.source().coercions
+        self.source()
+            .coercions
             .coercion(expression.into_global_any(self.source))
+            .cloned()
     }
 
     /// Return one node's type after its checked coercion applies.
@@ -299,7 +381,7 @@ impl ModuleLowerer<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match self.coercion(expression) {
-            Some(coercion) => Ok(coercion.target),
+            Some(coercion) => Ok(coercion.target()),
             None => self.node_type_id(expression),
         }
     }

@@ -19,7 +19,7 @@ impl ModuleLowerer<'_> {
     /// Forms nest: each ownership constructor wraps one reference layer around
     /// the lowering of its payload, so `&&T` stores a reference to a reference.
     pub(in crate::lower) fn lower_form(
-        &self,
+        &mut self,
         tree: &mut mir::Tree,
         id: dir::GlobalTypeId,
         access: Option<mir::Access>,
@@ -98,13 +98,13 @@ impl ModuleLowerer<'_> {
 
     /// Lower one type as the storage behind a reference or owner.
     fn lower_stored(
-        &self,
+        &mut self,
         tree: &mut mir::Tree,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         match self.ty(id)? {
             // nominal storage is the declared type, not its value form
-            dir::Type::Instance(instance) => Ok(self.nominal(&instance)?.ty),
+            dir::Type::Instance(instance) => Ok(self.lower_nominal(tree, &instance)?.ty),
             // any other type stores as its value carrier
             _ => self.lower_type_id(tree, id),
         }
@@ -112,7 +112,7 @@ impl ModuleLowerer<'_> {
 
     /// Lower one non-form type at a narrowed access.
     fn lower_layer_value(
-        &self,
+        &mut self,
         tree: &mut mir::Tree,
         id: dir::GlobalTypeId,
         access: Option<mir::Access>,
@@ -121,7 +121,7 @@ impl ModuleLowerer<'_> {
         if let dir::Type::Instance(instance) = self.ty(id)?
             && self.type_is_reference(id)?
         {
-            let pointee = self.nominal(&instance)?.ty;
+            let pointee = self.lower_nominal(tree, &instance)?.ty;
 
             return Ok(self.insert_reference(
                 tree,
@@ -147,8 +147,7 @@ impl ModuleLowerer<'_> {
                     access: mir::Access::Mutable,
                 })),
                 dir::Form::Borrowed(borrow) => {
-                    let Some(borrow) = self.types(id.module_id)?.borrow_form_maybe(borrow)
-                    else {
+                    let Some(borrow) = self.types(id.module_id)?.borrow_form_maybe(borrow) else {
                         return Err(CompilerError::Internal {
                             message: "checked DIR is missing a borrow form".to_string(),
                         });
@@ -252,6 +251,14 @@ impl ModuleLowerer<'_> {
                 }
                 _ => dir::Ownership::Owned,
             },
+
+            // stdlib class-backed scalars use their managed representation
+            dir::Type::Primitive(primitive) if primitive.representation_item().is_some() => {
+                dir::Ownership::Managed
+            }
+            dir::Type::Literal(literal) if literal.representation_item().is_some() => {
+                dir::Ownership::Managed
+            }
 
             // value families are held directly
             dir::Type::Never
@@ -393,7 +400,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the access spelled by one sealed borrow access singleton.
-    pub(in crate::lower) fn borrow_access(&self, access: dir::GlobalTypeId) -> CompilerResult<mir::Access> {
+    pub(in crate::lower) fn borrow_access(
+        &self,
+        access: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Access> {
         let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = self.ty(access)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),
@@ -409,7 +419,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the lifetime spelled by one sealed borrow lifetime singleton.
-    pub(in crate::lower) fn borrow_lifetime(&self, lifetime: dir::GlobalTypeId) -> CompilerResult<mir::Lifetime> {
+    pub(in crate::lower) fn borrow_lifetime(
+        &self,
+        lifetime: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Lifetime> {
         match self.ty(lifetime)? {
             // static borrows outlive every frame
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
@@ -420,16 +433,14 @@ impl ModuleLowerer<'_> {
                 Ok(mir::Lifetime::empty())
             }
             // written provenance singletons spell the same lifetimes as strings
-            dir::Type::Literal(dir::ScalarLiteral::String(name)) => {
-                match self.strings.get(name) {
-                    "static" => Ok(mir::Lifetime::new([mir::LifetimeTerm::Static])),
-                    "frame" => Ok(mir::Lifetime::empty()),
-                    other => Err(LowerError::Unsupported {
-                        anchor: self.module.into(),
-                        construct: format!("a borrow from the '{other}' lifetime"),
-                    })?,
-                }
-            }
+            dir::Type::Literal(dir::ScalarLiteral::String(name)) => match self.strings.get(name) {
+                "static" => Ok(mir::Lifetime::new([mir::LifetimeTerm::Static])),
+                "frame" => Ok(mir::Lifetime::empty()),
+                other => Err(LowerError::Unsupported {
+                    anchor: self.module.into(),
+                    construct: format!("a borrow from the '{other}' lifetime"),
+                })?,
+            },
             // lifetime generics resolve to their declared slot
             dir::Type::Parameter(parameter) => {
                 let Some(slot) = self.lifetime_slots.get(&parameter.local_id) else {

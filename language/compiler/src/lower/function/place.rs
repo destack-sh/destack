@@ -28,7 +28,7 @@ pub(in crate::lower) struct Place {
     pub(in crate::lower) path: Vec<u32>,
 }
 
-impl FunctionLowerer<'_, '_> {
+impl FunctionLowerer<'_, '_, '_> {
     /// Return the place selected by one checked place resolution.
     pub(in crate::lower) fn place(
         &mut self,
@@ -67,7 +67,9 @@ impl FunctionLowerer<'_, '_> {
                 let index = self.projection_field_index(&instance, field)?;
 
                 // the receiver chain reads through its checked member resolutions
-                let dir::Expression::Member { left, .. } = *self.lowerer.source().tree().get(source) else {
+                let dir::Expression::Member { left, .. } =
+                    *self.lowerer.source().tree().get(source)
+                else {
                     return Err(CompilerError::Internal {
                         message: "checked DIR fielded a non-member place".to_string(),
                     });
@@ -136,7 +138,7 @@ impl FunctionLowerer<'_, '_> {
 
     /// Return the lowered pointee behind one reference base type.
     fn reference_pointee(
-        &self,
+        &mut self,
         base: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let dir::Type::Instance(ref instance) = self.lowerer.ty(base)? else {
@@ -147,7 +149,10 @@ impl FunctionLowerer<'_, '_> {
             .into());
         };
 
-        Ok(self.lowerer.nominal(instance)?.ty)
+        Ok(self
+            .lowerer
+            .lower_nominal(self.builder.tree_mut(), instance)?
+            .ty)
     }
 
     /// Return the mutable local behind one place base symbol.
@@ -166,11 +171,13 @@ impl FunctionLowerer<'_, '_> {
 
     /// Return the declaration field index behind one checked projection.
     fn projection_field_index(
-        &self,
+        &mut self,
         instance: &dir::GenericInstance,
         field: &dir::ProjectionField,
     ) -> CompilerResult<u32> {
-        let nominal = self.lowerer.nominal(instance)?;
+        let nominal = self
+            .lowerer
+            .lower_nominal(self.builder.tree_mut(), instance)?;
         let index = match field {
             dir::ProjectionField::Key(key) => {
                 nominal.fields.iter().position(|field| field.key == *key)

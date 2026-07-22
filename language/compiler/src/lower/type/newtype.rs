@@ -8,24 +8,22 @@ impl ModuleLowerer<'_> {
     /// Lower one newtype declaration to its MIR type.
     pub(in crate::lower) fn lower_newtype(
         &mut self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
         definition: dir::NewtypeDefinition,
     ) -> CompilerResult<Nominal> {
         // tagged newtypes lower their checked variants directly
         if definition.is_tagged() {
-            return self.lower_tagged_newtype(builder, symbol, definition);
+            return self.lower_tagged_newtype(tree, symbol, definition);
         }
 
         // wrap the backing type transparently
-        let inner = self.lower_nominal_type(builder, definition.backing)?;
+        let inner = self.lower_type_id(tree, definition.backing)?;
         let copy = match self.conforms(symbol, dir::AutoInterface::Copy)? {
             true => mir::Copy::Yes,
             false => mir::Copy::No,
         };
-        let ty = builder
-            .tree_mut()
-            .insert(mir::Type::Newtype { inner, copy });
+        let ty = tree.insert(mir::Type::Newtype { inner, copy });
 
         Ok(Nominal {
             ty,
@@ -37,7 +35,7 @@ impl ModuleLowerer<'_> {
     /// Lower one tagged newtype declaration to its variant carrier.
     fn lower_tagged_newtype(
         &mut self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
         definition: dir::NewtypeDefinition,
     ) -> CompilerResult<Nominal> {
@@ -49,7 +47,7 @@ impl ModuleLowerer<'_> {
                 key: variant.key,
                 symbol: variant.symbol.local_id,
             });
-            payloads.push(self.lower_nominal_type(builder, variant.backing)?);
+            payloads.push(self.lower_type_id(tree, variant.backing)?);
         }
 
         // conformance decides whether values copy or move
@@ -57,7 +55,7 @@ impl ModuleLowerer<'_> {
             true => mir::Copy::Yes,
             false => mir::Copy::No,
         };
-        let ty = self.variant_type(builder.tree_mut(), payloads, copy);
+        let ty = self.variant_type(tree, payloads, copy);
 
         Ok(Nominal {
             ty,

@@ -41,7 +41,6 @@ b2:
     );
 }
 
-
 #[test]
 fn test_lower_enum_match_to_a_variant_switch() {
     let session = TestSession::single(

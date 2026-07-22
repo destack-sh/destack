@@ -14,7 +14,6 @@ pub(crate) struct Nominal {
     pub(in crate::lower) fields: Vec<NominalField>,
 }
 
-
 /// One lowered nominal instance field.
 pub(in crate::lower) struct NominalField {
     /// The field key.
@@ -25,10 +24,7 @@ pub(in crate::lower) struct NominalField {
 
 impl ModuleLowerer<'_> {
     /// Lower every declared nominal type.
-    pub(in crate::lower) fn lower_nominals(
-        &mut self,
-        builder: &mut mir::ModuleBuilder,
-    ) -> CompilerResult<()> {
+    pub(in crate::lower) fn lower_nominals(&mut self, tree: &mut mir::Tree) -> CompilerResult<()> {
         // collect the concrete value nominals declared by this module
         let mut nominals = Vec::new();
         for (symbol, definition) in self.local().definitions.iter_definitions() {
@@ -45,40 +41,7 @@ impl ModuleLowerer<'_> {
         }
 
         for symbol in nominals {
-            self.ensure_nominal(builder, symbol)?;
-        }
-
-        // ensure every foreign nominal this module's own check sealed
-        let ids: Vec<_> = self
-            .local()
-            .types
-            .iter_type_ids()
-            .filter(|id| id.0 >= self.local().checked_types_start)
-            .collect();
-        for id in ids {
-            let Some(dir::Type::Instance(instance)) = self.local().types.get_type_maybe(id) else {
-                continue;
-            };
-            if instance.symbol.module_id == self.module {
-                continue;
-            }
-            let is_concrete = match self.definition(instance.symbol)? {
-                Some(
-                    definition @ (dir::Definition::Struct(_)
-                    | dir::Definition::Newtype(_)
-                    | dir::Definition::Enum(_)
-                    | dir::Definition::Class(_)),
-                ) => definition.template().is_none(),
-                _ => false,
-            };
-            // pre-lower what can lower; the rest errors at its use site
-            if is_concrete {
-                match self.ensure_nominal(builder, instance.symbol) {
-                    Ok(_) => {}
-                    Err(CompilerError::Diagnostic(_)) => {}
-                    Err(error) => return Err(error),
-                }
-            }
+            self.ensure_nominal(tree, symbol)?;
         }
 
         Ok(())
@@ -87,9 +50,11 @@ impl ModuleLowerer<'_> {
     /// Lower one nominal declaration on demand, following its dependencies.
     pub(in crate::lower) fn ensure_nominal(
         &mut self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let symbol = self.resolve_symbol_alias(symbol)?;
+
         // reuse the nominal already lowered for this symbol
         if let Some(nominal) = self.nominals.get(&symbol) {
             return Ok(nominal.value);
@@ -102,18 +67,18 @@ impl ModuleLowerer<'_> {
         let global = symbol;
         let nominal = match self.definition(global)?.cloned() {
             Some(dir::Definition::Struct(definition)) => {
-                self.lower_struct(builder, symbol, definition)?
+                self.lower_struct(tree, symbol, definition)?
             }
             Some(dir::Definition::Newtype(definition)) => {
-                self.lower_newtype(builder, symbol, definition)?
+                self.lower_newtype(tree, symbol, definition)?
             }
-            Some(dir::Definition::Enum(definition)) => self.lower_enum(builder, symbol, definition)?,
+            Some(dir::Definition::Enum(definition)) => self.lower_enum(tree, symbol, definition)?,
             Some(dir::Definition::Class(definition)) => {
                 // reserve the declared node so recursive fields can reference it
-                let pointee = builder.tree_mut().insert(mir::Type::Void);
-                let value = self.managed_reference(builder.tree_mut(), pointee);
+                let pointee = tree.insert(mir::Type::Void);
+                let value = self.managed_reference(tree, pointee);
                 self.reserved.insert(symbol, value);
-                let nominal = self.lower_class(builder, symbol, definition, pointee, value);
+                let nominal = self.lower_class(tree, symbol, definition, pointee, value);
                 self.reserved.shift_remove(&symbol);
 
                 nominal?
@@ -145,7 +110,7 @@ impl ModuleLowerer<'_> {
             }
         };
         let declared = self.nominals.get(&symbol).map(|nominal| nominal.ty);
-        builder.tree_mut().insert(mir::TypeAlias {
+        tree.insert(mir::TypeAlias {
             name,
             lifetimes: Vec::new(),
             ty: declared.unwrap_or(ty),
@@ -154,27 +119,10 @@ impl ModuleLowerer<'_> {
         Ok(ty)
     }
 
-    /// Lower every nominal one form chain references, following nesting.
-    pub(in crate::lower) fn ensure_form_nominals(
-        &mut self,
-        builder: &mut mir::ModuleBuilder,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        match self.ty(id)? {
-            // descend through each form layer
-            dir::Type::Form(form) => self.ensure_form_nominals(builder, form.value),
-            // lower the referenced nominal declaration
-            dir::Type::Instance(instance) => {
-                self.ensure_nominal(builder, instance.symbol)?;
-
-                Ok(())
-            }
-            _ => Ok(()),
-        }
-    }
-
     /// Gather one definition's instance fields in declaration order.
-    pub(in crate::lower) fn instance_fields(members: &[dir::DefinitionMember]) -> Vec<NominalField> {
+    pub(in crate::lower) fn instance_fields(
+        members: &[dir::DefinitionMember],
+    ) -> Vec<NominalField> {
         let mut fields = Vec::new();
         for member in members {
             let dir::DefinitionMember::Field(field) = member else {
@@ -193,18 +141,20 @@ impl ModuleLowerer<'_> {
         fields
     }
 
-    /// Return the lowered nominal behind one instance type.
-    pub(in crate::lower) fn nominal(
-        &self,
+    /// Lower and return the nominal behind one instance type.
+    pub(in crate::lower) fn lower_nominal(
+        &mut self,
+        tree: &mut mir::Tree,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<&Nominal> {
-        let Some(nominal) = self.nominals.get(&instance.symbol) else {
-            return Err(LowerError::Unsupported {
-                anchor: self.module.into(),
-                construct: "a generic or unrepresented nominal".to_string(),
-            }
-            .into());
-        };
+        let symbol = self.resolve_symbol_alias(instance.symbol)?;
+        self.ensure_nominal(tree, symbol)?;
+        let nominal = self
+            .nominals
+            .get(&symbol)
+            .ok_or_else(|| CompilerError::Internal {
+                message: "nominal lowering completed without recording its declaration".to_string(),
+            })?;
 
         Ok(nominal)
     }

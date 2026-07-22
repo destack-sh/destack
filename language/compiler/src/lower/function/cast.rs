@@ -4,7 +4,7 @@ use destack_mir as mir;
 use crate::lower::FunctionLowerer;
 use crate::{CompilerResult, LowerError};
 
-impl FunctionLowerer<'_, '_> {
+impl FunctionLowerer<'_, '_, '_> {
     /// Lower one explicit cast expression.
     pub(in crate::lower) fn lower_as(
         &mut self,
@@ -33,7 +33,7 @@ impl FunctionLowerer<'_, '_> {
     }
 
     /// Select the MIR conversion between two concrete scalar carriers.
-    fn cast_operator(
+    pub(in crate::lower) fn cast_operator(
         &self,
         source: &mir::Type,
         target: &mir::Type,

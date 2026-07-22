@@ -4,7 +4,7 @@ use destack_mir as mir;
 use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-impl FunctionLowerer<'_, '_> {
+impl FunctionLowerer<'_, '_, '_> {
     /// Lower one scalar literal node to a constant at its checked carrier.
     pub(in crate::lower) fn lower_scalar_literal(
         &mut self,
@@ -74,7 +74,20 @@ impl FunctionLowerer<'_, '_> {
                             .to_string(),
                     });
                 };
-                let carrier = self.lowerer.lower_type_id(self.builder.tree_mut(), coercion.target)?;
+                let Some(adjustment) = coercion
+                    .adjustments
+                    .iter()
+                    .find(|adjustment| adjustment.kind == dir::CoercionKind::Widen)
+                else {
+                    return Err(CompilerError::Internal {
+                        message:
+                            "checked DIR is missing a widening adjustment on one numeric literal"
+                                .to_string(),
+                    });
+                };
+                let carrier = self
+                    .lowerer
+                    .lower_type_id(self.builder.tree_mut(), adjustment.target)?;
 
                 Ok(self.builder.tree().get(carrier).clone())
             }
@@ -82,23 +95,9 @@ impl FunctionLowerer<'_, '_> {
             // reject literal domains without scalar carriers
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: format!("{} literals", self.literal_name(&other)),
+                construct: format!("{} literals", other.variant_name()),
             }
             .into()),
-        }
-    }
-    /// Name one literal domain for diagnostics.
-    fn literal_name(&self, literal: &dir::ScalarLiteral) -> &'static str {
-        match literal {
-            dir::ScalarLiteral::Null => "null",
-            dir::ScalarLiteral::Undefined => "undefined",
-            dir::ScalarLiteral::Boolean(_) => "boolean",
-            dir::ScalarLiteral::Integer(_) => "integer",
-            dir::ScalarLiteral::Bigint(_) => "bigint",
-            dir::ScalarLiteral::Float(_) => "float",
-            dir::ScalarLiteral::Character(_) => "character",
-            dir::ScalarLiteral::String(_) => "string",
-            dir::ScalarLiteral::RegexString { .. } => "regex",
         }
     }
 }

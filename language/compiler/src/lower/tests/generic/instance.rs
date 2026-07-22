@@ -211,8 +211,7 @@ b2:
     );
 
     session.assert_mir_lowered(
-        "lib.ds",
-        r#"
+        "lib.ds", r#"
 "#,
     );
 }

@@ -6,17 +6,17 @@ use destack_source::ModuleId;
 use crate::lower::{Body, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// Visitor collecting every expression node in one body subtree.
-struct ExpressionCollector {
-    /// The visitor options.
-    options: dir::NodeVisitorOptions,
-    /// The collected expression nodes.
+/// Visitor collecting call expressions in one body.
+struct CallCollector {
+    /// The collected expressions.
     expressions: Vec<dir::LocalNodeId<dir::Expression>>,
 }
 
-impl dir::NodeVisitor for ExpressionCollector {
+impl dir::NodeVisitor for CallCollector {
     fn options(&self) -> &dir::NodeVisitorOptions {
-        &self.options
+        const OPTIONS: dir::NodeVisitorOptions = dir::NodeVisitorOptions {};
+
+        &OPTIONS
     }
 
     fn visit_expression(
@@ -25,10 +25,10 @@ impl dir::NodeVisitor for ExpressionCollector {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        self.expressions.push(id);
-        destack_core::ensure_sufficient_stack(|| {
-            dir::walk_expression(self, tree, id, expression)
-        });
+        if matches!(expression, dir::Expression::Call { .. }) {
+            self.expressions.push(id);
+        }
+        destack_core::ensure_sufficient_stack(|| dir::walk_expression(self, tree, id, expression));
     }
 }
 
@@ -113,20 +113,15 @@ impl ModuleLowerer<'_> {
         pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GlobalTypeId>)>,
         imports: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<()> {
-        // walk the body subtree collecting its expression nodes
+        // collect the calls that can select generic instances or imports
         let state = self.state(module)?;
-        let mut collector = ExpressionCollector {
-            options: dir::NodeVisitorOptions::default(),
+        let mut calls = CallCollector {
             expressions: Vec::new(),
         };
-        dir::NodeVisitor::visit_expression(
-            &mut collector,
-            state.tree(),
-            expression,
-            state.tree().get(expression),
-        );
+        let body = state.tree().get(expression);
+        dir::NodeVisitor::visit_expression(&mut calls, state.tree(), expression, body);
 
-        for id in collector.expressions {
+        for id in calls.expressions {
             let node = id.into_global_any(module);
             let Some(resolution) = state.resolutions.call_resolution(node) else {
                 continue;
@@ -173,7 +168,9 @@ impl ModuleLowerer<'_> {
         for binding in &candidate.generic_arguments {
             let parameter = binding.parameter;
             let generics = &self.state(parameter.module_id)?.generics;
-            if generics.get_parameter(parameter.local_id).memory_parameter()
+            if generics
+                .get_parameter(parameter.local_id)
+                .memory_parameter()
                 == Some(dir::MemoryParameter::Lifetime)
             {
                 continue;
@@ -181,9 +178,10 @@ impl ModuleLowerer<'_> {
 
             // substitute arguments that name outer parameters through the instance
             let argument = match self.ty(binding.argument)? {
-                dir::Type::Parameter(outer) => {
-                    substitution.get(&outer).copied().unwrap_or(binding.argument)
-                }
+                dir::Type::Parameter(outer) => substitution
+                    .get(&outer)
+                    .copied()
+                    .unwrap_or(binding.argument),
                 _ => binding.argument,
             };
             arguments.push(argument);
@@ -198,7 +196,7 @@ impl ModuleLowerer<'_> {
     /// two calls sealing distinct literal refinements of one carrier share one
     /// materialized instance.
     pub(in crate::lower) fn instance_key(
-        &self,
+        &mut self,
         tree: &mut mir::Tree,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<mir::Type>> {
@@ -278,21 +276,25 @@ impl ModuleLowerer<'_> {
         self.lifetime_slots = lifetimes.clone();
 
         // resolve the substituted parameter and return types
-        let dir::Declaration::Function(function) =
-            self.state(symbol.module_id)?.tree().get(declaration)
-        else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a non-function declaration".to_string(),
-            });
+        let (expression, parameter_nodes) = {
+            let dir::Declaration::Function(function) =
+                self.state(symbol.module_id)?.tree().get(declaration)
+            else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR instantiated a non-function declaration".to_string(),
+                });
+            };
+            let Some(expression) = function.body else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR instantiated a bodiless function".to_string(),
+                });
+            };
+
+            (expression, function.signature.parameters.clone())
         };
-        let Some(expression) = function.body else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a bodiless function".to_string(),
-            });
-        };
-        let mut parameters = Vec::with_capacity(function.signature.parameters.len());
-        let mut symbols = Vec::with_capacity(function.signature.parameters.len());
-        for parameter in &function.signature.parameters {
+        let mut parameters = Vec::with_capacity(parameter_nodes.len());
+        let mut symbols = Vec::with_capacity(parameter_nodes.len());
+        for parameter in &parameter_nodes {
             let node = parameter.into_global_any(symbol.module_id);
             let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {

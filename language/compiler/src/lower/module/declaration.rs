@@ -57,9 +57,10 @@ impl ModuleLowerer<'_> {
             dir::Declaration::Enum(enumeration) => {
                 Declared::Members(MemberHost::Enum, SmallVec::from_slice(&enumeration.members))
             }
-            dir::Declaration::Extension(extension) => {
-                Declared::Members(MemberHost::Extension, SmallVec::from_slice(&extension.members))
-            }
+            dir::Declaration::Extension(extension) => Declared::Members(
+                MemberHost::Extension,
+                SmallVec::from_slice(&extension.members),
+            ),
 
             // interface members declare signatures only
             dir::Declaration::Interface(_) => Declared::Inert,
@@ -204,7 +205,11 @@ impl ModuleLowerer<'_> {
                 };
 
                 // generic nominal templates wait for their instances
-                if self.definition(owner)?.and_then(dir::Definition::template).is_some() {
+                if self
+                    .definition(owner)?
+                    .and_then(dir::Definition::template)
+                    .is_some()
+                {
                     return Ok(());
                 }
                 bodies.push(self.declare_method(builder, owner.local_id, member, body)?);
@@ -218,5 +223,4 @@ impl ModuleLowerer<'_> {
             .into()),
         }
     }
-
 }

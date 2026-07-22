@@ -6,88 +6,17 @@ use crate::lower::ModuleLowerer;
 use crate::{CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
-    /// Lower one checked type during the nominal pass, following declarations.
-    pub(in crate::lower) fn lower_nominal_type(
-        &mut self,
-        builder: &mut mir::ModuleBuilder,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        match self.ty(id)? {
-            // nominal instances lower their declarations first
-            dir::Type::Instance(instance) => self.ensure_nominal(builder, instance.symbol),
-            // tuples lower their elements recursively
-            dir::Type::Tuple(tuple) => {
-                let ids = self.tuple_element_types(id.module_id, &tuple)?;
-                let mut elements = Vec::with_capacity(ids.len());
-                for element in ids {
-                    elements.push(self.lower_nominal_type(builder, element)?);
-                }
-
-                Ok(self.tuple_type(builder.tree_mut(), elements))
-            }
-            // enum members carry their owning enum
-            dir::Type::EnumMember(member) => self.lower_nominal_type(builder, member.owner),
-            // instance substitutions resolve generic parameters
-            dir::Type::Parameter(parameter) => {
-                let Some(argument) = self.substitution.get(&parameter).copied() else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.module.into(),
-                        construct: "a generic parameter outside its instance".to_string(),
-                    })?;
-                };
-
-                self.lower_nominal_type(builder, argument)
-            }
-            // nullable unions ride their reference carrier's niches
-            dir::Type::Union(union) => {
-                if let Some((nullability, carrier)) =
-                    self.decompose_nullish_union(id.module_id, &union)?
-                {
-                    let reference = self.lower_nominal_type(builder, carrier)?;
-
-                    return self.nullable_reference(builder.tree_mut(), reference, nullability);
-                }
-
-                // literal unions store at their family carrier
-                if let Some(carrier) = self.literal_union_carrier(id.module_id, &union)? {
-                    return Ok(builder.tree_mut().insert(carrier));
-                }
-
-                // tagged unions store as indexed variants
-                let elements = self
-                    .types(id.module_id)?
-                    .type_ids(union.elements)
-                    .to_vec();
-                let mut payloads = Vec::with_capacity(elements.len());
-                for element in &elements {
-                    payloads.push(self.lower_nominal_type(builder, *element)?);
-                }
-
-                Ok(self.union_variant_type(builder.tree_mut(), payloads))
-            }
-            // memory forms resolve after their nested nominals exist
-            dir::Type::Form(_) => {
-                self.ensure_form_nominals(builder, id)?;
-
-                self.lower_form(builder.tree_mut(), id, None)
-            }
-            other => {
-                let ty = self.lower_type(&other)?;
-
-                Ok(builder.tree_mut().insert(ty))
-            }
-        }
-    }
-
     /// Lower one checked type to a MIR type node.
     pub(in crate::lower) fn lower_type_id(
-        &self,
+        &mut self,
         tree: &mut mir::Tree,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let id = self.reduced_type_id(id)?;
+
         match self.ty(id)? {
             // nominal instances share their declared MIR type
-            dir::Type::Instance(instance) => Ok(self.nominal(&instance)?.value),
+            dir::Type::Instance(instance) => self.ensure_nominal(tree, instance.symbol),
             // enum members carry their owning enum
             dir::Type::EnumMember(member) => self.lower_type_id(tree, member.owner),
             // instance substitutions resolve generic parameters
@@ -117,10 +46,7 @@ impl ModuleLowerer<'_> {
                 }
 
                 // tagged unions store as indexed variants
-                let elements = self
-                    .types(id.module_id)?
-                    .type_ids(union.elements)
-                    .to_vec();
+                let elements = self.types(id.module_id)?.type_ids(union.elements).to_vec();
                 let mut payloads = Vec::with_capacity(elements.len());
                 for element in &elements {
                     payloads.push(self.lower_type_id(tree, *element)?);
@@ -195,9 +121,14 @@ impl ModuleLowerer<'_> {
         payloads: Vec<mir::LocalNodeId<mir::Type>>,
         copy: mir::Copy,
     ) -> mir::LocalNodeId<mir::Type> {
-        // cases discriminate by their declaration index
+        // fit every declaration index in the smallest standard integer width
+        let width = match payloads.len() {
+            0..=256 => 8,
+            257..=65_536 => 16,
+            _ => 32,
+        };
         let discriminant = tree.insert(mir::Type::Int {
-            width: 8,
+            width,
             is_signed: false,
         });
         let cases: Vec<_> = payloads
@@ -206,7 +137,7 @@ impl ModuleLowerer<'_> {
             .map(|(index, payload)| mir::VariantCase {
                 discriminant: mir::Constant::UInt {
                     value: index as u128,
-                    width: 8,
+                    width,
                 },
                 ty: *payload,
             })

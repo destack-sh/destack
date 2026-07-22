@@ -26,14 +26,18 @@ impl ModuleLowerer<'_> {
         self.lifetime_slots = lifetimes.clone();
 
         // resolve the checked parameter types alongside their symbols
-        let dir::Declaration::Function(function) = self.local().tree().get(declaration) else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR declared a function body outside a function".to_string(),
-            });
+        let parameter_nodes = {
+            let dir::Declaration::Function(function) = self.local().tree().get(declaration) else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR declared a function body outside a function".to_string(),
+                });
+            };
+
+            function.signature.parameters.clone()
         };
-        let mut parameters = Vec::with_capacity(function.signature.parameters.len());
-        let mut symbols = Vec::with_capacity(function.signature.parameters.len());
-        for parameter in &function.signature.parameters {
+        let mut parameters = Vec::with_capacity(parameter_nodes.len());
+        let mut symbols = Vec::with_capacity(parameter_nodes.len());
+        for parameter in &parameter_nodes {
             let node = parameter.into_global_any(module);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
@@ -80,7 +84,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return whether one callable declares generic parameters beyond lifetimes.
-    pub(in crate::lower) fn signature_is_generic(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    pub(in crate::lower) fn signature_is_generic(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
         // peel the callable down to its signature template
         let Ok((signature, owner)) = self.signature_of(ty) else {
             return Ok(false);
@@ -198,14 +205,18 @@ impl ModuleLowerer<'_> {
                 self.lower_receiver(builder, sealed, pointee, value)?
             }
         };
-        let dir::Member::Method { signature, .. } = self.local().tree().get(member) else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR declared a method body outside a method".to_string(),
-            });
+        let parameter_nodes = {
+            let dir::Member::Method { signature, .. } = self.local().tree().get(member) else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR declared a method body outside a method".to_string(),
+                });
+            };
+
+            signature.parameters.clone()
         };
         let mut parameters = vec![this];
-        let mut symbols = Vec::with_capacity(signature.parameters.len());
-        for parameter in &signature.parameters {
+        let mut symbols = Vec::with_capacity(parameter_nodes.len());
+        for parameter in &parameter_nodes {
             let node = parameter.into_global_any(module);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {

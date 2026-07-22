@@ -8,7 +8,7 @@ impl ModuleLowerer<'_> {
     /// Lower one value enum declaration to its MIR variant type.
     pub(in crate::lower) fn lower_enum(
         &mut self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
     ) -> CompilerResult<Nominal> {
@@ -22,13 +22,13 @@ impl ModuleLowerer<'_> {
         };
         let discriminant =
             self.lower_type(&dir::Type::Primitive(dir::PrimitiveType::Integer(integer)))?;
-        let discriminant = builder.tree_mut().insert(discriminant);
+        let discriminant = tree.insert(discriminant);
         let width = integer
             .width()
-            .unwrap_or_else(|| u16::from(builder.pointer_bytes()) * 8);
+            .unwrap_or_else(|| u16::from(self.pointer_bytes) * 8);
 
         // build the variant cases in declaration order
-        let storage = builder.tree_mut().insert(mir::Type::Void);
+        let storage = tree.insert(mir::Type::Void);
         let mut fields = Vec::new();
         let mut variants = Vec::new();
         for variant in definition.variants() {
@@ -64,7 +64,7 @@ impl ModuleLowerer<'_> {
             true => mir::Copy::Yes,
             false => mir::Copy::No,
         };
-        let ty = builder.tree_mut().insert(mir::Type::Variant {
+        let ty = tree.insert(mir::Type::Variant {
             discriminant,
             storage,
             cases: variants,

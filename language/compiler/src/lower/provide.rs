@@ -4,7 +4,7 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ComponentGraphProjection, TargetArch,
 };
 use destack_core::FxIndexMap;
-use destack_repository::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
 use crate::lower::{LowerModuleState, ModuleLowerer};
@@ -23,70 +23,52 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_parsed(module));
         dependencies.require(ArtifactKey::dir_bound(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
+        dependencies.require(ArtifactKey::dir_resolved(module, profile));
         dependencies.require(ArtifactKey::dir_checked(module, profile));
         dependencies.require(ArtifactKey::dir_materialized(module, profile));
 
-        // require the sealed stacks of every component sibling
-        for sibling in self.component_siblings(module, profile, context, &mut dependencies)? {
-            dependencies.require(ArtifactKey::dir_parsed(sibling));
-            dependencies.require(ArtifactKey::dir_bound(sibling, profile));
-            dependencies.require(ArtifactKey::dir_expanded(sibling, profile));
-            dependencies.require(ArtifactKey::dir_checked(sibling, profile));
-            dependencies.require(ArtifactKey::dir_materialized(sibling, profile));
+        // project the component membership around the lowered module
+        let graph_key = ArtifactKey::component_graph(profile);
+        dependencies.project(graph_key, ComponentGraphProjection::ComponentOf(module));
+        let artifacts = self.artifact_reader(context.revision());
+        let graph = match artifacts.component_graph(profile) {
+            Ok(graph) => graph,
+            Err(ProviderError::Blocked { .. }) => {
+                dependencies.mark_partial();
+
+                self.observe_package_config(context, target.package_id(), &mut dependencies)?;
+
+                return Ok(dependencies);
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let component = graph
+            .component(module)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("component graph does not contain MIR module {module:?}"),
+            })?;
+
+        // require every checked module that can contribute a runtime declaration
+        let mut components = vec![component];
+        components.extend(graph.transitive_dependencies(component));
+        for component in components {
+            dependencies.project(graph_key, ComponentGraphProjection::Members(component));
+            dependencies.project(graph_key, ComponentGraphProjection::Dependencies(component));
+
+            for dependency in graph.members(component) {
+                dependencies.require(ArtifactKey::dir_parsed(*dependency));
+                dependencies.require(ArtifactKey::dir_bound(*dependency, profile));
+                dependencies.require(ArtifactKey::dir_expanded(*dependency, profile));
+                dependencies.require(ArtifactKey::dir_resolved(*dependency, profile));
+                dependencies.require(ArtifactKey::dir_checked(*dependency, profile));
+                dependencies.require(ArtifactKey::dir_materialized(*dependency, profile));
+            }
         }
 
         // observe package config for target resolution
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
         Ok(dependencies)
-    }
-
-    /// Return the other members of one module's component, when the graph is ready.
-    fn component_siblings(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-        dependencies: &mut ArtifactDependencySet,
-    ) -> CompilerResult<Vec<ModuleId>> {
-        // project the component membership around this module
-        let graph_key = ArtifactKey::component_graph(profile);
-        let artifacts = self.artifact_reader(context.revision());
-        let graph = match artifacts.component_graph(profile) {
-            Ok(graph) => graph,
-            Err(_) => {
-                dependencies.mark_partial();
-
-                return Ok(Vec::new());
-            }
-        };
-        let Some(component) = graph.component(module) else {
-            return Ok(Vec::new());
-        };
-
-        // close over the component and everything it depends on
-        let mut components = vec![component];
-        let mut index = 0;
-        while index < components.len() {
-            let current = components[index];
-            index += 1;
-            dependencies.project(graph_key, ComponentGraphProjection::Members(current));
-            dependencies.project(graph_key, ComponentGraphProjection::Dependencies(current));
-            for dependency in graph.dependencies(current) {
-                if !components.contains(dependency) {
-                    components.push(*dependency);
-                }
-            }
-        }
-
-        let siblings = components
-            .iter()
-            .flat_map(|component| graph.members(*component))
-            .copied()
-            .filter(|sibling| *sibling != module)
-            .collect();
-
-        Ok(siblings)
     }
 
     /// Provide MIR for one module and target.
@@ -110,78 +92,61 @@ impl Compiler {
             .map(TargetArch::pointer_bytes)
             .unwrap_or(8);
 
-        // load provider inputs
+        // require the component graph selected during collection
         let artifacts = self.artifact_reader(context.revision());
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
-        let bound = artifacts
-            .dir_bound(module, profile)
+        let graph = artifacts
+            .component_graph(profile)
             .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .dir_expanded(module, profile)
-            .map_err(CompilerError::from)?;
-        let checked = artifacts
-            .dir_checked(module, profile)
-            .map_err(CompilerError::from)?;
-        let materialized = artifacts
-            .dir_materialized(module, profile)
-            .map_err(CompilerError::from)?;
+        let component = graph
+            .component(module)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("component graph does not contain MIR module {module:?}"),
+            })?;
 
         // load the sealed check output of every reachable module
         let mut modules = FxIndexMap::default();
-        if let Ok(graph) = artifacts.component_graph(profile)
-            && let Some(component) = graph.component(module)
-        {
-            let mut components = vec![component];
-            let mut index = 0;
-            while index < components.len() {
-                let current = components[index];
-                index += 1;
-                for dependency in graph.dependencies(current) {
-                    if !components.contains(dependency) {
-                        components.push(*dependency);
-                    }
-                }
-            }
-            let siblings: Vec<_> = components
-                .iter()
-                .flat_map(|component| graph.members(*component))
-                .copied()
-                .collect();
-            for sibling in &siblings {
-                if *sibling == module {
-                    continue;
-                }
-                let parsed = artifacts.dir_parsed(*sibling).map_err(CompilerError::from)?;
+        let mut components = vec![component];
+        components.extend(graph.transitive_dependencies(component));
+        for component in components {
+            for dependency in graph.members(component) {
+                let parsed = artifacts
+                    .dir_parsed(*dependency)
+                    .map_err(CompilerError::from)?;
                 let bound = artifacts
-                    .dir_bound(*sibling, profile)
+                    .dir_bound(*dependency, profile)
                     .map_err(CompilerError::from)?;
                 let expanded = artifacts
-                    .dir_expanded(*sibling, profile)
+                    .dir_expanded(*dependency, profile)
+                    .map_err(CompilerError::from)?;
+                let resolved = artifacts
+                    .dir_resolved(*dependency, profile)
                     .map_err(CompilerError::from)?;
                 let checked = artifacts
-                    .dir_checked(*sibling, profile)
+                    .dir_checked(*dependency, profile)
                     .map_err(CompilerError::from)?;
                 let materialized = artifacts
-                    .dir_materialized(*sibling, profile)
+                    .dir_materialized(*dependency, profile)
                     .map_err(CompilerError::from)?;
-                let path = self.module_symbol_path(context, *sibling)?;
+                let path = self.module_symbol_path(context, *dependency)?;
                 modules.insert(
-                    *sibling,
-                    LowerModuleState::new(parsed, &bound, &expanded, &checked, &materialized, path),
+                    *dependency,
+                    LowerModuleState::new(
+                        parsed,
+                        &bound,
+                        &expanded,
+                        &resolved,
+                        &checked,
+                        &materialized,
+                        path,
+                    ),
                 );
             }
         }
 
-
         // lower the module against the repository string pool
         let strings = self.repository.string_pool();
-        let path = self.module_symbol_path(context, module)?;
-        modules.insert(
-            module,
-            LowerModuleState::new(parsed, &bound, &expanded, &checked, &materialized, path),
-        );
-        let mut lowerer = ModuleLowerer::new(module, strings, modules);
-        let (lowered, mut errors) = lowerer.lower(pointer_bytes)?;
+        let mut lowerer = ModuleLowerer::new(module, strings, modules, pointer_bytes);
+        let (lowered, mut errors) = lowerer.lower()?;
 
         // emit every lowering diagnostic and fail the artifact when any occurred
         let Some(last) = errors.pop() else {
@@ -213,7 +178,10 @@ impl Compiler {
         let uri = record.uri.to_string();
         let base = package.uri.to_string();
         let path = uri.strip_prefix(&base).unwrap_or(&uri);
-        let path = path.rsplit_once("://").map(|(_, path)| path).unwrap_or(path);
+        let path = path
+            .rsplit_once("://")
+            .map(|(_, path)| path)
+            .unwrap_or(path);
         let path = path.strip_suffix(".ds").unwrap_or(path);
         let path = path.trim_matches('/').replace('/', ".");
 

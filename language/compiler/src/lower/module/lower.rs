@@ -15,6 +15,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) source: ModuleId,
     /// The source string pool.
     pub(in crate::lower) strings: &'a StringPool,
+    /// The target pointer size in bytes.
+    pub(in crate::lower) pointer_bytes: u8,
     /// The sealed check output of every reachable module.
     pub(in crate::lower) modules: FxIndexMap<ModuleId, LowerModuleState>,
     /// The MIR function declared for each callable symbol and instance carrier key.
@@ -36,11 +38,13 @@ impl<'a> ModuleLowerer<'a> {
         module: ModuleId,
         strings: &'a StringPool,
         modules: FxIndexMap<ModuleId, LowerModuleState>,
+        pointer_bytes: u8,
     ) -> Self {
         Self {
             module,
             source: module,
             strings,
+            pointer_bytes,
             modules,
             functions: FxIndexMap::default(),
             nominals: FxIndexMap::default(),
@@ -51,16 +55,13 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower the module to MIR, returning the artifact and its diagnostics.
-    pub(crate) fn lower(
-        &mut self,
-        pointer_bytes: u8,
-    ) -> CompilerResult<(MirLowered, Vec<Box<dyn DiagnosticLike>>)> {
+    pub(crate) fn lower(&mut self) -> CompilerResult<(MirLowered, Vec<Box<dyn DiagnosticLike>>)> {
         let mut builder = mir::ModuleBuilder::new();
-        builder.set_pointer_bytes(pointer_bytes);
+        builder.set_pointer_bytes(self.pointer_bytes);
         let mut errors = Vec::new();
 
         // lower every declared nominal type
-        self.lower_nominals(&mut builder)?;
+        self.lower_nominals(builder.tree_mut())?;
 
         // declare every callable header so bodies can call in any order
         let mut bodies = Vec::new();
@@ -111,7 +112,8 @@ impl<'a> ModuleLowerer<'a> {
             self.lifetime_slots = body.lifetimes.clone();
             self.substitution = body.substitution.clone();
             self.source = body.source;
-            match FunctionLowerer::run(self, &mut builder, body) {
+            let lowered = FunctionLowerer::run(self, &mut builder, body);
+            match lowered {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),

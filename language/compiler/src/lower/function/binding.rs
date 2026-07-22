@@ -5,7 +5,7 @@ use crate::lower::FunctionLowerer;
 use crate::lower::function::body::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-impl FunctionLowerer<'_, '_> {
+impl FunctionLowerer<'_, '_, '_> {
     /// Lower one let statement's declarators.
     pub(in crate::lower) fn lower_let(
         &mut self,
@@ -77,7 +77,9 @@ impl FunctionLowerer<'_, '_> {
             }
             .into());
         };
-        let dir::AssignPattern::Place { expression: target } = *self.lowerer.source().tree().get(left) else {
+        let dir::AssignPattern::Place { expression: target } =
+            *self.lowerer.source().tree().get(left)
+        else {
             return Err(CompilerError::Internal {
                 message: "checked DIR resolved a non-place pattern as a place".to_string(),
             });
@@ -93,15 +95,17 @@ impl FunctionLowerer<'_, '_> {
         }
 
         // apply the checked builtin operation for compound assignment
-        let resolution = self.lowerer.call_resolution(statement)?;
-        let dir::CallTarget::Builtin(dir::BuiltinCall::BinaryOperator { operator }) =
-            resolution.target
-        else {
+        let dir::OperatorResolution::Builtin = self.lowerer.operator_resolution(statement)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a protocol compound assignment".to_string(),
             }
             .into());
+        };
+        let Some(operator) = operator.binary_operator() else {
+            return Err(CompilerError::Internal {
+                message: "compound assignment has no binary operator".to_string(),
+            });
         };
         let carrier = self.lowerer.coerced_type(target)?;
         let operator = self.binary_operator(operator, &carrier)?;

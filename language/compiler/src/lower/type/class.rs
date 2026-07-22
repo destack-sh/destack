@@ -1,14 +1,14 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{ModuleLowerer, Nominal};
 use crate::CompilerResult;
+use crate::lower::{ModuleLowerer, Nominal};
 
 impl ModuleLowerer<'_> {
     /// Lower one class declaration to its managed reference nominal.
     pub(in crate::lower) fn lower_class(
         &mut self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
         definition: dir::ClassDefinition,
         pointee: mir::LocalNodeId<mir::Type>,
@@ -21,17 +21,17 @@ impl ModuleLowerer<'_> {
         let mut field_nodes = Vec::with_capacity(fields.len());
         for field in &fields {
             let ty = self.symbol_type(field.symbol.into_global(symbol.module_id))?;
-            let ty = self.lower_nominal_type(builder, ty)?;
+            let ty = self.lower_type_id(tree, ty)?;
             let name = match field.key {
                 dir::StaticKey::Name(name) => Some(name),
                 _ => None,
             };
 
-            field_nodes.push(builder.tree_mut().insert(mir::Field { name, ty }));
+            field_nodes.push(tree.insert(mir::Field { name, ty }));
         }
 
         // instances store behind a reference and never copy in place
-        builder.tree_mut().set(
+        tree.set(
             pointee,
             mir::Type::Struct {
                 fields: field_nodes,
@@ -52,6 +52,11 @@ impl ModuleLowerer<'_> {
         tree: &mut mir::Tree,
         pointee: mir::LocalNodeId<mir::Type>,
     ) -> mir::LocalNodeId<mir::Type> {
-        self.insert_reference(tree, mir::ReferenceKind::Managed, mir::Access::Mutable, pointee)
+        self.insert_reference(
+            tree,
+            mir::ReferenceKind::Managed,
+            mir::Access::Mutable,
+            pointee,
+        )
     }
 }

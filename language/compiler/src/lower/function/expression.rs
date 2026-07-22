@@ -5,53 +5,139 @@ use crate::lower::FunctionLowerer;
 use crate::lower::function::body::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-impl FunctionLowerer<'_, '_> {
+/// One value while its checked coercion path is being lowered.
+enum CoercionValue {
+    /// One source expression that has not been evaluated.
+    Expression(dir::LocalNodeId<dir::Expression>),
+    /// One materialized MIR value.
+    Runtime(mir::Value),
+    /// One compile-time scalar literal.
+    Literal(dir::ScalarLiteral),
+    /// The unmaterialized null value.
+    Null,
+    /// The unmaterialized undefined value.
+    Undefined,
+}
+
+impl FunctionLowerer<'_, '_, '_> {
     /// Lower one value expression, honoring its checked coercion.
     pub(in crate::lower) fn lower_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // coerce into union carriers before the value lowers at its own type
-        if let Some(coercion) = self.lowerer.coercion(expression)
-            && coercion.kind == dir::CoercionKind::Union
-        {
-            return self.lower_union_coercion(expression, &coercion);
-        }
+        let Some(coercion) = self.lowerer.coercion(expression) else {
+            return self.lower_expression_value(expression);
+        };
+        let value = self.coercion_source(expression, coercion.source)?;
+        let value = self.lower_adjustments(value, coercion.source, &coercion.adjustments)?;
 
-        // coerce borrows before their places load as values
-        if let Some(coercion) = self.lowerer.coercion(expression)
-            && coercion.kind == dir::CoercionKind::Borrow
-        {
-            return self.lower_borrow_coercion(expression, &coercion);
-        }
+        self.materialize_coercion_value(value, coercion.target())
+    }
 
-        let value = self.lower_expression_value(expression)?;
+    /// Classify one expression before applying its checked coercion path.
+    fn coercion_source(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<CoercionValue> {
+        let source = self.lowerer.reduced_type_id(source)?;
 
-        // reject unapplied coercions: constants already materialize at their carrier
-        if let Some(coercion) = self.lowerer.coercion(expression)
-            && !matches!(self.lowerer.node_type(expression)?, dir::Type::Literal(_))
-        {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("an implicit {} coercion", coercion.kind.as_str()),
-            }
-            .into());
+        Ok(match self.lowerer.ty(source)? {
+            dir::Type::Literal(literal) => CoercionValue::Literal(literal),
+            dir::Type::Null => CoercionValue::Null,
+            dir::Type::Undefined => CoercionValue::Undefined,
+            _ => CoercionValue::Expression(expression),
+        })
+    }
+
+    /// Apply one complete checked adjustment path.
+    fn lower_adjustments(
+        &mut self,
+        mut value: CoercionValue,
+        mut source: dir::GlobalTypeId,
+        adjustments: &[dir::CoercionAdjustment],
+    ) -> CompilerResult<CoercionValue> {
+        for adjustment in adjustments {
+            value = self.lower_adjustment(value, source, adjustment)?;
+            source = adjustment.target;
         }
 
         Ok(value)
     }
 
-    /// Lower one value coerced into a borrow of its place or reference.
-    fn lower_borrow_coercion(
+    /// Apply one checked adjustment.
+    fn lower_adjustment(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-        coercion: &dir::Coercion,
-    ) -> CompilerResult<mir::Value> {
-        let target = self
-            .lowerer
-            .lower_type_id(self.builder.tree_mut(), coercion.target)?;
+        value: CoercionValue,
+        source: dir::GlobalTypeId,
+        adjustment: &dir::CoercionAdjustment,
+    ) -> CompilerResult<CoercionValue> {
+        match adjustment.kind {
+            dir::CoercionKind::Direct => Ok(value),
+            dir::CoercionKind::Widen => {
+                let value = self.materialize_coercion_value(value, adjustment.target)?;
 
-        self.lower_borrowed_place(expression, target)
+                Ok(CoercionValue::Runtime(value))
+            }
+            dir::CoercionKind::Borrow => {
+                let target = self
+                    .lowerer
+                    .lower_type_id(self.builder.tree_mut(), adjustment.target)?;
+                let value = match value {
+                    CoercionValue::Expression(expression) => {
+                        self.lower_borrowed_place(expression, target)?
+                    }
+                    CoercionValue::Runtime(value) if self.lowerer.type_is_reference(source)? => {
+                        self.builder.cast(mir::CastOperator::Bitcast, value, target)
+                    }
+                    _ => {
+                        return Err(CompilerError::Internal {
+                            message: "checked coercion borrows a value without a place".to_string(),
+                        });
+                    }
+                };
+
+                Ok(CoercionValue::Runtime(value))
+            }
+            dir::CoercionKind::Scalar => {
+                let value = self.materialize_coercion_value(value, source)?;
+                let Some(source) = self.builder.value_type(value) else {
+                    return Err(CompilerError::Internal {
+                        message: "lowered scalar coercion source has no MIR type".to_string(),
+                    });
+                };
+                let target = self
+                    .lowerer
+                    .lower_type_id(self.builder.tree_mut(), adjustment.target)?;
+                let value = if self.builder.tree().get(source) == self.builder.tree().get(target) {
+                    value
+                } else {
+                    let operator = self.cast_operator(
+                        self.builder.tree().get(source),
+                        self.builder.tree().get(target),
+                    )?;
+
+                    self.builder.cast(operator, value, target)
+                };
+
+                Ok(CoercionValue::Runtime(value))
+            }
+            dir::CoercionKind::Union => {
+                let value = self.lower_union_adjustment(
+                    value,
+                    source,
+                    adjustment.target,
+                    &adjustment.cases,
+                )?;
+
+                Ok(CoercionValue::Runtime(value))
+            }
+            kind => Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: format!("an implicit {} coercion", kind.as_str()),
+            }
+            .into()),
+        }
     }
 
     /// Lower one expression into a borrow of its place or reference.
@@ -100,74 +186,338 @@ impl FunctionLowerer<'_, '_> {
         }
     }
 
-    /// Lower one value coerced into a union carrier.
-    fn lower_union_coercion(
+    /// Apply one union adjustment.
+    fn lower_union_adjustment(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-        coercion: &dir::Coercion,
+        value: CoercionValue,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
-        let target = coercion.target;
-        let carrier = self.lowerer.lower_type_id(self.builder.tree_mut(), target)?;
+        let carrier = self
+            .lowerer
+            .lower_type_id(self.builder.tree_mut(), target)?;
 
-        // indexed variants tag the value under its selected member
+        // indexed variants preserve the checked source case correspondence
         if let mir::Type::Variant { .. } = self.builder.tree().get(carrier) {
-            return self.lower_variant_coercion(expression, coercion, target, carrier);
+            return self.lower_variant_adjustment(value, source, target, carrier, cases);
         }
 
-        match self.lowerer.node_type(expression)? {
-            // nullish values materialize as their carrier constants
-            dir::Type::Null => Ok(self.builder.constant(mir::Constant::Null, carrier)),
-            dir::Type::Undefined => Ok(self.builder.constant(mir::Constant::Undefined, carrier)),
-            // reference values enter their nullable carrier unchanged
-            _ => self.lower_expression_value(expression),
+        // union sources dispatch before leaving their indexed carrier
+        if matches!(self.lowerer.ty(source)?, dir::Type::Union(_)) {
+            return self.lower_union_exit(value, source, target, carrier, cases);
         }
+
+        self.materialize_coercion_value(value, target)
     }
 
-    /// Lower one value coerced into an indexed variant case.
-    fn lower_variant_coercion(
+    /// Inject one complete source value into an indexed variant case.
+    fn lower_variant_adjustment(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-        coercion: &dir::Coercion,
+        value: CoercionValue,
+        source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         carrier: mir::LocalNodeId<mir::Type>,
+        cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
-        // the sealed member selects the case index
-        let Some(member) = coercion.member else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR entered a union without its member".to_string(),
-            });
-        };
-        let dir::Type::Union(union) = self.lowerer.ty(target)? else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR tagged a value into a non-union carrier".to_string(),
-            });
-        };
-        let Some(case) = self
-            .lowerer
-            .types(target.module_id)?
-            .type_ids(union.elements)
-            .iter()
-            .position(|element| *element == member)
-        else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR selected a member outside its union".to_string(),
-            });
-        };
+        let target_members = self.union_members(target)?;
 
-        // literals materialize directly at the member carrier
-        let value = match self.lowerer.node_type(expression)? {
-            // nullish members carry no payload
-            dir::Type::Null | dir::Type::Undefined => None,
-            dir::Type::Literal(literal) => {
-                let member = self.lowerer.ty(member)?;
-                let member = self.lowerer.lower_type(&member)?;
-
-                Some(self.lower_constant(literal, member)?)
+        // union sources convert each runtime case through its checked path
+        if let dir::Type::Union(source_union) = self.lowerer.ty(source)? {
+            let source_members = self
+                .lowerer
+                .types(source.module_id)?
+                .type_ids(source_union.elements)
+                .to_vec();
+            let value = self.materialize_coercion_value(value, source)?;
+            let Some(value_type) = self.builder.value_type(value) else {
+                return Err(CompilerError::Internal {
+                    message: "lowered union coercion source has no MIR type".to_string(),
+                });
+            };
+            if matches!(
+                self.builder.tree().get(value_type),
+                mir::Type::Variant { .. }
+            ) {
+                return self.lower_variant_conversion(
+                    source_members,
+                    target_members,
+                    value,
+                    carrier,
+                    cases,
+                );
             }
-            _ => Some(self.lower_expression_value(expression)?),
+
+            // shared source carriers can enter only one target case
+            let Some(first) = cases.first() else {
+                return Err(CompilerError::Internal {
+                    message: "checked union conversion has no source cases".to_string(),
+                });
+            };
+            if cases.iter().any(|case| case.target != first.target) {
+                return Err(CompilerError::Internal {
+                    message: "checked union conversion requires a missing source discriminant"
+                        .to_string(),
+                });
+            }
+            let Some(target_index) = first.target else {
+                return Err(CompilerError::Internal {
+                    message: "checked union injection omitted its target case".to_string(),
+                });
+            };
+            let Some(target_member) = target_members.get(target_index as usize).copied() else {
+                return Err(CompilerError::Internal {
+                    message: "checked union conversion selects an absent target case".to_string(),
+                });
+            };
+            let payload = self.union_payload(CoercionValue::Runtime(value), target_member)?;
+
+            return Ok(self.builder.variant_new(carrier, target_index, payload));
+        }
+        let [case] = cases else {
+            return Err(CompilerError::Internal {
+                message: "checked union injection requires exactly one source case".to_string(),
+            });
+        };
+        let Some(target_index) = case.target else {
+            return Err(CompilerError::Internal {
+                message: "checked union injection omitted its target case".to_string(),
+            });
+        };
+        let Some(target_member) = target_members.get(target_index as usize).copied() else {
+            return Err(CompilerError::Internal {
+                message: "checked union injection selects an absent target case".to_string(),
+            });
         };
 
-        Ok(self.builder.variant_new(carrier, case as u32, value))
+        // convert the source value before inserting its target case
+        let value = self.lower_adjustments(value, source, &case.adjustments)?;
+        let payload = self.union_payload(value, target_member)?;
+
+        Ok(self.builder.variant_new(carrier, target_index, payload))
+    }
+
+    /// Convert one indexed union value into another ordered case set.
+    fn lower_variant_conversion(
+        &mut self,
+        source_members: Vec<dir::GlobalTypeId>,
+        target_members: Vec<dir::GlobalTypeId>,
+        value: mir::Value,
+        carrier: mir::LocalNodeId<mir::Type>,
+        mappings: &[dir::CoercionCase],
+    ) -> CompilerResult<mir::Value> {
+        if mappings.len() != source_members.len() {
+            return Err(CompilerError::Internal {
+                message: "checked union conversion has an incomplete case map".to_string(),
+            });
+        }
+
+        // dispatch once and rebuild the value under the target discriminant
+        let result = self.builder.local(carrier, mir::Mutability::Immutable);
+        let exit = self.builder.block();
+        let mut cases = Vec::with_capacity(mappings.len());
+        for index in 0..mappings.len() {
+            cases.push((index as u32, self.builder.block()));
+        }
+        self.builder.variant_switch(value, None, cases.clone());
+        for (source_index, block) in cases {
+            self.builder.switch_to_block(block);
+            let source_member = source_members[source_index as usize];
+            let mapping = &mappings[source_index as usize];
+            let source_value = self.union_case_value(value, source_index, source_member)?;
+            let source_value =
+                self.lower_adjustments(source_value, source_member, &mapping.adjustments)?;
+            let Some(target_index) = mapping.target else {
+                return Err(CompilerError::Internal {
+                    message: "checked union conversion omitted its target case".to_string(),
+                });
+            };
+            let Some(target_member) = target_members.get(target_index as usize).copied() else {
+                return Err(CompilerError::Internal {
+                    message: "checked union conversion selects an absent target case".to_string(),
+                });
+            };
+            let payload = self.union_payload(source_value, target_member)?;
+            let converted = self.builder.variant_new(carrier, target_index, payload);
+            self.builder.local_set(result, converted);
+            self.builder.jump(exit);
+        }
+        self.builder.switch_to_block(exit);
+
+        Ok(self.builder.local_get(result))
+    }
+
+    /// Convert one indexed union value into a non-union carrier.
+    fn lower_union_exit(
+        &mut self,
+        value: CoercionValue,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        carrier: mir::LocalNodeId<mir::Type>,
+        cases: &[dir::CoercionCase],
+    ) -> CompilerResult<mir::Value> {
+        let dir::Type::Union(source_union) = self.lowerer.ty(source)? else {
+            return Err(CompilerError::Internal {
+                message: "checked union exit has a non-union source".to_string(),
+            });
+        };
+        let source_members = self
+            .lowerer
+            .types(source.module_id)?
+            .type_ids(source_union.elements)
+            .to_vec();
+        if cases.len() != source_members.len() {
+            return Err(CompilerError::Internal {
+                message: "checked union exit has an incomplete case map".to_string(),
+            });
+        }
+        if cases.iter().any(|case| case.target.is_some()) {
+            return Err(CompilerError::Internal {
+                message: "checked union exit selects a target-union case".to_string(),
+            });
+        }
+        let value = self.materialize_coercion_value(value, source)?;
+        let Some(value_type) = self.builder.value_type(value) else {
+            return Err(CompilerError::Internal {
+                message: "lowered union exit source has no MIR type".to_string(),
+            });
+        };
+
+        // indexed carriers dispatch and convert each payload independently
+        if matches!(
+            self.builder.tree().get(value_type),
+            mir::Type::Variant { .. }
+        ) {
+            let result = self.builder.local(carrier, mir::Mutability::Immutable);
+            let exit = self.builder.block();
+            let mut blocks = Vec::with_capacity(cases.len());
+            for index in 0..cases.len() {
+                blocks.push((index as u32, self.builder.block()));
+            }
+            self.builder.variant_switch(value, None, blocks.clone());
+            for (index, block) in blocks {
+                self.builder.switch_to_block(block);
+                let member = source_members[index as usize];
+                let member_value = self.union_case_value(value, index, member)?;
+                let member_value = self.lower_adjustments(
+                    member_value,
+                    member,
+                    &cases[index as usize].adjustments,
+                )?;
+                let member_value = self.materialize_coercion_value(member_value, target)?;
+                self.builder.local_set(result, member_value);
+                self.builder.jump(exit);
+            }
+            self.builder.switch_to_block(exit);
+
+            return Ok(self.builder.local_get(result));
+        }
+
+        // shared carriers cannot select different runtime conversions
+        let Some(first) = cases.first() else {
+            return Err(CompilerError::Internal {
+                message: "checked union exit has no source cases".to_string(),
+            });
+        };
+        if cases
+            .iter()
+            .any(|case| case.adjustments != first.adjustments)
+        {
+            return Err(CompilerError::Internal {
+                message: "checked union exit requires a missing source discriminant".to_string(),
+            });
+        }
+        let value = self.lower_adjustments(
+            CoercionValue::Runtime(value),
+            source_members[0],
+            &first.adjustments,
+        )?;
+
+        self.materialize_coercion_value(value, target)
+    }
+
+    /// Return the logical members of one union type.
+    fn union_members(&self, ty: dir::GlobalTypeId) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        let dir::Type::Union(union) = self.lowerer.ty(ty)? else {
+            return Err(CompilerError::Internal {
+                message: "checked union adjustment targets a non-union type".to_string(),
+            });
+        };
+
+        Ok(self
+            .lowerer
+            .types(ty.module_id)?
+            .type_ids(union.elements)
+            .to_vec())
+    }
+
+    /// Return one indexed source case as a coercion value.
+    fn union_case_value(
+        &mut self,
+        value: mir::Value,
+        index: u32,
+        member: dir::GlobalTypeId,
+    ) -> CompilerResult<CoercionValue> {
+        let member = self.lowerer.reduced_type_id(member)?;
+
+        Ok(match self.lowerer.ty(member)? {
+            dir::Type::Literal(literal) => CoercionValue::Literal(literal),
+            dir::Type::Null => CoercionValue::Null,
+            dir::Type::Undefined => CoercionValue::Undefined,
+            _ => CoercionValue::Runtime(self.builder.variant_payload(value, index)),
+        })
+    }
+
+    /// Materialize one target union case payload when it has runtime storage.
+    fn union_payload(
+        &mut self,
+        value: CoercionValue,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let reduced = self.lowerer.reduced_type_id(target)?;
+        if matches!(
+            self.lowerer.ty(reduced)?,
+            dir::Type::Literal(_) | dir::Type::Null | dir::Type::Undefined
+        ) {
+            return Ok(None);
+        }
+        let value = self.materialize_coercion_value(value, target)?;
+
+        Ok(Some(value))
+    }
+
+    /// Materialize one coercion value at its checked target carrier.
+    fn materialize_coercion_value(
+        &mut self,
+        value: CoercionValue,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Value> {
+        match value {
+            CoercionValue::Expression(expression) => self.lower_expression_value(expression),
+            CoercionValue::Runtime(value) => Ok(value),
+            CoercionValue::Literal(literal) => {
+                let target = self
+                    .lowerer
+                    .lower_type_id(self.builder.tree_mut(), target)?;
+                let target = self.builder.tree().get(target).clone();
+
+                self.lower_constant(literal, target)
+            }
+            CoercionValue::Null => {
+                let target = self
+                    .lowerer
+                    .lower_type_id(self.builder.tree_mut(), target)?;
+
+                Ok(self.builder.constant(mir::Constant::Null, target))
+            }
+            CoercionValue::Undefined => {
+                let target = self
+                    .lowerer
+                    .lower_type_id(self.builder.tree_mut(), target)?;
+
+                Ok(self.builder.constant(mir::Constant::Undefined, target))
+            }
+        }
     }
 
     /// Lower one value expression by form.
@@ -205,47 +555,46 @@ impl FunctionLowerer<'_, '_> {
             }
 
             // a + b
-            dir::Expression::Binary { left, right, .. } => {
-                let resolution = self.lowerer.call_resolution(expression)?;
-                let dir::CallTarget::Builtin(dir::BuiltinCall::BinaryOperator { operator }) =
-                    resolution.target
-                else {
-                    return Err(LowerError::Unsupported {
+            dir::Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let resolution = self.lowerer.operator_resolution(expression)?;
+                match resolution {
+                    dir::OperatorResolution::Builtin => match operator {
+                        dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
+                            self.lower_strict_equality(left, operator, right)
+                        }
+                        operator => match operator {
+                            dir::BinaryOperator::And | dir::BinaryOperator::Or => {
+                                self.lower_logical(expression, left, operator, right)
+                            }
+                            operator => self.lower_binary(left, operator, right),
+                        },
+                    },
+                    dir::OperatorResolution::Call(_) => Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
                         construct: "a protocol binary operator".to_string(),
                     }
-                    .into());
-                };
-
-                match operator {
-                    // a && b
-                    dir::BinaryOperator::And | dir::BinaryOperator::Or => {
-                        self.lower_logical(expression, left, operator, right)
-                    }
-                    operator => self.lower_binary(left, operator, right),
+                    .into()),
                 }
             }
 
             // -value
-            dir::Expression::Unary { right, .. } => {
-                let resolution = self.lowerer.call_resolution(expression)?;
-                let dir::CallTarget::Builtin(dir::BuiltinCall::UnaryOperator { operator }) =
-                    resolution.target
-                else {
-                    return Err(LowerError::Unsupported {
+            dir::Expression::Unary { operator, right } => {
+                match self.lowerer.operator_resolution(expression)? {
+                    dir::OperatorResolution::Builtin => self.lower_unary(operator, right),
+                    dir::OperatorResolution::Call(_) => Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
                         construct: "a protocol unary operator".to_string(),
                     }
-                    .into());
-                };
-
-                self.lower_unary(operator, right)
+                    .into()),
+                }
             }
 
             // match (value) { ... }
-            dir::Expression::Match { value, cases, .. } => {
-                self.lower_match(expression, value, &cases)
-            }
+            dir::Expression::Match { value, arms } => self.lower_match(expression, value, &arms),
 
             // cond ? a : b
             dir::Expression::If {
@@ -285,7 +634,7 @@ impl FunctionLowerer<'_, '_> {
             dir::Expression::Call { .. }
                 if let Some(resolution) = self.lowerer.construct_resolution(expression) =>
             {
-                self.lower_construct(expression, &resolution)
+                self.lower_construct(&resolution)
             }
 
             // new Counter(start)
@@ -297,7 +646,7 @@ impl FunctionLowerer<'_, '_> {
                     });
                 };
 
-                self.lower_construct(expression, &resolution)
+                self.lower_construct(&resolution)
             }
 
             // call(...)
