@@ -68,7 +68,6 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
-
     /// Checked DIR component.
     DirCheckedComponent {
         entry: ModuleId,
