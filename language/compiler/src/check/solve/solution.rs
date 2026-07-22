@@ -454,6 +454,12 @@ impl CheckState<'_> {
             });
         };
 
+        // commit canonical memory literals for memory variables
+        let solution = match self.variable_memory_parameter(root)? {
+            Some(kind) => self.normalize_memory_component(origin, solution, kind)?,
+            None => solution,
+        };
+
         // every variable in one dependency cycle receives the same fixed type
         for variable in variables {
             self.commit_solution(*variable, solution)?;

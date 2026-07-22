@@ -431,7 +431,7 @@ impl CheckState<'_> {
     }
 
     /// Normalize one component to its canonical memory literal.
-    fn normalize_memory_component(
+    pub(in crate::check) fn normalize_memory_component(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
@@ -518,7 +518,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         form: dir::Form,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let Some(value) = self.type_ids(module, instance.arguments)?.first().copied() else {
@@ -535,7 +535,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let arguments = self.type_ids(module, instance.arguments)?.to_vec();
         let Some(value) = arguments.first().copied() else {
@@ -567,7 +567,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let arguments = self.type_ids(module, instance.arguments)?.to_vec();
         let Some(value) = arguments.first().copied() else {
@@ -593,7 +593,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         item: dir::LanguageItem,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let Some(target) = self.type_ids(module, instance.arguments)?.first().copied() else {
             return Ok(Answer::Ready(None));
@@ -665,7 +665,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         item: dir::LanguageItem,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close the element's form chain first
@@ -679,7 +679,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         item: dir::LanguageItem,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         element: dir::GlobalTypeId,
         chain: &FormChain,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -888,7 +888,7 @@ impl CheckState<'_> {
             .any(|entry| matches!(entry.form, dir::Form::Placed { .. }))
         {
             let symbol = match self.ty(current)? {
-                dir::Type::Instance(instance) => Some(instance.symbol),
+                dir::Type::Application(instance) => Some(instance.symbol),
                 dir::Type::Reference(reference) => Some(reference.symbol),
                 _ => None,
             };
@@ -1008,7 +1008,7 @@ impl CheckState<'_> {
                     Some(dir::Ownership::Owned)
                 }
             }
-            dir::Type::Instance(instance) => {
+            dir::Type::Application(instance) => {
                 let symbol = instance.symbol;
                 match self.definition(symbol)?.cloned() {
                     Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
@@ -1149,7 +1149,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         component: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(component) = component else {
@@ -1172,7 +1172,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let arguments = self.type_ids(module, instance.arguments)?.to_vec();
@@ -1296,7 +1296,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         chain: &FormChain,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -1334,7 +1334,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         chain: &FormChain,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(lifetime) = self.type_ids(module, instance.arguments)?.get(1).copied() else {
@@ -1351,7 +1351,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         chain: &FormChain,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -1377,7 +1377,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         chain: &FormChain,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {

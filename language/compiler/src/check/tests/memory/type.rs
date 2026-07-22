@@ -345,8 +345,8 @@ type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed
 /// @resolution.name source=L target=Reborrow.L
 
 type StaticCell = Reborrow<Cell>;
-/// @type.symbol symbol=StaticCell source="type StaticCell = Reborrow<Cell>" type=Reborrow<Cell, LifetimeOr<Cell, "static">> reduced=Borrowed<Cell, "static", "mutable">
-/// @definition.type symbol=StaticCell source="type StaticCell = Reborrow<Cell>" value=Reborrow<Cell, LifetimeOr<Cell, "static">> reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=StaticCell source="type StaticCell = Reborrow<Cell>" type=Reborrow<Cell, "static"> reduced=Borrowed<Cell, "static", "mutable">
+/// @definition.type symbol=StaticCell source="type StaticCell = Reborrow<Cell>" value=Reborrow<Cell, "static"> reduced=Borrowed<Cell, "static", "mutable">
 /// @resolution.name source=Reborrow target=Reborrow
 /// @resolution.name source=Cell target=Cell
 
@@ -361,8 +361,7 @@ cell satisfies Borrowed<Cell, "static">;
 /// @resolution.name source=Cell target=Cell
 
 /// @generic.instance id="Borrowed<Q, L, \"mutable\">" template=memory.borrow.Borrowed arguments=(Q, L, "mutable")
-/// @generic.instance id="LifetimeOr<Cell, \"static\">" template=memory.type.LifetimeOr arguments=(Cell, "static")
-/// @generic.instance id="Reborrow<Cell, LifetimeOr<Cell, \"static\">>" template=Reborrow arguments=(Cell, LifetimeOr<Cell, "static">)
+/// @generic.instance id="Reborrow<Cell, \"static\">" template=Reborrow arguments=(Cell, "static")
 "#,
     );
 }
@@ -394,8 +393,8 @@ struct Cell {
 
 type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>, P>;
 
-declare const localCell: PreservePlace<local Cell>;
-declare const sharedCell: PreservePlace<shared Cell>;
+declare const localCell: PreservePlace<local Cell, "local">;
+declare const sharedCell: PreservePlace<shared Cell, "shared">;
 
 localCell satisfies local Cell;
 sharedCell satisfies shared Cell;
@@ -422,13 +421,13 @@ type PreservePlace<Q, comptime P: Place = type PlaceOf<Q>> = WithPlace<BaseOf<Q>
 /// @resolution.name source=P target=PreservePlace.P
 
 declare const localCell: PreservePlace<local Cell>;
-/// @type.symbol symbol=localCell source=localCell type=PreservePlace<Placed<Cell, "local">, PlaceOf<Placed<Cell, "local">>> reduced=Placed<Cell, "local">
+/// @type.symbol symbol=localCell source=localCell type=PreservePlace<Placed<Cell, "local">, "local"> reduced=Placed<Cell, "local">
 /// @resolution.pattern source=localCell kind=binding target=localCell
 /// @resolution.name source=PreservePlace target=PreservePlace
 /// @resolution.name source=Cell target=Cell
 
 declare const sharedCell: PreservePlace<shared Cell>;
-/// @type.symbol symbol=sharedCell source=sharedCell type=PreservePlace<Placed<Cell, "shared">, PlaceOf<Placed<Cell, "shared">>> reduced=Placed<Cell, "shared">
+/// @type.symbol symbol=sharedCell source=sharedCell type=PreservePlace<Placed<Cell, "shared">, "shared"> reduced=Placed<Cell, "shared">
 /// @resolution.pattern source=sharedCell kind=binding target=sharedCell
 /// @resolution.name source=PreservePlace target=PreservePlace
 /// @resolution.name source=Cell target=Cell
@@ -441,10 +440,8 @@ sharedCell satisfies shared Cell;
 /// @resolution.name source=sharedCell target=sharedCell
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="PlaceOf<Placed<Cell, \"local\">>" template=memory.type.PlaceOf arguments=(Placed<Cell, "local">)
-/// @generic.instance id="PlaceOf<Placed<Cell, \"shared\">>" template=memory.type.PlaceOf arguments=(Placed<Cell, "shared">)
-/// @generic.instance id="PreservePlace<Placed<Cell, \"local\">, PlaceOf<Placed<Cell, \"local\">>>" template=PreservePlace arguments=(Placed<Cell, "local">, PlaceOf<Placed<Cell, "local">>)
-/// @generic.instance id="PreservePlace<Placed<Cell, \"shared\">, PlaceOf<Placed<Cell, \"shared\">>>" template=PreservePlace arguments=(Placed<Cell, "shared">, PlaceOf<Placed<Cell, "shared">>)
+/// @generic.instance id="PreservePlace<Placed<Cell, \"local\">, \"local\">" template=PreservePlace arguments=(Placed<Cell, "local">, "local")
+/// @generic.instance id="PreservePlace<Placed<Cell, \"shared\">, \"shared\">" template=PreservePlace arguments=(Placed<Cell, "shared">, "shared")
 /// @generic.instance id="WithPlace<BaseOf<Q>, P>" template=memory.type.WithPlace arguments=(BaseOf<Q>, P)
 /// @generic.instance id=BaseOf<Q> template=memory.type.BaseOf arguments=(Q)
 "#,
