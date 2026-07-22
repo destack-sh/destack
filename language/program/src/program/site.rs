@@ -11,7 +11,7 @@ use super::{FrameStateId, FunctionId, ProgramPoint, TypeId, VirtualTableId};
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct SiteTable {
-    /// Heap allocation operation sites sorted by program point.
+    /// Allocation sites sorted by program point.
     allocations: SectionSlice<AllocationSite>,
     /// Addressable memory operation sites sorted by program point.
     memory: SectionSlice<MemorySite>,
@@ -52,12 +52,12 @@ impl SiteTable {
         self.allocations(sections).get(id.index())
     }
 
-    /// Return all allocation site rows.
+    /// Return all allocation sites.
     pub fn allocations<'a>(&self, sections: SectionImage<'a>) -> &'a [AllocationSite] {
         sections.entries(self.allocations)
     }
 
-    /// Return the number of allocation site rows.
+    /// Return the number of allocation sites.
     pub fn allocation_count(&self, sections: SectionImage<'_>) -> usize {
         self.allocations(sections).len()
     }
@@ -71,7 +71,7 @@ impl SiteTable {
         &memory[start..end]
     }
 
-    /// Return all memory site rows.
+    /// Return all memory sites.
     pub fn memory_sites<'a>(&self, sections: SectionImage<'a>) -> &'a [MemorySite] {
         sections.entries(self.memory)
     }
@@ -88,12 +88,12 @@ impl SiteTable {
         Some((CallSiteId(index as u32), &calls[index]))
     }
 
-    /// Return all call site rows.
+    /// Return all call sites.
     pub fn calls<'a>(&self, sections: SectionImage<'a>) -> &'a [CallSite] {
         sections.entries(self.calls)
     }
 
-    /// Return the number of call site rows.
+    /// Return the number of call sites.
     pub fn call_count(&self, sections: SectionImage<'_>) -> usize {
         self.calls(sections).len()
     }
@@ -113,17 +113,17 @@ impl SiteTable {
         Some((EdgeSiteId(index as u32), &edges[index]))
     }
 
-    /// Return all control-flow edge site rows.
+    /// Return all control-flow edge sites.
     pub fn edges<'a>(&self, sections: SectionImage<'a>) -> &'a [EdgeSite] {
         sections.entries(self.edges)
     }
 
-    /// Return the number of control-flow edge site rows.
+    /// Return the number of control-flow edge sites.
     pub fn edge_count(&self, sections: SectionImage<'_>) -> usize {
         self.edges(sections).len()
     }
 
-    /// Return all continuation site rows.
+    /// Return all continuation sites.
     pub fn continuations<'a>(&self, sections: SectionImage<'a>) -> &'a [ContinuationSite] {
         sections.entries(self.continuations)
     }
@@ -142,7 +142,7 @@ impl SiteTable {
         Some((ContinuationSiteId(index as u32), &continuations[index]))
     }
 
-    /// Return the number of continuation site rows.
+    /// Return the number of continuation sites.
     pub fn continuation_count(&self, sections: SectionImage<'_>) -> usize {
         self.continuations(sections).len()
     }
@@ -161,7 +161,7 @@ impl SiteTable {
         Some(&counters[index])
     }
 
-    /// Return all counter site rows.
+    /// Return all counter sites.
     pub fn counters<'a>(&self, sections: SectionImage<'a>) -> &'a [CounterSite] {
         sections.entries(self.counters)
     }
@@ -196,7 +196,7 @@ impl SiteTable {
         Some(&samples[index])
     }
 
-    /// Return all sample site rows.
+    /// Return all sample sites.
     pub fn samples<'a>(&self, sections: SectionImage<'a>) -> &'a [SampleSite] {
         sections.entries(self.samples)
     }
@@ -205,7 +205,7 @@ impl SiteTable {
 /// Build-time program sites used by debugging, probes, and observations.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SiteTableBuilder {
-    /// Heap allocation operation sites.
+    /// Allocation sites.
     allocations: Vec<AllocationSite>,
     /// Addressable memory operation sites.
     memory: Vec<MemorySite>,
@@ -227,7 +227,7 @@ impl SiteTableBuilder {
         Self::default()
     }
 
-    /// Set heap allocation operation sites.
+    /// Set allocation sites.
     pub fn allocations(mut self, allocations: impl IntoIterator<Item = AllocationSite>) -> Self {
         self.allocations = allocations.into_iter().collect();
 
@@ -390,16 +390,12 @@ pub struct CounterId(pub u32);
 )]
 pub struct SamplerId(pub u32);
 
-/// Heap allocation operation at one program point.
+/// One allocation site.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct AllocationSite {
     /// The program point that performs the allocation.
     pub point: ProgramPoint,
-    /// The allocation operation family.
-    pub operation: AllocationOperation,
-    /// The byte initialization mode.
-    pub initialization: AllocationInitialization,
     /// The storage space receiving the allocated storage.
     pub space: Space,
     /// The type produced by the allocation expression.
@@ -408,32 +404,6 @@ pub struct AllocationSite {
     pub storage_type: TypeId,
     /// The virtual table written into the allocation when present.
     pub virtual_table: Optional<VirtualTableId>,
-}
-
-/// Heap allocation operation family.
-#[repr(u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum AllocationOperation {
-    /// Allocate one typed value.
-    Value,
-    /// Allocate repeated typed storage.
-    Slice,
-    /// Allocate one tensor shape header and element storage.
-    Tensor,
-}
-
-/// Allocation byte initialization mode.
-#[repr(u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum AllocationInitialization {
-    /// Initialize the allocated bytes to zero.
-    Zeroed,
-    /// Leave the allocated bytes uninitialized.
-    Uninit,
 }
 
 /// Addressable memory operation at one program point.

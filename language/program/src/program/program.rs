@@ -27,7 +27,7 @@ use crate::{
 use super::{Error, Result};
 
 /// Linked program.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Serialize, Deserialize, Reflect)]
 #[reflect(module = "destack_program::program")]
 pub struct Program {
     /// Target ABI layout used by program layouts and pointer-sized integer types.

@@ -20,7 +20,7 @@ const PROGRAM_VERSION: u16 = 1;
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProgramLoadError {
-    /// The byte region cannot contain a program root.
+    /// The byte region cannot contain a Program header.
     Truncated,
     /// The byte region does not satisfy program alignment.
     Misaligned,
@@ -30,8 +30,6 @@ pub enum ProgramLoadError {
     UnsupportedVersion(u16),
     /// The recorded image length does not match the supplied storage.
     InvalidLength,
-    /// The program image contains no executable bytecode.
-    MissingBytecode,
 }
 
 impl fmt::Display for ProgramLoadError {
@@ -45,7 +43,6 @@ impl fmt::Display for ProgramLoadError {
                 write!(formatter, "unsupported program image version {version}")
             }
             Self::InvalidLength => formatter.write_str("invalid program image length"),
-            Self::MissingBytecode => formatter.write_str("program image contains no bytecode"),
         }
     }
 }
@@ -98,15 +95,15 @@ pub struct ProgramBuilder {
     wasm: Option<wasm::Code>,
 }
 
-/// Fixed root stored at byte zero of every Program image.
+/// Fixed header stored at byte zero of every Program image.
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, SectionEntry)]
-struct Root {
+struct Header {
     /// Stable Program format marker.
     magic: u32,
     /// Stable Program format version.
     version: u16,
-    /// Reserved root word.
+    /// Reserved header word.
     reserved: u16,
     /// Complete Program image byte length.
     byte_len: u64,
@@ -145,15 +142,15 @@ struct Root {
     local_static_space: StaticImage,
 
     /// Linked bytecode.
-    bytecode: Optional<Code>,
+    bytecode: Code,
     /// Optional native code.
     native: Optional<native::Code>,
     /// Optional WebAssembly code.
     wasm: Optional<wasm::Code>,
 }
 
-impl Root {
-    /// Create one empty Program root for a target layout.
+impl Header {
+    /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
         Self {
             magic: PROGRAM_MAGIC,
@@ -175,7 +172,7 @@ impl Root {
             constant_space: StaticImage::default(),
             shared_static_space: StaticImage::default(),
             local_static_space: StaticImage::default(),
-            bytecode: Optional::none(),
+            bytecode: Code::default(),
             native: Optional::none(),
             wasm: Optional::none(),
         }
@@ -345,45 +342,44 @@ impl ProgramBuilder {
     /// Build one immutable Program image.
     pub fn build(self) -> Program {
         let mut sections = SectionBuilder::new();
-        let mut root = Root::new(self.target_layout);
-        let root_section = sections.insert([root]);
+        let mut header = Header::new(self.target_layout);
+        let header_section = sections.insert([header]);
 
         // pack runtime tables in canonical order
-        root.strings = StringTable::pack(&mut sections, self.string_entries, self.string_bytes);
-        root.types = TypeTable::pack(&mut sections, self.types);
-        root.drops = DropTable::pack(&mut sections, self.drops);
-        root.layouts = LayoutTable::pack(&mut sections, self.layouts);
-        root.frames = self.frames.build(&mut sections);
-        root.functions = self.functions.build(&mut sections);
-        root.dispatch = self.dispatch.build(&mut sections);
-        root.sites = self.sites.build(&mut sections);
-        root.traces = TraceTable::pack(&mut sections, &self.traces);
-        root.globals = GlobalTable::pack(&mut sections, self.globals);
+        header.strings = StringTable::pack(&mut sections, self.string_entries, self.string_bytes);
+        header.types = TypeTable::pack(&mut sections, self.types);
+        header.drops = DropTable::pack(&mut sections, self.drops);
+        header.layouts = LayoutTable::pack(&mut sections, self.layouts);
+        header.frames = self.frames.build(&mut sections);
+        header.functions = self.functions.build(&mut sections);
+        header.dispatch = self.dispatch.build(&mut sections);
+        header.sites = self.sites.build(&mut sections);
+        header.traces = TraceTable::pack(&mut sections, &self.traces);
+        header.globals = GlobalTable::pack(&mut sections, self.globals);
         if let Some(info) = self.info {
-            root.info = Optional::some(info.build(&mut sections));
+            header.info = Optional::some(info.build(&mut sections));
         }
 
         // pack immutable storage in canonical order
-        root.constant_space = StaticImage::pack(&mut sections, self.constant_space);
-        root.shared_static_space = StaticImage::pack(&mut sections, self.shared_static_space);
-        root.local_static_space = StaticImage::pack(&mut sections, self.local_static_space);
+        header.constant_space = StaticImage::pack(&mut sections, self.constant_space);
+        header.shared_static_space = StaticImage::pack(&mut sections, self.shared_static_space);
+        header.local_static_space = StaticImage::pack(&mut sections, self.local_static_space);
 
         // pack executable code in canonical order
-        let bytecode = self.bytecode.build(&mut sections);
-        root.bytecode = Optional::some(bytecode);
+        header.bytecode = self.bytecode.build(&mut sections);
         if let Some(native) = self.native {
-            root.native = Optional::some(native.build(&mut sections));
+            header.native = Optional::some(native.build(&mut sections));
         }
         if let Some(wasm) = self.wasm {
-            root.wasm = Optional::some(wasm);
+            header.wasm = Optional::some(wasm);
         }
 
-        // finalize the fixed root after all section offsets are known
-        root.byte_len = sections.view().byte_len() as u64;
-        sections.replace(root_section, [root]);
+        // finalize the fixed header after all section offsets are known
+        header.byte_len = sections.view().byte_len() as u64;
+        sections.replace(header_section, [header]);
         let storage = sections.build();
 
-        Program::from_root(root, bytecode, storage)
+        Program::from_header(header, storage)
     }
 }
 
@@ -395,31 +391,26 @@ impl Program {
     /// The storage must contain a Program image produced by the matching compiler version.
     pub unsafe fn load(storage: SectionStorage) -> Result<Self, ProgramLoadError> {
         let bytes = storage.bytes();
-        if bytes.len() < size_of::<Root>() {
+        if bytes.len() < size_of::<Header>() {
             return Err(ProgramLoadError::Truncated);
         }
-        if !(bytes.as_ptr() as usize).is_multiple_of(align_of::<Root>()) {
+        if !(bytes.as_ptr() as usize).is_multiple_of(align_of::<Header>()) {
             return Err(ProgramLoadError::Misaligned);
         }
 
-        // SAFETY: the caller guarantees a compiler-produced root and alignment is checked above.
-        let root = unsafe { &*bytes.as_ptr().cast::<Root>() };
-        if root.magic != PROGRAM_MAGIC {
+        // SAFETY: the caller guarantees a compiler-produced header and alignment is checked above.
+        let header = unsafe { &*bytes.as_ptr().cast::<Header>() };
+        if header.magic != PROGRAM_MAGIC {
             return Err(ProgramLoadError::InvalidMagic);
         }
-        if root.version != PROGRAM_VERSION {
-            return Err(ProgramLoadError::UnsupportedVersion(root.version));
+        if header.version != PROGRAM_VERSION {
+            return Err(ProgramLoadError::UnsupportedVersion(header.version));
         }
-        if usize::try_from(root.byte_len).ok() != Some(bytes.len()) {
+        if usize::try_from(header.byte_len).ok() != Some(bytes.len()) {
             return Err(ProgramLoadError::InvalidLength);
         }
 
-        let bytecode = root
-            .bytecode
-            .get()
-            .ok_or(ProgramLoadError::MissingBytecode)?;
-
-        Ok(Self::from_root(*root, bytecode, storage))
+        Ok(Self::from_header(*header, storage))
     }
 
     /// Return the complete mapped Program image bytes.
@@ -427,33 +418,33 @@ impl Program {
         self.storage.bytes()
     }
 
-    /// Create one Program from its fixed root and retained section storage.
-    fn from_root(root: Root, bytecode: Code, storage: SectionStorage) -> Self {
+    /// Create one Program from its fixed header and retained section storage.
+    fn from_header(header: Header, storage: SectionStorage) -> Self {
         Self {
-            target_layout: root.target_layout,
-            strings: root.strings,
-            types: root.types,
-            drops: root.drops,
-            layouts: root.layouts,
-            frames: root.frames,
-            functions: root.functions,
-            dispatch: root.dispatch,
-            sites: root.sites,
-            traces: root.traces,
-            globals: root.globals,
-            info: root.info.get(),
-            constant_space: root.constant_space,
-            shared_static_space: root.shared_static_space,
-            local_static_space: root.local_static_space,
-            bytecode,
-            native: root.native.get(),
-            wasm: root.wasm.get(),
+            target_layout: header.target_layout,
+            strings: header.strings,
+            types: header.types,
+            drops: header.drops,
+            layouts: header.layouts,
+            frames: header.frames,
+            functions: header.functions,
+            dispatch: header.dispatch,
+            sites: header.sites,
+            traces: header.traces,
+            globals: header.globals,
+            info: header.info.get(),
+            constant_space: header.constant_space,
+            shared_static_space: header.shared_static_space,
+            local_static_space: header.local_static_space,
+            bytecode: header.bytecode,
+            native: header.native.get(),
+            wasm: header.wasm.get(),
             storage,
         }
     }
 }
 
-const _: () = assert!(align_of::<Root>() == 16);
+const _: () = assert!(align_of::<Header>() == 16);
 
 #[cfg(test)]
 mod tests {
@@ -479,8 +470,8 @@ mod tests {
         assert_eq!(loaded.bytes(), program.bytes());
         assert_eq!(loaded.string(name), Some("main"));
         assert_eq!(
-            loaded.bytecode().functions(loaded.sections()),
-            program.bytecode().functions(program.sections()),
+            loaded.bytecode().bodies(loaded.sections()),
+            program.bytecode().bodies(program.sections()),
         );
     }
 
