@@ -478,7 +478,10 @@ mod tests {
 
         assert_eq!(loaded.bytes(), program.bytes());
         assert_eq!(loaded.string(name), Some("main"));
-        assert_eq!(loaded.bytecode_functions(), program.bytecode_functions());
+        assert_eq!(
+            loaded.bytecode().functions(loaded.sections()),
+            program.bytecode().functions(program.sections()),
+        );
     }
 
     /// Build one minimal section-backed Program.

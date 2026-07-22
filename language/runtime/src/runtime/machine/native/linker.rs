@@ -6,7 +6,7 @@ use super::{Code, Error};
 pub trait Linker {
     /// Load one durable program into process-local native code.
     fn load(&self, program: &Program) -> Result<Code, Error> {
-        let Some(code) = program.native_code() else {
+        let Some(code) = program.native() else {
             return Err(Error::NativeCodeMissing);
         };
 

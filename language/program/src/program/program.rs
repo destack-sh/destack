@@ -240,18 +240,13 @@ impl Program {
         &self.bytecode
     }
 
-    /// Return all linked bytecode functions.
-    pub fn bytecode_functions(&self) -> &[bytecode::Function] {
-        self.bytecode.functions(self.sections())
-    }
-
     /// Return native code when this program carries it.
-    pub fn native_code(&self) -> Option<&native::Code> {
+    pub fn native(&self) -> Option<&native::Code> {
         self.native.as_ref()
     }
 
     /// Return WebAssembly code when this program carries it.
-    pub fn wasm_code(&self) -> Option<&wasm::Code> {
+    pub fn wasm(&self) -> Option<&wasm::Code> {
         self.wasm.as_ref()
     }
 
@@ -409,11 +404,6 @@ impl Program {
 
         self.constant_space
             .owns_address_range(sections, global, address, byte_len)
-    }
-
-    /// Return one linked bytecode function.
-    pub fn bytecode_function(&self, function: FunctionId) -> Option<&bytecode::Function> {
-        self.bytecode.function(self.sections(), function.index())
     }
 
     /// Return the frame layout for one layout id when present.
