@@ -1343,7 +1343,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Terminator::Yield { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
-            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Abort { .. }
             | mir::Terminator::Unreachable => SmallVec::new(),
         }
     }

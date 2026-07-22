@@ -125,8 +125,8 @@ pub enum TokenType {
     Panic,
     /// `unwind.resume`
     UnwindResume,
-    /// `trap.abort`
-    Trap,
+    /// `abort`
+    Abort,
     /// `unreachable`
     Unreachable,
     /// `tail.call`
@@ -212,7 +212,7 @@ impl TokenType {
                 | Self::Yield
                 | Self::Panic
                 | Self::UnwindResume
-                | Self::Trap
+                | Self::Abort
                 | Self::Unreachable
         ) || self.is_invoke()
             || self.is_tail_call()
@@ -236,7 +236,7 @@ impl TokenType {
             "yield" => Self::Yield,
             "panic" => Self::Panic,
             "unwind.resume" => Self::UnwindResume,
-            "trap.abort" => Self::Trap,
+            "abort" => Self::Abort,
             "unreachable" => Self::Unreachable,
             "tail.call" => Self::TailCall,
             "call" => Self::Call,

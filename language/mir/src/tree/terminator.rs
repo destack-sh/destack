@@ -61,14 +61,7 @@ impl<'a> EdgeArguments<'a> {
     }
 }
 
-/// Unrecoverable runtime trap kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum TrapKind {
-    /// Abort execution immediately.
-    Abort,
-}
-
-/// Semantic constraint for a runtime check.
+/// Condition tested by one runtime check.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum CheckConstraint {
     /// Bounds check on an index into a collection.
@@ -224,7 +217,7 @@ pub enum Terminator {
     },
     /// Runtime check with explicit success and failure edges.
     Check {
-        /// Semantic constraint for the check.
+        /// The condition tested by the check.
         constraint: CheckConstraint,
         /// The block to jump to when the check succeeds.
         success: BlockTarget,
@@ -318,11 +311,9 @@ pub enum Terminator {
     },
     /// Continue the active unwind after a cleanup block.
     UnwindResume,
-    /// Unrecoverable runtime termination.
-    Trap {
-        /// The trap kind.
-        kind: TrapKind,
-        /// Optional trap payload.
+    /// Abort execution immediately.
+    Abort {
+        /// Optional diagnostic payload.
         payload: Option<Value>,
     },
     /// Unreachable code.
@@ -456,7 +447,7 @@ impl Terminator {
             Terminator::Return { .. }
             | Terminator::Panic { .. }
             | Terminator::UnwindResume
-            | Terminator::Trap { .. }
+            | Terminator::Abort { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. } => Vec::new(),
         }
@@ -524,7 +515,7 @@ impl Terminator {
             } => smallvec![success.block, failure.block],
             Terminator::Panic { .. } => smallvec![],
             Terminator::UnwindResume => smallvec![],
-            Terminator::Trap { .. } => smallvec![],
+            Terminator::Abort { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { .. } => smallvec![],
         }
@@ -648,7 +639,7 @@ impl Terminator {
             }
             Terminator::Panic { payload } => payload.iter().copied().collect(),
             Terminator::UnwindResume => smallvec![],
-            Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
+            Terminator::Abort { payload } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { call } => call.uses(tree),
         }

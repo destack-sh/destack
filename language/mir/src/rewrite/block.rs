@@ -818,7 +818,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> 
                 }
             }
             mir::Terminator::Return { .. }
-            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Abort { .. }
             | mir::Terminator::Unreachable => {
                 if block.parameters.is_empty() {
                     threadable.insert(block_id, ThreadableBlock::Terminator(terminator.clone()));

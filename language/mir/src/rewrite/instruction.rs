@@ -3644,7 +3644,7 @@ pub fn terminator_remap(
             }
         }
         mir::Terminator::UnwindResume => {}
-        mir::Terminator::Trap { .. } => {}
+        mir::Terminator::Abort { .. } => {}
         mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall { call } => {
             call.callee = call

@@ -273,7 +273,7 @@ pub fn walk_terminator<V: NodeVisitor + ?Sized>(
         | Terminator::Yield { .. }
         | Terminator::Panic { .. }
         | Terminator::UnwindResume
-        | Terminator::Trap { .. }
+        | Terminator::Abort { .. }
         | Terminator::Unreachable => {}
     }
 }

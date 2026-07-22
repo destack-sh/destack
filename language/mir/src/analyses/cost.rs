@@ -412,7 +412,7 @@ impl CostModel {
             | mir::Terminator::Unreachable
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
-            | mir::Terminator::Trap { .. } => {}
+            | mir::Terminator::Abort { .. } => {}
             mir::Terminator::Branch { .. }
             | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }

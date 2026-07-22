@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, BlockTarget, Call, Callee, CheckConstraint, LocalNodeId, SwitchCase, Terminator,
-    TrapKind, TypeId, Value,
+    Block, BlockTarget, Call, Callee, CheckConstraint, LocalNodeId, SwitchCase, Terminator, TypeId,
+    Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -150,15 +150,12 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Abort execution immediately.
-    pub fn trap_abort(&mut self) {
+    pub fn abort(&mut self, payload: Option<Value>) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::Trap {
-            kind: TrapKind::Abort,
-            payload: None,
-        };
+        *terminator = Terminator::Abort { payload };
     }
 
     /// Panic with a language payload.

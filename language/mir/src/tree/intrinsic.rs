@@ -850,7 +850,7 @@ impl IntrinsicInstruction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntrinsicTerminator {
     /// Abort execution immediately.
-    TrapAbort,
+    Abort,
     /// Panic with a message payload.
     Panic,
     /// Assert the point is never reached.
@@ -861,7 +861,7 @@ impl IntrinsicTerminator {
     /// Return the terminator one sealed intrinsic name denotes.
     pub fn from_name(name: &str) -> Option<Self> {
         let denoted = match name {
-            "error.abort" | "error.trap" => Self::TrapAbort,
+            "error.abort" | "error.trap" => Self::Abort,
             "error.panic" | "error.todo" => Self::Panic,
             "error.unreachable" => Self::Unreachable,
             _ => return None,

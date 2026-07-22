@@ -7,7 +7,7 @@ use super::value::format_block_id;
 
 use crate::{
     Block, BlockTarget, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext,
-    MirFormatter, Terminator, TrapKind, Value, write_comments_after, write_inline_comment_after,
+    MirFormatter, Terminator, Value, write_comments_after, write_inline_comment_after,
     write_node_leading_comments,
 };
 
@@ -304,11 +304,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 
         Terminator::UnwindResume => write!(f, [token("unwind.resume")]),
 
-        Terminator::Trap { kind, payload } => {
-            match kind {
-                TrapKind::Abort => write!(f, [token("trap.abort")])?,
-            }
-
+        Terminator::Abort { payload } => {
+            write!(f, [token("abort")])?;
             if let Some(payload) = payload {
                 write!(f, [space(), payload])?;
             }

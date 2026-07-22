@@ -152,14 +152,27 @@ entry(v0: int32):
     );
 }
 
-/// Formats trap terminators canonically.
+/// Formats panic terminators canonically.
 #[test]
-fn test_format_trap() {
+fn test_format_panic() {
     assert_format(
         r#"
-function trapper(v0: ref<void, managed, readonly>): void {
+function panicker(v0: ref<void, managed, readonly>): void {
 entry(v0: ref<void, managed, readonly>):
     panic v0
+}
+"#,
+    );
+}
+
+/// Formats abort terminators canonically.
+#[test]
+fn test_format_abort() {
+    assert_format(
+        r#"
+function aborter(v0: ref<void, managed, readonly>): void {
+entry(v0: ref<void, managed, readonly>):
+    abort v0
 }
 "#,
     );

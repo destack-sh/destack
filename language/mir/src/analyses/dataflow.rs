@@ -212,7 +212,7 @@ where
             if matches!(
                 terminator,
                 mir::Terminator::Return { .. }
-                    | mir::Terminator::Trap { .. }
+                    | mir::Terminator::Abort { .. }
                     | mir::Terminator::Panic { .. }
                     | mir::Terminator::Unreachable
                     | mir::Terminator::TailCall { .. }
@@ -426,9 +426,9 @@ entry(v0: int32):
         assert!(exit.contains(&entry));
     }
 
-    /// Trap terminators act as backward dataflow exits.
+    /// Panic terminators act as backward dataflow exits.
     #[test]
-    fn test_backward_dataflow_trap_exit() {
+    fn test_backward_dataflow_panic_exit() {
         let program = TestProgram::new(
             r#"
 function test(v0: ref<void, managed, readonly>): void {
@@ -455,7 +455,7 @@ entry(v0: ref<void, managed, readonly>):
             },
         );
 
-        let exit = result.exit(entry).expect("missing trap exit");
+        let exit = result.exit(entry).expect("missing panic exit");
         assert!(exit.contains(&entry));
     }
 }

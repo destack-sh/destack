@@ -6,7 +6,7 @@ use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Block,
     BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Function, FunctionBody,
     FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId, Mutability,
-    SwitchCase, Terminator, TrapKind, TypeId, TypedValueSpan, Value,
+    SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -1036,18 +1036,15 @@ impl Parser {
                     unwind,
                 })
             }
-            TokenType::Trap => {
+            TokenType::Abort => {
                 self.bump();
-
-                // abort has no payload
-                if self.tree.source_text(token.span) == "trap.abort" {
-                    return Ok(Terminator::Trap {
-                        kind: TrapKind::Abort,
-                        payload: None,
-                    });
-                }
-
-                Err(ParseError::invalid("expected `trap.abort`", token.start()))
+                let payload =
+                    if !self.has_line_break_after(&token) && self.is_value_reference_start() {
+                        Some(self.parse_value()?)
+                    } else {
+                        None
+                    };
+                Ok(Terminator::Abort { payload })
             }
             TokenType::Panic => {
                 self.bump();
