@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_bytecode as bytecode;
 use destack_bytecode::Word;
-use destack_core::{SectionImage, SectionStorage, StringId};
+use destack_core::{EntryRange, SectionImage, SectionStorage, StringId};
 use destack_heap::{
     AllocationShape, DropId, HeapResult, ReferenceRange, RootSlot, TraceTable, TraceView,
     visit_heap_root_slots,
@@ -17,10 +17,11 @@ use crate::{
     BindingId, Continuation, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
     DynamicTableId, FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId, FrameState, FrameStateId,
     FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
-    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutTable, ProgramInfo,
-    ProgramPoint, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry,
-    SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable, Value,
-    VariantCaseLayout, VariantLayout, WordLayout, native, wasm,
+    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
+    ProgramInfo, ProgramPoint, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
+    SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, TensorDimension,
+    TensorLayout, TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout,
+    VirtualTable, VirtualTableId, WordLayout, native, wasm,
 };
 
 use super::{Error, Result};
@@ -171,9 +172,24 @@ impl Program {
         &self.dispatch
     }
 
+    /// Return one virtual table by its durable id.
+    pub fn virtual_table(&self, table: VirtualTableId) -> Option<&VirtualTable> {
+        self.dispatch.virtual_table(self.sections(), table)
+    }
+
+    /// Return one virtual method by table id and slot.
+    pub fn virtual_method(&self, table: VirtualTableId, slot: u32) -> Option<FunctionId> {
+        let table = self.virtual_table(table)?;
+
+        self.dispatch
+            .virtual_methods(self.sections(), table)
+            .get(slot as usize)
+            .copied()
+    }
+
     /// Return one dynamic table by its durable id.
     pub fn dynamic_table(&self, table: DynamicTableId) -> Option<&DynamicTable> {
-        self.dispatch.dynamic_table_by_id(self.sections(), table)
+        self.dispatch.dynamic_table(self.sections(), table)
     }
 
     /// Return one dynamic entry by table id and slot.
@@ -439,6 +455,31 @@ impl Program {
     /// Return one runtime layout by id.
     pub fn layout_by_id(&self, layout: LayoutId) -> Option<&Layout> {
         self.layouts().get(self.sections(), layout)
+    }
+
+    /// Return the layout for one owning tensor type.
+    pub fn tensor_layout(&self, ty: TypeId) -> Option<TensorLayout> {
+        let layout = self.layout(ty)?;
+        let LayoutShape::Tensor(tensor) = layout.shape else {
+            return None;
+        };
+
+        Some(tensor)
+    }
+
+    /// Return the layout for one tensor view type.
+    pub fn tensor_view_layout(&self, ty: TypeId) -> Option<TensorViewLayout> {
+        let layout = self.layout(ty)?;
+        let LayoutShape::TensorView(view) = layout.shape else {
+            return None;
+        };
+
+        Some(view)
+    }
+
+    /// Return the dimensions for one tensor or tensor view layout.
+    pub fn tensor_dimensions(&self, dimensions: EntryRange<TensorDimension>) -> &[TensorDimension] {
+        self.layouts.tensor_dimensions(self.sections(), dimensions)
     }
 
     /// Return one field by layout index.

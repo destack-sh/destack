@@ -27,6 +27,8 @@ pub struct LayoutTable {
     fields: SectionSlice<LayoutField>,
     /// Flattened variant case layout entries.
     cases: SectionSlice<VariantCaseLayout>,
+    /// Flattened tensor dimensions.
+    tensor_dimensions: SectionSlice<TensorDimension>,
     /// Flattened tensor sharding axis entries.
     tensor_axes: SectionSlice<TensorShardingAxis>,
 }
@@ -37,22 +39,30 @@ impl LayoutTable {
         let mut entries = Vec::with_capacity(layouts.len());
         let mut fields = EntryStore::new();
         let mut cases = EntryStore::new();
+        let mut tensor_dimensions = EntryStore::new();
         let mut tensor_axes = EntryStore::new();
 
         // flatten variable layout payloads
         for layout in layouts {
-            entries.push(layout.build(&mut fields, &mut cases, &mut tensor_axes));
+            entries.push(layout.build(
+                &mut fields,
+                &mut cases,
+                &mut tensor_dimensions,
+                &mut tensor_axes,
+            ));
         }
 
         let layouts = sections.insert(entries);
         let fields = sections.insert(fields.into_entries());
         let cases = sections.insert(cases.into_entries());
+        let tensor_dimensions = sections.insert(tensor_dimensions.into_entries());
         let tensor_axes = sections.insert(tensor_axes.into_entries());
 
         Self {
             layouts,
             fields,
             cases,
+            tensor_dimensions,
             tensor_axes,
         }
     }
@@ -75,9 +85,8 @@ impl LayoutTable {
     /// Return the field count for field-addressable layouts.
     pub fn field_count(&self, layout: &Layout) -> Option<usize> {
         match layout.shape {
-            LayoutShape::Struct(fields)
-            | LayoutShape::Tuple(fields)
-            | LayoutShape::Object(fields) => Some(fields.len as usize),
+            LayoutShape::Struct(fields) | LayoutShape::Tuple(fields) => Some(fields.len as usize),
+            LayoutShape::Object(object) => Some(object.fields.len as usize),
             _ => None,
         }
     }
@@ -85,9 +94,10 @@ impl LayoutTable {
     /// Return field layouts for field-addressable shapes.
     pub fn fields<'a>(&self, sections: SectionImage<'a>, layout: &Layout) -> &'a [LayoutField] {
         match layout.shape {
-            LayoutShape::Struct(fields)
-            | LayoutShape::Tuple(fields)
-            | LayoutShape::Object(fields) => fields.slice(sections.entries(self.fields)),
+            LayoutShape::Struct(fields) | LayoutShape::Tuple(fields) => {
+                fields.slice(sections.entries(self.fields))
+            }
+            LayoutShape::Object(object) => object.fields.slice(sections.entries(self.fields)),
             _ => &[],
         }
     }
@@ -99,6 +109,15 @@ impl LayoutTable {
         layout: VariantLayout,
     ) -> &'a [VariantCaseLayout] {
         layout.cases.slice(sections.entries(self.cases))
+    }
+
+    /// Return the dimensions for one tensor layout.
+    pub fn tensor_dimensions<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        dimensions: EntryRange<TensorDimension>,
+    ) -> &'a [TensorDimension] {
+        dimensions.slice(sections.entries(self.tensor_dimensions))
     }
 
     /// Return tensor sharding axes for one tensor sharding descriptor.
@@ -621,7 +640,7 @@ pub enum LayoutShape {
     /// Variant value storage.
     Variant(VariantLayout),
     /// Object storage.
-    Object(EntryRange<LayoutField>),
+    Object(ObjectLayout),
     /// Runtime dynamic value layout.
     Dynamic,
     /// Runtime function value storage.
@@ -700,28 +719,78 @@ pub struct ElementLayout {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TensorLayout {
+    /// The tensor storage space.
+    pub space: Space,
     /// The tensor element type.
     pub element: TypeId,
     /// The tensor storage format.
     pub format: TensorFormat,
     /// The tensor placement.
     pub sharding: TensorSharding,
-    /// The tensor rank.
-    pub rank: u32,
+    /// The tensor dimensions.
+    pub dimensions: EntryRange<TensorDimension>,
 }
 
 /// Concrete layout for a tensor view descriptor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TensorViewLayout {
+    /// The backing tensor storage reference.
+    pub reference: ReferenceLayout,
     /// The viewed element type.
     pub element: TypeId,
     /// The tensor view format.
     pub format: TensorViewFormat,
     /// The tensor placement.
     pub sharding: TensorSharding,
-    /// The tensor rank.
-    pub rank: u32,
+    /// The tensor dimensions.
+    pub dimensions: EntryRange<TensorDimension>,
+}
+
+/// One tensor dimension.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct TensorDimension {
+    /// Whether the dimension is fixed or dynamic.
+    pub kind: TensorDimensionKind,
+    /// The static extent when present.
+    pub extent: u64,
+}
+
+impl TensorDimension {
+    /// Create one static tensor dimension.
+    pub const fn fixed(extent: u64) -> Self {
+        Self {
+            kind: TensorDimensionKind::Fixed,
+            extent,
+        }
+    }
+
+    /// Create one runtime tensor dimension.
+    pub const fn dynamic() -> Self {
+        Self {
+            kind: TensorDimensionKind::Dynamic,
+            extent: 0,
+        }
+    }
+
+    /// Return the fixed extent when this dimension is static.
+    pub const fn fixed_extent(self) -> Option<u64> {
+        match self.kind {
+            TensorDimensionKind::Fixed => Some(self.extent),
+            TensorDimensionKind::Dynamic => None,
+        }
+    }
+}
+
+/// Tensor dimension kind.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub enum TensorDimensionKind {
+    /// A compile-time fixed extent.
+    Fixed,
+    /// A runtime-provided extent.
+    Dynamic,
 }
 
 /// Concrete layout for a variant value.
@@ -736,6 +805,16 @@ pub struct VariantLayout {
     pub encoding: VariantEncoding,
     /// The variant cases.
     pub cases: EntryRange<VariantCaseLayout>,
+}
+
+/// Concrete layout for one object.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct ObjectLayout {
+    /// Byte offset of the virtual table id when present.
+    pub dispatch_offset: Optional<u32>,
+    /// The object fields in physical layout order.
+    pub fields: EntryRange<LayoutField>,
 }
 
 const _: () = assert!(std::mem::size_of::<VariantLayout>() <= 64);
@@ -852,9 +931,12 @@ impl LayoutBuilder {
         self,
         fields: &mut EntryStore<LayoutField>,
         cases: &mut EntryStore<VariantCaseLayout>,
+        tensor_dimensions: &mut EntryStore<TensorDimension>,
         tensor_axes: &mut EntryStore<TensorShardingAxis>,
     ) -> Layout {
-        let shape = self.shape.build(fields, cases, tensor_axes);
+        let shape = self
+            .shape
+            .build(fields, cases, tensor_dimensions, tensor_axes);
 
         Layout {
             shape,
@@ -893,7 +975,7 @@ pub enum LayoutShapeBuilder {
     /// Variant value storage.
     Variant(VariantLayoutBuilder),
     /// Object storage.
-    Object(Vec<LayoutField>),
+    Object(ObjectLayoutBuilder),
     /// Runtime dynamic value layout.
     Dynamic,
     /// Runtime function value storage.
@@ -908,6 +990,7 @@ impl LayoutShapeBuilder {
         self,
         fields: &mut EntryStore<LayoutField>,
         cases: &mut EntryStore<VariantCaseLayout>,
+        tensor_dimensions: &mut EntryStore<TensorDimension>,
         tensor_axes: &mut EntryStore<TensorShardingAxis>,
     ) -> LayoutShape {
         match self {
@@ -920,15 +1003,22 @@ impl LayoutShapeBuilder {
             Self::Slice(slice) => LayoutShape::Slice(slice),
             Self::Array(element) => LayoutShape::Array(element),
             Self::Vector(element) => LayoutShape::Vector(element),
-            Self::Tensor(tensor) => LayoutShape::Tensor(tensor.build(tensor_axes)),
-            Self::TensorView(tensor) => LayoutShape::TensorView(tensor.build(tensor_axes)),
+            Self::Tensor(tensor) => {
+                LayoutShape::Tensor(tensor.build(tensor_dimensions, tensor_axes))
+            }
+            Self::TensorView(tensor) => {
+                LayoutShape::TensorView(tensor.build(tensor_dimensions, tensor_axes))
+            }
             Self::Variant(variant) => LayoutShape::Variant(VariantLayout {
                 discriminant: variant.discriminant,
                 storage: variant.storage,
                 encoding: variant.encoding,
                 cases: cases.append(variant.cases),
             }),
-            Self::Object(layout_fields) => LayoutShape::Object(fields.append(layout_fields)),
+            Self::Object(object) => LayoutShape::Object(ObjectLayout {
+                dispatch_offset: Optional::from(object.dispatch_offset),
+                fields: fields.append(object.fields),
+            }),
             Self::Dynamic => LayoutShape::Dynamic,
             Self::Function(function) => LayoutShape::Function(FunctionLayout {
                 signature: function.signature,
@@ -936,6 +1026,32 @@ impl LayoutShapeBuilder {
             }),
             Self::Newtype(newtype) => LayoutShape::Newtype(newtype),
         }
+    }
+}
+
+/// Build-time concrete layout for one object.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjectLayoutBuilder {
+    /// Byte offset of the virtual table id when present.
+    dispatch_offset: Option<u32>,
+    /// The object fields in physical layout order.
+    fields: Vec<LayoutField>,
+}
+
+impl ObjectLayoutBuilder {
+    /// Create one object layout builder.
+    pub fn new(fields: impl IntoIterator<Item = LayoutField>) -> Self {
+        Self {
+            dispatch_offset: None,
+            fields: fields.into_iter().collect(),
+        }
+    }
+
+    /// Set the virtual table id byte offset.
+    pub fn dispatch_offset(mut self, offset: u32) -> Self {
+        self.dispatch_offset = Some(offset);
+
+        self
     }
 }
 
@@ -961,24 +1077,32 @@ impl FunctionLayoutBuilder {
 /// Build-time concrete layout for a tensor handle.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TensorLayoutBuilder {
+    /// The tensor storage space.
+    space: Space,
     /// The tensor element type.
     element: TypeId,
     /// The tensor storage format.
     format: TensorFormat,
     /// The tensor placement.
     sharding: TensorShardingBuilder,
-    /// The tensor rank.
-    rank: u32,
+    /// The tensor dimensions.
+    dimensions: Vec<TensorDimension>,
 }
 
 impl TensorLayoutBuilder {
     /// Create one tensor layout builder.
-    pub fn new(element: TypeId, format: TensorFormat, rank: u32) -> Self {
+    pub fn new(
+        space: Space,
+        element: TypeId,
+        format: TensorFormat,
+        dimensions: impl IntoIterator<Item = TensorDimension>,
+    ) -> Self {
         Self {
+            space,
             element,
             format,
             sharding: TensorShardingBuilder::Unsharded,
-            rank,
+            dimensions: dimensions.into_iter().collect(),
         }
     }
 
@@ -990,12 +1114,17 @@ impl TensorLayoutBuilder {
     }
 
     /// Build this tensor layout into one section entry.
-    fn build(self, tensor_axes: &mut EntryStore<TensorShardingAxis>) -> TensorLayout {
+    fn build(
+        self,
+        tensor_dimensions: &mut EntryStore<TensorDimension>,
+        tensor_axes: &mut EntryStore<TensorShardingAxis>,
+    ) -> TensorLayout {
         TensorLayout {
+            space: self.space,
             element: self.element,
             format: self.format,
             sharding: self.sharding.build(tensor_axes),
-            rank: self.rank,
+            dimensions: tensor_dimensions.append(self.dimensions),
         }
     }
 }
@@ -1003,24 +1132,32 @@ impl TensorLayoutBuilder {
 /// Build-time concrete layout for a tensor view descriptor.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TensorViewLayoutBuilder {
+    /// The backing tensor storage reference.
+    reference: ReferenceLayout,
     /// The viewed element type.
     element: TypeId,
     /// The tensor view format.
     format: TensorViewFormat,
     /// The tensor placement.
     sharding: TensorShardingBuilder,
-    /// The tensor rank.
-    rank: u32,
+    /// The tensor dimensions.
+    dimensions: Vec<TensorDimension>,
 }
 
 impl TensorViewLayoutBuilder {
     /// Create one tensor view layout builder.
-    pub fn new(element: TypeId, format: TensorViewFormat, rank: u32) -> Self {
+    pub fn new(
+        reference: ReferenceLayout,
+        element: TypeId,
+        format: TensorViewFormat,
+        dimensions: impl IntoIterator<Item = TensorDimension>,
+    ) -> Self {
         Self {
+            reference,
             element,
             format,
             sharding: TensorShardingBuilder::Unsharded,
-            rank,
+            dimensions: dimensions.into_iter().collect(),
         }
     }
 
@@ -1032,12 +1169,17 @@ impl TensorViewLayoutBuilder {
     }
 
     /// Build this tensor view layout into one section entry.
-    fn build(self, tensor_axes: &mut EntryStore<TensorShardingAxis>) -> TensorViewLayout {
+    fn build(
+        self,
+        tensor_dimensions: &mut EntryStore<TensorDimension>,
+        tensor_axes: &mut EntryStore<TensorShardingAxis>,
+    ) -> TensorViewLayout {
         TensorViewLayout {
+            reference: self.reference,
             element: self.element,
             format: self.format,
             sharding: self.sharding.build(tensor_axes),
-            rank: self.rank,
+            dimensions: tensor_dimensions.append(self.dimensions),
         }
     }
 }

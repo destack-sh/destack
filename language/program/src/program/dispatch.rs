@@ -87,31 +87,8 @@ pub struct DispatchTable {
 }
 
 impl DispatchTable {
-    /// Return the virtual dispatch table id for one concrete type.
-    pub fn virtual_table_id(
-        &self,
-        sections: SectionImage<'_>,
-        ty: TypeId,
-    ) -> Option<VirtualTableId> {
-        sections
-            .entries(self.virtual_tables)
-            .iter()
-            .position(|table| table.ty == ty)
-            .map(|index| VirtualTableId::from(index as u32))
-    }
-
-    /// Return the virtual table for one concrete type.
-    pub fn virtual_table<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        ty: TypeId,
-    ) -> Option<&'a VirtualTable> {
-        self.virtual_table_id(sections, ty)
-            .and_then(|id| self.virtual_table_by_id(sections, id))
-    }
-
     /// Return the virtual table for one table id.
-    pub fn virtual_table_by_id<'a>(
+    pub fn virtual_table<'a>(
         &self,
         sections: SectionImage<'a>,
         id: VirtualTableId,
@@ -119,33 +96,8 @@ impl DispatchTable {
         sections.entries(self.virtual_tables).get(id.index())
     }
 
-    /// Return the dynamic table id for one concrete type and constraint.
-    pub fn dynamic_table_id(
-        &self,
-        sections: SectionImage<'_>,
-        concrete: TypeId,
-        constraint: TypeId,
-    ) -> Option<DynamicTableId> {
-        sections
-            .entries(self.dynamic_tables)
-            .iter()
-            .position(|table| table.concrete == concrete && table.constraint == constraint)
-            .map(|index| DynamicTableId::from(index as u32))
-    }
-
-    /// Return the dynamic table for one concrete type and constraint.
-    pub fn dynamic_table<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        concrete: TypeId,
-        constraint: TypeId,
-    ) -> Option<&'a DynamicTable> {
-        self.dynamic_table_id(sections, concrete, constraint)
-            .and_then(|id| self.dynamic_table_by_id(sections, id))
-    }
-
     /// Return the dynamic table for one table id.
-    pub fn dynamic_table_by_id<'a>(
+    pub fn dynamic_table<'a>(
         &self,
         sections: SectionImage<'a>,
         id: DynamicTableId,
@@ -198,7 +150,7 @@ impl DispatchTable {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct VirtualTable {
     /// Concrete type owning this table.
-    pub ty: TypeId,
+    pub concrete: TypeId,
     /// Method implementations in runtime slot order.
     pub methods: EntryRange<FunctionId>,
 }
@@ -299,7 +251,7 @@ impl DispatchTableBuilder {
             let methods = virtual_methods.append(virtual_table.methods);
 
             virtual_tables.push(VirtualTable {
-                ty: virtual_table.ty,
+                concrete: virtual_table.concrete,
                 methods,
             });
         }
@@ -343,16 +295,16 @@ impl DispatchTableBuilder {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VirtualTableBuilder {
     /// Concrete type owning this table.
-    ty: TypeId,
+    concrete: TypeId,
     /// Method implementations in runtime slot order.
     methods: Vec<FunctionId>,
 }
 
 impl VirtualTableBuilder {
     /// Create one virtual table builder.
-    pub fn new(ty: TypeId) -> Self {
+    pub fn new(concrete: TypeId) -> Self {
         Self {
-            ty,
+            concrete,
             methods: Vec::new(),
         }
     }

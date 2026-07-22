@@ -3,7 +3,7 @@ use destack_mir::Space;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{FrameStateId, FunctionId, ProgramPoint, TypeId};
+use super::{FrameStateId, FunctionId, ProgramPoint, TypeId, VirtualTableId};
 
 /// Program sites used by debugging, probes, and observations.
 #[repr(C)]
@@ -406,6 +406,8 @@ pub struct AllocationSite {
     pub result_type: TypeId,
     /// The type used for the allocated storage.
     pub storage_type: TypeId,
+    /// The virtual table written into the allocation when present.
+    pub virtual_table: Optional<VirtualTableId>,
 }
 
 /// Heap allocation operation family.
@@ -418,6 +420,8 @@ pub enum AllocationOperation {
     Value,
     /// Allocate repeated typed storage.
     Slice,
+    /// Allocate one tensor shape header and element storage.
+    Tensor,
 }
 
 /// Allocation byte initialization mode.
