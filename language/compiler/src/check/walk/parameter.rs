@@ -35,6 +35,10 @@ impl WalkState<'_, '_> {
             dir::GenericParameter::VariadicType {
                 variance, is_const, ..
             } => (*variance, dir::GenericParameterKind::Type, true, *is_const),
+            // <'a>
+            dir::GenericParameter::Lifetime { .. } => {
+                (None, dir::GenericParameterKind::Value, false, false)
+            }
             // <comptime C: T>
             dir::GenericParameter::Value { .. } => {
                 (None, dir::GenericParameterKind::Value, false, false)
@@ -107,6 +111,13 @@ impl WalkState<'_, '_> {
 
                 self.check
                     .update_generic_parameter_bounds(parameter, constraint, default)?;
+            }
+            // <'a>
+            dir::GenericParameter::Lifetime { .. } => {
+                let constraint = self.language_type_reference(dir::LanguageItem::Lifetime, &[])?;
+
+                self.check
+                    .update_generic_parameter_bounds(parameter, Some(constraint), None)?;
             }
             // <comptime C: T = N>, <comptime ...C: T = N>
             dir::GenericParameter::Value {

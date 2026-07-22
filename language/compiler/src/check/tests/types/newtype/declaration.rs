@@ -59,11 +59,11 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=<comptime Buffer.write.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Buffer.write.L0, "exclusive">, readonly Array<uint8>) => usize
+/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'l0>(this: &Buffer.write.'l0 exclusive this, readonly Array<uint8>) => usize
 
     write(bytes: readonly uint8[]): usize {
-    /// @generic.template symbol=Buffer.write parameters=(comptime L0: memory.lifetime.Lifetime)
-    /// @type.symbol symbol=Buffer.write type=<comptime Buffer.write.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Buffer.write.L0, "exclusive">, readonly Array<uint8>) => usize
+    /// @generic.template symbol=Buffer.write parameters=('l0)
+    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'l0>(this: &Buffer.write.'l0 exclusive this, readonly Array<uint8>) => usize
     /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
 
         bytes.length

@@ -75,8 +75,11 @@ impl ModuleLowerer<'_> {
             dir::Type::Parameter(parameter) => {
                 let Some(slot) = parameters.slots.get(&parameter) else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR left a lifetime parameter outside its scope"
-                            .to_string(),
+                        message: format!(
+                            "checked DIR left lifetime parameter {parameter:?} outside its scope \
+                             with slots for {:?}",
+                            parameters.slots.keys().collect::<Vec<_>>()
+                        ),
                     });
                 };
 

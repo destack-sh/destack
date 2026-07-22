@@ -110,6 +110,7 @@ impl Compiler {
         state.bind_node(node_id.into_any());
 
         match parameter {
+            dir::GenericParameter::Lifetime { .. } => {}
             dir::GenericParameter::Type {
                 constraint,
                 default,

@@ -224,6 +224,7 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
 
                 format!("{prefix}{}", strings.get(*name))
             }
+            dir::GenericParameter::Lifetime { name } => strings.get(*name).to_string(),
             dir::GenericParameter::Error => {
                 panic!("error generic parameter reached signature formatting")
             }

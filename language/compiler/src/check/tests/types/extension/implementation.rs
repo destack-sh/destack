@@ -825,16 +825,16 @@ extension of int32 implements Halving {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Halving target=Halving
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=halve slot=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<this, halve.L0, "readonly">) => this.Output
+/// @definition.method symbol=halve slot=halve type=<halve.'l0>(this: &halve.'l0 readonly this) => this.Output
 /// @resolution.name source=Halving target=Halving
 
     type Output = int32;
     /// @type.symbol symbol=Output source="type Output = int32" type=int32
 
     halve(&readonly this): this.Output {
-    /// @generic.template symbol=halve parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<this, halve.L0, "readonly">) => this.Output
-    /// @type.symbol symbol=halve.this source="&readonly this" type=Borrowed<this, halve.L0, "readonly">
+    /// @generic.template symbol=halve parent=template#1 parameters=('l0)
+    /// @type.symbol symbol=halve type=<halve.'l0>(this: &halve.'l0 readonly this) => this.Output
+    /// @type.symbol symbol=halve.this source="&readonly this" type=&halve.'l0 readonly this
 
         todo("halve")
         /// @resolution.name source=todo target=error.panic.todo
@@ -1078,11 +1078,11 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
         r#"
 === annotated ===
 interface Eq<in out T> {
-    equals(other: Borrowed<T, L0, "readonly">): boolean;
+    equals(other: &'l0 readonly T): boolean;
 }
 
 interface Has<in out T> {
-    has(value: Borrowed<T, L0, "readonly">): boolean;
+    has(value: &'l0 readonly T): boolean;
 }
 
 struct Pack<out T> {
@@ -1090,7 +1090,7 @@ struct Pack<out T> {
 }
 
 export extension<T: Eq<T>> of Pack<T> implements Has<T> {
-    has<Q: Eq<Q>>(value: Borrowed<Q, L1, "readonly">): boolean {
+    has<Q: Eq<Q>>(value: &'l1 readonly Q): boolean {
         false
     }
 }
@@ -1101,13 +1101,13 @@ interface Eq<T> {
 /// @type.symbol symbol=Eq type=Eq
 /// @definition.interface symbol=Eq template=(in out T#1)
 /// @definition.where symbol=Eq relation=satisfies left=this right=Eq<T#1>
-/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<comptime Eq.equals.L0: Lifetime>(this: this, Borrowed<T#1, Eq.equals.L0, "readonly">) => boolean
+/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'l0>(this: this, &Eq.equals.'l0 readonly T#1) => boolean
 /// @type.symbol symbol=Eq.T source=T type=T#1
 
     equals(other: &readonly T): boolean;
-    /// @generic.template symbol=Eq.equals parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<comptime Eq.equals.L0: Lifetime>(this: this, Borrowed<T#1, Eq.equals.L0, "readonly">) => boolean
-    /// @type.symbol symbol=Eq.equals.other source="other: &readonly T" type=Borrowed<T#1, Eq.equals.L0, "readonly">
+    /// @generic.template symbol=Eq.equals parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<Eq.equals.'l0>(this: this, &Eq.equals.'l0 readonly T#1) => boolean
+    /// @type.symbol symbol=Eq.equals.other source="other: &readonly T" type=&Eq.equals.'l0 readonly T#1
     /// @resolution.name source=T target=Eq.T
 
 }
@@ -1117,13 +1117,13 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in out T#2)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#2>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#2, Has.has.L0, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'l0>(this: this, &Has.has.'l0 readonly T#2) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#2
 
     has(value: &readonly T): boolean;
-    /// @generic.template symbol=Has.has parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#2, Has.has.L0, "readonly">) => boolean
-    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#2, Has.has.L0, "readonly">
+    /// @generic.template symbol=Has.has parent=template#1 parameters=('l0)
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'l0>(this: this, &Has.has.'l0 readonly T#2) => boolean
+    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'l0 readonly T#2
     /// @resolution.name source=T target=Has.T
 
 }
@@ -1145,7 +1145,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#4: Eq<T#4>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#4)
-/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'l1>(this: this, &has.'l1 readonly Q) => boolean
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
 /// @resolution.name source=T target=T
@@ -1155,12 +1155,12 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Eq<Q>>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, comptime L1: Lifetime)
-    /// @type.symbol symbol=has type=<Q: Eq<Q>, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
+    /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, 'l1)
+    /// @type.symbol symbol=has type=<Q: Eq<Q>, has.'l1>(this: this, &has.'l1 readonly Q) => boolean
     /// @type.symbol symbol=has.Q source="Q: Eq<Q>" type=Q
     /// @resolution.name source=Eq target=Eq
     /// @resolution.name source=Q target=has.Q
-    /// @type.symbol symbol=has.value source="value: &readonly Q" type=Borrowed<Q, has.L1, "readonly">
+    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'l1 readonly Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1203,7 +1203,7 @@ export extension<T> of Pack<T> implements Has<T> {
 interface Marker {}
 
 interface Has<in out T> {
-    has(value: Borrowed<T, L0, "readonly">): boolean;
+    has(value: &'l0 readonly T): boolean;
 }
 
 struct Pack<out T> {
@@ -1211,7 +1211,7 @@ struct Pack<out T> {
 }
 
 export extension<T> of Pack<T> implements Has<T> {
-    has<Q: Marker>(value: Borrowed<Q, L1, "readonly">): boolean {
+    has<Q: Marker>(value: &'l1 readonly Q): boolean {
         false
     }
 }
@@ -1226,13 +1226,13 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in out T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'l0>(this: this, &Has.has.'l0 readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
-    /// @generic.template symbol=Has.has parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
-    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.L0, "readonly">
+    /// @generic.template symbol=Has.has parent=template#1 parameters=('l0)
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'l0>(this: this, &Has.has.'l0 readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'l0 readonly T#1
     /// @resolution.name source=T target=Has.T
 
 }
@@ -1254,7 +1254,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#3)
-/// @definition.method symbol=has slot=has type=<Q: Marker, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Marker, has.'l1>(this: this, &has.'l1 readonly Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1262,11 +1262,11 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Marker>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, comptime L1: Lifetime)
-    /// @type.symbol symbol=has type=<Q: Marker, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "readonly">) => boolean
+    /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, 'l1)
+    /// @type.symbol symbol=has type=<Q: Marker, has.'l1>(this: this, &has.'l1 readonly Q) => boolean
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker
-    /// @type.symbol symbol=has.value source="value: &readonly Q" type=Borrowed<Q, has.L1, "readonly">
+    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'l1 readonly Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1307,7 +1307,7 @@ export extension<T> of Pack<T> implements Has<T> {
         r#"
 === annotated ===
 interface Has<in out T> {
-    has(value: Borrowed<T, L0, "readonly">): boolean;
+    has(value: &'l0 readonly T): boolean;
 }
 
 struct Pack<out T> {
@@ -1315,7 +1315,7 @@ struct Pack<out T> {
 }
 
 export extension<T> of Pack<T> implements Has<T> {
-    has<Q>(value: Borrowed<Q, L1, "exclusive">): boolean {
+    has<Q>(value: &'l1 exclusive Q): boolean {
         false
     }
 }
@@ -1326,13 +1326,13 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in out T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'l0>(this: this, &Has.has.'l0 readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
-    /// @generic.template symbol=Has.has parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: this, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
-    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.L0, "readonly">
+    /// @generic.template symbol=Has.has parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'l0>(this: this, &Has.has.'l0 readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'l0 readonly T#1
     /// @resolution.name source=T target=Has.T
 
 }
@@ -1354,7 +1354,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#3)
-/// @definition.method symbol=has slot=has type=<Q, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "exclusive">) => boolean
+/// @definition.method symbol=has slot=has type=<Q, has.'l1>(this: this, &has.'l1 exclusive Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1362,10 +1362,10 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q>(value: &exclusive Q): boolean {
-    /// @generic.template symbol=has parent=template#2 parameters=(Q, comptime L1: Lifetime)
-    /// @type.symbol symbol=has type=<Q, comptime has.L1: Lifetime>(this: this, Borrowed<Q, has.L1, "exclusive">) => boolean
+    /// @generic.template symbol=has parent=template#2 parameters=(Q, 'l1)
+    /// @type.symbol symbol=has type=<Q, has.'l1>(this: this, &has.'l1 exclusive Q) => boolean
     /// @type.symbol symbol=has.Q source=Q type=Q
-    /// @type.symbol symbol=has.value source="value: &exclusive Q" type=Borrowed<Q, has.L1, "exclusive">
+    /// @type.symbol symbol=has.value source="value: &exclusive Q" type=&has.'l1 exclusive Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1434,7 +1434,7 @@ export class Bag<in out K, in out V> {
     values: V[] = [];
 }
 
-export extension<K, V, comptime L2: Lifetime, comptime L3: Lifetime> of Bag<K, V>
+export extension<K, V, 'l2, 'l3> of Bag<K, V>
     implements
         Iterable<(K, V)>,
         Iterable<Entry<&readonly K, &V>> {
@@ -1444,10 +1444,7 @@ export extension<K, V, comptime L2: Lifetime, comptime L3: Lifetime> of Bag<K, V
 
     iterator<comptime A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
-    ): Iterator<
-        Entry<Borrowed<K, L1, "readonly">, WithAccess<Borrowed<V, L1, "mutable">, A>>,
-        unknown
-    > {
+    ): Iterator<Entry<&'l1 readonly K, WithAccess<&'l1 V, A>>, unknown> {
         todo("Bag.iterator" as string | undefined)
     }
 }
@@ -1496,12 +1493,12 @@ export class Bag<K, V> {
 }
 
 export extension<K, V> of Bag<K, V>
-/// @generic.template symbol=<module>#2 parameters=(K#3, V#3, comptime L2: Lifetime, comptime L3: Lifetime)
+/// @generic.template symbol=<module>#2 parameters=(K#3, V#3, 'l2, 'l3)
 /// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
 /// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target=iter.iterator.Iterable arguments=((K#3, V#3))
-/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target=iter.iterator.Iterable arguments=(Entry<Borrowed<K#3, <module>#2.L2, "readonly">, Borrowed<V#3, <module>#2.L3, "mutable">>)
+/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target=iter.iterator.Iterable arguments=(Entry<&<module>#2.'l2 readonly K#3, &<module>#2.'l3 V#3>)
 /// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3), unknown>
-/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", comptime iterator#2.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A>) => iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>>, unknown>
+/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'l1>(this: memory.type.WithAccess<&iterator#2.'l1 Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'l1 readonly K#3, memory.type.WithAccess<&iterator#2.'l1 V#3, A>>, unknown>
 /// @type.symbol symbol=K source=K type=K#3
 /// @type.symbol symbol=V source=V type=V#3
 /// @resolution.name source=Bag target=Bag
@@ -1533,13 +1530,13 @@ export extension<K, V> of Bag<K, V>
     }
 
     iterator<comptime A: Access = "readonly">(
-    /// @generic.template symbol=iterator#2 parent=template#2 parameters=(comptime A: memory.access.Access = "readonly", comptime L1: Lifetime)
-    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", comptime iterator#2.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A>) => iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>>, unknown> reduced=<comptime A: memory.access.Access = "readonly", comptime iterator#2.L1: Lifetime>(this: Borrowed<Bag<K#3, V#3>, iterator#2.L1, A>) => iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, "readonly">, Borrowed<V#3, iterator#2.L1, A>>, unknown>
+    /// @generic.template symbol=iterator#2 parent=template#2 parameters=(comptime A: memory.access.Access = "readonly", 'l1)
+    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", iterator#2.'l1>(this: memory.type.WithAccess<&iterator#2.'l1 Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'l1 readonly K#3, memory.type.WithAccess<&iterator#2.'l1 V#3, A>>, unknown> reduced=<comptime A: memory.access.Access = "readonly", iterator#2.'l1>(this: Borrowed<Bag<K#3, V#3>, iterator#2.'l1, A>) => iter.iterator.Iterator<Entry<&iterator#2.'l1 readonly K#3, Borrowed<V#3, iterator#2.'l1, A>>, unknown>
     /// @type.symbol symbol=iterator.A source="comptime A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
         this: WithAccess<&Bag<K, V>, A>,
-        /// @type.symbol symbol=iterator.this#2 source="this: WithAccess<&Bag<K, V>, A>" type=memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A> reduced=Borrowed<Bag<K#3, V#3>, iterator#2.L1, A>
+        /// @type.symbol symbol=iterator.this#2 source="this: WithAccess<&Bag<K, V>, A>" type=memory.type.WithAccess<&iterator#2.'l1 Bag<K#3, V#3>, A> reduced=Borrowed<Bag<K#3, V#3>, iterator#2.'l1, A>
         /// @resolution.name source=WithAccess target=memory.type.WithAccess
         /// @resolution.name source=Bag target=Bag
         /// @resolution.name source=K target=K
@@ -1562,11 +1559,11 @@ export extension<K, V> of Bag<K, V>
 }
 
 /// @generic.instance id="Bag<K#3, V#3>" template=Bag arguments=(K#3, V#3)
-/// @generic.instance id="Entry<Borrowed<K#3, iterator#2.L1, \"readonly\">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, \"mutable\">, A>>" template=Entry arguments=(Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>)
+/// @generic.instance id="Entry<&iterator#2.'l1 readonly K#3, memory.type.WithAccess<&iterator#2.'l1 V#3, A>>" template=Entry arguments=(&iterator#2.'l1 readonly K#3, memory.type.WithAccess<&iterator#2.'l1 V#3, A>)
 /// @generic.instance id="iter.iterator.Iterator<(K#3, V#3), unknown>" template=iter.iterator.Iterator arguments=((K#3, V#3), unknown)
-/// @generic.instance id="iter.iterator.Iterator<Entry<Borrowed<K#3, iterator#2.L1, \"readonly\">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, \"mutable\">, A>>, unknown>" template=iter.iterator.Iterator arguments=(Entry<Borrowed<K#3, iterator#2.L1, "readonly">, memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, "mutable">, A>>, unknown)
-/// @generic.instance id="memory.type.WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<Bag<K#3, V#3>, iterator#2.L1, "mutable">, A)
-/// @generic.instance id="memory.type.WithAccess<Borrowed<V#3, iterator#2.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<V#3, iterator#2.L1, "mutable">, A)
+/// @generic.instance id="iter.iterator.Iterator<Entry<&iterator#2.'l1 readonly K#3, memory.type.WithAccess<&iterator#2.'l1 V#3, A>>, unknown>" template=iter.iterator.Iterator arguments=(Entry<&iterator#2.'l1 readonly K#3, memory.type.WithAccess<&iterator#2.'l1 V#3, A>>, unknown)
+/// @generic.instance id="memory.type.WithAccess<&iterator#2.'l1 Bag<K#3, V#3>, A>" template=memory.type.WithAccess arguments=(&iterator#2.'l1 Bag<K#3, V#3>, A)
+/// @generic.instance id="memory.type.WithAccess<&iterator#2.'l1 V#3, A>" template=memory.type.WithAccess arguments=(&iterator#2.'l1 V#3, A)
 "#,
     );
 }

@@ -178,6 +178,15 @@ impl ResolveState<'_> {
                 });
                 dir::walk_type_expression(self, tree, id, ty);
             }
+            dir::TypeExpression::Lifetime { name } => {
+                // reserved tick names spell literals and resolve to nothing
+                if !matches!(self.strings.get(*name), "'static" | "'frame") {
+                    self.collect_path_reference(PathReference {
+                        source: id.into_global_any(self.module),
+                        path: dir::Path::from_segment(*name),
+                    });
+                }
+            }
             dir::TypeExpression::BorrowedOf { .. } => {
                 self.use_language_item(dir::LanguageItem::Lifetime);
                 dir::walk_type_expression(self, tree, id, ty);

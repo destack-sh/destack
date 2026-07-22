@@ -149,6 +149,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             .transpose()?
             .flatten();
 
+        // reify tick names as bare lifetime parameters
+        if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            && self.check.strings().get(name).starts_with('\'')
+        {
+            return Ok(dir::GenericParameter::Lifetime { name });
+        }
+
         let parameter = if binding.is_variadic {
             dir::GenericParameter::VariadicValue {
                 name,
@@ -166,6 +173,64 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         };
 
         Ok(parameter)
+    }
+
+    /// Reify one settled borrow into its named borrow expression.
+    fn reify_borrowed_of(
+        &mut self,
+        lifetime: dir::GlobalTypeId,
+        access: dir::GlobalTypeId,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<Option<dir::TypeExpression>> {
+        // require a settled access literal for the borrow modifier
+        let access = match self.check.ty(self.check.settled_root(access)?)? {
+            dir::Type::Memory(dir::MemoryLiteral::Access(access)) => access,
+            _ => return Ok(None),
+        };
+        let mutability = match access {
+            dir::Access::Mutable => dir::Mutability::Mutable,
+            dir::Access::Readonly => dir::Mutability::Immutable,
+            dir::Access::Exclusive => dir::Mutability::Exclusive,
+        };
+
+        // name the tick parameter or reserved lifetime literal
+        let name = match self.check.ty(self.check.settled_root(lifetime)?)? {
+            dir::Type::Parameter(parameter) => {
+                let Some(binding) = self.check.generic_parameter(parameter) else {
+                    return Ok(None);
+                };
+                let name = match binding.key {
+                    dir::GenericParameterKey::Symbol(symbol) => {
+                        let Some(name) = self.symbol_name(symbol) else {
+                            return Ok(None);
+                        };
+
+                        name
+                    }
+                    dir::GenericParameterKey::Generated(name) => name,
+                };
+                if !self.check.strings().get(name).starts_with('\'') {
+                    return Ok(None);
+                }
+
+                name
+            }
+            dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
+                self.check.strings().intern("'static")
+            }
+            dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)) => {
+                self.check.strings().intern("'frame")
+            }
+            _ => return Ok(None),
+        };
+        let lifetime = self.insert(dir::TypeExpression::Lifetime { name });
+
+        Ok(Some(dir::TypeExpression::BorrowedOf {
+            lifetime: Some(lifetime),
+            mutability: Some(mutability),
+            variance: None,
+            target_type,
+        }))
     }
 
     /// Reify one type generic parameter binding.
@@ -504,23 +569,34 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     dir::Form::Borrowed(borrow) => {
                         let borrow = self.check.type_borrow(id.module_id, *borrow)?;
                         let (lifetime, access) = (borrow.lifetime, borrow.access);
-                        let Some(lifetime) = self.reify_static_depth(lifetime, next)? else {
-                            return Ok(None);
-                        };
-                        let Some(access) = self.reify_static_depth(access, next)? else {
-                            return Ok(None);
-                        };
-                        let target_type =
-                            self.insert(dir::GenericArgument::Type { value: target_type });
-                        let lifetime = self.insert(dir::GenericArgument::Value { value: lifetime });
-                        let access = self.insert(dir::GenericArgument::Value { value: access });
-                        let name = self.language_item_name(dir::LanguageItem::Borrowed);
 
-                        dir::TypeExpression::Reference {
-                            path: dir::Path {
-                                segments: [name].into_iter().collect(),
-                            },
-                            generic_arguments: vec![target_type, lifetime, access],
+                        // spell settled borrows through the borrow form
+                        if let Some(borrowed) =
+                            self.reify_borrowed_of(lifetime, access, target_type)?
+                        {
+                            borrowed
+                        }
+                        // parametric slots keep the full algebra spelling
+                        else {
+                            let Some(lifetime) = self.reify_static_depth(lifetime, next)? else {
+                                return Ok(None);
+                            };
+                            let Some(access) = self.reify_static_depth(access, next)? else {
+                                return Ok(None);
+                            };
+                            let target_type =
+                                self.insert(dir::GenericArgument::Type { value: target_type });
+                            let lifetime =
+                                self.insert(dir::GenericArgument::Value { value: lifetime });
+                            let access = self.insert(dir::GenericArgument::Value { value: access });
+                            let name = self.language_item_name(dir::LanguageItem::Borrowed);
+
+                            dir::TypeExpression::Reference {
+                                path: dir::Path {
+                                    segments: [name].into_iter().collect(),
+                                },
+                                generic_arguments: vec![target_type, lifetime, access],
+                            }
                         }
                     }
                     dir::Form::Placed { place } => {

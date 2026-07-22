@@ -64,6 +64,9 @@ impl CheckState<'_> {
             dir::Type::Primitive(primitive) => format_primitive(&primitive),
             dir::Type::Literal(literal) => self.format_scalar_literal(&literal),
             dir::Type::Key(key) => self.format_key_type(&key),
+            dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)) => {
+                format!("'{}", dir::MemoryLiteral::Lifetime(lifetime).text())
+            }
             dir::Type::Memory(literal) => {
                 format!("\"{}\"", literal.text())
             }
@@ -293,6 +296,17 @@ impl CheckState<'_> {
                 dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
                 dir::GenericParameterKey::Generated(name) => self.text(name),
             };
+
+            // print tick parameters bare, their kind is implied
+            if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+                && label
+                    .rsplit('.')
+                    .next()
+                    .is_some_and(|name| name.starts_with('\''))
+            {
+                parameters.push(label);
+                continue;
+            }
             if binding.is_variadic {
                 label = format!("...{label}");
             }
@@ -420,18 +434,37 @@ impl CheckState<'_> {
             dir::Form::Raw => format!("*{value}"),
             dir::Form::Readonly => format!("readonly {value}"),
             dir::Form::Borrowed(borrow) => {
-                let access = self.type_borrow(owner, *borrow)?.access;
-                let access = match self.ty(self.settled_root(access)?)? {
+                let borrow = self.type_borrow(owner, *borrow)?;
+                let access = match self.ty(self.settled_root(borrow.access)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
-                        "&readonly "
+                        "readonly "
                     }
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)) => {
-                        "&exclusive "
+                        "exclusive "
                     }
-                    _ => "&",
+                    _ => "",
                 };
 
-                format!("{access}{value}")
+                // spell named and static provenance, eliding the frame default
+                let lifetime = match self.ty(self.settled_root(borrow.lifetime)?)? {
+                    dir::Type::Parameter(parameter) => {
+                        let name = self.format_parameter(parameter);
+                        match name
+                            .rsplit('.')
+                            .next()
+                            .is_some_and(|name| name.starts_with('\''))
+                        {
+                            true => format!("{name} "),
+                            false => String::new(),
+                        }
+                    }
+                    dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
+                        "'static ".to_string()
+                    }
+                    _ => String::new(),
+                };
+
+                format!("&{lifetime}{access}{value}")
             }
             dir::Form::Placed { place } => {
                 let place = match self.ty(self.settled_root(*place)?)? {

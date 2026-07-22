@@ -79,6 +79,11 @@ pub(super) fn generic_template_parameter_label(
 ) -> String {
     // print the parameter head with its modifiers
     let name = generic_parameter_name(parameter.key, builder);
+
+    // print tick parameters bare, their kind is implied
+    if builder.is_tick_parameter(parameter, &name) {
+        return name;
+    }
     let mut name = builder.generic_parameter_binding_head_label(parameter, name);
 
     // unannotated parameters show the variance check derived
@@ -193,6 +198,19 @@ impl DirSnapshotBuilder<'_> {
             .join(", ");
 
         format!("({arguments})")
+    }
+
+    /// Return whether one parameter spells as its bare tick name.
+    pub(super) fn is_tick_parameter(
+        &self,
+        parameter: &dir::GenericParameterBinding,
+        label: &str,
+    ) -> bool {
+        parameter.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            && label
+                .rsplit('.')
+                .next()
+                .is_some_and(|name| name.starts_with('\''))
     }
 
     /// Add generic parameter modifiers to one label.

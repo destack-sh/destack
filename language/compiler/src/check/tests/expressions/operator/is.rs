@@ -234,15 +234,15 @@ if (value is &readonly Node) {
 /// @type.node source="value is &readonly Node" type=boolean
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value is &readonly Node" kind=is value=unknown target=Borrowed<Node, "frame", "readonly"> predicate="unknown is type(Borrowed<Node, \"frame\", \"readonly\">)" narrowed=Borrowed<Node, "frame", "readonly">
+/// @resolution.guard source="value is &readonly Node" kind=is value=unknown target=&'frame readonly Node predicate="unknown is type(&'frame readonly Node)" narrowed=&'frame readonly Node
 /// @resolution.name source=Node target=Node
 
     value.id satisfies int32;
     /// @type.node source="value.id satisfies int32" type=int32
-    /// @type.node source=value type=Borrowed<Node, "frame", "readonly">
+    /// @type.node source=value type=&'frame readonly Node
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.id receiver=Borrowed<Node, "frame", "readonly"> kind=symbol target=Node.id
+    /// @resolution.member source=value.id receiver=&'frame readonly Node kind=symbol target=Node.id
 
 }
 "#,

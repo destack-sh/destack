@@ -1430,8 +1430,8 @@ struct Holder<out T> {
 }
 
 declare const holder: Holder<Circle>;
-const view: Borrowed<Holder<Shape>, "static", "readonly"> = &readonly holder;
-const either: Borrowed<Holder<Circle | Square>, "static", "readonly"> = &readonly holder;
+const view: &'static readonly Holder<Shape> = &readonly holder;
+const either: &'static readonly Holder<Circle | Square> = &readonly holder;
 
 === checked ===
 class Shape {}
@@ -1470,14 +1470,14 @@ declare const holder: Holder<Circle>;
 /// @resolution.name source=Circle target=Circle
 
 const view: &readonly Holder<Shape> = &readonly holder;
-/// @type.symbol symbol=view source=view type=Borrowed<Holder<Shape>, "static", "readonly">
+/// @type.symbol symbol=view source=view type=&'static readonly Holder<Shape>
 /// @resolution.pattern source=view kind=binding target=view
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=holder target=holder
 
 const either: &readonly Holder<Circle | Square> = &readonly holder;
-/// @type.symbol symbol=either source=either type=Borrowed<Holder<Circle | Square>, "static", "readonly">
+/// @type.symbol symbol=either source=either type=&'static readonly Holder<Circle | Square>
 /// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
@@ -1489,7 +1489,7 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @generic.instance id=Holder<Shape> template=Holder arguments=(Shape)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&readonly Holder<Circle>' is not assignable to type '&readonly Holder<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type '&readonly Holder<Circle>' is not assignable to type '&'static readonly Holder<Circle | Square>'"
 /// @diagnostic.label line=12 column=51 span="&readonly holder" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;"
 /// @diagnostic.related line=12 column=15 span="&" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"

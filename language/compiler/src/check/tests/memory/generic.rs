@@ -124,10 +124,10 @@ function replace(user: User): void {
 === annotated ===
 class User {}
 
-declare function consume<comptime L0: Lifetime>(value: Borrowed<User, L0, "exclusive">): void;
+declare function consume<'l0>(value: &'l0 exclusive User): void;
 
 function replace(user: User): void {
-    consume(user as Borrowed<User, "frame", "exclusive">);
+    consume(user as &'frame exclusive User);
 }
 
 === checked ===
@@ -136,9 +136,9 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function consume(value: &exclusive User): void;
-/// @generic.template symbol=consume parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=consume source="declare function consume(value: &exclusive User): void" type=<comptime consume.L0: Lifetime>(Borrowed<User, consume.L0, "exclusive">) => void
-/// @type.symbol symbol=consume.value source="value: &exclusive User" type=Borrowed<User, consume.L0, "exclusive">
+/// @generic.template symbol=consume parameters=('l0)
+/// @type.symbol symbol=consume source="declare function consume(value: &exclusive User): void" type=<consume.'l0>(&consume.'l0 exclusive User) => void
+/// @type.symbol symbol=consume.value source="value: &exclusive User" type=&consume.'l0 exclusive User
 /// @resolution.name source=User target=User
 
 function replace(user: User): void {
@@ -148,7 +148,7 @@ function replace(user: User): void {
 
     consume(user);
     /// @resolution.name source=consume target=consume
-    /// @resolution.call source=consume(user) parameters=(Borrowed<User, "frame", "exclusive">) arguments=(provided(user) as Borrowed<User, "frame", "exclusive">) return=void kind=symbol target=consume
+    /// @resolution.call source=consume(user) parameters=(&'frame exclusive User) arguments=(provided(user) as &'frame exclusive User) return=void kind=symbol target=consume
     /// @resolution.name source=user target=replace.user
 
 }
@@ -484,7 +484,7 @@ function inspect(value: int32): void {
 /// @type.symbol symbol=inspect.value source="value: int32" type=int32
 
     const borrow = &readonly value;
-    /// @type.symbol symbol=inspect.borrow source=borrow type=Borrowed<int32, "frame", "readonly">
+    /// @type.symbol symbol=inspect.borrow source=borrow type=&'frame readonly int32
     /// @resolution.pattern source=borrow kind=binding target=inspect.borrow
     /// @resolution.name source=value target=inspect.value
 
@@ -515,9 +515,7 @@ function inspect(value: &readonly User): &readonly User {
 === annotated ===
 class User {}
 
-function inspect<comptime L0: Lifetime>(
-    value: Borrowed<User, L0, "readonly">,
-): Borrowed<User, L0, "readonly"> {
+function inspect<'l0>(value: &'l0 readonly User): &'l0 readonly User {
     return value;
 }
 
@@ -527,9 +525,9 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 function inspect(value: &readonly User): &readonly User {
-/// @generic.template symbol=inspect parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=inspect type=<comptime inspect.L0: Lifetime>(Borrowed<User, inspect.L0, "readonly">) => Borrowed<User, inspect.L0, "readonly">
-/// @type.symbol symbol=inspect.value source="value: &readonly User" type=Borrowed<User, inspect.L0, "readonly">
+/// @generic.template symbol=inspect parameters=('l0)
+/// @type.symbol symbol=inspect type=<inspect.'l0>(&inspect.'l0 readonly User) => &inspect.'l0 readonly User
+/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'l0 readonly User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
@@ -567,12 +565,8 @@ struct Holder<out T> {
     value: T;
 }
 
-declare function maybe<comptime L0: Lifetime>(
-    value: Borrowed<User, L0, "readonly"> | undefined,
-): &readonly User | undefined;
-declare function inspect<comptime L0: Lifetime>(
-    holder: Holder<Borrowed<User, L0, "readonly">>,
-): void;
+declare function maybe<'l0>(value: &'l0 readonly User | undefined): &readonly User | undefined;
+declare function inspect<'l0>(holder: Holder<&'l0 readonly User>): void;
 
 === checked ===
 class User {}
@@ -593,20 +587,20 @@ struct Holder<T> {
 }
 
 declare function maybe(value: &readonly User | undefined): &readonly User | undefined;
-/// @generic.template symbol=maybe parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=maybe type=<comptime maybe.L0: Lifetime>(Borrowed<User, maybe.L0, "readonly"> | undefined) => Borrowed<User, maybe.L0, "readonly"> | undefined
-/// @type.symbol symbol=maybe.value source="value: &readonly User | undefined" type=Borrowed<User, maybe.L0, "readonly"> | undefined
+/// @generic.template symbol=maybe parameters=('l0)
+/// @type.symbol symbol=maybe type=<maybe.'l0>(&maybe.'l0 readonly User | undefined) => &maybe.'l0 readonly User | undefined
+/// @type.symbol symbol=maybe.value source="value: &readonly User | undefined" type=&maybe.'l0 readonly User | undefined
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
 declare function inspect(holder: Holder<&readonly User>): void;
-/// @generic.template symbol=inspect parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=inspect source="declare function inspect(holder: Holder<&readonly User>): void" type=<comptime inspect.L0: Lifetime>(Holder<Borrowed<User, inspect.L0, "readonly">>) => void
-/// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<Borrowed<User, inspect.L0, "readonly">>
+/// @generic.template symbol=inspect parameters=('l0)
+/// @type.symbol symbol=inspect source="declare function inspect(holder: Holder<&readonly User>): void" type=<inspect.'l0>(Holder<&inspect.'l0 readonly User>) => void
+/// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<&inspect.'l0 readonly User>
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=User target=User
 
-/// @generic.instance id="Holder<Borrowed<User, inspect.L0, \"readonly\">>" template=Holder arguments=(Borrowed<User, inspect.L0, "readonly">)
+/// @generic.instance id="Holder<&inspect.'l0 readonly User>" template=Holder arguments=(&inspect.'l0 readonly User)
 "#,
         r#"
 
@@ -771,11 +765,11 @@ interface Box<in out T> {
 }
 
 extension<T> of Box<T> {
-    borrow(&readonly this): Borrowed<T, L0, "readonly"> {
+    borrow(&readonly this): &'l0 readonly T {
         todo("borrow" as string | undefined)
     }
 
-    forward(&readonly this): Borrowed<T, L0, "readonly"> {
+    forward(&readonly this): &'l0 readonly T {
         this.borrow<T>()
     }
 }
@@ -802,16 +796,16 @@ interface Box<T> { value: T; }
 extension<T> of Box<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
-/// @definition.method symbol=borrow slot=borrow type=<comptime borrow.L0: Lifetime>(this: Borrowed<this, borrow.L0, "readonly">) => Borrowed<T#2, borrow.L0, "readonly">
-/// @definition.method symbol=forward slot=forward type=<comptime forward.L0: Lifetime>(this: Borrowed<this, forward.L0, "readonly">) => Borrowed<T#2, forward.L0, "readonly">
+/// @definition.method symbol=borrow slot=borrow type=<borrow.'l0>(this: &borrow.'l0 readonly this) => &borrow.'l0 readonly T#2
+/// @definition.method symbol=forward slot=forward type=<forward.'l0>(this: &forward.'l0 readonly this) => &forward.'l0 readonly T#2
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
 
     borrow(&readonly this): &readonly T {
-    /// @generic.template symbol=borrow parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=borrow type=<comptime borrow.L0: Lifetime>(this: Borrowed<this, borrow.L0, "readonly">) => Borrowed<T#2, borrow.L0, "readonly">
-    /// @type.symbol symbol=borrow.this source="&readonly this" type=Borrowed<this, borrow.L0, "readonly">
+    /// @generic.template symbol=borrow parent=template#1 parameters=('l0)
+    /// @type.symbol symbol=borrow type=<borrow.'l0>(this: &borrow.'l0 readonly this) => &borrow.'l0 readonly T#2
+    /// @type.symbol symbol=borrow.this source="&readonly this" type=&borrow.'l0 readonly this
     /// @resolution.name source=T target=T
 
         todo("borrow")
@@ -821,15 +815,15 @@ extension<T> of Box<T> {
     }
 
     forward(&readonly this): &readonly T {
-    /// @generic.template symbol=forward parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=forward type=<comptime forward.L0: Lifetime>(this: Borrowed<this, forward.L0, "readonly">) => Borrowed<T#2, forward.L0, "readonly">
-    /// @type.symbol symbol=forward.this source="&readonly this" type=Borrowed<this, forward.L0, "readonly">
+    /// @generic.template symbol=forward parent=template#1 parameters=('l0)
+    /// @type.symbol symbol=forward type=<forward.'l0>(this: &forward.'l0 readonly this) => &forward.'l0 readonly T#2
+    /// @type.symbol symbol=forward.this source="&readonly this" type=&forward.'l0 readonly this
     /// @resolution.name source=T target=T
 
         this.borrow()
-        /// @resolution.member source=this.borrow receiver=Borrowed<Box<T#2>, forward.L0, "readonly"> kind=symbol target=borrow
-        /// @resolution.call source=this.borrow() parameters=() return=Borrowed<T#2, forward.L0, "readonly"> kind=symbol target=borrow receiver=Borrowed<Box<T#2>, forward.L0, "readonly"> instance=Box<T#2>.<extension#1>.borrow
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Box<T#2>, forward.L0, "readonly">
+        /// @resolution.member source=this.borrow receiver=&forward.'l0 readonly Box<T#2> kind=symbol target=borrow
+        /// @resolution.call source=this.borrow() parameters=() return=&forward.'l0 readonly T#2 kind=symbol target=borrow receiver=&forward.'l0 readonly Box<T#2> instance=Box<T#2>.<extension#1>.borrow
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'l0 readonly Box<T#2>
         /// @generic.instance source=this.borrow() id=Box<T#2>.<extension#1>.borrow
 
     }
@@ -854,14 +848,14 @@ declare const mixedBox: local Box<shared User>;
 localBox.borrow() satisfies local &readonly User;
 /// @resolution.name source=localBox target=localBox
 /// @resolution.member source=localBox.borrow receiver=Placed<Box<User>, "local"> kind=symbol target=borrow
-/// @resolution.call source=localBox.borrow() parameters=() return=Borrowed<User, "frame", "readonly"> kind=symbol target=borrow receiver=Placed<Box<User>, "local"> adjustments=(borrow) instance=Box<User>.<extension#1>.borrow
+/// @resolution.call source=localBox.borrow() parameters=() return=&'frame readonly User kind=symbol target=borrow receiver=Placed<Box<User>, "local"> adjustments=(borrow) instance=Box<User>.<extension#1>.borrow
 /// @generic.instance source=localBox.borrow() id=Box<User>.<extension#1>.borrow
 /// @resolution.name source=User target=User
 
 mixedBox.borrow() satisfies shared &readonly User;
 /// @resolution.name source=mixedBox target=mixedBox
 /// @resolution.member source=mixedBox.borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> kind=symbol target=borrow
-/// @resolution.call source=mixedBox.borrow() parameters=() return=Placed<Borrowed<User, "frame", "readonly">, "shared"> kind=symbol target=borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> adjustments=(borrow) instance="Box<Placed<User, \"shared\">>.<extension#1>.borrow"
+/// @resolution.call source=mixedBox.borrow() parameters=() return=Placed<&'frame readonly User, "shared"> kind=symbol target=borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> adjustments=(borrow) instance="Box<Placed<User, \"shared\">>.<extension#1>.borrow"
 /// @generic.instance source=mixedBox.borrow() id="Box<Placed<User, \"shared\">>.<extension#1>.borrow"
 /// @resolution.name source=User target=User
 

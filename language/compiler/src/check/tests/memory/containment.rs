@@ -542,7 +542,7 @@ struct BorrowedBox { value: local Borrowed<User, "static">; }
 /// @type.symbol symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }" type=BorrowedBox
 /// @definition.struct symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }"
 /// @definition.field symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" key=value type=Placed<Borrowed<User, "static", "mutable">, "local">
-/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=Placed<Borrowed<User, "static", "mutable">, "local">
+/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=Placed<Borrowed<User, "static", "mutable">, "local"> reduced=Placed<&'static User, "local">
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=User target=User
 
@@ -552,7 +552,7 @@ declare const owned: local ^User;
 /// @resolution.name source=User target=User
 
 declare const borrowed: local Borrowed<User, "static">;
-/// @type.symbol symbol=borrowed source=borrowed type=Placed<Borrowed<User, "static", "mutable">, "local">
+/// @type.symbol symbol=borrowed source=borrowed type=Placed<Borrowed<User, "static", "mutable">, "local"> reduced=Placed<&'static User, "local">
 /// @resolution.pattern source=borrowed kind=binding target=borrowed
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=User target=User

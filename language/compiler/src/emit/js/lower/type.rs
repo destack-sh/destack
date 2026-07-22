@@ -115,7 +115,9 @@ impl ModuleLowerer<'_> {
                     Some("variadic generic parameters are not lowered to JS yet".to_string()),
                 ));
             }
-            dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
+            dir::GenericParameter::Lifetime { .. }
+            | dir::GenericParameter::Value { .. }
+            | dir::GenericParameter::VariadicValue { .. } => {
                 return Err(self.unsupported_construct(
                     parameter_id.into_global_any(self.module.id),
                     Some("value generic parameters are not lowered to JS yet".to_string()),

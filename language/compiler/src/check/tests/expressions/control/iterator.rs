@@ -263,7 +263,7 @@ const target = { a: 1, b: 2 };
 for (const key in &readonly target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source="&readonly target" type=Borrowed<{ a: float64; b: float64 }, "static", "readonly">
+/// @type.node source="&readonly target" type=&'static readonly { a: float64; b: float64 }
 /// @type.node source=target type={ a: float64; b: float64 }
 /// @resolution.name source=target target=target
 

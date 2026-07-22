@@ -102,8 +102,8 @@ struct Cell {
 }
 
 type OwnedBorrow = Owned<Borrowed<Cell, "static">>;
-/// @type.symbol symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" type=Owned<Borrowed<Cell, "static", "mutable">>
-/// @definition.type symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" value=Owned<Borrowed<Cell, "static", "mutable">>
+/// @type.symbol symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" type=Owned<Borrowed<Cell, "static", "mutable">> reduced=Owned<&'static Cell>
+/// @definition.type symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" value=Owned<Borrowed<Cell, "static", "mutable">> reduced=Owned<&'static Cell>
 /// @resolution.name source=Owned target=memory.owned.Owned
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -115,8 +115,8 @@ type Base = BaseOf<OwnedBorrow>;
 /// @resolution.name source=OwnedBorrow target=OwnedBorrow
 
 type Payload = PayloadOf<OwnedBorrow>;
-/// @type.symbol symbol=Payload source="type Payload = PayloadOf<OwnedBorrow>" type=PayloadOf<OwnedBorrow> reduced=Borrowed<Cell, "static", "mutable">
-/// @definition.type symbol=Payload source="type Payload = PayloadOf<OwnedBorrow>" value=PayloadOf<OwnedBorrow> reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=Payload source="type Payload = PayloadOf<OwnedBorrow>" type=PayloadOf<OwnedBorrow> reduced=&'static Cell
+/// @definition.type symbol=Payload source="type Payload = PayloadOf<OwnedBorrow>" value=PayloadOf<OwnedBorrow> reduced=&'static Cell
 /// @resolution.name source=PayloadOf target=memory.type.PayloadOf
 /// @resolution.name source=OwnedBorrow target=OwnedBorrow
 
@@ -126,7 +126,7 @@ declare const base: Base;
 /// @resolution.name source=Base target=Base
 
 declare const payload: Payload;
-/// @type.symbol symbol=payload source=payload type=Payload reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=payload source=payload type=Payload reduced=&'static Cell
 /// @resolution.pattern source=payload kind=binding target=payload
 /// @resolution.name source=Payload target=Payload
 
@@ -198,8 +198,8 @@ struct Cell {
 }
 
 type BorrowOwned = Borrowed<Owned<Cell>, "static">;
-/// @type.symbol symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" type=Borrowed<Owned<Cell>, "static", "mutable"> reduced=Borrowed<Cell, "static", "mutable">
-/// @definition.type symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" value=Borrowed<Owned<Cell>, "static", "mutable"> reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" type=Borrowed<Owned<Cell>, "static", "mutable"> reduced=&'static Cell
+/// @definition.type symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" value=Borrowed<Owned<Cell>, "static", "mutable"> reduced=&'static Cell
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Owned target=memory.owned.Owned
 /// @resolution.name source=Cell target=Cell
@@ -345,13 +345,13 @@ type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed
 /// @resolution.name source=L target=Reborrow.L
 
 type StaticCell = Reborrow<Cell>;
-/// @type.symbol symbol=StaticCell source="type StaticCell = Reborrow<Cell>" type=Reborrow<Cell, "static"> reduced=Borrowed<Cell, "static", "mutable">
-/// @definition.type symbol=StaticCell source="type StaticCell = Reborrow<Cell>" value=Reborrow<Cell, "static"> reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=StaticCell source="type StaticCell = Reborrow<Cell>" type=Reborrow<Cell, "static"> reduced=&'static Cell
+/// @definition.type symbol=StaticCell source="type StaticCell = Reborrow<Cell>" value=Reborrow<Cell, "static"> reduced=&'static Cell
 /// @resolution.name source=Reborrow target=Reborrow
 /// @resolution.name source=Cell target=Cell
 
 declare const cell: StaticCell;
-/// @type.symbol symbol=cell source=cell type=StaticCell reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=cell source=cell type=StaticCell reduced=&'static Cell
 /// @resolution.pattern source=cell kind=binding target=cell
 /// @resolution.name source=StaticCell target=StaticCell
 
@@ -926,8 +926,8 @@ type OwnedCell = WithOwnership<Cell, "owned", "static">;
 /// @resolution.name source=Cell target=Cell
 
 type BorrowedCell = WithOwnership<Cell, "borrowed", "static">;
-/// @type.symbol symbol=BorrowedCell source="type BorrowedCell = WithOwnership<Cell, \"borrowed\", \"static\">" type=WithOwnership<Cell, "borrowed", "static"> reduced=Borrowed<Cell, "static", "mutable">
-/// @definition.type symbol=BorrowedCell source="type BorrowedCell = WithOwnership<Cell, \"borrowed\", \"static\">" value=WithOwnership<Cell, "borrowed", "static"> reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=BorrowedCell source="type BorrowedCell = WithOwnership<Cell, \"borrowed\", \"static\">" type=WithOwnership<Cell, "borrowed", "static"> reduced=&'static Cell
+/// @definition.type symbol=BorrowedCell source="type BorrowedCell = WithOwnership<Cell, \"borrowed\", \"static\">" value=WithOwnership<Cell, "borrowed", "static"> reduced=&'static Cell
 /// @resolution.name source=WithOwnership target=memory.type.WithOwnership
 /// @resolution.name source=Cell target=Cell
 
@@ -937,7 +937,7 @@ declare const ownedCell: OwnedCell;
 /// @resolution.name source=OwnedCell target=OwnedCell
 
 declare const borrowedCell: BorrowedCell;
-/// @type.symbol symbol=borrowedCell source=borrowedCell type=BorrowedCell reduced=Borrowed<Cell, "static", "mutable">
+/// @type.symbol symbol=borrowedCell source=borrowedCell type=BorrowedCell reduced=&'static Cell
 /// @resolution.pattern source=borrowedCell kind=binding target=borrowedCell
 /// @resolution.name source=BorrowedCell target=BorrowedCell
 
@@ -1262,8 +1262,8 @@ type ReadonlyOwned = WithAccess<^Cell, "readonly">;
 /// @resolution.name source=Cell target=Cell
 
 type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
-/// @type.symbol symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" type=WithAccess<Borrowed<Cell, "static", "mutable">, "exclusive"> reduced=Borrowed<Cell, "static", "exclusive">
-/// @definition.type symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" value=WithAccess<Borrowed<Cell, "static", "mutable">, "exclusive"> reduced=Borrowed<Cell, "static", "exclusive">
+/// @type.symbol symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" type=WithAccess<Borrowed<Cell, "static", "mutable">, "exclusive"> reduced=&'static exclusive Cell
+/// @definition.type symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" value=WithAccess<Borrowed<Cell, "static", "mutable">, "exclusive"> reduced=&'static exclusive Cell
 /// @resolution.name source=WithAccess target=memory.type.WithAccess
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -1274,7 +1274,7 @@ declare const readonlyOwned: ReadonlyOwned;
 /// @resolution.name source=ReadonlyOwned target=ReadonlyOwned
 
 declare const exclusiveBorrow: ExclusiveBorrow;
-/// @type.symbol symbol=exclusiveBorrow source=exclusiveBorrow type=ExclusiveBorrow reduced=Borrowed<Cell, "static", "exclusive">
+/// @type.symbol symbol=exclusiveBorrow source=exclusiveBorrow type=ExclusiveBorrow reduced=&'static exclusive Cell
 /// @resolution.pattern source=exclusiveBorrow kind=binding target=exclusiveBorrow
 /// @resolution.name source=ExclusiveBorrow target=ExclusiveBorrow
 
@@ -1418,14 +1418,14 @@ struct Cell {
 }
 
 type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
-/// @type.symbol symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" type=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=Borrowed<Cell, "static", "readonly">
-/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=Borrowed<Cell, "static", "readonly">
+/// @type.symbol symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" type=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=&'static readonly Cell
+/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=&'static readonly Cell
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Cell target=Cell
 
 declare const borrow: ReadonlyBorrow;
-/// @type.symbol symbol=borrow source=borrow type=ReadonlyBorrow reduced=Borrowed<Cell, "static", "readonly">
+/// @type.symbol symbol=borrow source=borrow type=ReadonlyBorrow reduced=&'static readonly Cell
 /// @resolution.pattern source=borrow kind=binding target=borrow
 /// @resolution.name source=ReadonlyBorrow target=ReadonlyBorrow
 

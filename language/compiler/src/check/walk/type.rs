@@ -98,6 +98,23 @@ impl WalkState<'_, '_> {
 
                 self.walk_constructor_type(source, &constructor, None, None)
             }
+            // 'a, 'static
+            dir::TypeExpression::Lifetime { name } => {
+                let name = *name;
+
+                // the reserved tick names spell the lifetime literals
+                let literal = match self.check.strings().get(name) {
+                    "'static" => Some(dir::Lifetime::Static),
+                    "'frame" => Some(dir::Lifetime::Frame),
+                    _ => None,
+                };
+                match literal {
+                    Some(literal) => {
+                        self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(literal)))
+                    }
+                    None => self.walk_reference_type(id, &dir::Path::from_segment(name), &[]),
+                }
+            }
             // Foo, geom.Mesh<Point>
             dir::TypeExpression::Reference {
                 path,
@@ -230,8 +247,9 @@ impl WalkState<'_, '_> {
                     value,
                 }))
             }
-            // open the elided borrow lifetime for induction
+            // walk the written borrow lifetime, or open the elided hole
             dir::TypeExpression::BorrowedOf {
+                lifetime,
                 mutability,
                 target_type,
                 ..
@@ -242,7 +260,10 @@ impl WalkState<'_, '_> {
                     .unwrap_or(dir::Access::Mutable);
                 let access =
                     self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
-                let lifetime = self.elided_borrow_lifetime(source)?;
+                let lifetime = match lifetime {
+                    Some(lifetime) => self.walk_type_expression(*lifetime)?,
+                    None => self.elided_borrow_lifetime(source)?,
+                };
 
                 let form = self.intern_borrow(lifetime, access)?;
 
@@ -1156,7 +1177,6 @@ impl WalkState<'_, '_> {
                         None,
                         result,
                         tracked,
-                        false,
                     )?;
 
                     fields.push(dir::TypeField {

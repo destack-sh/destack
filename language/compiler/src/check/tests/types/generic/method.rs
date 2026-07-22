@@ -200,9 +200,7 @@ declare class Box<in out T> {
     get(&readonly this): &readonly T;
 }
 
-function read<T, comptime L1: Lifetime>(
-    source: Borrowed<Box<T>, L1, "readonly">,
-): Borrowed<T, L1, "readonly"> {
+function read<T, 'l1>(source: &'l1 readonly Box<T>): &'l1 readonly T {
     return source.get<T>();
 }
 
@@ -211,33 +209,33 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T#1)
-/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<this, Box.get.L0, "readonly">) => Borrowed<T#1, Box.get.L0, "readonly">
+/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'l0>(this: &Box.get.'l0 readonly this) => &Box.get.'l0 readonly T#1
 /// @type.symbol symbol=Box.T source=T type=T#1
 
     get(&readonly this): &readonly T;
-    /// @generic.template symbol=Box.get parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<comptime Box.get.L0: Lifetime>(this: Borrowed<this, Box.get.L0, "readonly">) => Borrowed<T#1, Box.get.L0, "readonly">
-    /// @type.symbol symbol=Box.get.this source="&readonly this" type=Borrowed<this, Box.get.L0, "readonly">
+    /// @generic.template symbol=Box.get parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<Box.get.'l0>(this: &Box.get.'l0 readonly this) => &Box.get.'l0 readonly T#1
+    /// @type.symbol symbol=Box.get.this source="&readonly this" type=&Box.get.'l0 readonly this
     /// @resolution.name source=T target=Box.T
 
 }
 
 function read<T>(source: &readonly Box<T>): &readonly T {
-/// @generic.template symbol=read parameters=(T#2, comptime L1: Lifetime)
-/// @type.symbol symbol=read type=<T#2, comptime read.L1: Lifetime>(Borrowed<Box<T#2>, read.L1, "readonly">) => Borrowed<T#2, read.L1, "readonly">
+/// @generic.template symbol=read parameters=(T#2, 'l1)
+/// @type.symbol symbol=read type=<T#2, read.'l1>(&read.'l1 readonly Box<T#2>) => &read.'l1 readonly T#2
 /// @type.symbol symbol=read.T source=T type=T#2
-/// @type.symbol symbol=read.source source="source: &readonly Box<T>" type=Borrowed<Box<T#2>, read.L1, "readonly">
+/// @type.symbol symbol=read.source source="source: &readonly Box<T>" type=&read.'l1 readonly Box<T#2>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
     return source.get();
-    /// @type.node source=source type=Borrowed<Box<T#2>, read.L1, "readonly">
-    /// @type.node source=source.get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<Borrowed<Box<T#2>, read.L1, "readonly">, Box.get.L0, "readonly">) => Borrowed<T#2, Box.get.L0, "readonly"> reduced=<comptime Box.get.L0: Lifetime>(this: Borrowed<Box<T#2>, Box.get.L0, "readonly">) => Borrowed<T#2, Box.get.L0, "readonly">
-    /// @type.node source=source.get() type=Borrowed<T#2, read.L1, "readonly">
+    /// @type.node source=source type=&read.'l1 readonly Box<T#2>
+    /// @type.node source=source.get type=<Box.get.'l0>(this: &Box.get.'l0 readonly &read.'l1 readonly Box<T#2>) => &Box.get.'l0 readonly T#2 reduced=<Box.get.'l0>(this: &Box.get.'l0 readonly Box<T#2>) => &Box.get.'l0 readonly T#2
+    /// @type.node source=source.get() type=&read.'l1 readonly T#2
     /// @resolution.name source=source target=read.source
-    /// @resolution.member source=source.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> kind=symbol target=Box.get
-    /// @resolution.call source=source.get() parameters=() return=Borrowed<T#2, read.L1, "readonly"> kind=symbol target=Box.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> instance=Box<T#2>.get
+    /// @resolution.member source=source.get receiver=&read.'l1 readonly Box<T#2> kind=symbol target=Box.get
+    /// @resolution.call source=source.get() parameters=() return=&read.'l1 readonly T#2 kind=symbol target=Box.get receiver=&read.'l1 readonly Box<T#2> instance=Box<T#2>.get
     /// @generic.instance source=source id=Box<T#2>
     /// @generic.instance source=source.get id=Box<T#2>
     /// @generic.instance source=source.get() id=Box<T#2>.get

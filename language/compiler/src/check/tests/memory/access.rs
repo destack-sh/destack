@@ -30,7 +30,7 @@ struct State {
     user: User;
 }
 
-function update<comptime L0: Lifetime>(state: Borrowed<State, L0, "mutable">): void {
+function update<'l0>(state: &'l0 State): void {
     state.count = 1;
     state.user = state.user;
 }
@@ -56,9 +56,9 @@ struct State {
 }
 
 function update(state: &State): void {
-/// @generic.template symbol=update parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=update type=<comptime update.L0: Lifetime>(Borrowed<State, update.L0, "mutable">) => void
-/// @type.symbol symbol=update.state source="state: &State" type=Borrowed<State, update.L0, "mutable">
+/// @generic.template symbol=update parameters=('l0)
+/// @type.symbol symbol=update type=<update.'l0>(&update.'l0 State) => void
+/// @type.symbol symbol=update.state source="state: &State" type=&update.'l0 State
 /// @resolution.name source=State target=State
 
     state.count = 1;
@@ -69,7 +69,7 @@ function update(state: &State): void {
     /// @resolution.name source=state target=update.state
     /// @resolution.pattern.assign source=state.user kind=place place=field(State.user) type=User
     /// @resolution.name source=state target=update.state
-    /// @resolution.member source=state.user receiver=Borrowed<State, update.L0, "mutable"> kind=symbol target=State.user
+    /// @resolution.member source=state.user receiver=&update.'l0 State kind=symbol target=State.user
 
 }
 "#,
@@ -106,7 +106,7 @@ shared struct State {
     user: User;
 }
 
-function update<comptime L0: Lifetime>(state: Borrowed<State, L0, "mutable">): void {
+function update<'l0>(state: &'l0 State): void {
     state.count = 1;
     state.user = state.user;
 }
@@ -132,9 +132,9 @@ shared struct State {
 }
 
 function update(state: &State): void {
-/// @generic.template symbol=update parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=update type=<comptime update.L0: Lifetime>(Borrowed<State, update.L0, "mutable">) => void
-/// @type.symbol symbol=update.state source="state: &State" type=Borrowed<State, update.L0, "mutable">
+/// @generic.template symbol=update parameters=('l0)
+/// @type.symbol symbol=update type=<update.'l0>(&update.'l0 State) => void
+/// @type.symbol symbol=update.state source="state: &State" type=&update.'l0 State
 /// @resolution.name source=State target=State
 
     state.count = 1;
@@ -145,7 +145,7 @@ function update(state: &State): void {
     /// @resolution.name source=state target=update.state
     /// @resolution.pattern.assign source=state.user kind=place place=field(State.user) type=Placed<User, "shared">
     /// @resolution.name source=state target=update.state
-    /// @resolution.member source=state.user receiver=Borrowed<State, update.L0, "mutable"> kind=symbol target=State.user
+    /// @resolution.member source=state.user receiver=&update.'l0 State kind=symbol target=State.user
 
 }
 "#,
@@ -180,7 +180,7 @@ struct State {
     status: Status;
 }
 
-function update<comptime L0: Lifetime>(state: Borrowed<State, L0, "mutable">): void {
+function update<'l0>(state: &'l0 State): void {
     state.status = Status.Busy;
 }
 
@@ -201,9 +201,9 @@ struct State { status: Status; }
 /// @resolution.name source=Status target=Status
 
 function update(state: &State): void {
-/// @generic.template symbol=update parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=update type=<comptime update.L0: Lifetime>(Borrowed<State, update.L0, "mutable">) => void
-/// @type.symbol symbol=update.state source="state: &State" type=Borrowed<State, update.L0, "mutable">
+/// @generic.template symbol=update parameters=('l0)
+/// @type.symbol symbol=update type=<update.'l0>(&update.'l0 State) => void
+/// @type.symbol symbol=update.state source="state: &State" type=&update.'l0 State
 /// @resolution.name source=State target=State
 
     state.status = Status.Busy;
@@ -251,7 +251,7 @@ struct State {
     status: Status;
 }
 
-function update<comptime L0: Lifetime>(state: Borrowed<State, L0, "exclusive">): void {
+function update<'l0>(state: &'l0 exclusive State): void {
     state.status = Status.Busy;
 }
 
@@ -272,9 +272,9 @@ struct State { status: Status; }
 /// @resolution.name source=Status target=Status
 
 function update(state: &exclusive State): void {
-/// @generic.template symbol=update parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=update type=<comptime update.L0: Lifetime>(Borrowed<State, update.L0, "exclusive">) => void
-/// @type.symbol symbol=update.state source="state: &exclusive State" type=Borrowed<State, update.L0, "exclusive">
+/// @generic.template symbol=update parameters=('l0)
+/// @type.symbol symbol=update type=<update.'l0>(&update.'l0 exclusive State) => void
+/// @type.symbol symbol=update.state source="state: &exclusive State" type=&update.'l0 exclusive State
 /// @resolution.name source=State target=State
 
     state.status = Status.Busy;
@@ -303,15 +303,15 @@ function update(value: &int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function update<comptime L0: Lifetime>(value: Borrowed<int32, L0, "mutable">): void {
+function update<'l0>(value: &'l0 int32): void {
     *value = 1;
 }
 
 === checked ===
 function update(value: &int32): void {
-/// @generic.template symbol=update parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=update type=<comptime update.L0: Lifetime>(Borrowed<int32, update.L0, "mutable">) => void
-/// @type.symbol symbol=update.value source="value: &int32" type=Borrowed<int32, update.L0, "mutable">
+/// @generic.template symbol=update parameters=('l0)
+/// @type.symbol symbol=update type=<update.'l0>(&update.'l0 int32) => void
+/// @type.symbol symbol=update.value source="value: &int32" type=&update.'l0 int32
 
     *value = 1;
     /// @resolution.pattern.assign source=*value kind=place place=dereference(direct) type=int32
@@ -344,7 +344,7 @@ enum Status {
     Busy,
 }
 
-function update<comptime L0: Lifetime>(value: Borrowed<Status, L0, "mutable">): void {
+function update<'l0>(value: &'l0 Status): void {
     *value = Status.Busy;
 }
 
@@ -358,9 +358,9 @@ enum Status { Idle, Busy }
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
 function update(value: &Status): void {
-/// @generic.template symbol=update parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=update type=<comptime update.L0: Lifetime>(Borrowed<Status, update.L0, "mutable">) => void
-/// @type.symbol symbol=update.value source="value: &Status" type=Borrowed<Status, update.L0, "mutable">
+/// @generic.template symbol=update parameters=('l0)
+/// @type.symbol symbol=update type=<update.'l0>(&update.'l0 Status) => void
+/// @type.symbol symbol=update.value source="value: &Status" type=&update.'l0 Status
 /// @resolution.name source=Status target=Status
 
     *value = Status.Busy;
@@ -395,15 +395,15 @@ function update(value: &readonly int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function update<comptime L0: Lifetime>(value: Borrowed<int32, L0, "readonly">): void {
+function update<'l0>(value: &'l0 readonly int32): void {
     *value = 1;
 }
 
 === checked ===
 function update(value: &readonly int32): void {
-/// @generic.template symbol=update parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=update type=<comptime update.L0: Lifetime>(Borrowed<int32, update.L0, "readonly">) => void
-/// @type.symbol symbol=update.value source="value: &readonly int32" type=Borrowed<int32, update.L0, "readonly">
+/// @generic.template symbol=update parameters=('l0)
+/// @type.symbol symbol=update type=<update.'l0>(&update.'l0 readonly int32) => void
+/// @type.symbol symbol=update.value source="value: &readonly int32" type=&update.'l0 readonly int32
 
     *value = 1;
     /// @resolution.name source=value target=update.value
@@ -411,7 +411,7 @@ function update(value: &readonly int32): void {
 }
 "#,
         r#"
-/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type '&readonly int32'"
+/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type '&'l0 readonly int32'"
 /// @diagnostic.label line=3 column=5 span="*" line_source="*value = 1;"
 /// @diagnostic.note message="the source grants at most 'readonly' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
@@ -445,11 +445,11 @@ enum Status {
     Busy,
 }
 
-function updateNumbers<comptime L0: Lifetime>(values: Borrowed<[int32; 2], L0, "mutable">): void {
+function updateNumbers<'l0>(values: &'l0 [int32; 2]): void {
     values[0] = 1;
 }
 
-function updateStatuses<comptime L0: Lifetime>(values: Borrowed<[Status; 2], L0, "mutable">): void {
+function updateStatuses<'l0>(values: &'l0 [Status; 2]): void {
     values[0] = Status.Busy;
 }
 
@@ -463,9 +463,9 @@ enum Status { Idle, Busy }
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
 function updateNumbers(values: &[int32; 2]): void {
-/// @generic.template symbol=updateNumbers parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=updateNumbers type=<comptime updateNumbers.L0: Lifetime>(Borrowed<FixedArray<int32, 2>, updateNumbers.L0, "mutable">) => void
-/// @type.symbol symbol=updateNumbers.values source="values: &[int32; 2]" type=Borrowed<FixedArray<int32, 2>, updateNumbers.L0, "mutable">
+/// @generic.template symbol=updateNumbers parameters=('l0)
+/// @type.symbol symbol=updateNumbers type=<updateNumbers.'l0>(&updateNumbers.'l0 FixedArray<int32, 2>) => void
+/// @type.symbol symbol=updateNumbers.values source="values: &[int32; 2]" type=&updateNumbers.'l0 FixedArray<int32, 2>
 
     values[0] = 1;
     /// @resolution.name source=values target=updateNumbers.values
@@ -474,9 +474,9 @@ function updateNumbers(values: &[int32; 2]): void {
 }
 
 function updateStatuses(values: &[Status; 2]): void {
-/// @generic.template symbol=updateStatuses parameters=(comptime L0: Lifetime)
-/// @type.symbol symbol=updateStatuses type=<comptime updateStatuses.L0: Lifetime>(Borrowed<FixedArray<Status, 2>, updateStatuses.L0, "mutable">) => void
-/// @type.symbol symbol=updateStatuses.values source="values: &[Status; 2]" type=Borrowed<FixedArray<Status, 2>, updateStatuses.L0, "mutable">
+/// @generic.template symbol=updateStatuses parameters=('l0)
+/// @type.symbol symbol=updateStatuses type=<updateStatuses.'l0>(&updateStatuses.'l0 FixedArray<Status, 2>) => void
+/// @type.symbol symbol=updateStatuses.values source="values: &[Status; 2]" type=&updateStatuses.'l0 FixedArray<Status, 2>
 /// @resolution.name source=Status target=Status
 
     values[0] = Status.Busy;

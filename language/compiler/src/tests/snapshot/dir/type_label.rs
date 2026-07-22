@@ -296,6 +296,26 @@ impl DirSnapshotBuilder<'_> {
                 let lifetime = self.type_id_label(types, borrow.lifetime);
                 let access = self.type_id_label(types, borrow.access);
 
+                // spell settled borrows through the tick form
+                let tick = match lifetime.as_str() {
+                    "\"static\"" => Some("'static".to_string()),
+                    "\"frame\"" => Some("'frame".to_string()),
+                    _ => lifetime
+                        .rsplit('.')
+                        .next()
+                        .is_some_and(|name| name.starts_with('\''))
+                        .then(|| lifetime.clone()),
+                };
+                let modifier = match access.as_str() {
+                    "\"mutable\"" => Some(""),
+                    "\"readonly\"" => Some("readonly "),
+                    "\"exclusive\"" => Some("exclusive "),
+                    _ => None,
+                };
+                if let (Some(tick), Some(modifier)) = (tick, modifier) {
+                    return format!("&{tick} {modifier}{value}");
+                }
+
                 format!("Borrowed<{value}, {lifetime}, {access}>")
             }
             dir::Form::Raw => format!("Raw<{value}>"),
@@ -870,6 +890,11 @@ impl DirSnapshotBuilder<'_> {
             return label;
         };
 
+        // print tick parameters bare, their kind is implied
+        if self.is_tick_parameter(generic, &label) {
+            return label;
+        }
+
         self.generic_parameter_binding_head_label(generic, label)
     }
 
@@ -882,6 +907,11 @@ impl DirSnapshotBuilder<'_> {
         let Some((_, generic)) = self.generic_parameter_context(parameter) else {
             return String::new();
         };
+
+        // print tick parameters bare, their kind is implied
+        if generic.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
+            return String::new();
+        }
 
         let constraint = generic
             .constraint

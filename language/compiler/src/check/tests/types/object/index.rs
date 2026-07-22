@@ -395,7 +395,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.implements symbol=<module>#2 source=Index<string> target=ops.subscript.Index arguments=(string, "readonly")
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
 /// @definition.method symbol=index slot=index type=(this: this, string) => this.Output
-/// @definition.method symbol=indexSet slot=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<this, indexSet.L0, "exclusive">, string, int32) => void
+/// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'l0>(this: &indexSet.'l0 exclusive this, string, int32) => void
 /// @resolution.name source=Store target=Store
 /// @resolution.name source=Index target=ops.subscript.Index
 /// @resolution.name source=IndexSet target=ops.subscript.IndexSet
@@ -417,15 +417,15 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
     }
 
     indexSet(&exclusive this, key: string, value: int32): void {
-    /// @generic.template symbol=indexSet parent=template#0 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=indexSet type=<comptime indexSet.L0: Lifetime>(this: Borrowed<this, indexSet.L0, "exclusive">, string, int32) => void
-    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=Borrowed<this, indexSet.L0, "exclusive">
+    /// @generic.template symbol=indexSet parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=indexSet type=<indexSet.'l0>(this: &indexSet.'l0 exclusive this, string, int32) => void
+    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'l0 exclusive this
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32" type=int32
 
         this.storage[key] = value;
-        /// @resolution.member source=this.storage receiver=Borrowed<Store, indexSet.L0, "exclusive"> kind=symbol target=Store.storage
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Store, indexSet.L0, "exclusive">
+        /// @resolution.member source=this.storage receiver=&indexSet.'l0 exclusive Store kind=symbol target=Store.storage
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&indexSet.'l0 exclusive Store
         /// @resolution.pattern.assign source=this.storage[key] kind=place place=subscript(collections.map.indexSet) type=int32
         /// @resolution.name source=key target=indexSet.key
         /// @resolution.name source=value target=indexSet.value

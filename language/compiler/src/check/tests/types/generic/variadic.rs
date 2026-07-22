@@ -34,14 +34,12 @@ newtype Sharding<...Axes: Axis[]> = intrinsic;
 
 newtype Grid<T, P> = intrinsic;
 
-declare function mesh<T, ...Axes: Axis[], comptime L2: Lifetime>(
-    grid: Borrowed<Grid<T, Sharding<Axes>>, L2, "readonly">,
-): int32;
+declare function mesh<T, ...Axes: Axis[], 'l2>(grid: &'l2 readonly Grid<T, Sharding<Axes>>): int32;
 
 export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     /// Return the mesh id.
     get mesh(): int32 {
-        return mesh<T, ...Axes>(this as Borrowed<Grid<T, Sharding<Axes>>, "frame", "readonly">);
+        return mesh<T, ...Axes>(this as &'frame readonly Grid<T, Sharding<Axes>>);
     }
 }
 
@@ -65,14 +63,14 @@ newtype Grid<T, P> = intrinsic;
 /// @type.symbol symbol=Grid.P source=P type=P
 
 declare function mesh<T, ...Axes: Axis[]>(
-/// @generic.template symbol=mesh#1 parameters=(T#2, ...Axes#2: Array<Axis>, comptime L2: Lifetime)
-/// @type.symbol symbol=mesh#1 type=<T#2, ...Axes#2: Array<Axis>, comptime mesh#1.L2: Lifetime>(Borrowed<Grid<T#2, Sharding<Axes#2>>, mesh#1.L2, "readonly">) => int32
+/// @generic.template symbol=mesh#1 parameters=(T#2, ...Axes#2: Array<Axis>, 'l2)
+/// @type.symbol symbol=mesh#1 type=<T#2, ...Axes#2: Array<Axis>, mesh#1.'l2>(&mesh#1.'l2 readonly Grid<T#2, Sharding<Axes#2>>) => int32
 /// @type.symbol symbol=mesh.T source=T type=T#2
 /// @type.symbol symbol=mesh.Axes source="...Axes: Axis[]" type=Axes#2
 /// @resolution.name source=Axis target=Axis
 
     grid: &readonly Grid<T, Sharding<...Axes>>,
-    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Sharding<...Axes>>" type=Borrowed<Grid<T#2, Sharding<Axes#2>>, mesh#1.L2, "readonly">
+    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Sharding<...Axes>>" type=&mesh#1.'l2 readonly Grid<T#2, Sharding<Axes#2>>
     /// @resolution.name source=Grid target=Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Sharding target=Sharding
@@ -98,7 +96,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 
         return mesh<T, ...Axes>(this);
         /// @resolution.name source=mesh target=mesh#1
-        /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(Borrowed<Grid<T#3, Sharding<Axes#3>>, "frame", "readonly">) arguments=(provided(this) as Borrowed<Grid<T#3, Sharding<Axes#3>>, "frame", "readonly">) return=int32 kind=symbol target=mesh#1 instance="mesh#1<T#3, Axes#3>"
+        /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(&'frame readonly Grid<T#3, Sharding<Axes#3>>) arguments=(provided(this) as &'frame readonly Grid<T#3, Sharding<Axes#3>>) return=int32 kind=symbol target=mesh#1 instance="mesh#1<T#3, Axes#3>"
         /// @generic.instance source="mesh<T, ...Axes>(this)" id="mesh#1<T#3, Axes#3>"
         /// @resolution.name source=T target=T
         /// @resolution.name source=Axes target=Axes
@@ -159,9 +157,7 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 === annotated ===
 import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
-declare function mesh<T, ...Xs: Axis[], comptime L2: Lifetime>(
-    grid: Borrowed<Grid<T, Wrap<Xs>>, L2, "readonly">,
-): int32;
+declare function mesh<T, ...Xs: Axis[], 'l2>(grid: &'l2 readonly Grid<T, Wrap<Xs>>): int32;
 
 extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     /// Return the mesh id.
@@ -174,14 +170,14 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
 declare function mesh<T, ...Xs: Axis[]>(
-/// @generic.template symbol=mesh#1 parameters=(T#1, ...Xs#1: Array<sharding.Axis>, comptime L2: Lifetime)
-/// @type.symbol symbol=mesh#1 type=<T#1, ...Xs#1: Array<sharding.Axis>, comptime mesh#1.L2: Lifetime>(Borrowed<<error>, mesh#1.L2, "readonly">) => int32
+/// @generic.template symbol=mesh#1 parameters=(T#1, ...Xs#1: Array<sharding.Axis>, 'l2)
+/// @type.symbol symbol=mesh#1 type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh#1.'l2>(&mesh#1.'l2 readonly <error>) => int32
 /// @type.symbol symbol=mesh.T source=T type=T#1
 /// @type.symbol symbol=mesh.Xs source="...Xs: Axis[]" type=Xs#1
 /// @resolution.name source=Axis target=sharding.Axis
 
     grid: &readonly Grid<T, Wrap<...Xs>>,
-    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=Borrowed<<error>, mesh#1.L2, "readonly">
+    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=&mesh#1.'l2 readonly <error>
     /// @resolution.name source=Grid target=sharding.Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Wrap target=sharding.Wrap
@@ -207,7 +203,7 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 
         return mesh<T, ...Xs>(this);
         /// @resolution.name source=mesh target=mesh#1
-        /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(Borrowed<sharding.Grid<T#2, sharding.Wrap<Xs#2>>, "frame", "readonly">) arguments=(provided(this) as Borrowed<sharding.Grid<T#2, sharding.Wrap<Xs#2>>, "frame", "readonly">) return=int32 kind=symbol target=mesh#1 instance="mesh#1<T#2, Xs#2>"
+        /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(&'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) arguments=(provided(this) as &'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) return=int32 kind=symbol target=mesh#1 instance="mesh#1<T#2, Xs#2>"
         /// @generic.instance source="mesh<T, ...Xs>(this)" id="mesh#1<T#2, Xs#2>"
         /// @resolution.name source=T target=T
         /// @resolution.name source=Xs target=Xs

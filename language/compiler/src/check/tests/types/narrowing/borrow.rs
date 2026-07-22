@@ -66,7 +66,7 @@ struct Circle {
 
 function read<comptime L: Lifetime>(shape: Borrowed<Rectangle | Circle, L>): int32 {
 /// @generic.template symbol=read parameters=(comptime L: Lifetime)
-/// @type.symbol symbol=read type=<comptime L: Lifetime>(Borrowed<Rectangle | Circle, L, "mutable">) => int32
+/// @type.symbol symbol=read type=<comptime L>(Borrowed<Rectangle | Circle, L, "mutable">) => int32
 /// @type.symbol symbol=read.L source="comptime L: Lifetime" type=L
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @type.symbol symbol=read.shape source="shape: Borrowed<Rectangle | Circle, L>" type=Borrowed<Rectangle | Circle, L, "mutable">
@@ -175,7 +175,7 @@ struct Circle {
 
 function read<comptime L: Lifetime, comptime A: Access>(
 /// @generic.template symbol=read parameters=(comptime L: Lifetime, comptime A: Access)
-/// @type.symbol symbol=read type=<comptime L: Lifetime, comptime A: Access>(Borrowed<Rectangle | Circle, L, A>) => int32
+/// @type.symbol symbol=read type=<comptime L, comptime A: Access>(Borrowed<Rectangle | Circle, L, A>) => int32
 /// @type.symbol symbol=read.L source="comptime L: Lifetime" type=L
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @type.symbol symbol=read.A source="comptime A: Access" type=A

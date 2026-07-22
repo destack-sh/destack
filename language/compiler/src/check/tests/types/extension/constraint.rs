@@ -84,11 +84,11 @@ struct Box<T> {
 struct Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.struct symbol=Document
-/// @definition.method symbol=Document.read slot=read type=<comptime Document.read.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Document.read.L0, "exclusive">) => string
+/// @definition.method symbol=Document.read slot=read type=<Document.read.'l0>(this: &Document.read.'l0 exclusive this) => string
 
     read(): string {
-    /// @generic.template symbol=Document.read parameters=(comptime L0: memory.lifetime.Lifetime)
-    /// @type.symbol symbol=Document.read type=<comptime Document.read.L0: memory.lifetime.Lifetime>(this: Borrowed<this, Document.read.L0, "exclusive">) => string
+    /// @generic.template symbol=Document.read parameters=('l0)
+    /// @type.symbol symbol=Document.read type=<Document.read.'l0>(this: &Document.read.'l0 exclusive this) => string
 
         return "ok";
     }
@@ -460,7 +460,7 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
 /// @definition.where symbol=<module>#2 source="T: Copy" relation=satisfies left=T#2 right=memory.capability.Copy
-/// @definition.method symbol=duplicate slot=duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<this, duplicate.L0, "readonly">) => T#2
+/// @definition.method symbol=duplicate slot=duplicate type=<duplicate.'l0>(this: &duplicate.'l0 readonly this) => T#2
 /// @type.symbol symbol=T#1 source=T type=T#2
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#1
@@ -468,9 +468,9 @@ export extension<T> of Pack<T> where T: Copy {
 /// @resolution.name source=Copy target=memory.capability.Copy
 
     duplicate(&readonly this): T {
-    /// @generic.template symbol=duplicate parent=template#1 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<this, duplicate.L0, "readonly">) => T#2
-    /// @type.symbol symbol=duplicate.this source="&readonly this" type=Borrowed<this, duplicate.L0, "readonly">
+    /// @generic.template symbol=duplicate parent=template#1 parameters=('l0)
+    /// @type.symbol symbol=duplicate type=<duplicate.'l0>(this: &duplicate.'l0 readonly this) => T#2
+    /// @type.symbol symbol=duplicate.this source="&readonly this" type=&duplicate.'l0 readonly this
     /// @resolution.name source=T target=T#1
 
         todo("Pack.duplicate")
@@ -487,7 +487,7 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.template symbol=<module>#3 parameters=(T#3)
 /// @definition.extension symbol=<module>#3 form=exported target=Pack<T#3>
 /// @definition.where symbol=<module>#3 source="T: Copy" relation=satisfies left=T#3 right=memory.capability.Copy
-/// @definition.method symbol=twice slot=twice type=<comptime twice.L0: Lifetime>(this: Borrowed<this, twice.L0, "readonly">) => T#3
+/// @definition.method symbol=twice slot=twice type=<twice.'l0>(this: &twice.'l0 readonly this) => T#3
 /// @type.symbol symbol=T#2 source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#2
@@ -495,18 +495,18 @@ export extension<T> of Pack<T> where T: Copy {
 /// @resolution.name source=Copy target=memory.capability.Copy
 
     twice(&readonly this): T {
-    /// @generic.template symbol=twice parent=template#2 parameters=(comptime L0: Lifetime)
-    /// @type.symbol symbol=twice type=<comptime twice.L0: Lifetime>(this: Borrowed<this, twice.L0, "readonly">) => T#3
-    /// @type.symbol symbol=twice.this source="&readonly this" type=Borrowed<this, twice.L0, "readonly">
+    /// @generic.template symbol=twice parent=template#2 parameters=('l0)
+    /// @type.symbol symbol=twice type=<twice.'l0>(this: &twice.'l0 readonly this) => T#3
+    /// @type.symbol symbol=twice.this source="&readonly this" type=&twice.'l0 readonly this
     /// @resolution.name source=T target=T#2
 
         this.duplicate()
-        /// @type.node source=this type=Borrowed<Pack<T#3>, twice.L0, "readonly">
-        /// @type.node source=this.duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<Pack<T#3>, duplicate.L0, "readonly">) => T#3
+        /// @type.node source=this type=&twice.'l0 readonly Pack<T#3>
+        /// @type.node source=this.duplicate type=<duplicate.'l0>(this: &duplicate.'l0 readonly Pack<T#3>) => T#3
         /// @type.node source=this.duplicate() type=T#3
-        /// @resolution.member source=this.duplicate receiver=Borrowed<Pack<T#3>, twice.L0, "readonly"> kind=symbol target=duplicate
-        /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=Borrowed<Pack<T#3>, twice.L0, "readonly"> instance=Pack<T#3>.<extension#1>.duplicate
-        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=Borrowed<Pack<T#3>, twice.L0, "readonly">
+        /// @resolution.member source=this.duplicate receiver=&twice.'l0 readonly Pack<T#3> kind=symbol target=duplicate
+        /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=&twice.'l0 readonly Pack<T#3> instance=Pack<T#3>.<extension#1>.duplicate
+        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&twice.'l0 readonly Pack<T#3>
         /// @generic.instance source=this id=Pack<T#3>
         /// @generic.instance source=this.duplicate id=Pack<T#3>
         /// @generic.instance source=this.duplicate() id=Pack<T#3>.<extension#1>.duplicate
