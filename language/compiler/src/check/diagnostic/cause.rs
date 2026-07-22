@@ -4,14 +4,14 @@ use destack_dir as dir;
 use crate::check::{Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation};
 use crate::{CompilerResult, DiagnosticAnchor};
 
-/// The blamed origin of one failed closed judgment.
+/// The blamed origin of one failed closed relation.
 pub(in crate::check) enum Blame {
     /// One side reduces to a plainer type before mismatching.
     Reduced {
         /// The reduction notes, one per changed side.
         notes: Vec<String>,
     },
-    /// One structural slot beneath the judgment pair mismatches.
+    /// One structural slot beneath the related pair mismatches.
     Slot {
         /// Slot descriptions from the leaf outward.
         path: Vec<String>,
@@ -35,7 +35,7 @@ struct BlameLeaf {
 }
 
 impl CheckState<'_> {
-    /// Decorate one failed judgment with its cause chain.
+    /// Decorate one failure with its cause chain.
     pub(in crate::check) fn explain_cause<T>(
         &self,
         mut diagnostic: DiagnosticBuilder<T>,
@@ -82,7 +82,7 @@ impl CheckState<'_> {
             }
         }
 
-        // point at the syntax that demanded the judgment
+        // point at the syntax that demanded the check
         if let Some(root) = chain.last()
             && let Some((anchor, message)) = self.root_label(root.kind)?
             && anchor != *primary
@@ -101,7 +101,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Blame>> {
-        // open pairs blame through their judgment causes instead
+        // open pairs blame through their constraint causes instead
         if !self.type_variables(source)?.is_empty() || !self.type_variables(target)?.is_empty() {
             return Ok(None);
         }
@@ -346,8 +346,9 @@ impl CheckState<'_> {
                 pairs.push((None, relation, source_form.value, target_form.value));
             }
 
-            // union sources blame the first element that misses the target
-            (dir::Type::Union(elements), _) if relation == Relation::Assignable => {
+            // union sources blame the first element that misses the target;
+            //  only equations relate unions whole
+            (dir::Type::Union(elements), _) if relation != Relation::Equal => {
                 let elements = self.type_ids(source.module_id, elements.elements)?.to_vec();
                 for element in elements {
                     pairs.push((None, relation, element, target));
@@ -398,7 +399,7 @@ impl CheckState<'_> {
         Ok(pairs)
     }
 
-    /// Collect one cause chain from the judgment to its root.
+    /// Collect one cause chain from the constraint to its root.
     fn cause_chain(&self, cause: CauseId) -> Vec<Cause> {
         let mut chain = Vec::new();
         let mut current = Some(cause);
@@ -411,7 +412,7 @@ impl CheckState<'_> {
         chain
     }
 
-    /// Return the root of one judgment's cause chain.
+    /// Return the root of one constraint's cause chain.
     pub(in crate::check) fn root_cause(&self, cause: CauseId) -> Cause {
         let mut root = self.solver.cause(cause);
         while let Some(parent) = root.parent {
@@ -421,7 +422,7 @@ impl CheckState<'_> {
         root
     }
 
-    /// Describe one slot the judgment descended into.
+    /// Describe one slot the constraint descended into.
     fn describe_slot(&self, kind: CauseKind) -> Option<String> {
         let description = match kind {
             CauseKind::Field { key } => format!("field '{}'", self.format_static_key(&key)),

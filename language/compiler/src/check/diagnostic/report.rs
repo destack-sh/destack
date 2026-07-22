@@ -19,7 +19,7 @@ impl CheckState<'_> {
         module: ModuleId,
         diagnostic: impl Into<DiagnosticBuilder<CheckError>>,
     ) {
-        // identical judgments report once
+        // identical failures report once
         let diagnostic = diagnostic.into();
         let diagnostics = &mut self.module_mut(module).diagnostics;
         if diagnostics.contains(&diagnostic) {
@@ -1604,11 +1604,11 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         failure: CheckFailure,
     ) -> CompilerResult<()> {
-        // a finer judgment already carried the report
+        // a finer constraint already carried the report
         if failure == CheckFailure::Reported {
             return Ok(());
         }
-        // poisoned judgments already reported their cause
+        // poisoned operands already reported their cause
         if self.type_flags(source)?.has_error() || self.type_flags(target)?.has_error() {
             return Ok(());
         }

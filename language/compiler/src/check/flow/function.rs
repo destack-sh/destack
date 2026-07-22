@@ -49,7 +49,7 @@ impl WalkState<'_, '_> {
         flow
     }
 
-    /// Record one delegated yield's protocol judgment and inner return output.
+    /// Record one delegated yield's protocol check and inner return output.
     pub(in crate::check) fn record_yield_delegate(
         &mut self,
         source: dir::LocalNodeId<dir::Expression>,
