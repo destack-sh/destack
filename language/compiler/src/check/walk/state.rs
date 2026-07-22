@@ -270,6 +270,18 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(lifetime)
     }
 
+    /// Open one hidden memory parameter hole.
+    pub(in crate::check) fn open_memory_hole(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        kind: dir::MemoryParameter,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let constraint = self.memory_parameter_constraint(kind)?;
+        let role = VariableRole::Memory { kind, constraint };
+
+        self.open_type_hole(source, Widening::Never, role)
+    }
+
     /// Return one memory-domain constraint type.
     fn memory_parameter_constraint(
         &mut self,
@@ -279,7 +291,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(None);
         };
         let arguments = self.intern_type_ids(&[])?;
-        let constraint = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+        let constraint = self.intern_type(dir::Type::Application(dir::GenericApplication {
             symbol,
             arguments,
         }))?;

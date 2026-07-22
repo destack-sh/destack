@@ -308,7 +308,7 @@ struct AssetStore { count: uint32; }
 struct WorldView {
 /// @generic.template symbol=WorldView parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
 /// @type.symbol symbol=WorldView type=WorldView
-/// @definition.struct symbol=WorldView
+/// @definition.struct symbol=WorldView template=(comptime L0: Lifetime, comptime L1: Lifetime)
 /// @definition.field symbol=WorldView.assets source="assets: &AssetStore" key=assets type=Borrowed<AssetStore, WorldView.L1, "mutable">
 /// @definition.field symbol=WorldView.engine source="engine: &Engine" key=engine type=Borrowed<Engine, WorldView.L0, "mutable">
 
@@ -446,6 +446,281 @@ interface Viewing {
 
 /// @generic.instance id="memory.type.WithAccess<Borrowed<this, Viewing.view.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<this, Viewing.view.L1, "mutable">, A)
 /// @generic.instance id="memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<this.View, Viewing.view.L1, "mutable">, A)
+"#,
+    );
+}
+
+#[test]
+fn test_default_unconstrained_call_lifetimes_to_frame() {
+    let session = TestSession::single(
+        r#"
+type Options = {
+    count?: int32 | undefined;
+    message?: &readonly string;
+    error?: unknown;
+};
+
+function log(options?: Options): void {}
+
+function warn(count?: int32, cause?: unknown): void {
+    log({ count, error: cause });
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Options<comptime L0: Lifetime> = {
+    count?: int32 | undefined;
+    message?: &readonly string;
+    error?: unknown;
+};
+
+function log<comptime L0: Lifetime>(options?: Options<L0>): void {}
+
+function warn(count?: int32, cause?: Dynamic<unknown>): void {
+    log({ count, error: cause as unknown } as Options<"frame"> | undefined);
+}
+
+=== checked ===
+type Options = {
+/// @generic.template symbol=Options parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=Options type={ count?: int32 | undefined; message?: Borrowed<string, Options.L0, "readonly">; error?: unknown }
+/// @definition.type symbol=Options value={ count?: int32 | undefined; message?: Borrowed<string, Options.L0, "readonly">; error?: unknown }
+
+    count?: int32 | undefined;
+    message?: &readonly string;
+    error?: unknown;
+};
+
+function log(options?: Options): void {}
+/// @generic.template symbol=log parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<comptime log.L0: Lifetime>(Options<log.L0> | undefined) => void
+/// @type.symbol symbol=log.options source="options?: Options" type=Options<log.L0> | undefined
+/// @resolution.name source=Options target=Options
+
+function warn(count?: int32, cause?: unknown): void {
+/// @type.symbol symbol=warn type=(int32 | undefined, Dynamic<unknown> | undefined) => void
+/// @type.symbol symbol=warn.count source="count?: int32" type=int32 | undefined
+/// @type.symbol symbol=warn.cause source="cause?: unknown" type=Dynamic<unknown> | undefined
+
+    log({ count, error: cause });
+    /// @resolution.name source=log target=log
+    /// @resolution.call source="log({ count, error: cause })" parameters=(Options<"frame"> | undefined) arguments=(provided({ count, error: cause }) as Options<"frame"> | undefined) return=void kind=symbol target=log
+    /// @resolution.name source=count target=warn.count
+    /// @resolution.name source=cause target=warn.cause
+
+}
+
+/// @generic.instance id=Options<log.L0> template=Options arguments=(log.L0)
+"#,
+    );
+}
+
+#[test]
+fn test_induce_forward_nominal_lifetime_references() {
+    let session = TestSession::single(
+        r#"
+struct Holder {
+    view: View;
+}
+
+struct View {
+    user: &readonly User;
+}
+
+struct User {
+    id: int32;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Holder<comptime L0: Lifetime> {
+    view: View<L0>;
+}
+
+struct View<comptime L0: Lifetime> {
+    user: Borrowed<User, L0, "readonly">;
+}
+
+struct User {
+    id: int32;
+}
+
+=== checked ===
+struct Holder {
+/// @generic.template symbol=Holder parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.struct symbol=Holder template=(comptime L0: Lifetime)
+/// @definition.field symbol=Holder.view source="view: View" key=view type=View<Holder.L0>
+
+    view: View;
+    /// @type.symbol symbol=Holder.view source="view: View" type=View<Holder.L0>
+    /// @resolution.name source=View target=View
+
+}
+
+struct View {
+/// @generic.template symbol=View parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=View type=View
+/// @definition.struct symbol=View template=(comptime L0: Lifetime)
+/// @definition.field symbol=View.user source="user: &readonly User" key=user type=Borrowed<User, View.L0, "readonly">
+
+    user: &readonly User;
+    /// @type.symbol symbol=View.user source="user: &readonly User" type=Borrowed<User, View.L0, "readonly">
+    /// @resolution.name source=User target=User
+
+}
+
+struct User {
+/// @type.symbol symbol=User type=User
+/// @definition.struct symbol=User
+/// @definition.field symbol=User.id source="id: int32" key=id type=int32
+
+    id: int32;
+    /// @type.symbol symbol=User.id source="id: int32" type=int32
+
+}
+
+/// @generic.instance id=View<Holder.L0> template=View arguments=(Holder.L0)
+"#,
+    );
+}
+
+#[test]
+fn test_reject_cyclic_borrowed_field_induction() {
+    let session = TestSession::single(
+        r#"
+struct Ping {
+    pong: &readonly Pong;
+}
+
+struct Pong {
+    ping: &readonly Ping;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+struct Ping {
+    pong: &readonly Pong;
+}
+
+struct Pong<comptime L0: Lifetime> {
+    ping: Borrowed<Ping, L0, "readonly">;
+}
+
+=== checked ===
+struct Ping {
+    pong: &readonly Pong;
+}
+
+struct Pong {
+    ping: &readonly Ping;
+}
+"#,
+        r#"
+/// @diagnostic.error id=circular-lifetime-induction message="cyclic borrowed fields between 'Ping' and 'Pong' need named lifetimes"
+/// @diagnostic.label line=2 column=8 span="Ping" line_source="struct Ping {"
+"#,
+    );
+}
+
+#[test]
+fn test_elide_body_binding_lifetimes_to_frame() {
+    let session = TestSession::single(
+        r#"
+struct User {
+    id: int32;
+}
+
+struct View {
+    user: &readonly User;
+}
+
+function inspect(user: &readonly User): int32 {
+    const view: View = View { user };
+
+    return view.user.id;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct User {
+    id: int32;
+}
+
+struct View<comptime L0: Lifetime> {
+    user: Borrowed<User, L0, "readonly">;
+}
+
+function inspect<comptime L0: Lifetime>(user: Borrowed<User, L0, "readonly">): int32 {
+    const view: View<L0> = View<L0> { user };
+
+    return view.user.id;
+}
+
+=== checked ===
+struct User {
+/// @type.symbol symbol=User type=User
+/// @definition.struct symbol=User
+/// @definition.field symbol=User.id source="id: int32" key=id type=int32
+
+    id: int32;
+    /// @type.symbol symbol=User.id source="id: int32" type=int32
+
+}
+
+struct View {
+/// @generic.template symbol=View parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=View type=View
+/// @definition.struct symbol=View template=(comptime L0: Lifetime)
+/// @definition.field symbol=View.user source="user: &readonly User" key=user type=Borrowed<User, View.L0, "readonly">
+
+    user: &readonly User;
+    /// @type.symbol symbol=View.user source="user: &readonly User" type=Borrowed<User, View.L0, "readonly">
+    /// @resolution.name source=User target=User
+
+}
+
+function inspect(user: &readonly User): int32 {
+/// @generic.template symbol=inspect parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=inspect type=<comptime inspect.L0: Lifetime>(Borrowed<User, inspect.L0, "readonly">) => int32
+/// @type.symbol symbol=inspect.user source="user: &readonly User" type=Borrowed<User, inspect.L0, "readonly">
+/// @resolution.name source=User target=User
+
+    const view: View = View { user };
+    /// @type.symbol symbol=inspect.view source=view type=View<inspect.L0>
+    /// @resolution.pattern source=view kind=binding target=inspect.view
+    /// @resolution.name source=View target=View
+    /// @resolution.name source=View target=View
+    /// @resolution.name source=user target=inspect.user
+
+    return view.user.id;
+    /// @resolution.name source=view target=inspect.view
+    /// @resolution.member source=view.user receiver=View<inspect.L0> kind=symbol target=View.user
+    /// @resolution.member source=view.user.id receiver=Borrowed<User, inspect.L0, "readonly"> kind=symbol target=User.id
+
+}
+
+/// @generic.instance id=View<inspect.L0> template=View arguments=(inspect.L0)
 "#,
     );
 }

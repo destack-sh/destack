@@ -72,6 +72,12 @@ pub(in crate::check) struct CheckState<'a> {
         FxIndexMap<(dir::GlobalGenericParameterId, VarianceContext), VarianceState>,
     /// Elided result lifetimes inferred from their bodies, never induced.
     pub(in crate::check) body_inferred_parameters: FxIndexSet<dir::TypeVariableId>,
+    /// Declarations already walked, on demand or in root order.
+    pub(in crate::check) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
+    /// Declarations currently walking, innermost last.
+    pub(in crate::check) walking_declarations: Vec<dir::GlobalNodeIdAny>,
+    /// Declarations applied while still walking, keyed to their referents.
+    pub(in crate::check) cyclic_inductions: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalNodeIdAny>,
 
     // reduction state
     /// Memoized closed reduced types keyed by source type.
@@ -147,6 +153,9 @@ impl<'a> CheckState<'a> {
             scopes: FxIndexMap::default(),
             variances: FxIndexMap::default(),
             body_inferred_parameters: FxIndexSet::default(),
+            walked_declarations: FxIndexSet::default(),
+            walking_declarations: Vec::new(),
+            cyclic_inductions: FxIndexMap::default(),
             reduced_types: FxIndexMap::default(),
             reduced_type_graphs: FxIndexMap::default(),
             contextual_places: FxIndexMap::default(),
@@ -272,7 +281,7 @@ impl<'a> CheckState<'a> {
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let symbol = match self.ty(ty)? {
             dir::Type::Reference(reference) => Some(reference.symbol),
-            dir::Type::Instance(instance) => Some(instance.symbol),
+            dir::Type::Application(instance) => Some(instance.symbol),
             _ => None,
         };
 
@@ -787,7 +796,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let symbol = self.language_symbol(item)?;
         let arguments = self.intern_type_ids(module, arguments)?;
-        let ty = dir::Type::Instance(dir::GenericInstance { symbol, arguments });
+        let ty = dir::Type::Application(dir::GenericApplication { symbol, arguments });
 
         self.intern_type(module, ty)
     }
@@ -963,11 +972,11 @@ impl CheckState<'_> {
             | dir::Type::Reference(_) => ty,
 
             // declaration applications
-            dir::Type::Instance(mut instance) => {
+            dir::Type::Application(mut instance) => {
                 instance.arguments =
                     self.map_type_id_list(source, target, instance.arguments, map)?;
 
-                dir::Type::Instance(instance)
+                dir::Type::Application(instance)
             }
             dir::Type::Refined(refined) => {
                 let mut refined = self.type_refined(source, refined)?;

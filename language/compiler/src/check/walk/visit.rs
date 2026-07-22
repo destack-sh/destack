@@ -67,10 +67,12 @@ impl CheckState<'_> {
 
         let mut walk = WalkState::new(module, tree, self);
 
-        // walk and queue expanded module roots
+        // walk and queue expanded module roots, inducing each root's memory
+        //  parameters before later roots apply its declarations
         for root in &expanded.roots {
             walk.walk_expression(*root, tree.get(*root))?;
             walk.queue_module_expression(*root)?;
+            walk.check.propagate_induced_parameters()?;
         }
         walk.commit();
 

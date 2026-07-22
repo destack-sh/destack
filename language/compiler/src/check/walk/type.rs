@@ -821,6 +821,9 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Parameter(parameter));
         }
 
+        // walk the referenced declaration first, so induced parameters exist
+        self.demand_symbol_declaration(symbol)?;
+
         // reject positional arguments on non-generic declarations
         let Some(template) = self.check.symbol_template(symbol)? else {
             let positional = applied
@@ -836,7 +839,7 @@ impl WalkState<'_, '_> {
             }
 
             let arguments = self.intern_type_ids(&[])?;
-            let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+            let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
                 symbol,
                 arguments,
             }))?;
@@ -864,42 +867,73 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Error);
         }
 
-        // bind written arguments and declared defaults
+        // bind every parameter in declaration order
         let written = applied
             .iter()
             .filter(|argument| argument.name.is_none())
-            .collect::<SmallVec<[_; 4]>>();
-        let written_types = written
-            .iter()
-            .map(|argument| argument.ty)
             .collect::<SmallVec<[_; 4]>>();
         let origin = Origin::Node(
             source.into_global(self.module),
             self.flow().template_scope(),
         );
-        let Some(substitution) = self.check.substitute_parameter_arguments(
-            origin,
-            &parameters,
-            &written_types,
-            TypeSubstitution::default(),
-        )?
-        else {
-            let name = self.check.format_symbol(symbol);
-            self.check.report_wrong_generic_arity(
-                self.module,
-                source,
-                name,
-                written_count,
-                applied.len(),
-            );
+        let mut substitution = TypeSubstitution::default();
+        let mut cursor = 0;
+        for parameter in parameters.iter().copied() {
+            let Some(binding) = self.check.generic_parameter(parameter).copied() else {
+                return Err(CompilerError::Internal {
+                    message: "written type application names a missing generic parameter"
+                        .to_string(),
+                });
+            };
 
-            return self.intern_type(dir::Type::Error);
-        };
+            // bind the next written argument to the next writable slot
+            let argument = if binding.is_writable() && cursor < written.len() {
+                let argument = written[cursor].ty;
+                cursor += 1;
+
+                argument
+            }
+            // evaluate defaults against the application built so far
+            else if let Some(default) = binding.default {
+                self.check
+                    .substitute_type(self.module, default, &substitution)?
+            }
+            // elide omitted memory parameters like unwritten borrow lifetimes
+            else if let Some(kind) = binding.memory_parameter() {
+                match kind {
+                    dir::MemoryParameter::Lifetime => self.elided_borrow_lifetime(source)?,
+                    kind => self.open_memory_hole(source, kind)?,
+                }
+            }
+            // reject unbound parameters
+            else {
+                let name = self.check.format_symbol(symbol);
+                self.check.report_wrong_generic_arity(
+                    self.module,
+                    source,
+                    name,
+                    written_count,
+                    applied.len(),
+                );
+
+                return self.intern_type(dir::Type::Error);
+            };
+
+            // store memory arguments canonically
+            let argument = match binding.memory_parameter() {
+                Some(kind) => self
+                    .check
+                    .normalize_memory_component(origin, argument, kind)?,
+                None => argument,
+            };
+            substitution.parameters.push(parameter);
+            substitution.arguments.push(argument);
+        }
         let arguments = substitution.arguments;
 
         // build the application before attaching its argument checks
         let argument_list = self.intern_type_ids(&arguments)?;
-        let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+        let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
             symbol,
             arguments: argument_list,
         }))?;

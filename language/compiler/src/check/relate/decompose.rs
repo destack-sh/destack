@@ -28,7 +28,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>>> {
         let pair_lists = match (self.ty(source)?, self.ty(target)?) {
             // nominal applications decompose by declaration
-            (dir::Type::Instance(source_type), dir::Type::Instance(target_type))
+            (dir::Type::Application(source_type), dir::Type::Application(target_type))
                 if source_type.symbol == target_type.symbol =>
             {
                 let source = self.type_ids(source.module_id, source_type.arguments)?;
@@ -406,6 +406,20 @@ impl CheckState<'_> {
                 continue;
             };
 
+            // open memory arguments discharge their bounds at their owner's
+            //  solution, never gating structural expansion
+            let is_memory = self
+                .generic_parameter(parameter)
+                .is_some_and(|binding| binding.memory_parameter().is_some());
+            if is_memory
+                && matches!(
+                    self.ty(self.settled_root(argument)?)?,
+                    dir::Type::Variable(_)
+                )
+            {
+                continue;
+            }
+
             let origin = self.origin_at(origin, argument_source)?;
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
             match self.constrain_type(cause, Relation::Satisfies, argument, bound)? {
@@ -472,7 +486,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn instance_substitution(
         &mut self,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
     ) -> CompilerResult<TypeSubstitution> {
         let Some(template) = self.symbol_template(instance.symbol)? else {
             return Ok(TypeSubstitution::default());
@@ -497,7 +511,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn instance_substitution_with_defaults(
         &mut self,
         module: ModuleId,
-        instance: &dir::GenericInstance,
+        instance: &dir::GenericApplication,
         receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<TypeSubstitution> {
         let mut substitution = self.instance_substitution(module, instance)?;

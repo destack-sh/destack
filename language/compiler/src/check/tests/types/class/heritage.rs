@@ -438,10 +438,10 @@ class Right extends Left {}
 /// @resolution.name source=Left target=Left
 "#,
         r#"
-/// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
-/// @diagnostic.label line=2 column=20 span="Right" line_source="class Left extends Right {}"
 /// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
 /// @diagnostic.label line=3 column=21 span="Left" line_source="class Right extends Left {}"
+/// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
+/// @diagnostic.label line=2 column=20 span="Right" line_source="class Left extends Right {}"
 "#,
     );
 }

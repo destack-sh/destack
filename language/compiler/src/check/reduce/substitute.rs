@@ -85,14 +85,14 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // bind explicit parameters and fill omitted defaults
+        // bind writable parameters and fill omitted defaults
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
             let Some(binding) = self.generic_parameter(parameter).copied() else {
                 return Ok(None);
             };
             let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
-            if is_explicit && cursor < written.len() {
+            if binding.is_writable() && cursor < written.len() {
                 substitution.parameters.push(parameter);
                 substitution.arguments.push(written[cursor]);
                 cursor += 1;
@@ -138,8 +138,7 @@ impl CheckState<'_> {
             let Some(binding) = self.generic_parameter(parameter).copied() else {
                 return Ok(None);
             };
-            let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
-            if is_explicit && cursor < written.len() {
+            if binding.is_writable() && cursor < written.len() {
                 substitution.parameters.push(parameter);
                 substitution.arguments.push(written[cursor]);
                 cursor += 1;
@@ -208,9 +207,8 @@ impl CheckState<'_> {
         parameters
             .iter()
             .filter(|parameter| {
-                self.generic_parameter(**parameter).is_some_and(|binding| {
-                    matches!(binding.origin, dir::GenericParameterOrigin::Explicit)
-                })
+                self.generic_parameter(**parameter)
+                    .is_some_and(dir::GenericParameterBinding::is_writable)
             })
             .count()
     }
@@ -352,7 +350,7 @@ impl CheckState<'_> {
             ) {
                 return Ok(true);
             }
-            if let dir::Type::Instance(instance) = ty
+            if let dir::Type::Application(instance) = ty
                 && self
                     .global
                     .language
@@ -412,7 +410,7 @@ impl CheckState<'_> {
         let ty = self.ty(id)?;
         let hit = match (ty, rule) {
             _ if matches!(rule, SubstitutionRule::Replace { from, .. } if from == id) => true,
-            (dir::Type::Instance(instance), _)
+            (dir::Type::Application(instance), _)
                 if instance.arguments.is_empty()
                     && rule.infer_capture(instance.symbol).is_some() =>
             {
@@ -443,7 +441,7 @@ impl CheckState<'_> {
             {
                 true
             }
-            (dir::Type::Instance(instance), SubstitutionRule::EraseNoInfer)
+            (dir::Type::Application(instance), SubstitutionRule::EraseNoInfer)
                 if self
                     .global
                     .language
@@ -505,7 +503,7 @@ impl CheckState<'_> {
         }
 
         // substitute one conditional-infer binder reference
-        if let dir::Type::Instance(instance) = self.ty(id)?
+        if let dir::Type::Application(instance) = self.ty(id)?
             && instance.arguments.is_empty()
             && let Some(replacement) = rule.infer_capture(instance.symbol)
         {
@@ -548,7 +546,7 @@ impl CheckState<'_> {
                 {
                     Some(unary.target)
                 }
-                dir::Type::Instance(instance)
+                dir::Type::Application(instance)
                     if self
                         .global
                         .language

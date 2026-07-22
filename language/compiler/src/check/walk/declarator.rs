@@ -60,7 +60,7 @@ impl WalkState<'_, '_> {
                     message: format!("declaration pattern {:?} has no symbol", declarator.pattern),
                 })?;
             let arguments = self.intern_type_ids(&[])?;
-            let value = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+            let value = self.intern_type(dir::Type::Application(dir::GenericApplication {
                 symbol,
                 arguments,
             }))?;

@@ -106,6 +106,34 @@ impl WalkState<'_, '_> {
         Ok(Some(template))
     }
 
+    /// Return one declaration's template, opened when its walked types induced memory holes.
+    pub(in crate::check) fn induced_owner_template(
+        &mut self,
+        owner: InducedParameterOwner,
+        template: Option<GenericTemplateId>,
+    ) -> CompilerResult<Option<GenericTemplateId>> {
+        if template.is_some() {
+            return Ok(template);
+        }
+
+        // open the template only when walked declaration types left induced holes
+        let types = self.check.generics.induced_site_types(owner.declaration);
+        let mut induced = false;
+        for ty in types {
+            if !self.check.induced_memory_variables(ty)?.is_empty() {
+                induced = true;
+                break;
+            }
+        }
+        if !induced {
+            return Ok(None);
+        }
+
+        self.check
+            .open_generic_template(owner.declaration, owner.parent, owner.symbol)
+            .map(Some)
+    }
+
     /// Push one declaration type that can contain induced memory holes.
     pub(in crate::check) fn push_induced_parameter_site(
         &mut self,
@@ -126,11 +154,7 @@ impl WalkState<'_, '_> {
 impl CheckState<'_> {
     /// Propagate induced memory variables into declaration templates.
     pub(in crate::check) fn propagate_induced_parameters(&mut self) -> CompilerResult<()> {
-        let sites = self
-            .generics
-            .induced_parameter_sites()
-            .cloned()
-            .collect::<Vec<_>>();
+        let sites = self.generics.drain_induced_parameter_sites();
 
         // collect induced parameters before mutating generic tables
         let mut parameters = FxIndexMap::default();
@@ -155,6 +179,16 @@ impl CheckState<'_> {
         parameters.sort_by_key(|(variable, _)| variable.0);
 
         for (variable, (declaration, parent, symbol, role)) in parameters {
+            // cyclic applications already froze this declaration's arity:
+            //  report once and poison the unresolvable hole
+            if let Some(reference) = self.cyclic_inductions.get(&declaration).copied() {
+                self.report_circular_lifetime_induction(declaration, reference, symbol)?;
+                let error = self.intern_type(declaration.module_id, dir::Type::Error)?;
+                self.commit_solution(variable, error)?;
+
+                continue;
+            }
+
             let template = self.open_generic_template(declaration, parent, symbol)?;
             let parameter = self.push_induced_memory_parameter(template, role)?;
             let solution =

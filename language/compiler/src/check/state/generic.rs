@@ -88,11 +88,21 @@ impl GenericIndex {
         self.induced_parameter_sites.push(site);
     }
 
-    /// Iterate induced parameter sites in component order.
-    pub(in crate::check) fn induced_parameter_sites(
+    /// Drain the induced parameter sites collected since the last propagation.
+    pub(in crate::check) fn drain_induced_parameter_sites(&mut self) -> Vec<InducedParameterSite> {
+        std::mem::take(&mut self.induced_parameter_sites)
+    }
+
+    /// Collect the site types pushed by one declaration.
+    pub(in crate::check) fn induced_site_types(
         &self,
-    ) -> impl Iterator<Item = &InducedParameterSite> + '_ {
-        self.induced_parameter_sites.iter()
+        declaration: dir::GlobalNodeIdAny,
+    ) -> Vec<dir::GlobalTypeId> {
+        self.induced_parameter_sites
+            .iter()
+            .filter(|site| site.declaration == declaration)
+            .map(|site| site.ty)
+            .collect()
     }
 }
 
@@ -519,7 +529,7 @@ impl CheckState<'_> {
                 .map(|constraint| self.ty(constraint))
                 .transpose()?
             {
-                Some(dir::Type::Instance(instance)) => self.language_item(instance.symbol)?,
+                Some(dir::Type::Application(instance)) => self.language_item(instance.symbol)?,
                 _ => None,
             };
 

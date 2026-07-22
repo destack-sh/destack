@@ -296,6 +296,11 @@ impl GenericParameterBinding {
         }
     }
 
+    /// Return whether written arguments may bind this parameter.
+    pub fn is_writable(&self) -> bool {
+        matches!(self.origin, GenericParameterOrigin::Explicit) || self.memory_parameter().is_some()
+    }
+
     /// Return the kind of an induced memory parameter.
     pub fn induced_memory_parameter(&self) -> Option<MemoryParameter> {
         match (self.origin, self.kind) {

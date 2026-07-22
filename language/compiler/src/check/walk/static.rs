@@ -317,7 +317,7 @@ impl WalkState<'_, '_> {
                     return self.bind_static_term(expression, value);
                 }
 
-                let reference = dir::Type::Instance(dir::GenericInstance {
+                let reference = dir::Type::Application(dir::GenericApplication {
                     symbol,
                     arguments: dir::TypeListId::EMPTY,
                 });

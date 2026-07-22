@@ -101,9 +101,9 @@ struct Right {
 "#,
         r#"
 /// @diagnostic.error id=circular-type message="type is circular"
-/// @diagnostic.label line=7 column=5 span="left" line_source="left: Left;"
-/// @diagnostic.error id=circular-type message="type is circular"
 /// @diagnostic.label line=3 column=5 span="right" line_source="right: Right;"
+/// @diagnostic.error id=circular-type message="type is circular"
+/// @diagnostic.label line=7 column=5 span="left" line_source="left: Left;"
 "#,
     );
 }

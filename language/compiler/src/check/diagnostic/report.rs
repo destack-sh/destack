@@ -2308,6 +2308,37 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one cyclic borrowed induction.
+    pub(in crate::check) fn report_circular_lifetime_induction(
+        &mut self,
+        declaration: dir::GlobalNodeIdAny,
+        reference: dir::GlobalNodeIdAny,
+        symbol: Option<dir::GlobalSymbolId>,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.source_anchor(declaration);
+        let source = match symbol {
+            Some(symbol) => self.format_symbol(symbol),
+            None => "this declaration".to_string(),
+        };
+        let through = match self
+            .module(reference.module_id)
+            .declaration_symbol(reference.local_id)
+        {
+            Some(symbol) => self.format_symbol(symbol),
+            None => source.clone(),
+        };
+
+        let error = CheckError::CircularLifetimeInduction {
+            anchor,
+            module,
+            source,
+            through,
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
     /// Report one non-local implementation warning.
     pub(in crate::check) fn report_non_local_implementation(
         &mut self,

@@ -267,7 +267,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let instance = self.check.declaration_instance(self.module, interface)?;
         let left = self.intern_type(dir::Type::This)?;
-        let right = self.intern_type(dir::Type::Instance(instance))?;
+        let right = self.intern_type(dir::Type::Application(instance))?;
         let predicate = dir::WherePredicate {
             source,
             relation: dir::WhereRelation::Satisfies,
@@ -312,6 +312,69 @@ impl WalkState<'_, '_> {
     /// struct User { name: string }
     /// ```
     pub(in crate::check) fn walk_declaration(
+        &mut self,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::Declaration,
+    ) -> CompilerResult<()> {
+        // each declaration walks exactly once, on demand or in root order
+        let node = id.into_global_any(self.module);
+        if !self.check.walked_declarations.insert(node) {
+            return Ok(());
+        }
+
+        self.check.walking_declarations.push(node);
+        let walked = self.walk_declaration_kind(id, declaration);
+        self.check.walking_declarations.pop();
+
+        walked
+    }
+
+    /// Walk one applied type declaration before its application builds.
+    pub(in crate::check) fn demand_symbol_declaration(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        // demand only this module's type declarations
+        if symbol.module_id != self.module || !self.check.symbol_kind(symbol).is_type_definition() {
+            return Ok(());
+        }
+        let Some(declaration) = self
+            .check
+            .module(self.module)
+            .symbol_declaration_node_maybe(symbol.local_id)
+        else {
+            return Ok(());
+        };
+        let node = declaration.into_global(self.module);
+
+        // record applications of declarations still walking their structure
+        if self.check.walking_declarations.contains(&node) {
+            let through = self
+                .check
+                .walking_declarations
+                .last()
+                .copied()
+                .unwrap_or(node);
+            self.check.cyclic_inductions.entry(node).or_insert(through);
+
+            return Ok(());
+        }
+        if self.check.walked_declarations.contains(&node) {
+            return Ok(());
+        }
+
+        // walk the demanded declaration and induce its parameters
+        let Ok(id) = declaration.try_into_typed::<dir::Declaration>() else {
+            return Ok(());
+        };
+        self.walk_declaration(id, self.tree.get(id))?;
+        self.check.propagate_induced_parameters()?;
+
+        Ok(())
+    }
+
+    /// Walk one declaration's kind-specific structure.
+    fn walk_declaration_kind(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
@@ -540,6 +603,7 @@ impl WalkState<'_, '_> {
             member_headers.push((*member, header.body));
         }
 
+        let template = self.induced_owner_template(induction, template)?;
         let definition = dir::Definition::Struct(dir::StructDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
@@ -1753,7 +1817,7 @@ impl WalkState<'_, '_> {
             arguments.push(self.intern_type(dir::Type::Parameter(parameter))?);
         }
         let arguments = self.intern_type_ids(&arguments)?;
-        let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+        let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
             symbol,
             arguments,
         }))?;
@@ -1770,10 +1834,10 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::LocalNodeId<dir::TypeExpression>,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::GenericInstance)>> {
+    ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::GenericApplication)>> {
         let global_source = source.into_global_any(self.module);
 
-        let dir::Type::Instance(instance) = self.check.ty(ty)? else {
+        let dir::Type::Application(instance) = self.check.ty(ty)? else {
             return Ok(None);
         };
 

@@ -220,6 +220,17 @@ impl CheckModuleState {
         Some(symbol.into_global(self.module.id))
     }
 
+    /// Return one source symbol's declaration node when it declares locally.
+    pub(in crate::check) fn symbol_declaration_node_maybe(
+        &self,
+        symbol: dir::LocalSymbolId,
+    ) -> Option<dir::LocalNodeIdAny> {
+        let bindings = self.binding_table();
+        let declaration = bindings.get_symbol(symbol).declaration?;
+
+        (declaration.module_id == self.module.id).then_some(declaration.local_id)
+    }
+
     /// Return one source symbol's declaration node.
     pub(in crate::check) fn symbol_declaration_node(
         &self,

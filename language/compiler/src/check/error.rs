@@ -1337,10 +1337,7 @@ pub enum CheckError {
     /// const taken = move value;
     /// value.read();
     /// ```
-    #[diagnostic(
-        id = "use-after-moved",
-        message = "'{name}' is used after being moved"
-    )]
+    #[diagnostic(id = "use-after-moved", message = "'{name}' is used after being moved")]
     UseAfterMove {
         /// Report the use.
         anchor: DiagnosticAnchor,
@@ -2540,6 +2537,27 @@ pub enum CheckError {
         module: ModuleId,
         /// The declaration whose heritage is circular.
         source: String,
+    },
+
+    /// Cyclic borrowed fields need named lifetime parameters.
+    ///
+    /// ```ds
+    /// struct Ping { pong: &readonly Pong }
+    /// struct Pong { ping: &readonly Ping }
+    /// ```
+    #[diagnostic(
+        id = "circular-lifetime-induction",
+        message = "cyclic borrowed fields between '{source}' and '{through}' need named lifetimes"
+    )]
+    CircularLifetimeInduction {
+        /// Report the declaration whose lifetimes cannot induce.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The declaration whose lifetimes cannot induce.
+        source: String,
+        /// The declaration that closes the cycle.
+        through: String,
     },
 
     /// Exported nonlocal extension has no source name.
