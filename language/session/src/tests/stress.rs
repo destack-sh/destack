@@ -449,11 +449,11 @@ export const result = value;
     assert_eq!(
         TraceCounts::from_trace(&cold_trace),
         TraceCounts {
-            artifacts: 5055,
-            built: 3196,
+            artifacts: 5037,
+            built: 3184,
             memory_cached: 0,
             store_cached: 0,
-            parked: 1859,
+            parked: 1853,
             failed: 0,
         },
     );
@@ -462,6 +462,8 @@ export const result = value;
     assert_eq!(warm, cold);
     assert_eq!(TraceCounts::from_trace(&warm_trace), TraceCounts::default());
 
+    // precise const types propagate: the importer's checked artifact
+    //  embeds the dependency value, so the value edit changes it
     test.edit_text(
         "src/dep.ds",
         r#"export const value = 2;
@@ -469,13 +471,13 @@ export const result = value;
     );
 
     let (edited, edited_trace) = test.check("src/index.ds", "js");
-    assert_eq!(edited, cold);
+    assert_ne!(edited, cold);
     assert_eq!(
         TraceCounts::from_trace(&edited_trace),
         TraceCounts {
             artifacts: 18,
-            built: 10,
-            memory_cached: 1,
+            built: 11,
+            memory_cached: 0,
             store_cached: 0,
             parked: 7,
             failed: 0,
@@ -485,6 +487,19 @@ export const result = value;
         artifact_counter(&edited_trace, "component.graph", "changed_modules"),
         Some(1),
     );
+
+    // value-preserving dependency edits cut off early: the importer's
+    //  checked artifact stays byte-identical
+    test.edit_text(
+        "src/dep.ds",
+        r#"export const value = 2;
+
+/// The dependency value.
+"#,
+    );
+
+    let (commented, _) = test.check("src/index.ds", "js");
+    assert_eq!(commented, edited);
 }
 
 #[test]
