@@ -1,30 +1,32 @@
 use destack_fir::format::{FormatError, FormatResult};
 
 use crate::{
-    BytecodeFormatContext, CodeOffset, ConstantId, Function, FunctionId, FunctionTypeId, GlobalId,
-    Symbol, SymbolTag, TypeId,
+    BytecodeFormatContext, CodeOffset, ConstantId, DynamicRelocation, FunctionId, GlobalId, Symbol,
+    SymbolTag, TypeId,
 };
 
 impl<'a> BytecodeFormatContext<'a> {
     /// Return one required relocation target in the active function.
     pub(super) fn relocation(&self, offset: CodeOffset) -> FormatResult<Symbol> {
-        let function = self.function.ok_or(FormatError::SyntaxError {
-            message: "instruction formatted outside a function",
-        })?;
-        let code = self
-            .object
-            .function(function)
-            .and_then(Function::code)
-            .ok_or(FormatError::SyntaxError {
-                message: "instruction formatted outside a function definition",
-            })?;
-        let byte_offset = code.byte_offset + offset.0;
+        let byte_offset = self.absolute_code_offset(offset)?;
 
         self.relocations
             .get(&byte_offset)
             .copied()
             .ok_or(FormatError::SyntaxError {
                 message: "bytecode object is missing an instruction relocation",
+            })
+    }
+
+    /// Return one required dynamic relocation in the active function.
+    pub(super) fn dynamic_relocation(&self, offset: CodeOffset) -> FormatResult<DynamicRelocation> {
+        let byte_offset = self.absolute_code_offset(offset)?;
+
+        self.dynamic_relocations
+            .get(&byte_offset)
+            .copied()
+            .ok_or(FormatError::SyntaxError {
+                message: "bytecode object is missing a dynamic relocation",
             })
     }
 
@@ -40,8 +42,6 @@ impl<'a> BytecodeFormatContext<'a> {
             self.object
                 .function(FunctionId(target.index))
                 .map(|function| function.name)
-        } else if target.tag == SymbolTag::FUNCTION_TYPE {
-            return self.function_type_name(FunctionTypeId(target.index));
         } else if target.tag == SymbolTag::CONSTANT {
             self.object
                 .constant(ConstantId(target.index))
@@ -54,5 +54,21 @@ impl<'a> BytecodeFormatContext<'a> {
         })?;
 
         self.string(name)
+    }
+
+    /// Return one function-relative offset in the complete code section.
+    fn absolute_code_offset(&self, offset: CodeOffset) -> FormatResult<u32> {
+        let function = self.function.ok_or(FormatError::SyntaxError {
+            message: "instruction formatted outside a function",
+        })?;
+        let code = self
+            .object
+            .function(function)
+            .and_then(|function| function.body.code())
+            .ok_or(FormatError::SyntaxError {
+                message: "instruction formatted outside a function definition",
+            })?;
+
+        Ok(code.byte_offset + offset.0)
     }
 }

@@ -5,46 +5,14 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    CodeOffset, Constant, ConstantId, ConstantRelocation, Error, FrameSlot, Function, FunctionId,
-    FunctionType, FunctionTypeId, Global, GlobalId, Instruction, InstructionRelocation,
-    Instructions, StringEntry, Type, TypeId, ValueType,
+    CodeOffset, Constant, ConstantId, ConstantRelocation, DynamicRelocation, Error, FrameSlot,
+    Function, FunctionId, Global, GlobalId, Instruction, InstructionRelocation, Instructions,
+    StringEntry, TypeId, ValueType,
 };
 
 /// Relocatable Destack bytecode for one module.
 #[derive(Clone, Debug, Reflect)]
 pub struct Object {
-    /// Stable strings sorted by content id.
-    strings: SectionSlice<StringEntry>,
-    /// Concatenated UTF-8 bytes referenced by string entries.
-    string_bytes: SectionSlice<u8>,
-
-    /// Type symbols referenced by this object.
-    types: SectionSlice<Type>,
-    /// Register calling types referenced by functions and open calls.
-    function_types: SectionSlice<FunctionType>,
-    /// Flattened function value types.
-    value_types: SectionSlice<ValueType>,
-
-    /// Global declarations and definitions.
-    globals: SectionSlice<Global>,
-    /// Immutable object constants.
-    constants: SectionSlice<Constant>,
-    /// Concatenated bytes referenced by constants.
-    constant_bytes: SectionSlice<u8>,
-
-    /// Flattened frame slots referenced by functions.
-    frame_slots: SectionSlice<FrameSlot>,
-    /// Function declarations and definitions.
-    functions: SectionSlice<Function>,
-    /// Contiguous instruction bytes for every defined function.
-    code: SectionSlice<u8>,
-    /// Relocatable operands in function instruction streams.
-    instruction_relocations: SectionSlice<InstructionRelocation>,
-    /// Relocatable operands in immutable constants.
-    constant_relocations: SectionSlice<ConstantRelocation>,
-    /// Function-relative byte offsets for logical operations.
-    operation_offsets: SectionSlice<CodeOffset>,
-
     /// Complete aligned object storage.
     storage: SectionStorage,
 }
@@ -87,7 +55,7 @@ impl std::error::Error for ObjectLoadError {}
 /// Fixed header stored at byte zero of every bytecode object.
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, SectionEntry)]
-pub(super) struct ObjectHeader {
+pub(super) struct Header {
     /// Stable object format marker.
     pub(super) magic: u32,
     /// Stable object format version.
@@ -103,9 +71,7 @@ pub(super) struct ObjectHeader {
     pub(super) string_bytes: SectionSlice<u8>,
 
     /// Type symbols referenced by this object.
-    pub(super) types: SectionSlice<Type>,
-    /// Register calling types referenced by functions and open calls.
-    pub(super) function_types: SectionSlice<FunctionType>,
+    pub(super) types: SectionSlice<StringId>,
     /// Flattened function value types.
     pub(super) value_types: SectionSlice<ValueType>,
 
@@ -124,13 +90,15 @@ pub(super) struct ObjectHeader {
     pub(super) code: SectionSlice<u8>,
     /// Relocatable operands in function instruction streams.
     pub(super) instruction_relocations: SectionSlice<InstructionRelocation>,
+    /// Dynamic dispatch relocations in function instruction streams.
+    pub(super) dynamic_relocations: SectionSlice<DynamicRelocation>,
     /// Relocatable operands in immutable constants.
     pub(super) constant_relocations: SectionSlice<ConstantRelocation>,
     /// Function-relative byte offsets for logical operations.
     pub(super) operation_offsets: SectionSlice<CodeOffset>,
 }
 
-impl ObjectHeader {
+impl Header {
     /// The stable bytecode object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSBC");
     /// The stable bytecode object version.
@@ -146,7 +114,6 @@ impl ObjectHeader {
             strings: SectionSlice::empty(),
             string_bytes: SectionSlice::empty(),
             types: SectionSlice::empty(),
-            function_types: SectionSlice::empty(),
             value_types: SectionSlice::empty(),
             globals: SectionSlice::empty(),
             constants: SectionSlice::empty(),
@@ -155,13 +122,14 @@ impl ObjectHeader {
             functions: SectionSlice::empty(),
             code: SectionSlice::empty(),
             instruction_relocations: SectionSlice::empty(),
+            dynamic_relocations: SectionSlice::empty(),
             constant_relocations: SectionSlice::empty(),
             operation_offsets: SectionSlice::empty(),
         }
     }
 
     /// Load one bytecode object directly from aligned immutable bytes.
-    fn load(bytes: &[u8]) -> Result<Self, ObjectLoadError> {
+    fn load(bytes: &[u8]) -> Result<&Self, ObjectLoadError> {
         if bytes.len() < size_of::<Self>() {
             return Err(ObjectLoadError::Truncated);
         }
@@ -184,7 +152,7 @@ impl ObjectHeader {
         // require every section descriptor to fit the mapped image
         header.check_sections()?;
 
-        Ok(*header)
+        Ok(header)
     }
 
     /// Require every typed section to fit this object image.
@@ -192,7 +160,6 @@ impl ObjectHeader {
         self.check_section(self.strings)?;
         self.check_section(self.string_bytes)?;
         self.check_section(self.types)?;
-        self.check_section(self.function_types)?;
         self.check_section(self.value_types)?;
         self.check_section(self.globals)?;
         self.check_section(self.constants)?;
@@ -201,6 +168,7 @@ impl ObjectHeader {
         self.check_section(self.functions)?;
         self.check_section(self.code)?;
         self.check_section(self.instruction_relocations)?;
+        self.check_section(self.dynamic_relocations)?;
         self.check_section(self.constant_relocations)?;
 
         self.check_section(self.operation_offsets)
@@ -228,11 +196,16 @@ impl ObjectHeader {
 }
 
 impl Object {
+    /// Retain one compiler-built object image.
+    pub(super) fn from_storage(storage: SectionStorage) -> Self {
+        Self { storage }
+    }
+
     /// Load one compiler-produced object from retained aligned storage.
     pub fn load(storage: SectionStorage) -> Result<Self, ObjectLoadError> {
-        let header = ObjectHeader::load(storage.bytes())?;
+        Header::load(storage.bytes())?;
 
-        Ok(Self::from_header(header, storage))
+        Ok(Self::from_storage(storage))
     }
 
     /// Copy and load one bytecode object.
@@ -250,14 +223,20 @@ impl Object {
         SectionImage::new(&self.storage)
     }
 
+    /// Return the fixed header at the start of this object image.
+    fn header(&self) -> &Header {
+        // SAFETY: Object constructors require a valid aligned header in retained storage.
+        unsafe { &*self.storage.bytes().as_ptr().cast::<Header>() }
+    }
+
     /// Return all stored strings.
     pub fn strings(&self) -> &[StringEntry] {
-        self.sections().entries(self.strings)
+        self.sections().entries(self.header().strings)
     }
 
     /// Return all stored string bytes.
     pub fn string_bytes(&self) -> &[u8] {
-        self.sections().entries(self.string_bytes)
+        self.sections().entries(self.header().string_bytes)
     }
 
     /// Return one stored string by its stable id.
@@ -271,33 +250,23 @@ impl Object {
     }
 
     /// Return all type symbols.
-    pub fn types(&self) -> &[Type] {
-        self.sections().entries(self.types)
+    pub fn types(&self) -> &[StringId] {
+        self.sections().entries(self.header().types)
     }
 
-    /// Return one type symbol.
-    pub fn ty(&self, ty: TypeId) -> Option<&Type> {
-        self.types().get(ty.index())
-    }
-
-    /// Return all register calling types.
-    pub fn function_types(&self) -> &[FunctionType] {
-        self.sections().entries(self.function_types)
-    }
-
-    /// Return one register calling type.
-    pub fn function_type(&self, function_type: FunctionTypeId) -> Option<&FunctionType> {
-        self.function_types().get(function_type.index())
+    /// Return one type symbol name.
+    pub fn type_name(&self, ty: TypeId) -> Option<StringId> {
+        self.types().get(ty.index()).copied()
     }
 
     /// Return all flattened function value types.
     pub fn value_types(&self) -> &[ValueType] {
-        self.sections().entries(self.value_types)
+        self.sections().entries(self.header().value_types)
     }
 
     /// Return all global declarations and definitions.
     pub fn globals(&self) -> &[Global] {
-        self.sections().entries(self.globals)
+        self.sections().entries(self.header().globals)
     }
 
     /// Return one global declaration or definition.
@@ -307,7 +276,7 @@ impl Object {
 
     /// Return all immutable constants.
     pub fn constants(&self) -> &[Constant] {
-        self.sections().entries(self.constants)
+        self.sections().entries(self.header().constants)
     }
 
     /// Return one immutable constant.
@@ -317,17 +286,17 @@ impl Object {
 
     /// Return all immutable constant bytes.
     pub fn constant_bytes(&self) -> &[u8] {
-        self.sections().entries(self.constant_bytes)
+        self.sections().entries(self.header().constant_bytes)
     }
 
     /// Return all frame slots.
     pub fn frame_slots(&self) -> &[FrameSlot] {
-        self.sections().entries(self.frame_slots)
+        self.sections().entries(self.header().frame_slots)
     }
 
     /// Return all function declarations and definitions.
     pub fn functions(&self) -> &[Function] {
-        self.sections().entries(self.functions)
+        self.sections().entries(self.header().functions)
     }
 
     /// Return one function declaration or definition.
@@ -337,7 +306,7 @@ impl Object {
 
     /// Iterate over one defined function's instructions.
     pub fn instructions(&self, function: FunctionId) -> Option<Instructions<'_>> {
-        let code = self.function(function)?.code()?;
+        let code = self.function(function)?.body.code()?;
 
         Some(code.instructions(self.code()))
     }
@@ -351,10 +320,13 @@ impl Object {
         let Some(function) = self.function(function) else {
             return Ok(None);
         };
-        let Some(code) = function.code() else {
+        let Some(code) = function.body.code() else {
             return Ok(None);
         };
-        let Some(offset) = function.operation_offset(self.operation_offsets(), operation) else {
+        let Some(offset) = function
+            .body
+            .operation_offset(self.operation_offsets(), operation)
+        else {
             return Ok(None);
         };
 
@@ -363,43 +335,28 @@ impl Object {
 
     /// Return all encoded function bytes.
     pub fn code(&self) -> &[u8] {
-        self.sections().entries(self.code)
+        self.sections().entries(self.header().code)
     }
 
     /// Return all instruction relocations.
     pub fn instruction_relocations(&self) -> &[InstructionRelocation] {
-        self.sections().entries(self.instruction_relocations)
+        self.sections()
+            .entries(self.header().instruction_relocations)
+    }
+
+    /// Return all dynamic dispatch relocations.
+    pub fn dynamic_relocations(&self) -> &[DynamicRelocation] {
+        self.sections().entries(self.header().dynamic_relocations)
     }
 
     /// Return all constant relocations.
     pub fn constant_relocations(&self) -> &[ConstantRelocation] {
-        self.sections().entries(self.constant_relocations)
+        self.sections().entries(self.header().constant_relocations)
     }
 
     /// Return function-relative logical operation offsets.
     pub fn operation_offsets(&self) -> &[CodeOffset] {
-        self.sections().entries(self.operation_offsets)
-    }
-
-    /// Build one object owner from its fixed header and retained storage.
-    pub(super) fn from_header(header: ObjectHeader, storage: SectionStorage) -> Self {
-        Self {
-            strings: header.strings,
-            string_bytes: header.string_bytes,
-            types: header.types,
-            function_types: header.function_types,
-            value_types: header.value_types,
-            globals: header.globals,
-            constants: header.constants,
-            constant_bytes: header.constant_bytes,
-            frame_slots: header.frame_slots,
-            functions: header.functions,
-            code: header.code,
-            instruction_relocations: header.instruction_relocations,
-            constant_relocations: header.constant_relocations,
-            operation_offsets: header.operation_offsets,
-            storage,
-        }
+        self.sections().entries(self.header().operation_offsets)
     }
 }
 
@@ -425,5 +382,5 @@ impl<'de> Deserialize<'de> for Object {
     }
 }
 
-const _: () = assert!(align_of::<ObjectHeader>() == 16);
-const _: () = assert!(size_of::<ObjectHeader>() == 240);
+const _: () = assert!(align_of::<Header>() == 16);
+const _: () = assert!(size_of::<Header>() == 240);

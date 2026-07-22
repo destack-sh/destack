@@ -354,7 +354,7 @@ impl InstructionFormatter<'_, '_, '_> {
         Ok(())
     }
 
-    /// Append and assign one vector result range.
+    /// Append one vector result range.
     fn vector_result(&mut self, result: (RegisterId, u16), vector: VectorType) -> FormatResult<()> {
         let ty = ValueType::vector(vector);
 

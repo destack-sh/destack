@@ -1,6 +1,8 @@
+use std::marker::PhantomData;
+
 use crate::{
     CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, ReferenceType, RegisterId,
-    RegisterRange, Result, SamplerId, ValueType,
+    RegisterRange, Result, SamplerId, Scalar, TensorOperand, TypeId, ValueType, VectorType,
 };
 
 /// One borrowed instruction in a bytecode stream.
@@ -10,6 +12,29 @@ pub struct Instruction<'a> {
     bytes: &'a [u8],
     /// The first encoded operand byte.
     operand_offset: u8,
+}
+
+/// Registers decoded directly from one counted operand list.
+#[derive(Clone, Copy, Debug)]
+pub struct Registers<'a> {
+    /// The unread register bytes.
+    bytes: &'a [u8],
+}
+
+/// Immediates decoded directly from one counted operand list.
+#[derive(Clone, Copy, Debug)]
+pub struct Immediates<'a, T> {
+    /// The unread immediate bytes.
+    bytes: &'a [u8],
+    /// The decoded immediate type.
+    marker: PhantomData<T>,
+}
+
+/// Tensor operands decoded directly from one counted operand list.
+#[derive(Clone, Copy, Debug)]
+pub struct Tensors<'a> {
+    /// The unread tensor operand bytes.
+    bytes: &'a [u8],
 }
 
 /// One encoded instruction header.
@@ -293,16 +318,10 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one counted list of register ids.
-    pub fn registers(&mut self) -> Result<Vec<RegisterId>> {
-        let count = self.u16()? as usize;
-        let mut registers = Vec::with_capacity(count);
+    pub fn registers(&mut self) -> Result<Registers<'a>> {
+        let bytes = self.list(size_of::<u16>())?;
 
-        // decode the exact register sequence
-        for _ in 0..count {
-            registers.push(self.register()?);
-        }
-
-        Ok(registers)
+        Ok(Registers { bytes })
     }
 
     /// Read one contiguous register range.
@@ -320,11 +339,47 @@ impl<'a> Operands<'a> {
         ReferenceType::from_bits(bits).ok_or(Error::InvalidOperand)
     }
 
+    /// Read one scalar representation.
+    pub fn scalar(&mut self) -> Result<Scalar> {
+        let code = self.u16()?;
+        let code = u8::try_from(code).map_err(|_| Error::InvalidOperand)?;
+
+        Scalar::from_code(code).ok_or(Error::InvalidOperand)
+    }
+
     /// Read one complete value type.
     pub fn value_type(&mut self) -> Result<ValueType> {
         let bytes = self.take::<{ ValueType::BYTE_LEN }>()?;
 
         ValueType::from_bytes(bytes).ok_or(Error::InvalidOperand)
+    }
+
+    /// Read one tensor operand.
+    pub fn tensor(&mut self) -> Result<TensorOperand> {
+        let registers = self.range()?;
+        let ty = TypeId(self.u32()?);
+
+        Ok(TensorOperand::new(registers, ty))
+    }
+
+    /// Read one counted list of tensor operands.
+    pub fn tensors(&mut self) -> Result<Tensors<'a>> {
+        let bytes = self.list(TensorOperand::BYTE_LEN)?;
+
+        Ok(Tensors { bytes })
+    }
+
+    /// Read one fixed-width vector type.
+    pub fn vector_type(&mut self) -> Result<VectorType> {
+        let bytes = self.take::<4>()?;
+        if bytes[1] != 0 {
+            return Err(Error::InvalidOperand);
+        }
+
+        let scalar = Scalar::from_code(bytes[0]).ok_or(Error::InvalidOperand)?;
+        let lane_count = u16::from_le_bytes([bytes[2], bytes[3]]);
+
+        Ok(VectorType::new(scalar, lane_count))
     }
 
     /// Read one function-local profile counter.
@@ -338,29 +393,17 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one counted list of unsigned 16-bit values.
-    pub fn u16s(&mut self) -> Result<Vec<u16>> {
-        let count = self.u16()? as usize;
-        let mut values = Vec::with_capacity(count);
+    pub fn u16s(&mut self) -> Result<Immediates<'a, u16>> {
+        let bytes = self.list(size_of::<u16>())?;
 
-        // decode the exact value sequence
-        for _ in 0..count {
-            values.push(self.u16()?);
-        }
-
-        Ok(values)
+        Ok(Immediates::new(bytes))
     }
 
     /// Read one counted list of unsigned 64-bit values.
-    pub fn u64s(&mut self) -> Result<Vec<u64>> {
-        let count = self.u16()? as usize;
-        let mut values = Vec::with_capacity(count);
+    pub fn u64s(&mut self) -> Result<Immediates<'a, u64>> {
+        let bytes = self.list(size_of::<u64>())?;
 
-        // decode the exact value sequence
-        for _ in 0..count {
-            values.push(self.u64()?);
-        }
-
-        Ok(values)
+        Ok(Immediates::new(bytes))
     }
 
     /// Read one unsigned 16-bit value.
@@ -405,7 +448,171 @@ impl<'a> Operands<'a> {
 
         Ok(bytes)
     }
+
+    /// Borrow one counted list with a fixed element width.
+    fn list(&mut self, element_byte_len: usize) -> Result<&'a [u8]> {
+        let count = self.u16()? as usize;
+        let byte_len = count * element_byte_len;
+        let Some(bytes) = self
+            .bytes
+            .get(self.byte_offset..self.byte_offset + byte_len)
+        else {
+            return Err(Error::TruncatedInstruction);
+        };
+        self.byte_offset += byte_len;
+
+        Ok(bytes)
+    }
 }
+
+impl Registers<'_> {
+    /// Return the number of unread registers.
+    pub const fn len(&self) -> usize {
+        self.bytes.len() / size_of::<u16>()
+    }
+
+    /// Return whether no registers remain.
+    pub const fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+}
+
+impl Iterator for Registers<'_> {
+    type Item = RegisterId;
+
+    /// Decode the next register id.
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytes = self.bytes.get(..size_of::<u16>())?;
+        let bits = u16::from_le_bytes([bytes[0], bytes[1]]);
+        self.bytes = &self.bytes[size_of::<u16>()..];
+
+        Some(RegisterId(bits))
+    }
+
+    /// Return the exact remaining register count.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+
+        (len, Some(len))
+    }
+}
+
+impl ExactSizeIterator for Registers<'_> {}
+
+impl Tensors<'_> {
+    /// Return the number of unread tensor operands.
+    pub const fn len(&self) -> usize {
+        self.bytes.len() / TensorOperand::BYTE_LEN
+    }
+
+    /// Return whether no tensor operands remain.
+    pub const fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+}
+
+impl Iterator for Tensors<'_> {
+    type Item = TensorOperand;
+
+    /// Decode the next tensor operand.
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytes = self.bytes.get(..TensorOperand::BYTE_LEN)?;
+        self.bytes = &self.bytes[TensorOperand::BYTE_LEN..];
+        let start = u16::from_le_bytes([bytes[0], bytes[1]]);
+        let word_count = u16::from_le_bytes([bytes[2], bytes[3]]);
+        let ty = TypeId(u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]));
+        let registers = RegisterRange::new(RegisterId(start), word_count);
+
+        Some(TensorOperand::new(registers, ty))
+    }
+
+    /// Return the exact remaining tensor operand count.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+
+        (len, Some(len))
+    }
+}
+
+impl ExactSizeIterator for Tensors<'_> {}
+
+impl<'a, T> Immediates<'a, T> {
+    /// Create one immediate iterator over exact encoded bytes.
+    const fn new(bytes: &'a [u8]) -> Self {
+        Self {
+            bytes,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl Immediates<'_, u16> {
+    /// Return the number of unread 16-bit immediates.
+    pub const fn len(&self) -> usize {
+        self.bytes.len() / size_of::<u16>()
+    }
+
+    /// Return whether no immediates remain.
+    pub const fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+}
+
+impl Iterator for Immediates<'_, u16> {
+    type Item = u16;
+
+    /// Decode the next 16-bit immediate.
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytes = self.bytes.get(..size_of::<u16>())?;
+        let value = u16::from_le_bytes([bytes[0], bytes[1]]);
+        self.bytes = &self.bytes[size_of::<u16>()..];
+
+        Some(value)
+    }
+
+    /// Return the exact remaining immediate count.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+
+        (len, Some(len))
+    }
+}
+
+impl ExactSizeIterator for Immediates<'_, u16> {}
+
+impl Immediates<'_, u64> {
+    /// Return the number of unread 64-bit immediates.
+    pub const fn len(&self) -> usize {
+        self.bytes.len() / size_of::<u64>()
+    }
+
+    /// Return whether no immediates remain.
+    pub const fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+}
+
+impl Iterator for Immediates<'_, u64> {
+    type Item = u64;
+
+    /// Decode the next 64-bit immediate.
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytes = self.bytes.get(..size_of::<u64>())?;
+        let bytes = <[u8; 8]>::try_from(bytes).ok()?;
+        self.bytes = &self.bytes[size_of::<u64>()..];
+
+        Some(u64::from_le_bytes(bytes))
+    }
+
+    /// Return the exact remaining immediate count.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+
+        (len, Some(len))
+    }
+}
+
+impl ExactSizeIterator for Immediates<'_, u64> {}
 
 /// Instructions borrowed from one complete function body.
 #[derive(Clone, Copy, Debug)]

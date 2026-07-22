@@ -1,6 +1,6 @@
 use crate::{
     InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar,
-    Token, TokenType, ValueTag, ValueType,
+    Symbol, Token, TokenType, ValueTag, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -41,6 +41,12 @@ impl Parser<'_> {
                     token.span,
                 )
             })?;
+        let element = result_type.slice_element().ok_or_else(|| {
+            ParseError::new(
+                "slice.view requires an initialized slice result",
+                token.span,
+            )
+        })?;
 
         // match the initialized slice source
         let source = self.parse_register()?;
@@ -73,6 +79,7 @@ impl Parser<'_> {
         // encode the source fat value and scalar subrange
         let mut instruction = InstructionBuilder::new(Opcode::SLICE_VIEW);
         instruction.range(RegisterRange::new(source, source_type.word_count()));
+        instruction.symbol(Symbol::ty(element.0));
         instruction.register(start);
         instruction.register(length);
 

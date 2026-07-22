@@ -25,5 +25,5 @@ export function sliceRange(
         opcodes,
         vec![Opcode::SLICE_VIEW, Opcode::SLICE_LENGTH, Opcode::RETURN]
     );
-    assert_eq!(object.functions()[0].register_count, 6);
+    assert_eq!(object.functions()[0].body.register_count, 6);
 }

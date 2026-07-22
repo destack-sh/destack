@@ -1,95 +1,106 @@
-use crate::{Error, ReferenceType, Result, ValueType};
+use crate::{Error, ReferenceType, Result, TensorOperand, ValueType};
 
 /// One encoded instruction operand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Operand {
+    // register file
     /// One result register encoded as an unsigned 16-bit index.
     Result,
-    /// One result window stored in contiguous register words.
+    /// One result range encoded as a 16-bit start and 16-bit word count.
     ResultRange,
     /// One input register encoded as an unsigned 16-bit index.
     Register,
-    /// A counted list of input registers.
-    RegisterList,
-    /// One input window stored in contiguous register words.
+    /// One input range encoded as a 16-bit start and 16-bit word count.
     RegisterRange,
+    /// A 16-bit count followed by unsigned 16-bit input register indices.
+    RegisterList,
 
-    /// One signed branch displacement from the end of the instruction.
+    // control flow
+    /// One signed 32-bit branch displacement from the end of the instruction.
     Branch,
-    /// Counted 64-bit case values paired with branch displacements.
+    /// A 16-bit count followed by 64-bit case values and 32-bit branch displacements.
     Switch,
 
-    /// One relocatable runtime type symbol.
+    // linked identities
+    /// One relocatable runtime type symbol encoded as an unsigned 32-bit index.
     Type,
-    /// One relocatable function symbol.
+    /// One relocatable function symbol encoded as an unsigned 32-bit index.
     Function,
-    /// One relocatable global symbol.
+    /// One relocatable global symbol encoded as an unsigned 32-bit index.
     Global,
-    /// One relocatable immutable constant.
+    /// One relocatable immutable constant encoded as an unsigned 32-bit index.
     Constant,
-    /// One relocatable function type.
-    FunctionType,
-    /// One function-local profile counter.
-    Counter,
-    /// One function-local profile sampler.
-    Sampler,
-    /// One function-local frame slot.
+    /// One relocatable dynamic dispatch table encoded as an unsigned 32-bit index.
+    DynamicTable,
+
+    // function-local identities
+    /// One function-local frame slot encoded as an unsigned 32-bit index.
     FrameSlot,
+    /// One function-local profile counter encoded as an unsigned 32-bit index.
+    Counter,
+    /// One function-local profile sampler encoded as an unsigned 32-bit index.
+    Sampler,
 
-    /// One scalar representation code.
+    // value representations
+    /// One scalar representation encoded as an unsigned 16-bit code.
     Scalar,
-    /// One reference ownership and memory space.
+    /// One reference kind and space encoded as two unsigned bytes.
     Reference,
-    /// One complete bytecode value type.
-    ValueType,
-    /// One operation code interpreted by the containing opcode.
-    Operator,
-    /// One atomic ordering and execution scope.
-    AtomicAccess,
-    /// One compare-exchange ordering and execution scope.
-    CompareExchangeAccess,
-    /// One fence ordering, execution scope, and storage set.
-    FenceAccess,
-    /// One fixed-width vector type.
+    /// One fixed-width vector type encoded as four bytes.
     VectorType,
+    /// One complete fixed-width bytecode value type.
+    ValueType,
+    /// One tensor register range and runtime type symbol.
+    Tensor,
+    /// A 16-bit count followed by tensor register ranges and runtime type symbols.
+    TensorList,
 
-    /// Contracting and batch axes for one tensor contraction.
+    // execution controls
+    /// One operation code interpreted by the containing opcode, encoded as 16 bits.
+    Operator,
+    /// One atomic ordering and execution scope encoded as 16 bits.
+    AtomicAccess,
+    /// One compare-exchange ordering and execution scope encoded as 16 bits.
+    CompareExchangeAccess,
+    /// One fence ordering, execution scope, and storage set encoded as 32 bits.
+    FenceAccess,
+
+    // tensor geometry
+    /// Four counted 16-bit axis lists for one tensor contraction.
     ContractionAxes,
-    /// Input, kernel, and output axes for one tensor convolution.
+    /// Three input, kernel, and output dimension mappings for one tensor convolution.
     ConvolutionAxes,
-    /// Stride, padding, dilation, and reversal for one tensor window.
+    /// Five counted 64-bit dimension lists and one 16-bit reversal list.
     Window,
-    /// Feature and batch group counts for one tensor convolution.
+    /// Feature and batch group counts encoded as two unsigned 32-bit values.
     ConvolutionGroups,
-    /// Output, collapsed, input, and index-vector axes for one tensor gather.
+    /// Three counted 16-bit axis lists and one 16-bit index-vector axis for gather.
     GatherAxes,
-    /// Update, inserted, input, and index-vector axes for one tensor scatter.
+    /// Three counted 16-bit axis lists and one 16-bit index-vector axis for scatter.
     ScatterAxes,
 
+    // immediates
     /// One unsigned 16-bit immediate.
     Unsigned16,
-    /// One counted list of unsigned 16-bit immediates.
+    /// A 16-bit count followed by unsigned 16-bit immediates.
     Unsigned16List,
     /// One unsigned 32-bit immediate.
     Unsigned32,
-    /// One counted list of unsigned 32-bit immediates.
+    /// A 16-bit count followed by unsigned 32-bit immediates.
     Unsigned32List,
     /// One signed 32-bit immediate.
     Signed32,
     /// One exact 64-bit immediate.
     Bits64,
-    /// One counted list of exact 64-bit immediates.
+    /// A 16-bit count followed by exact 64-bit immediates.
     Bits64List,
     /// One exact 128-bit immediate.
     Bits128,
 }
 
 impl Operand {
-    /// Return this operand's encoded byte length at the start of one byte slice.
-    pub fn byte_len(self, bytes: &[u8]) -> Result<usize> {
-        let mut cursor = OperandCursor::new(bytes);
-
-        // consume the exact encoded shape of this operand
+    /// Return the encoded byte length when it does not depend on operand bytes.
+    pub const fn fixed_byte_len(self) -> Option<usize> {
         match self {
             Self::Result
             | Self::Register
@@ -97,24 +108,56 @@ impl Operand {
             | Self::Operator
             | Self::AtomicAccess
             | Self::CompareExchangeAccess
-            | Self::Unsigned16 => cursor.take::<u16>()?,
-            Self::Reference => cursor.take::<ReferenceType>()?,
-            Self::ValueType => cursor.take_bytes(ValueType::BYTE_LEN)?,
-            Self::ResultRange | Self::RegisterRange => cursor.take::<[u16; 2]>()?,
+            | Self::Unsigned16 => Some(size_of::<u16>()),
+            Self::Reference => Some(size_of::<ReferenceType>()),
+            Self::ValueType => Some(ValueType::BYTE_LEN),
+            Self::ResultRange | Self::RegisterRange => Some(size_of::<[u16; 2]>()),
             Self::Branch
-            | Self::Signed32
-            | Self::Unsigned32
+            | Self::Type
+            | Self::Function
+            | Self::Global
+            | Self::Constant
+            | Self::DynamicTable
             | Self::FrameSlot
+            | Self::Counter
+            | Self::Sampler
             | Self::FenceAccess
-            | Self::VectorType => cursor.take::<u32>()?,
-            Self::ConvolutionGroups => cursor.take::<[u32; 2]>()?,
-            Self::Type | Self::Function | Self::Global | Self::Constant | Self::FunctionType => {
-                cursor.take::<u32>()?
-            }
-            Self::Counter | Self::Sampler => cursor.take::<u32>()?,
-            Self::Bits64 => cursor.take::<u64>()?,
-            Self::Bits128 => cursor.take::<u128>()?,
+            | Self::VectorType
+            | Self::Unsigned32
+            | Self::Signed32 => Some(size_of::<u32>()),
+            Self::ConvolutionGroups => Some(size_of::<[u32; 2]>()),
+            Self::Tensor => Some(TensorOperand::BYTE_LEN),
+            Self::Bits64 => Some(size_of::<u64>()),
+            Self::Bits128 => Some(size_of::<u128>()),
+            Self::RegisterList
+            | Self::Switch
+            | Self::TensorList
+            | Self::ContractionAxes
+            | Self::ConvolutionAxes
+            | Self::Window
+            | Self::GatherAxes
+            | Self::ScatterAxes
+            | Self::Unsigned16List
+            | Self::Unsigned32List
+            | Self::Bits64List => None,
+        }
+    }
+
+    /// Return this operand's encoded byte length at the start of one byte slice.
+    pub fn byte_len(self, bytes: &[u8]) -> Result<usize> {
+        let mut cursor = OperandCursor::new(bytes);
+
+        // consume fixed-width operands without interpreting their bits
+        if let Some(byte_len) = self.fixed_byte_len() {
+            cursor.take_bytes(byte_len)?;
+
+            return Ok(cursor.byte_len());
+        }
+
+        // consume the exact variable-width operand shape
+        match self {
             Self::RegisterList | Self::Unsigned16List => cursor.take_list::<u16>()?,
+            Self::TensorList => cursor.take_list_bytes(TensorOperand::BYTE_LEN)?,
             Self::Unsigned32List => cursor.take_list::<u32>()?,
             Self::Bits64List => cursor.take_list::<u64>()?,
             Self::Switch => {
@@ -143,6 +186,7 @@ impl Operand {
                 }
                 cursor.take::<u16>()?;
             }
+            _ => unreachable!("fixed-width operand handled above"),
         }
 
         Ok(cursor.byte_len())

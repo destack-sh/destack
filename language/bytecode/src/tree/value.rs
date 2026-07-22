@@ -2,7 +2,7 @@ use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FunctionTypeId, Scalar, TypeId, VectorType};
+use crate::{Scalar, TypeId, VectorType};
 
 /// The type and register word width of one bytecode value.
 #[repr(C)]
@@ -193,10 +193,12 @@ impl ValueTag {
     pub const VECTOR: Self = Self(14);
     /// One legalized logical value spanning opaque register words.
     pub const WORDS: Self = Self(15);
+    /// No runtime value or register words.
+    pub const VOID: Self = Self(16);
 
     /// Return whether this value category is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::WORDS.0
+        self.0 <= Self::VOID.0
     }
 }
 
@@ -240,13 +242,13 @@ impl ValueType {
     }
 
     /// Create one bare callable pointer value type.
-    pub const fn function_pointer(function_type: FunctionTypeId) -> Self {
-        Self::new(ValueTag::FUNCTION_POINTER, 0, 1, 0, function_type.0)
+    pub const fn function_pointer() -> Self {
+        Self::new(ValueTag::FUNCTION_POINTER, 0, 1, 0, 0)
     }
 
-    /// Create one callable value type.
-    pub const fn function(function_type: FunctionTypeId) -> Self {
-        Self::new(ValueTag::FUNCTION, 0, 2, 0, function_type.0)
+    /// Create one callable pointer and environment pair.
+    pub const fn function() -> Self {
+        Self::new(ValueTag::FUNCTION, 0, 2, 0, 0)
     }
 
     /// Create one initialized slice value type.
@@ -264,18 +266,54 @@ impl ValueType {
     }
 
     /// Create one dynamic value type.
-    pub const fn dynamic(constraint: TypeId) -> Self {
-        Self::new(ValueTag::DYNAMIC, 0, 2, 0, constraint.0)
+    pub const fn dynamic(constraint: TypeId, space: Space) -> Self {
+        Self {
+            tag: ValueTag::DYNAMIC,
+            scalar: 0,
+            reference: ReferenceType::new(ReferenceKind::MANAGED, space),
+            word_count: 2,
+            lane_count: 0,
+            symbol: constraint.0,
+        }
     }
 
     /// Create one owning tensor handle value type.
-    pub const fn tensor(scalar: Scalar, ty: TypeId) -> Self {
-        Self::new(ValueTag::TENSOR, scalar.code(), 1, 0, ty.0)
+    pub const fn tensor(scalar: Scalar, ty: TypeId, space: Space) -> Self {
+        Self {
+            tag: ValueTag::TENSOR,
+            scalar: scalar.code(),
+            reference: ReferenceType::new(ReferenceKind::MANAGED, space),
+            word_count: 1,
+            lane_count: 0,
+            symbol: ty.0,
+        }
     }
 
     /// Create one inline tensor view descriptor value type.
-    pub const fn tensor_view(scalar: Scalar, ty: TypeId) -> Self {
-        Self::new(ValueTag::TENSOR_VIEW, scalar.code(), 5, 0, ty.0)
+    pub const fn tensor_view(
+        scalar: Scalar,
+        ty: TypeId,
+        reference: ReferenceType,
+        word_count: u16,
+    ) -> Self {
+        Self {
+            tag: ValueTag::TENSOR_VIEW,
+            scalar: scalar.code(),
+            reference,
+            word_count,
+            lane_count: 0,
+            symbol: ty.0,
+        }
+    }
+
+    /// Return the register word count for one tensor view rank.
+    pub const fn tensor_view_word_count(rank: u16) -> Option<u16> {
+        let dimensions = rank.checked_mul(2);
+        let Some(dimensions) = dimensions else {
+            return None;
+        };
+
+        dimensions.checked_add(2)
     }
 
     /// Create one inline fixed-width vector value type.
@@ -292,6 +330,11 @@ impl ValueType {
     /// Create one legalized opaque register value.
     pub const fn words(word_count: u16) -> Self {
         Self::new(ValueTag::WORDS, 0, word_count, 0, 0)
+    }
+
+    /// Create the zero-width void type.
+    pub const fn void() -> Self {
+        Self::new(ValueTag::VOID, 0, 0, 0, 0)
     }
 
     /// Return the value representation category.
@@ -406,15 +449,6 @@ impl ValueType {
         self.tag.0 == ValueTag::POINTER.0
     }
 
-    /// Return the function type for a function pointer or function value.
-    pub const fn function_type(self) -> Option<FunctionTypeId> {
-        if self.tag.0 == ValueTag::FUNCTION_POINTER.0 || self.tag.0 == ValueTag::FUNCTION.0 {
-            Some(FunctionTypeId(self.symbol))
-        } else {
-            None
-        }
-    }
-
     /// Return whether this is a bare function pointer.
     pub const fn is_function_pointer(self) -> bool {
         self.tag.0 == ValueTag::FUNCTION_POINTER.0
@@ -457,6 +491,15 @@ impl ValueType {
         }
     }
 
+    /// Return the erased payload reference carried by a dynamic value.
+    pub const fn dynamic_reference(self) -> Option<ReferenceType> {
+        if self.tag.0 == ValueTag::DYNAMIC.0 {
+            Some(self.reference)
+        } else {
+            None
+        }
+    }
+
     /// Return whether this is a dynamic value.
     pub const fn is_dynamic(self) -> bool {
         self.tag.0 == ValueTag::DYNAMIC.0
@@ -480,17 +523,23 @@ impl ValueType {
         }
     }
 
-    /// Replace object-local type and function type symbols.
+    /// Return the backing reference carried by a tensor handle or view.
+    pub const fn tensor_reference(self) -> Option<ReferenceType> {
+        if self.tag.0 == ValueTag::TENSOR.0 || self.tag.0 == ValueTag::TENSOR_VIEW.0 {
+            Some(self.reference)
+        } else {
+            None
+        }
+    }
+
+    /// Replace the object-local runtime type symbol.
     pub fn map_symbols<E>(
         self,
         map_type: impl FnOnce(TypeId) -> Result<TypeId, E>,
-        map_function_type: impl FnOnce(FunctionTypeId) -> Result<FunctionTypeId, E>,
     ) -> Result<Self, E> {
         let symbol =
             if self.is_slice() || self.is_dynamic() || self.is_tensor() || self.is_tensor_view() {
                 map_type(TypeId(self.symbol))?.0
-            } else if self.is_function() || self.is_function_pointer() {
-                map_function_type(FunctionTypeId(self.symbol))?.0
             } else {
                 self.symbol
             };
@@ -510,7 +559,7 @@ impl ValueType {
 
     /// Return whether every encoded field is canonical and defined by the ISA.
     pub const fn is_defined(self) -> bool {
-        if !self.tag.is_defined() || self.word_count == 0 {
+        if !self.tag.is_defined() {
             return false;
         }
 
@@ -534,10 +583,17 @@ impl ValueType {
                     && self.symbol == 0
             }
             ValueTag::FUNCTION_POINTER => {
-                self.scalar == 0 && self.word_count == 1 && self.has_no_qualifiers_except_symbol()
+                self.scalar == 0 && self.word_count == 1 && self.has_no_qualifiers()
             }
-            ValueTag::FUNCTION | ValueTag::DYNAMIC => {
-                self.scalar == 0 && self.word_count == 2 && self.has_no_qualifiers_except_symbol()
+            ValueTag::FUNCTION => {
+                self.scalar == 0 && self.word_count == 2 && self.has_no_qualifiers()
+            }
+            ValueTag::DYNAMIC => {
+                self.scalar == 0
+                    && self.word_count == 2
+                    && self.reference.is_defined()
+                    && self.reference.kind().0 == ReferenceKind::MANAGED.0
+                    && self.lane_count == 0
             }
             ValueTag::SLICE | ValueTag::UNINIT_SLICE => {
                 self.scalar == 0
@@ -548,12 +604,15 @@ impl ValueType {
             ValueTag::TENSOR => {
                 self.tensor_scalar().is_some()
                     && self.word_count == 1
-                    && self.has_no_qualifiers_except_symbol()
+                    && self.reference.is_defined()
+                    && self.reference.kind().0 == ReferenceKind::MANAGED.0
+                    && self.lane_count == 0
             }
             ValueTag::TENSOR_VIEW => {
                 self.tensor_scalar().is_some()
-                    && self.word_count == 5
-                    && self.has_no_qualifiers_except_symbol()
+                    && self.word_count >= 2
+                    && self.reference.is_defined()
+                    && self.lane_count == 0
             }
             ValueTag::VECTOR => {
                 let Some(ty) = self.vector_type() else {
@@ -568,6 +627,7 @@ impl ValueType {
                     && self.lane_count == 0
                     && self.has_no_qualifiers()
             }
+            ValueTag::VOID => self.scalar == 0 && self.word_count == 0 && self.has_no_qualifiers(),
             _ => false,
         }
     }
@@ -652,11 +712,6 @@ impl ValueType {
     /// Return whether fields unused by an unqualified value are zero.
     const fn has_no_qualifiers(self) -> bool {
         self.reference.bits() == 0 && self.lane_count == 0 && self.symbol == 0
-    }
-
-    /// Return whether fields unused by a symbolic value are zero.
-    const fn has_no_qualifiers_except_symbol(self) -> bool {
-        self.reference.bits() == 0 && self.lane_count == 0
     }
 }
 

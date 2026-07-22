@@ -1,6 +1,7 @@
 use crate::{
-    CounterId, Error, Label, Opcode, ReferenceKind, RegisterId, RegisterRange, Result, SamplerId,
-    Scalar, Space, Symbol, ValueType, VectorType,
+    CounterId, DynamicRelocation, Error, InstructionRelocation, Label, Opcode, ReferenceKind,
+    RegisterId, RegisterRange, Result, SamplerId, Scalar, Space, Symbol, TensorOperand, TypeId,
+    ValueType, VectorType,
 };
 
 /// Encoded operands for one instruction under construction.
@@ -11,7 +12,9 @@ pub struct InstructionBuilder {
     /// Encoded operands in schema order.
     pub(crate) bytes: Vec<u8>,
     /// Symbol operands awaiting object linking.
-    pub(crate) symbols: Vec<SymbolUse>,
+    pub(crate) symbols: Vec<InstructionRelocation>,
+    /// Dynamic dispatch operands awaiting object linking.
+    pub(crate) dynamic_tables: Vec<DynamicRelocation>,
     /// Branch operands awaiting local label resolution.
     pub(crate) branches: Vec<(usize, Label)>,
     /// Individual register words read by the instruction.
@@ -24,15 +27,6 @@ pub struct InstructionBuilder {
     pub(crate) sampler_count: u32,
 }
 
-/// One symbolic operand awaiting object linking.
-#[derive(Debug)]
-pub(crate) struct SymbolUse {
-    /// The operand byte inside the encoded operand stream.
-    pub(crate) byte_offset: usize,
-    /// The object-local symbol target.
-    pub(crate) symbol: Symbol,
-}
-
 impl InstructionBuilder {
     /// Create one empty instruction builder.
     pub fn new(opcode: Opcode) -> Self {
@@ -40,6 +34,7 @@ impl InstructionBuilder {
             opcode,
             bytes: Vec::new(),
             symbols: Vec::new(),
+            dynamic_tables: Vec::new(),
             branches: Vec::new(),
             registers: Vec::new(),
             ranges: Vec::new(),
@@ -145,12 +140,18 @@ impl InstructionBuilder {
 
     /// Append one object-local symbol operand.
     pub fn symbol(&mut self, symbol: Symbol) {
-        let byte_offset = self.bytes.len();
+        let byte_offset = self.bytes.len() as u32;
         self.u32(symbol.index);
-        self.symbols.push(SymbolUse {
-            byte_offset,
-            symbol,
-        });
+        self.symbols
+            .push(InstructionRelocation::new(byte_offset, symbol));
+    }
+
+    /// Append one unresolved dynamic dispatch table operand.
+    pub fn dynamic_table(&mut self, concrete: TypeId, constraint: TypeId) {
+        let byte_offset = self.bytes.len() as u32;
+        self.u32(0);
+        self.dynamic_tables
+            .push(DynamicRelocation::new(byte_offset, concrete, constraint));
     }
 
     /// Append one unresolved branch operand.
@@ -176,6 +177,22 @@ impl InstructionBuilder {
     pub fn reference(&mut self, kind: ReferenceKind, space: Space) {
         self.bytes.push(kind.0);
         self.bytes.push(space.0);
+    }
+
+    /// Append one tensor operand.
+    pub fn tensor(&mut self, tensor: TensorOperand) {
+        self.range(tensor.registers);
+        self.symbol(Symbol::ty(tensor.ty.0));
+    }
+
+    /// Append one counted tensor operand list.
+    pub fn tensors(&mut self, tensors: &[TensorOperand]) -> Result<()> {
+        self.encode_count(tensors.len())?;
+        for tensor in tensors {
+            self.tensor(*tensor);
+        }
+
+        Ok(())
     }
 
     /// Append one complete value type operand.

@@ -27,6 +27,6 @@ export function observed(r0: uint64): void {
             Opcode::RETURN,
         ]
     );
-    assert_eq!(object.functions()[0].counter_count, 5);
-    assert_eq!(object.functions()[0].sampler_count, 8);
+    assert_eq!(object.functions()[0].body.counter_count, 5);
+    assert_eq!(object.functions()[0].body.sampler_count, 8);
 }

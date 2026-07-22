@@ -32,11 +32,6 @@ impl Symbol {
         Self::new(SymbolTag::FUNCTION, index)
     }
 
-    /// Create one function type symbol.
-    pub const fn function_type(index: u32) -> Self {
-        Self::new(SymbolTag::FUNCTION_TYPE, index)
-    }
-
     /// Create one immutable constant symbol.
     pub const fn constant(index: u32) -> Self {
         Self::new(SymbolTag::CONSTANT, index)
@@ -66,11 +61,8 @@ impl SymbolTag {
     pub const GLOBAL: Self = Self(1);
     /// A function.
     pub const FUNCTION: Self = Self(2);
-    /// A function type.
-    pub const FUNCTION_TYPE: Self = Self(3);
     /// An immutable constant.
-    pub const CONSTANT: Self = Self(4);
-
+    pub const CONSTANT: Self = Self(3);
     /// Return whether this symbol category is defined by the bytecode format.
     pub const fn is_defined(self) -> bool {
         self.0 <= Self::CONSTANT.0

@@ -1,4 +1,4 @@
-use crate::{FunctionId, Opcode, Symbol};
+use crate::{FunctionId, Opcode, TypeId};
 
 use super::TestParser;
 
@@ -10,13 +10,13 @@ fn test_parse_dynamic_operations() {
 type Constraint
 type Concrete
 
-export function dynamicValue(r0: ref<managed, space(local)>): (
-    dynamic<Constraint>,
-    ref<managed, space(local)>,
+export function dynamicValue(r0: ref<managed, space(shared)>): (
+    dynamic<Constraint, space(shared)>,
+    ref<managed, space(shared)>,
     typeId
 ) {
-    r1: dynamic<Constraint> = dynamic.bind r0: Concrete
-    r3: ref<managed, space(local)> = dynamic.payload r1
+    r1: dynamic<Constraint, space(shared)> = dynamic.bind r0: Concrete
+    r3: ref<managed, space(shared)> = dynamic.payload r1
     r4: typeId = dynamic.type r1
     return r1, r3, r4
 }
@@ -33,12 +33,9 @@ export function dynamicValue(r0: ref<managed, space(local)>): (
             Opcode::RETURN
         ]
     );
-    assert_eq!(
-        object
-            .instruction_relocations()
-            .iter()
-            .map(|relocation| relocation.symbol)
-            .collect::<Vec<_>>(),
-        vec![Symbol::ty(1), Symbol::ty(0)]
-    );
+    let [relocation] = object.dynamic_relocations() else {
+        panic!("dynamic binding should produce one relocation");
+    };
+    assert_eq!(relocation.concrete, TypeId(1));
+    assert_eq!(relocation.constraint, TypeId(0));
 }

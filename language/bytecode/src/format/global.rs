@@ -72,7 +72,8 @@ impl Global {
             .iter()
             .find(|relocation| {
                 let byte_offset = relocation.byte_offset;
-                byte_offset >= constant.bytes.start && byte_offset < constant.bytes.end()
+                byte_offset >= constant.value.bytes.start
+                    && byte_offset < constant.value.bytes.end()
             })
             .ok_or(FormatError::SyntaxError {
                 message: "anonymous global constant has no relocation",

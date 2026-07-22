@@ -1,7 +1,6 @@
 use crate::{
-    Comparison, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind,
-    RegisterId, RegisterRange, Scalar, ScalarCheck, Space, Symbol, Token, TokenType, Trap,
-    ValueType,
+    Comparison, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId,
+    RegisterRange, Scalar, ScalarCheck, Symbol, Token, TokenType, Trap, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -26,7 +25,6 @@ impl Parser<'_> {
             "unreachable" => self.parse_empty_control(Opcode::UNREACHABLE, results, function),
 
             // panic and unwind
-            "catch" => self.parse_catch(results, function),
             "panic" => self.parse_panic(results, function),
             "unwind.resume" => self.parse_empty_control(Opcode::UNWIND_RESUME, results, function),
 
@@ -151,6 +149,16 @@ impl Parser<'_> {
             .ok_or_else(|| ParseError::new("yield reads an uninitialized value", token.span))?;
         let values = RegisterRange::pack(&values, &types)
             .ok_or_else(|| ParseError::new("yield values are not contiguous", token.span))?;
+        let ty = match types.as_slice() {
+            [] => ValueType::void(),
+            [ty] => *ty,
+            _ => {
+                return Err(ParseError::new(
+                    "yield requires at most one logical value",
+                    token.span,
+                ));
+            }
+        };
 
         // parse resume and unwind destinations
         self.eat_token(TokenType::FatArrow)?;
@@ -161,6 +169,7 @@ impl Parser<'_> {
         // encode the complete suspension
         let mut instruction = InstructionBuilder::new(Opcode::YIELD);
         instruction.range(values);
+        instruction.value_type(ty);
         instruction.branch(resume_label);
         instruction.branch(unwind_label);
 
@@ -183,7 +192,7 @@ impl Parser<'_> {
         };
         if !function.values_match(&values, &function.results) {
             return Err(ParseError::new(
-                "return values do not match the function type",
+                "return values do not match the function signature",
                 token.span,
             ));
         }
@@ -219,8 +228,22 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let instruction = if self.is_register() {
+            let values = self.parse_registers()?;
+            let types = values
+                .iter()
+                .map(|value| function.value_type(*value))
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| {
+                    ParseError::new("panic reads an uninitialized value", self.empty_span())
+                })?;
+            let values = RegisterRange::pack(&values, &types).ok_or_else(|| {
+                ParseError::new("panic value is not contiguous", self.empty_span())
+            })?;
+            self.eat_token(TokenType::Colon)?;
+            let ty = self.parse_type_name()?;
             let mut instruction = InstructionBuilder::new(Opcode::PANIC_VALUE);
-            instruction.register(self.parse_register()?);
+            instruction.symbol(Symbol::ty(ty.0));
+            instruction.range(values);
 
             instruction
         } else {
@@ -228,18 +251,6 @@ impl Parser<'_> {
         };
 
         function.emit(instruction, results, &[], self.empty_span())
-    }
-
-    /// Parse one panic value capture.
-    fn parse_catch(
-        &mut self,
-        results: &[RegisterId],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let instruction = InstructionBuilder::new(Opcode::CATCH);
-        let ty = ValueType::reference(ReferenceKind::MANAGED, Space::LOCAL);
-
-        function.emit(instruction, results, &[ty], self.empty_span())
     }
 
     /// Parse one control operation without operands.

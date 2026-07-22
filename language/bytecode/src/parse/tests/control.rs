@@ -99,9 +99,10 @@ l1:
     unwind.resume
 }
 
-export function fail(): void {
-    r0: ref<managed, space(local)> = catch
-    panic r0
+type Failure
+
+export function fail(r0: ref<managed, space(local)>): void {
+    panic r0: Failure
 }
 "#,
     )
@@ -123,7 +124,7 @@ export function fail(): void {
     );
     let function = object.function(FunctionId(0)).expect("suspending function");
     assert_eq!(
-        function.resume_parameters(object.value_types()),
+        function.body.resume_parameters(object.value_types()),
         &[ValueType::scalar(Scalar::Int32)]
     );
     for (operation, opcode) in suspend.iter().copied().enumerate() {
@@ -133,5 +134,5 @@ export function fail(): void {
             .expect("operation instruction");
         assert_eq!(instruction.opcode(), opcode);
     }
-    assert_eq!(fail, vec![Opcode::CATCH, Opcode::PANIC_VALUE]);
+    assert_eq!(fail, vec![Opcode::PANIC_VALUE]);
 }

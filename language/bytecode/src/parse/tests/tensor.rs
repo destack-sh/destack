@@ -10,10 +10,10 @@ fn test_parse_tensor_operation() {
 type Matrix
 
 export function add(
-    r0: tensor<int32, Matrix>,
-    r1: tensor<int32, Matrix>,
-): tensor<int32, Matrix> {
-    r2: tensor<int32, Matrix> = int.add r0, r1
+    r0: tensor<int32, Matrix, space(local)>,
+    r1: tensor<int32, Matrix, space(local)>,
+): tensor<int32, Matrix, space(local)> {
+    r2: tensor<int32, Matrix, space(local)> = int.add r0, r1
     return r2
 }
 "#,
@@ -23,6 +23,11 @@ export function add(
         opcodes,
         vec![Opcode::tensor(TensorOperation::Element), Opcode::RETURN]
     );
-    assert_eq!(object.instruction_relocations().len(), 1);
-    assert_eq!(object.instruction_relocations()[0].symbol, Symbol::ty(0));
+    assert_eq!(object.instruction_relocations().len(), 3);
+    assert!(
+        object
+            .instruction_relocations()
+            .iter()
+            .all(|relocation| relocation.symbol == Symbol::ty(0))
+    );
 }

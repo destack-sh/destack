@@ -1,6 +1,6 @@
 use crate::{
-    CodeOffset, Error, Instruction, InstructionBuilder, InstructionRelocation, Label, Opcode,
-    Operand, RegisterId, RegisterRange, Result,
+    CodeOffset, DynamicRelocation, Error, Instruction, InstructionBuilder, InstructionRelocation,
+    Label, Opcode, Operand, RegisterId, RegisterRange, Result,
 };
 
 /// One bytecode function body under construction.
@@ -16,6 +16,8 @@ pub struct FunctionBuilder {
     branches: Vec<Branch>,
     /// The symbol operands awaiting object linking.
     relocations: Vec<InstructionRelocation>,
+    /// The dynamic dispatch operands awaiting object linking.
+    dynamic_relocations: Vec<DynamicRelocation>,
     /// The greatest register index plus one.
     register_count: u16,
     /// The greatest profile counter index plus one.
@@ -33,6 +35,8 @@ pub struct FunctionBody {
     pub operation_offsets: Vec<CodeOffset>,
     /// The symbol operands awaiting object linking.
     pub relocations: Vec<InstructionRelocation>,
+    /// The dynamic dispatch operands awaiting object linking.
+    pub dynamic_relocations: Vec<DynamicRelocation>,
     /// The number of 64-bit words in the register file.
     pub register_count: u16,
     /// The number of function-local profile counters.
@@ -86,10 +90,10 @@ impl FunctionBuilder {
 
         // include every physical register touched by the instruction
         for range in definitions.iter().chain(&instruction.ranges) {
-            self.include_range(*range);
+            self.include_range(*range)?;
         }
         for register in &instruction.registers {
-            self.include(*register);
+            self.include(*register)?;
         }
         self.counter_count = self.counter_count.max(instruction.counter_count);
         self.sampler_count = self.sampler_count.max(instruction.sampler_count);
@@ -104,9 +108,14 @@ impl FunctionBuilder {
 
         // retain symbolic operands for object linking
         for symbol in instruction.symbols {
-            let byte_offset = (operand_base + result_byte_len + symbol.byte_offset) as u32;
-            self.relocations
-                .push(InstructionRelocation::new(byte_offset, symbol.symbol));
+            let byte_offset = (operand_base + result_byte_len) as u32;
+            self.relocations.push(symbol.rebase(byte_offset));
+        }
+
+        // retain dynamic dispatch operands for object linking
+        for table in instruction.dynamic_tables {
+            let byte_offset = (operand_base + result_byte_len) as u32;
+            self.dynamic_relocations.push(table.rebase(byte_offset));
         }
 
         // retain branch labels for displacement resolution
@@ -129,6 +138,7 @@ impl FunctionBuilder {
             code: self.code,
             operation_offsets: self.operation_offsets,
             relocations: self.relocations,
+            dynamic_relocations: self.dynamic_relocations,
             register_count: self.register_count,
             counter_count: self.counter_count,
             sampler_count: self.sampler_count,
@@ -141,8 +151,8 @@ impl FunctionBuilder {
     }
 
     /// Reserve one contiguous register range in the function register file.
-    pub fn reserve(&mut self, range: RegisterRange) {
-        self.include_range(range);
+    pub fn reserve(&mut self, range: RegisterRange) -> Result<()> {
+        self.include_range(range)
     }
 
     /// Encode destination operands from one opcode layout.
@@ -159,6 +169,16 @@ impl FunctionBuilder {
 
         // encode each declared destination in layout order
         for (operand_index, operand) in result_operands.iter().enumerate() {
+            let is_final_operand = operand_index + 1 == result_operands.len();
+            if *operand == Operand::ResultRange
+                && is_final_operand
+                && definition_index == definitions.len()
+            {
+                bytes.extend_from_slice(&0u16.to_le_bytes());
+                bytes.extend_from_slice(&0u16.to_le_bytes());
+
+                continue;
+            }
             let Some(definition) = definitions.get(definition_index) else {
                 return Err(Error::InvalidResults);
             };
@@ -168,7 +188,6 @@ impl FunctionBuilder {
 
             bytes.extend_from_slice(&definition.start.0.to_le_bytes());
             if *operand == Operand::ResultRange {
-                let is_final_operand = operand_index + 1 == result_operands.len();
                 let word_count = if is_final_operand {
                     Self::packed_word_count(&definitions[definition_index..])?
                 } else {
@@ -211,18 +230,26 @@ impl FunctionBuilder {
     }
 
     /// Include one register in this function's fixed register file.
-    fn include(&mut self, register: RegisterId) {
-        self.register_count = self.register_count.max(register.0 + 1);
+    fn include(&mut self, register: RegisterId) -> Result<()> {
+        let register_count = u32::from(register.0) + 1;
+        let register_count = u16::try_from(register_count)
+            .map_err(|_| Error::RegisterFileTooLarge(register_count))?;
+        self.register_count = self.register_count.max(register_count);
+
+        Ok(())
     }
 
     /// Include every register in one contiguous range.
-    fn include_range(&mut self, range: RegisterRange) {
+    fn include_range(&mut self, range: RegisterRange) -> Result<()> {
         if range.word_count == 0 {
-            return;
+            return Ok(());
         }
 
-        let last = RegisterId(range.start.0 + range.word_count - 1);
-        self.include(last);
+        let end = u32::from(range.start.0) + u32::from(range.word_count);
+        let register_count = u16::try_from(end).map_err(|_| Error::RegisterFileTooLarge(end))?;
+        self.register_count = self.register_count.max(register_count);
+
+        Ok(())
     }
 
     /// Resolve branch labels into signed end-relative displacements.

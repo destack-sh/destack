@@ -1,7 +1,4 @@
-use crate::{
-    ConstantId, FunctionId, FunctionTypeId, GlobalId, GlobalLocation, Linkage, Scalar, TypeId,
-    ValueType,
-};
+use crate::{ConstantId, FunctionId, GlobalId, GlobalLocation, Linkage, TypeId};
 
 use super::TestParser;
 
@@ -11,7 +8,6 @@ fn test_parse_object_declarations() {
     let object = TestParser::new(
         r#"
 type User
-type Consumer = (int32) => void
 
 constant defaultUser, align(8) = bytes(1, 2, 3, 4)
 constant alignedUser, align(8) = bytes(5, 6)
@@ -21,26 +17,18 @@ external function consume(int32): void
 "#,
     )
     .parse();
-    // type and callable declarations
+    // type declarations
     assert_eq!(object.types().len(), 1);
-    assert_eq!(object.string(object.types()[0].name), Some("User"));
-    assert_eq!(object.function_types().len(), 1);
-    assert_eq!(
-        object
-            .function_type(FunctionTypeId(0))
-            .expect("function type")
-            .parameters(object.value_types()),
-        &[ValueType::scalar(Scalar::Int32)]
-    );
+    assert_eq!(object.string(object.types()[0]), Some("User"));
 
     // constant and global definitions
     assert_eq!(object.constants().len(), 2);
-    assert_eq!(object.constants()[0].alignment_bytes, 8);
+    assert_eq!(object.constants()[0].value.alignment_bytes, 8);
     assert_eq!(
         object.constants()[0].bytes(object.constant_bytes()),
         &[1, 2, 3, 4]
     );
-    assert_eq!(object.constants()[1].bytes.start, 8);
+    assert_eq!(object.constants()[1].value.bytes.start, 8);
     assert_eq!(
         object.constants()[1].bytes(object.constant_bytes()),
         &[5, 6]
@@ -57,5 +45,5 @@ external function consume(int32): void
     let function = object.function(FunctionId(0)).expect("function");
     assert_eq!(object.string(function.name), Some("consume"));
     assert_eq!(function.linkage, Linkage::EXTERNAL);
-    assert!(function.code().is_none());
+    assert!(function.body.code().is_none());
 }

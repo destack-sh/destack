@@ -2,26 +2,24 @@ use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Constant, Error, FrameSlot, Function, FunctionType, Instruction, Instructions, ValueType,
-};
+use crate::{Body, ConstantValue, Error, FrameSlot, Instruction, Instructions, ValueType};
 
 /// Linked executable bytecode stored in Program sections.
 #[repr(C, align(8))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct Code {
-    /// Register calling types referenced by linked functions.
-    function_types: SectionSlice<FunctionType>,
     /// Flattened function value types.
     value_types: SectionSlice<ValueType>,
     /// Flattened frame slots.
     frame_slots: SectionSlice<FrameSlot>,
     /// Linked immutable byte sequences.
-    constants: SectionSlice<Constant>,
+    constants: SectionSlice<ConstantValue>,
     /// Concatenated linked constant bytes.
     constant_bytes: SectionSlice<u8>,
-    /// Linked bytecode functions in Program function order.
-    functions: SectionSlice<Function>,
+    /// Linked bytecode bodies in Program function order.
+    bodies: SectionSlice<Body>,
     /// Contiguous code bytes for every linked function.
     code: SectionSlice<u8>,
     /// Function-relative byte offsets for logical operations.
@@ -29,11 +27,6 @@ pub struct Code {
 }
 
 impl Code {
-    /// Return all linked register calling types.
-    pub fn function_types<'a>(&self, sections: SectionImage<'a>) -> &'a [FunctionType] {
-        sections.entries(self.function_types)
-    }
-
     /// Return all linked function value types.
     pub fn value_types<'a>(&self, sections: SectionImage<'a>) -> &'a [ValueType] {
         sections.entries(self.value_types)
@@ -45,7 +38,7 @@ impl Code {
     }
 
     /// Return all linked immutable byte sequences.
-    pub fn constants<'a>(&self, sections: SectionImage<'a>) -> &'a [Constant] {
+    pub fn constants<'a>(&self, sections: SectionImage<'a>) -> &'a [ConstantValue] {
         sections.entries(self.constants)
     }
 
@@ -54,9 +47,9 @@ impl Code {
         sections.entries(self.constant_bytes)
     }
 
-    /// Return all linked bytecode functions.
-    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [Function] {
-        sections.entries(self.functions)
+    /// Return all linked bytecode bodies.
+    pub fn bodies<'a>(&self, sections: SectionImage<'a>) -> &'a [Body] {
+        sections.entries(self.bodies)
     }
 
     /// Return the contiguous linked instruction bytes.
@@ -64,13 +57,9 @@ impl Code {
         sections.entries(self.code)
     }
 
-    /// Return one linked bytecode function by its Program table index.
-    pub fn function<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        function_index: usize,
-    ) -> Option<&'a Function> {
-        self.functions(sections).get(function_index)
+    /// Return one linked bytecode body by its Program function index.
+    pub fn body<'a>(&self, sections: SectionImage<'a>, function_index: usize) -> Option<&'a Body> {
+        self.bodies(sections).get(function_index)
     }
 
     /// Iterate one linked function's instructions by its Program table index.
@@ -79,8 +68,8 @@ impl Code {
         sections: SectionImage<'a>,
         function_index: usize,
     ) -> Option<Instructions<'a>> {
-        let function = self.function(sections, function_index)?;
-        let code = function.code()?;
+        let body = self.body(sections, function_index)?;
+        let code = body.code()?;
 
         Some(code.instructions(self.bytes(sections)))
     }
@@ -92,14 +81,14 @@ impl Code {
         function_index: usize,
         operation: u32,
     ) -> Result<Option<Instruction<'a>>, Error> {
-        let Some(function) = self.function(sections, function_index) else {
+        let Some(body) = self.body(sections, function_index) else {
             return Ok(None);
         };
-        let Some(code) = function.code() else {
+        let Some(code) = body.code() else {
             return Ok(None);
         };
         let Some(offset) =
-            function.operation_offset(sections.entries(self.operation_offsets), operation)
+            body.operation_offset(sections.entries(self.operation_offsets), operation)
         else {
             return Ok(None);
         };
@@ -114,8 +103,8 @@ impl Code {
         function_index: usize,
         offset: CodeOffset,
     ) -> Option<u32> {
-        let function = self.function(sections, function_index)?;
-        let offsets = function.operation_offsets(sections.entries(self.operation_offsets));
+        let body = self.body(sections, function_index)?;
+        let offsets = body.operation_offsets(sections.entries(self.operation_offsets));
         let operation = offsets.binary_search(&offset).ok()?;
 
         u32::try_from(operation).ok()
@@ -128,27 +117,25 @@ impl Code {
         function_index: usize,
         operation: u32,
     ) -> Option<CodeOffset> {
-        let function = self.function(sections, function_index)?;
+        let body = self.body(sections, function_index)?;
 
-        function.operation_offset(sections.entries(self.operation_offsets), operation)
+        body.operation_offset(sections.entries(self.operation_offsets), operation)
     }
 }
 
 /// Linked bytecode under construction.
 #[derive(Clone, Debug, Default)]
 pub struct CodeBuilder {
-    /// Linked register calling types.
-    function_types: Vec<FunctionType>,
     /// Flattened function value types.
     value_types: Vec<ValueType>,
     /// Flattened frame slots.
     frame_slots: Vec<FrameSlot>,
     /// Linked immutable byte sequences.
-    constants: Vec<Constant>,
+    constants: Vec<ConstantValue>,
     /// Concatenated linked constant bytes.
     constant_bytes: Vec<u8>,
-    /// Linked functions in Program function order.
-    functions: Vec<Function>,
+    /// Linked bodies in Program function order.
+    bodies: Vec<Body>,
     /// Encoded function bytes.
     code: Vec<u8>,
     /// Function-relative byte offsets for logical operations.
@@ -159,13 +146,6 @@ impl CodeBuilder {
     /// Create an empty linked bytecode builder.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Set linked function types.
-    pub fn function_types(mut self, entries: impl IntoIterator<Item = FunctionType>) -> Self {
-        self.function_types = entries.into_iter().collect();
-
-        self
     }
 
     /// Set flattened function value types.
@@ -183,7 +163,7 @@ impl CodeBuilder {
     }
 
     /// Set linked immutable byte sequences.
-    pub fn constants(mut self, entries: impl IntoIterator<Item = Constant>) -> Self {
+    pub fn constants(mut self, entries: impl IntoIterator<Item = ConstantValue>) -> Self {
         self.constants = entries.into_iter().collect();
 
         self
@@ -196,9 +176,9 @@ impl CodeBuilder {
         self
     }
 
-    /// Set linked functions in Program function order.
-    pub fn functions(mut self, entries: impl IntoIterator<Item = Function>) -> Self {
-        self.functions = entries.into_iter().collect();
+    /// Set linked bodies in Program function order.
+    pub fn bodies(mut self, entries: impl IntoIterator<Item = Body>) -> Self {
+        self.bodies = entries.into_iter().collect();
 
         self
     }
@@ -219,22 +199,20 @@ impl CodeBuilder {
 
     /// Build linked executable bytecode in Program sections.
     pub fn build(self, sections: &mut SectionBuilder) -> Code {
-        let function_types = sections.insert(self.function_types);
         let value_types = sections.insert(self.value_types);
         let frame_slots = sections.insert(self.frame_slots);
         let constants = sections.insert(self.constants);
         let constant_bytes = sections.insert(self.constant_bytes);
-        let functions = sections.insert(self.functions);
+        let bodies = sections.insert(self.bodies);
         let code = sections.insert(self.code);
         let operation_offsets = sections.insert(self.operation_offsets);
 
         Code {
-            function_types,
             value_types,
             frame_slots,
             constants,
             constant_bytes,
-            functions,
+            bodies,
             code,
             operation_offsets,
         }
@@ -302,6 +280,6 @@ impl CodeOffset {
     }
 }
 
-const _: () = assert!(size_of::<Code>() == 128);
+const _: () = assert!(size_of::<Code>() == 112);
 const _: () = assert!(size_of::<CodeRange>() == 8);
 const _: () = assert!(size_of::<CodeOffset>() == 4);

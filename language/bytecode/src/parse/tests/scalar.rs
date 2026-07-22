@@ -100,7 +100,7 @@ export function addWide(r0: int128, r2: int128): int128 {
             Opcode::RETURN
         ]
     );
-    assert_eq!(object.functions()[0].register_count, 6);
+    assert_eq!(object.functions()[0].body.register_count, 6);
 }
 
 /// Parse decimal exponents and round narrow literals using ties-to-even.

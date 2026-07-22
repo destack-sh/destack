@@ -18,8 +18,8 @@ impl Constant {
         write!(formatter, [token("constant"), space(), copied_text(&name)])?;
 
         // write non-default alignment explicitly
-        if self.alignment_bytes != 1 {
-            let alignment = self.alignment_bytes.to_string();
+        if self.value.alignment_bytes != 1 {
+            let alignment = self.value.alignment_bytes.to_string();
             write!(
                 formatter,
                 [

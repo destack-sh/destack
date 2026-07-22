@@ -9,30 +9,10 @@ impl<'a> Format<'a, BytecodeFormatContext<'a>> for Object {
         let mut is_first = true;
 
         // write runtime type symbols
-        for ty in self.types() {
+        for name in self.types() {
             Self::separate(&mut is_first, formatter)?;
-            ty.format(formatter)?;
-        }
-
-        // write named function types
-        for function_type in self.function_types() {
-            let Some(name) = function_type.name.get() else {
-                continue;
-            };
-            Self::separate(&mut is_first, formatter)?;
-            let name = formatter.context().string(name)?;
-            write!(
-                formatter,
-                [
-                    token("type"),
-                    space(),
-                    copied_text(name),
-                    space(),
-                    token("="),
-                    space(),
-                    format_with(|formatter| function_type.format_types(formatter))
-                ]
-            )?;
+            let name = formatter.context().string(*name)?;
+            write!(formatter, [token("type"), space(), copied_text(name)])?;
         }
 
         // write named immutable constants

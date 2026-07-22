@@ -22,7 +22,7 @@ export function add(
         opcodes,
         vec![Opcode::vector(VectorOperation::Element), Opcode::RETURN]
     );
-    assert_eq!(object.functions()[0].register_count, 6);
+    assert_eq!(object.functions()[0].body.register_count, 6);
 }
 
 /// Parse vector memory operations into their exact opcodes.

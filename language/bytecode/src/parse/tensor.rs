@@ -1,7 +1,7 @@
 use crate::{
     ConvertMode, FloatOperation, IndexReduceOperation, InstructionBuilder, IntegerOperation,
-    Opcode, ParseError, ParseResult, Parser, ReduceOperation, RegisterId, RegisterRange, Scalar,
-    ScatterOperation, Symbol, TensorOperation, TieBreak, Token, TokenType, ValueType,
+    Opcode, ParseError, ParseResult, Parser, ReduceOperation, RegisterId, Scalar, ScatterOperation,
+    Symbol, TensorOperation, TieBreak, Token, TokenType, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -9,10 +9,6 @@ use super::function::FunctionParser;
 /// Logical tensor operands collected while one instruction is parsed.
 #[derive(Debug, Default)]
 struct TensorOperands {
-    /// Registers that must contain tensor values.
-    tensors: Vec<RegisterId>,
-    /// Registers that must contain tensor views.
-    views: Vec<RegisterId>,
     /// Registers with one exact required value type.
     typed: Vec<(RegisterId, ValueType)>,
     /// Tensor registers that must share one runtime tensor type.
@@ -20,18 +16,8 @@ struct TensorOperands {
 }
 
 impl TensorOperands {
-    /// Return whether every collected operand matches its tensor role.
+    /// Return whether every collected operand matches its required type.
     fn matches(&self, function: &FunctionParser) -> bool {
-        let are_tensors_valid = self.tensors.iter().all(|register| {
-            function
-                .value_type(*register)
-                .is_some_and(ValueType::is_tensor)
-        });
-        let are_views_valid = self.views.iter().all(|register| {
-            function
-                .value_type(*register)
-                .is_some_and(ValueType::is_tensor_view)
-        });
         let are_typed_values_valid = self
             .typed
             .iter()
@@ -47,7 +33,7 @@ impl TensorOperands {
             .iter()
             .all(|register| function.value_type(*register) == expected_type);
 
-        are_tensors_valid && are_views_valid && are_typed_values_valid && are_types_equal
+        are_typed_values_valid && are_types_equal
     }
 
     /// Return the common tensor value type when one was collected.
@@ -92,43 +78,51 @@ impl Parser<'_> {
                 &mut operands,
             )?,
             TensorOperation::Transpose | TensorOperation::Broadcast => {
-                self.parse_tensor_reorder(operation, &mut instruction, &mut operands)?
+                self.parse_tensor_reorder(operation, token, function, &mut instruction)?
             }
             TensorOperation::Reshape => {
-                self.parse_tensor_reshape(&mut instruction, &mut operands)?
+                self.parse_tensor_reshape(token, function, &mut instruction, &mut operands)?
             }
-            TensorOperation::Slice => self.parse_tensor_slice(&mut instruction, &mut operands)?,
-            TensorOperation::Pad => {
-                self.parse_tensor_pad(token, result_scalar, &mut instruction, &mut operands)?
+            TensorOperation::Slice => {
+                self.parse_tensor_slice(token, function, &mut instruction, &mut operands)?
             }
-            TensorOperation::Concat => {
-                self.parse_tensor_concat(token, &mut instruction, &mut operands)?
-            }
-            TensorOperation::Splat => {
-                self.parse_tensor_splat(token, result_scalar, &mut instruction, &mut operands)?
-            }
-            TensorOperation::Convert => self.parse_tensor_convert(
+            TensorOperation::Pad => self.parse_tensor_pad(
                 token,
                 result_scalar,
                 function,
                 &mut instruction,
                 &mut operands,
             )?,
+            TensorOperation::Concat => {
+                self.parse_tensor_concat(token, function, &mut instruction)?
+            }
+            TensorOperation::Splat => {
+                self.parse_tensor_splat(token, result_scalar, &mut instruction, &mut operands)?
+            }
+            TensorOperation::Convert => {
+                self.parse_tensor_convert(token, result_scalar, function, &mut instruction)?
+            }
             TensorOperation::Bitcast => {
-                self.parse_tensor_bitcast(&mut instruction, &mut operands)?
+                self.parse_tensor_bitcast(token, function, &mut instruction)?
             }
-            TensorOperation::Reduce => {
-                self.parse_tensor_reduce(token, result_scalar, &mut instruction, &mut operands)?
-            }
+            TensorOperation::Reduce => self.parse_tensor_reduce(
+                token,
+                result_scalar,
+                function,
+                &mut instruction,
+                &mut operands,
+            )?,
             TensorOperation::IndexReduce => {
-                self.parse_tensor_index_reduce(token, function, &mut instruction, &mut operands)?
+                self.parse_tensor_index_reduce(token, function, &mut instruction)?
             }
             TensorOperation::Contract => {
-                self.parse_tensor_contract(token, result_scalar, &mut instruction, &mut operands)?
+                self.parse_tensor_contract(token, result_scalar, function, &mut instruction)?
             }
-            TensorOperation::Gather => self.parse_tensor_gather(&mut instruction, &mut operands)?,
+            TensorOperation::Gather => {
+                self.parse_tensor_gather(token, function, &mut instruction)?
+            }
             TensorOperation::Scatter => {
-                self.parse_tensor_scatter(token, result_scalar, &mut instruction, &mut operands)?
+                self.parse_tensor_scatter(token, result_scalar, function, &mut instruction)?
             }
             TensorOperation::Load | TensorOperation::Extract => self.parse_tensor_load(
                 operation,
@@ -157,8 +151,7 @@ impl Parser<'_> {
             TensorOperation::Convolution => {
                 let scalar = result_scalar
                     .ok_or_else(|| ParseError::new("expected tensor result type", token.span))?;
-                let inputs = self.parse_tensor_convolution(&mut instruction, scalar)?;
-                operands.tensors.extend(inputs);
+                self.parse_tensor_convolution(token, function, &mut instruction, scalar)?;
             }
         }
 
@@ -192,7 +185,6 @@ impl Parser<'_> {
             ));
         }
         let matching_type = operands.common_type(function);
-
         // attach runtime identity to every tensor-producing operation
         let is_tensor_result = !matches!(
             operation,
@@ -213,7 +205,11 @@ impl Parser<'_> {
             let scalar = result_type.tensor_scalar().ok_or_else(|| {
                 ParseError::new("tensor result has no scalar representation", token.span)
             })?;
+            let reference = result_type.tensor_reference().ok_or_else(|| {
+                ParseError::new("tensor result has no backing reference", token.span)
+            })?;
             instruction.scalar(scalar);
+            instruction.reference(reference.kind(), reference.space());
             instruction.symbol(Symbol::ty(target.0));
 
             Some(target)
@@ -241,6 +237,12 @@ impl Parser<'_> {
         }
         let result_type = result_type
             .ok_or_else(|| ParseError::new("expected instruction result", token.span))?;
+        if matches!(operation, TensorOperation::Load | TensorOperation::Extract) {
+            let scalar = result_type
+                .scalar_type()
+                .ok_or_else(|| ParseError::new("expected scalar result type", token.span))?;
+            instruction.scalar(scalar);
+        }
 
         function.emit(instruction, results, &[result_type], self.empty_span())
     }
@@ -310,11 +312,18 @@ impl Parser<'_> {
                 .ok_or_else(|| ParseError::new("expected tensor result type", token.span))?
         };
         let operator = self.resolve_tensor_operator(&operator_name, scalar, token)?;
+        let tensors = inputs
+            .iter()
+            .map(|register| {
+                function
+                    .owning_tensor(*register)
+                    .ok_or_else(|| ParseError::new("expected tensor input", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
         instruction
-            .registers(&inputs)
+            .tensors(&tensors)
             .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         operands.same_type.extend(inputs.iter().copied());
-        operands.tensors.extend(inputs);
         instruction.scalar(scalar);
         instruction.u16(operator);
 
@@ -342,14 +351,21 @@ impl Parser<'_> {
         }
 
         // read the mask and two selected tensor values
-        instruction.register(condition);
         self.eat_token(TokenType::Comma)?;
         let left = self.parse_register()?;
-        instruction.register(left);
         self.eat_token(TokenType::Comma)?;
         let right = self.parse_register()?;
-        instruction.register(right);
-        operands.tensors.extend([condition, left, right]);
+        let tensors = [condition, left, right]
+            .into_iter()
+            .map(|register| {
+                function
+                    .owning_tensor(register)
+                    .ok_or_else(|| ParseError::new("expected tensor input", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
+        instruction
+            .tensors(&tensors)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         operands.same_type.extend([left, right]);
 
         // encode the selected element representation
@@ -365,6 +381,7 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         result_scalar: Option<Scalar>,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
@@ -375,8 +392,10 @@ impl Parser<'_> {
         // parse the input and initialized accumulator
         self.eat_token(TokenType::Comma)?;
         let input = self.parse_register()?;
-        instruction.register(input);
-        operands.tensors.push(input);
+        let tensor = function
+            .owning_tensor(input)
+            .ok_or_else(|| ParseError::new("expected tensor input", token.span))?;
+        instruction.tensor(tensor);
         self.eat_token(TokenType::Comma)?;
         let initial = self.parse_register()?;
         instruction.register(initial);
@@ -398,7 +417,6 @@ impl Parser<'_> {
         token: Token,
         function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
         let reduction = self.eat_token(TokenType::Identifier)?;
         let reduction = IndexReduceOperation::from_name(self.text(reduction))
@@ -407,8 +425,10 @@ impl Parser<'_> {
         // parse the tensor input and representation
         self.eat_token(TokenType::Comma)?;
         let input = self.parse_register()?;
-        instruction.register(input);
-        operands.tensors.push(input);
+        let tensor = function
+            .owning_tensor(input)
+            .ok_or_else(|| ParseError::new("expected tensor input", token.span))?;
+        instruction.tensor(tensor);
         let scalar = function
             .value_type(input)
             .and_then(ValueType::tensor_scalar)
@@ -441,11 +461,11 @@ impl Parser<'_> {
     fn parse_tensor_reorder(
         &mut self,
         operation: TensorOperation,
+        token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let input = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(input);
+        self.parse_tensor_input(token, function, instruction)?;
         let name = if operation == TensorOperation::Transpose {
             "permutation"
         } else {
@@ -459,11 +479,12 @@ impl Parser<'_> {
     /// Parse one tensor reshape.
     fn parse_tensor_reshape(
         &mut self,
+        token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let input = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(input);
+        self.parse_tensor_input(token, function, instruction)?;
 
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_named_registers("shape", instruction)?;
@@ -479,11 +500,12 @@ impl Parser<'_> {
     /// Parse one strided tensor slice.
     fn parse_tensor_slice(
         &mut self,
+        token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let input = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(input);
+        self.parse_tensor_input(token, function, instruction)?;
 
         // parse each dynamic slice component
         for name in ["offsets", "sizes", "strides"] {
@@ -504,11 +526,11 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         result_scalar: Option<Scalar>,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let input = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(input);
+        self.parse_tensor_input(token, function, instruction)?;
 
         // parse the padding value
         self.eat_token(TokenType::Comma)?;
@@ -540,17 +562,39 @@ impl Parser<'_> {
     fn parse_tensor_concat(
         &mut self,
         token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let inputs = self.parse_named_registers("tensors", instruction)?;
+        self.eat_name("tensors")?;
+        self.eat_token(TokenType::OpenParenthesis)?;
+        let mut inputs = Vec::new();
+
+        // parse tensor registers until the list closes
+        while !self.eat_token_if(TokenType::CloseParenthesis) {
+            inputs.push(self.parse_register()?);
+            if !self.eat_token_if(TokenType::Comma) {
+                self.eat_token(TokenType::CloseParenthesis)?;
+
+                break;
+            }
+        }
         if inputs.is_empty() {
             return Err(ParseError::new(
                 "tensor concatenation requires at least one input",
                 token.span,
             ));
         }
-        operands.tensors.extend(inputs);
+        let tensors = inputs
+            .iter()
+            .map(|register| {
+                function
+                    .owning_tensor(*register)
+                    .ok_or_else(|| ParseError::new("expected tensor input", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
+        instruction
+            .tensors(&tensors)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
 
         // parse the concatenation axis
         self.eat_token(TokenType::Comma)?;
@@ -571,7 +615,8 @@ impl Parser<'_> {
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let value = self.parse_tensor_input(instruction)?;
+        let value = self.parse_register()?;
+        instruction.register(value);
         let scalar = result_scalar
             .ok_or_else(|| ParseError::new("expected tensor result type", token.span))?;
         instruction.scalar(scalar);
@@ -587,7 +632,6 @@ impl Parser<'_> {
         result_scalar: Option<Scalar>,
         function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
         let mode = self.eat_token(TokenType::Identifier)?;
         let mode = ConvertMode::from_name(self.text(mode))
@@ -596,8 +640,10 @@ impl Parser<'_> {
         // parse the source tensor representation
         self.eat_token(TokenType::Comma)?;
         let input = self.parse_register()?;
-        instruction.register(input);
-        operands.tensors.push(input);
+        let tensor = function
+            .owning_tensor(input)
+            .ok_or_else(|| ParseError::new("expected tensor input", token.span))?;
+        instruction.tensor(tensor);
         let source = function
             .value_type(input)
             .and_then(ValueType::tensor_scalar)
@@ -616,11 +662,11 @@ impl Parser<'_> {
     /// Parse one tensor bitcast.
     fn parse_tensor_bitcast(
         &mut self,
+        token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let input = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(input);
+        self.parse_tensor_input(token, function, instruction)?;
 
         Ok(())
     }
@@ -630,15 +676,23 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         result_scalar: Option<Scalar>,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let left = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(left);
+        let left = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let right = self.parse_register()?;
-        instruction.register(right);
-        operands.tensors.push(right);
+        let tensors = [left, right]
+            .into_iter()
+            .map(|register| {
+                function
+                    .owning_tensor(register)
+                    .ok_or_else(|| ParseError::new("expected tensor input", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
+        instruction
+            .tensors(&tensors)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         let scalar = result_scalar
             .ok_or_else(|| ParseError::new("expected tensor result type", token.span))?;
         instruction.scalar(scalar);
@@ -660,15 +714,24 @@ impl Parser<'_> {
     /// Parse one tensor gather.
     fn parse_tensor_gather(
         &mut self,
+        token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let input = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(input);
+        let input = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let indices = self.parse_register()?;
-        instruction.register(indices);
-        operands.tensors.push(indices);
+        let tensors = [input, indices]
+            .into_iter()
+            .map(|register| {
+                function
+                    .owning_tensor(register)
+                    .ok_or_else(|| ParseError::new("expected tensor input", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
+        instruction
+            .tensors(&tensors)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
 
         // parse the gather dimension map
         self.eat_token(TokenType::Comma)?;
@@ -695,19 +758,25 @@ impl Parser<'_> {
         &mut self,
         token: Token,
         result_scalar: Option<Scalar>,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
-        operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let input = self.parse_tensor_input(instruction)?;
-        operands.tensors.push(input);
+        let input = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let indices = self.parse_register()?;
-        instruction.register(indices);
-        operands.tensors.push(indices);
         self.eat_token(TokenType::Comma)?;
         let updates = self.parse_register()?;
-        instruction.register(updates);
-        operands.tensors.push(updates);
+        let tensors = [input, indices, updates]
+            .into_iter()
+            .map(|register| {
+                function
+                    .owning_tensor(register)
+                    .ok_or_else(|| ParseError::new("expected tensor input", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
+        instruction
+            .tensors(&tensors)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         let scalar = result_scalar
             .ok_or_else(|| ParseError::new("expected tensor result type", token.span))?;
         instruction.scalar(scalar);
@@ -753,12 +822,13 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         // parse a view range or tensor value
         if operation == TensorOperation::Load {
-            let view = self.parse_tensor_view_input(token, function, instruction)?;
-            operands.views.push(view);
+            self.parse_tensor_view_input(token, function, instruction)?;
         } else {
             let tensor = self.parse_register()?;
-            instruction.register(tensor);
-            operands.tensors.push(tensor);
+            let tensor = function
+                .owning_tensor(tensor)
+                .ok_or_else(|| ParseError::new("expected tensor input", token.span))?;
+            instruction.tensor(tensor);
         }
 
         // parse scalar indices and representation
@@ -769,9 +839,7 @@ impl Parser<'_> {
                 .into_iter()
                 .map(|register| (register, ValueType::scalar(Scalar::Uint64))),
         );
-        let scalar = result_scalar
-            .ok_or_else(|| ParseError::new("expected scalar result type", token.span))?;
-        instruction.scalar(scalar);
+        result_scalar.ok_or_else(|| ParseError::new("expected scalar result type", token.span))?;
 
         Ok(())
     }
@@ -785,7 +853,6 @@ impl Parser<'_> {
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
         let view = self.parse_tensor_view_input(token, function, instruction)?;
-        operands.views.push(view);
 
         // parse scalar indices and stored value
         self.eat_token(TokenType::Comma)?;
@@ -817,7 +884,6 @@ impl Parser<'_> {
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
         let view = self.parse_tensor_view_input(token, function, instruction)?;
-        operands.views.push(view);
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register()?;
         instruction.register(value);
@@ -839,16 +905,26 @@ impl Parser<'_> {
         instruction: &mut InstructionBuilder,
         operands: &mut TensorOperands,
     ) -> ParseResult<()> {
-        let source = self.parse_tensor_view_input(token, function, instruction)?;
+        let source = self.parse_register()?;
         let source_type = function
             .value_type(source)
+            .filter(|ty| ty.is_tensor_view())
             .ok_or_else(|| ParseError::new("expected tensor view", token.span))?;
-        operands.views.push(source);
 
         // match the target view representation
         self.eat_token(TokenType::Comma)?;
-        let target = self.parse_tensor_view_input(token, function, instruction)?;
-        operands.views.push(target);
+        let target = self.parse_register()?;
+        let tensors = [source, target]
+            .into_iter()
+            .map(|register| {
+                function
+                    .tensor_view(register)
+                    .ok_or_else(|| ParseError::new("expected tensor view", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
+        instruction
+            .tensors(&tensors)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         operands.typed.push((target, source_type));
 
         // encode the copied element representation
@@ -874,8 +950,11 @@ impl Parser<'_> {
             .copied()
             .filter(|ty| ty.is_tensor_view())
             .ok_or_else(|| ParseError::new("expected tensor view result", token.span))?;
-        let input = self.parse_tensor_view_input(token, function, instruction)?;
-        operands.views.push(input);
+        let input = self.parse_register()?;
+        let tensor = function
+            .tensor(input)
+            .ok_or_else(|| ParseError::new("expected tensor or tensor view", token.span))?;
+        instruction.tensor(tensor);
 
         // parse each derived view component
         for name in ["offsets", "sizes", "strides"] {
@@ -899,11 +978,10 @@ impl Parser<'_> {
         instruction: &mut InstructionBuilder,
     ) -> ParseResult<RegisterId> {
         let view = self.parse_register()?;
-        let view_type = function
-            .value_type(view)
-            .filter(|ty| ty.is_tensor_view())
+        let tensor = function
+            .tensor_view(view)
             .ok_or_else(|| ParseError::new("expected tensor view", token.span))?;
-        instruction.range(RegisterRange::new(view, view_type.word_count()));
+        instruction.tensor(tensor);
 
         Ok(view)
     }
@@ -983,10 +1061,15 @@ impl Parser<'_> {
     /// Parse and append one tensor input register.
     fn parse_tensor_input(
         &mut self,
+        token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
     ) -> ParseResult<RegisterId> {
         let input = self.parse_register()?;
-        instruction.register(input);
+        let tensor = function
+            .owning_tensor(input)
+            .ok_or_else(|| ParseError::new("expected tensor input", token.span))?;
+        instruction.tensor(tensor);
 
         Ok(input)
     }
@@ -1097,14 +1180,25 @@ impl Parser<'_> {
     /// Parse one tensor convolution.
     fn parse_tensor_convolution(
         &mut self,
+        token: Token,
+        function: &FunctionParser,
         instruction: &mut InstructionBuilder,
         scalar: Scalar,
-    ) -> ParseResult<[RegisterId; 2]> {
+    ) -> ParseResult<()> {
         let input = self.parse_register()?;
-        instruction.register(input);
         self.eat_token(TokenType::Comma)?;
         let kernel = self.parse_register()?;
-        instruction.register(kernel);
+        let tensors = [input, kernel]
+            .into_iter()
+            .map(|register| {
+                function
+                    .owning_tensor(register)
+                    .ok_or_else(|| ParseError::new("expected tensor input", token.span))
+            })
+            .collect::<ParseResult<Vec<_>>>()?;
+        instruction
+            .tensors(&tensors)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         instruction.scalar(scalar);
 
         self.eat_token(TokenType::Comma)?;
@@ -1154,7 +1248,7 @@ impl Parser<'_> {
         }
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        Ok([input, kernel])
+        Ok(())
     }
 
     /// Parse and encode one named unsigned 16-bit value.

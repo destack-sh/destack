@@ -3,18 +3,7 @@ use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{
-    BytecodeFormatContext, BytecodeFormatter, FunctionTypeId, Type, TypeId, ValueTag, ValueType,
-};
-
-impl Type {
-    /// Format this nominal runtime type symbol.
-    pub(crate) fn format<'a>(&self, formatter: &mut BytecodeFormatter<'a, '_>) -> FormatResult<()> {
-        let name = formatter.context().string(self.name)?;
-
-        write!(formatter, [token("type"), space(), copied_text(name)])
-    }
-}
+use crate::{BytecodeFormatContext, BytecodeFormatter, TypeId, ValueTag, ValueType};
 
 impl<'a> BytecodeFormatContext<'a> {
     /// Return one canonical value type text.
@@ -38,8 +27,14 @@ impl<'a> BytecodeFormatContext<'a> {
                     message: "dynamic value has no constraint type",
                 })?;
                 let name = self.type_name(constraint)?;
+                let reference = ty.dynamic_reference().ok_or(FormatError::SyntaxError {
+                    message: "dynamic value has no payload reference",
+                })?;
+                let space = reference.space().name().ok_or(FormatError::SyntaxError {
+                    message: "dynamic value has an invalid space",
+                })?;
 
-                Ok(format!("dynamic<{name}>"))
+                Ok(format!("dynamic<{name}, space({space})>"))
             }
             ValueTag::TENSOR | ValueTag::TENSOR_VIEW => self.tensor_type_text(ty),
             ValueTag::VECTOR => ty
@@ -64,26 +59,8 @@ impl<'a> BytecodeFormatContext<'a> {
 
     /// Return one required type symbol name.
     pub(super) fn type_name(&self, ty: TypeId) -> FormatResult<&'a str> {
-        let symbol = self.object.ty(ty).ok_or(FormatError::SyntaxError {
+        let name = self.object.type_name(ty).ok_or(FormatError::SyntaxError {
             message: "bytecode object references a missing type",
-        })?;
-
-        self.string(symbol.name)
-    }
-
-    /// Return one required named function type.
-    pub(super) fn function_type_name(
-        &self,
-        function_type: FunctionTypeId,
-    ) -> FormatResult<&'a str> {
-        let function_type =
-            self.object
-                .function_type(function_type)
-                .ok_or(FormatError::SyntaxError {
-                    message: "bytecode object references a missing function type",
-                })?;
-        let name = function_type.name.get().ok_or(FormatError::SyntaxError {
-            message: "instruction references an anonymous function type",
         })?;
 
         self.string(name)
@@ -112,17 +89,11 @@ impl<'a> BytecodeFormatContext<'a> {
 
     /// Return one callable value type text.
     fn function_value_text(&self, ty: ValueType) -> FormatResult<String> {
-        let function_type = ty.function_type().ok_or(FormatError::SyntaxError {
-            message: "callable value has no function type",
-        })?;
-        let name = self.function_type_name(function_type)?;
-        let constructor = if ty.tag() == ValueTag::FUNCTION_POINTER {
-            "functionPointer"
+        if ty.tag() == ValueTag::FUNCTION_POINTER {
+            Ok("fn".to_string())
         } else {
-            "function"
-        };
-
-        Ok(format!("{constructor}<{name}>"))
+            Ok("function".to_string())
+        }
     }
 
     /// Return one slice value type text.
@@ -165,7 +136,35 @@ impl<'a> BytecodeFormatContext<'a> {
             "tensorView"
         };
 
-        Ok(format!("{constructor}<{}, {name}>", scalar.name()))
+        if ty.tag() == ValueTag::TENSOR_VIEW {
+            let reference = ty.tensor_reference().ok_or(FormatError::SyntaxError {
+                message: "tensor view has no backing reference",
+            })?;
+            let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
+                message: "tensor view has invalid reference ownership",
+            })?;
+            let space = reference.space().name().ok_or(FormatError::SyntaxError {
+                message: "tensor view has invalid space",
+            })?;
+
+            Ok(format!(
+                "{constructor}<{}, {name}, {kind}, space({space}), {}>",
+                scalar.name(),
+                ty.word_count()
+            ))
+        } else {
+            let reference = ty.tensor_reference().ok_or(FormatError::SyntaxError {
+                message: "tensor value has no storage reference",
+            })?;
+            let space = reference.space().name().ok_or(FormatError::SyntaxError {
+                message: "tensor value has invalid space",
+            })?;
+
+            Ok(format!(
+                "{constructor}<{}, {name}, space({space})>",
+                scalar.name()
+            ))
+        }
     }
 }
 

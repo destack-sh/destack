@@ -2,7 +2,7 @@ use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::Symbol;
+use crate::{Symbol, TypeId};
 
 /// One symbolic operand in an instruction stream.
 #[repr(C)]
@@ -26,6 +26,38 @@ impl InstructionRelocation {
     /// Rebase this relocation into its containing byte section.
     pub const fn rebase(self, byte_offset: u32) -> Self {
         Self::new(self.byte_offset + byte_offset, self.symbol)
+    }
+}
+
+/// One unresolved dynamic dispatch table operand.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct DynamicRelocation {
+    /// The first byte of the encoded operand.
+    pub byte_offset: u32,
+    /// The object-local concrete type.
+    pub concrete: TypeId,
+    /// The object-local dynamic constraint.
+    pub constraint: TypeId,
+}
+
+impl DynamicRelocation {
+    /// Create one dynamic dispatch table relocation.
+    pub const fn new(byte_offset: u32, concrete: TypeId, constraint: TypeId) -> Self {
+        Self {
+            byte_offset,
+            concrete,
+            constraint,
+        }
+    }
+
+    /// Rebase this relocation into its containing byte section.
+    pub const fn rebase(self, byte_offset: u32) -> Self {
+        Self::new(
+            self.byte_offset + byte_offset,
+            self.concrete,
+            self.constraint,
+        )
     }
 }
 
@@ -58,4 +90,5 @@ impl ConstantRelocation {
 }
 
 const _: () = assert!(size_of::<InstructionRelocation>() == 12);
+const _: () = assert!(size_of::<DynamicRelocation>() == 12);
 const _: () = assert!(size_of::<ConstantRelocation>() == 24);

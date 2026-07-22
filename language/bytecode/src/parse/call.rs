@@ -1,5 +1,5 @@
 use crate::{
-    FunctionId, FunctionTypeId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser,
+    FunctionId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceType,
     RegisterId, RegisterRange, Symbol, Token, TokenType, ValueType,
 };
 
@@ -12,115 +12,76 @@ enum CallTarget {
     Direct {
         /// The called function.
         function: FunctionId,
-        /// The called function type.
-        function_type: FunctionTypeId,
     },
-    /// One function value.
-    Function {
-        /// The function value.
-        function: RegisterId,
-        /// The called function type.
-        function_type: FunctionTypeId,
-    },
-    /// One bare function pointer.
-    FunctionPointer {
-        /// The function pointer.
-        function: RegisterId,
-        /// The called function type.
-        function_type: FunctionTypeId,
+    /// One indirect function value or pointer.
+    Indirect {
+        /// The callable value.
+        value: RegisterRange,
     },
     /// One virtual receiver and slot.
     Virtual {
         /// The receiver reference.
         receiver: RegisterId,
+        /// The receiver reference representation.
+        reference: ReferenceType,
+        /// The byte offset of the virtual table id in the receiver allocation.
+        dispatch_offset: u32,
         /// The virtual method slot.
         slot: u16,
-        /// The called function type.
-        function_type: FunctionTypeId,
     },
-    /// One dynamic value and slot.
+    /// One dynamic receiver and slot.
     Dynamic {
-        /// The dynamic value.
-        dynamic: RegisterId,
+        /// The receiver value.
+        receiver: RegisterId,
         /// The dynamic method slot.
         slot: u16,
-        /// The called function type.
-        function_type: FunctionTypeId,
     },
 }
 
 impl CallTarget {
-    /// Return the called function type.
-    const fn function_type(self) -> FunctionTypeId {
-        match self {
-            Self::Direct { function_type, .. }
-            | Self::Function { function_type, .. }
-            | Self::FunctionPointer { function_type, .. }
-            | Self::Virtual { function_type, .. }
-            | Self::Dynamic { function_type, .. } => function_type,
-        }
-    }
-
     /// Encode this target into one call instruction.
     fn encode(self, instruction: &mut InstructionBuilder) {
         match self {
             Self::Direct { function, .. } => {
                 instruction.symbol(Symbol::function(function.0));
             }
-            Self::Function {
-                function,
-                function_type,
-            } => {
-                instruction.symbol(Symbol::function_type(function_type.0));
-                instruction.range(RegisterRange::new(function, 2));
-            }
-            Self::FunctionPointer {
-                function,
-                function_type,
-            } => {
-                instruction.symbol(Symbol::function_type(function_type.0));
-                instruction.register(function);
+            Self::Indirect { value } => {
+                instruction.range(value);
             }
             Self::Virtual {
                 receiver,
+                reference,
+                dispatch_offset,
                 slot,
-                function_type,
             } => {
-                instruction.symbol(Symbol::function_type(function_type.0));
                 instruction.register(receiver);
+                instruction.reference(reference.kind(), reference.space());
+                instruction.u32(dispatch_offset);
                 instruction.u16(slot);
             }
-            Self::Dynamic {
-                dynamic,
-                slot,
-                function_type,
-            } => {
-                instruction.symbol(Symbol::function_type(function_type.0));
-                instruction.range(RegisterRange::new(dynamic, 2));
+            Self::Dynamic { receiver, slot } => {
+                instruction.range(RegisterRange::new(receiver, 2));
                 instruction.u16(slot);
             }
         }
     }
 
     /// Select the exact opcode for this target and control-flow form.
-    const fn opcode(self, is_invoke: bool, is_tail: bool) -> Opcode {
+    const fn opcode(self, is_invoke: bool, is_tail: bool) -> Option<Opcode> {
         match (self, is_invoke, is_tail) {
-            (Self::Direct { .. }, false, false) => Opcode::CALL,
-            (Self::Direct { .. }, true, false) => Opcode::INVOKE,
-            (Self::Direct { .. }, false, true) => Opcode::TAIL_CALL,
-            (Self::Function { .. }, false, false) => Opcode::CALL_INDIRECT,
-            (Self::Function { .. }, true, false) => Opcode::INVOKE_INDIRECT,
-            (Self::Function { .. }, false, true) => Opcode::TAIL_CALL_INDIRECT,
-            (Self::FunctionPointer { .. }, false, false) => Opcode::CALL_FUNCTION_POINTER,
-            (Self::FunctionPointer { .. }, true, false) => Opcode::INVOKE_FUNCTION_POINTER,
-            (Self::FunctionPointer { .. }, false, true) => Opcode::TAIL_CALL_FUNCTION_POINTER,
-            (Self::Virtual { .. }, false, false) => Opcode::CALL_VIRTUAL,
-            (Self::Virtual { .. }, true, false) => Opcode::INVOKE_VIRTUAL,
-            (Self::Virtual { .. }, false, true) => Opcode::TAIL_CALL_VIRTUAL,
-            (Self::Dynamic { .. }, false, false) => Opcode::CALL_DYNAMIC,
-            (Self::Dynamic { .. }, true, false) => Opcode::INVOKE_DYNAMIC,
-            (Self::Dynamic { .. }, false, true) => Opcode::TAIL_CALL_DYNAMIC,
-            _ => Opcode::INVALID,
+            (Self::Direct { .. }, false, false) => Some(Opcode::CALL),
+            (Self::Direct { .. }, true, false) => Some(Opcode::INVOKE),
+            (Self::Direct { .. }, false, true) => Some(Opcode::TAIL_CALL),
+            (Self::Indirect { .. }, false, false) => Some(Opcode::CALL_INDIRECT),
+            (Self::Indirect { .. }, true, false) => Some(Opcode::INVOKE_INDIRECT),
+            (Self::Indirect { .. }, false, true) => Some(Opcode::TAIL_CALL_INDIRECT),
+            (Self::Virtual { .. }, false, false) => Some(Opcode::CALL_VIRTUAL),
+            (Self::Virtual { .. }, true, false) => Some(Opcode::INVOKE_VIRTUAL),
+            (Self::Virtual { .. }, false, true) => Some(Opcode::TAIL_CALL_VIRTUAL),
+            (Self::Dynamic { .. }, false, false) => Some(Opcode::CALL_DYNAMIC),
+            (Self::Dynamic { .. }, true, false) => Some(Opcode::INVOKE_DYNAMIC),
+            (Self::Dynamic { .. }, false, true) => Some(Opcode::TAIL_CALL_DYNAMIC),
+            _ => None,
         }
     }
 }
@@ -132,6 +93,7 @@ impl Parser<'_> {
         name: &str,
         token: Token,
         results: &[RegisterId],
+        result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let is_tail = name.starts_with("tail.");
@@ -144,31 +106,16 @@ impl Parser<'_> {
         }
 
         let (target, arguments) = self.parse_call_target(name, function)?;
-        let opcode = target.opcode(is_invoke, is_tail);
-        if opcode == Opcode::INVALID {
-            return Err(ParseError::new("invalid call operation", token.span));
-        }
-        let function_type = target.function_type();
-        let types = self.symbols.function_type_definitions[function_type.index()].clone();
-
-        // match packed arguments against the function type
-        if !function.values_match(&arguments, &types.parameters) {
-            return Err(ParseError::new(
-                "call arguments do not match its function type",
-                token.span,
-            ));
-        }
-        let arguments = RegisterRange::pack(&arguments, &types.parameters)
+        let opcode = target
+            .opcode(is_invoke, is_tail)
+            .ok_or_else(|| ParseError::new("invalid call operation", token.span))?;
+        let argument_types = arguments
+            .iter()
+            .map(|register| function.value_type(*register))
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| ParseError::new("call reads an uninitialized argument", token.span))?;
+        let arguments = RegisterRange::pack(&arguments, &argument_types)
             .ok_or_else(|| ParseError::new("call arguments are not contiguous", token.span))?;
-
-        // match tail results against the current function
-        let do_tail_results_match = !is_tail || function.results == types.results;
-        if !do_tail_results_match {
-            return Err(ParseError::new(
-                "tail call results do not match its function",
-                token.span,
-            ));
-        }
 
         // encode the call in stable operand order
         let mut instruction = InstructionBuilder::new(opcode);
@@ -183,7 +130,7 @@ impl Parser<'_> {
             instruction.branch(self.parse_label()?);
         }
 
-        let result_types = if is_tail { &[][..] } else { &types.results };
+        let result_types = if is_tail { &[][..] } else { result_types };
 
         function.emit(instruction, results, result_types, self.empty_span())
     }
@@ -212,12 +159,17 @@ impl Parser<'_> {
     fn parse_direct_call_target(&mut self) -> ParseResult<(CallTarget, Vec<RegisterId>)> {
         let symbol = self.eat_token(TokenType::Identifier)?;
         let function = self.function_symbol(self.text(symbol), symbol.span)?;
+        if self.symbols.function_declarations[function.index()]
+            .environment
+            .is_some()
+        {
+            return Err(ParseError::new(
+                "direct call requires an environment-free function",
+                symbol.span,
+            ));
+        }
         let arguments = self.parse_argument_registers()?;
-        let function_type = self.symbols.function_declarations[function.index()].function_type;
-        let target = CallTarget::Direct {
-            function,
-            function_type,
-        };
+        let target = CallTarget::Direct { function };
 
         Ok((target, arguments))
     }
@@ -235,24 +187,15 @@ impl Parser<'_> {
                 self.previous().span,
             )
         })?;
-        let function_type = target_type.function_type().ok_or_else(|| {
-            ParseError::new(
+        if !target_type.is_function() && !target_type.is_function_pointer() {
+            return Err(ParseError::new(
                 "indirect call requires a function value",
                 self.previous().span,
-            )
-        })?;
+            ));
+        }
 
-        // preserve the physical representation selected by the register type
-        let target = if target_type.is_function_pointer() {
-            CallTarget::FunctionPointer {
-                function: register,
-                function_type,
-            }
-        } else {
-            CallTarget::Function {
-                function: register,
-                function_type,
-            }
+        let target = CallTarget::Indirect {
+            value: RegisterRange::new(register, target_type.word_count()),
         };
 
         Ok((target, arguments))
@@ -266,11 +209,18 @@ impl Parser<'_> {
     ) -> ParseResult<(CallTarget, Vec<RegisterId>)> {
         let receiver = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
+        let dispatch = if name.ends_with("virtual") {
+            self.eat_name("dispatch")?;
+            let dispatch = self.parse_u32()?;
+            self.eat_token(TokenType::Comma)?;
+
+            Some(dispatch)
+        } else {
+            None
+        };
         self.eat_name("slot")?;
         let slot = self.parse_u16()?;
         let arguments = self.parse_argument_registers()?;
-        self.eat_token(TokenType::Colon)?;
-        let function_type = self.parse_named_function_type()?;
         let receiver_type = function.value_type(receiver);
 
         // dynamic dispatch
@@ -281,11 +231,7 @@ impl Parser<'_> {
                     self.previous().span,
                 ));
             }
-            CallTarget::Dynamic {
-                dynamic: receiver,
-                slot,
-                function_type,
-            }
+            CallTarget::Dynamic { receiver, slot }
         }
         // virtual dispatch
         else {
@@ -295,25 +241,25 @@ impl Parser<'_> {
                     self.previous().span,
                 ));
             }
+            let reference = receiver_type
+                .and_then(ValueType::reference_type)
+                .ok_or_else(|| {
+                    ParseError::new("virtual call requires a reference", self.previous().span)
+                })?;
             CallTarget::Virtual {
                 receiver,
+                reference,
+                dispatch_offset: dispatch.ok_or_else(|| {
+                    ParseError::new(
+                        "virtual call requires a dispatch offset",
+                        self.previous().span,
+                    )
+                })?,
                 slot,
-                function_type,
             }
         };
 
         Ok((target, arguments))
-    }
-
-    /// Parse one named function type.
-    fn parse_named_function_type(&mut self) -> ParseResult<FunctionTypeId> {
-        let name = self.eat_token(TokenType::Identifier)?;
-
-        self.symbols
-            .function_types
-            .get(self.text(name))
-            .copied()
-            .ok_or_else(|| ParseError::new("unknown function type", name.span))
     }
 
     /// Parse one parenthesized logical argument list.

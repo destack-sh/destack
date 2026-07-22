@@ -8,6 +8,14 @@ use serde::{Deserialize, Serialize};
 pub struct Constant {
     /// The stable declaration name when explicitly named.
     pub name: Optional<StringId>,
+    /// The immutable constant value.
+    pub value: ConstantValue,
+}
+
+/// One immutable constant value.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct ConstantValue {
     /// The required byte alignment.
     pub alignment_bytes: u32,
     /// The immutable bytes in the object constant byte section.
@@ -16,6 +24,13 @@ pub struct Constant {
 
 impl Constant {
     /// Borrow this constant's bytes.
+    pub fn bytes<'a>(&self, bytes: &'a [u8]) -> &'a [u8] {
+        self.value.bytes(bytes)
+    }
+}
+
+impl ConstantValue {
+    /// Borrow this value from its containing constant byte section.
     pub fn bytes<'a>(&self, bytes: &'a [u8]) -> &'a [u8] {
         self.bytes.slice(bytes)
     }
@@ -36,4 +51,5 @@ impl ConstantId {
 }
 
 const _: () = assert!(size_of::<Constant>() == 32);
+const _: () = assert!(size_of::<ConstantValue>() == 12);
 const _: () = assert!(size_of::<ConstantId>() == 4);

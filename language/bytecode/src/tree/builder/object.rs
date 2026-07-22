@@ -1,10 +1,10 @@
 use destack_core::{EntryRange, LocalStringPool, Optional, SectionBuilder, StringId};
 
-use crate::tree::object::ObjectHeader;
+use crate::tree::object::Header;
 use crate::{
-    CodeOffset, CodeRange, Constant, ConstantId, ConstantRelocation, FrameSlot, Function,
-    FunctionId, FunctionType, FunctionTypeId, Global, GlobalId, InstructionRelocation, Object,
-    StringEntry, Type, TypeId, ValueType,
+    CodeOffset, CodeRange, Constant, ConstantId, ConstantRelocation, ConstantValue,
+    DynamicRelocation, FrameSlot, Function, FunctionId, Global, GlobalId, InstructionRelocation,
+    Object, StringEntry, TypeId, ValueType,
 };
 
 /// Bytecode object under construction.
@@ -14,9 +14,7 @@ pub struct ObjectBuilder {
     strings: LocalStringPool,
 
     /// Type symbols.
-    types: Vec<Type>,
-    /// Function types.
-    function_types: Vec<FunctionType>,
+    types: Vec<StringId>,
     /// Flattened function value types.
     value_types: Vec<ValueType>,
 
@@ -35,6 +33,8 @@ pub struct ObjectBuilder {
     code: Vec<u8>,
     /// Relocations inside function bytes.
     instruction_relocations: Vec<InstructionRelocation>,
+    /// Dynamic dispatch relocations inside function bytes.
+    dynamic_relocations: Vec<DynamicRelocation>,
     /// Relocations inside constant bytes.
     constant_relocations: Vec<ConstantRelocation>,
     /// Function-relative byte offsets for logical operations.
@@ -55,18 +55,8 @@ impl ObjectBuilder {
     }
 
     /// Set type symbols.
-    pub fn types(mut self, types: impl IntoIterator<Item = Type>) -> Self {
+    pub fn types(mut self, types: impl IntoIterator<Item = StringId>) -> Self {
         self.types = types.into_iter().collect();
-
-        self
-    }
-
-    /// Set function types.
-    pub fn function_types(
-        mut self,
-        function_types: impl IntoIterator<Item = FunctionType>,
-    ) -> Self {
-        self.function_types = function_types.into_iter().collect();
 
         self
     }
@@ -130,6 +120,16 @@ impl ObjectBuilder {
         self
     }
 
+    /// Set dynamic dispatch relocations inside function bytes.
+    pub fn dynamic_relocations(
+        mut self,
+        relocations: impl IntoIterator<Item = DynamicRelocation>,
+    ) -> Self {
+        self.dynamic_relocations = relocations.into_iter().collect();
+
+        self
+    }
+
     /// Set relocations inside constant bytes.
     pub fn constant_relocations(
         mut self,
@@ -171,14 +171,9 @@ impl ObjectBuilder {
     /// Append one type symbol.
     pub(crate) fn push_type(&mut self, name: StringId) -> TypeId {
         let ty = TypeId(self.types.len() as u32);
-        self.types.push(Type { name });
+        self.types.push(name);
 
         ty
-    }
-
-    /// Return one function type under construction.
-    pub(crate) fn function_type(&self, id: FunctionTypeId) -> Option<&FunctionType> {
-        self.function_types.get(id.index())
     }
 
     /// Return the number of globals.
@@ -216,8 +211,10 @@ impl ObjectBuilder {
         self.constant_bytes.extend_from_slice(bytes);
         self.constants.push(Constant {
             name,
-            alignment_bytes: alignment_bytes as u32,
-            bytes: range,
+            value: ConstantValue {
+                alignment_bytes: alignment_bytes as u32,
+                bytes: range,
+            },
         });
 
         id
@@ -231,7 +228,7 @@ impl ObjectBuilder {
     ) {
         let constant = &self.constants[constant.index()];
         self.constant_relocations
-            .push(relocation.rebase(constant.bytes.start));
+            .push(relocation.rebase(constant.value.bytes.start));
     }
 
     /// Return the number of frame slots.
@@ -262,12 +259,18 @@ impl ObjectBuilder {
         &mut self,
         bytes: &[u8],
         relocations: impl IntoIterator<Item = InstructionRelocation>,
+        dynamic_relocations: impl IntoIterator<Item = DynamicRelocation>,
     ) -> CodeRange {
         let byte_offset = self.code.len() as u32;
         let byte_len = bytes.len() as u32;
         self.code.extend_from_slice(bytes);
         self.instruction_relocations.extend(
             relocations
+                .into_iter()
+                .map(|relocation| relocation.rebase(byte_offset)),
+        );
+        self.dynamic_relocations.extend(
+            dynamic_relocations
                 .into_iter()
                 .map(|relocation| relocation.rebase(byte_offset)),
         );
@@ -289,25 +292,6 @@ impl ObjectBuilder {
         EntryRange::new(start as u32, (self.value_types.len() - start) as u32)
     }
 
-    /// Append one function type and return its object-local id.
-    pub(crate) fn push_function_type(
-        &mut self,
-        name: Optional<StringId>,
-        parameters: impl IntoIterator<Item = ValueType>,
-        results: impl IntoIterator<Item = ValueType>,
-    ) -> FunctionTypeId {
-        let parameters = self.push_value_types(parameters);
-        let results = self.push_value_types(results);
-        let function_type = FunctionTypeId(self.function_types.len() as u32);
-        self.function_types.push(FunctionType {
-            name,
-            parameters,
-            results,
-        });
-
-        function_type
-    }
-
     /// Build one immutable bytecode object.
     pub fn build(self) -> Object {
         let mut string_entries = Vec::with_capacity(self.strings.len());
@@ -324,14 +308,13 @@ impl ObjectBuilder {
         }
 
         let mut sections = SectionBuilder::new();
-        let mut header = ObjectHeader::new();
+        let mut header = Header::new();
         let header_section = sections.insert([header]);
 
         // pack strings and type tables
         let strings = sections.insert(string_entries);
         let string_bytes = sections.insert(string_bytes);
         let types = sections.insert(self.types);
-        let function_types = sections.insert(self.function_types);
         let value_types = sections.insert(self.value_types);
 
         // pack global and function tables
@@ -344,6 +327,7 @@ impl ObjectBuilder {
         // pack encoded instructions and relocations
         let code = sections.insert(self.code);
         let instruction_relocations = sections.insert(self.instruction_relocations);
+        let dynamic_relocations = sections.insert(self.dynamic_relocations);
         let constant_relocations = sections.insert(self.constant_relocations);
         let operation_offsets = sections.insert(self.operation_offsets);
 
@@ -352,7 +336,6 @@ impl ObjectBuilder {
         header.strings = strings;
         header.string_bytes = string_bytes;
         header.types = types;
-        header.function_types = function_types;
         header.value_types = value_types;
 
         header.globals = globals;
@@ -363,11 +346,12 @@ impl ObjectBuilder {
 
         header.code = code;
         header.instruction_relocations = instruction_relocations;
+        header.dynamic_relocations = dynamic_relocations;
         header.constant_relocations = constant_relocations;
         header.operation_offsets = operation_offsets;
         sections.replace(header_section, [header]);
         let storage = sections.build();
 
-        Object::from_header(header, storage)
+        Object::from_storage(storage)
     }
 }

@@ -4,8 +4,8 @@ use destack_fir::write;
 
 use crate::{
     CodeOffset, ConvertMode, FloatOperation, IndexReduceOperation, IntegerOperation,
-    ReduceOperation, RegisterId, Scalar, ScatterOperation, SymbolTag, TensorOperation, TieBreak,
-    TypeId, ValueType,
+    ReduceOperation, ReferenceType, RegisterId, Scalar, ScatterOperation, SymbolTag,
+    TensorOperation, TieBreak, TypeId, ValueType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -52,25 +52,35 @@ impl InstructionFormatter<'_, '_, '_> {
             TensorOperation::Convolution => self.format_tensor_convolution(result_type)?,
         }
 
-        self.consume_tensor_type(operation, result_type)
+        self.consume_tensor_result(operation, result_type)
     }
 
     /// Consume the runtime type suffix shared by tensor results.
-    fn consume_tensor_type(
+    fn consume_tensor_result(
         &mut self,
         operation: TensorOperation,
         result_type: Option<ValueType>,
     ) -> FormatResult<()> {
-        if !matches!(
+        if matches!(operation, TensorOperation::Load | TensorOperation::Extract) {
+            let scalar = self.result_scalar(result_type)?;
+            self.require_scalar(scalar)?;
+        } else if !matches!(
             operation,
-            TensorOperation::Load
-                | TensorOperation::Extract
-                | TensorOperation::Store
-                | TensorOperation::Fill
-                | TensorOperation::Copy
+            TensorOperation::Store | TensorOperation::Fill | TensorOperation::Copy
         ) {
             let scalar = self.result_scalar(result_type)?;
             self.require_scalar(scalar)?;
+            let reference = self.reference()?;
+            let expected = result_type.and_then(ValueType::tensor_reference).ok_or(
+                FormatError::SyntaxError {
+                    message: "tensor result has no backing reference",
+                },
+            )?;
+            if reference != expected {
+                return Err(FormatError::SyntaxError {
+                    message: "tensor result reference does not match its type",
+                });
+            }
             let (_, target) = self.symbol_with_target()?;
             if target.tag != SymbolTag::TYPE {
                 return Err(FormatError::SyntaxError {
@@ -85,17 +95,20 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor selection.
     fn format_tensor_select(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let condition = self.register_id()?;
-        let left = self.register_id()?;
-        let right = self.register_id()?;
+        let tensors = self.tensor_ids()?;
+        let [condition, left, right] = tensors.as_slice() else {
+            return Err(FormatError::SyntaxError {
+                message: "tensor.select requires three tensor inputs",
+            });
+        };
         let scalar = self.result_scalar(result_type)?;
         self.require_scalar(scalar)?;
         write!(self.formatter, [token("tensor.select"), space()])?;
-        self.write_register(condition)?;
+        self.write_register(*condition)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(left)?;
+        self.write_register(*left)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(right)
+        self.write_register(*right)
     }
 
     /// Format one tensor transpose or broadcast.
@@ -142,7 +155,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor padding operation.
     fn format_tensor_pad(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = self.register_id()?;
+        let input = self.tensor_id()?;
         let value = self.register_id()?;
         let scalar = self.result_scalar(result_type)?;
         self.require_scalar(scalar)?;
@@ -166,7 +179,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor concatenation.
     fn format_tensor_concat(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let tensors = self.register_ids()?;
+        let tensors = self.tensor_ids()?;
         let axis = self.u16()?;
         write!(self.formatter, [token("tensor.concat"), space()])?;
         self.write_named_registers("tensors", &tensors)?;
@@ -189,7 +202,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor element conversion.
     fn format_tensor_convert(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let value = self.register_id()?;
+        let value = self.tensor_id()?;
         let source = self.register_tensor_scalar(value)?;
         self.require_scalar(source)?;
         let target = self.result_scalar(result_type)?;
@@ -210,7 +223,7 @@ impl InstructionFormatter<'_, '_, '_> {
         result_type: Option<ValueType>,
     ) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let inputs = self.register_ids()?;
+        let inputs = self.tensor_ids()?;
         let scalar = self.scalar()?;
         let code = self.u16()?;
         let operator = self.scalar_operator(scalar, code)?;
@@ -230,7 +243,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor reduction.
     fn format_tensor_reduce(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = self.register_id()?;
+        let input = self.tensor_id()?;
         let initial = self.register_id()?;
         let scalar = self.result_scalar(result_type)?;
         self.require_scalar(scalar)?;
@@ -254,7 +267,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor index reduction.
     fn format_tensor_index_reduce(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = self.register_id()?;
+        let input = self.tensor_id()?;
         let scalar = self.register_tensor_scalar(input)?;
         self.require_scalar(scalar)?;
         let operation =
@@ -316,15 +329,18 @@ impl InstructionFormatter<'_, '_, '_> {
                 .ok_or(FormatError::SyntaxError {
                     message: "tensor instruction has no result scalar",
                 })?;
-            let code = u16::from_le_bytes([bytes[0], bytes[1]]) as u8;
-            let scalar = Scalar::from_code(code).ok_or(FormatError::SyntaxError {
+            let scalar = u16::from_le_bytes([bytes[0], bytes[1]]);
+            let scalar = u8::try_from(scalar).map_err(|_| FormatError::SyntaxError {
+                message: "tensor instruction has an invalid result scalar",
+            })?;
+            let scalar = Scalar::from_code(scalar).ok_or(FormatError::SyntaxError {
                 message: "tensor instruction has an invalid result scalar",
             })?;
 
             return Ok(Some(ValueType::scalar(scalar)));
         }
 
-        let suffix_len = size_of::<u16>() + size_of::<u32>();
+        let suffix_len = size_of::<u16>() + size_of::<u16>() + size_of::<u32>();
         let suffix_offset =
             operands
                 .len()
@@ -337,11 +353,17 @@ impl InstructionFormatter<'_, '_, '_> {
             .ok_or(FormatError::SyntaxError {
                 message: "tensor instruction has no result type",
             })?;
-        let scalar = Scalar::from_code(u16::from_le_bytes([suffix[0], suffix[1]]) as u8).ok_or(
-            FormatError::SyntaxError {
-                message: "tensor instruction has an invalid result scalar",
-            },
-        )?;
+        let scalar = u16::from_le_bytes([suffix[0], suffix[1]]);
+        let scalar = u8::try_from(scalar).map_err(|_| FormatError::SyntaxError {
+            message: "tensor instruction has an invalid result scalar",
+        })?;
+        let scalar = Scalar::from_code(scalar).ok_or(FormatError::SyntaxError {
+            message: "tensor instruction has an invalid result scalar",
+        })?;
+        let reference = ReferenceType::from_bits(u16::from_le_bytes([suffix[2], suffix[3]]))
+            .ok_or(FormatError::SyntaxError {
+                message: "tensor instruction has an invalid backing reference",
+            })?;
         let header_byte_len = self.instruction.byte_len() - operands.len();
         let symbol_byte_offset = header_byte_len + operands.len() - size_of::<u32>();
         let symbol_offset = CodeOffset(self.instruction_offset.0 + symbol_byte_offset as u32);
@@ -352,9 +374,16 @@ impl InstructionFormatter<'_, '_, '_> {
             });
         }
         let ty = if operation == TensorOperation::View {
-            ValueType::tensor_view(scalar, TypeId(target.index))
+            let bytes = operands
+                .get(..size_of::<u16>() * 2)
+                .ok_or(FormatError::SyntaxError {
+                    message: "tensor view instruction has no result range",
+                })?;
+            let word_count = u16::from_le_bytes([bytes[2], bytes[3]]);
+
+            ValueType::tensor_view(scalar, TypeId(target.index), reference, word_count)
         } else {
-            ValueType::tensor(scalar, TypeId(target.index))
+            ValueType::tensor(scalar, TypeId(target.index), reference.space())
         };
 
         Ok(Some(ty))
@@ -384,7 +413,7 @@ impl InstructionFormatter<'_, '_, '_> {
         result_type: Option<ValueType>,
     ) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = self.register_id()?;
+        let input = self.tensor_id()?;
         self.write_token("tensor.")?;
         self.write_text(operation.name())?;
         write!(self.formatter, [space()])?;
@@ -411,14 +440,18 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor contraction.
     fn format_tensor_contract(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let left = self.register_id()?;
-        let right = self.register_id()?;
+        let tensors = self.tensor_ids()?;
+        let [left, right] = tensors.as_slice() else {
+            return Err(FormatError::SyntaxError {
+                message: "tensor.contract requires two tensor inputs",
+            });
+        };
         let scalar = self.result_scalar(result_type)?;
         self.require_scalar(scalar)?;
         write!(self.formatter, [token("tensor.contract"), space()])?;
-        self.write_register(left)?;
+        self.write_register(*left)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(right)?;
+        self.write_register(*right)?;
         self.comma()?;
         self.write_token("axes(")?;
         for (index, name) in ["leftBatch", "rightBatch", "leftContract", "rightContract"]
@@ -439,12 +472,16 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor gather.
     fn format_tensor_gather(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = self.register_id()?;
-        let indices = self.register_id()?;
+        let tensors = self.tensor_ids()?;
+        let [input, indices] = tensors.as_slice() else {
+            return Err(FormatError::SyntaxError {
+                message: "tensor.gather requires two tensor inputs",
+            });
+        };
         write!(self.formatter, [token("tensor.gather"), space()])?;
-        self.write_register(input)?;
+        self.write_register(*input)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(indices)?;
+        self.write_register(*indices)?;
         self.comma()?;
         self.write_token("axes(")?;
         for (index, name) in ["outputOffset", "collapsedInput", "indexToInput"]
@@ -471,17 +508,20 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor scatter.
     fn format_tensor_scatter(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = self.register_id()?;
-        let indices = self.register_id()?;
-        let updates = self.register_id()?;
+        let tensors = self.tensor_ids()?;
+        let [input, indices, updates] = tensors.as_slice() else {
+            return Err(FormatError::SyntaxError {
+                message: "tensor.scatter requires three tensor inputs",
+            });
+        };
         let scalar = self.result_scalar(result_type)?;
         self.require_scalar(scalar)?;
         write!(self.formatter, [token("tensor.scatter"), space()])?;
-        self.write_register(input)?;
+        self.write_register(*input)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(indices)?;
+        self.write_register(*indices)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(updates)?;
+        self.write_register(*updates)?;
         self.comma()?;
         self.write_token("axes(")?;
         for (index, name) in ["updateWindow", "insertedInput", "indexToInput"]
@@ -517,22 +557,8 @@ impl InstructionFormatter<'_, '_, '_> {
         result_type: Option<ValueType>,
     ) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = if operation == TensorOperation::Load {
-            let (input, word_count) = self.register_range_id()?;
-            let ty = self.formatter.context().register_type(input)?;
-            if !ty.is_tensor_view() || word_count != ty.word_count() {
-                return Err(FormatError::SyntaxError {
-                    message: "tensor.load reads an invalid tensor view",
-                });
-            }
-
-            input
-        } else {
-            self.register_id()?
-        };
+        let input = self.tensor_id()?;
         let indices = self.register_ids()?;
-        let scalar = self.result_scalar(result_type)?;
-        self.require_scalar(scalar)?;
         self.write_token("tensor.")?;
         self.write_text(operation.name())?;
         write!(self.formatter, [space()])?;
@@ -545,13 +571,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one tensor scalar store.
     fn format_tensor_store(&mut self) -> FormatResult<()> {
-        let (view, word_count) = self.register_range_id()?;
-        let ty = self.formatter.context().register_type(view)?;
-        if !ty.is_tensor_view() || word_count != ty.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "tensor.store writes through an invalid tensor view",
-            });
-        }
+        let view = self.tensor_id()?;
         let indices = self.register_ids()?;
         let value = self.register_id()?;
         let scalar = self.register_tensor_scalar(view)?;
@@ -568,13 +588,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one tensor fill.
     fn format_tensor_fill(&mut self) -> FormatResult<()> {
-        let (view, word_count) = self.register_range_id()?;
-        let ty = self.formatter.context().register_type(view)?;
-        if !ty.is_tensor_view() || word_count != ty.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "tensor.fill writes through an invalid tensor view",
-            });
-        }
+        let view = self.tensor_id()?;
         let value = self.register_id()?;
         let scalar = self.register_tensor_scalar(view)?;
         self.require_scalar(scalar)?;
@@ -588,25 +602,25 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one tensor copy.
     fn format_tensor_copy(&mut self) -> FormatResult<()> {
-        let (source, source_word_count) = self.register_range_id()?;
-        let (target, target_word_count) = self.register_range_id()?;
-        let source_type = self.formatter.context().register_type(source)?;
-        let target_type = self.formatter.context().register_type(target)?;
-        if !source_type.is_tensor_view()
-            || source_type != target_type
-            || source_word_count != source_type.word_count()
-            || target_word_count != target_type.word_count()
-        {
+        let tensors = self.tensor_ids()?;
+        let [source, target] = tensors.as_slice() else {
+            return Err(FormatError::SyntaxError {
+                message: "tensor.copy requires two tensor inputs",
+            });
+        };
+        let source_type = self.formatter.context().register_type(*source)?;
+        let target_type = self.formatter.context().register_type(*target)?;
+        if !source_type.is_tensor_view() || source_type != target_type {
             return Err(FormatError::SyntaxError {
                 message: "tensor.copy reads invalid tensor views",
             });
         }
-        let scalar = self.register_tensor_scalar(source)?;
+        let scalar = self.register_tensor_scalar(*source)?;
         self.require_scalar(scalar)?;
         write!(self.formatter, [token("tensor.copy"), space()])?;
-        self.write_register(source)?;
+        self.write_register(*source)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(target)?;
+        self.write_register(*target)?;
 
         Ok(())
     }
@@ -614,7 +628,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor view.
     fn format_tensor_view(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result_range(result_type)?;
-        let (input, _) = self.register_range_id()?;
+        let input = self.tensor_id()?;
         write!(self.formatter, [token("tensor.view"), space()])?;
         self.write_register(input)?;
         for name in ["offsets", "sizes", "strides"] {
@@ -629,14 +643,18 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one tensor convolution.
     fn format_tensor_convolution(&mut self, result_type: Option<ValueType>) -> FormatResult<()> {
         self.format_tensor_result(result_type)?;
-        let input = self.register_id()?;
-        let kernel = self.register_id()?;
+        let tensors = self.tensor_ids()?;
+        let [input, kernel] = tensors.as_slice() else {
+            return Err(FormatError::SyntaxError {
+                message: "tensor.convolution requires two tensor inputs",
+            });
+        };
         let scalar = self.result_scalar(result_type)?;
         self.require_scalar(scalar)?;
         write!(self.formatter, [token("tensor.convolution"), space()])?;
-        self.write_register(input)?;
+        self.write_register(*input)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(kernel)?;
+        self.write_register(*kernel)?;
         write!(self.formatter, [token(","), space(), token("axes(")])?;
         for (index, name) in [
             "inputBatch",
@@ -741,6 +759,41 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token(")")?;
 
         Ok(())
+    }
+
+    /// Decode one tensor operand and return its first register.
+    fn tensor_id(&mut self) -> FormatResult<RegisterId> {
+        let (register, word_count) = self.register_range_id()?;
+        let (_, target) = self.symbol_with_target()?;
+        if target.tag != SymbolTag::TYPE {
+            return Err(FormatError::SyntaxError {
+                message: "tensor operand does not reference a runtime type",
+            });
+        }
+        let value_type = self.formatter.context().register_type(register)?;
+        let tensor_type = value_type.tensor_type().ok_or(FormatError::SyntaxError {
+            message: "tensor operand reads a non-tensor value",
+        })?;
+        if word_count != value_type.word_count() || tensor_type != TypeId(target.index) {
+            return Err(FormatError::SyntaxError {
+                message: "tensor operand does not match its register value",
+            });
+        }
+
+        Ok(register)
+    }
+
+    /// Decode one counted tensor operand list.
+    fn tensor_ids(&mut self) -> FormatResult<Vec<RegisterId>> {
+        let count = self.u16()?;
+        let mut registers = Vec::with_capacity(count as usize);
+
+        // decode tensors in source order
+        for _ in 0..count {
+            registers.push(self.tensor_id()?);
+        }
+
+        Ok(registers)
     }
 
     /// Return the scalar representation carried by one result type.

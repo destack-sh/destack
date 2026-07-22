@@ -10,63 +10,102 @@ use crate::{CodeOffset, CodeRange, FrameSlot, ValueType};
 pub struct Function {
     /// The stable function symbol name.
     pub name: StringId,
+    /// The physical function body.
+    pub body: Body,
+    /// Stable hash of the relocatable encoded function body.
+    pub code_hash: u64,
+    /// The function linkage.
+    pub linkage: Linkage,
+    /// Reserved function bytes.
+    reserved: [u8; 7],
+}
+
+/// One executable bytecode function body.
+#[repr(C, align(8))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Body {
+    /// The physical parameter value types.
+    pub parameters: EntryRange<ValueType>,
+    /// The physical result value types.
+    pub results: EntryRange<ValueType>,
     /// The parameters delivered when this function resumes.
     pub resume_parameters: EntryRange<ValueType>,
+    /// The logical value types partitioning the physical register file.
+    pub register_types: EntryRange<ValueType>,
     /// The frame slots for this definition.
     pub frame_slots: EntryRange<FrameSlot>,
     /// The function-relative byte offset of each logical operation.
     pub operation_offsets: EntryRange<CodeOffset>,
     /// The hidden callable environment type when present.
     pub environment: Optional<ValueType>,
-    /// Stable hash of the relocatable encoded function body.
-    pub code_hash: u64,
     /// The encoded function body when this object defines the function.
     pub code: Optional<CodeRange>,
-    /// The register calling type.
-    pub function_type: FunctionTypeId,
+    /// The first dense Program counter assigned to this function.
+    pub counter_start: u32,
     /// The number of function-local profile counters.
     pub counter_count: u32,
+    /// The first dense Program sampler assigned to this function.
+    pub sampler_start: u32,
     /// The number of function-local profile samplers.
     pub sampler_count: u32,
     /// The number of 64-bit words in the register file.
     pub register_count: u16,
-    /// The function linkage.
-    pub linkage: Linkage,
-    /// Reserved function byte.
-    reserved: u8,
 }
 
 impl Function {
     /// Create one bytecode function declaration or definition.
+    pub const fn new(name: StringId, body: Body, code_hash: u64, linkage: Linkage) -> Self {
+        Self {
+            name,
+            body,
+            code_hash,
+            linkage,
+            reserved: [0; 7],
+        }
+    }
+}
+
+impl Body {
+    /// Create one executable bytecode function body.
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
-        name: StringId,
-        function_type: FunctionTypeId,
+        parameters: EntryRange<ValueType>,
+        results: EntryRange<ValueType>,
         resume_parameters: EntryRange<ValueType>,
-        linkage: Linkage,
         environment: Optional<ValueType>,
         register_count: u16,
+        register_types: EntryRange<ValueType>,
         frame_slots: EntryRange<FrameSlot>,
         operation_offsets: EntryRange<CodeOffset>,
         code: Optional<CodeRange>,
         counter_count: u32,
         sampler_count: u32,
-        code_hash: u64,
     ) -> Self {
         Self {
-            name,
+            parameters,
+            results,
             resume_parameters,
+            register_types,
             frame_slots,
             operation_offsets,
             environment,
-            code_hash,
             code,
-            function_type,
+            counter_start: 0,
             counter_count,
+            sampler_start: 0,
             sampler_count,
             register_count,
-            linkage,
-            reserved: 0,
         }
+    }
+
+    /// Return this function's physical parameter types.
+    pub fn parameters<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
+        self.parameters.slice(types)
+    }
+
+    /// Return this function's physical result types.
+    pub fn results<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
+        self.results.slice(types)
     }
 
     /// Borrow the parameters delivered when this function resumes.
@@ -77,6 +116,11 @@ impl Function {
     /// Return the register file word count.
     pub const fn register_count(&self) -> usize {
         self.register_count as usize
+    }
+
+    /// Return the logical value types partitioning this function's register file.
+    pub fn register_types<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
+        self.register_types.slice(types)
     }
 
     /// Return this function's frame slots.
@@ -110,20 +154,6 @@ impl Function {
 pub struct FunctionId(pub u32);
 
 impl FunctionId {
-    /// Return this id as a dense object index.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// An object-local function type id.
-#[repr(transparent)]
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct FunctionTypeId(pub u32);
-
-impl FunctionTypeId {
     /// Return this id as a dense object index.
     pub const fn index(self) -> usize {
         self.0 as usize
@@ -242,36 +272,11 @@ impl Linkage {
     }
 }
 
-/// The register calling type of one bytecode function.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct FunctionType {
-    /// The stable type name when explicitly named.
-    pub name: Optional<StringId>,
-    /// The parameter value representations in call order.
-    pub parameters: EntryRange<ValueType>,
-    /// The result value representations in return order.
-    pub results: EntryRange<ValueType>,
-}
-
-impl FunctionType {
-    /// Borrow the parameter types.
-    pub fn parameters<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
-        self.parameters.slice(types)
-    }
-
-    /// Borrow the result types.
-    pub fn results<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
-        self.results.slice(types)
-    }
-}
-
-const _: () = assert!(size_of::<Function>() == 88);
+const _: () = assert!(size_of::<Body>() == 96);
+const _: () = assert!(size_of::<Function>() == 120);
 const _: () = assert!(size_of::<FunctionId>() == 4);
-const _: () = assert!(size_of::<FunctionTypeId>() == 4);
 const _: () = assert!(size_of::<RegisterId>() == 2);
 const _: () = assert!(size_of::<CounterId>() == 4);
 const _: () = assert!(size_of::<SamplerId>() == 4);
 const _: () = assert!(size_of::<RegisterRange>() == 4);
 const _: () = assert!(size_of::<Linkage>() == 1);
-const _: () = assert!(size_of::<FunctionType>() == 32);

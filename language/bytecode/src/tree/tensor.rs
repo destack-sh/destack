@@ -1,6 +1,27 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use crate::{RegisterRange, TypeId};
+
+/// One tensor value consumed by an instruction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct TensorOperand {
+    /// The register words containing the tensor value.
+    pub registers: RegisterRange,
+    /// The type that selects the tensor layout.
+    pub ty: TypeId,
+}
+
+impl TensorOperand {
+    /// The encoded byte length of one tensor operand.
+    pub(crate) const BYTE_LEN: usize = size_of::<u16>() * 2 + size_of::<u32>();
+
+    /// Create one tensor operand.
+    pub const fn new(registers: RegisterRange, ty: TypeId) -> Self {
+        Self { registers, ty }
+    }
+}
+
 /// One tensor operation.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

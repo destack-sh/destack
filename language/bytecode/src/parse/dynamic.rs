@@ -1,6 +1,6 @@
 use crate::{
     InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId,
-    RegisterRange, Space, Symbol, Token, TokenType, ValueType,
+    RegisterRange, Token, TokenType, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -38,33 +38,34 @@ impl Parser<'_> {
             .filter(|ty| ty.is_dynamic())
             .ok_or_else(|| ParseError::new("dynamic.bind requires a dynamic result", token.span))?;
 
-        // match the local managed payload
+        // match a managed payload in the dynamic value's space
         let payload = self.parse_register()?;
         let payload_type = function.value_type(payload).ok_or_else(|| {
             ParseError::new("dynamic.bind reads an uninitialized payload", token.span)
         })?;
-        let is_local_managed = payload_type.reference_type().is_some_and(|reference| {
-            reference.kind() == ReferenceKind::MANAGED && reference.space() == Space::LOCAL
-        });
-        if !is_local_managed {
+        let dynamic_reference = result_type.dynamic_reference().ok_or_else(|| {
+            ParseError::new("dynamic result has no payload reference", token.span)
+        })?;
+        let payload_reference = payload_type.reference_type();
+        if dynamic_reference.kind() != ReferenceKind::MANAGED
+            || payload_reference != Some(dynamic_reference)
+        {
             return Err(ParseError::new(
-                "dynamic.bind requires a local managed reference",
+                "dynamic.bind requires a managed reference in the dynamic value's space",
                 token.span,
             ));
         }
 
-        // resolve concrete and constraint runtime types
+        // resolve the concrete implementation selected by this binding
         self.eat_token(TokenType::Colon)?;
         let concrete = self.parse_type_name()?;
         let constraint = result_type
             .constraint()
             .ok_or_else(|| ParseError::new("dynamic result has no constraint", token.span))?;
-
-        // encode the erased payload and both linked runtime types
+        // encode the erased payload and linked dispatch table
         let mut instruction = InstructionBuilder::new(Opcode::DYNAMIC_BIND);
         instruction.register(payload);
-        instruction.symbol(Symbol::ty(concrete.0));
-        instruction.symbol(Symbol::ty(constraint.0));
+        instruction.dynamic_table(concrete, constraint);
 
         function.emit(instruction, results, &[result_type], self.empty_span())
     }
@@ -77,26 +78,27 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // match the single word result
+        // match the complete dynamic input
+        let dynamic = self.parse_register()?;
+        let dynamic_type = function.value_type(dynamic).filter(|ty| ty.is_dynamic());
+        let dynamic_type = dynamic_type.ok_or_else(|| {
+            ParseError::new("dynamic.payload requires a dynamic value", token.span)
+        })?;
+
+        // match the erased managed payload result
+        let reference = dynamic_type
+            .dynamic_reference()
+            .ok_or_else(|| ParseError::new("dynamic value has no payload reference", token.span))?;
         let result_type = result_types
             .first()
             .copied()
-            .filter(|ty| ty.word_count() == 1)
+            .filter(|ty| ty.reference_type() == Some(reference))
             .ok_or_else(|| {
-                ParseError::new("dynamic.payload requires a one-word result", token.span)
+                ParseError::new(
+                    "dynamic.payload result must match its managed payload reference",
+                    token.span,
+                )
             })?;
-
-        // match the complete dynamic input
-        let dynamic = self.parse_register()?;
-        if !function
-            .value_type(dynamic)
-            .is_some_and(ValueType::is_dynamic)
-        {
-            return Err(ParseError::new(
-                "dynamic.payload requires a dynamic value",
-                token.span,
-            ));
-        }
 
         // encode the erased payload projection
         let mut instruction = InstructionBuilder::new(Opcode::DYNAMIC_PAYLOAD);

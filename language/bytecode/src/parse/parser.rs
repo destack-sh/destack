@@ -1,8 +1,8 @@
 use destack_source::{FileId, Span};
 
 use crate::{
-    ConstantId, FunctionId, FunctionTypeId, GlobalId, Linkage, ObjectBuilder, ParseError,
-    ParseResult, Token, TokenType, TypeId,
+    ConstantId, FunctionId, GlobalId, Linkage, ObjectBuilder, ParseError, ParseResult, Token,
+    TokenType, TypeId,
 };
 
 use super::cursor::TokenCursor;
@@ -90,34 +90,10 @@ impl<'a> Parser<'a> {
         Ok(positions)
     }
 
-    /// Assign dense ids to every top-level symbol and function type.
+    /// Assign dense ids to every top-level symbol.
     pub(super) fn index_declarations(&mut self, positions: &[usize]) -> ParseResult<()> {
-        self.index_named_function_types(positions)?;
         self.index_symbols(positions)?;
         self.cursor.reset();
-
-        Ok(())
-    }
-
-    /// Assign dense ids to every named function type.
-    fn index_named_function_types(&mut self, positions: &[usize]) -> ParseResult<()> {
-        for position in positions {
-            let (_, keyword) = self.begin_declaration(*position)?;
-            if self.text(keyword) != "type" {
-                continue;
-            }
-            let name = self.eat_token(TokenType::Identifier)?;
-            if !self.peek_is(TokenType::Equal) {
-                continue;
-            }
-            let text = self.text(name).to_string();
-            SymbolTable::insert(
-                &mut self.symbols.function_types,
-                text,
-                FunctionTypeId,
-                name.span,
-            )?;
-        }
 
         Ok(())
     }
@@ -139,31 +115,43 @@ impl<'a> Parser<'a> {
             let text = self.text(name).to_string();
 
             match keyword_text.as_str() {
-                "type" if self.peek_is(TokenType::Equal) => {}
                 "type" => {
-                    SymbolTable::insert(&mut self.symbols.types, text.clone(), TypeId, name.span)?;
+                    if self.symbols.types.contains_key(&text) {
+                        return Err(ParseError::new("duplicate symbol", name.span));
+                    }
+                    let ty = TypeId(self.symbols.types.len() as u32);
+                    self.symbols.types.insert(text.clone(), ty);
                     let name = self.object.intern_string(&text);
                     self.object.push_type(name);
                 }
                 "constant" => {
-                    SymbolTable::insert(&mut self.symbols.constants, text, ConstantId, name.span)?
+                    if self.symbols.constants.contains_key(&text) {
+                        return Err(ParseError::new("duplicate symbol", name.span));
+                    }
+                    let constant = ConstantId(self.symbols.constants.len() as u32);
+                    self.symbols.constants.insert(text, constant);
                 }
                 "function" => {
-                    let function_type = FunctionTypeId(
-                        (self.symbols.function_types.len()
-                            + self.symbols.function_declarations.len())
-                            as u32,
-                    );
-                    SymbolTable::insert(&mut self.symbols.functions, text, FunctionId, name.span)?;
+                    if self.symbols.functions.contains_key(&text) {
+                        return Err(ParseError::new("duplicate symbol", name.span));
+                    }
+                    let function = FunctionId(self.symbols.functions.len() as u32);
+                    self.symbols.functions.insert(text, function);
                     self.symbols
                         .function_declarations
                         .push(super::symbol::FunctionDeclaration {
-                            function_type,
+                            parameters: Vec::new(),
+                            results: Vec::new(),
+                            environment: None,
                             resume_parameters: Vec::new(),
                         });
                 }
                 "global" => {
-                    SymbolTable::insert(&mut self.symbols.globals, text, GlobalId, name.span)?
+                    if self.symbols.globals.contains_key(&text) {
+                        return Err(ParseError::new("duplicate symbol", name.span));
+                    }
+                    let global = GlobalId(self.symbols.globals.len() as u32);
+                    self.symbols.globals.insert(text, global);
                 }
                 _ => {}
             }

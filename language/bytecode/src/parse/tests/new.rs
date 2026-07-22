@@ -14,7 +14,7 @@ type Point
 export function allocate(r0: uint64): ref<managed, space(local)> {
     r1: ref<managed, space(local)> = new.local.managed.zeroed Point
     r2: uninit<slice<Point, managed, space(local)>> = new.local.managed.slice.uninit Point, r0
-    r2: slice<Point, managed, space(local)> = new.complete r2
+    r4: slice<Point, managed, space(local)> = new.complete r2
     return r1
 }
 "#,

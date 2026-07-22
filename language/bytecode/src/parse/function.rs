@@ -1,11 +1,10 @@
 use destack_core::{EntryRange, Optional, fnv1a_64};
 use destack_source::Span;
 
-use super::symbol::FunctionTypeDefinition;
 use crate::{
-    FrameSlot, Function, FunctionBuilder, FunctionTypeId, InstructionBuilder, Label, Linkage,
-    Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Symbol, Token, TokenType,
-    ValueType,
+    Body, FrameSlot, Function, FunctionBuilder, InstructionBuilder, Label, Linkage, Opcode,
+    ParseError, ParseResult, Parser, RegisterId, RegisterRange, Symbol, TensorOperand, Token,
+    TokenType, ValueType,
 };
 
 /// Parser state for one bytecode function definition.
@@ -15,11 +14,11 @@ pub(super) struct FunctionParser {
     pub(super) builder: FunctionBuilder,
     /// Physical frame slots in declaration order.
     frame_slots: Vec<FrameSlot>,
-    /// Register types established by parameters and instructions.
-    pub(super) register_types: Vec<Option<ValueType>>,
-    /// Logical function result types in return order.
+    /// Logical value types partitioning the physical register file.
+    pub(super) registers: Vec<Option<ValueType>>,
+    /// Physical function result types in return order.
     pub(super) results: Vec<ValueType>,
-    /// Logical parameters delivered when this function resumes.
+    /// Physical parameters delivered when this function resumes.
     pub(super) resume_parameters: Vec<ValueType>,
     /// The hidden callable environment type when present.
     pub(super) environment: Option<ValueType>,
@@ -31,7 +30,7 @@ impl FunctionParser {
         Self {
             builder: FunctionBuilder::new(),
             frame_slots: Vec::new(),
-            register_types: Vec::new(),
+            registers: Vec::new(),
             results: Vec::new(),
             resume_parameters: Vec::new(),
             environment: None,
@@ -41,6 +40,33 @@ impl FunctionParser {
     /// Return whether one dense frame slot has been declared.
     pub(super) fn contains_frame_slot(&self, slot: u32) -> bool {
         (slot as usize) < self.frame_slots.len()
+    }
+
+    /// Return one tensor operand from the current register type.
+    pub(super) fn tensor(&self, register: RegisterId) -> Option<TensorOperand> {
+        let ty = self.value_type(register)?;
+        let tensor_type = ty.tensor_type()?;
+        let registers = RegisterRange::new(register, ty.word_count());
+
+        Some(TensorOperand::new(registers, tensor_type))
+    }
+
+    /// Return one owning tensor operand from the current register type.
+    pub(super) fn owning_tensor(&self, register: RegisterId) -> Option<TensorOperand> {
+        if !self.value_type(register)?.is_tensor() {
+            return None;
+        }
+
+        self.tensor(register)
+    }
+
+    /// Return one tensor view operand from the current register type.
+    pub(super) fn tensor_view(&self, register: RegisterId) -> Option<TensorOperand> {
+        if !self.value_type(register)?.is_tensor_view() {
+            return None;
+        }
+
+        self.tensor(register)
     }
 
     /// Encode one complete instruction into this function.
@@ -86,12 +112,7 @@ impl FunctionParser {
         }
 
         // establish each result before physical emission
-        if !self.assign_values(results, result_types) {
-            return Err(ParseError::new(
-                "instruction result overlaps another register value",
-                span,
-            ));
-        }
+        self.assign_values(results, result_types, span)?;
 
         self.builder.begin_operation();
         self.builder
@@ -102,34 +123,83 @@ impl FunctionParser {
     }
 
     /// Assign one logical value type to contiguous registers.
-    pub(super) fn assign(&mut self, register: RegisterId, ty: ValueType) -> bool {
-        let end = u32::from(register.0) + u32::from(ty.word_count());
+    pub(super) fn assign(&mut self, id: RegisterId, ty: ValueType, span: Span) -> ParseResult<()> {
+        let end = u32::from(id.0) + u32::from(ty.word_count());
         if end > u32::from(u16::MAX) {
-            return false;
+            return Err(ParseError::new(
+                "register value exceeds the register file",
+                span,
+            ));
         }
-        let end = end as u16;
-        if !Self::assign_type(&mut self.register_types, register, ty) {
-            return false;
+        let start = id.index();
+        let end = end as usize;
+        if self.registers.len() < end {
+            self.registers.resize(end, None);
         }
-        let range = RegisterRange::new(register, end - register.0);
-        self.builder.reserve(range);
 
-        true
+        // preserve the first type assigned to each physical register
+        if let Some(current) = self.registers[start] {
+            if current == ty {
+                return Ok(());
+            }
+
+            return Err(ParseError::new(
+                "register type differs from its first assignment",
+                span,
+            ));
+        }
+
+        // reject starts inside an existing multiword value
+        let overlaps_previous = self.registers[..start]
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(index, ty)| ty.map(|ty| index + ty.word_count() as usize))
+            .is_some_and(|previous_end| previous_end > start);
+        if overlaps_previous {
+            return Err(ParseError::new(
+                "register overlaps another register value",
+                span,
+            ));
+        }
+
+        // reject values spanning another logical register start
+        if self.registers[start + 1..end].iter().any(Option::is_some) {
+            return Err(ParseError::new(
+                "register overlaps another register value",
+                span,
+            ));
+        }
+
+        // establish the logical value and reserve its physical words
+        self.registers[start] = Some(ty);
+        let range = RegisterRange::new(id, ty.word_count());
+        self.builder
+            .reserve(range)
+            .map_err(|error| ParseError::new(error.to_string(), span))?;
+
+        Ok(())
     }
 
     /// Assign logical types to their starting registers.
-    pub(super) fn assign_values(&mut self, registers: &[RegisterId], types: &[ValueType]) -> bool {
+    pub(super) fn assign_values(
+        &mut self,
+        registers: &[RegisterId],
+        types: &[ValueType],
+        span: Span,
+    ) -> ParseResult<()> {
         if registers.len() != types.len() {
-            return false;
+            return Err(ParseError::new(
+                "instruction result count does not match its types",
+                span,
+            ));
         }
 
         for (register, ty) in registers.iter().zip(types) {
-            if !self.assign(*register, *ty) {
-                return false;
-            }
+            self.assign(*register, *ty, span)?;
         }
 
-        true
+        Ok(())
     }
 
     /// Return whether registers contain the requested logical value types.
@@ -146,7 +216,7 @@ impl FunctionParser {
 
     /// Return the logical value type beginning at one register.
     pub(super) fn value_type(&self, register: RegisterId) -> Option<ValueType> {
-        self.register_types.get(register.index()).copied().flatten()
+        self.registers.get(register.index()).copied().flatten()
     }
 
     /// Return whether one register begins a value of the requested type.
@@ -156,7 +226,7 @@ impl FunctionParser {
 
     /// Return whether one physical register belongs to an initialized value.
     pub(super) fn contains_word(&self, register: RegisterId) -> bool {
-        self.register_types
+        self.registers
             .iter()
             .enumerate()
             .take(register.index() + 1)
@@ -176,94 +246,48 @@ impl FunctionParser {
         (start..end).all(|register| self.contains_word(RegisterId(register as u16)))
     }
 
+    /// Return the logical value types partitioning the physical register file.
+    pub(super) fn register_types(&self, span: Span) -> ParseResult<Vec<ValueType>> {
+        let mut register = 0;
+        let mut types = Vec::new();
+
+        // advance over each complete logical value
+        while register < self.registers.len() {
+            let Some(ty) = self.registers[register] else {
+                return Err(ParseError::new(
+                    "register file contains an untyped word",
+                    span,
+                ));
+            };
+            types.push(ty);
+            register += ty.word_count() as usize;
+        }
+
+        Ok(types)
+    }
+
     /// Define one branch label at the current code offset.
     pub(super) fn define_label(&mut self, label: Label, span: Span) -> ParseResult<()> {
         self.builder
             .define(label)
             .map_err(|error| ParseError::new(error.to_string(), span))
     }
-
-    /// Assign one logical type without overlapping another logical value.
-    pub(super) fn assign_type(
-        types: &mut Vec<Option<ValueType>>,
-        register: RegisterId,
-        ty: ValueType,
-    ) -> bool {
-        let start = register.index();
-        let old_width = types
-            .get(start)
-            .copied()
-            .flatten()
-            .map_or(0, |ty| ty.word_count() as usize);
-        let new_width = ty.word_count() as usize;
-        let end = start + old_width.max(new_width);
-        if types.len() < end {
-            types.resize(end, None);
-        }
-
-        // reject starts inside an existing wide logical value
-        let overlaps_previous = types[..start]
-            .iter()
-            .enumerate()
-            .rev()
-            .find_map(|(index, ty)| ty.map(|ty| index + ty.word_count() as usize))
-            .is_some_and(|end| end > start);
-        if overlaps_previous {
-            return false;
-        }
-
-        // reject new width spanning another logical value start
-        if types[start + 1..start + new_width]
-            .iter()
-            .any(Option::is_some)
-        {
-            return false;
-        }
-
-        // replace the complete prior logical value
-        types[start..end].fill(None);
-        types[start] = Some(ty);
-
-        true
-    }
 }
 
 impl Parser<'_> {
-    /// Collect one function type before any function body is parsed.
-    pub(super) fn collect_function_type(&mut self, linkage: Linkage) -> ParseResult<()> {
+    /// Collect one function header before any function body is parsed.
+    pub(super) fn collect_function_header(&mut self, linkage: Linkage) -> ParseResult<()> {
         let name = self.eat_token(TokenType::Identifier)?;
         let text = self.text(name).to_string();
         let id = self.function_symbol(&text, name.span)?;
         let mut function = FunctionParser::new();
-        let (definition, resume_parameters) =
+        let (parameters, results, resume_parameters) =
             self.parse_function_header(linkage, name.span, &mut function)?;
-        self.symbols.function_declarations[id.index()].resume_parameters = resume_parameters;
-
-        // reuse one canonical id for every identical function type
-        if let Some(index) = self
-            .symbols
-            .function_type_definitions
-            .iter()
-            .position(|existing| *existing == definition)
-        {
-            self.symbols.function_declarations[id.index()].function_type =
-                FunctionTypeId(index as u32);
-
-            return Ok(());
-        }
-
-        // append one new anonymous function type
-        let function_type = FunctionTypeId(self.symbols.function_type_definitions.len() as u32);
-        self.symbols.function_declarations[id.index()].function_type = function_type;
-        self.insert_function_type(function_type, definition.clone(), name.span)?;
-        let appended = self.object.push_function_type(
-            Optional::none(),
-            definition.parameters,
-            definition.results,
-        );
-        if appended != function_type {
-            return Err(ParseError::new("function types are not dense", name.span));
-        }
+        let declaration = &mut self.symbols.function_declarations[id.index()];
+        declaration.parameters = parameters;
+        declaration.results = results;
+        declaration.environment = function.environment;
+        declaration.resume_parameters = resume_parameters;
 
         Ok(())
     }
@@ -280,37 +304,52 @@ impl Parser<'_> {
 
         // parse the indexed function header
         let mut function = FunctionParser::new();
-        let (parsed, resume_parameters) =
+        let (parameters, results, resume_parameters) =
             self.parse_function_header(linkage, name.span, &mut function)?;
-        if resume_parameters != self.symbols.function_declarations[id.index()].resume_parameters {
-            return Err(ParseError::new(
-                "resume parameters changed after indexing",
-                name.span,
-            ));
-        }
-        let function_type = self.symbols.function_declarations[id.index()].function_type;
-        if parsed != self.symbols.function_type_definitions[function_type.index()] {
+        let declaration = &self.symbols.function_declarations[id.index()];
+        if parameters != declaration.parameters || results != declaration.results {
             return Err(ParseError::new(
                 "function type changed after indexing",
                 name.span,
             ));
         }
-        function.results.clone_from(&parsed.results);
+        if resume_parameters != declaration.resume_parameters {
+            return Err(ParseError::new(
+                "resume parameters changed after indexing",
+                name.span,
+            ));
+        }
+        if function.environment != declaration.environment {
+            return Err(ParseError::new(
+                "function environment changed after indexing",
+                name.span,
+            ));
+        }
+        function.results.clone_from(&results);
         function.resume_parameters.clone_from(&resume_parameters);
+
+        // persist the physical callable ABI
+        let parameters = self.object.push_value_types(parameters);
+        let results = self.object.push_value_types(results);
+        let resume_parameters = self.object.push_value_types(resume_parameters);
         if linkage == Linkage::EXTERNAL {
             let function = Function::new(
                 self.object.intern_string(&text),
-                function_type,
-                EntryRange::empty(),
+                Body::new(
+                    parameters,
+                    results,
+                    resume_parameters,
+                    Optional::none(),
+                    function.builder.register_count(),
+                    EntryRange::empty(),
+                    EntryRange::empty(),
+                    EntryRange::empty(),
+                    Optional::none(),
+                    0,
+                    0,
+                ),
+                0,
                 linkage,
-                Optional::none(),
-                function.builder.register_count(),
-                EntryRange::empty(),
-                EntryRange::empty(),
-                Optional::none(),
-                0,
-                0,
-                0,
             );
             self.object.push_function(function);
 
@@ -318,7 +357,6 @@ impl Parser<'_> {
         }
 
         self.eat_token(TokenType::OpenBrace)?;
-        let resume_parameters = self.object.push_value_types(resume_parameters);
 
         // parse the complete logical frame first
         while self.peek_name("slot") {
@@ -355,8 +393,9 @@ impl Parser<'_> {
             }
         }
 
-        // finish the physical function body
+        // finish the fixed register partition and physical function body
         let environment = function.environment;
+        let register_types = function.register_types(self.empty_span())?;
         let body = function
             .builder
             .build()
@@ -364,14 +403,17 @@ impl Parser<'_> {
 
         // append the body to the object code section
         let code_hash = fnv1a_64(&body.code);
-        let code = self
-            .object
-            .push_code(&body.code, body.relocations.iter().copied());
+        let code = self.object.push_code(
+            &body.code,
+            body.relocations.iter().copied(),
+            body.dynamic_relocations.iter().copied(),
+        );
 
         // retain function-relative logical operation offsets
         let operation_offsets = self
             .object
             .push_operation_offsets(body.operation_offsets.iter().copied());
+        let register_types = self.object.push_value_types(register_types);
 
         // append the resolved frame rows in function order
         let slot_start = self.object.frame_slot_count() as u32;
@@ -383,17 +425,21 @@ impl Parser<'_> {
         // publish the complete function row
         let function = Function::new(
             self.object.intern_string(&text),
-            function_type,
-            resume_parameters,
-            linkage,
-            Optional::from(environment),
-            body.register_count,
-            EntryRange::new(slot_start, slot_len),
-            operation_offsets,
-            Optional::some(code),
-            body.counter_count,
-            body.sampler_count,
+            Body::new(
+                parameters,
+                results,
+                resume_parameters,
+                Optional::from(environment),
+                body.register_count,
+                register_types,
+                EntryRange::new(slot_start, slot_len),
+                operation_offsets,
+                Optional::some(code),
+                body.counter_count,
+                body.sampler_count,
+            ),
             code_hash,
+            linkage,
         );
         self.object.push_function(function);
 
@@ -406,7 +452,7 @@ impl Parser<'_> {
         linkage: Linkage,
         span: Span,
         function: &mut FunctionParser,
-    ) -> ParseResult<(FunctionTypeDefinition, Vec<ValueType>)> {
+    ) -> ParseResult<(Vec<ValueType>, Vec<ValueType>, Vec<ValueType>)> {
         let parameters = if linkage == Linkage::EXTERNAL {
             self.parse_value_types()?
         } else {
@@ -420,12 +466,7 @@ impl Parser<'_> {
         // parse the result declaration
         self.eat_token(TokenType::Colon)?;
         let results = self.parse_results()?;
-        let definition = FunctionTypeDefinition {
-            parameters,
-            results,
-        };
-
-        Ok((definition, resume))
+        Ok((parameters, results, resume))
     }
 
     /// Parse the logical values delivered when this function resumes.
@@ -452,10 +493,10 @@ impl Parser<'_> {
                 && (function.environment.is_some()
                     || !parameters.is_empty()
                     || register != RegisterId(0)
-                    || ty.word_count() != 1)
+                    || !ty.is_initialized_reference())
             {
                 return Err(ParseError::new(
-                    "environment must be one leading register word",
+                    "environment must be one leading reference word",
                     self.previous().span,
                 ));
             }
@@ -467,12 +508,7 @@ impl Parser<'_> {
                     self.previous().span,
                 ));
             }
-            if !function.assign(register, ty) {
-                return Err(ParseError::new(
-                    "parameter registers do not match its type",
-                    self.previous().span,
-                ));
-            }
+            function.assign(register, ty, self.previous().span)?;
             if is_environment {
                 function.environment = Some(ty);
             } else {
@@ -590,7 +626,6 @@ impl Parser<'_> {
         match name {
             "function.address" => self.parse_function_address(results, function),
             "function.bind" => self.parse_function_bind(token, results, result_types, function),
-            "function.pointer" => self.parse_function_pointer(token, results, function),
             "function.environment" => {
                 self.parse_function_environment(token, results, result_types, function)
             }
@@ -609,14 +644,22 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         let name = self.eat_token(TokenType::Identifier)?;
         let target = self.function_symbol(self.text(name), name.span)?;
-        let function_type = self.symbols.function_declarations[target.index()].function_type;
+        if self.symbols.function_declarations[target.index()]
+            .environment
+            .is_some()
+        {
+            return Err(ParseError::new(
+                "function.address requires an environment-free function",
+                name.span,
+            ));
+        }
         let mut instruction = InstructionBuilder::new(Opcode::FUNCTION_ADDRESS);
         instruction.symbol(Symbol::function(target.0));
 
         function.emit(
             instruction,
             results,
-            &[ValueType::function_pointer(function_type)],
+            &[ValueType::function_pointer()],
             self.empty_span(),
         )
     }
@@ -636,21 +679,8 @@ impl Parser<'_> {
             .ok_or_else(|| {
                 ParseError::new("function.bind requires a function result", token.span)
             })?;
-        let function_type = result_type
-            .function_type()
-            .ok_or_else(|| ParseError::new("function result has no callable type", token.span))?;
         let name = self.eat_token(TokenType::Identifier)?;
         let target = self.function_symbol(self.text(name), name.span)?;
-        let target_type = self.symbols.function_declarations[target.index()].function_type;
-        if !self
-            .symbols
-            .function_types_match(target_type, function_type)
-        {
-            return Err(ParseError::new(
-                "bound function does not match its result type",
-                name.span,
-            ));
-        }
         self.eat_token(TokenType::Comma)?;
         let environment = self.parse_register()?;
         let environment_type = function.value_type(environment).ok_or_else(|| {
@@ -659,9 +689,16 @@ impl Parser<'_> {
                 token.span,
             )
         })?;
-        if environment_type.word_count() != 1 {
+        if !environment_type.is_initialized_reference() {
             return Err(ParseError::new(
-                "function environment must occupy one register word",
+                "function environment must be one initialized reference",
+                token.span,
+            ));
+        }
+        let target_environment = self.symbols.function_declarations[target.index()].environment;
+        if target_environment != Some(environment_type) {
+            return Err(ParseError::new(
+                "function environment does not match its target",
                 token.span,
             ));
         }
@@ -672,34 +709,6 @@ impl Parser<'_> {
         instruction.register(environment);
 
         function.emit(instruction, results, &[result_type], self.empty_span())
-    }
-
-    /// Parse one bare pointer projection from a function value.
-    fn parse_function_pointer(
-        &mut self,
-        token: Token,
-        results: &[RegisterId],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let value = self.parse_register()?;
-        let value_type = function
-            .value_type(value)
-            .filter(|ty| ty.is_function())
-            .ok_or_else(|| {
-                ParseError::new("function.pointer requires a function value", token.span)
-            })?;
-        let function_type = value_type
-            .function_type()
-            .ok_or_else(|| ParseError::new("function value has no callable type", token.span))?;
-        let mut instruction = InstructionBuilder::new(Opcode::FUNCTION_POINTER);
-        instruction.range(RegisterRange::new(value, value_type.word_count()));
-
-        function.emit(
-            instruction,
-            results,
-            &[ValueType::function_pointer(function_type)],
-            self.empty_span(),
-        )
     }
 
     /// Parse one captured environment projection from a function value.
@@ -713,10 +722,10 @@ impl Parser<'_> {
         let result_type = result_types
             .first()
             .copied()
-            .filter(|ty| ty.word_count() == 1)
+            .filter(|ty| ty.is_initialized_reference())
             .ok_or_else(|| {
                 ParseError::new(
-                    "function.environment requires a one-word result",
+                    "function.environment requires one reference result",
                     token.span,
                 )
             })?;

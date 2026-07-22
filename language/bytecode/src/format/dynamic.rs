@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{Opcode, ReferenceKind, Space, SymbolTag, TypeId, ValueType};
+use crate::{Opcode, ValueType};
 
 use super::instruction::InstructionFormatter;
 
@@ -21,24 +21,24 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one dynamic value construction.
     fn format_dynamic_bind(&mut self) -> FormatResult<()> {
-        // decode result, payload, and runtime types
+        // decode result, payload, and dispatch table
         let (result, word_count) = self.register_range_id()?;
         let value = self.register_id()?;
-        let concrete = self.symbol()?;
-        let (_, constraint) = self.symbol_with_target()?;
+        let relocation = self.dynamic_relocation()?;
+        let concrete = self
+            .formatter
+            .context()
+            .type_name(relocation.concrete)?
+            .to_string();
+        let ty = self.formatter.context().register_type(result)?;
 
-        // require the constraint relocation to name one runtime type
-        if constraint.tag != SymbolTag::TYPE {
+        // match the encoded result and dynamic dispatch relocation
+        if word_count != ty.word_count()
+            || ty.constraint() != Some(relocation.constraint)
+            || !ty.is_dynamic()
+        {
             return Err(FormatError::SyntaxError {
-                message: "dynamic binding constraint does not reference a type",
-            });
-        }
-        let ty = ValueType::dynamic(TypeId(constraint.index));
-
-        // require the encoded result to fit one complete dynamic value
-        if word_count != ty.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "dynamic binding result has an invalid register width",
+                message: "dynamic binding result does not match its relocation",
             });
         }
 
@@ -56,17 +56,25 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one erased dynamic payload access.
     fn format_dynamic_payload(&mut self) -> FormatResult<()> {
         // decode one complete dynamic value
-        self.result(ValueType::reference(ReferenceKind::MANAGED, Space::LOCAL))?;
+        let result = self.register_id()?;
         let (dynamic, word_count) = self.register_range_id()?;
+        let dynamic_type = self.formatter.context().register_type(dynamic)?;
+        let reference = dynamic_type
+            .dynamic_reference()
+            .ok_or(FormatError::SyntaxError {
+                message: "dynamic.payload reads a non-dynamic value",
+            })?;
+        let result_type = ValueType::reference(reference.kind(), reference.space());
 
         // require one complete dynamic input
-        if word_count != 2 {
+        if word_count != dynamic_type.word_count() {
             return Err(FormatError::SyntaxError {
                 message: "dynamic.payload reads an invalid dynamic value",
             });
         }
 
         // write the erased payload projection
+        self.write_result(result, result_type)?;
         write!(
             self.formatter,
             [

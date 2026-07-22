@@ -1,7 +1,7 @@
 use destack_source::Span;
 
 use crate::{
-    FunctionTypeId, ParseError, ParseResult, Parser, ReferenceKind, Scalar, Space, TokenType,
+    ParseError, ParseResult, Parser, ReferenceKind, ReferenceType, Scalar, Space, TokenType,
     TypeId, ValueType, VectorType,
 };
 
@@ -44,39 +44,42 @@ impl Parser<'_> {
                 Ok(ValueType::reference(kind, space))
             }
             "uninit" => self.parse_uninit_type(),
-            "functionPointer" => {
-                let function_type = self.parse_function_type()?;
-
-                Ok(ValueType::function_pointer(function_type))
-            }
-            "function" => {
-                let function_type = self.parse_function_type()?;
-
-                Ok(ValueType::function(function_type))
-            }
+            "fn" => Ok(ValueType::function_pointer()),
+            "function" => Ok(ValueType::function()),
             "slice" => {
                 let (element, kind, space) = self.parse_slice_type()?;
 
                 Ok(ValueType::slice(element, kind, space))
             }
             "dynamic" => {
-                let constraint = self.parse_ty()?;
+                self.eat_token(TokenType::LessThan)?;
+                let constraint = self.parse_type_name()?;
+                self.eat_token(TokenType::Comma)?;
+                let space = self.parse_space()?;
+                self.eat_token(TokenType::GreaterThan)?;
 
-                Ok(ValueType::dynamic(constraint))
+                Ok(ValueType::dynamic(constraint, space))
             }
             "tensor" => {
-                let (scalar, ty) = self.parse_tensor_type()?;
+                let (scalar, ty, space) = self.parse_tensor_type()?;
 
-                Ok(ValueType::tensor(scalar, ty))
+                Ok(ValueType::tensor(scalar, ty, space))
             }
             "tensorView" => {
                 self.eat_token(TokenType::LessThan)?;
                 let scalar = self.parse_scalar_name()?;
                 self.eat_token(TokenType::Comma)?;
                 let ty = self.parse_type_name()?;
+                self.eat_token(TokenType::Comma)?;
+                let kind = self.parse_reference_kind()?;
+                self.eat_token(TokenType::Comma)?;
+                let space = self.parse_space()?;
+                self.eat_token(TokenType::Comma)?;
+                let word_count = self.parse_u16()?;
                 self.eat_token(TokenType::GreaterThan)?;
 
-                let ty = ValueType::tensor_view(scalar, ty);
+                let reference = ReferenceType::new(kind, space);
+                let ty = ValueType::tensor_view(scalar, ty, reference, word_count);
                 if !ty.is_defined() {
                     return Err(ParseError::new("invalid tensor view type", token.span));
                 }
@@ -140,14 +143,16 @@ impl Parser<'_> {
     }
 
     /// Parse one tensor element representation and runtime type.
-    fn parse_tensor_type(&mut self) -> ParseResult<(Scalar, TypeId)> {
+    fn parse_tensor_type(&mut self) -> ParseResult<(Scalar, TypeId, Space)> {
         self.eat_token(TokenType::LessThan)?;
         let scalar = self.parse_scalar_name()?;
         self.eat_token(TokenType::Comma)?;
         let ty = self.parse_type_name()?;
+        self.eat_token(TokenType::Comma)?;
+        let space = self.parse_space()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok((scalar, ty))
+        Ok((scalar, ty, space))
     }
 
     /// Parse one reference ownership and space argument list.
@@ -181,17 +186,6 @@ impl Parser<'_> {
         Ok(space)
     }
 
-    /// Parse one named type symbol inside angle brackets.
-    fn parse_ty(&mut self) -> ParseResult<TypeId> {
-        self.eat_token(TokenType::LessThan)?;
-        let name = self.eat_token(TokenType::Identifier)?;
-        let ty = self.symbols.types.get(self.text(name)).copied();
-        let ty = ty.ok_or_else(|| ParseError::new("unknown type symbol", name.span))?;
-        self.eat_token(TokenType::GreaterThan)?;
-
-        Ok(ty)
-    }
-
     /// Parse one type symbol name.
     pub(super) fn parse_type_name(&mut self) -> ParseResult<TypeId> {
         let token = self.eat_token(TokenType::Identifier)?;
@@ -208,18 +202,6 @@ impl Parser<'_> {
         self.symbols.types.insert(text, ty);
 
         Ok(ty)
-    }
-
-    /// Parse one named function type inside angle brackets.
-    fn parse_function_type(&mut self) -> ParseResult<FunctionTypeId> {
-        self.eat_token(TokenType::LessThan)?;
-        let name = self.eat_token(TokenType::Identifier)?;
-        let function_type = self.symbols.function_types.get(self.text(name)).copied();
-        let function_type =
-            function_type.ok_or_else(|| ParseError::new("unknown function type", name.span))?;
-        self.eat_token(TokenType::GreaterThan)?;
-
-        Ok(function_type)
     }
 
     /// Parse one fixed-width vector type.

@@ -107,7 +107,9 @@ impl Parser<'_> {
             "safepoint" => self.parse_control_operation(name, token, results, function),
 
             // calls
-            "call" | "invoke" | "tail" => self.parse_call_operation(name, token, results, function),
+            "call" | "invoke" | "tail" => {
+                self.parse_call_operation(name, token, results, result_types, function)
+            }
 
             // control flow
             "branch" if name != "branch" => self.parse_branch(name, token, results, function),
@@ -115,9 +117,7 @@ impl Parser<'_> {
             | "breakpoint" => self.parse_control_operation(name, token, results, function),
 
             // panic and unwind
-            "panic" | "unwind" | "catch" => {
-                self.parse_control_operation(name, token, results, function)
-            }
+            "panic" | "unwind" => self.parse_control_operation(name, token, results, function),
 
             // runtime checks, casts, and profile instrumentation
             "check" => self.parse_check_operation(name, token, results, function),

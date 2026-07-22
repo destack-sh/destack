@@ -2,9 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{
-    FunctionId, FunctionTypeId, Opcode, RegisterId, RegisterRange, Symbol, SymbolTag, ValueType,
-};
+use crate::{Opcode, RegisterId, RegisterRange, SymbolTag};
 
 use super::instruction::InstructionFormatter;
 
@@ -14,59 +12,28 @@ enum CallTarget {
     Direct {
         /// The linked function name.
         name: String,
-        /// The called function type.
-        function_type: FunctionTypeId,
     },
-    /// One function value.
-    Function {
-        /// The function value.
-        function: RegisterId,
-        /// The called function type.
-        function_type: FunctionTypeId,
-    },
-    /// One bare function pointer.
-    FunctionPointer {
-        /// The function pointer.
-        function: RegisterId,
-        /// The called function type.
-        function_type: FunctionTypeId,
+    /// One indirect function value or pointer.
+    Indirect {
+        /// The callable value.
+        value: RegisterRange,
     },
     /// One virtual receiver and slot.
     Virtual {
         /// The receiver reference.
         receiver: RegisterId,
+        /// The byte offset of the virtual table id in the receiver allocation.
+        dispatch_offset: u32,
         /// The virtual method slot.
         slot: u16,
-        /// The called function type.
-        function_type: FunctionTypeId,
     },
     /// One dynamic receiver and slot.
     Dynamic {
-        /// The dynamic value.
-        dynamic: RegisterId,
+        /// The receiver value.
+        receiver: RegisterId,
         /// The dynamic method slot.
         slot: u16,
-        /// The called function type.
-        function_type: FunctionTypeId,
     },
-}
-
-impl CallTarget {
-    /// Return the exact called function type.
-    const fn function_type(&self) -> FunctionTypeId {
-        match self {
-            Self::Direct { function_type, .. }
-            | Self::Function { function_type, .. }
-            | Self::FunctionPointer { function_type, .. }
-            | Self::Virtual { function_type, .. }
-            | Self::Dynamic { function_type, .. } => *function_type,
-        }
-    }
-
-    /// Return whether this target uses a dispatch slot.
-    const fn is_dispatched(&self) -> bool {
-        matches!(self, Self::Virtual { .. } | Self::Dynamic { .. })
-    }
 }
 
 impl InstructionFormatter<'_, '_, '_> {
@@ -76,7 +43,6 @@ impl InstructionFormatter<'_, '_, '_> {
             opcode,
             Opcode::TAIL_CALL
                 | Opcode::TAIL_CALL_INDIRECT
-                | Opcode::TAIL_CALL_FUNCTION_POINTER
                 | Opcode::TAIL_CALL_VIRTUAL
                 | Opcode::TAIL_CALL_DYNAMIC
         );
@@ -84,7 +50,6 @@ impl InstructionFormatter<'_, '_, '_> {
             opcode,
             Opcode::INVOKE
                 | Opcode::INVOKE_INDIRECT
-                | Opcode::INVOKE_FUNCTION_POINTER
                 | Opcode::INVOKE_VIRTUAL
                 | Opcode::INVOKE_DYNAMIC
         );
@@ -98,25 +63,14 @@ impl InstructionFormatter<'_, '_, '_> {
             Some(RegisterRange::new(start, word_count))
         };
         let target = self.call_target(opcode)?;
-        let function_type_id = target.function_type();
-        let function_type = self
-            .formatter
-            .context()
-            .object
-            .function_type(function_type_id)
-            .copied()
-            .ok_or(FormatError::SyntaxError {
-                message: "call references a missing function type",
-            })?;
-        let value_types = self.formatter.context().object.value_types();
+        let result_types = match results {
+            Some(results) => self.formatter.context().register_types(results)?,
+            None => Vec::new(),
+        };
 
         // write typed results followed by the canonical call operation
         if let Some(results) = results {
-            self.write_results(
-                results.start,
-                results.word_count,
-                function_type.results(value_types),
-            )?;
+            self.write_results(results.start, results.word_count, &result_types)?;
             if results.word_count > 0 {
                 write!(self.formatter, [space(), token("="), space()])?;
             }
@@ -127,7 +81,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_call_target(&target)?;
 
         // write every packed argument as one logical value
-        let arguments = self.typed_register_ids(function_type.parameters(value_types))?;
+        let arguments = self.register_value_ids()?;
         self.write_token("(")?;
         for (index, argument) in arguments.into_iter().enumerate() {
             if index > 0 {
@@ -136,15 +90,6 @@ impl InstructionFormatter<'_, '_, '_> {
             self.write_register(argument)?;
         }
         self.write_token(")")?;
-        if target.is_dispatched() {
-            let name = self
-                .formatter
-                .context()
-                .function_type_name(function_type_id)?
-                .to_string();
-            write!(self.formatter, [token(":"), space()])?;
-            self.write_text(&name)?;
-        }
 
         // write explicit normal and unwind edges as one breakable continuation
         if is_invoke {
@@ -160,7 +105,7 @@ impl InstructionFormatter<'_, '_, '_> {
         Ok(())
     }
 
-    /// Decode one call target and its exact function type.
+    /// Decode one call target.
     fn call_target(&mut self, opcode: Opcode) -> FormatResult<CallTarget> {
         // direct function
         if matches!(opcode, Opcode::CALL | Opcode::INVOKE | Opcode::TAIL_CALL) {
@@ -170,14 +115,9 @@ impl InstructionFormatter<'_, '_, '_> {
         // open function value or pointer
         if matches!(
             opcode,
-            Opcode::CALL_INDIRECT
-                | Opcode::INVOKE_INDIRECT
-                | Opcode::TAIL_CALL_INDIRECT
-                | Opcode::CALL_FUNCTION_POINTER
-                | Opcode::INVOKE_FUNCTION_POINTER
-                | Opcode::TAIL_CALL_FUNCTION_POINTER
+            Opcode::CALL_INDIRECT | Opcode::INVOKE_INDIRECT | Opcode::TAIL_CALL_INDIRECT
         ) {
-            return self.indirect_call_target(opcode);
+            return self.indirect_call_target();
         }
 
         // virtual or dynamic dispatch
@@ -187,78 +127,58 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Decode one directly linked call target.
     fn direct_call_target(&mut self) -> FormatResult<CallTarget> {
         let (name, symbol) = self.symbol_with_target()?;
-        let function_type = self.direct_function_type(symbol)?;
+        if symbol.tag != SymbolTag::FUNCTION {
+            return Err(FormatError::SyntaxError {
+                message: "direct call does not reference a function",
+            });
+        }
 
-        Ok(CallTarget::Direct {
-            name,
-            function_type,
-        })
+        Ok(CallTarget::Direct { name })
     }
 
     /// Decode one function value or function pointer call target.
-    fn indirect_call_target(&mut self, opcode: Opcode) -> FormatResult<CallTarget> {
-        let (_, symbol) = self.symbol_with_target()?;
-        if symbol.tag != SymbolTag::FUNCTION_TYPE {
+    fn indirect_call_target(&mut self) -> FormatResult<CallTarget> {
+        let (start, word_count) = self.register_range_id()?;
+        let value = RegisterRange::new(start, word_count);
+        let value_type = self.formatter.context().register_type(start)?;
+        if (!value_type.is_function() && !value_type.is_function_pointer())
+            || value_type.word_count() != word_count
+        {
             return Err(FormatError::SyntaxError {
-                message: "open call does not reference a function type",
-            });
-        }
-        let function_type = FunctionTypeId(symbol.index);
-
-        // function value target
-        if matches!(
-            opcode,
-            Opcode::CALL_INDIRECT | Opcode::INVOKE_INDIRECT | Opcode::TAIL_CALL_INDIRECT
-        ) {
-            let (function, word_count) = self.register_range_id()?;
-            if word_count != ValueType::function(function_type).word_count() {
-                return Err(FormatError::SyntaxError {
-                    message: "indirect call target has an invalid register width",
-                });
-            }
-
-            return Ok(CallTarget::Function {
-                function,
-                function_type,
+                message: "indirect call target is not callable",
             });
         }
 
-        // bare function pointer target
-        let function = self.register_id()?;
-
-        Ok(CallTarget::FunctionPointer {
-            function,
-            function_type,
-        })
+        Ok(CallTarget::Indirect { value })
     }
 
     /// Decode one virtual or dynamic dispatch target.
     fn dispatch_call_target(&mut self, opcode: Opcode) -> FormatResult<CallTarget> {
-        let (_, symbol) = self.symbol_with_target()?;
-        if symbol.tag != SymbolTag::FUNCTION_TYPE {
-            return Err(FormatError::SyntaxError {
-                message: "dispatch call does not reference a function type",
-            });
-        }
-        let function_type = FunctionTypeId(symbol.index);
-
         // virtual receiver
         if matches!(
             opcode,
             Opcode::CALL_VIRTUAL | Opcode::INVOKE_VIRTUAL | Opcode::TAIL_CALL_VIRTUAL
         ) {
             let receiver = self.register_id()?;
+            let reference = self.reference()?;
+            let dispatch_offset = self.u32()?;
             let slot = self.u16()?;
+            let receiver_type = self.formatter.context().register_type(receiver)?;
+            if receiver_type.reference_type() != Some(reference) {
+                return Err(FormatError::SyntaxError {
+                    message: "virtual call receiver does not match its reference operand",
+                });
+            }
 
             return Ok(CallTarget::Virtual {
                 receiver,
+                dispatch_offset,
                 slot,
-                function_type,
             });
         }
 
         // dynamic receiver
-        let (dynamic, word_count) = self.register_range_id()?;
+        let (receiver, word_count) = self.register_range_id()?;
         if word_count != 2 {
             return Err(FormatError::SyntaxError {
                 message: "dynamic call target has an invalid register width",
@@ -266,31 +186,37 @@ impl InstructionFormatter<'_, '_, '_> {
         }
         let slot = self.u16()?;
 
-        Ok(CallTarget::Dynamic {
-            dynamic,
-            slot,
-            function_type,
-        })
+        Ok(CallTarget::Dynamic { receiver, slot })
     }
 
     /// Write one decoded call target.
     fn write_call_target(&mut self, target: &CallTarget) -> FormatResult<()> {
         match target {
             CallTarget::Direct { name, .. } => self.write_text(name),
-            CallTarget::Function { function, .. }
-            | CallTarget::FunctionPointer { function, .. } => self.write_register(*function),
-            CallTarget::Virtual { receiver, slot, .. } => {
+            CallTarget::Indirect { value, .. } => self.write_register(value.start),
+            CallTarget::Virtual {
+                receiver,
+                dispatch_offset,
+                slot,
+                ..
+            } => {
+                let dispatch_offset = dispatch_offset.to_string();
                 let slot = slot.to_string();
                 self.write_register(*receiver)?;
+                write!(
+                    self.formatter,
+                    [token(","), space(), token("dispatch"), space()]
+                )?;
+                self.write_text(&dispatch_offset)?;
                 write!(
                     self.formatter,
                     [token(","), space(), token("slot"), space()]
                 )?;
                 self.write_text(&slot)
             }
-            CallTarget::Dynamic { dynamic, slot, .. } => {
+            CallTarget::Dynamic { receiver, slot, .. } => {
                 let slot = slot.to_string();
-                self.write_register(*dynamic)?;
+                self.write_register(*receiver)?;
                 write!(
                     self.formatter,
                     [token(","), space(), token("slot"), space()]
@@ -300,23 +226,5 @@ impl InstructionFormatter<'_, '_, '_> {
                 Ok(())
             }
         }
-    }
-
-    /// Return the function type selected by one direct function symbol.
-    fn direct_function_type(&self, symbol: Symbol) -> FormatResult<FunctionTypeId> {
-        if symbol.tag != SymbolTag::FUNCTION {
-            return Err(FormatError::SyntaxError {
-                message: "direct call does not reference a function",
-            });
-        }
-
-        self.formatter
-            .context()
-            .object
-            .function(FunctionId(symbol.index))
-            .map(|function| function.function_type)
-            .ok_or(FormatError::SyntaxError {
-                message: "direct call references a missing function",
-            })
     }
 }

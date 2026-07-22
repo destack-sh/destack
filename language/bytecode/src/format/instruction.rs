@@ -148,7 +148,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             // function values
             Opcode::FUNCTION_ADDRESS
             | Opcode::FUNCTION_BIND
-            | Opcode::FUNCTION_POINTER
             | Opcode::FUNCTION_ENVIRONMENT
             | Opcode::FUNCTION_ENVIRONMENT_CURRENT => self.format_function_value(opcode),
 
@@ -174,17 +173,14 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             // calls
             Opcode::CALL
             | Opcode::CALL_INDIRECT
-            | Opcode::CALL_FUNCTION_POINTER
             | Opcode::CALL_VIRTUAL
             | Opcode::CALL_DYNAMIC
             | Opcode::INVOKE
             | Opcode::INVOKE_INDIRECT
-            | Opcode::INVOKE_FUNCTION_POINTER
             | Opcode::INVOKE_VIRTUAL
             | Opcode::INVOKE_DYNAMIC
             | Opcode::TAIL_CALL
             | Opcode::TAIL_CALL_INDIRECT
-            | Opcode::TAIL_CALL_FUNCTION_POINTER
             | Opcode::TAIL_CALL_VIRTUAL
             | Opcode::TAIL_CALL_DYNAMIC => self.format_call(opcode),
 
@@ -199,7 +195,7 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::BREAKPOINT => self.format_control(opcode),
 
             // panic and unwind
-            Opcode::CATCH | Opcode::PANIC | Opcode::PANIC_VALUE | Opcode::UNWIND_RESUME => {
+            Opcode::PANIC | Opcode::PANIC_VALUE | Opcode::UNWIND_RESUME => {
                 self.format_control(opcode)
             }
 
@@ -277,13 +273,18 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
         self.write_result(register, ty)
     }
 
-    /// Append and assign one previously decoded result register.
+    /// Append one previously decoded result register.
     pub(super) fn write_result(&mut self, register: RegisterId, ty: ValueType) -> FormatResult<()> {
+        if self.formatter.context().register_type(register)? != ty {
+            return Err(FormatError::SyntaxError {
+                message: "instruction result type differs from its register type",
+            });
+        }
+
         let name = self.formatter.context().value_type_text(ty)?.to_string();
         self.write_register(register)?;
         self.write_token(": ")?;
         self.write_text(&name)?;
-        self.formatter.context_mut().assign_register(register, ty)?;
 
         Ok(())
     }
@@ -296,22 +297,16 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
                 message: "instruction result width does not match its type",
             });
         }
-        let name = self.formatter.context().value_type_text(ty)?.to_string();
-        self.write_register(register)?;
-        self.write_token(": ")?;
-        self.write_text(&name)?;
-        self.formatter.context_mut().assign_register(register, ty)?;
-
-        Ok(())
+        self.write_result(register, ty)
     }
 
-    /// Append and assign the logical values in one encoded result range.
+    /// Append the logical values in one encoded result range.
     pub(super) fn results(&mut self, types: &[ValueType]) -> FormatResult<()> {
         let (start, word_count) = self.register_range_id()?;
         self.write_results(start, word_count, types)
     }
 
-    /// Append and assign logical values in one previously decoded result range.
+    /// Append logical values in one previously decoded result range.
     pub(super) fn write_results(
         &mut self,
         start: RegisterId,

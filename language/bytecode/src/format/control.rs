@@ -5,8 +5,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    BytecodeFormatContext, CodeOffset, CodeRange, Comparison, Label, Opcode, ReferenceKind, Scalar,
-    ScalarCheck, Space, Trap, ValueType,
+    BytecodeFormatContext, CodeOffset, CodeRange, Comparison, Label, Opcode, Scalar, ScalarCheck,
+    Trap,
 };
 
 use super::instruction::InstructionFormatter;
@@ -229,13 +229,6 @@ impl InstructionFormatter<'_, '_, '_> {
             }
 
             // panic and unwind
-            Opcode::CATCH => {
-                self.result(ValueType::reference(ReferenceKind::MANAGED, Space::LOCAL))?;
-                write!(
-                    self.formatter,
-                    [space(), token("="), space(), token("catch")]
-                )
-            }
             Opcode::PANIC | Opcode::PANIC_VALUE => self.format_panic(opcode),
             Opcode::UNWIND_RESUME => {
                 let name = self.opcode_name(opcode)?;
@@ -290,20 +283,29 @@ impl InstructionFormatter<'_, '_, '_> {
         // write the resume result assignment
         let function = *self.formatter.context().active_function()?;
         let types = self.formatter.context().object.value_types();
-        self.results(function.resume_parameters(types))?;
+        self.results(function.body.resume_parameters(types))?;
         write!(
             self.formatter,
             [space(), token("="), space(), token("yield")]
         )?;
 
         // write yielded logical values
-        let values = self.register_value_ids()?;
-        for (index, value) in values.into_iter().enumerate() {
-            if index == 0 {
-                write!(self.formatter, [space()])?;
-            } else {
-                write!(self.formatter, [token(","), space()])?;
+        let (value, word_count) = self.register_range_id()?;
+        let ty = self.value_type()?;
+        if word_count != ty.word_count() {
+            return Err(FormatError::SyntaxError {
+                message: "yield value range does not match its type",
+            });
+        }
+        if word_count > 0 {
+            let actual = self.formatter.context().register_type(value)?;
+            if actual != ty {
+                return Err(FormatError::SyntaxError {
+                    message: "yield value does not match its register type",
+                });
             }
+
+            write!(self.formatter, [space()])?;
             self.write_register(value)?;
         }
 
@@ -346,9 +348,12 @@ impl InstructionFormatter<'_, '_, '_> {
     fn format_panic(&mut self, opcode: Opcode) -> FormatResult<()> {
         self.write_token("panic")?;
         if opcode == Opcode::PANIC_VALUE {
-            let value = self.register_id()?;
+            let ty = self.symbol()?;
+            let values = self.register_value_ids()?;
             write!(self.formatter, [space()])?;
-            self.write_register(value)?;
+            self.write_registers(&values)?;
+            write!(self.formatter, [token(":"), space()])?;
+            self.write_text(&ty)?;
         }
 
         Ok(())

@@ -9,8 +9,8 @@ use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::{
-    CodeOffset, CodeRange, Function, FunctionId, Label, Object, RegisterId, RegisterRange, Symbol,
-    ValueType,
+    CodeOffset, CodeRange, DynamicRelocation, Function, FunctionId, Label, Object, RegisterId,
+    RegisterRange, Symbol, ValueType,
 };
 
 /// Shared state for formatting one bytecode object.
@@ -23,6 +23,8 @@ pub struct BytecodeFormatContext<'a> {
     pub(super) labels: HashMap<CodeOffset, Label>,
     /// Symbols keyed by absolute code-section byte offset.
     pub(super) relocations: HashMap<u32, Symbol>,
+    /// Dynamic relocations keyed by absolute code-section byte offset.
+    pub(super) dynamic_relocations: HashMap<u32, DynamicRelocation>,
     /// Logical value types keyed by their first register word.
     registers: Vec<Option<ValueType>>,
     /// The formatting options.
@@ -108,12 +110,18 @@ impl<'a> BytecodeFormatContext<'a> {
             .iter()
             .map(|relocation| (relocation.byte_offset, relocation.symbol))
             .collect();
+        let dynamic_relocations = object
+            .dynamic_relocations()
+            .iter()
+            .map(|relocation| (relocation.byte_offset, *relocation))
+            .collect();
 
         Self {
             object,
             function: None,
             labels: HashMap::new(),
             relocations,
+            dynamic_relocations,
             registers: Vec::new(),
             options,
             file: File::empty_text(FileType::Destack),
@@ -127,28 +135,20 @@ impl<'a> BytecodeFormatContext<'a> {
         function: &Function,
         code: CodeRange,
     ) -> FormatResult<()> {
-        let function_type = self
-            .object
-            .function_type(function.function_type)
-            .copied()
-            .ok_or(FormatError::SyntaxError {
-                message: "function references a missing function type",
-            })?;
         self.function = Some(id);
         self.registers.clear();
-        self.registers.resize(function.register_count(), None);
+        self.registers.resize(function.body.register_count(), None);
         let mut register = RegisterId(0);
 
-        // assign the hidden environment before logical parameters
-        if let Some(ty) = function.environment.get() {
-            self.assign_register(register, ty)?;
+        // establish the immutable function register partition
+        for ty in function.body.register_types(self.object.value_types()) {
+            self.set_register_type(register, *ty)?;
             register.0 += ty.word_count();
         }
-
-        // assign each parameter at the head of its physical register range
-        for ty in function_type.parameters(self.object.value_types()) {
-            self.assign_register(register, *ty)?;
-            register.0 += ty.word_count();
+        if register.index() != function.body.register_count() {
+            return Err(FormatError::SyntaxError {
+                message: "function register types do not cover its register file",
+            });
         }
 
         // assign stable labels to every branch target
@@ -201,6 +201,14 @@ impl<'a> BytecodeFormatContext<'a> {
         Ok(values)
     }
 
+    /// Return the logical value types packed into one physical register range.
+    pub(super) fn register_types(&self, range: RegisterRange) -> FormatResult<Vec<ValueType>> {
+        self.register_values(range)?
+            .into_iter()
+            .map(|register| self.register_type(register))
+            .collect()
+    }
+
     /// Return the active function definition.
     pub(super) fn active_function(&self) -> FormatResult<&'a Function> {
         let function = self.function.ok_or(FormatError::SyntaxError {
@@ -214,12 +222,8 @@ impl<'a> BytecodeFormatContext<'a> {
             })
     }
 
-    /// Assign one logical value to a register range.
-    pub(super) fn assign_register(
-        &mut self,
-        register: RegisterId,
-        ty: ValueType,
-    ) -> FormatResult<()> {
+    /// Set one logical value type in the register partition.
+    fn set_register_type(&mut self, register: RegisterId, ty: ValueType) -> FormatResult<()> {
         let start = register.index();
         let end = start + ty.word_count() as usize;
         if end > self.registers.len() {

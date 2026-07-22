@@ -31,6 +31,8 @@ pub enum Error {
     SamplerOutOfRange(u32),
     /// One function exceeds the bytecode branch displacement range.
     FunctionTooLarge(usize),
+    /// One function exceeds the encoded register count range.
+    RegisterFileTooLarge(u32),
 }
 
 /// A bytecode result.
@@ -90,6 +92,12 @@ impl fmt::Display for Error {
                 write!(
                     formatter,
                     "bytecode function exceeds the i32 branch range: {byte_len} bytes"
+                )
+            }
+            Self::RegisterFileTooLarge(register_count) => {
+                write!(
+                    formatter,
+                    "bytecode function register file is too large: {register_count} words"
                 )
             }
         }

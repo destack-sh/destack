@@ -23,12 +23,14 @@ impl InstructionFormatter<'_, '_, '_> {
         // decode result and source slice ranges
         let (result, result_word_count) = self.register_range_id()?;
         let (source, source_word_count) = self.register_range_id()?;
+        let element = self.u32()?;
         let ty = self.formatter.context().register_type(source)?;
 
         // require one complete initialized slice input
         if ty.tag() != ValueTag::SLICE
             || result_word_count != ty.word_count()
             || source_word_count != ty.word_count()
+            || ty.slice_element().is_none_or(|ty| ty.0 != element)
         {
             return Err(FormatError::SyntaxError {
                 message: "slice.view has an invalid slice register range",

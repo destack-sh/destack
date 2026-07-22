@@ -87,12 +87,15 @@ l0:return r1
 l1:unwind.resume
 }
 
-export function fail():void{
-r0:ref<managed,space(local)>=catch
-panic r0
+type Failure
+
+export function fail(r0:ref<managed,space(local)>):void{
+panic r0:Failure
 }
 "#,
         r#"
+type Failure
+
 export function suspend(r0: int32) resume(int32): int32 {
     r1: int32 = yield r0 => l0 | l1
 
@@ -103,9 +106,8 @@ l1:
     unwind.resume
 }
 
-export function fail(): void {
-    r0: ref<managed, space(local)> = catch
-    panic r0
+export function fail(r0: ref<managed, space(local)>): void {
+    panic r0: Failure
 }
 "#,
     );
