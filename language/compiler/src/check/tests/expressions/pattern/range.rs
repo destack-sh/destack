@@ -28,7 +28,7 @@ function isByte(value: int32): boolean {
             true
         }
         _ => false
-    } as boolean;
+    };
 }
 
 === checked ===
@@ -37,7 +37,7 @@ function isByte(value: int32): boolean {
 /// @type.symbol symbol=isByte.value source="value: int32" type=int32
 
     return match (value) {
-    /// @type.node type=true | false
+    /// @type.node type=boolean
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=isByte.value
 

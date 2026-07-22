@@ -111,7 +111,6 @@ impl BodyState<'_, '_> {
         let then_check =
             answer!(self.check_node_expected(then_site, target, relation, cause, use_)?);
         let then_type = answer!(self.node_type_at(then_site)?);
-        let mut should_relate_result = false;
         let mut check = then_check.outcome;
 
         // check an else branch, or make the missing branch explicit as void
@@ -122,20 +121,23 @@ impl BodyState<'_, '_> {
             let else_type = answer!(self.node_type_at(else_site)?);
             check = check.and(else_check.outcome);
 
-            self.normalized_union_type(module, [then_type, else_type])?
+            // branches are the adjustment sites: a produced value is the
+            //  target, while fully diverging branches produce nothing
+            let joined = self.normalized_union_type(module, [then_type, else_type])?;
+            match (relation, check) {
+                (Relation::Assignable | Relation::Writable, CheckOutcome::Holds)
+                    if !matches!(self.check.ty(joined)?, dir::Type::Never) =>
+                {
+                    target
+                }
+                _ => joined,
+            }
         } else {
             let void = self.intern_type(module, dir::Type::Void)?;
-            should_relate_result = true;
 
             self.normalized_union_type(module, [then_type, void])?
         };
         self.commit_node_type(site.node, result)?;
-
-        // relate the result when branch checks did not cover every arm
-        if should_relate_result {
-            let (_, result_check) = answer!(self.check_node_value(site, relation, target, cause)?);
-            check = check.and(result_check.outcome);
-        }
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
             outcome: check,
@@ -351,7 +353,10 @@ impl BodyState<'_, '_> {
         if arms.is_empty() {
             let never = self.intern_type(module, dir::Type::Never)?;
             self.commit_node_type(site.node, never)?;
-            let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
+            let check = ValueCheck {
+                outcome: CheckOutcome::Holds,
+                target,
+            };
 
             return Ok(Answer::Ready(CheckAttempt::Checked(check)));
         }
@@ -371,8 +376,17 @@ impl BodyState<'_, '_> {
             values.push(answer!(self.node_type_at(body_site)?));
         }
 
-        // join the arm results like the inferred form
-        let result = self.normalized_union_type(module, values)?;
+        // arms are the adjustment sites: a produced value is the target,
+        //  while fully diverging arms produce nothing
+        let joined = self.normalized_union_type(module, values)?;
+        let result = match (relation, check) {
+            (Relation::Assignable | Relation::Writable, CheckOutcome::Holds)
+                if !matches!(self.check.ty(joined)?, dir::Type::Never) =>
+            {
+                target
+            }
+            _ => joined,
+        };
         self.commit_node_type(site.node, result)?;
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {

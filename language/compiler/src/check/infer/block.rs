@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CauseId, FlowSite, PlaceUse, Relation, StaticGate, ValueCheck, ValueUse,
-    answer,
+    Answer, BodyState, CauseId, CheckOutcome, FlowSite, PlaceUse, Relation, StaticGate, ValueCheck,
+    ValueUse, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -94,9 +94,10 @@ impl BodyState<'_, '_> {
             None => {
                 let value = self.end_type(module, block.into_any())?;
                 self.commit_node_type(site.node, value)?;
-                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
-
-                check
+                ValueCheck {
+                    outcome: CheckOutcome::Holds,
+                    target,
+                }
             }
         };
 

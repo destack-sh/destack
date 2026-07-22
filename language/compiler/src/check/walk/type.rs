@@ -897,7 +897,7 @@ impl WalkState<'_, '_> {
         };
         let arguments = substitution.arguments;
 
-        // build the application before attaching its argument judgments
+        // build the application before attaching its argument checks
         let argument_list = self.intern_type_ids(&arguments)?;
         let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
             symbol,

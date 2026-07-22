@@ -1721,9 +1721,15 @@ impl WalkState<'_, '_> {
             return Ok((None, Vec::new()));
         }
 
-        // open the inferred result
+        // open the inferred result: lambdas hold a contextual slot,
+        //  declarations hold a producer cell
+        let role = match signature.form {
+            dir::FunctionForm::Lambda => VariableRole::Parameter,
+            _ => VariableRole::Return,
+        };
+
         Ok((
-            Some(self.open_type_hole(source, Widening::Never, VariableRole::Return)?),
+            Some(self.open_type_hole(source, Widening::Never, role)?),
             Vec::new(),
         ))
     }

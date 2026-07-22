@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CandidateOutcome, CandidateVerdict, CauseId, CheckAttempt, CheckFailure,
-    CheckOutcome, ConstructResult, Dependency, Expectation, FlowSite, InferMode, PlaceUse,
-    ProbeReason, Relation, ValueCheck, ValueUse, answer,
+    CheckOutcome, Constraint, ConstructResult, Dependency, Expectation, FlowSite, PlaceUse,
+    Relation, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -45,14 +45,11 @@ impl BodyState<'_, '_> {
 
         // infer expressions without a target-directed rule
         answer!(self.infer_node(site, PlaceUse::Read)?);
-        let (_, check) = answer!(self.check_node_value(
-            site,
-            expectation.relation,
-            expectation.target,
-            expectation.cause
-        )?);
 
-        Ok(Answer::Ready(check))
+        Ok(Answer::Ready(ValueCheck {
+            outcome: CheckOutcome::Holds,
+            target: expectation.target,
+        }))
     }
 
     /// Check one expression against one uniquely applicable union member.
@@ -76,10 +73,19 @@ impl BodyState<'_, '_> {
                 target,
                 ..expectation
             };
-            let verdict = answer!(self.probe_candidate(ProbeReason::UnionArm, |state| {
+            let verdict = answer!(self.probe_candidate(|state| {
                 let checked = answer!(state.try_check_expression(site, candidate)?);
                 let outcome = match checked {
                     CheckAttempt::Checked(check) if check.outcome == CheckOutcome::Holds => {
+                        let constraint = Constraint::value(
+                            candidate.relation,
+                            site.node,
+                            candidate.target,
+                            candidate.cause,
+                            candidate.use_,
+                        );
+                        state.check.push_constraint(constraint);
+
                         CandidateOutcome::Accepted(())
                     }
                     CheckAttempt::Checked(_) | CheckAttempt::NotApplicable => {
@@ -110,8 +116,8 @@ impl BodyState<'_, '_> {
             is_indeterminate_ambiguous,
             indeterminate,
         ) {
-            (false, Some(target), _, _) => Some(target),
-            (_, None, false, Some(target)) => Some(target),
+            (false, Some(selected), _, _) => Some(selected),
+            (_, None, false, Some(selected)) => Some(selected),
             _ => None,
         };
         let Some(target) = selected else {
@@ -128,6 +134,10 @@ impl BodyState<'_, '_> {
             return Err(CompilerError::Internal {
                 message: "confirmed contextual union member became inapplicable".to_string(),
             });
+        };
+        let check = ValueCheck {
+            outcome: check.outcome,
+            target: expectation.target,
         };
 
         Ok(Answer::Ready(Some(check)))
@@ -163,17 +173,34 @@ impl BodyState<'_, '_> {
                     target,
                 })));
             }
-            let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
+            let check = ValueCheck {
+                outcome: CheckOutcome::Holds,
+                target,
+            };
 
             return Ok(Answer::Ready(CheckAttempt::Checked(check)));
         }
 
         match expression {
-            dir::Expression::ScalarLiteral(_) | dir::Expression::TemplateExpression { .. } => {
-                answer!(self.infer_expression(site, PlaceUse::Read, InferMode::Exact)?);
-                let source = answer!(self.node_type_at(site)?);
+            dir::Expression::ScalarLiteral(value) => {
+                let source = self.scalar_literal_type(node, value)?;
                 let source = answer!(self.materialize_fresh_value(origin, source, Some(target))?);
-                let check = answer!(self.check_value_relation(cause, relation, source, target)?);
+                self.commit_node_type(site.node, source)?;
+                let check = ValueCheck {
+                    outcome: CheckOutcome::Holds,
+                    target,
+                };
+
+                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+            }
+            dir::Expression::TemplateExpression { value } => {
+                let source = answer!(self.template_expression_type(site, value)?);
+                let source = answer!(self.materialize_fresh_value(origin, source, Some(target))?);
+                self.commit_node_type(site.node, source)?;
+                let check = ValueCheck {
+                    outcome: CheckOutcome::Holds,
+                    target,
+                };
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
@@ -239,7 +266,6 @@ impl BodyState<'_, '_> {
                         target,
                         target_value,
                         relation,
-                        cause,
                         use_,
                     ),
                     dir::Expression::FixedArrayExpression { value, length } => self
@@ -250,7 +276,6 @@ impl BodyState<'_, '_> {
                             target,
                             target_value,
                             relation,
-                            cause,
                             use_,
                         ),
                     dir::Expression::TupleExpression { elements } => self.check_tuple_expression(
@@ -287,11 +312,10 @@ impl BodyState<'_, '_> {
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(construct_target),
                 )?);
-                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
-                    outcome: field_check.and(check.outcome),
-                    target: check.target,
+                    outcome: field_check,
+                    target,
                 })))
             }
             dir::Expression::Call {
@@ -322,7 +346,10 @@ impl BodyState<'_, '_> {
                     ConstructResult::Direct,
                     Some(target),
                 )?);
-                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
+                let check = ValueCheck {
+                    outcome: CheckOutcome::Holds,
+                    target,
+                };
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
@@ -334,7 +361,10 @@ impl BodyState<'_, '_> {
                     ConstructResult::Fallible,
                     Some(target),
                 )?);
-                let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
+                let check = ValueCheck {
+                    outcome: CheckOutcome::Holds,
+                    target,
+                };
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }

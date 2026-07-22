@@ -27,7 +27,7 @@ const value: symbol = Symbol.create("id");
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=1 types=7 constraints=3 obligations=1 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=1 types=10 constraints=3 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
     );
 }
@@ -96,7 +96,7 @@ const value: symbol | string = Symbol.create("id");
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=1 types=8 constraints=3 obligations=1 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=1 types=11 constraints=3 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
     );
 }

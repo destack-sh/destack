@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Answer, BodyState, CandidateOutcome, Cause, CauseKind, CheckState, DeclaredMember, Dependency,
-    MemberCandidate, MemberLookup, Origin, ProbeReason, Relation, SignatureMatch,
-    SignatureSelection, TypeSubstitution, answer,
+    MemberCandidate, MemberLookup, Origin, Relation, SignatureMatch, SignatureSelection,
+    TypeSubstitution, answer,
 };
 
 /// Interface protocol required by a generated operation.
@@ -403,7 +403,7 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            let selected = self.confirm_candidate(ProbeReason::Protocol, |state| {
+            let selected = self.confirm_candidate(|state| {
                 let matched = state.match_extension_protocol_members(
                     origin,
                     module,

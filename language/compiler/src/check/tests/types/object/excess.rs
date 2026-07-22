@@ -32,7 +32,7 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=1 types=8 constraints=2 obligations=1 solutions=1 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=9 constraints=2 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Person'"
@@ -83,7 +83,7 @@ const value: Person = source;
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
 
-/// @check.stats.solve variables=2 types=11 constraints=1 obligations=2 solutions=2 bounds=1 decisions=4
+/// @check.stats.solve variables=2 types=11 constraints=1 obligations=2 solutions=2 bounds=2 decisions=4
 "#,
     );
 }

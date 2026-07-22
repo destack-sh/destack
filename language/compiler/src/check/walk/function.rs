@@ -527,7 +527,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             self.mark_bindings_assigned(parameter.into_any());
         }
 
-        // walk the body structurally; the checker owns its judgments
+        // walk the body structurally; the check phase owns its constraints
         let body_site = match self.tree.get(body) {
             dir::Expression::Block(block) => {
                 self.walk_block(*block, self.tree.get(*block))?;
@@ -627,7 +627,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            let ty = self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Regular)?;
+            let ty =
+                self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Parameter)?;
             self.commit_node_type(id, ty)?;
 
             return Ok(Some(ty));

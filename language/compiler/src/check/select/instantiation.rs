@@ -124,7 +124,6 @@ impl BodyState<'_, '_> {
                     self.relate(
                         anchored,
                         Relation::Satisfies,
-                        None,
                         rejection.argument,
                         rejection.bound,
                     )?;

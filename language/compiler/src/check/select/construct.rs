@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateVerdict, Cause, CauseKind, CheckFailure,
     CheckOutcome, Decision, DecisionKind, Dependency, FlowSite, MemoryRank, NewtypeMatch,
-    NewtypeOverload, NewtypeRejection, NewtypeSignature, Origin, ProbeReason, Relation,
-    SignatureMatch, SignatureRejection, SignatureSelection, TypeSubstitution, answer,
+    NewtypeOverload, NewtypeRejection, NewtypeSignature, Origin, Relation, SignatureMatch,
+    SignatureRejection, SignatureSelection, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -274,7 +274,6 @@ impl BodyState<'_, '_> {
             self.relate(
                 anchored,
                 Relation::Satisfies,
-                None,
                 rejection.argument,
                 rejection.bound,
             )?;
@@ -411,7 +410,6 @@ impl BodyState<'_, '_> {
             }
             let mut rank = MemoryRank::Exact;
             let (verdict, rejection) = answer!(self.probe_candidate_noted(
-                ProbeReason::Signature,
                 |state| {
                     let outcome = state.attempt_construct(
                         origin,
@@ -493,7 +491,7 @@ impl BodyState<'_, '_> {
                     variables,
                 } if is_single_candidate => {
                     self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
-                    self.check.poison_variables(variables)?;
+                    self.check.poison_scope(variables)?;
                     answer!(self.commit_construct(
                         node,
                         module,
@@ -518,7 +516,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(()));
                 }
                 SignatureMatch::Invalid { variables, .. } => {
-                    self.check.poison_variables(variables)?;
+                    self.check.poison_scope(variables)?;
                 }
                 SignatureMatch::Inapplicable(_) => {}
             }
@@ -766,11 +764,11 @@ impl BodyState<'_, '_> {
             },
         };
 
-        // report the rejected judgment before poisoning its local inference
+        // report the rejected constraint before poisoning its local inference
         let module = origin.module();
         if let Some((rejection, variables)) = rejection {
             self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
-            self.check.poison_variables(variables)?;
+            self.check.poison_scope(variables)?;
         }
 
         // commit the selected newtype construction

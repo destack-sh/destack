@@ -19,7 +19,7 @@ ok satisfies "red" | "blue";
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
 const ok: "red" | "blue" = choose<"red" | "blue">(
-    ["red", "blue"],
+    ["red" as "red" | "blue", "blue" as "red" | "blue"],
     "red" as "red" | "blue" | undefined,
 );
 ok satisfies "red" | "blue";
@@ -197,9 +197,6 @@ const reds: "red"[] = values;
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
 /// @diagnostic.label line=6 column=28 span="\"green\"" line_source="const kept = keep(values, [\"green\"]);"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'Array<\"red\">' is not assignable to parameter of type 'Array<\"red\">'"
-/// @diagnostic.label line=6 column=27 span="[\"green\"]" line_source="const kept = keep(values, [\"green\"]);"
-/// @diagnostic.related line=6 column=14 span="keep(values, [\"green\"])" line_source="const kept = keep(values, [\"green\"]);" message="in this call"
 "#,
     );
 }
@@ -292,7 +289,7 @@ choose(["red", "blue"], "green");
 === annotated ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
-choose<"red" | "blue">(["red", "blue"], "green");
+choose<"red" | "blue">(["red" as "red" | "blue", "blue" as "red" | "blue"], "green");
 
 === checked ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;

@@ -140,8 +140,6 @@ impl BodyState<'_, '_> {
         else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
-        let mut keys = SmallVec::<[dir::StaticKey; 4]>::new();
-        let mut should_relate_result = false;
         let mut check = CheckOutcome::Holds;
 
         // check present fields against their matching expected fields
@@ -152,11 +150,8 @@ impl BodyState<'_, '_> {
                     let Some(key) = answer!(self.select_property_key(site, key)?) else {
                         return Ok(Answer::Ready(CheckAttempt::NotApplicable));
                     };
-                    keys.push(key);
                     let Some(field) = target_fields.iter().find(|field| field.key == key).copied()
                     else {
-                        should_relate_result = true;
-
                         continue;
                     };
                     let child = value.into_global_any(node.module_id);
@@ -182,25 +177,9 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // require the outer value relation when fields are missing or unmatched
-        for field in &target_fields {
-            if !keys.contains(&field.key) {
-                should_relate_result = true;
-            }
-        }
-
         let source = answer!(self.infer_object_expression(site, properties, InferMode::Exact)?);
         let source = answer!(self.materialize_fresh_value(origin, source, Some(target))?);
         self.commit_node_type(node.into_any(), source)?;
-        if should_relate_result {
-            let (_, result_check) = answer!(self.check_node_value(site, relation, target, cause)?);
-            check = check.and(result_check.outcome);
-
-            return Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
-                outcome: check,
-                target: result_check.target,
-            })));
-        }
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
             outcome: check,

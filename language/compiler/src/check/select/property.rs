@@ -77,6 +77,16 @@ impl BodyState<'_, '_> {
             None => SmallVec::new(),
         };
 
+        // the construct's write obligation owns every field check
+        let write_cause = target.map(|_| {
+            self.check.intern_cause(Cause::root(
+                origin,
+                CauseKind::Write {
+                    place: node.into_any(),
+                },
+            ))
+        });
+
         // merge entry fields left to right, later keys overriding
         let mut check = CheckOutcome::Holds;
         let mut fields = IndexMap::<dir::StaticKey, dir::TypeField>::new();
@@ -99,10 +109,13 @@ impl BodyState<'_, '_> {
                                 }
                                 false => field.ty,
                             };
-                            let field_cause = self.check.intern_cause(Cause::root(
-                                Origin::Node(source, site.scope),
-                                CauseKind::Field { key },
-                            ));
+                            let field_origin = Origin::Node(source, site.scope);
+                            let field_cause = self.check.intern_cause(match write_cause {
+                                Some(parent) => {
+                                    Cause::slot(field_origin, CauseKind::Field { key }, parent)
+                                }
+                                None => Cause::root(field_origin, CauseKind::Field { key }),
+                            });
                             let field_check = answer!(self.check_node_expected(
                                 source_site,
                                 expected_ty,
@@ -164,16 +177,10 @@ impl BodyState<'_, '_> {
                     answer!(self.constrain_struct_construction(origin, &field_list, target)?);
                 }
 
-                // commit the literal before the writable obligation; a
-                //  failed field judgment already carried the report
+                // commit the literal before the writable obligation; field
+                //  checks report through their slots beneath the write cause
                 self.commit_node_type(node.into_any(), target)?;
-                if matches!(check, CheckOutcome::Holds) {
-                    let cause = self.check.intern_cause(Cause::root(
-                        origin,
-                        CauseKind::Write {
-                            place: node.into_any(),
-                        },
-                    ));
+                if let Some(cause) = write_cause {
                     self.push_constraint(Constraint::r#type(
                         Relation::Writable,
                         shape,

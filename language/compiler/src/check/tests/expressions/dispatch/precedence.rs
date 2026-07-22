@@ -370,7 +370,7 @@ export extension<T, E> of Outcome<T, E> {
     /// @resolution.name source=E target=E
 
         match (this) {
-        /// @type.node type=Outcome<U, E#3> | Outcome<U, E#3> reduced=Outcome<U, E#3>
+        /// @type.node type=Outcome<U, E#3>
         /// @type.node source=this type=Outcome<T#3, E#3>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
         /// @generic.instance source=this id="Outcome<T#3, E#3>"

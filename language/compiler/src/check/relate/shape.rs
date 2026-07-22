@@ -636,14 +636,25 @@ impl CheckState<'_> {
     /// Return whether one expression supplies literal properties.
     fn is_property_literal_expression(
         &self,
-        expression: dir::GlobalNodeId<dir::Expression>,
+        mut expression: dir::GlobalNodeId<dir::Expression>,
     ) -> bool {
-        matches!(
-            self.module(expression.module_id)
+        // follow transparent expressions to the literal they preserve
+        loop {
+            match self
+                .module(expression.module_id)
                 .view()
-                .get(expression.local_id),
-            dir::Expression::ObjectExpression { .. } | dir::Expression::StructExpression { .. }
-        )
+                .get(expression.local_id)
+            {
+                dir::Expression::ObjectExpression { .. }
+                | dir::Expression::StructExpression { .. } => return true,
+                dir::Expression::Satisfies {
+                    expression: child, ..
+                } => {
+                    expression = child.into_global(expression.module_id);
+                }
+                _ => return false,
+            }
+        }
     }
 
     /// Collect the property keys one target requires, none when not statically enumerable.

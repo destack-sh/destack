@@ -534,7 +534,7 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node, signature.return_type)?;
         if let Some((rejection, variables)) = rejection {
             self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
-            self.check.poison_variables(variables)?;
+            self.check.poison_scope(variables)?;
         }
 
         Ok(Answer::Ready(()))

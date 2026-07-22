@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Constraint, FlowSite,
-    Origin, PlaceUse, Relation, ValueCheck, ValueUse, VariableRole, Widening, answer,
+    Answer, BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Constraint, FlowSite, Origin,
+    PlaceUse, Relation, ValueCheck, ValueUse, VariableRole, Widening, answer,
 };
 
 impl BodyState<'_, '_> {
@@ -238,17 +238,16 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         target_head: dir::GlobalTypeId,
         relation: Relation,
-        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
         let element = match self.ty(target_head)? {
-            dir::Type::Array(array) => Some((array.element, None, false)),
-            dir::Type::Slice(slice) => Some((slice.element, None, true)),
-            dir::Type::FixedArray(array) => Some((array.element, Some(array.count), true)),
+            dir::Type::Array(array) => Some((array.element, None)),
+            dir::Type::Slice(slice) => Some((slice.element, None)),
+            dir::Type::FixedArray(array) => Some((array.element, Some(array.count))),
             _ => None,
         };
-        let Some((element, count, mut should_relate_result)) = element else {
+        let Some((element, count)) = element else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
         let mut check = CheckOutcome::Holds;
@@ -292,13 +291,6 @@ impl BodyState<'_, '_> {
         let array = answer!(self.materialize_fresh_value(site.origin(), array, Some(target))?);
         self.commit_node_type(node.into_any(), array)?;
 
-        // relate the result for empty arrays and non-owned targets
-        should_relate_result |= elements.is_empty();
-        if should_relate_result {
-            let result = answer!(self.check_value_relation(cause, relation, array, target)?);
-            check = check.and(result.outcome);
-        }
-
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
             outcome: check,
             target,
@@ -314,7 +306,6 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         target_head: dir::GlobalTypeId,
         relation: Relation,
-        cause: CauseId,
         use_: ValueUse,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
@@ -350,12 +341,9 @@ impl BodyState<'_, '_> {
         let ty = answer!(self.materialize_fresh_value(site.origin(), ty, Some(target))?);
         self.commit_node_type(node.into_any(), ty)?;
 
-        // relate the result to bind the expected count
-        let result = answer!(self.check_value_relation(cause, relation, ty, target)?);
-
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
-            outcome: check.outcome.and(result.outcome),
-            target: result.target,
+            outcome: check.outcome,
+            target,
         })))
     }
 

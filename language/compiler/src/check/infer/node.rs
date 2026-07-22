@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, CauseId, CheckFailure, CheckOutcome, Constraint, DecisionKind, Dependency,
-    FlowSite, Origin, Relation, ValueCheck, ValueSource, ValueUse, answer,
+    Answer, BodyState, CauseId, CheckFailure, CheckOutcome, Constraint, ConstraintState,
+    DecisionKind, Dependency, FlowSite, Origin, Relation, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -61,7 +61,7 @@ impl Expectation {
 pub(in crate::check) struct Checked {
     /// The expression type.
     pub(in crate::check) ty: dir::GlobalTypeId,
-    /// Whether every judgment in the expression held.
+    /// Whether every check in the expression held.
     pub(in crate::check) holds: bool,
 }
 
@@ -82,7 +82,7 @@ impl BodyState<'_, '_> {
         self.check.reduce_type_head(origin, ty)
     }
 
-    /// Attempt one node's judgment once.
+    /// Attempt one node's check once.
     pub(in crate::check) fn attempt_node(
         &mut self,
         site: FlowSite,
@@ -107,21 +107,21 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(Checked { ty, holds }))
     }
 
-    /// Report one failed contextual node judgment.
+    /// Report one failed contextual node check.
     fn report_node_failure(
         &mut self,
         site: FlowSite,
         expectation: &Expectation,
         check: CheckOutcome,
     ) -> CompilerResult<Answer<()>> {
-        // failed committed judgments report at the judgment
+        // failed committed checks report at the check site
         if let CheckOutcome::Fails(failure) = check
             && failure != CheckFailure::Reported
         {
             let target = expectation.target;
             let source = answer!(self.node_type_at(site)?);
 
-            // poisoned judgments already reported their cause
+            // poisoned operands already reported their cause
             if !self.check.ty(source)?.is_error() && !self.check.ty(target)?.is_error() {
                 self.check.report_constraint_failure(
                     expectation.cause,
@@ -155,7 +155,7 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Check one node against an expected type inside an enclosing judgment.
+    /// Check one node against an expected type inside an enclosing check.
     pub(in crate::check) fn check_node_expected(
         &mut self,
         site: FlowSite,
@@ -188,46 +188,84 @@ impl BodyState<'_, '_> {
             cause,
             use_,
         };
-        let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
+        let check = ValueCheck {
+            outcome: CheckOutcome::Holds,
+            target,
+        };
 
         self.complete_node_check(site, expectation, check)
     }
 
-    /// Check one node and record its completed contextual constraint.
-    fn check_node(
+    /// Check one node against its contextual target.
+    pub(in crate::check) fn check_node(
         &mut self,
         site: FlowSite,
         expectation: Expectation,
     ) -> CompilerResult<Answer<ValueCheck>> {
-        let check = match self.check_node_target(site, expectation)? {
-            Answer::Ready(check) => check,
-            Answer::Pending(blockers) => {
-                // park until the node has a committed type
-                let Some(source) = self.check.committed_node_type(site.node) else {
-                    return Ok(Answer::Pending(blockers));
-                };
-
-                // schedule the remaining source to target relation
-                let source = answer!(self.check.flow_type_at(site, source)?);
-                let cause = self.check.solver.cause(expectation.cause);
-                let cause = self.check.intern_cause(cause.with_origin(site.origin()));
-                let constraint = Constraint::value(
-                    expectation.relation,
-                    ValueSource::Type(source),
-                    expectation.target,
-                    cause,
-                    expectation.use_,
-                );
-                self.check.push_constraint(constraint);
-
-                return Ok(Answer::Ready(ValueCheck {
-                    outcome: CheckOutcome::Holds,
-                    target: expectation.target,
-                }));
-            }
+        // check literal constructions through their writable value relation;
+        //  satisfies applies the same freshness to literal operands
+        let relation = match expectation.relation {
+            Relation::Assignable => self.literal_relation(site.node),
+            Relation::Satisfies => match self.literal_relation(site.node) {
+                Relation::Writable => Relation::Writable,
+                _ => Relation::Satisfies,
+            },
+            relation => relation,
+        };
+        let expectation = Expectation {
+            relation,
+            ..expectation
         };
 
+        // object-literal syntax never constructs a nominal struct
+        if relation == Relation::Writable
+            && self.is_object_literal_expression(site.node)
+            && answer!(self.struct_instance_target(site, expectation.target)?)
+        {
+            let check = ValueCheck {
+                outcome: CheckOutcome::Fails(CheckFailure::Relation),
+                target: expectation.target,
+            };
+
+            return self.complete_node_check(site, expectation, check);
+        }
+
+        let check = answer!(self.check_node_target(site, expectation)?);
+
         self.complete_node_check(site, expectation, check)
+    }
+
+    /// Return whether one node is object-literal syntax rather than a construction.
+    fn is_object_literal_expression(&self, node: dir::GlobalNodeIdAny) -> bool {
+        let Ok(expression) = node.try_into_typed::<dir::Expression>() else {
+            return false;
+        };
+
+        matches!(
+            self.module(node.module_id).view().get(expression.local_id),
+            dir::Expression::ObjectExpression { .. }
+        )
+    }
+
+    /// Return whether one expectation targets a nominal struct instance.
+    fn struct_instance_target(
+        &mut self,
+        site: FlowSite,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let root = self.check.settled_root(target)?;
+        let root = match self.check.reduce_type_head(site.origin(), root)? {
+            Answer::Ready(root) => root,
+            Answer::Pending(_) => return Ok(Answer::Ready(false)),
+        };
+        let dir::Type::Instance(instance) = self.check.ty(root)? else {
+            return Ok(Answer::Ready(false));
+        };
+
+        Ok(Answer::Ready(matches!(
+            self.check.definition(instance.symbol)?,
+            Some(dir::Definition::Struct(_))
+        )))
     }
 
     /// Check one node against an expectation.
@@ -274,7 +312,7 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(ValueCheck { outcome, target }))
     }
 
-    /// Complete one contextual node judgment.
+    /// Finish one target-directed node check.
     fn complete_node_check(
         &mut self,
         site: FlowSite,
@@ -283,18 +321,22 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<ValueCheck>> {
         let () = answer!(self.report_node_failure(site, &expectation, check.outcome)?);
 
-        // record the completed contextual judgment
+        // queue the successful value relation
         let constraint = Constraint::value(
             expectation.relation,
-            ValueSource::Node(site.node),
+            site.node,
             expectation.target,
             expectation.cause,
             expectation.use_,
         );
-        self.check
-            .record_constraint(constraint, check.outcome.state(), Some(check.target))?;
+        if check.outcome == CheckOutcome::Holds {
+            self.check.push_constraint(constraint);
+        } else {
+            self.check
+                .record_constraint(constraint, ConstraintState::Fails, None)?;
+        }
 
-        // enclosing judgments stay silent above a reported failure
+        // enclosing checks stay silent above a reported failure
         let outcome = match check.outcome {
             CheckOutcome::Fails(_) => CheckOutcome::Fails(CheckFailure::Reported),
             outcome => outcome,

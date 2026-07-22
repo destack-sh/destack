@@ -12,6 +12,7 @@ mod relate;
 mod shape;
 mod template;
 mod union;
+mod value;
 mod variance;
 mod widen;
 

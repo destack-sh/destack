@@ -52,6 +52,10 @@ impl BodyState<'_, '_> {
     }
 
     /// Check one function value's body in its receiving context.
+    ///
+    /// Contextual flow is the ordinary relation: the structural decomposition
+    /// assigns parameters, equates the contextual return slot to its contract,
+    /// and evidence transmission routes body candidates into open inference.
     pub(in crate::check) fn check_function_value(
         &mut self,
         node: dir::GlobalNodeIdAny,
@@ -61,60 +65,19 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(true));
         };
 
-        // deduce open signature holes from the contextual callable
+        // constrain the signature against the contextual callable
         if let Some(target) = target {
             let origin = self.check.node_site(node)?.origin();
             let cause = self
                 .check
                 .intern_cause(Cause::root(origin, CauseKind::Expression));
             let value = self.check.require_node_type(node)?;
-            let value_signature = answer!(self.callable_signature_type(origin, value)?);
-            let target_signature = answer!(self.callable_signature_type(origin, target)?);
-            if let (Some((value_type, value_function)), Some((target_type, target_function))) =
-                (value_signature, target_signature)
-            {
-                // parameters deduce pairwise
-                let value_parameters = self
-                    .check
-                    .signature_parameters(value_type.module_id, value_function.parameters)?
-                    .to_vec();
-                let target_parameters = self
-                    .check
-                    .signature_parameters(target_type.module_id, target_function.parameters)?
-                    .to_vec();
-                for (value, target) in value_parameters.iter().zip(&target_parameters) {
-                    if value.is_rest || target.is_rest {
-                        break;
-                    }
-                    let hole = self.check.settled_root(value.ty)?;
-                    if self.check.root_variable(hole)?.is_some() {
-                        answer!(self.check.constrain_type(
-                            cause,
-                            Relation::Equal,
-                            hole,
-                            target.ty,
-                        )?);
-                    }
-                }
-
-                // the signature's return deduces from the target's return
-                if let (Some(ret), Some(target_ret)) =
-                    (value_function.return_type, target_function.return_type)
-                {
-                    let hole = self.check.settled_root(ret)?;
-                    if self.check.root_variable(hole)?.is_some() {
-                        answer!(self.check.constrain_type(
-                            cause,
-                            Relation::Equal,
-                            hole,
-                            target_ret,
-                        )?);
-                    }
-                }
-            }
+            answer!(
+                self.check
+                    .constrain_type(cause, Relation::Assignable, value, target)?
+            );
         }
 
-        // check the body under the deduced signature
         body.check(self.check)
     }
 }

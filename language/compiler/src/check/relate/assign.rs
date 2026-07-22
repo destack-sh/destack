@@ -7,7 +7,7 @@ use crate::check::{Answer, CheckState, Origin, Relation, ScalarFamily, answer};
 impl CheckState<'_> {
     /// Decide assignability from one reduced source to one reduced target.
     ///
-    /// `Widens` decides the same judgment restricted to identity-witnessed
+    /// `Widens` decides the same relation restricted to identity-witnessed
     /// edges: conversions that would reify as coercions never widen.
     pub(in crate::check) fn decide_assignable(
         &mut self,
@@ -27,7 +27,7 @@ impl CheckState<'_> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // top and error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => Answer::Ready(true),
-            // collect lifetimes without judgment, leaving outlives to Verify on MIR
+            // collect lifetimes without deciding, leaving outlives to Verify on MIR
             (source_head, target_head)
                 if self.is_lifetime_slot(&source_head)?
                     && self.is_lifetime_slot(&target_head)? =>
@@ -313,10 +313,13 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        // fresh writes see through the forms they initialize
+        let target = answer!(self.strip_fresh_forms(origin, target)?);
         let target_chain = self.form_chain(origin, target)?;
         let target_value = target_chain.base();
 
-        // shape literals construct structs member-wise
+        // shape values construct structs and fill structural interfaces
+        //  member-wise; object-literal syntax never reaches the struct path
         if let (dir::Type::Shape(_), dir::Type::Instance(instance)) =
             (self.ty(source)?, self.ty(target_value)?)
         {
@@ -326,6 +329,18 @@ impl CheckState<'_> {
             );
             if is_struct {
                 return self.decide_struct_construction(origin, source, target, &instance);
+            }
+            let is_structural_interface = matches!(
+                self.definition(instance.symbol)?,
+                Some(dir::Definition::Interface(interface)) if !interface.is_nominal
+            );
+            if is_structural_interface {
+                return self.decide_interface_writable(
+                    origin,
+                    source,
+                    target_value.module_id,
+                    &instance,
+                );
             }
         }
 

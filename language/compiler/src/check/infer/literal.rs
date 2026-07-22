@@ -33,8 +33,23 @@ impl BodyState<'_, '_> {
         loop {
             match self.module(value.module_id).view().get(expression.local_id) {
                 dir::Expression::ObjectExpression { .. }
+                | dir::Expression::StructExpression { .. }
                 | dir::Expression::ArrayExpression { .. }
                 | dir::Expression::TupleExpression { .. } => return Relation::Writable,
+                // function values are fresh constructions
+                dir::Expression::Declaration(declaration) => {
+                    let is_lambda = matches!(
+                        self.module(value.module_id).view().get(*declaration),
+                        dir::Declaration::Function(function)
+                            if function.signature.form == dir::FunctionForm::Lambda
+                                || function.name.is_none()
+                    );
+
+                    return match is_lambda {
+                        true => Relation::Writable,
+                        false => Relation::Assignable,
+                    };
+                }
                 dir::Expression::Satisfies {
                     expression: child, ..
                 } => {

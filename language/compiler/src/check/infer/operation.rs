@@ -72,7 +72,7 @@ impl BodyState<'_, '_> {
                 cause,
                 use_: ValueUse::Store,
             };
-            answer!(self.check_expression(value_site, expectation)?);
+            answer!(self.check_node(value_site, expectation)?);
             self.commit_node_type(node.into_any(), target)?;
 
             return Ok(Answer::Ready(()));

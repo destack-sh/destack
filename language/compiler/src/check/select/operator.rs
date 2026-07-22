@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::check::{
     Answer, BodyState, Cause, CauseKind, Constraint, Decision, FlowSite, Obligation,
-    OperatorExpressionResult, Origin, PlaceUse, Relation, ValueSource, ValueUse,
-    WritablePlaceObligation, answer, binary_operator_protocols, unary_operator_protocols,
+    OperatorExpressionResult, Origin, PlaceUse, Relation, ValueUse, WritablePlaceObligation,
+    answer, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -98,11 +98,9 @@ impl BodyState<'_, '_> {
                     self.report_invalid_strict_equality(origin, left, right)?;
                 }
 
-                // numeric widths compare through one value-preserving carrier
+                // select the shared carrier required by the compared values
                 let operands = [left_value, right_value];
-                if let Some(operand) =
-                    answer!(self.strict_equality_numeric_carrier(origin, &operands)?)
-                {
+                if let Some(operand) = answer!(self.strict_equality_carrier(origin, &operands)?) {
                     answer!(self.expect_operand(left_source, operand)?);
                     answer!(self.expect_operand(Some(right_source), operand)?);
                 }
@@ -217,11 +215,11 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(()));
         }
 
-        // select one numeric carrier shared by the scrutinee and every admitted case
+        // select one carrier shared by the scrutinee and every admitted case
         let mut operands = Vec::with_capacity(selected.len() + 1);
         operands.push(scrutinee_value);
         operands.extend(selected.iter().map(|(_, _, _, value)| *value));
-        let carrier = answer!(self.strict_equality_numeric_carrier(origin, &operands)?);
+        let carrier = answer!(self.strict_equality_carrier(origin, &operands)?);
         if let Some(carrier) = carrier {
             answer!(self.expect_operand(Some(value_source), carrier)?);
             for (_, selector, _, _) in &selected {
@@ -408,8 +406,8 @@ impl BodyState<'_, '_> {
         })))
     }
 
-    /// Return one common numeric carrier for builtin strict equality operands.
-    fn strict_equality_numeric_carrier(
+    /// Return the common carrier required by builtin strict equality operands.
+    fn strict_equality_carrier(
         &mut self,
         origin: Origin,
         operands: &[dir::GlobalTypeId],
@@ -425,20 +423,38 @@ impl BodyState<'_, '_> {
         for operand in operands {
             numeric &= answer!(self.operand_is_numeric(origin, *operand)?);
         }
-        if !numeric {
-            return Ok(Answer::Ready(None));
+        if numeric {
+            let mut carrier = *first;
+            for operand in rest {
+                let Some(joined) = answer!(self.builtin_numeric_join(origin, carrier, *operand)?)
+                else {
+                    return Ok(Answer::Ready(None));
+                };
+                carrier = joined;
+            }
+
+            return Ok(Answer::Ready(Some(carrier)));
         }
 
-        let mut carrier = *first;
+        // unions require one ordered case set for runtime comparison
+        let mut has_union = false;
+        for operand in operands {
+            has_union |= matches!(self.ty(*operand)?, dir::Type::Union(_));
+        }
+        if has_union {
+            let carrier = self.normalized_union_type(origin.module(), operands.iter().copied())?;
+
+            return Ok(Answer::Ready(Some(carrier)));
+        }
+
+        // equal closed types share their first canonical representative
         for operand in rest {
-            let Some(joined) = answer!(self.builtin_numeric_join(origin, carrier, *operand)?)
-            else {
+            if !answer!(self.decide_relation(origin, Relation::Equal, *first, *operand)?) {
                 return Ok(Answer::Ready(None));
-            };
-            carrier = joined;
+            }
         }
 
-        Ok(Answer::Ready(Some(carrier)))
+        Ok(Answer::Ready(Some(*first)))
     }
 
     /// Return the builtin numeric result and joined operand type.
@@ -769,7 +785,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<()>> {
         self.commit_node_type(node, result)?;
         self.commit_decision(node, Decision::Operator(dir::OperatorResolution::Builtin))?;
-        self.push_operator_writeback(origin, result, writeback);
+        self.push_operator_writeback(origin, node, writeback);
 
         Ok(Answer::Ready(()))
     }
@@ -799,7 +815,7 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node, result)?;
         let resolution = dir::OperatorResolution::Call(Box::new(resolution));
         self.commit_decision(node, Decision::Operator(resolution))?;
-        self.push_operator_writeback(origin, result, writeback);
+        self.push_operator_writeback(origin, node, writeback);
 
         Ok(Answer::Ready(()))
     }
@@ -808,7 +824,7 @@ impl BodyState<'_, '_> {
     fn push_operator_writeback(
         &mut self,
         origin: Origin,
-        result: dir::GlobalTypeId,
+        node: dir::GlobalNodeIdAny,
         writeback: Option<dir::GlobalTypeId>,
     ) {
         let Some(writeback) = writeback else {
@@ -818,7 +834,7 @@ impl BodyState<'_, '_> {
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         self.push_constraint(Constraint::value(
             Relation::Assignable,
-            ValueSource::Type(result),
+            node,
             writeback,
             cause,
             ValueUse::Store,

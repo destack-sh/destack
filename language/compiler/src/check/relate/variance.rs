@@ -669,7 +669,7 @@ impl CheckState<'_> {
         let edge = self.instance_argument_edge(symbol, edge);
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
-            // bivariant arguments relate freely under a closed judgment
+            // bivariant arguments relate freely under a closed relation
             let Some((relation, order)) = self
                 .argument_variance(symbol, index, context)?
                 .argument_relation(edge)

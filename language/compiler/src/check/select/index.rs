@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Answer, BodyState, Cause, CauseId, CauseKind, Constraint, Decision, FlowSite, MemberCandidate,
-    MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, ValueSource, ValueUse, answer,
+    MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
 };
 
 /// One selected subscript operation.
@@ -79,13 +79,13 @@ impl SubscriptSelection {
     pub(in crate::check) fn key_constraint(
         &self,
         cause: CauseId,
-        index: dir::GlobalTypeId,
+        index: dir::GlobalNodeIdAny,
     ) -> Option<Constraint> {
         let parameter = self.key_parameter?;
 
         Some(Constraint::value(
             Relation::Assignable,
-            ValueSource::Type(index),
+            index,
             parameter,
             cause,
             ValueUse::Argument,
@@ -205,7 +205,7 @@ impl BodyState<'_, '_> {
         let key_scope = self.origin_scope(origin)?;
         let anchored = Origin::Node(index_node, key_scope);
         let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-        if let Some(constraint) = selection.key_constraint(cause, index) {
+        if let Some(constraint) = selection.key_constraint(cause, index_node) {
             self.push_constraint(constraint);
         }
         let ty = selection.ty();
@@ -317,7 +317,7 @@ impl BodyState<'_, '_> {
         let key_scope = self.origin_scope(origin)?;
         let anchored = Origin::Node(index_node, key_scope);
         let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-        if let Some(constraint) = selection.key_constraint(cause, index) {
+        if let Some(constraint) = selection.key_constraint(cause, index_node) {
             self.push_constraint(constraint);
         }
 

@@ -110,6 +110,83 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
+    /// Decide whether one fresh shape writes into one structural interface place.
+    pub(in crate::check) fn decide_interface_writable(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target_module: ModuleId,
+        target_instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<bool>> {
+        let dir::Type::Shape(shape) = self.ty(source)? else {
+            return Ok(Answer::Ready(false));
+        };
+        let source_fields = self.shape_fields(source.module_id, shape.fields)?.to_vec();
+
+        // flatten inherited members so excess keys judge against every declared member
+        let mut members = Vec::new();
+        let mut pending = vec![(target_module, *target_instance)];
+        let mut visited = Vec::new();
+        while let Some((module, instance)) = pending.pop() {
+            if visited.contains(&(instance.symbol, instance.arguments)) {
+                continue;
+            }
+            visited.push((instance.symbol, instance.arguments));
+
+            let requirements =
+                answer!(self.interface_requirements(origin, module, &instance, source)?);
+            members.extend(requirements.members);
+            for inherited in requirements.inherited {
+                pending.push((origin.module(), inherited.instance));
+            }
+        }
+
+        // require each instance member, filling omissions from optionality and defaults
+        let mut decision = Answer::Ready(true);
+        for member in &members {
+            if member.space != dir::MemberSpace::Instance {
+                continue;
+            }
+            let supplied = source_fields.iter().find(|field| field.key == member.key);
+            let Some(field) = supplied else {
+                if member.is_optional || member.has_default {
+                    continue;
+                }
+
+                return Ok(Answer::Ready(false));
+            };
+            let Some(member_type) = member.ty else {
+                return Ok(Answer::Ready(false));
+            };
+            if field.is_optional && !member.is_optional {
+                return Ok(Answer::Ready(false));
+            }
+
+            // written fields write into fresh storage, readonly members included
+            decision = decision.and(self.decide_relation(
+                origin,
+                Relation::Writable,
+                field.ty,
+                member_type,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        // reject written fields the interface does not declare
+        for field in &source_fields {
+            let declared = members.iter().any(|member| {
+                member.space == dir::MemberSpace::Instance && member.key == field.key
+            });
+            if !declared {
+                return Ok(Answer::Ready(false));
+            }
+        }
+
+        Ok(decision)
+    }
+
     /// Return requirements imposed by one interface application.
     pub(in crate::check) fn interface_requirements(
         &mut self,

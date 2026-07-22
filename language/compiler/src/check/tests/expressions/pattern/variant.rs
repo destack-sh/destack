@@ -589,7 +589,7 @@ function describe(mode: Mode): int32 {
     match (mode) {
         Mode.Read => 10
         Mode.Write => 20
-    } as int32
+    }
 }
 
 === checked ===

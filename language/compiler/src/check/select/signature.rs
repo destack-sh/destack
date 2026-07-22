@@ -5,9 +5,8 @@ use smallvec::SmallVec;
 use crate::check::infer::InferMode;
 use crate::check::{
     Answer, BodyState, CandidateOutcome, Cause, CauseKind, CheckOutcome, Constraint,
-    ConstraintState, Dependency, Expectation, MemoryRank, Origin, PlaceUse, ReceiverSteps,
-    Relation, TypeConstraint, TypeSubstitution, ValueCheck, ValueSource, ValueUse, VariableDomain,
-    answer,
+    ConstraintState, Dependency, Expectation, InferenceScope, MemoryRank, Origin, PlaceUse,
+    ReceiverSteps, Relation, TypeConstraint, TypeSubstitution, ValueRelation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -29,14 +28,14 @@ pub(in crate::check) struct SignatureSelection {
 pub(in crate::check) enum SignatureMatch {
     /// The invocation satisfies the selected signature.
     Selected(SignatureSelection),
-    /// The selected signature rejects one invocation judgment.
+    /// The selected signature rejects one invocation constraint.
     Invalid {
         /// The selected signature.
         selection: SignatureSelection,
-        /// The rejected invocation judgment.
+        /// The rejected invocation constraint.
         rejection: SignatureRejection,
-        /// The inference variables owned by the rejected invocation.
-        variables: VariableDomain,
+        /// The inference scope owned by the rejected invocation.
+        variables: InferenceScope,
     },
     /// The selected return type does not satisfy its surrounding context.
     ReturnMismatch(SignatureSelection),
@@ -44,14 +43,14 @@ pub(in crate::check) enum SignatureMatch {
     Inapplicable(SignatureRejection),
 }
 
-/// Result of one invocation constraint judgment.
+/// Result of one invocation constraint.
 enum InvocationJudgment {
     /// The constraint holds.
     Holds {
         /// The completed constraint.
         constraint: Constraint,
-        /// The concrete target selected by a value check.
-        value_target: Option<dir::GlobalTypeId>,
+        /// The runtime coercion produced by a value check.
+        coercion: Option<Box<dir::Coercion>>,
     },
     /// The constraint awaits solver progress.
     Pending(Constraint),
@@ -63,12 +62,12 @@ impl InvocationJudgment {
     /// Separate a surviving constraint from an invocation rejection.
     fn into_constraint(
         self,
-    ) -> Result<(Constraint, ConstraintState, Option<dir::GlobalTypeId>), SignatureRejection> {
+    ) -> Result<(Constraint, ConstraintState, Option<Box<dir::Coercion>>), SignatureRejection> {
         match self {
             Self::Holds {
                 constraint,
-                value_target,
-            } => Ok((constraint, ConstraintState::Holds, value_target)),
+                coercion,
+            } => Ok((constraint, ConstraintState::Holds, coercion)),
             Self::Pending(constraint) => Ok((constraint, ConstraintState::Pending, None)),
             Self::Rejects(rejection) => Err(rejection),
         }
@@ -389,7 +388,8 @@ impl BodyState<'_, '_> {
         }
 
         // isolate variables allocated while matching this candidate
-        let inference_variables = VariableDomain::after(self.check.solver.variable_count());
+        let scope = InferenceScope::open(self.check.solver.variable_count());
+        let adoption_mark = self.check.solver.snapshot_watermark();
 
         // bind the receiver before evaluating generic defaults
         let substitution = receiver.map_or_else(TypeSubstitution::default, |receiver| {
@@ -497,7 +497,7 @@ impl BodyState<'_, '_> {
                 argument_parameters.push((index, argument, parameter_type));
             }
 
-            // materialize const literal arguments before other candidate judgments
+            // materialize const literal arguments before other candidate constraints
             let mut plain_arguments =
                 SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
             for (index, argument, parameter_type) in argument_parameters {
@@ -509,14 +509,14 @@ impl BodyState<'_, '_> {
                     continue;
                 }
 
-                let judgment = answer!(self.match_signature_argument(
+                let matched = answer!(self.match_signature_argument(
                     origin,
                     &substitution,
                     index,
                     argument,
                     parameter_type,
                 )?);
-                match judgment.into_constraint() {
+                match matched.into_constraint() {
                     Ok(constraint) => constraints.push(constraint),
                     Err(failure) => {
                         rejection = Some(failure);
@@ -543,8 +543,8 @@ impl BodyState<'_, '_> {
             // prove obligations before matching arguments
             for bound in bounds {
                 let source_node = source.into_global(module);
-                let judgment = answer!(self.match_signature_bound(origin, source_node, bound)?);
-                match judgment.into_constraint() {
+                let matched = answer!(self.match_signature_bound(origin, source_node, bound)?);
+                match matched.into_constraint() {
                     Ok(constraint) => constraints.push(constraint),
                     Err(failure) => {
                         rejection = Some(failure);
@@ -554,7 +554,7 @@ impl BodyState<'_, '_> {
                 }
             }
 
-            // let the surrounding contextual judgment own return mismatches
+            // let the surrounding contextual check own return mismatches
             if let Some(ret) = ret {
                 let state =
                     match self.constrain_type(ret.cause, ret.relation, ret.source, ret.target)? {
@@ -580,14 +580,14 @@ impl BodyState<'_, '_> {
                     continue;
                 }
 
-                let judgment = answer!(self.match_signature_argument(
+                let matched = answer!(self.match_signature_argument(
                     origin,
                     &substitution,
                     index,
                     argument,
                     parameter_type,
                 )?);
-                match judgment.into_constraint() {
+                match matched.into_constraint() {
                     Ok(constraint) => constraints.push(constraint),
                     Err(failure) => {
                         rejection = Some(failure);
@@ -602,10 +602,17 @@ impl BodyState<'_, '_> {
                 let parameter_type =
                     self.erase_inference_barriers(origin.module(), parameter_type)?;
 
+                // fulfill unbarred arguments before closing candidate inference
+                let mark = self.check.solver.snapshot_watermark();
+                let failures = self.check.drain_constraint_tasks(scope, mark)?;
+                if !failures.is_empty() {
+                    rejection = Some(SignatureRejection::Inapplicable);
+
+                    break 'invocation;
+                }
+
                 // barred parameters settle from the unbarred arguments alone
                 let barred_variables = self.type_variables(parameter_type)?;
-                self.check.solve_variables(inference_variables)?;
-                self.check.default_variables(inference_variables)?;
                 for variable in barred_variables {
                     if let Some(variable) = self.check.open_variable(variable)? {
                         return Ok(Answer::pending([Dependency::Variable(variable)]));
@@ -613,14 +620,14 @@ impl BodyState<'_, '_> {
                 }
                 let parameter_type = answer!(self.reduce_type(origin, parameter_type)?);
 
-                let judgment = answer!(self.match_signature_argument(
+                let matched = answer!(self.match_signature_argument(
                     origin,
                     &substitution,
                     index,
                     argument,
                     parameter_type,
                 )?);
-                match judgment.into_constraint() {
+                match matched.into_constraint() {
                     Ok(constraint) => constraints.push(constraint),
                     Err(failure) => {
                         rejection = Some(failure);
@@ -646,22 +653,21 @@ impl BodyState<'_, '_> {
             Some(rejection) => SignatureMatch::Invalid {
                 selection,
                 rejection,
-                variables: inference_variables,
+                variables: scope,
             },
             None if is_return_mismatch => SignatureMatch::ReturnMismatch(selection),
             None => SignatureMatch::Selected(selection),
         };
 
-        // retain judgments only when the invocation itself is valid
+        // retain constraints only when the invocation itself is valid
         if !matches!(matched, SignatureMatch::Invalid { .. }) {
-            for (constraint, state, value_target) in constraints {
+            for (constraint, state, coercion) in constraints {
                 match state {
                     ConstraintState::Pending => {
                         self.check.push_constraint(constraint);
                     }
                     ConstraintState::Holds => {
-                        self.check
-                            .record_constraint(constraint, state, value_target)?;
+                        self.check.record_constraint(constraint, state, coercion)?;
                     }
                     ConstraintState::Fails => {
                         return Err(CompilerError::Internal {
@@ -669,6 +675,28 @@ impl BodyState<'_, '_> {
                         });
                     }
                 }
+            }
+
+            // the call owns its opened variables: run its residual
+            //  constraints and settle owned and adopted holes
+            let failures = self.check.drain_constraint_tasks(scope, adoption_mark)?;
+
+            // a selection with failed residual constraints is no selection
+            if !failures.is_empty() {
+                for failure in failures {
+                    self.check.report_task_failure(failure)?;
+                }
+                let selection = match matched {
+                    SignatureMatch::Selected(selection)
+                    | SignatureMatch::ReturnMismatch(selection) => selection,
+                    matched => return Ok(Answer::Ready(matched)),
+                };
+
+                return Ok(Answer::Ready(SignatureMatch::Invalid {
+                    selection,
+                    rejection: SignatureRejection::Inapplicable,
+                    variables: scope,
+                }));
             }
         }
 
@@ -712,6 +740,7 @@ impl BodyState<'_, '_> {
                 .check
                 .intern_cause(Cause::root(bound_origin, CauseKind::Bound { parameter }));
             bounds.push(TypeConstraint {
+                is_derived: false,
                 relation: Relation::Satisfies,
                 source: argument,
                 target: bound,
@@ -728,6 +757,7 @@ impl BodyState<'_, '_> {
                 .check
                 .intern_cause(Cause::root(origin, CauseKind::Expression));
             bounds.push(TypeConstraint {
+                is_derived: false,
                 relation: Relation::Satisfies,
                 source: left,
                 target: right,
@@ -747,6 +777,7 @@ impl BodyState<'_, '_> {
                 .check
                 .intern_cause(Cause::root(origin, CauseKind::Return { annotation: None }));
             ret = Some(TypeConstraint {
+                is_derived: false,
                 relation: Relation::Assignable,
                 source: return_type,
                 target: expected_return,
@@ -854,22 +885,8 @@ impl BodyState<'_, '_> {
                 index: index as u32,
             },
         ));
-        let constraint = match argument.ty {
-            None => Constraint::value(
-                relation,
-                ValueSource::Node(source),
-                parameter_type,
-                cause,
-                ValueUse::Argument,
-            ),
-            Some(ty) => Constraint::value(
-                relation,
-                ValueSource::Type(ty),
-                parameter_type,
-                cause,
-                ValueUse::Argument,
-            ),
-        };
+        let constraint =
+            Constraint::value(relation, source, parameter_type, cause, ValueUse::Argument);
 
         // preserve exact literal structure for const literal materialization
         if argument.ty.is_none() && self.uses_const_argument_inference(parameter_type, substitution)
@@ -884,7 +901,7 @@ impl BodyState<'_, '_> {
 
             let state = self.check_value_relation(cause, relation, ty, parameter_type)?;
 
-            return self.signature_argument_judgment(
+            return self.signature_argument_match(
                 index,
                 argument,
                 parameter_type,
@@ -893,38 +910,59 @@ impl BodyState<'_, '_> {
             );
         }
 
-        // check source expressions and relate explicit typed arguments
-        let state = match argument.ty {
-            None => {
-                let site = self.node_site(source)?;
-                let expectation = Expectation {
-                    target: parameter_type,
+        // type source expressions before retaining their value relation
+        let Some(ty) = argument.ty else {
+            let site = self.node_site(source)?;
+            let expectation = Expectation {
+                target: parameter_type,
+                relation,
+                cause,
+                use_: ValueUse::Argument,
+            };
+            let check = answer!(self.check_node_target(site, expectation)?);
+            if check.outcome != CheckOutcome::Holds {
+                let source = answer!(self.signature_argument_type(argument)?);
+                let rejection = SignatureRejection::Argument {
+                    index,
                     relation,
-                    cause,
-                    use_: ValueUse::Argument,
+                    source,
+                    target: parameter_type,
                 };
-                self.check_node_target(site, expectation)?
+
+                return Ok(Answer::Ready(InvocationJudgment::Rejects(rejection)));
             }
-            Some(ty) => self.check_value_relation(cause, relation, ty, parameter_type)?,
+            let ty = answer!(self.node_type_at(site)?);
+            let state = self.check_value_relation(cause, relation, ty, parameter_type)?;
+
+            return self.signature_argument_match(
+                index,
+                argument,
+                parameter_type,
+                constraint,
+                state,
+            );
         };
 
-        self.signature_argument_judgment(index, argument, parameter_type, constraint, state)
+        // relate an explicitly supplied source type immediately
+        let state = self.check_value_relation(cause, relation, ty, parameter_type)?;
+
+        self.signature_argument_match(index, argument, parameter_type, constraint, state)
     }
 
-    /// Classify one argument constraint judgment.
-    fn signature_argument_judgment(
+    /// Classify one argument constraint match.
+    fn signature_argument_match(
         &mut self,
         index: usize,
         argument: CallableArgument,
         parameter_type: dir::GlobalTypeId,
         constraint: Constraint,
-        state: Answer<ValueCheck>,
+        state: Answer<ValueRelation>,
     ) -> CompilerResult<Answer<InvocationJudgment>> {
-        let judgment = match state {
+        let matched = match state {
             Answer::Ready(check) if check.outcome == CheckOutcome::Holds => {
                 InvocationJudgment::Holds {
                     constraint,
-                    value_target: Some(check.target),
+                    coercion: check.coercion,
                 }
             }
             Answer::Pending(_) => InvocationJudgment::Pending(constraint),
@@ -941,7 +979,7 @@ impl BodyState<'_, '_> {
             }
         };
 
-        Ok(Answer::Ready(judgment))
+        Ok(Answer::Ready(matched))
     }
 
     /// Judge one substituted generic bound.
@@ -952,10 +990,10 @@ impl BodyState<'_, '_> {
         bound: TypeConstraint,
     ) -> CompilerResult<Answer<InvocationJudgment>> {
         let state = self.constrain_type(bound.cause, bound.relation, bound.source, bound.target)?;
-        let judgment = match state {
+        let matched = match state {
             Answer::Ready(true) => InvocationJudgment::Holds {
                 constraint: Constraint::Type(bound),
-                value_target: None,
+                coercion: None,
             },
             Answer::Pending(_) => InvocationJudgment::Pending(Constraint::Type(bound)),
             Answer::Ready(false) => {
@@ -970,7 +1008,7 @@ impl BodyState<'_, '_> {
             }
         };
 
-        Ok(Answer::Ready(judgment))
+        Ok(Answer::Ready(matched))
     }
 
     /// Return the current type of one signature argument.

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateVerdict, MemoryRank, Origin, ProbeReason,
-    SignatureMatch, SignatureRejection, TypeSubstitution, VariableDomain, answer,
+    Answer, BodyState, CallableArgument, CandidateVerdict, InferenceScope, MemoryRank, Origin,
+    SignatureMatch, SignatureRejection, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -26,10 +26,10 @@ pub(in crate::check) enum NewtypeMatch {
     Invalid {
         /// The selected backing signature.
         signature: NewtypeSignature,
-        /// The rejected invocation judgment.
+        /// The rejected invocation constraint.
         rejection: SignatureRejection,
         /// The inference variables owned by the rejected invocation.
-        variables: VariableDomain,
+        variables: InferenceScope,
     },
     /// No backing alternative accepted the arguments.
     Rejected(NewtypeRejection),
@@ -126,7 +126,6 @@ impl BodyState<'_, '_> {
             }
             let mut rank = MemoryRank::Exact;
             let (verdict, rejection) = answer!(self.probe_candidate_noted(
-                ProbeReason::Signature,
                 |state| {
                     let outcome = state.match_newtype_candidate(
                         origin,
@@ -218,7 +217,7 @@ impl BodyState<'_, '_> {
                     signature_rejection = Some(rejection);
                 }
                 SignatureMatch::Invalid { variables, .. } => {
-                    self.check.poison_variables(variables)?;
+                    self.check.poison_scope(variables)?;
                 }
                 SignatureMatch::Inapplicable(_) => {}
             }

@@ -46,7 +46,7 @@ function use(onValue?: (value: unknown) => void): void {
         r#"
 === annotated ===
 function use(onValue?: (arg0: unknown) => void): void {
-    if (onValue !== undefined) {
+    if (onValue !== (undefined as ((arg0: unknown) => void) | undefined)) {
         onValue(1 as unknown);
     } else {
     }

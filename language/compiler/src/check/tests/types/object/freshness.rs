@@ -42,7 +42,7 @@ type Options = Base & {
 type Argument = (() => void) | Options;
 
 function skipAll(): void {
-    run({ skip: true });
+    run({ skip: true } as Argument | undefined);
 }
 
 function run(argument?: Argument): void {}

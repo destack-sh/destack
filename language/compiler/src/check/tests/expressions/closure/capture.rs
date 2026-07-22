@@ -366,7 +366,7 @@ declare class Client {
 
 let client: Client = new Client();
 
-@capture("copy" as CaptureDirective)
+@capture("copy")
 const load = async () => await client.read();
 
 === checked ===

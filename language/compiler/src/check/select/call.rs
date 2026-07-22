@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
-    DecisionKind, Dependency, FlowSite, MemoryRank, Origin, PlaceUse, ProbeReason, SignatureMatch,
-    SignatureRejection, SignatureSelection, VariableDomain, answer,
+    DecisionKind, Dependency, FlowSite, InferenceScope, MemoryRank, Origin, PlaceUse,
+    SignatureMatch, SignatureRejection, SignatureSelection, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -220,7 +220,6 @@ impl BodyState<'_, '_> {
             // classify the accepted substituted signature inside the probe
             let mut rank = MemoryRank::Exact;
             let (verdict, rejection) = answer!(self.probe_candidate_noted(
-                ProbeReason::Signature,
                 |state| {
                     let outcome = state.attempt_call(
                         origin,
@@ -305,7 +304,7 @@ impl BodyState<'_, '_> {
                     variables,
                 } if is_single_candidate => {
                     self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
-                    self.check.poison_variables(variables)?;
+                    self.check.poison_scope(variables)?;
                     answer!(self.commit_call_signature(
                         site,
                         node,
@@ -327,7 +326,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
                 }
                 SignatureMatch::Invalid { variables, .. } => {
-                    self.check.poison_variables(variables)?;
+                    self.check.poison_scope(variables)?;
                 }
                 SignatureMatch::Inapplicable(_) => {}
             }
@@ -678,7 +677,7 @@ impl BodyState<'_, '_> {
         argument_types: &[dir::GlobalTypeId],
         expected_return: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<SignatureMatch>> {
-        let variables = VariableDomain::after(self.check.solver.variable_count());
+        let variables = InferenceScope::open(self.check.solver.variable_count());
         let receiver_rejected = answer!(self.receiver_rejects_candidate(origin, candidate)?);
         let matched = answer!(self.attempt_callable(
             origin,

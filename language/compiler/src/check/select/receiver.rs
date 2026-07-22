@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, Cause, CauseKind, Origin, ProbeReason, Relation, answer,
+    Answer, BodyState, CandidateOutcome, Cause, CauseKind, Origin, Relation, answer,
 };
 
 /// The projection steps picked for one receiver.
@@ -59,7 +59,7 @@ impl BodyState<'_, '_> {
         let mut peeled_place = None;
         loop {
             // try the current step speculatively
-            let related = self.confirm_candidate(ProbeReason::Receiver, |state| {
+            let related = self.confirm_candidate(|state| {
                 let adjusted = state.receiver_adjustment(
                     origin,
                     module,

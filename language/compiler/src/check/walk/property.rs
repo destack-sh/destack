@@ -319,10 +319,9 @@ impl WalkState<'_, '_> {
                             id.into_global_any(self.module),
                             self.flow().template_scope(),
                         );
-                        self.relate_value(
+                        self.relate_type(
                             origin,
                             CauseKind::Initializer { annotation: None },
-                            ValueUse::Store,
                             Relation::Assignable,
                             written,
                             ty,
@@ -977,10 +976,9 @@ impl WalkState<'_, '_> {
                     if let Some(written) = written {
                         if let Some(declared) = declared {
                             let origin = Origin::Node(source, self.flow().template_scope());
-                            self.relate_value(
+                            self.relate_type(
                                 origin,
                                 CauseKind::Initializer { annotation: None },
-                                ValueUse::Store,
                                 Relation::Assignable,
                                 written,
                                 declared,

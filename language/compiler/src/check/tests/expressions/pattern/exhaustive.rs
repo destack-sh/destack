@@ -414,7 +414,7 @@ declare const edge: Edge<string> | Edge<int32>;
 const value: string = match (edge) {
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node type=string | int32
+/// @type.node type=string
 /// @type.node source=edge type=Edge<string> | Edge<int32>
 /// @resolution.name source=edge target=edge
 /// @generic.instance source=edge id=Edge<int32>

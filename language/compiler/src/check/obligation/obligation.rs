@@ -666,7 +666,7 @@ impl CheckState<'_> {
         id
     }
 
-    /// Check one obligation once, returning its failed judgments.
+    /// Check one obligation once, returning its failures.
     pub(in crate::check) fn run_obligation(
         &mut self,
         id: ObligationId,

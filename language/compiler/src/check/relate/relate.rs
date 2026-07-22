@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Answer, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome, CheckState,
-    Dependency, ObligationCheck, Origin, ProbeReason, Relation, ValueCheck, ValueUse, VariableRole,
-    answer,
+    Dependency, ObligationCheck, Origin, Relation, VariableRole, answer,
 };
 
 impl CheckState<'_> {
@@ -145,110 +144,20 @@ impl CheckState<'_> {
         &mut self,
         cause: CauseId,
         relation: Relation,
-        value_use: Option<ValueUse>,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        let origin = self.cause_origin(cause);
-        let check = match value_use {
-            Some(_) => {
-                let check =
-                    answer!(self.check_value_constraint(cause, origin, relation, source, target)?);
-
-                Answer::Ready(check.outcome)
-            }
-            None => {
-                let holds = answer!(self.constrain_type(cause, relation, source, target)?);
-                let check =
-                    self.complete_constraint_check(cause, relation, source, target, holds)?;
-
-                Answer::Ready(check)
-            }
-        };
+        let holds = answer!(self.constrain_type(cause, relation, source, target)?);
+        let check = self.complete_constraint_check(cause, relation, source, target, holds)?;
 
         match check {
-            Answer::Ready(CheckOutcome::Holds) => Ok(Answer::Ready(())),
-            Answer::Ready(CheckOutcome::Fails(failure)) => {
-                self.report_constraint_failure(
-                    cause, relation, value_use, source, target, failure,
-                )?;
+            CheckOutcome::Holds => Ok(Answer::Ready(())),
+            CheckOutcome::Fails(failure) => {
+                self.report_constraint_failure(cause, relation, None, source, target, failure)?;
 
                 Ok(Answer::Ready(()))
             }
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
-    }
-
-    /// Check one value constraint and return the completed result.
-    pub(in crate::check) fn check_value_constraint(
-        &mut self,
-        cause: CauseId,
-        value_origin: Origin,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<ValueCheck>> {
-        // bodies commit their nodes before fulfillment relates them
-        if let Some(node) = value_origin.expression() {
-            let site = self.node_site(node.into())?;
-            let (_, check) = answer!(self.check_node_value(site, relation, target, cause)?);
-
-            return Ok(Answer::Ready(check));
-        }
-
-        self.check_value_relation(cause, relation, source, target)
-    }
-
-    /// Check one already typed value relation.
-    pub(in crate::check) fn check_value_relation(
-        &mut self,
-        cause: CauseId,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<ValueCheck>> {
-        let origin = self.cause_origin(cause);
-        let source_value = answer!(self.reduce_type_head(origin, source)?);
-        let source_value = answer!(self.strip_form(origin, source_value)?);
-        let source_is_union = matches!(self.ty(source_value)?, dir::Type::Union(_));
-
-        // select the exact carrier member at the runtime value boundary
-        if relation.distributes_over_union_target()
-            && !source_is_union
-            && let Some(arms) = answer!(self.union_arms(origin, target)?)
-        {
-            for target in arms {
-                let selected = answer!(self.confirm_candidate(ProbeReason::UnionArm, |state| {
-                    let checked =
-                        answer!(state.check_value_target(cause, relation, source, target,)?);
-                    let outcome = match checked.outcome {
-                        CheckOutcome::Holds => CandidateOutcome::Accepted(checked),
-                        CheckOutcome::Fails(_) => CandidateOutcome::Rejected(()),
-                    };
-
-                    Ok(Answer::Ready(outcome))
-                })?);
-                if let Some(checked) = selected {
-                    return Ok(Answer::Ready(checked));
-                }
-            }
-        }
-
-        self.check_value_target(cause, relation, source, target)
-    }
-
-    /// Check one already typed value against one concrete target.
-    fn check_value_target(
-        &mut self,
-        cause: CauseId,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<ValueCheck>> {
-        let holds = answer!(self.constrain_type(cause, relation, source, target)?);
-        let outcome = self.complete_constraint_check(cause, relation, source, target, holds)?;
-
-        Ok(Answer::Ready(ValueCheck { outcome, target }))
     }
 
     /// Check one type constraint and return the completed result.
@@ -374,14 +283,23 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(true))
             }
-            // unify one open side with the other type
+            // unify one open side with a closed type, or record the
+            //  equation as a bound until its composite closes
             (Some(variable), None, Relation::Equal) => {
-                self.commit_solution(variable, target)?;
+                if self.type_variables(target)?.is_empty() {
+                    self.commit_solution(variable, target)?;
+                } else {
+                    self.push_upper_bound(variable, cause, target, Relation::Equal)?;
+                }
 
                 Ok(Answer::Ready(true))
             }
             (None, Some(variable), Relation::Equal) => {
-                self.commit_solution(variable, source)?;
+                if self.type_variables(source)?.is_empty() {
+                    self.commit_solution(variable, source)?;
+                } else {
+                    self.push_lower_bound(variable, cause, source, Relation::Equal)?;
+                }
 
                 Ok(Answer::Ready(true))
             }
@@ -432,15 +350,26 @@ impl CheckState<'_> {
                 };
 
                 // reduce aliases and intrinsics at the root; open template
-                //  patterns pass through raw so bounds flow into their spans
+                //  patterns and memory forms pass through raw, since their
+                //  heads are known while open slots await evidence
                 let source = match self.reduce_type_head(origin, source)? {
                     Answer::Ready(source) => source,
-                    Answer::Pending(_) if self.is_open_template(source)? => source,
+                    Answer::Pending(_)
+                        if self.is_open_template(source)?
+                            || matches!(self.ty(source)?, dir::Type::Form(_)) =>
+                    {
+                        source
+                    }
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
                 let target = match self.reduce_type_head(origin, target)? {
                     Answer::Ready(target) => target,
-                    Answer::Pending(_) if self.is_open_template(target)? => target,
+                    Answer::Pending(_)
+                        if self.is_open_template(target)?
+                            || matches!(self.ty(target)?, dir::Type::Form(_)) =>
+                    {
+                        target
+                    }
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
 
@@ -474,6 +403,27 @@ impl CheckState<'_> {
                 self.decide_relation(origin, relation, source, target)
             }
         }
+    }
+
+    /// Return the relation one signature slot pair relates under.
+    ///
+    /// Context equates contextual slots: an open slot received by
+    /// assignment takes its contract whole instead of a directed bound.
+    fn contextual_slot_relation(
+        &self,
+        slot: dir::GlobalTypeId,
+        relation: Relation,
+    ) -> CompilerResult<Relation> {
+        let root = self.settled_root(slot)?;
+        let is_contextual = match self.root_variable(root)? {
+            Some(variable) => self.solver.variable_role(variable)? == VariableRole::Parameter,
+            None => false,
+        };
+
+        Ok(match is_contextual {
+            true => Relation::Equal,
+            false => relation.interior(),
+        })
     }
 
     /// Relate matching composites slot by slot, bounding open leaves.
@@ -549,7 +499,7 @@ impl CheckState<'_> {
         {
             let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
             let mut matching = None;
-            for element in elements {
+            for element in elements.iter().copied() {
                 let Answer::Ready(element) = self.reduce_type_head(origin, element)? else {
                     continue;
                 };
@@ -568,6 +518,31 @@ impl CheckState<'_> {
                 matching = Some(element);
             }
             if let Some(arm) = matching {
+                return Ok(Some(self.constrain_type(cause, relation, source, arm)?));
+            }
+        }
+
+        // a lone naked arm receives the inference: evidence routing is
+        //  directed deposition, so it never transports equations and
+        //  applies even where widening rejects tagging
+        if relation != Relation::Equal
+            && !matches!(self.ty(source)?, dir::Type::Union(_))
+            && let dir::Type::Union(union) = self.ty(target)?
+        {
+            let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+            let mut open_arm = None;
+            for element in &elements {
+                let root = self.settled_root(*element)?;
+                if self.root_variable(root)?.is_some() {
+                    if open_arm.is_some() {
+                        open_arm = None;
+
+                        break;
+                    }
+                    open_arm = Some(*element);
+                }
+            }
+            if let Some(arm) = open_arm {
                 return Ok(Some(self.constrain_type(cause, relation, source, arm)?));
             }
         }
@@ -784,9 +759,11 @@ impl CheckState<'_> {
                     let kind = CauseKind::Parameter {
                         index: index as u32,
                     };
+                    let slot_relation =
+                        self.contextual_slot_relation(source_parameter.ty, relation)?;
                     pairs.push((
                         Some(kind),
-                        relation.interior(),
+                        slot_relation,
                         target_parameter.ty,
                         source_parameter.ty,
                     ));
@@ -794,9 +771,10 @@ impl CheckState<'_> {
                 if let (Some(source_return), Some(target_return)) =
                     (source_function.return_type, target_function.return_type)
                 {
+                    let slot_relation = self.contextual_slot_relation(source_return, relation)?;
                     pairs.push((
                         Some(CauseKind::ReturnSlot),
-                        relation.interior(),
+                        slot_relation,
                         source_return,
                         target_return,
                     ));
@@ -906,7 +884,7 @@ impl CheckState<'_> {
         // try every arm speculatively, keeping the first viable arm
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for element in elements.iter().copied() {
-            match self.confirm_candidate(ProbeReason::UnionArm, |state| {
+            match self.confirm_candidate(|state| {
                 match state.constrain_type(cause, relation, source, element)? {
                     Answer::Ready(true) => Ok(Answer::Ready(CandidateOutcome::Accepted(()))),
                     Answer::Ready(false) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),

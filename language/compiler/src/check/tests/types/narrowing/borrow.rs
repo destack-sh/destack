@@ -299,6 +299,7 @@ function value<L: Lifetime, R: Lifetime>(
     /// @type.node source="flag ? (&left.value) : (&right.value)" type=Borrowed<string, L | R, "mutable">
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=value.flag
+    /// @generic.instance source="flag ? (&left.value) : (&right.value)" id="Borrowed<string, L | R, \"mutable\">"
     /// @type.node source=&left.value type=Borrowed<string, L, "mutable">
     /// @type.node source=left type=Borrowed<Text, L, "mutable">
     /// @type.node source=left.value type=string

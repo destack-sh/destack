@@ -417,7 +417,7 @@ newtype Pending = "pending";
 
 declare const state: Ready | Pending;
 switch (state) {
-    case Ready("ready"):
+    case Ready("ready") as Ready | Pending:
         state;
         break;
     default:

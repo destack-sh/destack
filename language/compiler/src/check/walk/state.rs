@@ -5,8 +5,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Cause, CauseKind, CheckState, Constraint, FlowPointId, FlowSite, FlowState, Origin, Relation,
-    ValueSource, ValueUse, VariableRole, Widening,
+    Cause, CauseKind, CheckState, Constraint, Expectation, FlowPointId, FlowSite, FlowState,
+    Origin, Relation, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -205,14 +205,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<()> {
         let site = self.node_site(id)?;
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
-        let constraint = Constraint::value(
-            Relation::Assignable,
-            ValueSource::Node(site.node),
+        let expectation = Expectation {
             target,
+            relation: Relation::Assignable,
             cause,
             use_,
-        );
-        self.check.push_constraint(constraint);
+        };
+        self.check.queue_check(site, expectation);
 
         Ok(())
     }
@@ -383,26 +382,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let cause = self.check.intern_cause(Cause::root(origin, kind));
         self.check
             .push_constraint(Constraint::r#type(relation, source, target, cause));
-    }
-
-    /// Collect one value relation constraint.
-    pub(in crate::check) fn relate_value(
-        &mut self,
-        origin: Origin,
-        kind: CauseKind,
-        use_: ValueUse,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) {
-        let cause = self.check.intern_cause(Cause::root(origin, kind));
-        self.check.push_constraint(Constraint::value(
-            relation,
-            ValueSource::Type(source),
-            target,
-            cause,
-            use_,
-        ));
     }
 
     /// Collect one generic argument bound constraint.

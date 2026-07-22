@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, Cause, CauseKind, Constraint, Decision, Expectation, FlowPointId, FlowSite,
-    Obligation, Origin, PlaceUse, Relation, ValueSource, ValueUse, Widening,
-    WritablePlaceObligation, WriteTarget, answer,
+    Obligation, Origin, PlaceUse, Relation, ValueUse, Widening, WritablePlaceObligation,
+    WriteTarget, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -90,7 +90,7 @@ impl BodyState<'_, '_> {
                 ));
                 self.push_constraint(Constraint::value(
                     Relation::Assignable,
-                    ValueSource::Type(input),
+                    node.into_any(),
                     target,
                     pattern_cause,
                     ValueUse::Store,
@@ -363,7 +363,7 @@ impl BodyState<'_, '_> {
                     },
                 ));
                 let relation = self.pattern_binding_relation(input, binding)?;
-                answer!(self.check.relate(cause, relation, None, input, binding,)?);
+                answer!(self.check.relate(cause, relation, input, binding)?);
             } else {
                 self.check.commit_binding_type(symbol, input)?;
             }

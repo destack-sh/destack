@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Answer, BodyState, CandidateOutcome, Cause, CauseKind, DeclaredMember, Dependency,
-    GenericTemplateId, MemberCandidate, MemberLookup, Origin, ProbeReason, ReceiverSteps, Relation,
+    GenericTemplateId, MemberCandidate, MemberLookup, Origin, ReceiverSteps, Relation,
     TypeSubstitution, answer,
 };
 
@@ -179,7 +179,7 @@ impl BodyState<'_, '_> {
             let template = self.symbol_template(extension_symbol)?;
 
             // match the extension target speculatively
-            let matched = self.confirm_candidate(ProbeReason::Implements, |state| {
+            let matched = self.confirm_candidate(|state| {
                 let matched =
                     state.match_extension_target(origin, receiver, template, target_type)?;
                 match matched {
@@ -306,7 +306,7 @@ impl BodyState<'_, '_> {
 
         // open extension generics and match the receiver
         let template = self.symbol_template(extension_symbol)?;
-        let result = self.confirm_candidate(ProbeReason::Extension, |state| {
+        let result = self.confirm_candidate(|state| {
             match state.match_extension(
                 origin,
                 receiver,

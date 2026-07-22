@@ -95,16 +95,7 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(()))
             }
             dir::Expression::TemplateExpression { value } => {
-                if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
-                    for argument in arguments {
-                        answer!(self.infer_argument_type(site, argument)?);
-                    }
-                }
-
-                let ty = self.intern_type(
-                    node.module_id,
-                    dir::Type::Primitive(dir::PrimitiveType::String),
-                )?;
+                let ty = answer!(self.template_expression_type(site, value)?);
                 self.commit_node_type(node.into_any(), ty)?;
 
                 Ok(Answer::Ready(()))
@@ -313,6 +304,26 @@ impl BodyState<'_, '_> {
             | dir::Expression::Continue { .. }) => self.infer_statement(site, &expression),
             expression => self.reject_expression_without_inference_owner(node, expression),
         }
+    }
+
+    /// Return the type of one template expression after checking its arguments.
+    pub(in crate::check) fn template_expression_type(
+        &mut self,
+        site: FlowSite,
+        value: dir::TemplateLiteral,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
+            for argument in arguments {
+                answer!(self.infer_argument_type(site, argument)?);
+            }
+        }
+
+        let ty = self.intern_type(
+            site.node.module_id,
+            dir::Type::Primitive(dir::PrimitiveType::String),
+        )?;
+
+        Ok(Answer::Ready(ty))
     }
 
     /// Reject expression inference that reached solve without a matching owner.

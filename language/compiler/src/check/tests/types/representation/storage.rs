@@ -152,6 +152,7 @@ const rectangle = Rectangle {
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'z' in object literal for type 'Point'"
 /// @diagnostic.label line=12 column=12 span="{ x: 0, y: 0, z: 0 }" line_source="start: { x: 0, y: 0, z: 0 },"
+/// @diagnostic.related line=11 column=19 span="Rectangle {\n    start: { x: 0, y: 0, z: 0 },\n}" line_source="const rectangle = Rectangle {" message="expected due to the type of this target"
 /// @diagnostic.note message="object literals may only specify known properties"
 /// @diagnostic.note message="the mismatch is in field 'start'"
 "#,
