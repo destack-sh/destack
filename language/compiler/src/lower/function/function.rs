@@ -126,19 +126,11 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         owner: dir::LocalSymbolId,
+        symbol: dir::GlobalSymbolId,
         member: dir::LocalNodeId<dir::Member>,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<FunctionDefinition> {
-        let module = self.module;
         let pointer_bytes = builder.pointer_bytes();
-
-        // the sealed definition names the method symbol
-        let node = member.into_global_any(module);
-        let Some(symbol) = self.method_symbol(owner.into_global(module), node)? else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR is missing a symbol for one method declaration".to_string(),
-            });
-        };
         let declared = self.symbol_type(symbol)?;
         let lifetime_parameters = self.lifetime_parameters(declared)?;
 
@@ -215,7 +207,7 @@ impl ModuleLowerer<'_> {
         let parameter_nodes = signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
-            let node = parameter.into_global_any(module);
+            let node = parameter.into_global_any(self.module);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
                     message: "checked DIR is missing a symbol for one parameter".to_string(),
@@ -277,7 +269,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the sealed method symbol declared at one member node.
-    fn method_symbol(
+    pub(in crate::lower) fn method_symbol(
         &self,
         owner: dir::GlobalSymbolId,
         member: dir::GlobalNodeIdAny,

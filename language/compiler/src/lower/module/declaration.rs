@@ -75,7 +75,7 @@ impl ModuleLowerer<'_> {
 
         match runtime {
             RuntimeDeclaration::Function(body) => {
-                // generic functions defer to their concrete instances
+                // defer generic functions to their concrete instances
                 let node = declaration.into_global_any(self.module);
                 if let Some(symbol) = self.symbol_declared_at(node)?
                     && self.signature_has_instance_parameters(self.symbol_type(symbol)?)?
@@ -221,7 +221,27 @@ impl ModuleLowerer<'_> {
                     }
                     .into());
                 }
-                bodies.push(self.declare_method(builder, owner_symbol.local_id, member, body)?);
+
+                // read the method symbol from the sealed definition
+                let node = member.into_global_any(self.module);
+                let Some(symbol) = self.method_symbol(owner_symbol, node)? else {
+                    return Err(CompilerError::Internal {
+                        message: "checked DIR is missing a symbol for one method declaration"
+                            .to_string(),
+                    });
+                };
+
+                // defer generic methods to their concrete instances
+                if self.signature_has_instance_parameters(self.symbol_type(symbol)?)? {
+                    return Ok(());
+                }
+                bodies.push(self.declare_method(
+                    builder,
+                    owner_symbol.local_id,
+                    symbol,
+                    member,
+                    body,
+                )?);
 
                 Ok(())
             }

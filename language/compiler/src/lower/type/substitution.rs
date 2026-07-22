@@ -73,7 +73,11 @@ impl TypeSubstitution {
             };
             let Some(argument) = self.bindings.get(&parameter).copied() else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR left a type parameter unbound".to_string(),
+                    message: format!(
+                        "checked DIR left type parameter {parameter:?} unbound with bindings \
+                         for {:?}",
+                        self.bindings.keys().collect::<Vec<_>>()
+                    ),
                 });
             };
             ty = argument;
