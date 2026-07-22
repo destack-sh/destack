@@ -9,10 +9,19 @@ declare_lint! {
     /// Disallow debugger statements.
     pub NO_DEBUGGER {
         id: "no-debugger",
-        description: "Disallow debugger statements",
+        summary: "Disallow debugger statements",
+        explanation: "The `debugger` statement interrupts execution only when an attached debugger honors it and otherwise has no useful runtime effect. It is normally an accidental development artifact and should not remain in checked source.",
+        example: {
+            reported: r#"
+if (true) debugger;
+"#,
+            accepted: r#"
+if (true) {}
+"#,
+        },
         category: Suspicious,
         level: Warning,
-        fixable: Always,
+        fixable: Automatic,
         check: DirModule(check),
     }
 }
@@ -127,7 +136,7 @@ mod tests {
     /// Report the complete debugger diagnostic and source suggestion.
     #[test]
     fn test_reports_debugger_statement() {
-        let session = TestSession::new(&NO_DEBUGGER, r#"if (true) debugger;"#);
+        let session = TestSession::new(&NO_DEBUGGER, NO_DEBUGGER.example.reported());
 
         session.assert_diagnostics(
             r#"
@@ -146,6 +155,8 @@ warning[no-debugger]: `debugger` statement is not allowed
 +   1│ if (true) {}
 "#,
         );
+
+        session.assert_fixes(NO_DEBUGGER.example.accepted());
     }
 
     /// Suppress the lint through its canonical id.

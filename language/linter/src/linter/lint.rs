@@ -79,15 +79,15 @@ impl LintScope {
     }
 }
 
-/// The availability of automatic fixes for one lint.
+/// The safety of corrections emitted by one lint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Fixability {
-    /// Always provides a fix when it reports.
-    Always,
-    /// Can fix some cases but not all.
-    Sometimes,
-    /// Never provides fixes.
-    Never,
+    /// Does not emit corrections.
+    None,
+    /// Emits corrections that are safe to apply automatically.
+    Automatic,
+    /// Emits corrections that require review.
+    Suggestion,
 }
 
 /// The result of one lint check.
@@ -166,18 +166,43 @@ impl LintCheck {
     }
 }
 
+/// One canonical example of a lint violation and its accepted replacement.
+#[derive(Debug, Clone)]
+pub struct LintExample {
+    /// Source that produces the lint.
+    pub reported: Cow<'static, str>,
+    /// Source that expresses the same intent without the lint.
+    pub accepted: Cow<'static, str>,
+}
+
+impl LintExample {
+    /// Return the reported source without leading or trailing newlines.
+    pub fn reported(&self) -> &str {
+        self.reported.trim_matches('\n')
+    }
+
+    /// Return the accepted source without leading or trailing newlines.
+    pub fn accepted(&self) -> &str {
+        self.accepted.trim_matches('\n')
+    }
+}
+
 /// A lint.
 #[derive(Debug, Clone)]
 pub struct Lint {
     /// The lint id.
     pub id: Cow<'static, str>,
-    /// The description.
-    pub description: Cow<'static, str>,
+    /// The concise rule summary.
+    pub summary: Cow<'static, str>,
+    /// The rule rationale and reporting boundary.
+    pub explanation: Cow<'static, str>,
+    /// The canonical reported and accepted source pair.
+    pub example: LintExample,
     /// The diagnostic category.
     pub category: LintCategory,
     /// The default level.
     pub default_level: LintLevel,
-    /// The availability of automatic fixes.
+    /// The safety of emitted corrections.
     pub fixability: Fixability,
     /// The check.
     pub check: LintCheck,
@@ -197,7 +222,7 @@ impl Lint {
 
     /// Return whether this lint can provide fixes.
     pub const fn is_fixable(&self) -> bool {
-        matches!(self.fixability, Fixability::Always | Fixability::Sometimes)
+        !matches!(self.fixability, Fixability::None)
     }
 
     /// Return the IR tier inspected by this lint.
