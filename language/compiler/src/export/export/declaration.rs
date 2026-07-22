@@ -4,7 +4,7 @@ use crate::export::state::ExportState;
 use crate::{Compiler, ExportResult};
 
 impl Compiler {
-    /// Collect module surfaces declared by symbols.
+    /// Collect exports declared by module symbols.
     pub(in crate::export) fn collect_declaration_exports(
         &self,
         state: &mut ExportState<'_>,
@@ -115,6 +115,7 @@ impl Compiler {
         Ok(Some(dir::LocalExport {
             key: name,
             source: symbol_id,
+            form: state.symbol_form(symbol_id),
             item: None,
         }))
     }

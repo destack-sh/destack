@@ -174,6 +174,7 @@ impl Compiler {
                 Ok(Some(dir::NamedExport::Local(dir::LocalExport {
                     key,
                     source,
+                    form: state.symbol_form(source),
                     item: Some(item_id),
                 })))
             }
