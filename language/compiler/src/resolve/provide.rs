@@ -11,7 +11,7 @@ use crate::resolve::state::ResolveState;
 use crate::{Compiler, CompilerError, CompilerResult, ResolveError};
 
 impl Compiler {
-    /// Collect inputs for resolved import targets of one module.
+    /// Collect the dependencies of one resolved DIR build.
     pub(crate) fn collect_dir_resolved(
         &self,
         module: ModuleId,

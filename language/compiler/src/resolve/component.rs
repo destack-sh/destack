@@ -1,6 +1,7 @@
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion, ComponentGraph,
 };
+use destack_dir as dir;
 use destack_repository::{ArtifactReader, ModuleDelta, ProfileId, ProviderContext};
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
@@ -32,23 +33,16 @@ impl Compiler {
             dependencies.derive_from(base.version);
         }
 
-        // read only edges whose source module changed
-        if let Some(base) = base {
-            for module in base.delta.edge_modules() {
-                dependencies.require(ArtifactKey::dir_resolved(module, profile));
-            }
-        } else {
-            // collect every edge when no predecessor graph is usable
-            let modules = self
-                .repository
-                .module_ids(context.revision())
-                .map_err(|error| CompilerError::Internal {
-                    message: format!("failed to enumerate profile modules: {error}"),
-                })?;
-
-            for module in modules {
-                dependencies.require(ArtifactKey::dir_resolved(module, profile));
-            }
+        // coupling edges read every module's resolution and exports
+        let modules = self
+            .repository
+            .module_ids(context.revision())
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to enumerate profile modules: {error}"),
+            })?;
+        for module in modules {
+            dependencies.require(ArtifactKey::dir_resolved(module, profile));
+            dependencies.require(ArtifactKey::dir_exported(module, profile));
         }
 
         Ok(dependencies)
@@ -126,6 +120,17 @@ impl Compiler {
         let started = self.repository.host().clock().now();
         let mut edge_count = 0u64;
 
+        // classify each module's inference-coupling edge subset
+        let mut coupling_by_module = IndexMap::with_capacity(modules.len());
+        let mut is_coupling_changed = false;
+        for module in modules.iter().copied() {
+            let coupling = self.module_coupling_edges(artifacts, profile, module)?;
+            if let Some(base) = &base {
+                is_coupling_changed |= !base.graph.coupling_edges_equal(module, coupling.as_ref());
+            }
+            coupling_by_module.insert(module, coupling);
+        }
+
         // build all edges when no predecessor graph is available
         let Some(base) = base else {
             let mut edges_by_module = IndexMap::with_capacity(modules.len());
@@ -142,7 +147,7 @@ impl Compiler {
             context.emit_counter("edges", edge_count);
 
             validate_component_edges(&edges_by_module)?;
-            let graph = ComponentGraph::from_edges(profile, edges_by_module);
+            let graph = ComponentGraph::from_edges(profile, edges_by_module, coupling_by_module);
 
             return Ok(Arc::new(graph));
         };
@@ -173,14 +178,114 @@ impl Compiler {
         context.emit_counter("edges", edge_count);
 
         // return the predecessor graph when changed edges still match
-        if !is_changed {
+        if !is_changed && !is_coupling_changed {
             return Ok(base.graph);
         }
 
-        let graph = base.graph.derive(changed_edges, base.delta.removed);
+        let graph = base
+            .graph
+            .derive(changed_edges, base.delta.removed, coupling_by_module);
         validate_component_graph(&graph)?;
 
         Ok(Arc::new(graph))
+    }
+
+    /// Return the modules whose inference one module's checking consumes.
+    fn module_coupling_edges(
+        &self,
+        artifacts: &ArtifactReader<'_>,
+        profile: ProfileId,
+        module: ModuleId,
+    ) -> CompilerResult<Arc<[ModuleId]>> {
+        let resolved = artifacts
+            .dir_resolved(module, profile)
+            .map_err(CompilerError::from)?;
+        let mut edges = IndexSet::new();
+
+        // imported symbols couple through inferred export forms
+        for (_, target) in &resolved.imports.target_by_symbol {
+            match target {
+                dir::ImportTarget::Symbol(symbol) if symbol.module_id != module => {
+                    if self.export_couples(artifacts, profile, *symbol)? {
+                        edges.insert(symbol.module_id);
+                    }
+                }
+                dir::ImportTarget::Namespace(namespace) if *namespace != module => {
+                    if self.namespace_couples(artifacts, profile, *namespace)? {
+                        edges.insert(*namespace);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // referenced symbols couple the same way
+        for (_, reference) in &resolved.references.entries {
+            match reference {
+                dir::Reference::Bound(symbols) => {
+                    for symbol in symbols {
+                        if symbol.module_id != module
+                            && self.export_couples(artifacts, profile, *symbol)?
+                        {
+                            edges.insert(symbol.module_id);
+                        }
+                    }
+                }
+                dir::Reference::Projected { base, .. } => {
+                    if base.module_id != module && self.export_couples(artifacts, profile, *base)? {
+                        edges.insert(base.module_id);
+                    }
+                }
+                dir::Reference::Namespace(namespace) => {
+                    if *namespace != module
+                        && self.namespace_couples(artifacts, profile, *namespace)?
+                    {
+                        edges.insert(*namespace);
+                    }
+                }
+                dir::Reference::Ambiguous(_) | dir::Reference::Missing => {}
+            }
+        }
+
+        let edges = edges.into_iter().collect::<Vec<_>>();
+
+        Ok(Arc::from(edges))
+    }
+
+    /// Return whether one exported symbol carries inference to its consumers.
+    fn export_couples(
+        &self,
+        artifacts: &ArtifactReader<'_>,
+        profile: ProfileId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let exported = artifacts
+            .dir_exported(symbol.module_id, profile)
+            .map_err(CompilerError::from)?;
+
+        // absent exports classify conservatively as coupled
+        Ok(exported
+            .exports
+            .local_form(symbol.local_id)
+            .is_none_or(|form| form.couples()))
+    }
+
+    /// Return whether one namespace object carries any inference.
+    fn namespace_couples(
+        &self,
+        artifacts: &ArtifactReader<'_>,
+        profile: ProfileId,
+        namespace: ModuleId,
+    ) -> CompilerResult<bool> {
+        let exported = artifacts
+            .dir_exported(namespace, profile)
+            .map_err(CompilerError::from)?;
+
+        // any inferred local export couples namespace consumers
+        Ok(exported.exports.exports().any(|(_, export)| match export {
+            dir::NamedExport::Local(local) => local.form.couples(),
+            dir::NamedExport::Indirect(_) => false,
+        }))
     }
 
     /// Return the modules one module depends on, deduplicated in order.
