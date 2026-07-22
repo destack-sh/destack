@@ -289,7 +289,7 @@ entry(v0: int32):
 
         // attach the exact virtual table needed by the callsite
         program.dispatch.insert_virtual_table(mir::VirtualTable {
-            ty: class,
+            concrete: class,
             methods: vec![callee],
         });
 
@@ -324,7 +324,7 @@ entry(v0: int32):
 
         // attach one method while the call targets another slot
         program.dispatch.insert_virtual_table(mir::VirtualTable {
-            ty: class,
+            concrete: class,
             methods: vec![callee],
         });
 

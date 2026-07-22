@@ -202,7 +202,7 @@ pub enum LayoutShape<T = LocalNodeId<Type>, L = LayoutId> {
     TensorView(TensorViewLayout<T>),
     /// Variant value storage.
     Variant(VariantLayout<T>),
-    /// Object storage with a dispatch table header.
+    /// Object field storage with optional virtual dispatch.
     Object(ObjectLayout<T>),
     /// Runtime dynamic value layout.
     Dynamic,
@@ -246,7 +246,10 @@ impl<T, L> LayoutShape<T, L> {
         match self {
             Self::Struct(_) => Self::Struct(StructLayout { fields }),
             Self::Tuple(_) => Self::Tuple(TupleLayout { elements: fields }),
-            Self::Object(_) => Self::Object(ObjectLayout { fields }),
+            Self::Object(layout) => Self::Object(ObjectLayout {
+                dispatch_offset: layout.dispatch_offset,
+                fields,
+            }),
             Self::None
             | Self::Scalar
             | Self::Slice
@@ -518,6 +521,8 @@ impl VariantEncoding {
 /// Concrete layout for an object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ObjectLayout<T = LocalNodeId<Type>> {
+    /// Byte offset of the virtual table id when present.
+    pub dispatch_offset: Option<u32>,
     /// The fields in layout order.
     pub fields: Vec<LayoutField<T>>,
 }

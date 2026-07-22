@@ -28,7 +28,7 @@ impl DispatchTable {
     pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(table) = self.virtual_table(from).cloned() {
             let mut table = table;
-            table.ty = to;
+            table.concrete = to;
             self.insert_virtual_table(table);
         }
 
@@ -50,7 +50,7 @@ impl DispatchTable {
         if let Some(index) = self
             .virtual_tables
             .iter()
-            .position(|candidate| candidate.ty == table.ty)
+            .position(|candidate| candidate.concrete == table.concrete)
         {
             return Some(mem::replace(&mut self.virtual_tables[index], table));
         }
@@ -62,7 +62,9 @@ impl DispatchTable {
 
     /// Return the virtual table for a type when present.
     pub fn virtual_table(&self, ty: LocalNodeId<Type>) -> Option<&VirtualTable> {
-        self.virtual_tables.iter().find(|table| table.ty == ty)
+        self.virtual_tables
+            .iter()
+            .find(|table| table.concrete == ty)
     }
 
     /// Iterate all virtual tables.
@@ -127,12 +129,12 @@ impl DispatchTable {
     }
 }
 
-/// Table for one class virtual dispatch receiver.
+/// Virtual method table for one concrete type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VirtualTable {
-    /// The class type owning this table.
-    pub ty: LocalNodeId<Type>,
-    /// Method implementations in declaration order.
+    /// The concrete type owning this table.
+    pub concrete: LocalNodeId<Type>,
+    /// Method implementations in virtual slot order.
     pub methods: Vec<LocalNodeId<Function>>,
 }
 
