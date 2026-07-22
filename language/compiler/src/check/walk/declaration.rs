@@ -479,6 +479,7 @@ impl WalkState<'_, '_> {
 
         // transparent aliases expand to their value, newtypes wrap it
         let definition = if receiver.is_some() {
+            let template = self.induced_owner_template(induction, template)?;
             dir::Definition::Newtype(dir::NewtypeDefinition {
                 space: declaration.place.map(dir::PlaceModifier::space),
                 template: template.map(|template| template.local_id),
@@ -732,6 +733,7 @@ impl WalkState<'_, '_> {
         let constructors =
             self.class_construct_candidates(receiver.ty, extends.is_some(), &members)?;
 
+        let template = self.induced_owner_template(induction, template)?;
         let definition = dir::Definition::Class(dir::ClassDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
@@ -1018,6 +1020,7 @@ impl WalkState<'_, '_> {
             member_headers.push((*member, header.body));
         }
 
+        let template = self.induced_owner_template(induction, template)?;
         let definition = dir::Definition::Enum(dir::EnumDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
@@ -1118,6 +1121,7 @@ impl WalkState<'_, '_> {
             )?);
         }
 
+        let template = self.induced_owner_template(induction, template)?;
         let definition = dir::Definition::Interface(dir::InterfaceDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
             template: template.map(|template| template.local_id),
@@ -1232,6 +1236,7 @@ impl WalkState<'_, '_> {
         } else {
             dir::ExtensionForm::Local
         };
+        let template = self.induced_owner_template(induction, template)?;
         let definition = dir::Definition::Extension(dir::ExtensionDefinition {
             symbol,
             form,
