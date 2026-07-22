@@ -164,7 +164,6 @@ impl WalkState<'_, '_> {
                     None,
                     result,
                     tracked,
-                    body.is_some(),
                 )?;
                 if let Some(symbol) = symbol {
                     self.bind_symbol_type(symbol, method)?;
@@ -551,7 +550,6 @@ impl WalkState<'_, '_> {
                     receiver_type,
                     result,
                     tracked,
-                    body.is_some(),
                 )?;
                 let induction = InducedParameterOwner::new(source, parent, Some(symbol));
                 self.push_induced_parameter_site(induction, method);
@@ -814,7 +812,6 @@ impl WalkState<'_, '_> {
                     receiver_type,
                     result,
                     tracked,
-                    body.is_some(),
                 )?;
                 self.push_induced_parameter_site(induction, method);
 

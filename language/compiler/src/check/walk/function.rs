@@ -34,7 +34,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         receiver_type: Option<dir::GlobalTypeId>,
         return_type: Option<dir::GlobalTypeId>,
         tracked: Vec<dir::TypeVariableId>,
-        has_body: bool,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let parameters = header.parameters;
         // elision reads the annotated receiver, which carries its borrow;
@@ -46,7 +45,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &parameters,
             return_type,
             tracked,
-            has_body,
         )?;
         let this_parameter = header.this_parameter.or(synthesized_this).or(receiver_type);
         let template = self.signature_template(
@@ -70,7 +68,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.intern_signature(function)
     }
 
-    /// Apply elided result lifetimes to the receiver or unique input borrow lifetime.
+    /// Apply elided result lifetimes: the receiver's lifetime, the unique
+    /// input, the union of several inputs, or static storage.
     pub(in crate::check) fn apply_result_lifetime_elision(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -79,7 +78,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         parameters: &[dir::FunctionParameterType],
         return_type: Option<dir::GlobalTypeId>,
         tracked: Vec<dir::TypeVariableId>,
-        has_body: bool,
     ) -> CompilerResult<(Option<dir::GlobalTypeId>, Option<dir::GlobalTypeId>)> {
         let Some(mut return_type) = return_type else {
             return Ok((None, None));
@@ -90,14 +88,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let mut seen = FxIndexSet::default();
         let mut input_lifetimes = Vec::new();
         if let Some(this_parameter) = this_parameter {
-            input_lifetimes.extend(self.induced_lifetime_types(this_parameter)?);
-            input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
+            input_lifetimes.extend(self.input_lifetime_types(this_parameter)?);
+            input_lifetimes.retain(|(variable, ty)| seen.insert((*variable, *ty)));
         }
         if input_lifetimes.is_empty() {
             for parameter in parameters {
-                input_lifetimes.extend(self.induced_lifetime_types(parameter.ty)?);
+                input_lifetimes.extend(self.input_lifetime_types(parameter.ty)?);
             }
-            input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
+            input_lifetimes.retain(|(variable, ty)| seen.insert((*variable, *ty)));
         }
 
         // synthesize a readonly receiver borrow for an elided result lifetime
@@ -119,45 +117,46 @@ impl<'check, 'state> WalkState<'check, 'state> {
                     value: receiver,
                 }))?;
                 synthesized_this = Some(borrowed);
-                input_lifetimes.extend(self.induced_lifetime_types(borrowed)?);
-                input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
+                input_lifetimes.extend(self.input_lifetime_types(borrowed)?);
+                input_lifetimes.retain(|(variable, ty)| seen.insert((*variable, *ty)));
             }
         }
 
-        let [(input_variable, input_lifetime)] = input_lifetimes.as_slice() else {
-            // bodyless returns cannot infer their lifetimes from anywhere
-            if !tracked.is_empty() && !has_body {
-                self.check
-                    .report_bodyless_lifetime_elided(self.module, source);
-                for variable in tracked {
-                    let error = self.intern_type(dir::Type::Error)?;
-                    self.check.commit_solution(variable, error)?;
-                }
-            }
-            // ambiguous inputs leave result lifetimes to body inference
-            else if has_body {
-                let return_lifetimes = self.induced_lifetime_types(return_type)?;
-                for (variable, _) in return_lifetimes {
-                    self.check.body_inferred_parameters.insert(variable);
-                }
-                for variable in tracked {
-                    self.check.body_inferred_parameters.insert(variable);
-                }
-            }
-
-            return Ok((Some(return_type), synthesized_this));
-        };
-        let input_lifetime = *input_lifetime;
+        // collect the elided result lifetimes
         let mut return_lifetimes = self
             .induced_lifetime_types(return_type)?
             .into_iter()
             .map(|(variable, _)| variable)
             .collect::<Vec<_>>();
         return_lifetimes.extend(tracked);
+        if return_lifetimes.is_empty() {
+            return Ok((Some(return_type), synthesized_this));
+        }
 
-        // replace each elided result lifetime with the unique input lifetime
+        // pick the result lifetime: the unique input, the union of
+        //  several inputs, or static storage without borrowed inputs
+        let input_variable = match input_lifetimes.as_slice() {
+            [(variable, _)] => *variable,
+            _ => None,
+        };
+        let input_lifetime = match input_lifetimes.as_slice() {
+            [] => self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
+                dir::Lifetime::Static,
+            )))?,
+            [(_, lifetime)] => *lifetime,
+            _ => {
+                let elements = input_lifetimes
+                    .iter()
+                    .map(|(_, lifetime)| *lifetime)
+                    .collect::<Vec<_>>();
+
+                self.check.normalized_union_type(self.module, elements)?
+            }
+        };
+
+        // replace each elided result lifetime with the elected input
         for return_variable in return_lifetimes {
-            if return_variable != *input_variable {
+            if Some(return_variable) != input_variable {
                 let return_lifetime = self.check.variable_type(return_variable)?;
                 return_type = self.check.replace_type(
                     self.module,
@@ -169,6 +168,47 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         Ok((Some(return_type), synthesized_this))
+    }
+
+    /// Collect input lifetime terms: open elided holes and written lifetimes.
+    fn input_lifetime_types(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<(Option<dir::TypeVariableId>, dir::GlobalTypeId)>> {
+        // collect open elided lifetime holes across the type graph
+        let mut terms = Vec::new();
+        for (variable, lifetime) in self.induced_lifetime_types(ty)? {
+            terms.push((Some(variable), lifetime));
+        }
+
+        // collect written lifetime terms whole, without walking inside
+        let mut pending = vec![ty];
+        let mut visited = FxIndexSet::default();
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+            let node = self.check.ty(id)?;
+
+            // follow solved variables toward their lifetime terms
+            if let dir::Type::Variable(variable) = node {
+                if let Some(solution) = self.check.solver.solution(variable)? {
+                    pending.push(solution);
+                }
+
+                continue;
+            }
+
+            // collect closed lifetime terms and walk everything else
+            if self.check.is_lifetime_term(id)? {
+                terms.push((None, id));
+            } else {
+                self.check
+                    .for_each_type_child(id.module_id, &node, |child| pending.push(child))?;
+            }
+        }
+
+        Ok(terms)
     }
 
     /// Return induced lifetime variables inside one type graph.
@@ -293,7 +333,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &parameters,
             return_type,
             tracked,
-            false,
         )?;
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
@@ -354,7 +393,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &parameters,
             return_type,
             tracked,
-            false,
         )?;
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
@@ -433,6 +471,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<FlowBranch> {
+        // skip interface members' bodies; their own inference component checks them
+        if !self.check.infers_module(symbol.module_id) {
+            return Ok(FlowBranch::empty());
+        }
+
         let source = body.into_any();
         let origin = Origin::Node(
             body.into_global_any(self.module),

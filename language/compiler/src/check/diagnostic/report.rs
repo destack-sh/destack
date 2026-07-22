@@ -528,18 +528,6 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report an invalid writable place at one source node.
-    pub(in crate::check) fn report_bodyless_lifetime_elided(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-    ) {
-        let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::BodylessLifetimeElided { anchor, module };
-
-        self.report(module, diagnostic);
-    }
-
     /// Report an invalid assignment target.
     pub(in crate::check) fn report_invalid_assignment_target(
         &mut self,

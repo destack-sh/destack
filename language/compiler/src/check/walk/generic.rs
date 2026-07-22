@@ -160,11 +160,6 @@ impl CheckState<'_> {
         let mut parameters = FxIndexMap::default();
         for site in sites {
             for (variable, role) in self.induced_memory_variables(site.ty)? {
-                // body-inferred results solve from returns, not induction
-                if self.body_inferred_parameters.contains(&variable) {
-                    continue;
-                }
-
                 parameters.entry(variable).or_insert((
                     site.declaration,
                     site.parent,

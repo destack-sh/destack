@@ -2439,22 +2439,6 @@ pub enum CheckError {
         field: String,
     },
 
-    /// Bodyless signature elides a result lifetime.
-    ///
-    /// ```ds
-    /// declare function only(value: &Node): &Node;
-    /// ```
-    #[diagnostic(
-        id = "bodyless-lifetime-elided",
-        message = "bodyless signatures must name result lifetimes explicitly"
-    )]
-    BodylessLifetimeElided {
-        /// Report the bodyless declaration.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
     /// Interface inheritance names a non-interface declaration.
     ///
     /// ```ds

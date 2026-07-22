@@ -470,6 +470,36 @@ impl CheckState<'_> {
         Ok(variables)
     }
 
+    /// Return whether one type is a written lifetime term.
+    pub(in crate::check) fn is_lifetime_term(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+        match self.ty(id)? {
+            // lifetime literals like "static" and "frame"
+            dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => Ok(true),
+
+            // lifetime-kinded generic parameters
+            dir::Type::Parameter(parameter) => {
+                Ok(self.generic_parameter(parameter).is_some_and(|binding| {
+                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+                }))
+            }
+
+            // unions of lifetime terms
+            ty @ dir::Type::Union(_) => {
+                let mut children = Vec::new();
+                self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
+                for child in &children {
+                    if !self.is_lifetime_term(*child)? {
+                        return Ok(false);
+                    }
+                }
+
+                Ok(!children.is_empty())
+            }
+
+            _ => Ok(false),
+        }
+    }
+
     /// Push one induced memory parameter.
     pub(in crate::check) fn push_induced_memory_parameter(
         &mut self,
@@ -491,7 +521,7 @@ impl CheckState<'_> {
             dir::MemoryParameter::Ownership => "O",
             dir::MemoryParameter::Place => "P",
             dir::MemoryParameter::Space => "S",
-            dir::MemoryParameter::Lifetime => "L",
+            dir::MemoryParameter::Lifetime => "'l",
         };
         let name = self.strings().intern(&format!("{prefix}{number}"));
 
