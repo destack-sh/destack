@@ -128,7 +128,7 @@ type User = string;
 }
 
 #[test]
-fn test_resolve_does_not_hoist_local_value_references() {
+fn test_resolve_binds_local_value_reference_ahead_of_declaration() {
     let compiler = TestSession::builder()
         .module(
             "main.ds",
@@ -144,12 +144,12 @@ const answer = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const value = answer;
-/// @reference.missing source=answer
+/// @reference.bound source=answer targets=[answer]
 
 const answer = 1;
 
 /// @import.summary
-/// @resolve.stats roots=2 expressions=4 types=0 globals=required:1
+/// @resolve.stats roots=2 expressions=4 types=0
 /// @reference.summary references=1
 "#,
     );

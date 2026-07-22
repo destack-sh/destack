@@ -614,3 +614,50 @@ const copy = value;
 "#,
     );
 }
+
+#[test]
+fn test_module_binding_read_before_declaration_reports() {
+    // module bindings initialize in textual order, so forward reads report
+    let session = TestSession::single(
+        r#"
+const value = answer;
+const answer = 1;
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=use-before-assigned message="'answer' is used before being assigned"
+/// @diagnostic.label line=2 column=15 span="answer" line_source="const value = answer;"
+/// @diagnostic.related line=3 column=7 span="answer" line_source="const answer = 1;" message="declared here"
+"#,
+    );
+}
+
+#[test]
+fn test_module_binding_cycle_reports_use_before_assigned() {
+    let session = TestSession::single(
+        r#"
+const a = b;
+const b = a;
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=use-before-assigned message="'b' is used before being assigned"
+/// @diagnostic.label line=2 column=11 span="b" line_source="const a = b;"
+/// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="declared here"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=2 column=7 span="a" line_source="const a = b;"
+/// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="it must equal '_' here"
+/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=3 column=7 span="b" line_source="const b = a;"
+/// @diagnostic.related line=2 column=7 span="a" line_source="const a = b;" message="it must equal '_' here"
+/// @diagnostic.help message="annotate the type explicitly"
+"#,
+    );
+}

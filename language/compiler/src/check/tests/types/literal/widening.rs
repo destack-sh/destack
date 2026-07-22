@@ -107,9 +107,58 @@ const value: number | boolean = 1;
 /// @type.symbol symbol=value source=value type=float64 | boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }, { kind: union, target: float64 | boolean }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | boolean, cases: ({ target: 0, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
 
 /// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+"#,
+    );
+}
+
+#[test]
+fn test_union_coercion_records_case_adjustments() {
+    let session = TestSession::single(
+        r#"
+newtype Flag = boolean;
+
+function widen(value: 1 | Flag): int32 | Flag {
+    return value;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
+        r#"
+=== annotated ===
+newtype Flag = boolean;
+
+function widen(value: 1 | Flag): int32 | Flag {
+    return value as int32 | Flag;
+}
+
+=== checked ===
+newtype Flag = boolean;
+/// @type.symbol symbol=Flag source="newtype Flag = boolean" type=Flag
+/// @definition.newtype symbol=Flag source="newtype Flag = boolean" backing=boolean
+
+function widen(value: 1 | Flag): int32 | Flag {
+/// @type.symbol symbol=widen type=(1 | Flag) => int32 | Flag
+/// @type.symbol symbol=widen.value source="value: 1 | Flag" type=1 | Flag
+/// @resolution.name source=Flag target=Flag
+/// @resolution.name source=Flag target=Flag
+
+    return value;
+    /// @type.node source=value type=1 | Flag
+    /// @resolution.name source=value target=widen.value
+    /// @coercion.node source=value from=1 | Flag adjustments=[{ kind: union, target: int32 | Flag, cases: ({ target: 0, adjustments: [{ kind: widen, target: int32 }] }, 1) }] origin=implicit
+
+}
+
+/// @check.stats.solve variables=0 types=10 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
