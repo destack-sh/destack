@@ -285,6 +285,7 @@ impl ModuleBuilder {
     pub fn type_tensor(
         &mut self,
         element: LocalNodeId<Type>,
+        space: Space,
         shape: Vec<TensorDimension>,
         format: TensorFormat,
         sharding: TensorSharding,
@@ -292,6 +293,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Tensor {
             element,
+            space,
             shape,
             format,
             sharding,

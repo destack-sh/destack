@@ -5,8 +5,8 @@ use super::assert_format;
 fn test_format_vector_tensor_ops() {
     assert_format(
         r#"
-function vectorTensorOps(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, mutable, (2, 2)>): tensor<int32, (2, 2)> {
-entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, mutable, (2, 2)>):
+function vectorTensorOps(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, space(local), (2, 2)>, v3: tensorView<int32, borrowed, mutable, (2, 2)>): tensor<int32, space(local), (2, 2)> {
+entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, space(local), (2, 2)>, v3: tensorView<int32, borrowed, mutable, (2, 2)>):
     v4: vector<int32, 4> = vector.splat v1
     v5: int32 = vector.extract v4, v1
     v6: vector<int32, 4> = vector.insert v4, v1, v1
@@ -20,23 +20,23 @@ entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView
     tensor.store v3, [v12, v11], v13
     tensor.fill v3, v11
     tensor.copy v3, v3
-    v14: tensor<int32, (2, 2)> = tensor.reshape v2, shape(v11, v12)
-    v15: tensor<int32, (2, 2)> = tensor.broadcast v2, dimensions(0, 1)
-    v16: tensor<int32, (2, 2)> = tensor.transpose v2, permutation(1, 0)
-    v17: tensor<int32, (2, 2)> = tensor.cast v2
+    v14: tensor<int32, space(local), (2, 2)> = tensor.reshape v2, shape(v11, v12)
+    v15: tensor<int32, space(local), (2, 2)> = tensor.broadcast v2, dimensions(0, 1)
+    v16: tensor<int32, space(local), (2, 2)> = tensor.transpose v2, permutation(1, 0)
+    v17: tensor<int32, space(local), (2, 2)> = tensor.cast v2
     v18: tensorView<int32, borrowed, mutable, (2, 2)> = tensor.view v3, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
-    v19: tensor<int32, (2, 2)> = tensor.slice v2, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
-    v20: tensor<int32, (2, 2)> = tensor.pad v2, value(v11), low(v11, v11), high(v11, v11), interior(v11, v11)
-    v21: tensor<int32, (2, 2)> = tensor.concat tensors(v2, v2), axis(0)
-    v22: tensor<boolean, (2, 2)> = tensor.compare int.eq, v2, v2
-    v23: tensor<int32, (2, 2)> = tensor.reduce add, v2, v11, axes(0)
-    v24: tensor<uint64, (2, 2)> = tensor.indexReduce min, v2, axis(0), tieBreak(first)
-    v25: tensor<int32, (2, 2)> = tensor.dot v2, v2, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
-    v26: tensor<int32, (2, 2)> = tensor.convolution v2, v2, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
-    v27: tensor<int32, (2, 2)> = tensor.gather v2, v2, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
-    v28: tensor<int32, (2, 2)> = tensor.scatter v2, v2, v2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
-    v29: tensor<float32, (2, 2)> = tensor.convert exact, v2
-    v30: tensor<int32, (2, 2)> = tensor.splat v1
+    v19: tensor<int32, space(local), (2, 2)> = tensor.slice v2, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
+    v20: tensor<int32, space(local), (2, 2)> = tensor.pad v2, value(v11), low(v11, v11), high(v11, v11), interior(v11, v11)
+    v21: tensor<int32, space(local), (2, 2)> = tensor.concat tensors(v2, v2), axis(0)
+    v22: tensor<boolean, space(local), (2, 2)> = tensor.compare int.eq, v2, v2
+    v23: tensor<int32, space(local), (2, 2)> = tensor.reduce add, v2, v11, axes(0)
+    v24: tensor<uint64, space(local), (2, 2)> = tensor.indexReduce min, v2, axis(0), tieBreak(first)
+    v25: tensor<int32, space(local), (2, 2)> = tensor.dot v2, v2, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
+    v26: tensor<int32, space(local), (2, 2)> = tensor.convolution v2, v2, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
+    v27: tensor<int32, space(local), (2, 2)> = tensor.gather v2, v2, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
+    v28: tensor<int32, space(local), (2, 2)> = tensor.scatter v2, v2, v2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
+    v29: tensor<float32, space(local), (2, 2)> = tensor.convert exact, v2
+    v30: tensor<int32, space(local), (2, 2)> = tensor.splat v1
     return v14
 }
 "#,

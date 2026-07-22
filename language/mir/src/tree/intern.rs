@@ -285,12 +285,14 @@ impl Tree {
             },
             Type::Tensor {
                 element,
+                space,
                 shape,
                 format,
                 sharding,
                 copy,
             } => Type::Tensor {
                 element: self.intern_representation(element),
+                space,
                 shape,
                 format,
                 sharding,
@@ -496,12 +498,14 @@ impl Tree {
             },
             Type::Tensor {
                 element,
+                space,
                 shape,
                 format,
                 sharding,
                 copy,
             } => Type::Tensor {
                 element: self.instantiate_type_lifetimes(element, arguments),
+                space,
                 shape,
                 format,
                 sharding,

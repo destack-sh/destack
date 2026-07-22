@@ -202,6 +202,7 @@ impl SymbolMangler {
             }
             Type::Tensor {
                 element,
+                space,
                 shape,
                 format,
                 sharding,
@@ -209,6 +210,7 @@ impl SymbolMangler {
             } => {
                 self.hasher.write_u8(22);
                 self.write_type(*element, tree);
+                space.hash(&mut self.hasher);
                 shape.hash(&mut self.hasher);
                 format.hash(&mut self.hasher);
                 sharding.hash(&mut self.hasher);

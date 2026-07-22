@@ -435,6 +435,7 @@ fn format_type_inner<'a>(
         }
         Type::Tensor {
             element,
+            space: memory_space,
             shape,
             format,
             sharding,
@@ -450,6 +451,8 @@ fn format_type_inner<'a>(
                     space()
                 ]
             )?;
+            format_space_group(*memory_space, f)?;
+            write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *format != TensorFormat::dense_row_major() {
                 write!(f, [token(","), space(), token("format"), token("(")])?;
@@ -666,6 +669,19 @@ fn format_view_header<'a>(
     format_reference_qualifiers(kind, lifetime, memory_space, access, nullability, f)
 }
 
+/// Format one explicit memory-space group.
+fn format_space_group<'a>(memory_space: Space, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    write!(
+        f,
+        [
+            token("space"),
+            token("("),
+            token(memory_space.label()),
+            token(")")
+        ]
+    )
+}
+
 fn format_reference_qualifiers<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
@@ -686,17 +702,8 @@ fn format_reference_qualifiers<'a>(
     format_access(access, f)?;
     format_nullability(nullability, f)?;
     if !memory_space.is_local() {
-        write!(
-            f,
-            [
-                token(","),
-                space(),
-                token("space"),
-                token("("),
-                token(memory_space.label()),
-                token(")")
-            ]
-        )?;
+        write!(f, [token(","), space()])?;
+        format_space_group(memory_space, f)?;
     }
     Ok(())
 }

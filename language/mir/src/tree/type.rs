@@ -468,6 +468,8 @@ pub enum Type {
     Tensor {
         /// The element type.
         element: TypeId,
+        /// The tensor allocation space.
+        space: Space,
         /// The static shape.
         shape: Vec<TensorDimension>,
         /// The tensor format.

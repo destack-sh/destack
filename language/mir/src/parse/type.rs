@@ -839,6 +839,9 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Space)?;
+        let space = self.parse_space_group()?;
+        self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
         let mut format = TensorFormat::dense_row_major();
         let mut sharding = TensorSharding::unsharded();
@@ -847,6 +850,7 @@ impl Parser {
 
         Ok(Type::Tensor {
             element,
+            space,
             shape,
             format,
             sharding,
