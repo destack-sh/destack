@@ -1,7 +1,6 @@
 #![allow(
     clippy::approx_constant,
     clippy::arc_with_non_send_sync,
-    clippy::mut_from_ref,
     clippy::too_many_arguments
 )]
 

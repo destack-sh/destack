@@ -1451,11 +1451,8 @@ version = "0.55.4"
 name = "destack_vm"
 version = "0.55.4"
 dependencies = [
- "clap",
  "criterion",
- "destack_artifact",
  "destack_bytecode",
- "destack_compiler",
  "destack_core",
  "destack_heap",
  "destack_memory",
@@ -1463,9 +1460,7 @@ dependencies = [
  "destack_program",
  "destack_serde",
  "destack_source",
- "pprof",
  "serde",
- "smallvec",
 ]
 
 [[package]]

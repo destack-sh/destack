@@ -1,672 +1,123 @@
-use std::{mem, ptr};
+use destack_bytecode::{CodeOffset, CodeRange, RegisterRange};
+use destack_program::{FrameStateId, FunctionId};
 
-use destack_mir as mir;
-
-use super::Activation;
-use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use destack_program::vm::{ArgumentRange, Cell, FramePointer, FunctionCode, MoveSlot};
-use destack_program::{
-    ContinuationFrame, FrameImage, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FunctionId,
-    Program, ProgramPoint,
-};
-
-/// Call frame in the VM machine.
-///
-/// The byte address is owned by the world-mapped VM stack.
-#[derive(Debug)]
-pub struct Frame {
-    /// Current function id.
+/// One active bytecode call frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Frame {
+    /// The linked function being executed.
     pub(crate) function: FunctionId,
-    /// The logical frame layout id.
-    pub(crate) frame_layout: FrameLayoutId,
-    /// The current block index in the lowered function.
-    pub(crate) block: u32,
-    /// Program counter within the current block.
-    pub(crate) pc: usize,
-    /// The pending invocation while one callee is active.
-    pub(crate) invocation: Option<Invocation>,
-    /// The byte offset in the machine stack arena.
+    /// The function's encoded bytecode range.
+    pub(crate) code: CodeRange,
+    /// The next function-relative instruction byte.
+    pub(crate) code_offset: CodeOffset,
+    /// The first byte owned by this frame in the VM stack.
     pub(crate) stack_offset: usize,
-    /// The frame byte width.
-    pub(crate) byte_len: usize,
-    /// Native address of the frame bytes in the machine stack arena.
-    base: usize,
+    /// The first canonical frame byte in the VM stack.
+    pub(crate) frame_offset: usize,
+    /// The canonical frame byte length.
+    pub(crate) frame_byte_len: u32,
+    /// The durable state used when this frame is suspended by a callee.
+    pub(crate) frame_state: Option<FrameStateId>,
+    /// The state entered when the suspended callee returns normally.
+    pub(crate) normal_state: Option<FrameStateId>,
+    /// The state entered when the suspended callee unwinds.
+    pub(crate) unwind_state: Option<FrameStateId>,
+    /// The first register word in the VM stack.
+    pub(crate) register_offset: usize,
+    /// The function register word count.
+    pub(crate) register_count: u16,
+    /// The caller destination when this is not the entry frame.
+    pub(crate) return_to: Option<Return>,
 }
 
-// frame should fit in 64 bytes
-const _: () = assert!(mem::size_of::<Frame>() <= 64);
-
-/// One pending invocation in a caller frame.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Invocation {
-    /// The suspended caller frame state.
-    pub(crate) frame_state: FrameStateId,
-    /// The normal continuation frame state.
-    pub(crate) normal_state: FrameStateId,
-    /// The unwind continuation frame state.
-    pub(crate) unwind_state: FrameStateId,
-}
-
-impl Invocation {
-    /// Create one invocation from durable optional states.
-    fn from_states(
-        frame_state: FrameStateId,
-        normal_state: Option<FrameStateId>,
-        unwind_state: Option<FrameStateId>,
-    ) -> RuntimeResult<Option<Self>> {
-        match (normal_state, unwind_state) {
-            (Some(normal_state), Some(unwind_state)) => Ok(Some(Self {
-                frame_state,
-                normal_state,
-                unwind_state,
-            })),
-            (None, None) => Ok(None),
-            _ => Err(RuntimeError::new(Error::invalid_continuation())),
-        }
-    }
+/// One caller transition retained across a bytecode call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Return {
+    /// Copy returned words into the caller register range.
+    Values(RegisterRange),
+    /// Resume the caller after one destructor completes.
+    Drop,
 }
 
 impl Frame {
-    /// Create a new frame for a function.
-    pub(crate) fn new(
-        function: &FunctionCode<'_>,
-        block: u32,
-        layout: &FrameLayout,
+    /// Create one active bytecode frame.
+    pub(crate) const fn new(
+        function: FunctionId,
+        code: CodeRange,
         stack_offset: usize,
-        base: usize,
+        frame_offset: usize,
+        frame_byte_len: u32,
+        register_offset: usize,
+        register_count: u16,
+        return_to: Option<Return>,
     ) -> Self {
         Self {
-            function: function.function.function,
-            frame_layout: function.function.frame_layout,
-            block,
-            pc: 0,
-            invocation: None,
+            function,
+            code,
+            code_offset: CodeOffset(0),
             stack_offset,
-            byte_len: layout.byte_len() as usize,
-            base,
+            frame_offset,
+            frame_byte_len,
+            frame_state: None,
+            normal_state: None,
+            unwind_state: None,
+            register_offset,
+            register_count,
+            return_to,
         }
     }
 
-    /// Return the current function id.
+    /// Return one function-relative register word index.
     #[inline(always)]
-    pub(crate) fn function(&self) -> FunctionId {
-        self.function
+    pub(crate) const fn register(self, register: u16) -> usize {
+        self.register_offset + register as usize
     }
 
-    /// Return the logical frame layout id.
+    /// Return one function-relative register range start.
     #[inline(always)]
-    pub(crate) fn frame_layout(&self) -> FrameLayoutId {
-        self.frame_layout
+    pub(crate) const fn range(self, range: RegisterRange) -> usize {
+        self.register(range.start.0)
     }
 
-    /// Return one program point at this frame's current position.
-    pub(crate) fn point(&self, program: &Program) -> RuntimeResult<ProgramPoint> {
-        self.point_at(program, self.pc as u32)
+    /// Return one canonical frame slot address.
+    #[inline(always)]
+    pub(crate) const fn slot(self, byte_offset: u32) -> usize {
+        self.frame_offset + byte_offset as usize
     }
 
-    /// Return one program point at a program counter in this frame's current block.
-    pub(crate) fn point_at(&self, program: &Program, pc: u32) -> RuntimeResult<ProgramPoint> {
-        let function = program
-            .vm_function_by_id(self.function())
-            .ok_or_else(|| RuntimeError::new(Error::undefined_function(self.function())))?;
-        let operation = function
-            .operation_at(self.block, pc)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-
-        Ok(ProgramPoint::new(self.function(), operation))
-    }
-
-    /// Return the resumable state for this frame's current position.
-    pub(crate) fn state(&self, program: &Program) -> RuntimeResult<FrameStateId> {
-        if let Some(invocation) = self.invocation {
-            return Ok(invocation.frame_state);
-        }
-
-        let point = self.point(program)?;
-        let state = program.frame_state_at(point).ok_or_else(|| {
-            RuntimeError::new(Error::internal(format!(
-                "missing frame state for frame point: {point:?}"
-            )))
-        })?;
-
-        Ok(state)
-    }
-
-    /// Return the lowered VM position for one program point.
-    fn position(
-        program: &Program,
-        point: ProgramPoint,
-    ) -> RuntimeResult<(FunctionId, FrameLayoutId, u32, usize)> {
-        let function = program
-            .vm_function_by_id(point.function)
-            .ok_or_else(|| RuntimeError::new(Error::undefined_function(point.function)))?;
-        let (block, pc) = function
-            .location_at(point.operation)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-
-        Ok((
-            function.function.function,
-            function.function.frame_layout,
-            block,
-            pc,
-        ))
-    }
-
-    /// Retarget this frame to one lowered function and stack range.
-    pub(crate) fn retarget(
+    /// Retain the caller states required while one callee is active.
+    pub(crate) fn suspend(
         &mut self,
-        function: &FunctionCode<'_>,
-        block: u32,
-        stack_offset: usize,
-        byte_len: usize,
-        base: usize,
+        frame_state: FrameStateId,
+        normal_state: Option<FrameStateId>,
+        unwind_state: Option<FrameStateId>,
     ) {
-        self.function = function.function.function;
-        self.frame_layout = function.function.frame_layout;
-        self.block = block;
-        self.pc = 0;
-        self.stack_offset = stack_offset;
-        self.byte_len = byte_len;
-        self.base = base;
+        self.frame_state = Some(frame_state);
+        self.normal_state = normal_state;
+        self.unwind_state = unwind_state;
     }
 
-    /// Extend this frame's stack-owned byte range.
-    pub(crate) fn extend_bytes_to(&mut self, stack_end: usize) {
-        if stack_end > self.stack_offset {
-            self.byte_len = stack_end - self.stack_offset;
-        }
+    /// Clear caller states after the active callee returns.
+    pub(crate) fn resume(&mut self) {
+        self.frame_state = None;
+        self.normal_state = None;
+        self.unwind_state = None;
     }
 
-    /// Return this frame's byte width.
+    /// Return whether this frame is executing one destructor.
+    pub(crate) const fn is_destructor(self) -> bool {
+        matches!(self.return_to, Some(Return::Drop))
+    }
+
+    /// Advance to the instruction following one encoded instruction.
     #[inline(always)]
-    pub(crate) const fn byte_len(&self) -> usize {
-        self.byte_len
+    pub(crate) fn advance(&mut self, byte_len: usize) {
+        self.code_offset.0 += byte_len as u32;
     }
 
-    /// Return the native address of this frame's byte range.
-    #[inline]
-    pub(crate) fn base_address(&self) -> usize {
-        self.base
-    }
-
-    /// Return the world memory offset of this frame's byte range.
-    #[inline]
-    pub(crate) const fn memory_offset(&self, memory_base: usize) -> usize {
-        self.base - memory_base
-    }
-
-    /// Return this frame's byte range.
-    #[inline]
-    pub(crate) fn bytes(&self) -> &[u8] {
-        // SAFETY: base points at byte_len live bytes in the VM stack arena
-        unsafe { std::slice::from_raw_parts(self.base as *const u8, self.byte_len()) }
-    }
-
-    /// Return this frame's byte range mutably.
-    #[inline]
-    pub(crate) fn bytes_mut(&mut self) -> &mut [u8] {
-        // SAFETY: &mut self guarantees exclusive access to this live VM stack frame
-        unsafe { std::slice::from_raw_parts_mut(self.base as *mut u8, self.byte_len()) }
-    }
-
-    /// Return a pointer to one frame slot.
+    /// Branch relative to the end of the current instruction.
     #[inline(always)]
-    pub(crate) fn slot_address(&self, slot: &FrameSlot) -> usize {
-        self.base_address() + slot.offset as usize
-    }
-
-    /// Read one cell from a byte offset.
-    #[inline(always)]
-    pub(crate) fn read_cell_at(&self, offset: u32) -> Cell {
-        let address = self.base_address() + offset as usize;
-        debug_assert_eq!((address % mem::align_of::<Cell>()), 0);
-
-        // SAFETY: lowered frame offsets are cell-aligned and point inside this frame
-        unsafe { std::ptr::read(address as *const Cell) }
-    }
-
-    /// Write one cell into a byte offset.
-    #[inline(always)]
-    pub(crate) fn write_cell_at(&mut self, offset: u32, value: Cell) {
-        let address = self.base_address() + offset as usize;
-        debug_assert_eq!((address % mem::align_of::<Cell>()), 0);
-
-        // SAFETY: lowered frame offsets are cell-aligned and point inside this frame
-        unsafe {
-            std::ptr::write(address as *mut Cell, value);
-        }
-    }
-
-    /// Read one cell from a slot.
-    #[inline(always)]
-    pub(crate) fn read_cell(&self, slot: &FrameSlot) -> Cell {
-        debug_assert!(slot.byte_len() as usize >= Cell::BYTE_LEN);
-        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Cell>()), 0);
-
-        // SAFETY: frame slots are lowered as cell-sized aligned storage inside this frame
-        unsafe { std::ptr::read(self.slot_address(slot) as *const Cell) }
-    }
-
-    /// Write one cell into a slot.
-    #[inline(always)]
-    pub(crate) fn write_cell(&mut self, slot: &FrameSlot, value: Cell) {
-        debug_assert!(slot.byte_len() as usize >= Cell::BYTE_LEN);
-        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Cell>()), 0);
-
-        // SAFETY: frame slots are lowered as cell-sized aligned storage inside this frame
-        unsafe {
-            std::ptr::write(self.slot_address(slot) as *mut Cell, value);
-        }
-    }
-
-    /// Borrow one slot byte range.
-    pub(crate) fn slot_bytes(&self, slot: &FrameSlot) -> &[u8] {
-        let start = slot.offset as usize;
-        let end = start + slot.byte_len() as usize;
-
-        &self.bytes()[start..end]
-    }
-
-    /// Borrow one slot byte range mutably.
-    pub(crate) fn slot_bytes_mut(&mut self, slot: &FrameSlot) -> &mut [u8] {
-        let start = slot.offset as usize;
-        let end = start + slot.byte_len() as usize;
-
-        &mut self.bytes_mut()[start..end]
-    }
-
-    /// Return the frame byte offset of one local value.
-    pub(crate) fn local_offset(
-        &self,
-        program: &Program,
-        layout: &FrameLayout,
-        local: mir::LocalNodeId<mir::Local>,
-    ) -> Result<usize, Error> {
-        let slot = program
-            .frame_local_slot(layout, local.id)
-            .ok_or(Error::undefined_local(local))?;
-
-        Ok(slot.offset as usize)
-    }
-
-    /// Return the function environment for this frame.
-    pub(crate) fn load_environment(
-        &self,
-        program: &Program,
-        layout: &FrameLayout,
-    ) -> Result<Option<Cell>, Error> {
-        let Some(slot) = program.frame_environment_slot(layout) else {
-            return Ok(None);
-        };
-
-        Ok(Some(self.read_cell(slot)))
-    }
-
-    /// Store the function environment for this frame.
-    pub(crate) fn store_environment(
-        &mut self,
-        program: &Program,
-        layout: &FrameLayout,
-        value: Option<Cell>,
-    ) -> Result<(), Error> {
-        let Some(slot) = program.frame_environment_slot(layout) else {
-            return Ok(());
-        };
-        let value = value.ok_or(Error::invalid_instruction())?;
-
-        self.write_cell(slot, value);
-
-        Ok(())
-    }
-
-    /// Clear all values (but keep locals).
-    pub(crate) fn clear_values(&mut self, program: &Program, layout: &FrameLayout) {
-        for slot in program.frame_value_slots(layout) {
-            self.slot_bytes_mut(slot).fill(0);
-        }
-    }
-
-    /// Return whether this frame owns one stack byte range.
-    pub(crate) fn owns_stack_range(
-        &self,
-        memory_base: usize,
-        offset: usize,
-        byte_len: usize,
-    ) -> bool {
-        let start = self.memory_offset(memory_base);
-        let end = offset + byte_len;
-        let stack_end = start + self.byte_len();
-
-        start <= offset && end <= stack_end
-    }
-
-    /// Fork this frame over one already forked stack address.
-    pub(crate) fn fork(&self, base: usize) -> Self {
-        Self {
-            function: self.function,
-            frame_layout: self.frame_layout,
-            block: self.block,
-            pc: self.pc,
-            invocation: self.invocation,
-            stack_offset: self.stack_offset,
-            byte_len: self.byte_len(),
-            base,
-        }
-    }
-
-    /// Capture one immutable frame image.
-    pub(crate) fn image(&self, program: &Program) -> RuntimeResult<FrameImage> {
-        let frame_state = self.state(program)?;
-
-        Ok(FrameImage {
-            frame_state,
-            normal_state: self.invocation.map(|invocation| invocation.normal_state),
-            unwind_state: self.invocation.map(|invocation| invocation.unwind_state),
-            stack_offset: self.stack_offset,
-            byte_len: self.byte_len(),
-        })
-    }
-
-    /// Create one frame from an immutable image.
-    pub(crate) fn from_image(
-        image: &FrameImage,
-        program: &Program,
-        base: usize,
-    ) -> RuntimeResult<Self> {
-        let point = program
-            .point_for_frame_state(image.frame_state)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let (function, frame_layout, block, pc) = Self::position(program, point)?;
-
-        let layout = program
-            .frame_layout_by_id(frame_layout)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        if image.byte_len() < layout.byte_len() as usize {
-            return Err(RuntimeError::new(Error::invalid_instruction()));
-        }
-
-        let invocation =
-            Invocation::from_states(image.frame_state, image.normal_state, image.unwind_state)?;
-
-        Ok(Self {
-            function,
-            frame_layout,
-            block,
-            pc,
-            invocation,
-            stack_offset: image.stack_offset,
-            byte_len: image.byte_len(),
-            base,
-        })
-    }
-
-    /// Create one frame from a continuation frame.
-    pub(crate) fn from_continuation_frame(
-        frame: &ContinuationFrame,
-        program: &Program,
-        base: usize,
-    ) -> RuntimeResult<Self> {
-        let point = program
-            .point_for_frame_state(frame.frame_state)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let (function, frame_layout, block, pc) = Self::position(program, point)?;
-
-        let layout = program
-            .frame_layout_by_id(frame_layout)
-            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        if frame.byte_len() < layout.byte_len() as usize {
-            return Err(RuntimeError::new(Error::invalid_instruction()));
-        }
-
-        let invocation =
-            Invocation::from_states(frame.frame_state, frame.normal_state, frame.unwind_state)?;
-
-        Ok(Self {
-            function,
-            frame_layout,
-            block,
-            pc,
-            invocation,
-            stack_offset: frame.stack_offset,
-            byte_len: frame.byte_len(),
-            base,
-        })
-    }
-}
-
-impl Activation<'_> {
-    /// Move the machine to another live frame.
-    pub(crate) fn enter_frame(&mut self, frame_index: usize) -> Result<(), Error> {
-        self.bind_frame(frame_index)
-    }
-
-    /// Borrow the active frame mutably.
-    #[inline(always)]
-    pub(crate) fn active_frame_mut(&mut self) -> &mut Frame {
-        let frame_index = self.frame_index;
-        debug_assert!(frame_index < self.machine.frames.len());
-
-        // SAFETY: activation frame binding validates the active frame index
-        unsafe { self.machine.frames.get_unchecked_mut(frame_index) }
-    }
-
-    /// Borrow the active frame.
-    #[inline(always)]
-    pub(crate) fn active_frame(&self) -> &Frame {
-        let frame_index = self.frame_index;
-        debug_assert!(frame_index < self.machine.frames.len());
-
-        // SAFETY: activation frame binding validates the active frame index
-        unsafe { self.machine.frames.get_unchecked(frame_index) }
-    }
-
-    /// Borrow the current frame layout.
-    #[inline(always)]
-    pub(crate) fn frame_layout(&self) -> &FrameLayout {
-        let layout = self.program.frame_layout_by_id(self.frame_layout);
-        debug_assert!(layout.is_some());
-
-        // SAFETY: active frames are created only from lowered frame layouts
-        unsafe { layout.unwrap_unchecked() }
-    }
-
-    /// Borrow one frame.
-    #[inline(always)]
-    pub(crate) fn frame(&self, frame_index: usize) -> Result<&Frame, Error> {
-        self.machine
-            .frames
-            .get(frame_index)
-            .ok_or(Error::invalid_instruction())
-    }
-
-    /// Allocate zeroed bytes owned by the current frame.
-    pub(crate) fn allocate_stack_zeroed(
-        &mut self,
-        byte_len: usize,
-        alignment: usize,
-    ) -> Result<usize, Error> {
-        let base = self
-            .machine
-            .stack
-            .allocate_zeroed(byte_len, alignment)
-            .map_err(|_| Error::stack_overflow())?;
-
-        self.stack_offset(base, byte_len)
-    }
-
-    /// Allocate uninitialized bytes owned by the current frame.
-    pub(crate) fn allocate_stack_uninit(
-        &mut self,
-        byte_len: usize,
-        alignment: usize,
-    ) -> Result<usize, Error> {
-        let base = self
-            .machine
-            .stack
-            .allocate_uninit(byte_len, alignment)
-            .map_err(|_| Error::stack_overflow())?;
-
-        self.stack_offset(base, byte_len)
-    }
-
-    /// Return the world memory offset for one newly allocated stack range.
-    fn stack_offset(&mut self, base: usize, byte_len: usize) -> Result<usize, Error> {
-        let end = self.machine.stack.len();
-        self.active_frame_mut().extend_bytes_to(end);
-        let end = base + byte_len;
-        if end > self.machine.stack.len() {
-            return Err(Error::stack_overflow());
-        }
-
-        Ok(self.machine.stack.memory_offset(base))
-    }
-
-    /// Read one cell by frame byte offset.
-    #[inline(always)]
-    pub(crate) fn load_cell_at(&self, offset: u32) -> Cell {
-        self.read_frame_cell(offset)
-    }
-
-    /// Return one frame pointer by frame byte offset.
-    #[inline(always)]
-    pub(crate) fn frame_pointer_at(&self, offset: u32) -> FramePointer {
-        let offset = self.frame_offset + offset as usize;
-
-        FramePointer::from_offset(offset)
-    }
-
-    /// Borrow frame bytes at one byte offset.
-    #[inline(always)]
-    pub(crate) fn frame_bytes_at(&self, offset: u32, byte_len: usize) -> &[u8] {
-        let address = self.frame_base + offset as usize;
-
-        // SAFETY: lowered frame offsets point inside the active frame layout
-        unsafe { std::slice::from_raw_parts(address as *const u8, byte_len) }
-    }
-
-    /// Borrow frame bytes while mutating the machine.
-    #[inline(always)]
-    pub(crate) fn with_frame_bytes_at<T>(
-        &mut self,
-        offset: u32,
-        byte_len: usize,
-        operation: impl FnOnce(&mut Self, &[u8]) -> T,
-    ) -> T {
-        let address = self.frame_base + offset as usize;
-
-        // SAFETY: lowered frame offsets point inside the active frame layout
-        unsafe {
-            let bytes = std::slice::from_raw_parts(address as *const u8, byte_len);
-
-            operation(self, bytes)
-        }
-    }
-
-    /// Store frame bytes at one byte offset.
-    #[inline(always)]
-    pub(crate) fn store_frame_bytes_at(&mut self, offset: u32, bytes: &[u8]) {
-        let address = self.frame_base + offset as usize;
-
-        // SAFETY: lowered frame offsets point inside the active frame layout
-        unsafe {
-            ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
-        }
-    }
-
-    /// Zero frame bytes at one byte offset.
-    #[inline(always)]
-    pub(crate) fn zero_frame_bytes_at(&mut self, offset: u32, byte_len: usize) {
-        let address = self.frame_base + offset as usize;
-
-        // SAFETY: lowered frame offsets point inside the active frame layout
-        unsafe {
-            ptr::write_bytes(address as *mut u8, 0, byte_len);
-        }
-    }
-
-    /// Copy frame bytes into one native address.
-    #[inline(always)]
-    pub(crate) fn copy_frame_bytes_to_address(
-        &self,
-        source: u32,
-        destination: usize,
-        byte_len: usize,
-    ) {
-        let source = self.frame_base + source as usize;
-
-        // SAFETY: caller provides a valid destination and lower validates the source frame range
-        unsafe {
-            ptr::copy(source as *const u8, destination as *mut u8, byte_len);
-        }
-    }
-
-    /// Read one aligned cell from the current frame.
-    #[inline(always)]
-    fn read_frame_cell(&self, offset: u32) -> Cell {
-        let address = self.frame_base + offset as usize;
-        debug_assert_eq!(address % mem::align_of::<Cell>(), 0);
-
-        // SAFETY: lowered cell offsets are cell-aligned and point inside the active frame
-        unsafe { ptr::read(address as *const Cell) }
-    }
-
-    /// Write one cell by frame byte offset.
-    #[inline(always)]
-    pub(crate) fn store_cell_at(&mut self, offset: u32, val: Cell) {
-        self.write_frame_cell(offset, val);
-    }
-
-    /// Write one aligned cell into the current frame.
-    #[inline(always)]
-    fn write_frame_cell(&mut self, offset: u32, value: Cell) {
-        let address = self.frame_base + offset as usize;
-        debug_assert_eq!(address % mem::align_of::<Cell>(), 0);
-
-        // SAFETY: lowered cell offsets are cell-aligned and point inside the active frame
-        unsafe {
-            ptr::write(address as *mut Cell, value);
-        }
-    }
-
-    /// Copy one byte range inside the current frame.
-    #[inline(always)]
-    pub(crate) fn copy_frame_bytes(
-        &mut self,
-        source_offset: u32,
-        destination_offset: u32,
-        byte_len: usize,
-    ) {
-        let source_offset = source_offset as usize;
-        let destination_offset = destination_offset as usize;
-
-        // SAFETY: lowered frame offsets point inside the active frame layout
-        unsafe {
-            ptr::copy(
-                (self.frame_base + source_offset) as *const u8,
-                (self.frame_base + destination_offset) as *mut u8,
-                byte_len,
-            );
-        }
-    }
-
-    /// Return the argument slice for the given range.
-    #[inline(always)]
-    pub(crate) fn argument_slice(&self, range: ArgumentRange) -> &[MoveSlot] {
-        let function = self
-            .machine
-            .program
-            .vm_function_by_id(self.active_frame().function());
-        let Some(function) = function else {
-            unreachable!("active frame references undefined VM function");
-        };
-        let start = range.start as usize;
-        let len = range.len as usize;
-        let end = start + len;
-        debug_assert!(
-            end <= function.argument_pool.len(),
-            "argument pool out of bounds for range"
-        );
-
-        &function.argument_pool[start..end]
+    pub(crate) fn branch(&mut self, displacement: i32) {
+        self.code_offset.0 = self.code_offset.0.wrapping_add_signed(displacement);
     }
 }

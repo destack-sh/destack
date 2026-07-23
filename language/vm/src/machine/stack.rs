@@ -1,246 +1,236 @@
 use std::sync::Arc;
+use std::{process, ptr};
 
-use destack_memory::{MemoryError, MemoryMap, MemoryRange};
+use destack_memory::{MemoryMap, MemoryRange};
+use destack_program::Word;
 
-use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use destack_program::StackImage;
-use destack_program::vm::Cell;
+use crate::diagnostic::{Error, Result};
 
-/// World-mapped byte stack for one machine.
+/// One contiguous VM stack inside world memory.
 #[derive(Debug)]
 pub(crate) struct Stack {
     /// The world memory map.
     memory: Arc<MemoryMap>,
-    /// The stack byte range inside world memory.
+    /// The reserved stack range.
     range: MemoryRange,
-    /// The live byte length.
-    len: usize,
-    /// The hard byte limit.
-    limit_bytes: usize,
+    /// The native address of the first stack byte.
+    base: usize,
+    /// The stack prefix backed by mapped memory frames.
+    materialized_byte_len: usize,
+    /// The live stack byte length.
+    byte_len: usize,
 }
 
 impl Stack {
-    /// Create one empty stack with a hard byte limit.
-    pub(crate) fn new(memory: Arc<MemoryMap>, limit_bytes: usize) -> RuntimeResult<Self> {
-        // allocate one stable world range for this stack
+    /// Reserve one empty VM stack.
+    pub(crate) fn new(memory: Arc<MemoryMap>, byte_len: usize) -> Result<Self> {
         let range = memory
-            .allocate(limit_bytes, Cell::BYTE_LEN)
-            .map_err(Error::from)?;
+            .allocate(byte_len, align_of::<Word>())
+            .map_err(|_| Error::memory_exhausted())?;
+        let base = memory.base_address() + range.offset;
 
         Ok(Self {
             memory,
             range,
-            len: 0,
-            limit_bytes,
+            base,
+            materialized_byte_len: 0,
+            byte_len: 0,
         })
     }
 
-    /// Reset this stack.
-    pub(crate) fn reset(&mut self) {
-        self.len = 0;
-    }
-
-    /// Fork this stack over one forked memory map.
+    /// Fork this stack over the corresponding range in one forked memory map.
     pub(crate) fn fork(&self, memory: Arc<MemoryMap>) -> Self {
+        let base = memory.base_address() + self.range.offset;
+
         Self {
             memory,
             range: self.range,
-            len: self.len,
-            limit_bytes: self.limit_bytes,
+            base,
+            materialized_byte_len: self.materialized_byte_len,
+            byte_len: 0,
         }
     }
 
-    /// Capture the live stack bytes.
-    pub(crate) fn image(&self) -> RuntimeResult<StackImage> {
-        let bytes = self
-            .memory
-            .read_bytes(self.range.offset, self.len)
-            .map_err(Error::from)
-            .map_err(RuntimeError::new)?;
-
-        Ok(StackImage {
-            memory_offset: self.range.offset as u64,
-            bytes,
-        })
+    /// Remove every live stack byte.
+    pub(crate) fn clear(&mut self) {
+        self.byte_len = 0;
     }
 
-    /// Restore one stack from an immutable image.
-    pub(crate) fn from_image(
-        memory: Arc<MemoryMap>,
-        image: &StackImage,
-        limit_bytes: usize,
-    ) -> RuntimeResult<Self> {
-        if image.len() > limit_bytes {
-            return Err(RuntimeError::new(Error::stack_overflow()));
-        }
-
-        let offset = usize::try_from(image.memory_offset).map_err(|_| {
-            Error::from(MemoryError::OffsetOverflow {
-                offset: image.memory_offset,
-            })
-        })?;
-        let range = MemoryRange {
-            offset,
-            byte_len: limit_bytes,
-        };
-        memory.claim(range).map_err(Error::from)?;
-
-        let mut stack = Self {
-            memory,
-            range,
-            len: 0,
-            limit_bytes,
-        };
-        if !image.is_empty() {
-            let base = stack.allocate_uninit(image.len(), Cell::BYTE_LEN)?;
-            stack.copy_bytes(base, &image.bytes)?;
-        }
-
-        Ok(stack)
+    /// Return the live stack byte length.
+    pub(crate) const fn byte_len(&self) -> usize {
+        self.byte_len
     }
 
-    /// Restore captured bytes into this stack range.
-    pub(crate) fn restore(&mut self, image: &StackImage, limit_bytes: usize) -> RuntimeResult<()> {
-        let memory_offset = usize::try_from(image.memory_offset).map_err(|_| {
-            Error::from(MemoryError::OffsetOverflow {
-                offset: image.memory_offset,
-            })
-        })?;
-        if memory_offset != self.range.offset
-            || limit_bytes != self.limit_bytes
-            || image.len() > limit_bytes
-        {
-            return Err(RuntimeError::new(Error::invalid_continuation()));
+    /// Allocate one aligned live byte range.
+    pub(crate) fn push_bytes(&mut self, byte_len: usize, alignment: usize) -> Result<usize> {
+        let start = self.byte_len.next_multiple_of(alignment);
+        let end = start + byte_len;
+        self.grow(end)?;
+
+        Ok(start)
+    }
+
+    /// Grow the live stack to one byte length.
+    pub(crate) fn grow(&mut self, byte_len: usize) -> Result<()> {
+        if byte_len <= self.byte_len {
+            return Ok(());
         }
 
-        // replace only the captured live prefix
-        self.copy_bytes(0, &image.bytes)?;
-        self.len = image.len();
+        if byte_len > self.range.byte_len {
+            return Err(Error::stack_overflow());
+        }
+
+        // materialize each mapping frame at most once for this stack
+        if byte_len > self.materialized_byte_len {
+            let frame_byte_len = self.memory.frame_size_bytes();
+            let end = self.range.offset + byte_len;
+            let end = end.next_multiple_of(frame_byte_len);
+            let materialized_byte_len = (end - self.range.offset).min(self.range.byte_len);
+
+            // map only the newly reached frame prefix
+            let materialize_start = self.range.offset + self.materialized_byte_len;
+            let materialize_byte_len = materialized_byte_len - self.materialized_byte_len;
+            self.memory
+                .materialize(materialize_start, materialize_byte_len)
+                .map_err(|_| Error::memory_exhausted())?;
+            self.materialized_byte_len = materialized_byte_len;
+        }
+
+        self.byte_len = byte_len;
 
         Ok(())
     }
 
-    /// Return the live byte length.
-    #[inline]
-    pub(crate) const fn len(&self) -> usize {
-        self.len
-    }
-
-    /// Truncate this stack to one live byte length.
-    #[inline]
-    pub(crate) fn truncate(&mut self, len: usize) {
-        debug_assert!(len <= self.len);
-        self.len = len;
-    }
-
-    /// Allocate one zeroed aligned byte range.
-    pub(crate) fn allocate_zeroed(
-        &mut self,
-        byte_len: usize,
-        alignment: usize,
-    ) -> RuntimeResult<usize> {
-        let old_len = self.len;
-        let base = self.reserve(byte_len, alignment)?;
-
+    /// Zero one live stack byte range.
+    pub(crate) fn zero(&mut self, byte_offset: usize, byte_len: usize) -> Result<()> {
         self.memory
-            .zero(self.range.offset + old_len, self.len - old_len)
-            .map_err(Error::from)?;
-
-        Ok(base)
+            .zero(self.range.offset + byte_offset, byte_len)
+            .map_err(|_| Error::memory_exhausted())
     }
 
-    /// Allocate one uninitialized aligned byte range.
-    pub(crate) fn allocate_uninit(
-        &mut self,
-        byte_len: usize,
-        alignment: usize,
-    ) -> RuntimeResult<usize> {
-        self.reserve(byte_len, alignment)
+    /// Allocate register words and return the first word index.
+    pub(crate) fn push_words(&mut self, word_count: usize) -> Result<usize> {
+        let byte_len = word_count * Word::BYTE_LEN;
+        let start = self.push_bytes(byte_len, align_of::<Word>())?;
+
+        Ok(start / Word::BYTE_LEN)
     }
 
-    /// Restore bytes at one exact stack offset.
-    pub(crate) fn restore_bytes(&mut self, offset: usize, bytes: &[u8]) -> RuntimeResult<()> {
-        let end = offset + bytes.len();
-        if offset < self.len || end > self.limit_bytes {
-            return Err(RuntimeError::new(Error::invalid_continuation()));
-        }
-
-        self.memory
-            .zero(self.range.offset + self.len, offset - self.len)
-            .map_err(Error::from)?;
-        self.len = end;
-        self.copy_bytes(offset, bytes)
+    /// Truncate this stack to one byte offset.
+    pub(crate) fn truncate(&mut self, byte_len: usize) {
+        self.byte_len = byte_len;
     }
 
-    /// Reserve one aligned live byte range.
-    fn reserve(&mut self, byte_len: usize, alignment: usize) -> RuntimeResult<usize> {
-        // grow to the next aligned byte range
-        let base = Self::align_len(self.len, alignment);
-        let end = base + byte_len;
-        if end > self.limit_bytes {
-            return Err(RuntimeError::new(Error::stack_overflow()));
-        }
-
-        self.len = end;
-
-        Ok(base)
+    /// Return the native address of one live stack byte.
+    #[inline(always)]
+    pub(crate) const fn address(&self, byte_offset: usize) -> usize {
+        self.base + byte_offset
     }
 
-    /// Align one stack byte count.
-    fn align_len(offset: usize, alignment: usize) -> usize {
-        // already aligned
-        if alignment <= 1 {
-            return offset;
-        }
+    /// Return the stack-relative offset of one native address.
+    pub(crate) fn byte_offset(&self, address: usize) -> Option<usize> {
+        let offset = address.checked_sub(self.base)?;
 
-        // round up to the next aligned address
-        let remainder = offset % alignment;
-        if remainder == 0 {
-            offset
-        } else {
-            offset + alignment - remainder
+        (offset < self.byte_len).then_some(offset)
+    }
+
+    /// Copy one live stack byte range into a destination slice.
+    pub(crate) fn read_bytes(&self, byte_offset: usize, bytes: &mut [u8]) {
+        // SAFETY: frame ranges address initialized live stack bytes
+        unsafe {
+            ptr::copy_nonoverlapping(
+                self.address(byte_offset) as *const u8,
+                bytes.as_mut_ptr(),
+                bytes.len(),
+            );
         }
     }
 
-    /// Return the native address for one live byte range.
-    #[inline]
-    pub(crate) fn address(&self, offset: usize, byte_len: usize) -> RuntimeResult<usize> {
-        let address = self
-            .memory
-            .address(self.range.offset + offset, byte_len)
-            .map_err(Error::from)
-            .map_err(RuntimeError::new)?;
-
-        Ok(address as usize)
+    /// Copy one byte slice into a live stack range.
+    pub(crate) fn write_bytes(&mut self, byte_offset: usize, bytes: &[u8]) {
+        // SAFETY: frame ranges address initialized live stack bytes
+        unsafe {
+            ptr::copy_nonoverlapping(
+                bytes.as_ptr(),
+                self.address(byte_offset) as *mut u8,
+                bytes.len(),
+            );
+        }
     }
 
-    /// Return one stack byte offset inside world memory.
-    #[inline]
-    pub(crate) const fn memory_offset(&self, stack_offset: usize) -> usize {
-        self.range.offset + stack_offset
+    /// Move one possibly overlapping live byte range.
+    #[inline(always)]
+    pub(crate) fn move_bytes(&mut self, source: usize, target: usize, byte_len: usize) {
+        // SAFETY: linked value and frame ranges address live stack bytes
+        unsafe {
+            ptr::copy(
+                self.address(source) as *const u8,
+                self.address(target) as *mut u8,
+                byte_len,
+            );
+        }
     }
 
-    /// Return the native base address of world memory.
-    #[inline]
-    pub(crate) fn memory_base_address(&self) -> usize {
-        self.memory.base_address()
+    /// Read one live register word.
+    #[inline(always)]
+    pub(crate) fn read(&self, index: usize) -> Word {
+        // SAFETY: linked register indices address initialized live stack words
+        unsafe { ptr::read((self.base as *const Word).add(index)) }
     }
 
-    /// Copy bytes into one live byte range.
-    #[inline]
-    pub(crate) fn copy_bytes(&self, offset: usize, bytes: &[u8]) -> RuntimeResult<()> {
-        self.memory
-            .write_bytes(self.range.offset + offset, bytes)
-            .map_err(Error::from)
-            .map_err(RuntimeError::new)
+    /// Write one live register word.
+    #[inline(always)]
+    pub(crate) fn write(&mut self, index: usize, value: Word) {
+        // SAFETY: linked register indices address initialized live stack words
+        unsafe {
+            ptr::write((self.base as *mut Word).add(index), value);
+        }
+    }
+
+    /// Copy one non-overlapping register range.
+    #[inline(always)]
+    pub(crate) fn copy_words(&mut self, source: usize, target: usize, word_count: usize) {
+        // SAFETY: linked call windows are live, contiguous, and non-overlapping
+        unsafe {
+            ptr::copy_nonoverlapping(
+                (self.base as *const Word).add(source),
+                (self.base as *mut Word).add(target),
+                word_count,
+            );
+        }
+    }
+
+    /// Move one possibly overlapping register range.
+    #[inline(always)]
+    pub(crate) fn move_words(&mut self, source: usize, target: usize, word_count: usize) {
+        // SAFETY: linked register ranges address live stack words
+        unsafe {
+            ptr::copy(
+                (self.base as *const Word).add(source),
+                (self.base as *mut Word).add(target),
+                word_count,
+            );
+        }
+    }
+
+    /// Copy one live register range into owned result storage.
+    pub(crate) fn words(&self, start: usize, word_count: usize) -> Vec<Word> {
+        let mut words = Vec::with_capacity(word_count);
+
+        // copy the final result once across the host boundary
+        for index in start..start + word_count {
+            words.push(self.read(index));
+        }
+
+        words
     }
 }
 
 impl Drop for Stack {
+    /// Release this stack's reserved world-memory range.
     fn drop(&mut self) {
-        // abort because an owned range becoming invalid means memory state is corrupt
         if self.memory.release(self.range).is_err() {
-            std::process::abort();
+            process::abort();
         }
     }
 }

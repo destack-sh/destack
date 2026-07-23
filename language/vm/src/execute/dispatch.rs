@@ -1,1587 +1,370 @@
-use super::Transfer;
-use crate::diagnostic::Error;
+use destack_bytecode::{CodeOffset, Instruction, Opcode};
+use destack_program::{Continuation, Outcome, Word};
+
+use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
-use destack_program::vm::{FunctionCode, MoveRange, Op};
 
-use super::frame::move_values_within_frame;
+impl Activation<'_, '_> {
+    /// Dispatch instructions until the entry frame returns.
+    pub(crate) fn dispatch<
+        const STOP: bool,
+        const WATCH: bool,
+        const PROFILE: bool,
+        const BOUNDED: bool,
+    >(
+        &mut self,
+    ) -> Result<Outcome<Continuation, Vec<Word>>> {
+        let program = self.machine.program.clone();
+        let code_bytes = program.bytecode().bytes(program.sections());
 
-/// Return the instruction bounds for one block.
-#[inline(always)]
-fn block_bounds(function: &FunctionCode<'_>, block: u32) -> Result<(usize, usize), Error> {
-    let block = function
-        .blocks
-        .get(block as usize)
-        .ok_or(Error::invalid_instruction())?;
-    let start = block.start as usize;
-    let end = start + block.len as usize;
+        loop {
+            // retain the exact location before instruction handlers advance
+            let Some(frame) = self.machine.frames.last() else {
+                unreachable!("bytecode dispatch requires an active frame");
+            };
+            let function = frame.function;
+            let code = frame.code;
+            let instruction_offset = frame.code_offset;
+            self.instruction_offset = instruction_offset;
 
-    Ok((start, end))
-}
+            // enforce the configured instruction budget outside opcode handlers
+            if BOUNDED {
+                let Some(limit) = self.machine.limits.max_instructions else {
+                    unreachable!("bounded dispatch requires an instruction limit");
+                };
+                if self.instruction_count >= limit {
+                    return Err(Error::instruction_limit_exceeded());
+                }
+                self.instruction_count += 1;
+            }
 
-/// Enter one local block in the current frame.
-#[inline(always)]
-fn enter_block(
-    activation: &mut Activation<'_>,
-    function: &FunctionCode<'_>,
-    block: u32,
-    moves: MoveRange,
-) -> Result<(usize, usize), Error> {
-    let move_pool = function.move_pool;
+            // decode the active instruction and advance before transfers
+            let function_bytes = code.slice(code_bytes);
+            let instruction_bytes = function_bytes
+                .get(instruction_offset.index()..)
+                .ok_or_else(|| Error::invalid_instruction(function, instruction_offset))?;
+            let instruction = Instruction::read(instruction_bytes)
+                .map_err(|_| Error::invalid_instruction(function, instruction_offset))?;
 
-    // move block parameters before retargeting the frame
-    let frame = activation.active_frame_mut();
-    move_values_within_frame(frame, moves, move_pool)?;
+            // stop before externally configured instruction points
+            let stopped = if STOP {
+                self.stop_before(self.frame(), instruction_offset)?
+            } else {
+                None
+            };
+            if let Some(outcome) = stopped {
+                return Ok(outcome);
+            }
+            self.frame_mut().advance(instruction.byte_len());
 
-    // retarget the frame to the destination block
-    let frame = activation.active_frame_mut();
-    frame.block = block;
-
-    block_bounds(function, block)
-}
-
-/// Result from dispatching one block with instruction counting.
-pub(crate) struct BlockDispatch {
-    /// The control transfer produced by the block.
-    pub(crate) transfer: Transfer,
-    /// The number of instructions executed.
-    pub(crate) executed: u64,
-}
-
-impl BlockDispatch {
-    /// Create one dispatch result.
-    #[inline(always)]
-    fn new(transfer: Transfer, executed: u64) -> Self {
-        Self { transfer, executed }
+            // execute one decoded instruction
+            let outcome =
+                self.execute_instruction::<WATCH, PROFILE>(instruction_offset, instruction)?;
+            if let Some(outcome) = outcome {
+                return Ok(outcome);
+            }
+        }
     }
 
-    /// Create one failed dispatch result.
-    #[inline(always)]
-    fn error(error: Error, executed: u64) -> Self {
-        Self::new(Transfer::Error(error), executed)
-    }
-}
+    /// Execute one instruction selected from an encoded opcode family.
+    fn execute_instruction<const WATCH: bool, const PROFILE: bool>(
+        &mut self,
+        instruction_offset: CodeOffset,
+        instruction: Instruction<'_>,
+    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+        let opcode = instruction.opcode();
 
-/// Dispatch one lowered instruction through caller supplied fallthrough and transfer handlers.
-macro_rules! dispatch_instruction {
-    (
-        $activation:ident,
-        $function:ident,
-        $block:expr,
-        $pc:ident,
-        $block_pc:expr,
-        $step:ident,
-        $transfer:ident
-    ) => {
-        let instruction = &$function.code[$pc];
+        // directly named opcodes
+        if !opcode.is_parameterized() {
+            self.execute_opcode::<WATCH, PROFILE>(instruction_offset, instruction)
+        }
+        // integer operations
+        else if let Some((operation, scalar)) = opcode.integer_operation() {
+            self.execute_integer(instruction, operation, scalar)?;
 
-        match instruction.op {
-            Op::LoadConstCell => $step!(super::execute_load_const_cell($activation, instruction)),
-            Op::LoadConstAggregate => $step!(super::execute_load_const_aggregate(
-                $activation,
-                instruction
-            )),
-            Op::MoveCell => $step!(super::execute_move_cell($activation, instruction)),
-            Op::MoveAggregate => $step!(super::execute_move_aggregate($activation, instruction)),
-            Op::LoadHeapAggregate => {
-                $step!(super::execute_load_heap_aggregate($activation, instruction))
-            }
-            Op::LoadSharedHeapAggregate => {
-                $step!(super::execute_load_shared_heap_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadRawAggregate => {
-                $step!(super::execute_load_raw_aggregate($activation, instruction))
-            }
-            Op::LoadStackAggregate => {
-                $step!(super::execute_load_stack_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadFrameAggregate => {
-                $step!(super::execute_load_frame_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadStaticAggregate => {
-                $step!(super::execute_load_static_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreHeapAggregate => {
-                $step!(super::execute_store_heap_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreSharedHeapAggregate => {
-                $step!(super::execute_store_shared_heap_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreRawAggregate => {
-                $step!(super::execute_store_raw_aggregate($activation, instruction))
-            }
-            Op::StoreStackAggregate => {
-                $step!(super::execute_store_stack_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreFrameAggregate => {
-                $step!(super::execute_store_frame_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreStaticAggregate => {
-                $step!(super::execute_store_static_aggregate(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::SelectCell => $step!(super::execute_select_cell($activation, instruction)),
-            Op::SelectAggregate => {
-                $step!(super::execute_select_aggregate($activation, instruction))
-            }
-            Op::LocalAddress => $step!(super::execute_local_address($activation, instruction)),
-            Op::GlobalAddress => $step!(super::execute_global_address($activation, instruction)),
-            Op::FunctionAddress => {
-                $step!(super::execute_function_address($activation, instruction))
-            }
-            Op::FunctionBind => {
-                $step!(super::execute_function_bind($activation, instruction))
-            }
-            Op::FunctionPointer => {
-                $step!({ super::execute_function_pointer($activation, instruction) })
-            }
-            Op::FunctionEnvironment => {
-                $step!({ super::execute_function_environment($activation, instruction) })
-            }
-            Op::FunctionEnvironmentCurrent => {
-                $step!({ super::execute_function_environment_current($activation, instruction) })
-            }
-            Op::DynamicBind => {
-                $step!(super::execute_dynamic_bind($activation, instruction))
-            }
-            Op::DynamicPayload => {
-                $step!(super::execute_dynamic_payload($activation, instruction))
-            }
-            Op::DynamicType => {
-                $step!(super::execute_dynamic_type($activation, instruction))
-            }
-            Op::VariantConstruct => {
-                $step!(super::execute_variant_construct($activation, instruction))
-            }
-            Op::VariantDiscriminant => {
-                $step!(super::execute_variant_discriminant(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::VariantStorage => {
-                $step!(super::execute_variant_storage($activation, instruction))
-            }
-            Op::LoadHeapU8 => $step!(super::execute_load_heap_scalar::<1, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadHeapI8 => $step!(super::execute_load_heap_scalar::<1, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadHeapU16 => $step!(super::execute_load_heap_scalar::<2, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadHeapI16 => $step!(super::execute_load_heap_scalar::<2, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadHeapU32 => $step!(super::execute_load_heap_scalar::<4, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadHeapI32 => $step!(super::execute_load_heap_scalar::<4, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadHeap64 => $step!(super::execute_load_heap_scalar::<8, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadSharedHeapU8 => {
-                $step!(super::execute_load_shared_heap_scalar::<1, false>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadSharedHeapI8 => {
-                $step!(super::execute_load_shared_heap_scalar::<1, true>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadSharedHeapU16 => {
-                $step!(super::execute_load_shared_heap_scalar::<2, false>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadSharedHeapI16 => {
-                $step!(super::execute_load_shared_heap_scalar::<2, true>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadSharedHeapU32 => {
-                $step!(super::execute_load_shared_heap_scalar::<4, false>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadSharedHeapI32 => {
-                $step!(super::execute_load_shared_heap_scalar::<4, true>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadSharedHeap64 => {
-                $step!(super::execute_load_shared_heap_scalar::<8, false>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::LoadRawU8 => $step!(super::execute_load_raw_scalar::<1, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadRawI8 => $step!(super::execute_load_raw_scalar::<1, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadRawU16 => $step!(super::execute_load_raw_scalar::<2, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadRawI16 => $step!(super::execute_load_raw_scalar::<2, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadRawU32 => $step!(super::execute_load_raw_scalar::<4, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadRawI32 => $step!(super::execute_load_raw_scalar::<4, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadRaw64 => $step!(super::execute_load_raw_scalar::<8, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStackU8 => $step!(super::execute_load_stack_scalar::<1, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStackI8 => $step!(super::execute_load_stack_scalar::<1, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStackU16 => $step!(super::execute_load_stack_scalar::<2, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStackI16 => $step!(super::execute_load_stack_scalar::<2, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStackU32 => $step!(super::execute_load_stack_scalar::<4, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStackI32 => $step!(super::execute_load_stack_scalar::<4, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStack64 => $step!(super::execute_load_stack_scalar::<8, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrameU8 => $step!(super::execute_load_frame_scalar::<1, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrameI8 => $step!(super::execute_load_frame_scalar::<1, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrameU16 => $step!(super::execute_load_frame_scalar::<2, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrameI16 => $step!(super::execute_load_frame_scalar::<2, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrameU32 => $step!(super::execute_load_frame_scalar::<4, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrameI32 => $step!(super::execute_load_frame_scalar::<4, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrame64 => $step!(super::execute_load_frame_scalar::<8, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadFrameValueU8 => {
-                $step!({
-                    super::execute_load_frame_value_scalar::<1, false>($activation, instruction)
-                })
-            }
-            Op::LoadFrameValueI8 => {
-                $step!({
-                    super::execute_load_frame_value_scalar::<1, true>($activation, instruction)
-                })
-            }
-            Op::LoadFrameValueU16 => {
-                $step!({
-                    super::execute_load_frame_value_scalar::<2, false>($activation, instruction)
-                })
-            }
-            Op::LoadFrameValueI16 => {
-                $step!({
-                    super::execute_load_frame_value_scalar::<2, true>($activation, instruction)
-                })
-            }
-            Op::LoadFrameValueU32 => {
-                $step!({
-                    super::execute_load_frame_value_scalar::<4, false>($activation, instruction)
-                })
-            }
-            Op::LoadFrameValueI32 => {
-                $step!({
-                    super::execute_load_frame_value_scalar::<4, true>($activation, instruction)
-                })
-            }
-            Op::LoadFrameValue64 => {
-                $step!({
-                    super::execute_load_frame_value_scalar::<8, false>($activation, instruction)
-                })
-            }
-            Op::LoadStaticU8 => $step!(super::execute_load_static_scalar::<1, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStaticI8 => $step!(super::execute_load_static_scalar::<1, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStaticU16 => $step!(super::execute_load_static_scalar::<2, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStaticI16 => $step!(super::execute_load_static_scalar::<2, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStaticU32 => $step!(super::execute_load_static_scalar::<4, false>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStaticI32 => $step!(super::execute_load_static_scalar::<4, true>(
-                $activation,
-                instruction
-            )),
-            Op::LoadStatic64 => $step!(super::execute_load_static_scalar::<8, false>(
-                $activation,
-                instruction
-            )),
-            Op::StoreHeap8 => $step!(super::execute_store_heap_scalar::<1>(
-                $activation,
-                instruction
-            )),
-            Op::StoreHeap16 => $step!(super::execute_store_heap_scalar::<2>(
-                $activation,
-                instruction
-            )),
-            Op::StoreHeap32 => $step!(super::execute_store_heap_scalar::<4>(
-                $activation,
-                instruction
-            )),
-            Op::StoreHeap64 => $step!(super::execute_store_heap_scalar::<8>(
-                $activation,
-                instruction
-            )),
-            Op::StoreSharedHeap8 => $step!(super::execute_store_shared_heap_scalar::<1>(
-                $activation,
-                instruction
-            )),
-            Op::StoreSharedHeap16 => {
-                $step!(super::execute_store_shared_heap_scalar::<2>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreSharedHeap32 => {
-                $step!(super::execute_store_shared_heap_scalar::<4>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreSharedHeap64 => {
-                $step!(super::execute_store_shared_heap_scalar::<8>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreRaw8 => {
-                $step!(super::execute_store_raw_scalar::<1>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreRaw16 => {
-                $step!(super::execute_store_raw_scalar::<2>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreRaw32 => {
-                $step!(super::execute_store_raw_scalar::<4>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreRaw64 => {
-                $step!(super::execute_store_raw_scalar::<8>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreStack8 => $step!(super::execute_store_stack_scalar::<1>(
-                $activation,
-                instruction
-            )),
-            Op::StoreStack16 => {
-                $step!(super::execute_store_stack_scalar::<2>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreStack32 => {
-                $step!(super::execute_store_stack_scalar::<4>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreStack64 => {
-                $step!(super::execute_store_stack_scalar::<8>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreFrame8 => $step!(super::execute_store_frame_scalar::<1>(
-                $activation,
-                instruction
-            )),
-            Op::StoreFrame16 => {
-                $step!(super::execute_store_frame_scalar::<2>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreFrame32 => {
-                $step!(super::execute_store_frame_scalar::<4>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreFrame64 => {
-                $step!(super::execute_store_frame_scalar::<8>(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::StoreFrameValue8 => $step!(super::execute_store_frame_value_scalar::<1>(
-                $activation,
-                instruction
-            )),
-            Op::StoreFrameValue16 => $step!(super::execute_store_frame_value_scalar::<2>(
-                $activation,
-                instruction
-            )),
-            Op::StoreFrameValue32 => $step!(super::execute_store_frame_value_scalar::<4>(
-                $activation,
-                instruction
-            )),
-            Op::StoreFrameValue64 => $step!(super::execute_store_frame_value_scalar::<8>(
-                $activation,
-                instruction
-            )),
-            Op::StoreStatic8 => $step!(super::execute_store_static_scalar::<1>(
-                $activation,
-                instruction
-            )),
-            Op::StoreStatic16 => $step!(super::execute_store_static_scalar::<2>(
-                $activation,
-                instruction
-            )),
-            Op::StoreStatic32 => $step!(super::execute_store_static_scalar::<4>(
-                $activation,
-                instruction
-            )),
-            Op::StoreStatic64 => $step!(super::execute_store_static_scalar::<8>(
-                $activation,
-                instruction
-            )),
-            Op::Abort => $transfer!(super::execute_abort($activation, instruction)),
-            Op::AddressFrameValueOffset => {
-                $step!(super::execute_address_frame_value_offset(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressFrameValueElement => {
-                $step!(super::execute_address_frame_value_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressHeapOffset => {
-                $step!(super::execute_address_heap_offset($activation, instruction))
-            }
-            Op::AddressSharedHeapOffset => {
-                $step!(super::execute_address_shared_heap_offset(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressRawOffset => {
-                $step!(super::execute_address_raw_offset($activation, instruction))
-            }
-            Op::AddressStackOffset => {
-                $step!(super::execute_address_stack_offset(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressFrameOffset => {
-                $step!(super::execute_address_frame_offset(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::GlobalAddressOffset => {
-                $step!(super::execute_global_address_offset(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressHeapElement => {
-                $step!(super::execute_address_heap_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressSharedHeapElement => {
-                $step!(super::execute_address_shared_heap_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressRawElement => {
-                $step!(super::execute_address_raw_element($activation, instruction))
-            }
-            Op::AddressStackElement => {
-                $step!(super::execute_address_stack_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressFrameElement => {
-                $step!(super::execute_address_frame_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::GlobalAddressElement => {
-                $step!(super::execute_global_address_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressHeapSliceElement => {
-                $step!(super::execute_address_heap_slice_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressSharedHeapSliceElement => {
-                $step!(super::execute_address_shared_heap_slice_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressRawSliceElement => {
-                $step!(super::execute_address_raw_slice_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressStackSliceElement => {
-                $step!(super::execute_address_stack_slice_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AddressFrameSliceElement => {
-                $step!(super::execute_address_frame_slice_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::GlobalAddressSliceElement => {
-                $step!(super::execute_global_address_slice_element(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapZeroed => {
-                $step!(super::execute_allocate_heap_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapUninit => {
-                $step!(super::execute_allocate_heap_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapSmallNoscanZeroed => {
-                $step!(super::execute_allocate_heap_small_noscan_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapSmallNoscanUninit => {
-                $step!(super::execute_allocate_heap_small_noscan_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapSmallScanZeroed => {
-                $step!(super::execute_allocate_heap_small_scan_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapSmallScanUninit => {
-                $step!(super::execute_allocate_heap_small_scan_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapSmallSharedEdgeZeroed => {
-                $step!(super::execute_allocate_heap_small_shared_edge_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapSmallSharedEdgeUninit => {
-                $step!(super::execute_allocate_heap_small_shared_edge_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedHeapZeroed => {
-                $step!(super::execute_allocate_shared_heap_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedHeapUninit => {
-                $step!(super::execute_allocate_shared_heap_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedHeapSmallZeroed => {
-                $step!(super::execute_allocate_shared_heap_small_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedHeapSmallUninit => {
-                $step!(super::execute_allocate_shared_heap_small_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapZeroedBranch => {
-                $transfer!(super::execute_allocate_heap_zeroed_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateHeapUninitBranch => {
-                $transfer!(super::execute_allocate_heap_uninit_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedHeapZeroedBranch => {
-                $transfer!(super::execute_allocate_shared_heap_zeroed_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedHeapUninitBranch => {
-                $transfer!(super::execute_allocate_shared_heap_uninit_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSliceZeroed => {
-                $step!(super::execute_allocate_slice_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSliceUninit => {
-                $step!(super::execute_allocate_slice_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedSliceZeroed => {
-                $step!(super::execute_allocate_shared_slice_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedSliceUninit => {
-                $step!(super::execute_allocate_shared_slice_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSliceZeroedBranch => {
-                $transfer!(super::execute_allocate_slice_zeroed_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSliceUninitBranch => {
-                $transfer!(super::execute_allocate_slice_uninit_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedSliceZeroedBranch => {
-                $transfer!(super::execute_allocate_shared_slice_zeroed_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedSliceUninitBranch => {
-                $transfer!(super::execute_allocate_shared_slice_uninit_branch(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::FreeHeap => $step!(super::execute_free_heap($activation, instruction)),
-            Op::FreeSharedHeap => $step!(super::execute_free_shared_heap($activation, instruction)),
-            Op::AllocateStackZeroed => {
-                $step!(super::execute_allocate_stack_zeroed(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AllocateStackUninit => {
-                $step!(super::execute_allocate_stack_uninit(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::PinHeap => $step!(super::execute_pin_heap($activation, instruction)),
-            Op::PinSharedHeap => $step!(super::execute_pin_shared_heap($activation, instruction)),
-            Op::UnpinHeap => $step!(super::execute_unpin_heap($activation, instruction)),
-            Op::UnpinSharedHeap => {
-                $step!(super::execute_unpin_shared_heap($activation, instruction))
-            }
-            Op::VectorBinary => $step!(super::execute_vector_binary($activation, instruction)),
-            Op::PackedAdd32x4 => $step!(super::execute_packed_add_32x4($activation, instruction)),
-            Op::PackedSub32x4 => $step!(super::execute_packed_sub_32x4($activation, instruction)),
-            Op::PackedMul32x4 => $step!(super::execute_packed_mul_32x4($activation, instruction)),
-            Op::PackedAnd32x4 => $step!(super::execute_packed_and_32x4($activation, instruction)),
-            Op::PackedOr32x4 => $step!(super::execute_packed_or_32x4($activation, instruction)),
-            Op::PackedXor32x4 => $step!(super::execute_packed_xor_32x4($activation, instruction)),
-            Op::PackedShl32x4 => $step!(super::execute_packed_shl_32x4($activation, instruction)),
-            Op::PackedShrI32x4 => $step!(super::execute_packed_shr_i32x4($activation, instruction)),
-            Op::PackedShrU32x4 => $step!(super::execute_packed_shr_u32x4($activation, instruction)),
-            Op::PackedAdd64x2 => $step!(super::execute_packed_add_64x2($activation, instruction)),
-            Op::PackedSub64x2 => $step!(super::execute_packed_sub_64x2($activation, instruction)),
-            Op::PackedMul64x2 => $step!(super::execute_packed_mul_64x2($activation, instruction)),
-            Op::PackedAnd64x2 => $step!(super::execute_packed_and_64x2($activation, instruction)),
-            Op::PackedOr64x2 => $step!(super::execute_packed_or_64x2($activation, instruction)),
-            Op::PackedXor64x2 => $step!(super::execute_packed_xor_64x2($activation, instruction)),
-            Op::PackedShl64x2 => $step!(super::execute_packed_shl_64x2($activation, instruction)),
-            Op::PackedShrI64x2 => $step!(super::execute_packed_shr_i64x2($activation, instruction)),
-            Op::PackedShrU64x2 => $step!(super::execute_packed_shr_u64x2($activation, instruction)),
-            Op::PackedAddF32x4 => $step!(super::execute_packed_add_f32x4($activation, instruction)),
-            Op::PackedSubF32x4 => $step!(super::execute_packed_sub_f32x4($activation, instruction)),
-            Op::PackedMulF32x4 => $step!(super::execute_packed_mul_f32x4($activation, instruction)),
-            Op::PackedDivF32x4 => $step!(super::execute_packed_div_f32x4($activation, instruction)),
-            Op::PackedAddF64x2 => $step!(super::execute_packed_add_f64x2($activation, instruction)),
-            Op::PackedSubF64x2 => $step!(super::execute_packed_sub_f64x2($activation, instruction)),
-            Op::PackedMulF64x2 => $step!(super::execute_packed_mul_f64x2($activation, instruction)),
-            Op::PackedDivF64x2 => $step!(super::execute_packed_div_f64x2($activation, instruction)),
-            Op::TensorBinary => $step!(super::execute_tensor_binary($activation, instruction)),
-            Op::TensorContiguousBinary => {
-                $step!(super::execute_tensor_contiguous_binary(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AndBool => $step!(super::execute_and_bool($activation, instruction)),
-            Op::OrBool => $step!(super::execute_or_bool($activation, instruction)),
-            Op::XorBool => $step!(super::execute_xor_bool($activation, instruction)),
-            Op::AddI32 => $step!(super::execute_add_i32($activation, instruction)),
-            Op::AddU32 => $step!(super::execute_add_u32($activation, instruction)),
-            Op::AddI64 => $step!(super::execute_add_i64($activation, instruction)),
-            Op::AddU64 => $step!(super::execute_add_u64($activation, instruction)),
-            Op::SubI32 => $step!(super::execute_sub_i32($activation, instruction)),
-            Op::SubU32 => $step!(super::execute_sub_u32($activation, instruction)),
-            Op::SubI64 => $step!(super::execute_sub_i64($activation, instruction)),
-            Op::SubU64 => $step!(super::execute_sub_u64($activation, instruction)),
-            Op::MulI32 => $step!(super::execute_mul_i32($activation, instruction)),
-            Op::MulU32 => $step!(super::execute_mul_u32($activation, instruction)),
-            Op::MulI64 => $step!(super::execute_mul_i64($activation, instruction)),
-            Op::MulU64 => $step!(super::execute_mul_u64($activation, instruction)),
-            Op::DivI32 => $step!(super::execute_div_i32($activation, instruction)),
-            Op::DivU32 => $step!(super::execute_div_u32($activation, instruction)),
-            Op::DivI64 => $step!(super::execute_div_i64($activation, instruction)),
-            Op::DivU64 => $step!(super::execute_div_u64($activation, instruction)),
-            Op::RemI32 => $step!(super::execute_rem_i32($activation, instruction)),
-            Op::RemU32 => $step!(super::execute_rem_u32($activation, instruction)),
-            Op::RemI64 => $step!(super::execute_rem_i64($activation, instruction)),
-            Op::RemU64 => $step!(super::execute_rem_u64($activation, instruction)),
-            Op::AddCellInt => $step!(super::execute_add_cell_int($activation, instruction)),
-            Op::AddCellUint => $step!(super::execute_add_cell_uint($activation, instruction)),
-            Op::SubCellInt => $step!(super::execute_sub_cell_int($activation, instruction)),
-            Op::SubCellUint => $step!(super::execute_sub_cell_uint($activation, instruction)),
-            Op::MulCellInt => $step!(super::execute_mul_cell_int($activation, instruction)),
-            Op::MulCellUint => $step!(super::execute_mul_cell_uint($activation, instruction)),
-            Op::DivCellInt => $step!(super::execute_div_cell_int($activation, instruction)),
-            Op::DivCellUint => $step!(super::execute_div_cell_uint($activation, instruction)),
-            Op::RemCellInt => $step!(super::execute_rem_cell_int($activation, instruction)),
-            Op::RemCellUint => $step!(super::execute_rem_cell_uint($activation, instruction)),
-            Op::And32 => $step!(super::execute_and_32($activation, instruction)),
-            Op::And64 => $step!(super::execute_and_64($activation, instruction)),
-            Op::Or32 => $step!(super::execute_or_32($activation, instruction)),
-            Op::Or64 => $step!(super::execute_or_64($activation, instruction)),
-            Op::Xor32 => $step!(super::execute_xor_32($activation, instruction)),
-            Op::Xor64 => $step!(super::execute_xor_64($activation, instruction)),
-            Op::Shl32 => $step!(super::execute_shl_32($activation, instruction)),
-            Op::Shl64 => $step!(super::execute_shl_64($activation, instruction)),
-            Op::ShrI32 => $step!(super::execute_shr_i32($activation, instruction)),
-            Op::ShrU32 => $step!(super::execute_shr_u32($activation, instruction)),
-            Op::ShrI64 => $step!(super::execute_shr_i64($activation, instruction)),
-            Op::ShrU64 => $step!(super::execute_shr_u64($activation, instruction)),
-            Op::AddWideInt => $step!(super::execute_add_wide_int($activation, instruction)),
-            Op::SubWideInt => $step!(super::execute_sub_wide_int($activation, instruction)),
-            Op::MulWideInt => $step!(super::execute_mul_wide_int($activation, instruction)),
-            Op::DivWideInt => $step!(super::execute_div_wide_int($activation, instruction)),
-            Op::DivWideUint => $step!(super::execute_div_wide_uint($activation, instruction)),
-            Op::RemWideInt => $step!(super::execute_rem_wide_int($activation, instruction)),
-            Op::RemWideUint => $step!(super::execute_rem_wide_uint($activation, instruction)),
-            Op::AndCell => $step!(super::execute_and_cell($activation, instruction)),
-            Op::OrCell => $step!(super::execute_or_cell($activation, instruction)),
-            Op::XorCell => $step!(super::execute_xor_cell($activation, instruction)),
-            Op::ShlCell => $step!(super::execute_shl_cell($activation, instruction)),
-            Op::ShrCellInt => $step!(super::execute_shr_cell_int($activation, instruction)),
-            Op::ShrCellUint => $step!(super::execute_shr_cell_uint($activation, instruction)),
-            Op::AndWideInt => $step!(super::execute_and_wide_int($activation, instruction)),
-            Op::OrWideInt => $step!(super::execute_or_wide_int($activation, instruction)),
-            Op::XorWideInt => $step!(super::execute_xor_wide_int($activation, instruction)),
-            Op::ShlWideInt => $step!(super::execute_shl_wide_int($activation, instruction)),
-            Op::ShrWideInt => $step!(super::execute_shr_wide_int($activation, instruction)),
-            Op::ShrWideUint => $step!(super::execute_shr_wide_uint($activation, instruction)),
-            Op::AddF32 => $step!(super::execute_add_f32($activation, instruction)),
-            Op::SubF32 => $step!(super::execute_sub_f32($activation, instruction)),
-            Op::MulF32 => $step!(super::execute_mul_f32($activation, instruction)),
-            Op::DivF32 => $step!(super::execute_div_f32($activation, instruction)),
-            Op::EqF32 => $step!(super::execute_eq_f32($activation, instruction)),
-            Op::NeF32 => $step!(super::execute_ne_f32($activation, instruction)),
-            Op::LtF32 => $step!(super::execute_lt_f32($activation, instruction)),
-            Op::LeF32 => $step!(super::execute_le_f32($activation, instruction)),
-            Op::GtF32 => $step!(super::execute_gt_f32($activation, instruction)),
-            Op::GeF32 => $step!(super::execute_ge_f32($activation, instruction)),
-            Op::AddF64 => $step!(super::execute_add_f64($activation, instruction)),
-            Op::SubF64 => $step!(super::execute_sub_f64($activation, instruction)),
-            Op::MulF64 => $step!(super::execute_mul_f64($activation, instruction)),
-            Op::DivF64 => $step!(super::execute_div_f64($activation, instruction)),
-            Op::BinaryFloat => $step!(super::execute_binary_float($activation, instruction)),
-            Op::EqF64 => $step!(super::execute_eq_f64($activation, instruction)),
-            Op::NeF64 => $step!(super::execute_ne_f64($activation, instruction)),
-            Op::LtF64 => $step!(super::execute_lt_f64($activation, instruction)),
-            Op::LeF64 => $step!(super::execute_le_f64($activation, instruction)),
-            Op::GtF64 => $step!(super::execute_gt_f64($activation, instruction)),
-            Op::GeF64 => $step!(super::execute_ge_f64($activation, instruction)),
-            Op::Eq32 => $step!(super::execute_eq_32($activation, instruction)),
-            Op::Eq64 => $step!(super::execute_eq_64($activation, instruction)),
-            Op::Ne32 => $step!(super::execute_ne_32($activation, instruction)),
-            Op::Ne64 => $step!(super::execute_ne_64($activation, instruction)),
-            Op::LtI32 => $step!(super::execute_lt_i32($activation, instruction)),
-            Op::LtU32 => $step!(super::execute_lt_u32($activation, instruction)),
-            Op::LtI64 => $step!(super::execute_lt_i64($activation, instruction)),
-            Op::LtU64 => $step!(super::execute_lt_u64($activation, instruction)),
-            Op::LeI32 => $step!(super::execute_le_i32($activation, instruction)),
-            Op::LeU32 => $step!(super::execute_le_u32($activation, instruction)),
-            Op::LeI64 => $step!(super::execute_le_i64($activation, instruction)),
-            Op::LeU64 => $step!(super::execute_le_u64($activation, instruction)),
-            Op::GtI32 => $step!(super::execute_gt_i32($activation, instruction)),
-            Op::GtU32 => $step!(super::execute_gt_u32($activation, instruction)),
-            Op::GtI64 => $step!(super::execute_gt_i64($activation, instruction)),
-            Op::GtU64 => $step!(super::execute_gt_u64($activation, instruction)),
-            Op::GeI32 => $step!(super::execute_ge_i32($activation, instruction)),
-            Op::GeU32 => $step!(super::execute_ge_u32($activation, instruction)),
-            Op::GeI64 => $step!(super::execute_ge_i64($activation, instruction)),
-            Op::GeU64 => $step!(super::execute_ge_u64($activation, instruction)),
-            Op::EqCell => $step!(super::execute_eq_cell($activation, instruction)),
-            Op::NeCell => $step!(super::execute_ne_cell($activation, instruction)),
-            Op::LtCellInt => $step!(super::execute_lt_cell_int($activation, instruction)),
-            Op::LtCellUint => $step!(super::execute_lt_cell_uint($activation, instruction)),
-            Op::LeCellInt => $step!(super::execute_le_cell_int($activation, instruction)),
-            Op::LeCellUint => $step!(super::execute_le_cell_uint($activation, instruction)),
-            Op::GtCellInt => $step!(super::execute_gt_cell_int($activation, instruction)),
-            Op::GtCellUint => $step!(super::execute_gt_cell_uint($activation, instruction)),
-            Op::GeCellInt => $step!(super::execute_ge_cell_int($activation, instruction)),
-            Op::GeCellUint => $step!(super::execute_ge_cell_uint($activation, instruction)),
-            Op::EqWideInt => $step!(super::execute_eq_wide_int($activation, instruction)),
-            Op::NeWideInt => $step!(super::execute_ne_wide_int($activation, instruction)),
-            Op::LtWideInt => $step!(super::execute_lt_wide_int($activation, instruction)),
-            Op::LtWideUint => $step!(super::execute_lt_wide_uint($activation, instruction)),
-            Op::LeWideInt => $step!(super::execute_le_wide_int($activation, instruction)),
-            Op::LeWideUint => $step!(super::execute_le_wide_uint($activation, instruction)),
-            Op::GtWideInt => $step!(super::execute_gt_wide_int($activation, instruction)),
-            Op::GtWideUint => $step!(super::execute_gt_wide_uint($activation, instruction)),
-            Op::GeWideInt => $step!(super::execute_ge_wide_int($activation, instruction)),
-            Op::GeWideUint => $step!(super::execute_ge_wide_uint($activation, instruction)),
-            Op::NegI32 => $step!(super::execute_neg_i32($activation, instruction)),
-            Op::NegI64 => $step!(super::execute_neg_i64($activation, instruction)),
-            Op::Not32 => $step!(super::execute_not_32($activation, instruction)),
-            Op::Not64 => $step!(super::execute_not_64($activation, instruction)),
-            Op::NegCellInt => $step!(super::execute_neg_cell_int($activation, instruction)),
-            Op::NotCell => $step!(super::execute_not_cell($activation, instruction)),
-            Op::NegWideInt => $step!(super::execute_neg_wide_int($activation, instruction)),
-            Op::NotWideInt => $step!(super::execute_not_wide_int($activation, instruction)),
-            Op::NegF32 => $step!(super::execute_neg_f32($activation, instruction)),
-            Op::NegF64 => $step!(super::execute_neg_f64($activation, instruction)),
-            Op::UnaryFloat => $step!(super::execute_unary_float($activation, instruction)),
-            Op::NotBool => $step!(super::execute_not_bool($activation, instruction)),
-            Op::VectorUnary => $step!(super::execute_vector_unary($activation, instruction)),
-            Op::TensorUnary => $step!(super::execute_tensor_unary($activation, instruction)),
-            Op::TensorContiguousUnary => {
-                $step!(super::execute_tensor_contiguous_unary(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::PackedNegI32x4 => $step!(super::execute_packed_neg_i32x4($activation, instruction)),
-            Op::PackedNot32x4 => $step!(super::execute_packed_not_32x4($activation, instruction)),
-            Op::PackedNegI64x2 => $step!(super::execute_packed_neg_i64x2($activation, instruction)),
-            Op::PackedNot64x2 => $step!(super::execute_packed_not_64x2($activation, instruction)),
-            Op::PackedNegF32x4 => $step!(super::execute_packed_neg_f32x4($activation, instruction)),
-            Op::PackedNegF64x2 => $step!(super::execute_packed_neg_f64x2($activation, instruction)),
-            Op::CastBitcast => $step!(super::execute_cast_bitcast($activation, instruction)),
-            Op::CastTruncate => $step!(super::execute_cast_truncate($activation, instruction)),
-            Op::CastSaturateInt => {
-                $step!(super::execute_cast_saturate_int($activation, instruction))
-            }
-            Op::CastZeroExtend => $step!(super::execute_cast_zero_extend($activation, instruction)),
-            Op::CastSignExtend => $step!(super::execute_cast_sign_extend($activation, instruction)),
-            Op::CastFloatToSignedInt => $step!(super::execute_cast_float_to_signed_int(
-                $activation,
-                instruction
-            )),
-            Op::CastFloatToUnsignedInt => {
-                $step!({ super::execute_cast_float_to_unsigned_int($activation, instruction) })
-            }
-            Op::CastFloatToSignedIntSaturating => {
-                $step!({
-                    super::execute_cast_float_to_signed_int_saturating($activation, instruction)
-                })
-            }
-            Op::CastFloatToUnsignedIntSaturating => $step!({
-                super::execute_cast_float_to_unsigned_int_saturating($activation, instruction)
-            }),
-            Op::CastSignedIntToFloat => {
-                $step!(super::execute_cast_signed_int_to_float(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::CastUnsignedIntToFloat => $step!(super::execute_cast_unsigned_int_to_float(
-                $activation,
-                instruction
-            )),
-            Op::CastFloatConvert => {
-                $step!(super::execute_cast_float_convert($activation, instruction))
-            }
-            Op::CastPointerToInt => {
-                $step!(super::execute_cast_pointer_to_int($activation, instruction))
-            }
-            Op::CastIntToPointer => {
-                $step!(super::execute_cast_int_to_pointer($activation, instruction))
-            }
-            Op::CastCellToWideInt => {
-                $step!(super::execute_cast_cell_to_wide_int(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::CastWideIntToCell => {
-                $step!(super::execute_cast_wide_int_to_cell(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::CastWideInt => $step!(super::execute_cast_wide_int($activation, instruction)),
-            Op::CastTensorView => $step!(super::execute_tensor_view_cast($activation, instruction)),
-            Op::DropDynamic => {
-                $step!(super::execute_drop_dynamic($activation, instruction))
-            }
-            Op::Drop => {
-                $transfer!(super::execute_drop($activation, instruction, $block_pc))
-            }
-            Op::Call => {
-                $transfer!(super::execute_call($activation, instruction, $block_pc))
-            }
-            Op::Invoke => $transfer!(super::execute_invoke($activation, instruction)),
-            Op::CallFunctionPointer => {
-                $transfer!(super::execute_call_function_pointer(
-                    $activation,
-                    instruction,
-                    $block_pc
-                ))
-            }
-            Op::CallFunction => {
-                $transfer!(super::execute_call_function(
-                    $activation,
-                    instruction,
-                    $block_pc
-                ))
-            }
-            Op::InvokeFunctionPointer => {
-                $transfer!(super::execute_invoke_function_pointer(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::InvokeFunction => {
-                $transfer!(super::execute_invoke_function($activation, instruction))
-            }
-            Op::CallVirtualLocal => $transfer!(super::execute_call_virtual_local(
-                $activation,
+            Ok(None)
+        }
+        // 128-bit integer operations
+        else if let Some((operation, is_signed)) = opcode.integer128_operation() {
+            self.execute_integer128(instruction, operation, is_signed)?;
+
+            Ok(None)
+        }
+        // floating point operations
+        else if let Some((operation, scalar)) = opcode.float_operation() {
+            self.execute_float(instruction, operation, scalar)?;
+
+            Ok(None)
+        }
+        // scalar memory families
+        else if let Some((operation, scalar)) = opcode.memory_operation() {
+            self.execute_memory::<WATCH>(
+                self.frame(),
+                instruction_offset,
                 instruction,
-                $block_pc
-            )),
-            Op::CallVirtualShared => $transfer!({
-                super::execute_call_virtual_shared($activation, instruction, $block_pc)
-            }),
-            Op::InvokeVirtualLocal => {
-                $transfer!(super::execute_invoke_virtual_local(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::InvokeVirtualShared => {
-                $transfer!(super::execute_invoke_virtual_shared(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::CallDynamic => $transfer!(super::execute_call_dynamic(
-                $activation,
-                instruction,
-                $block_pc
-            )),
-            Op::InvokeDynamic => {
-                $transfer!(super::execute_invoke_dynamic($activation, instruction))
-            }
-            Op::TailCall => $transfer!(super::execute_tail_call($activation, instruction)),
-            Op::TailCallSelf => $transfer!(super::execute_tail_call_self($activation, instruction)),
-            Op::TailCallFunctionPointer => {
-                $transfer!(super::execute_tail_call_function_pointer(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::TailCallFunction => {
-                $transfer!(super::execute_tail_call_function($activation, instruction))
-            }
-            Op::TailCallVirtualLocal => {
-                $transfer!(super::execute_tail_call_virtual_local(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::TailCallVirtualShared => {
-                $transfer!(super::execute_tail_call_virtual_shared(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::TailCallDynamic => {
-                $transfer!(super::execute_tail_call_dynamic($activation, instruction))
-            }
-            Op::Jump => $transfer!(super::execute_jump($activation, instruction)),
-            Op::BranchBool => $transfer!(super::execute_branch_bool($activation, instruction)),
-            Op::BranchEq32 => $transfer!(super::execute_branch_eq_32($activation, instruction)),
-            Op::BranchEq64 => $transfer!(super::execute_branch_eq_64($activation, instruction)),
-            Op::BranchNe32 => $transfer!(super::execute_branch_ne_32($activation, instruction)),
-            Op::BranchNe64 => $transfer!(super::execute_branch_ne_64($activation, instruction)),
-            Op::BranchLtI32 => $transfer!(super::execute_branch_lt_i32($activation, instruction)),
-            Op::BranchLtU32 => $transfer!(super::execute_branch_lt_u32($activation, instruction)),
-            Op::BranchLtI64 => $transfer!(super::execute_branch_lt_i64($activation, instruction)),
-            Op::BranchLtU64 => $transfer!(super::execute_branch_lt_u64($activation, instruction)),
-            Op::BranchLeI32 => $transfer!(super::execute_branch_le_i32($activation, instruction)),
-            Op::BranchLeU32 => $transfer!(super::execute_branch_le_u32($activation, instruction)),
-            Op::BranchLeI64 => $transfer!(super::execute_branch_le_i64($activation, instruction)),
-            Op::BranchLeU64 => $transfer!(super::execute_branch_le_u64($activation, instruction)),
-            Op::BranchGtI32 => $transfer!(super::execute_branch_gt_i32($activation, instruction)),
-            Op::BranchGtU32 => $transfer!(super::execute_branch_gt_u32($activation, instruction)),
-            Op::BranchGtI64 => $transfer!(super::execute_branch_gt_i64($activation, instruction)),
-            Op::BranchGtU64 => $transfer!(super::execute_branch_gt_u64($activation, instruction)),
-            Op::BranchGeI32 => $transfer!(super::execute_branch_ge_i32($activation, instruction)),
-            Op::BranchGeU32 => $transfer!(super::execute_branch_ge_u32($activation, instruction)),
-            Op::BranchGeI64 => $transfer!(super::execute_branch_ge_i64($activation, instruction)),
-            Op::BranchGeU64 => $transfer!(super::execute_branch_ge_u64($activation, instruction)),
-            Op::BranchEqCell => $transfer!(super::execute_branch_eq_cell($activation, instruction)),
-            Op::BranchNeCell => $transfer!(super::execute_branch_ne_cell($activation, instruction)),
-            Op::BranchLtCellInt => {
-                $transfer!(super::execute_branch_lt_cell_int($activation, instruction))
-            }
-            Op::BranchLeCellInt => {
-                $transfer!(super::execute_branch_le_cell_int($activation, instruction))
-            }
-            Op::BranchGtCellInt => {
-                $transfer!(super::execute_branch_gt_cell_int($activation, instruction))
-            }
-            Op::BranchGeCellInt => {
-                $transfer!(super::execute_branch_ge_cell_int($activation, instruction))
-            }
-            Op::BranchLtCellUint => {
-                $transfer!(super::execute_branch_lt_cell_uint($activation, instruction))
-            }
-            Op::BranchLeCellUint => {
-                $transfer!(super::execute_branch_le_cell_uint($activation, instruction))
-            }
-            Op::BranchGtCellUint => {
-                $transfer!(super::execute_branch_gt_cell_uint($activation, instruction))
-            }
-            Op::BranchGeCellUint => {
-                $transfer!(super::execute_branch_ge_cell_uint($activation, instruction))
-            }
-            Op::BranchEqF32 => $transfer!(super::execute_branch_eq_f32($activation, instruction)),
-            Op::BranchNeF32 => $transfer!(super::execute_branch_ne_f32($activation, instruction)),
-            Op::BranchLtF32 => $transfer!(super::execute_branch_lt_f32($activation, instruction)),
-            Op::BranchLeF32 => $transfer!(super::execute_branch_le_f32($activation, instruction)),
-            Op::BranchGtF32 => $transfer!(super::execute_branch_gt_f32($activation, instruction)),
-            Op::BranchGeF32 => $transfer!(super::execute_branch_ge_f32($activation, instruction)),
-            Op::BranchEqF64 => $transfer!(super::execute_branch_eq_f64($activation, instruction)),
-            Op::BranchNeF64 => $transfer!(super::execute_branch_ne_f64($activation, instruction)),
-            Op::BranchLtF64 => $transfer!(super::execute_branch_lt_f64($activation, instruction)),
-            Op::BranchLeF64 => $transfer!(super::execute_branch_le_f64($activation, instruction)),
-            Op::BranchGtF64 => $transfer!(super::execute_branch_gt_f64($activation, instruction)),
-            Op::BranchGeF64 => $transfer!(super::execute_branch_ge_f64($activation, instruction)),
-            Op::Switch => $transfer!(super::execute_switch($activation, instruction)),
-            Op::SwitchTable => $transfer!(super::execute_switch_table($activation, instruction)),
-            Op::Check => $transfer!(super::execute_check($activation, instruction)),
-            Op::Assume => $step!(super::execute_assume($activation, instruction)),
-            Op::Breakpoint => $transfer!(super::execute_breakpoint(
-                $activation,
-                $block_pc as u32,
-                ($block_pc + 1) as u32
-            )),
-            Op::BarrierWriteHeap => {
-                $step!(super::execute_barrier_write_heap($activation, instruction))
-            }
-            Op::BarrierWriteSharedHeap => {
-                $step!(super::execute_barrier_write_shared_heap(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AtomicLoad => $step!(super::execute_atomic_load($activation, instruction)),
-            Op::AtomicStore => $step!(super::execute_atomic_store($activation, instruction)),
-            Op::AtomicExchange => $step!(super::execute_atomic_exchange($activation, instruction)),
-            Op::AtomicCompareExchange => {
-                $step!(super::execute_atomic_compare_exchange(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AtomicReadModifyWrite => {
-                $step!(super::execute_atomic_read_modify_write(
-                    $activation,
-                    instruction
-                ))
-            }
-            Op::AtomicFence => $step!(super::execute_atomic_fence($activation, instruction)),
-            Op::Intrinsic => $step!(super::execute_intrinsic($activation, instruction)),
-            Op::ReturnCell => $transfer!(super::execute_return_cell($activation, instruction)),
-            Op::ReturnAddress => {
-                $transfer!(super::execute_return_address($activation, instruction))
-            }
-            Op::ReturnVoid => $transfer!(super::execute_return_void($activation, instruction)),
-            Op::TensorBroadcast => {
-                $step!(super::execute_tensor_broadcast($activation, instruction))
-            }
-            Op::TensorCast => $step!(super::execute_tensor_cast($activation, instruction)),
-            Op::TensorConcat => $step!(super::execute_tensor_concat($activation, instruction)),
-            Op::TensorConvert => $step!(super::execute_tensor_convert($activation, instruction)),
-            Op::TensorConvolution => {
-                $step!(super::execute_tensor_convolution($activation, instruction))
-            }
-            Op::TensorCopy => $step!(super::execute_tensor_copy($activation, instruction)),
-            Op::TensorDot => $step!(super::execute_tensor_dot($activation, instruction)),
-            Op::TensorFill => $step!(super::execute_tensor_fill($activation, instruction)),
-            Op::TensorGather => $step!(super::execute_tensor_gather($activation, instruction)),
-            Op::TensorExtract => $step!(super::execute_tensor_extract($activation, instruction)),
-            Op::TensorIndexReduce => {
-                $step!(super::execute_tensor_index_reduce($activation, instruction))
-            }
-            Op::TensorLoad => $step!(super::execute_tensor_load($activation, instruction)),
-            Op::TensorSplat => $step!(super::execute_tensor_splat($activation, instruction)),
-            Op::TensorPad => $step!(super::execute_tensor_pad($activation, instruction)),
-            Op::TensorReduce => $step!(super::execute_tensor_reduce($activation, instruction)),
-            Op::TensorReshape => $step!(super::execute_tensor_reshape($activation, instruction)),
-            Op::TensorScatter => $step!(super::execute_tensor_scatter($activation, instruction)),
-            Op::TensorSelect => $step!(super::execute_tensor_select($activation, instruction)),
-            Op::TensorSlice => $step!(super::execute_tensor_slice($activation, instruction)),
-            Op::TensorStore => $step!(super::execute_tensor_store($activation, instruction)),
-            Op::TensorTranspose => {
-                $step!(super::execute_tensor_transpose($activation, instruction))
-            }
-            Op::TensorView => $step!(super::execute_tensor_view($activation, instruction)),
-            Op::Panic => $transfer!(super::execute_panic($activation, instruction)),
-            Op::PanicValue => $transfer!(super::execute_panic_value($activation, instruction)),
-            Op::UnwindResume => {
-                $transfer!(super::execute_unwind_resume($activation, instruction))
-            }
-            Op::Unreachable => $transfer!(super::execute_unreachable($activation, instruction)),
-            Op::VectorConvert => $step!(super::execute_vector_convert($activation, instruction)),
-            Op::VectorExtract => $step!(super::execute_vector_extract($activation, instruction)),
-            Op::VectorInsert => $step!(super::execute_vector_insert($activation, instruction)),
-            Op::VectorReduce => $step!(super::execute_vector_reduce($activation, instruction)),
-            Op::VectorSelect => $step!(super::execute_vector_select($activation, instruction)),
-            Op::VectorShuffle => $step!(super::execute_vector_shuffle($activation, instruction)),
-            Op::VectorSplat => $step!(super::execute_vector_splat($activation, instruction)),
-            Op::PackedSplat32x4 => {
-                $step!(super::execute_packed_splat_32x4($activation, instruction))
-            }
-            Op::PackedSplat64x2 => {
-                $step!(super::execute_packed_splat_64x2($activation, instruction))
-            }
-            Op::YieldCell => $transfer!(super::execute_yield_cell($activation, instruction)),
-            Op::YieldAddress => $transfer!(super::execute_yield_address($activation, instruction)),
-            Op::ProfileIncrement => {
-                if PROFILE {
-                    $step!(super::execute_profile_increment(
-                        $activation,
-                        $function,
-                        $block,
-                        $block_pc
-                    ))
-                } else {
-                    $step!(Ok(()))
-                }
-            }
-            Op::ProfileSample => {
-                if PROFILE {
-                    $step!(super::execute_profile_sample(
-                        $activation,
-                        $function,
-                        $block,
-                        $block_pc,
-                        instruction
-                    ))
-                } else {
-                    $step!(Ok(()))
-                }
-            }
+                operation,
+                scalar,
+            )
         }
-    };
-}
+        // scalar constants
+        else if opcode.constant_scalar().is_some() {
+            self.execute_constant(instruction)?;
 
-/// Dispatch one block until it produces a control transfer.
-pub(crate) fn dispatch_block<'run>(
-    activation: &mut Activation<'run>,
-    function: FunctionCode<'run>,
-    block_index: u32,
-    pc: usize,
-) -> BlockDispatch {
-    select_instrumentation::<false>(activation, function, block_index, pc)
-}
+            Ok(None)
+        }
+        // boolean operations
+        else if opcode.boolean_operation().is_some() {
+            self.execute_boolean(instruction)?;
 
-/// Dispatch one block without following transfers.
-pub(crate) fn dispatch_block_limited<'run>(
-    activation: &mut Activation<'run>,
-    function: FunctionCode<'run>,
-    block_index: u32,
-    pc: usize,
-) -> BlockDispatch {
-    select_instrumentation::<true>(activation, function, block_index, pc)
-}
+            Ok(None)
+        }
+        // scalar casts
+        else if let Some((operation, source, target)) = opcode.cast_operation() {
+            self.execute_cast(instruction, operation, source, target)?;
 
-/// Select one dispatch specialization for active instrumentation.
-fn select_instrumentation<'run, const LIMITED: bool>(
-    activation: &mut Activation<'run>,
-    function: FunctionCode<'run>,
-    block_index: u32,
-    pc: usize,
-) -> BlockDispatch {
-    match (
-        activation.has_stop_points(),
-        activation.has_watch_points(),
-        activation.has_profile(),
-    ) {
-        (false, false, false) => dispatch_block_inner::<false, false, false, LIMITED>(
-            activation,
-            function,
-            block_index,
-            pc,
-        ),
-        (true, false, false) => dispatch_block_inner::<true, false, false, LIMITED>(
-            activation,
-            function,
-            block_index,
-            pc,
-        ),
-        (false, true, false) => dispatch_block_inner::<false, true, false, LIMITED>(
-            activation,
-            function,
-            block_index,
-            pc,
-        ),
-        (true, true, false) => dispatch_block_inner::<true, true, false, LIMITED>(
-            activation,
-            function,
-            block_index,
-            pc,
-        ),
-        (false, false, true) => dispatch_block_inner::<false, false, true, LIMITED>(
-            activation,
-            function,
-            block_index,
-            pc,
-        ),
-        (true, false, true) => dispatch_block_inner::<true, false, true, LIMITED>(
-            activation,
-            function,
-            block_index,
-            pc,
-        ),
-        (false, true, true) => dispatch_block_inner::<false, true, true, LIMITED>(
-            activation,
-            function,
-            block_index,
-            pc,
-        ),
-        (true, true, true) => {
-            dispatch_block_inner::<true, true, true, LIMITED>(activation, function, block_index, pc)
+            Ok(None)
+        }
+        // checked scalar transfers
+        else if let Some((check, scalar)) = opcode.scalar_check() {
+            self.execute_check(instruction, check, scalar)?;
+
+            Ok(None)
+        }
+        // scalar comparisons
+        else if let Some((comparison, scalar)) = opcode.comparison() {
+            self.execute_comparison(instruction, comparison, scalar)?;
+
+            Ok(None)
+        }
+        // atomic memory families
+        else if let Some((operation, scalar)) = opcode.atomic_operation() {
+            self.execute_atomic::<WATCH>(
+                self.frame(),
+                instruction_offset,
+                instruction,
+                operation,
+                scalar,
+            )
+        }
+        // heap allocation families
+        else if let Some(operation) = opcode.new_operation() {
+            self.execute_new::<PROFILE>(instruction, instruction_offset, operation)?;
+
+            Ok(None)
+        }
+        // packed vector operations
+        else if let Some(operation) = opcode.vector_operation() {
+            self.execute_vector::<WATCH>(self.frame(), instruction_offset, instruction, operation)
+        }
+        // tensor operations
+        else if let Some(operation) = opcode.tensor_operation() {
+            self.execute_tensor::<WATCH>(self.frame(), instruction_offset, instruction, operation)
+        }
+        // unassigned opcode
+        else {
+            Err(Error::unsupported_opcode(opcode.code()))
         }
     }
-}
 
-/// Dispatch one block in the trusted lowered-code VM.
-#[cfg_attr(debug_assertions, inline(never))]
-#[cfg_attr(not(debug_assertions), inline(always))]
-fn dispatch_block_inner<
-    'run,
-    const STOP_POINTS: bool,
-    const WATCH_POINTS: bool,
-    const PROFILE: bool,
-    const LIMITED: bool,
->(
-    activation: &mut Activation<'run>,
-    mut function: FunctionCode<'run>,
-    block_index: u32,
-    pc: usize,
-) -> BlockDispatch {
-    let program = activation.program;
-    let mut block = block_index;
-    let (mut block_start, mut pc, mut block_end) = match block_bounds(&function, block) {
-        Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
-        Err(error) => return BlockDispatch::error(error, 0),
-    };
-    let mut executed = 0;
+    /// Execute one fixed opcode outside the encoded operation families.
+    fn execute_opcode<const WATCH: bool, const PROFILE: bool>(
+        &mut self,
+        instruction_offset: CodeOffset,
+        instruction: Instruction<'_>,
+    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+        match instruction.opcode() {
+            // aggregates
+            Opcode::AGGREGATE
+            | Opcode::FIELD_GET
+            | Opcode::FIELD_SET
+            | Opcode::ELEMENT_GET
+            | Opcode::ELEMENT_SET
+            | Opcode::VARIANT_NEW
+            | Opcode::VARIANT_TAG
+            | Opcode::VARIANT_PAYLOAD => {
+                self.execute_aggregate(instruction)?;
 
-    loop {
-        // guard against malformed block tables
-        if pc >= block_end {
-            return BlockDispatch::error(Error::invalid_instruction(), executed);
-        }
-
-        if STOP_POINTS {
-            // stop before executing selected instruction stops
-            match activation.stop_at(function, block, pc - block_start) {
-                Ok(Some((reason, frame_state))) => {
-                    return BlockDispatch::new(
-                        Transfer::Stop {
-                            reason,
-                            frame_state,
-                        },
-                        executed,
-                    );
-                }
-                Ok(None) => {}
-                Err(error) => return BlockDispatch::error(error, executed),
+                Ok(None)
             }
-        }
+            // values
+            Opcode::MOVE
+            | Opcode::MOVE_RANGE
+            | Opcode::SELECT
+            | Opcode::SELECT_RANGE
+            | Opcode::EQUAL
+            | Opcode::CONSTANT_TYPE
+            | Opcode::CONSTANT_BYTES
+            | Opcode::CONSTANT_INT128
+            | Opcode::CONSTANT_UINT128
+            | Opcode::CONSTANT_NULL
+            | Opcode::CONSTANT_UNDEFINED
+            | Opcode::CONSTANT_UNINIT
+            | Opcode::CONSTANT_ZEROED => {
+                self.execute_value(instruction)?;
 
-        if LIMITED {
-            executed += 1;
-        }
+                Ok(None)
+            }
+            // initialization
+            Opcode::NEW_COMPLETE => {
+                self.execute_new_complete(instruction)?;
 
-        macro_rules! step {
-            ($operation:expr) => {{
-                if let Err(error) = $operation {
-                    return BlockDispatch::error(error, executed);
-                }
+                Ok(None)
+            }
+            // addresses and pointers
+            Opcode::GLOBAL_ADDRESS => {
+                self.execute_global_address(instruction)?;
 
-                // record fallthrough profile effects before watchpoint stops
+                Ok(None)
+            }
+            Opcode::FRAME_ADDRESS => {
+                self.execute_frame_address(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::FRAME_LOAD | Opcode::FRAME_STORE => {
+                self.execute_frame_memory(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::REFERENCE_POINTER => {
+                self.execute_reference_pointer(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::POINTER_OFFSET | Opcode::POINTER_INDEX | Opcode::POINTER_DISTANCE => {
+                self.execute_pointer(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::CAST_POINTER_TO_INT | Opcode::CAST_INT_TO_POINTER => {
+                let Some((operation, source, target)) = instruction.opcode().cast_operation()
+                else {
+                    unreachable!("pointer cast opcodes carry one exact conversion");
+                };
+                self.execute_cast(instruction, operation, source, target)?;
+
+                Ok(None)
+            }
+            // references
+            Opcode::LOAD | Opcode::STORE => {
+                self.execute_value_memory::<WATCH>(self.frame(), instruction_offset, instruction)
+            }
+            Opcode::FREE | Opcode::PIN | Opcode::UNPIN | Opcode::BARRIER => {
+                self.execute_reference(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::DROP => {
+                self.execute_drop(instruction, instruction_offset)?;
+
+                Ok(None)
+            }
+            // byte ranges
+            Opcode::COPY_BYTES
+            | Opcode::MOVE_BYTES
+            | Opcode::FILL_BYTES
+            | Opcode::COMPARE_BYTES
+            | Opcode::PREFETCH_READ
+            | Opcode::PREFETCH_WRITE => {
+                self.execute_byte_memory::<WATCH>(self.frame(), instruction_offset, instruction)
+            }
+            // atomics
+            Opcode::ATOMIC_FENCE => {
+                self.execute_atomic_fence(instruction)?;
+
+                Ok(None)
+            }
+            // control flow
+            Opcode::JUMP | Opcode::BRANCH => {
+                self.execute_control(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::SWITCH => {
+                self.execute_switch(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::CHECK_NULL | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
+                self.execute_runtime_check(instruction)?;
+
+                Ok(None)
+            }
+            // slices
+            Opcode::SLICE_VIEW | Opcode::SLICE_LENGTH => {
+                self.execute_slice(instruction)?;
+
+                Ok(None)
+            }
+            // function values
+            Opcode::FUNCTION_ADDRESS
+            | Opcode::FUNCTION_BIND
+            | Opcode::FUNCTION_ENVIRONMENT
+            | Opcode::FUNCTION_ENVIRONMENT_CURRENT => {
+                self.execute_function(instruction)?;
+
+                Ok(None)
+            }
+            // dynamic values
+            Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_PAYLOAD | Opcode::DYNAMIC_TYPE => {
+                self.execute_dynamic(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::CALL
+            | Opcode::CALL_INDIRECT
+            | Opcode::CALL_VIRTUAL
+            | Opcode::CALL_DYNAMIC
+            | Opcode::INVOKE
+            | Opcode::INVOKE_INDIRECT
+            | Opcode::INVOKE_VIRTUAL
+            | Opcode::INVOKE_DYNAMIC
+            | Opcode::TAIL_CALL
+            | Opcode::TAIL_CALL_INDIRECT
+            | Opcode::TAIL_CALL_VIRTUAL
+            | Opcode::TAIL_CALL_DYNAMIC => {
+                self.execute_call(instruction, instruction_offset)?;
+
+                Ok(None)
+            }
+            Opcode::RETURN => {
+                let outcome = self
+                    .execute_return(instruction)?
+                    .map(|value| Outcome::Completed { value });
+
+                Ok(outcome)
+            }
+            Opcode::YIELD => self
+                .execute_yield(instruction, instruction_offset)
+                .map(Some),
+            Opcode::PANIC | Opcode::PANIC_VALUE => {
+                self.execute_panic(instruction)?;
+
+                Ok(None)
+            }
+            Opcode::UNWIND_RESUME => {
+                self.execute_unwind_resume()?;
+
+                Ok(None)
+            }
+            // observation
+            Opcode::PROFILE_INCREMENT | Opcode::PROFILE_SAMPLE => {
                 if PROFILE {
-                    let instruction = &function.code[pc];
-
-                    if let Err(error) = activation.record_profile_step_at(
-                        function,
-                        block,
-                        pc - block_start,
-                        instruction,
-                    ) {
-                        return BlockDispatch::error(error, executed);
-                    }
+                    self.execute_profile(instruction)?;
                 }
 
-                // stop after memory operations when a watchpoint matches
-                if WATCH_POINTS {
-                    match activation.watch_memory_at(
-                        function,
-                        block,
-                        pc - block_start,
-                        pc - block_start + 1,
-                    ) {
-                        Ok(Some((reason, frame_state))) => {
-                            return BlockDispatch::new(
-                                Transfer::Stop {
-                                    reason,
-                                    frame_state,
-                                },
-                                executed,
-                            );
-                        }
-                        Ok(None) => {}
-                        Err(error) => return BlockDispatch::error(error, executed),
-                    }
-                }
+                Ok(None)
+            }
+            Opcode::BREAKPOINT => self.stop_after(instruction_offset).map(Some),
+            // traps
+            Opcode::UNREACHABLE => Err(Error::trap(Trap::Unreachable)),
+            Opcode::TRAP => {
+                self.execute_trap(instruction)?;
 
-                pc += 1;
-                continue;
-            }};
+                Ok(None)
+            }
+            // unsupported
+            opcode => Err(Error::unsupported_opcode(opcode.code())),
         }
-
-        macro_rules! transfer {
-            ($operation:expr) => {{
-                let transfer = $operation;
-
-                // record transfer profile effects before applying the transfer
-                if PROFILE {
-                    let instruction = &function.code[pc];
-
-                    if let Transfer::Jump { block: target, .. } = transfer {
-                        if let Err(error) = activation.record_profile_jump_at(
-                            function,
-                            block,
-                            pc - block_start,
-                            instruction,
-                            target,
-                        ) {
-                            return BlockDispatch::error(error, executed);
-                        }
-                    }
-
-                    if instruction.op.is_call() {
-                        if let Err(error) =
-                            activation.record_profile_call_at(function, block, pc - block_start)
-                        {
-                            return BlockDispatch::error(error, executed);
-                        }
-                    }
-                }
-
-                if LIMITED {
-                    return BlockDispatch::new(transfer, executed);
-                }
-
-                match transfer {
-                    Transfer::Jump {
-                        block: target,
-                        moves,
-                    } => {
-                        // enter same-frame jump target
-                        (block_start, pc, block_end) =
-                            match enter_block(activation, &function, target, moves) {
-                                Ok((block_start, block_end)) => {
-                                    (block_start, block_start, block_end)
-                                }
-                                Err(error) => return BlockDispatch::error(error, executed),
-                            };
-                        block = target;
-                        continue;
-                    }
-                    Transfer::Enter => {
-                        // rebind the dispatch loop after a call returns
-                        let frame = activation.active_frame();
-                        let function_id = frame.function();
-                        block = frame.block;
-                        let Some(next_function) = program.vm_function_by_id(function_id) else {
-                            return BlockDispatch::error(
-                                Error::undefined_function(function_id),
-                                executed,
-                            );
-                        };
-                        function = next_function;
-                        (block_start, pc, block_end) = match block_bounds(&function, block) {
-                            Ok((block_start, block_end)) => (block_start, block_start, block_end),
-                            Err(error) => return BlockDispatch::error(error, executed),
-                        };
-                        continue;
-                    }
-                    transfer => return BlockDispatch::new(transfer, executed),
-                }
-            }};
-        }
-
-        dispatch_instruction!(
-            activation,
-            function,
-            block,
-            pc,
-            pc - block_start,
-            step,
-            transfer
-        );
     }
 }

@@ -638,6 +638,11 @@ impl Opcode {
     /// The reserved invalid opcode.
     pub const INVALID: Self = Self(0);
 
+    /// Return whether this opcode belongs to one parameterized operation range.
+    pub const fn is_parameterized(self) -> bool {
+        self.0 >= OpcodeRange::CONSTANT.start()
+    }
+
     /// Create one exact scalar constant opcode.
     pub const fn constant(scalar: Scalar) -> Self {
         Self(OpcodeRange::CONSTANT.start() + scalar.code() as u16)

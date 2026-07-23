@@ -1,672 +1,187 @@
-use super::slice::{load_slice_length_at, store_slice_at};
-use crate::diagnostic::{Error, ReferenceKind, ResourceError};
+use std::ptr;
+
+use bytecode::{CodeOffset, Initialization, Instruction, New, NewKind, RegisterRange};
+use destack_bytecode as bytecode;
+use destack_heap::{AllocationPlan, HeapEdge, HeapError, Payload};
+use destack_mir as mir;
+use destack_program::{LayoutShape, TypeId, VirtualTableId, Word};
+
+use crate::diagnostic::{Error, Result};
 use crate::machine::Activation;
-use destack_program::vm::{Cell, StackPointer};
 
-use super::Transfer;
-use destack_heap::{HeapError, HeapReferenceKind};
-use destack_program::vm::{
-    AllocationBranch, AllocationPlanId, Edge, Instruction, SliceAllocationBranch,
-    SliceProjectionId, SmallAllocationPlanId,
-};
+impl Activation<'_, '_> {
+    /// Execute one local or shared heap allocation.
+    pub(crate) fn execute_new<const PROFILE: bool>(
+        &mut self,
+        instruction: Instruction<'_>,
+        instruction_offset: CodeOffset,
+        operation: New,
+    ) -> Result<()> {
+        let frame = self.frame();
+        let point = self.point(frame, instruction_offset)?;
+        let (site_id, site) = self
+            .machine
+            .program
+            .sites()
+            .allocation(self.machine.program.sections(), point)
+            .map(|(id, site)| (id, *site))
+            .ok_or_else(|| self.invalid_instruction())?;
+        let plan = self
+            .call
+            .storage
+            .allocation_plan(site_id)
+            .ok_or_else(|| self.invalid_instruction())?;
 
-/// Decode one power-of-two alignment from an instruction field.
-fn decode_alignment(alignment_log2: u32) -> usize {
-    1usize << alignment_log2
-}
+        // decode the allocation operands and optional branches
+        let mut operands = instruction.operands();
+        let results = if operation.kind == NewKind::Slice {
+            operands.range().map_err(|_| self.invalid_instruction())?
+        } else {
+            let result = operands
+                .register()
+                .map_err(|_| self.invalid_instruction())?;
 
-/// Return whether one VM error is a catchable allocation failure.
-#[inline]
-fn is_allocation_failure(error: &Error) -> bool {
-    matches!(
-        error,
-        Error::Resource {
-            reason: ResourceError::AllocationFailed | ResourceError::HeapLimitExceeded { .. },
+            RegisterRange::new(result, 1)
+        };
+        let ty = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
+        let length = if operation.kind == NewKind::Slice {
+            let length = operands
+                .register()
+                .map_err(|_| self.invalid_instruction())?;
+
+            self.read(length.0).as_u64() as usize
+        } else {
+            1
+        };
+        let branches = if operation.is_fallible {
+            let success = operands.i32().map_err(|_| self.invalid_instruction())?;
+            let failure = operands.i32().map_err(|_| self.invalid_instruction())?;
+
+            Some((success, failure))
+        } else {
+            None
+        };
+
+        // require the linked site to select the same storage
+        let is_expected_space = matches!(
+            (operation.space, site.space),
+            (bytecode::Space::LOCAL, mir::Space::Local)
+                | (bytecode::Space::SHARED, mir::Space::Shared)
+        );
+        if !is_expected_space || site.storage_type != ty {
+            return Err(self.invalid_instruction());
         }
-    )
-}
 
-/// Record one allocation failure and return the failure edge.
-#[cold]
-fn record_allocation_failure(
-    activation: &mut Activation<'_>,
-    error: Error,
-    edge: Edge,
-) -> Transfer {
-    activation.set_allocation_failure(error);
+        // derive repeated storage only for variable-length slice allocation
+        let plan = if operation.kind == NewKind::Slice {
+            self.repeated_plan(site.space, plan, length)?
+        } else {
+            plan
+        };
+        let payload = if operation.initialization == Initialization::Zeroed {
+            Payload::Zeroed
+        } else {
+            Payload::Uninit
+        };
+        let allocation = self.call.storage.allocate(
+            site.space,
+            plan,
+            payload,
+            self.machine.program.trace_view(),
+        );
 
-    Transfer::Jump {
-        block: edge.target,
-        moves: edge.moves,
-    }
-}
+        // route explicit allocation failure without changing result registers
+        let reference = match (allocation, branches) {
+            (Ok(reference), Some((success, _))) => {
+                self.frame_mut().branch(success);
 
-/// Execute local heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = AllocationPlanId(instruction.b);
-
-    // allocate from the allocation plan
-    let reference = activation.allocate_zeroed_heap(allocation)?;
-
-    // store result
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local uninitialized heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = AllocationPlanId(instruction.b);
-
-    let reference = activation.allocate_uninit_heap(allocation)?;
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local noscan small heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_small_noscan_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    // allocate from the small allocation plan
-    let reference = activation.allocate_zeroed_heap_small_noscan(allocation)?;
-
-    // store result
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local uninitialized noscan small heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_small_noscan_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    let reference = activation.allocate_uninit_heap_small_noscan(allocation)?;
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local scanned small heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_small_scan_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    // allocate from the small allocation plan
-    let reference = activation.allocate_zeroed_heap_small_scan(allocation)?;
-
-    // store result
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local uninitialized scanned small heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_small_scan_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    let reference = activation.allocate_uninit_heap_small_scan(allocation)?;
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local shared-edge small heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_small_shared_edge_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    // allocate from the small allocation plan
-    let reference = activation.allocate_zeroed_heap_small_shared_edge(allocation)?;
-
-    // store result
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local uninitialized shared-edge small heap allocation.
-#[inline(always)]
-pub(crate) fn execute_allocate_heap_small_shared_edge_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    let reference = activation.allocate_uninit_heap_small_shared_edge(allocation)?;
-    activation.store_cell_at(dest, Cell::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute shared heap allocation.
-pub(crate) fn execute_allocate_shared_heap_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = AllocationPlanId(instruction.b);
-
-    // allocate from the allocation plan
-    let reference = activation.allocate_zeroed_shared_heap(allocation)?;
-
-    // store result
-    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute shared uninitialized heap allocation.
-pub(crate) fn execute_allocate_shared_heap_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = AllocationPlanId(instruction.b);
-
-    let reference = activation.allocate_uninit_shared_heap(allocation)?;
-    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute shared small heap allocation.
-pub(crate) fn execute_allocate_shared_heap_small_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    // allocate from the small allocation plan
-    let reference = activation.allocate_zeroed_shared_heap_small(allocation)?;
-
-    // store result
-    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute shared uninitialized small heap allocation.
-pub(crate) fn execute_allocate_shared_heap_small_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = SmallAllocationPlanId(instruction.b);
-
-    let reference = activation.allocate_uninit_shared_heap_small(allocation)?;
-    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute one fallible zeroed local heap allocation branch.
-pub(crate) fn execute_allocate_heap_zeroed_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_branch::<false, true>(activation, instruction)
-}
-
-/// Execute one fallible uninitialized local heap allocation branch.
-pub(crate) fn execute_allocate_heap_uninit_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_branch::<false, false>(activation, instruction)
-}
-
-/// Execute one fallible zeroed shared heap allocation branch.
-pub(crate) fn execute_allocate_shared_heap_zeroed_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_branch::<true, true>(activation, instruction)
-}
-
-/// Execute one fallible uninitialized shared heap allocation branch.
-pub(crate) fn execute_allocate_shared_heap_uninit_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_branch::<true, false>(activation, instruction)
-}
-
-/// Execute one fallible allocation branch.
-#[inline(always)]
-fn execute_allocate_branch<const IS_SHARED: bool, const IS_ZEROED: bool>(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    let branch = *activation.side::<AllocationBranch>(instruction);
-    activation.clear_allocation_failure();
-    let reference = allocate_branch_payload::<IS_SHARED, IS_ZEROED>(activation, branch.allocation);
-
-    match reference {
-        Ok(reference) => {
-            activation.store_cell_at(branch.destination, reference);
-            Transfer::Jump {
-                block: branch.success.target,
-                moves: branch.success.moves,
+                reference
             }
-        }
-        Err(error) if is_allocation_failure(&error) => {
-            record_allocation_failure(activation, error, branch.failure)
-        }
-        Err(error) => Transfer::Error(error),
-    }
-}
+            (Err(error), Some((_, failure))) if Self::is_allocation_failure(&error) => {
+                self.frame_mut().branch(failure);
 
-/// Allocate one fallible heap payload.
-#[inline(always)]
-fn allocate_branch_payload<const IS_SHARED: bool, const IS_ZEROED: bool>(
-    activation: &mut Activation<'_>,
-    allocation: AllocationPlanId,
-) -> Result<Cell, Error> {
-    if IS_SHARED && IS_ZEROED {
-        activation
-            .allocate_zeroed_shared_heap(allocation)
-            .map(Cell::shared_heap_reference)
-    } else if IS_SHARED {
-        activation
-            .allocate_uninit_shared_heap(allocation)
-            .map(Cell::shared_heap_reference)
-    } else if IS_ZEROED {
-        activation
-            .allocate_zeroed_heap(allocation)
-            .map(Cell::heap_reference)
-    } else {
-        activation
-            .allocate_uninit_heap(allocation)
-            .map(Cell::heap_reference)
-    }
-}
-
-/// Execute local slice allocation.
-pub(crate) fn execute_allocate_slice_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode fixed fields
-    let dest = instruction.a;
-    let length = instruction.b;
-    let element = AllocationPlanId(instruction.c);
-    let access = SliceProjectionId(instruction.d);
-    let access = activation.slice_projection(access);
-
-    // load slice length
-    let length = load_slice_length_at(activation, length)?;
-
-    // build the backing array allocation shape
-    let backing_reference = activation
-        .allocate_zeroed_heap_slice(element, length)
-        .map(Cell::heap_reference)?;
-
-    // write the slice descriptor
-    store_slice_at(activation, dest, access, backing_reference, length)?;
-
-    Ok(())
-}
-
-/// Execute local uninitialized slice allocation.
-pub(crate) fn execute_allocate_slice_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let length = instruction.b;
-    let element = AllocationPlanId(instruction.c);
-    let access = SliceProjectionId(instruction.d);
-    let access = activation.slice_projection(access);
-
-    let length = load_slice_length_at(activation, length)?;
-    let backing_reference = activation
-        .allocate_uninit_heap_slice(element, length)
-        .map(Cell::heap_reference)?;
-
-    store_slice_at(activation, dest, access, backing_reference, length)?;
-
-    Ok(())
-}
-
-/// Execute shared slice allocation.
-pub(crate) fn execute_allocate_shared_slice_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode fixed fields
-    let dest = instruction.a;
-    let length = instruction.b;
-    let element = AllocationPlanId(instruction.c);
-    let access = SliceProjectionId(instruction.d);
-    let access = activation.slice_projection(access);
-
-    // load slice length
-    let length = load_slice_length_at(activation, length)?;
-
-    // build the backing array allocation shape
-    let backing_reference = activation
-        .allocate_zeroed_shared_heap_slice(element, length)
-        .map(Cell::shared_heap_reference)?;
-
-    // write the slice descriptor
-    store_slice_at(activation, dest, access, backing_reference, length)?;
-
-    Ok(())
-}
-
-/// Execute shared uninitialized slice allocation.
-pub(crate) fn execute_allocate_shared_slice_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let length = instruction.b;
-    let element = AllocationPlanId(instruction.c);
-    let access = SliceProjectionId(instruction.d);
-    let access = activation.slice_projection(access);
-
-    let length = load_slice_length_at(activation, length)?;
-    let backing_reference = activation
-        .allocate_uninit_shared_heap_slice(element, length)
-        .map(Cell::shared_heap_reference)?;
-
-    store_slice_at(activation, dest, access, backing_reference, length)?;
-
-    Ok(())
-}
-
-/// Execute one fallible zeroed local slice allocation branch.
-pub(crate) fn execute_allocate_slice_zeroed_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_slice_branch::<false, true>(activation, instruction)
-}
-
-/// Execute one fallible uninitialized local slice allocation branch.
-pub(crate) fn execute_allocate_slice_uninit_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_slice_branch::<false, false>(activation, instruction)
-}
-
-/// Execute one fallible zeroed shared slice allocation branch.
-pub(crate) fn execute_allocate_shared_slice_zeroed_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_slice_branch::<true, true>(activation, instruction)
-}
-
-/// Execute one fallible uninitialized shared slice allocation branch.
-pub(crate) fn execute_allocate_shared_slice_uninit_branch(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    execute_allocate_slice_branch::<true, false>(activation, instruction)
-}
-
-/// Execute one fallible slice allocation branch.
-#[inline(always)]
-fn execute_allocate_slice_branch<const IS_SHARED: bool, const IS_ZEROED: bool>(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Transfer {
-    let branch = *activation.side::<SliceAllocationBranch>(instruction);
-    activation.clear_allocation_failure();
-
-    let length = match load_slice_length_at(activation, branch.length) {
-        Ok(length) => length,
-        Err(error) if is_allocation_failure(&error) => {
-            return record_allocation_failure(activation, error, branch.failure);
-        }
-        Err(error) => return Transfer::Error(error),
-    };
-    let reference =
-        allocate_slice_branch_payload::<IS_SHARED, IS_ZEROED>(activation, branch.element, length);
-
-    match reference {
-        Ok(backing_reference) => {
-            let access = activation.slice_projection(branch.access);
-            if let Err(error) = store_slice_at(
-                activation,
-                branch.destination,
-                access,
-                backing_reference,
-                length,
-            ) {
-                return Transfer::Error(error);
+                return Ok(());
             }
+            (Err(error), _) => return Err(Error::heap(error)),
+            (Ok(reference), None) => reference,
+        };
 
-            Transfer::Jump {
-                block: branch.success.target,
-                moves: branch.success.moves,
-            }
+        // initialize the dispatch word only for virtual objects
+        if let Some(table) = site.virtual_table.get() {
+            self.initialize_dispatch(reference, site.storage_type, table)?;
         }
-        Err(error) if is_allocation_failure(&error) => {
-            record_allocation_failure(activation, error, branch.failure)
+
+        // materialize the one-word reference or two-word slice descriptor
+        self.write(results.start.0, Word::from_bits(reference.bits() as u64));
+        if operation.kind == NewKind::Slice {
+            self.write(results.start.0 + 1, Word::uint64(length as u64));
         }
-        Err(error) => Transfer::Error(error),
-    }
-}
 
-/// Allocate one fallible slice backing payload.
-#[inline(always)]
-fn allocate_slice_branch_payload<const IS_SHARED: bool, const IS_ZEROED: bool>(
-    activation: &mut Activation<'_>,
-    allocation: AllocationPlanId,
-    length: usize,
-) -> Result<Cell, Error> {
-    if IS_SHARED && IS_ZEROED {
-        activation
-            .allocate_zeroed_shared_heap_slice(allocation, length)
-            .map(Cell::shared_heap_reference)
-    } else if IS_SHARED {
-        activation
-            .allocate_uninit_shared_heap_slice(allocation, length)
-            .map(Cell::shared_heap_reference)
-    } else if IS_ZEROED {
-        activation
-            .allocate_zeroed_heap_slice(allocation, length)
-            .map(Cell::heap_reference)
-    } else {
-        activation
-            .allocate_uninit_heap_slice(allocation, length)
-            .map(Cell::heap_reference)
-    }
-}
+        // record only successful allocations in observed execution
+        if PROFILE {
+            let Some(profile) = self.profile.as_deref_mut() else {
+                unreachable!("profiled dispatch requires an active profile");
+            };
 
-/// Execute unique heap free.
-pub(crate) fn execute_free_heap(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let reference = instruction.a;
-
-    // free the unique heap allocation
-    let reference = activation.load_cell_at(reference).as_heap_reference();
-    match activation.free_heap(reference) {
-        Ok(()) => {}
-        Err(HeapError::InvalidReference {
-            kind: HeapReferenceKind::Heap,
-            ..
-        }) => {
-            return Err(Error::invalid_reference(ReferenceKind::Heap));
+            profile.record_allocation(site_id, plan.byte_len);
         }
-        Err(error) => return Err(Error::from(error)),
+
+        Ok(())
     }
 
-    Ok(())
-}
+    /// Initialize one virtual object's durable dispatch table id.
+    fn initialize_dispatch(&self, edge: HeapEdge, ty: TypeId, table: VirtualTableId) -> Result<()> {
+        let layout = self
+            .machine
+            .program
+            .layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let LayoutShape::Object(object) = layout.shape else {
+            return Err(self.invalid_instruction());
+        };
+        let Some(offset) = object.dispatch_offset.get() else {
+            return Err(self.invalid_instruction());
+        };
+        let address = self.call.storage.native_address(edge) + offset as usize;
 
-/// Execute unique shared heap free.
-pub(crate) fn execute_free_shared_heap(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let reference = instruction.a;
+        // SAFETY: the linked object layout reserves this field inside the new allocation
+        unsafe { ptr::write_unaligned(address as *mut u32, table.0) };
 
-    // free the unique shared heap allocation
-    let reference = activation
-        .load_cell_at(reference)
-        .as_shared_heap_reference();
-    match activation.free_shared_heap(reference) {
-        Ok(()) => {}
-        Err(HeapError::InvalidReference {
-            kind: HeapReferenceKind::SharedHeap,
-            ..
-        }) => {
-            return Err(Error::invalid_reference(ReferenceKind::SharedHeap));
-        }
-        Err(error) => return Err(Error::from(error)),
+        Ok(())
     }
 
-    Ok(())
-}
+    /// Complete one initialized allocation.
+    pub(crate) fn execute_new_complete(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let results = operands.range().map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
 
-/// Execute local heap pin.
-pub(crate) fn execute_pin_heap(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let value = instruction.b;
+        self.move_range(source, results);
 
-    // pin the local heap reference
-    let reference = activation.load_cell_at(value).as_heap_reference();
-    match activation.pin_heap(reference) {
-        Ok(reference) => activation.store_cell_at(dest, Cell::heap_reference(reference)),
-        Err(HeapError::InvalidReference {
-            kind: HeapReferenceKind::Heap,
-            ..
-        }) => {
-            return Err(Error::invalid_reference(ReferenceKind::Heap));
-        }
-        Err(error) => return Err(Error::from(error)),
+        Ok(())
     }
 
-    Ok(())
-}
+    /// Build one runtime-sized slice allocation plan.
+    fn repeated_plan(
+        &self,
+        space: mir::Space,
+        element: AllocationPlan,
+        length: usize,
+    ) -> Result<AllocationPlan> {
+        let trace_map = element
+            .trace_map(self.machine.program.trace_view())
+            .map_err(Error::heap)?;
+        let shape = element.repeat(&trace_map, length).map_err(Error::heap)?;
+        let plan = self.call.storage.plan_allocation(space, &shape);
 
-/// Execute shared heap pin.
-pub(crate) fn execute_pin_shared_heap(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let value = instruction.b;
-
-    // shared heap references are already stable
-    let reference = activation.load_cell_at(value).as_shared_heap_reference();
-    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local heap unpin.
-pub(crate) fn execute_unpin_heap(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let value = instruction.a;
-
-    // release the local heap pin
-    let reference = activation.load_cell_at(value).as_heap_reference();
-    match activation.unpin_heap(reference) {
-        Ok(()) => {}
-        Err(HeapError::InvalidReference {
-            kind: HeapReferenceKind::Heap,
-            ..
-        }) => {
-            return Err(Error::invalid_reference(ReferenceKind::Heap));
-        }
-        Err(error) => return Err(Error::from(error)),
+        Ok(plan)
     }
 
-    Ok(())
-}
-
-/// Execute shared heap unpin.
-pub(crate) fn execute_unpin_shared_heap(
-    _machine: &mut Activation<'_>,
-    _instruction: &Instruction,
-) -> Result<(), Error> {
-    // shared heap pins do not need worker-local release
-    Ok(())
-}
-
-/// Execute stack allocation.
-pub(crate) fn execute_allocate_stack_zeroed(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
-    let byte_len = byte_len as usize;
-    let alignment = decode_alignment(instruction.d);
-
-    // allocate stack bytes from the lowered layout
-    let offset = activation.allocate_stack_zeroed(byte_len, alignment)?;
-    let sp = StackPointer::from_offset(offset);
-    let value = Cell::stack_pointer(sp);
-
-    activation.store_cell_at(dest, value);
-
-    Ok(())
-}
-
-/// Execute uninitialized stack allocation.
-pub(crate) fn execute_allocate_stack_uninit(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
-    let byte_len = byte_len as usize;
-    let alignment = decode_alignment(instruction.d);
-
-    let offset = activation.allocate_stack_uninit(byte_len, alignment)?;
-    let sp = StackPointer::from_offset(offset);
-    let value = Cell::stack_pointer(sp);
-
-    activation.store_cell_at(dest, value);
-
-    Ok(())
+    /// Return whether one heap failure follows a fallible allocation edge.
+    fn is_allocation_failure(error: &HeapError) -> bool {
+        matches!(
+            error,
+            HeapError::LimitExceeded { .. } | HeapError::Memory { .. }
+        )
+    }
 }

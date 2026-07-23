@@ -1,6 +1,6 @@
 [package]
 name = "destack_vm"
-description = "Destack VM - MIR machine and JIT execution engine"
+description = "Destack bytecode virtual machine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -16,27 +16,27 @@ default = []
 
 [dependencies]
 # language
-destack_core = { workspace = true }
-destack_program = { workspace = true }
+destack_bytecode = { workspace = true }
 destack_heap = { workspace = true }
 destack_memory = { workspace = true }
 destack_mir = { workspace = true }
+destack_program = { workspace = true }
 destack_serde = { workspace = true }
-destack_source = { workspace = true }
 
 # util
 serde = { workspace = true, features = ["rc"] }
-smallvec = { workspace = true }
 
 [dev-dependencies]
-clap = { workspace = true, features = ["derive"] }
+# language
+destack_core = { workspace = true }
+destack_source = { workspace = true }
+
+# util
 criterion = { workspace = true }
-destack_compiler = { workspace = true }
-pprof = { workspace = true }
 
 [[bench]]
-name = "dispatch"
-path = "benches/dispatch/bench.rs"
+name = "execute"
+path = "benches/execute/bench.rs"
 harness = false
 
 [lints]

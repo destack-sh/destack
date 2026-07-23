@@ -1,711 +1,362 @@
-use crate::diagnostic::{Error, ProgramError};
-use crate::tests::{
-    TestMachine, assert_runtime_error_matches, run_mir_expect, run_mir_with_frame,
-    run_mir_with_frame_ok,
-};
-use destack_program::Value;
-use destack_program::vm::Cell;
+use destack_mir::{FloatType, Space};
+use destack_program::{ScalarFormat, Word};
 
-/// Return one float16 test cell.
-fn float16_cell(value: f64) -> Cell {
-    Cell::from(&Value::float16(value))
-}
+use super::{TestMachine, TestProgram};
 
-/// Create a tensor value from the provided elements.
-fn tensor_from_values(
-    machine: &mut TestMachine,
-    function: &str,
-    index: usize,
-    values: &[i32],
-) -> Cell {
-    let ty = machine.parameter_type(function, index);
-    let elements = values.iter().copied().map(Cell::int32).collect();
-
-    machine.materialize_value_for_type(ty, elements)
-}
-
-/// Create a tensor value from the provided float elements.
-fn tensor_from_f64_values(
-    machine: &mut TestMachine,
-    function: &str,
-    index: usize,
-    values: &[f64],
-) -> Cell {
-    let ty = machine.parameter_type(function, index);
-    let elements = values.iter().copied().map(Cell::float64).collect();
-
-    machine.materialize_value_for_type(ty, elements)
-}
-
-/// Create a tensor value from the provided float16 elements.
-fn tensor_from_f16_values(
-    machine: &mut TestMachine,
-    function: &str,
-    index: usize,
-    values: &[f64],
-) -> Cell {
-    let ty = machine.parameter_type(function, index);
-    let elements = values.iter().copied().map(float16_cell).collect();
-
-    machine.materialize_value_for_type(ty, elements)
-}
-
-/// Run one tensor MIR function and assert its scalar result.
-fn run_tensor_expect<F>(mir_text: &str, function: &str, setup: F, expected: Value)
-where
-    F: FnOnce(&mut TestMachine) -> Vec<Cell>,
-{
-    let output = run_mir_with_frame_ok(mir_text, function, setup);
-
-    assert_eq!(output, expected);
-}
-
-/// Tensor splat broadcasts a scalar to every element.
+/// Execute tensor allocation, elementwise arithmetic, and scalar extraction.
 #[test]
-fn test_tensor_splat() {
-    let mir = r#"
-function tensorSplat(): int32 {
-entry:
-    v0: int32 = 7
-    v1: tensor<int32, (2, 2)> = tensor.splat v0
-    v2: int32 = 1
-    v3: int32 = 0
-    v4: int32 = tensor.extract v1, [v2, v3]
-    return v4
-}
-"#;
-    run_mir_expect(mir, "tensorSplat", &[], Value::int32(7));
-}
+fn test_execute_tensor_arithmetic() {
+    let first = TestMachine::tensor_allocation(0, 0, Space::Local, 0);
+    let second = TestMachine::tensor_allocation(0, 1, Space::Local, 0);
+    let sum = TestMachine::tensor_allocation(0, 2, Space::Local, 0);
+    let test = TestProgram::new()
+        .tensor(0, 1, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .allocations([first, second, sum]);
+    let mut machine = TestMachine::parse(
+        r#"
+type Matrix
+type Element
 
-/// Tensor binary arithmetic walks contiguous tensor values elementwise.
-#[test]
-fn test_tensor_binary() {
-    let mir = r#"
-function tensorBinary(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
-    v2: tensor<int32, (2, 2)> = int.add v0, v1
-    v3: int64 = 1
-    v4: int64 = 0
-    v5: int32 = tensor.extract v2, [v3, v4]
-    return v5
+export function add(
+    r0: int32,
+    r1: int32,
+    r2: uint64,
+    r3: uint64,
+): int32 {
+    r4: tensor<int32, Matrix, space(local)> = tensor.splat r0
+    r5: tensor<int32, Matrix, space(local)> = tensor.splat r1
+    r6: tensor<int32, Matrix, space(local)> = int.add r4, r5
+    r7: int32 = tensor.extract r6, [r2, r3]
+    return r7
 }
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorBinary",
-        |interp| {
-            vec![
-                tensor_from_values(interp, "tensorBinary", 0, &[1, 2, 3, 4]),
-                tensor_from_values(interp, "tensorBinary", 1, &[10, 20, 30, 40]),
-            ]
-        },
-        Value::int32(33),
+"#,
+        test,
     );
-}
 
-/// Tensor float16 arithmetic walks contiguous tensor values elementwise.
-#[test]
-fn test_tensor_float16_binary() {
-    let mir = r#"
-function tensorFloat16(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>): float16 {
-entry(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>):
-    v2: tensor<float16, (2, 2)> = float.add v0, v1
-    v3: int64 = 1
-    v4: int64 = 0
-    v5: float16 = tensor.extract v2, [v3, v4]
-    return v5
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorFloat16",
-        |interp| {
-            vec![
-                tensor_from_f16_values(interp, "tensorFloat16", 0, &[1.0, 2.0, 3.0, 4.0]),
-                tensor_from_f16_values(interp, "tensorFloat16", 1, &[10.0, 20.0, 30.0, 40.0]),
-            ]
-        },
-        Value::float16(33.0),
+    let value = machine.complete(
+        "add",
+        &[
+            Word::int32(13),
+            Word::int32(29),
+            Word::uint64(1),
+            Word::uint64(0),
+        ],
     );
+
+    assert_eq!(value, vec![Word::int32(42)]);
 }
 
-/// Tensor load and store operate on tensor references.
+/// Execute a tensor reshape while preserving logical element order.
 #[test]
-fn test_tensor_load_store() {
-    let mir = r#"
-function tensorLoadStore(): int32 {
-entry:
-    v0: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v1: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
-    v2: int32 = 42
-    v3: int32 = 1
-    v4: int32 = 0
-    tensor.store v1, [v3, v4], v2
-    v5: int32 = tensor.load v1, [v3, v4]
-    return v5
-}
-"#;
-    run_mir_expect(mir, "tensorLoadStore", &[], Value::int32(42));
-}
+fn test_execute_tensor_reshape() {
+    let matrix = TestMachine::tensor_allocation(0, 0, Space::Local, 0);
+    let row = TestMachine::tensor_allocation(0, 1, Space::Local, 1);
+    let test = TestProgram::new()
+        .tensor(0, 2, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .tensor(1, 2, ScalarFormat::int(32, true), Space::Local, [1, 4])
+        .allocations([matrix, row]);
+    let mut machine = TestMachine::parse(
+        r#"
+type Matrix
+type Row
+type Element
 
-/// Tensor fill and copy write through tensor references.
-#[test]
-fn test_tensor_fill_copy() {
-    let mir = r#"
-function tensorFillCopy(): int32 {
-entry:
-    v0: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v1: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v2: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
-    v3: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v1 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
-    v4: int32 = 5
-    tensor.fill v2, v4
-    tensor.copy v3, v2
-    v5: int32 = 1
-    v6: int32 = 1
-    v7: int32 = tensor.load v3, [v5, v6]
-    return v7
+export function reshape(
+    r0: int32,
+    r1: uint64,
+    r2: uint64,
+    r3: uint64,
+    r4: uint64,
+): int32 {
+    r5: tensor<int32, Matrix, space(local)> = tensor.splat r0
+    r6: tensor<int32, Row, space(local)> = tensor.reshape r5, shape(r1, r2)
+    r7: int32 = tensor.extract r6, [r3, r4]
+    return r7
 }
-"#;
-    run_mir_expect(mir, "tensorFillCopy", &[], Value::int32(5));
-}
-
-/// Tensor reshape preserves element order.
-#[test]
-fn test_tensor_reshape() {
-    let mir = r#"
-function tensorReshape(v0: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 4
-    v2: int32 = 1
-    v3: tensor<int32, (4, 1)> = tensor.reshape v0, shape(v1, v2)
-    v4: int64 = 3
-    v5: int64 = 0
-    v6: int32 = tensor.extract v3, [v4, v5]
-    return v6
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorReshape",
-        |interp| {
-            vec![tensor_from_values(
-                interp,
-                "tensorReshape",
-                0,
-                &[1, 2, 3, 4],
-            )]
-        },
-        Value::int32(4),
+"#,
+        test,
     );
-}
 
-/// Tensor broadcast duplicates the input across expanded dimensions.
-#[test]
-fn test_tensor_broadcast() {
-    let mir = r#"
-function tensorBroadcast(v0: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>):
-    v1: tensor<int32, (2, 2)> = tensor.broadcast v0, dimensions(0, 1)
-    v2: int64 = 1
-    v3: int32 = tensor.extract v1, [v2, v2]
-    return v3
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorBroadcast",
-        |interp| {
-            vec![tensor_from_values(
-                interp,
-                "tensorBroadcast",
-                0,
-                &[1, 2, 3, 4],
-            )]
-        },
-        Value::int32(4),
+    let value = machine.complete(
+        "reshape",
+        &[
+            Word::int32(37),
+            Word::uint64(1),
+            Word::uint64(4),
+            Word::uint64(0),
+            Word::uint64(3),
+        ],
     );
+
+    assert_eq!(value, vec![Word::int32(37)]);
 }
 
-/// Tensor transpose swaps axes as requested.
+/// Transform, slice, and pad tensors while preserving axis order and values.
 #[test]
-fn test_tensor_transpose() {
-    let mir = r#"
-function tensorTranspose(v0: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>):
-    v1: tensor<int32, (2, 2)> = tensor.transpose v0, permutation(1, 0)
-    v2: int64 = 0
-    v3: int64 = 1
-    v4: int32 = tensor.extract v1, [v2, v3]
-    return v4
+fn test_execute_tensor_shape_pipeline() {
+    let first = TestMachine::tensor_allocation(0, 0, Space::Local, 0);
+    let second = TestMachine::tensor_allocation(0, 1, Space::Local, 0);
+    let matrix = TestMachine::tensor_allocation(0, 2, Space::Local, 1);
+    let transposed = TestMachine::tensor_allocation(0, 3, Space::Local, 1);
+    let column = TestMachine::tensor_allocation(0, 4, Space::Local, 2);
+    let padded = TestMachine::tensor_allocation(0, 5, Space::Local, 3);
+    let test = TestProgram::new()
+        .tensor(0, 4, ScalarFormat::int(32, true), Space::Local, [1, 2])
+        .tensor(1, 4, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .tensor(2, 4, ScalarFormat::int(32, true), Space::Local, [2, 1])
+        .tensor(3, 4, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .allocations([first, second, matrix, transposed, column, padded]);
+    let mut machine = TestMachine::parse(
+        r#"
+type Row
+type Matrix
+type Column
+type Padded
+type Element
+
+export function transform(
+    r0: int32,
+    r1: int32,
+    r2: int32,
+    r3: uint64,
+    r4: uint64,
+    r5: uint64,
+): (int32, int32) {
+    r6: tensor<int32, Row, space(local)> = tensor.splat r0
+    r7: tensor<int32, Row, space(local)> = tensor.splat r1
+    r8: tensor<int32, Matrix, space(local)> = tensor.concat tensors(r6, r7), axis(0)
+    r9: tensor<int32, Matrix, space(local)> = tensor.transpose r8, permutation(1, 0)
+    r10: tensor<int32, Column, space(local)> = tensor.slice r9,
+        offsets(r3, r4),
+        sizes(r5, r4),
+        strides(r4, r4)
+    r11: tensor<int32, Padded, space(local)> = tensor.pad r10,
+        value(r2),
+        low(r3, r4),
+        high(r3, r3),
+        interior(r3, r3)
+    r12: int32 = tensor.extract r11, [r4, r4]
+    r13: int32 = tensor.extract r11, [r3, r3]
+    return r12, r13
 }
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorTranspose",
-        |interp| {
-            vec![tensor_from_values(
-                interp,
-                "tensorTranspose",
-                0,
-                &[1, 2, 3, 4],
-            )]
-        },
-        Value::int32(3),
+"#,
+        test,
     );
-}
 
-/// Tensor slice extracts the requested window.
-#[test]
-fn test_tensor_slice() {
-    let mir = r#"
-function tensorSlice(v0: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 0
-    v2: int32 = 1
-    v3: int32 = 2
-    v4: tensor<int32, (2, 1)> = tensor.slice v0, offsets(v1, v2), sizes(v3, v2), strides(v2, v2)
-    v5: int64 = 1
-    v6: int64 = 0
-    v7: int32 = tensor.extract v4, [v5, v6]
-    return v7
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorSlice",
-        |interp| vec![tensor_from_values(interp, "tensorSlice", 0, &[1, 2, 3, 4])],
-        Value::int32(4),
+    let value = machine.complete(
+        "transform",
+        &[
+            Word::int32(7),
+            Word::int32(9),
+            Word::int32(0),
+            Word::uint64(0),
+            Word::uint64(1),
+            Word::uint64(2),
+        ],
     );
+
+    assert_eq!(value, vec![Word::int32(9), Word::int32(0)]);
 }
 
-/// Tensor pad inserts the requested padding values.
+/// Reduce tensor values and return the selected extremum index.
 #[test]
-fn test_tensor_pad() {
-    let mir = r#"
-function tensorPad(v0: tensor<int32, (1, 1)>): int32 {
-entry(v0: tensor<int32, (1, 1)>):
-    v1: int32 = 0
-    v2: int32 = 1
-    v3: tensor<int32, (2, 2)> = tensor.pad v0, value(v1), low(v1, v1), high(v2, v2), interior(v1, v1)
-    v4: int64 = 0
-    v5: int32 = tensor.extract v3, [v4, v4]
-    return v5
+fn test_execute_tensor_reductions() {
+    let first = TestMachine::tensor_allocation(0, 0, Space::Local, 0);
+    let second = TestMachine::tensor_allocation(0, 1, Space::Local, 0);
+    let matrix = TestMachine::tensor_allocation(0, 2, Space::Local, 1);
+    let sums = TestMachine::tensor_allocation(0, 3, Space::Local, 2);
+    let indices = TestMachine::tensor_allocation(0, 4, Space::Local, 3);
+    let test = TestProgram::new()
+        .tensor(0, 4, ScalarFormat::int(32, true), Space::Local, [1, 2])
+        .tensor(1, 4, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .tensor(2, 4, ScalarFormat::int(32, true), Space::Local, [2])
+        .tensor(3, 5, ScalarFormat::int(64, false), Space::Local, [2])
+        .allocations([first, second, matrix, sums, indices]);
+    let mut machine = TestMachine::parse(
+        r#"
+type Row
+type Matrix
+type Reduced
+type Indices
+type IntElement
+type IndexElement
+
+export function reduce(
+    r0: int32,
+    r1: int32,
+    r2: int32,
+    r3: uint64,
+): (int32, uint64) {
+    r4: tensor<int32, Row, space(local)> = tensor.splat r0
+    r5: tensor<int32, Row, space(local)> = tensor.splat r1
+    r6: tensor<int32, Matrix, space(local)> = tensor.concat tensors(r4, r5), axis(0)
+    r7: tensor<int32, Reduced, space(local)> = tensor.reduce add, r6, r2, axes(0)
+    r8: tensor<uint64, Indices, space(local)> = tensor.indexReduce max, r6,
+        axis(0),
+        tieBreak(first)
+    r9: int32 = tensor.extract r7, [r3]
+    r10: uint64 = tensor.extract r8, [r3]
+    return r9, r10
 }
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorPad",
-        |interp| vec![tensor_from_values(interp, "tensorPad", 0, &[9])],
-        Value::int32(9),
+"#,
+        test,
     );
-}
 
-/// Tensor concat appends tensors along the specified axis.
-#[test]
-fn test_tensor_concat() {
-    let mir = r#"
-function tensorConcat(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>): int32 {
-entry(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>):
-    v2: tensor<int32, (2, 2)> = tensor.concat tensors(v0, v1), axis(0)
-    v3: int64 = 1
-    v4: int32 = tensor.extract v2, [v3, v3]
-    return v4
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorConcat",
-        |interp| {
-            vec![
-                tensor_from_values(interp, "tensorConcat", 0, &[1, 2]),
-                tensor_from_values(interp, "tensorConcat", 1, &[3, 4]),
-            ]
-        },
-        Value::int32(4),
+    let value = machine.complete(
+        "reduce",
+        &[
+            Word::int32(3),
+            Word::int32(7),
+            Word::int32(0),
+            Word::uint64(1),
+        ],
     );
+
+    assert_eq!(value, vec![Word::int32(10), Word::uint64(1)]);
 }
 
-/// Tensor reduce collapses the requested axes.
+/// Compare, select, and convert tensor elements through scalar operation families.
 #[test]
-fn test_tensor_reduce() {
-    let mir = r#"
-function tensorReduce(v0: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 0
-    v2: tensor<int32, (2)> = tensor.reduce add, v0, v1, axes(1)
-    v3: int64 = 1
-    v4: int32 = tensor.extract v2, [v3]
-    return v4
+fn test_execute_tensor_element_pipeline() {
+    let first = TestMachine::tensor_allocation(0, 0, Space::Local, 0);
+    let second = TestMachine::tensor_allocation(0, 1, Space::Local, 0);
+    let compared = TestMachine::tensor_allocation(0, 2, Space::Local, 1);
+    let selected = TestMachine::tensor_allocation(0, 3, Space::Local, 0);
+    let converted = TestMachine::tensor_allocation(0, 4, Space::Local, 2);
+    let test = TestProgram::new()
+        .tensor(0, 3, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .tensor(1, 4, ScalarFormat::Boolean, Space::Local, [2, 2])
+        .tensor(
+            2,
+            5,
+            ScalarFormat::float(FloatType::Float32),
+            Space::Local,
+            [2, 2],
+        )
+        .allocations([first, second, compared, selected, converted]);
+    let mut machine = TestMachine::parse(
+        r#"
+type IntMatrix
+type BooleanMatrix
+type FloatMatrix
+type IntElement
+type BooleanElement
+type FloatElement
+
+export function choose(
+    r0: int32,
+    r1: int32,
+    r2: uint64,
+    r3: uint64,
+): float32 {
+    r4: tensor<int32, IntMatrix, space(local)> = tensor.splat r0
+    r5: tensor<int32, IntMatrix, space(local)> = tensor.splat r1
+    r6: tensor<boolean, BooleanMatrix, space(local)> = tensor.compare int.lt, r4, r5
+    r7: tensor<int32, IntMatrix, space(local)> = tensor.select r6, r5, r4
+    r8: tensor<float32, FloatMatrix, space(local)> = tensor.convert exact, r7
+    r9: float32 = tensor.extract r8, [r2, r3]
+    return r9
 }
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorReduce",
-        |interp| vec![tensor_from_values(interp, "tensorReduce", 0, &[1, 2, 3, 4])],
-        Value::int32(7),
+"#,
+        test,
     );
-}
 
-/// Tensor reduce requires the destination shape produced by removing reduced axes.
-#[test]
-fn test_tensor_reduce_rejects_wrong_destination_shape() {
-    let mir = r#"
-function tensorReduce(v0: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 0
-    v2: tensor<int32, (2, 2)> = tensor.reduce add, v0, v1, axes(1)
-    v3: int64 = 0
-    v4: int32 = tensor.extract v2, [v3, v3]
-    return v4
-}
-"#;
-    let result = run_mir_with_frame(mir, "tensorReduce", |interp| {
-        vec![tensor_from_values(interp, "tensorReduce", 0, &[1, 2, 3, 4])]
-    });
-
-    assert_runtime_error_matches!(
-        result,
-        Error::Program {
-            reason: ProgramError::InvalidInstruction,
-        },
+    let value = machine.complete(
+        "choose",
+        &[
+            Word::int32(4),
+            Word::int32(9),
+            Word::uint64(1),
+            Word::uint64(0),
+        ],
     );
+
+    assert_eq!(value, vec![Word::float32(9.0)]);
 }
 
-/// Tensor index reduce returns the selected source index within the reduced axis.
+/// Execute tensor-view stores and loads through one stable local heap edge.
 #[test]
-fn test_tensor_index_reduce() {
-    let mir = r#"
-function tensorIndexReduce(v0: tensor<int32, (2, 3)>): uint64 {
-entry(v0: tensor<int32, (2, 3)>):
-    v1: tensor<uint64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(first)
-    v2: int64 = 1
-    v3: uint64 = tensor.extract v1, [v2]
-    return v3
+fn test_execute_tensor_view_memory() {
+    let matrix = TestMachine::tensor_allocation(0, 0, Space::Local, 0);
+    let test = TestProgram::new()
+        .tensor(0, 2, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .tensor_view(1, 2, ScalarFormat::int(32, true), Space::Local, [2, 2])
+        .allocations([matrix]);
+    let mut machine = TestMachine::parse(
+        r#"
+type Matrix
+type View
+type Element
+
+export function allocate(r0: int32): tensor<int32, Matrix, space(local)> {
+    r1: tensor<int32, Matrix, space(local)> = tensor.splat r0
+    return r1
 }
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorIndexReduce",
-        |interp| {
-            vec![tensor_from_values(
-                interp,
-                "tensorIndexReduce",
-                0,
-                &[1, 4, 2, 7, 5, 7],
-            )]
-        },
-        Value::uint64(0),
+
+export function access(
+    r0: tensorView<int32, View, borrowed, space(local), 6>,
+    r6: uint64,
+    r7: uint64,
+    r8: int32,
+): int32 {
+    tensor.store r0, [r6, r7], r8
+    r9: int32 = tensor.load r0, [r6, r7]
+    return r9
+}
+"#,
+        test,
     );
+
+    // allocate one owning tensor through bytecode
+    let value = machine.complete("allocate", &[Word::int32(0)]);
+
+    // describe its complete row-major payload as one borrowed view
+    let edge = value[0];
+    let view = [
+        edge,
+        Word::uint64((2 * Word::BYTE_LEN) as u64),
+        Word::uint64(2),
+        Word::uint64(2),
+        Word::uint64(2 * size_of::<i32>() as u64),
+        Word::uint64(size_of::<i32>() as u64),
+        Word::uint64(1),
+        Word::uint64(0),
+        Word::int32(73),
+    ];
+    let value = machine.complete("access", &view);
+
+    assert_eq!(value, vec![Word::int32(73)]);
 }
 
-/// Tensor index reduce requires an unsigned index result element.
+/// Allocate and execute one owning tensor in shared storage.
 #[test]
-fn test_tensor_index_reduce_rejects_signed_index_result() {
-    let mir = r#"
-function tensorIndexReduce(v0: tensor<int32, (2, 3)>): int64 {
-entry(v0: tensor<int32, (2, 3)>):
-    v1: tensor<int64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(first)
-    v2: int64 = 0
-    v3: int64 = tensor.extract v1, [v2]
-    return v3
-}
-"#;
-    let result = run_mir_with_frame(mir, "tensorIndexReduce", |interp| {
-        vec![tensor_from_values(
-            interp,
-            "tensorIndexReduce",
-            0,
-            &[1, 4, 2, 7, 5, 7],
-        )]
-    });
+fn test_execute_shared_tensor() {
+    let matrix = TestMachine::tensor_allocation(0, 0, Space::Shared, 0);
+    let test = TestProgram::new()
+        .tensor(0, 1, ScalarFormat::int(32, true), Space::Shared, [2, 2])
+        .allocations([matrix]);
+    let mut machine = TestMachine::parse(
+        r#"
+type Matrix
+type Element
 
-    assert_runtime_error_matches!(
-        result,
-        Error::Program {
-            reason: ProgramError::InvalidInstruction,
-        },
+export function splat(
+    r0: int32,
+    r1: uint64,
+    r2: uint64,
+): int32 {
+    r3: tensor<int32, Matrix, space(shared)> = tensor.splat r0
+    r4: int32 = tensor.extract r3, [r1, r2]
+    return r4
+}
+"#,
+        test,
     );
-}
 
-/// Tensor index reduce can pick the last matching source index.
-#[test]
-fn test_tensor_index_reduce_tie_break_last() {
-    let mir = r#"
-function tensorIndexReduceLast(v0: tensor<int32, (2, 3)>): uint64 {
-entry(v0: tensor<int32, (2, 3)>):
-    v1: tensor<uint64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(last)
-    v2: int64 = 1
-    v3: uint64 = tensor.extract v1, [v2]
-    return v3
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorIndexReduceLast",
-        |interp| {
-            vec![tensor_from_values(
-                interp,
-                "tensorIndexReduceLast",
-                0,
-                &[1, 4, 2, 7, 5, 7],
-            )]
-        },
-        Value::uint64(2),
+    let value = machine.complete(
+        "splat",
+        &[Word::int32(91), Word::uint64(1), Word::uint64(1)],
     );
-}
 
-/// Tensor dot multiplies matrices with the given contraction dimensions.
-#[test]
-fn test_tensor_dot() {
-    let mir = r#"
-function tensorDot(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
-    v2: tensor<int32, (2, 2)> = tensor.dot v0, v1, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
-    v3: int64 = 1
-    v4: int64 = 0
-    v5: int32 = tensor.extract v2, [v3, v4]
-    return v5
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorDot",
-        |interp| {
-            vec![
-                tensor_from_values(interp, "tensorDot", 0, &[1, 2, 3, 4]),
-                tensor_from_values(interp, "tensorDot", 1, &[5, 6, 7, 8]),
-            ]
-        },
-        Value::int32(43),
-    );
-}
-
-/// Tensor convolution applies a windowed dot product across spatial dims.
-#[test]
-fn test_tensor_convolution() {
-    let mir = r#"
-function tensorConvolution(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>): int32 {
-entry(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>):
-    v2: tensor<int32, (1, 1, 1, 1)> = tensor.convolution v0, v1, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
-    v3: int64 = 0
-    v4: int32 = tensor.extract v2, [v3, v3, v3, v3]
-    return v4
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorConvolution",
-        |interp| {
-            vec![
-                tensor_from_values(interp, "tensorConvolution", 0, &[2]),
-                tensor_from_values(interp, "tensorConvolution", 1, &[3]),
-            ]
-        },
-        Value::int32(6),
-    );
-}
-
-/// Tensor gather selects elements from operand based on indices.
-#[test]
-fn test_tensor_gather() {
-    let mir = r#"
-function tensorGather(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>): int32 {
-entry(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>):
-    v2: tensor<int32, (1, 1)> = tensor.gather v0, v1, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
-    v3: int64 = 0
-    v4: int32 = tensor.extract v2, [v3, v3]
-    return v4
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorGather",
-        |interp| {
-            vec![
-                tensor_from_values(interp, "tensorGather", 0, &[7]),
-                tensor_from_values(interp, "tensorGather", 1, &[0]),
-            ]
-        },
-        Value::int32(7),
-    );
-}
-
-/// Tensor scatter writes updates into the operand tensor.
-#[test]
-fn test_tensor_scatter() {
-    let mir = r#"
-function tensorScatter(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>, v2: tensor<int32, (1, 1)>): int32 {
-b0(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>, v2: tensor<int32, (1, 1)>):
-    v3: tensor<int32, (1, 1)> = tensor.scatter v0, v1, v2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
-    v4: int64 = 0int64
-    v5: int32 = tensor.extract v3, [v4, v4]
-    return v5
-}"#;
-    run_tensor_expect(
-        mir,
-        "tensorScatter",
-        |interp| {
-            vec![
-                tensor_from_values(interp, "tensorScatter", 0, &[0]),
-                tensor_from_values(interp, "tensorScatter", 1, &[0]),
-                tensor_from_values(interp, "tensorScatter", 2, &[9]),
-            ]
-        },
-        Value::int32(9),
-    );
-}
-
-/// Tensor convert preserves element values when converting.
-#[test]
-fn test_tensor_convert() {
-    let mir = r#"
-function tensorConvert(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
-    v1: tensor<int32, (2, 2)> = tensor.convert exact, v0
-    v2: int64 = 1int64
-    v3: int64 = 0int64
-    v4: int32 = tensor.extract v1, [v2, v3]
-    return v4
-}"#;
-    run_tensor_expect(
-        mir,
-        "tensorConvert",
-        |interp| {
-            vec![tensor_from_values(
-                interp,
-                "tensorConvert",
-                0,
-                &[1, 2, 3, 4],
-            )]
-        },
-        Value::int32(3),
-    );
-}
-
-/// Tensor compare returns boolean tensor elements.
-#[test]
-fn test_tensor_compare() {
-    let mir = r#"
-function tensorCompare(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): boolean {
-entry(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
-    v2: tensor<boolean, (2, 2)> = tensor.compare int.eq, v0, v1
-    v3: int64 = 0
-    v4: int64 = 1
-    v5: boolean = tensor.extract v2, [v3, v4]
-    return v5
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorCompare",
-        |interp| {
-            vec![
-                tensor_from_values(interp, "tensorCompare", 0, &[1, 2, 3, 4]),
-                tensor_from_values(interp, "tensorCompare", 1, &[1, 9, 3, 4]),
-            ]
-        },
-        Value::bool(false),
-    );
-}
-
-/// Tensor convert applies element-wise rounding.
-#[test]
-fn test_tensor_convert_rounding() {
-    let mir = r#"
-function tensorConvertRounding(v0: tensor<float64, (2, 2)>): int32 {
-entry(v0: tensor<float64, (2, 2)>):
-    v1: tensor<int32, (2, 2)> = tensor.convert roundTowardZero, v0
-    v2: int64 = 0
-    v3: int64 = 1
-    v4: int32 = tensor.extract v1, [v2, v3]
-    return v4
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorConvertRounding",
-        |interp| {
-            vec![tensor_from_f64_values(
-                interp,
-                "tensorConvertRounding",
-                0,
-                &[1.2, 2.9, 3.1, 4.0],
-            )]
-        },
-        Value::int32(2),
-    );
-}
-
-/// Tensor cast forwards the tensor value.
-#[test]
-fn test_tensor_cast() {
-    let mir = r#"
-function tensorCast(v0: tensor<int32, (2, 2)>): int32 {
-entry(v0: tensor<int32, (2, 2)>):
-    v1: tensor<int32, (2, 2)> = tensor.cast v0
-    v2: int64 = 1
-    v3: int32 = tensor.extract v1, [v2, v2]
-    return v3
-}
-"#;
-    run_tensor_expect(
-        mir,
-        "tensorCast",
-        |interp| vec![tensor_from_values(interp, "tensorCast", 0, &[1, 2, 3, 4])],
-        Value::int32(4),
-    );
-}
-
-/// Tensor view offsets the underlying reference.
-#[test]
-fn test_tensor_view() {
-    let mir = r#"
-function tensorViewValue(): int32 {
-entry:
-    v0: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v1: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
-    v2: int32 = 0
-    v3: int32 = 1
-    v4: int32 = 2
-    v5: int32 = 3
-    tensor.store v1, [v2, v2], v3
-    tensor.store v1, [v2, v3], v4
-    tensor.store v1, [v3, v2], v5
-    tensor.store v1, [v3, v3], v4
-    v6: tensorView<int32, raw, mutable, space(frame), (2, 1)> = tensor.view v1, offsets(v2, v3), sizes(v4, v3), strides(v3, v3)
-    v7: int32 = tensor.load v6, [v2, v2]
-    return v7
-}
-"#;
-    run_mir_expect(mir, "tensorViewValue", &[], Value::int32(2));
-}
-
-/// Strided tensor views apply runtime strides.
-#[test]
-fn test_tensor_view_strided() {
-    let mir = r#"
-function tensorViewStrided(): int32 {
-entry:
-    v0: ref<[int32; 6], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 6]
-    v1: tensorView<int32, raw, mutable, space(frame), (2, 3)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 3)>
-    v2: int32 = 0
-    v3: int32 = 1
-    v4: int32 = 2
-    v5: int32 = 3
-    v6: int32 = 4
-    v7: int32 = 5
-    v8: int32 = 6
-    tensor.store v1, [v2, v2], v3
-    tensor.store v1, [v2, v3], v4
-    tensor.store v1, [v2, v4], v5
-    tensor.store v1, [v3, v2], v6
-    tensor.store v1, [v3, v3], v7
-    tensor.store v1, [v3, v4], v8
-    v9: tensorView<int32, raw, mutable, space(frame), (2, 2), format(strided)> = tensor.view v1, offsets(v2, v2), sizes(v4, v4), strides(v3, v4)
-    v10: int32 = tensor.load v9, [v3, v3]
-    return v10
-}
-"#;
-    run_mir_expect(mir, "tensorViewStrided", &[], Value::int32(6));
+    assert_eq!(value, vec![Word::int32(91)]);
 }

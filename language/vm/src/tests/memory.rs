@@ -1,1268 +1,150 @@
-use crate::tests::{
-    TestMachine, assert_execution_completed, assert_execution_stopped, create_machine,
-    create_machine_with_target_layout, create_machine_with_variant_layout, run_mir_expect,
-    run_mir_ok, run_mir_with_frame_ok,
-};
-use destack_heap::{Heap, HeapReference, SharedHeap, SharedHeapReference};
-use destack_mir::{DiscriminantField, TargetLayout, TraceMap, Type, VariantEncoding};
-use destack_program::vm::{Cell, Op, SmallAllocationPlanId};
-use destack_program::{
-    MemoryAccess, MemoryRange, MemoryStop, MemoryTarget, StopReason, Value, WatchSet, WatchpointId,
-};
+use destack_core::Optional;
+use destack_program::{LayoutField, LayoutShapeBuilder, ScalarFormat, TypeId, Word};
 
-/// Decode one native-width heap reference from materialized bytes.
-fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {
-    let end = offset + HeapReference::BYTE_LEN;
+use super::{TestMachine, TestProgram};
 
-    HeapReference::read_from_bytes(&bytes[offset..end]).expect("heap reference bytes should decode")
-}
-
-/// Decode one native-width shared heap reference from materialized bytes.
-fn decode_shared_heap_reference(bytes: &[u8], offset: usize) -> SharedHeapReference {
-    let end = offset + SharedHeapReference::BYTE_LEN;
-
-    SharedHeapReference::read_from_bytes(&bytes[offset..end])
-        .expect("shared heap reference bytes should decode")
-}
-
-/// Decode one native-width usize value from materialized bytes.
-fn decode_usize(bytes: &[u8], offset: usize) -> usize {
-    let mut raw = [0u8; 8];
-    let byte_len = std::mem::size_of::<usize>();
-    raw[..byte_len].copy_from_slice(&bytes[offset..offset + byte_len]);
-
-    u64::from_le_bytes(raw) as usize
-}
-
-/// Read managed heap bytes for representation assertions.
-fn read_heap_bytes(heap: &Heap, reference: HeapReference, byte_len: usize) -> Vec<u8> {
-    let mut bytes = vec![0u8; byte_len];
-    let address = heap.heap_base_address() + reference.offset();
-    unsafe {
-        std::ptr::copy_nonoverlapping(address as *const u8, bytes.as_mut_ptr(), byte_len);
-    }
-
-    bytes
-}
-
-/// Read shared heap bytes for representation assertions.
-fn read_shared_heap_bytes(
-    heap: &SharedHeap,
-    reference: SharedHeapReference,
-    byte_len: usize,
-) -> Vec<u8> {
-    let mut bytes = vec![0u8; byte_len];
-    let address = heap.heap_base_address() + reference.offset();
-    unsafe {
-        std::ptr::copy_nonoverlapping(address as *const u8, bytes.as_mut_ptr(), byte_len);
-    }
-
-    bytes
-}
-
-/// Heap allocation creates one heap allocation and returns a reference.
+/// Execute linked global addressing and typed memory access against runtime statics.
 #[test]
-fn test_new_allocates_heap_reference() {
-    let mir = r#"
-function alloc(): ref<int32, managed, readonly> {
-entry:
-    v0: ref<int32, managed, readonly> = new.zeroed int32
-    return v0
-}
-"#;
-    let output = run_mir_ok(mir, "alloc", &[]);
-    assert!(matches!(output, Value::HeapReference(_)));
-}
+fn test_execute_global_memory() {
+    let mut machine = TestMachine::parse(
+        r#"
+type State
 
-/// Shared heap allocation creates one mutator-local shared heap allocation.
-#[test]
-fn test_new_allocates_shared_heap_reference() {
-    let mir = r#"
-function alloc(): ref<int32, managed, readonly, space(shared)> {
-entry:
-    v0: ref<int32, managed, readonly, space(shared)> = new.zeroed int32
-    return v0
-}
-"#;
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("alloc", &[])
-        .expect("execution failed");
-    let Value::SharedHeapReference(reference) = output else {
-        panic!("expected shared heap reference, got {output:?}");
-    };
+local global state: State = zero
 
-    assert!(machine.shared_cache.contains_heap_reference(reference));
-    assert!(!machine.shared_heap.is_heap_live(reference));
+export function update(r0: int32): int32 {
+    slot s0: State = r1[1]
+
+    r1: pointer = global.address state
+    store.int32 r1, r0
+    r2: int32 = load.int32 r1
+    return r2
 }
 
-/// Freeing unique heap allocations releases local heap storage immediately.
-#[test]
-fn test_free_releases_unique_heap_allocation() {
-    let mir = r#"
-function freeUnique(): int32 {
-entry:
-    v0: ref<int32, unique, readonly> = new.zeroed int32
-    free v0
-    v1: int32 = 7
-    return v1
-}
-"#;
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("freeUnique", &[])
-        .expect("execution failed");
-
-    assert_eq!(output, Value::int32(7));
-    assert_eq!(machine.heap.heap_allocation_count(), 0);
-}
-
-/// Freeing unique shared heap allocations releases shared heap storage immediately.
-#[test]
-fn test_free_releases_unique_shared_heap_allocation() {
-    let mir = r#"
-function freeUnique(): int32 {
-entry:
-    v0: ref<int32, unique, readonly, space(shared)> = new.zeroed int32
-    free v0
-    v1: int32 = 7
-    return v1
-}
-"#;
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("freeUnique", &[])
-        .expect("execution failed");
-
-    assert_eq!(output, Value::int32(7));
-    assert_eq!(machine.shared_heap.heap_allocation_count(), 0);
-}
-
-/// Load and store instructions read and write heap allocations.
-#[test]
-fn test_load_store() {
-    let mir = r#"
-function loadStore(): int32 {
-entry:
-    v0: ref<int32, managed, readonly> = new.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    run_mir_expect(mir, "loadStore", &[], Value::int32(42));
-}
-
-/// Direct variant layouts preserve logical discriminants and payload storage.
-#[test]
-fn test_direct_variant_aggregate() {
-    let mir = r#"
-type Choice = variant<uint8, uint64> { 0 = uint64; 1 = void; };
-
-function discriminant(): uint8 {
-entry:
-    v0: uint8 = 1
-    v1: uint64 = 42
-    v2: Choice = aggregate (v0, v1)
-    v3: uint8 = field.get v2, 0
-    return v3
-}
-
-function storage(): uint64 {
-entry:
-    v0: uint8 = 0
-    v1: uint64 = 42
-    v2: Choice = aggregate (v0, v1)
-    v3: uint64 = field.get v2, 1
-    return v3
-}
-"#;
-    let encoding = VariantEncoding::Direct {
-        field: DiscriminantField::scalar(4, 1),
-    };
-    let mut machine = create_machine_with_variant_layout(mir, encoding, &[8, 8], 16, 8);
-
-    assert_eq!(
-        machine
-            .run_function_by_name("discriminant", &[])
-            .expect("direct discriminant should execute"),
-        Value::uint8(1),
-    );
-    assert_eq!(
-        machine
-            .run_function_by_name("storage", &[])
-            .expect("direct storage should execute"),
-        Value::uint64(42),
-    );
-}
-
-/// Niche variant layouts recover logical cases from payload bits.
-#[test]
-fn test_niche_variant_aggregate() {
-    let mir = r#"
-type Choice = variant<uint8, uint64> { 0 = uint64; 1 = void; };
-
-function untagged(): uint8 {
-entry:
-    v0: uint8 = 0
-    v1: uint64 = 42
-    v2: Choice = aggregate (v0, v1)
-    v3: uint8 = field.get v2, 0
-    return v3
-}
-
-function niche(): uint8 {
-entry:
-    v0: uint8 = 1
-    v1: uint64 = 42
-    v2: Choice = aggregate (v0, v1)
-    v3: uint8 = field.get v2, 0
-    return v3
-}
-
-function storage(): uint64 {
-entry:
-    v0: uint8 = 0
-    v1: uint64 = 42
-    v2: Choice = aggregate (v0, v1)
-    v3: uint64 = field.get v2, 1
-    return v3
-}
-"#;
-    let encoding = VariantEncoding::Niche {
-        field: DiscriminantField::scalar(0, 8),
-        untagged_case: 0,
-        niche_case_start: 1,
-        niche_case_end: 1,
-        niche_start: 0u128.into(),
-    };
-    let mut machine = create_machine_with_variant_layout(mir, encoding, &[0, 0], 8, 8);
-
-    assert_eq!(
-        machine
-            .run_function_by_name("untagged", &[])
-            .expect("untagged variant should execute"),
-        Value::uint8(0),
-    );
-    assert_eq!(
-        machine
-            .run_function_by_name("niche", &[])
-            .expect("niche variant should execute"),
-        Value::uint8(1),
-    );
-    assert_eq!(
-        machine
-            .run_function_by_name("storage", &[])
-            .expect("niche storage should execute"),
-        Value::uint64(42),
-    );
-}
-
-/// Variant trace maps select references from the active logical case.
-#[test]
-fn test_trace_variant_case() {
-    let mir = r#"
-type Node { }
-type Choice = variant<uint8, ref<Node, managed, readonly>> {
-    0 = ref<Node, managed, readonly>;
-    1 = void;
-};
-
-function choose(v0: ref<Node, managed, readonly>): Choice {
-entry(v0: ref<Node, managed, readonly>):
-    v1: uint8 = 0
-    v2: Choice = aggregate (v1, v0)
-    return v2
-}
-"#;
-    let encoding = VariantEncoding::Direct {
-        field: DiscriminantField::scalar(8, 1),
-    };
-    let machine = create_machine_with_variant_layout(mir, encoding, &[0, 0], 16, 8);
-    let variant_types = machine
-        .tree
-        .iter_nodes::<Type>()
-        .filter_map(|(ty, value)| matches!(value, Type::Variant { .. }).then_some(ty))
-        .map(|ty| machine.program_type(ty))
-        .collect::<Vec<_>>();
-
-    // retain the managed reference only for the reference-bearing case
-    let program = &machine.machine.program;
-    for variant_type in variant_types {
-        let layout = program
-            .layout(variant_type)
-            .expect("variant layout should exist");
-        let trace = program
-            .trace_map(layout.trace)
-            .expect("variant trace map should decode");
-        let TraceMap::Variant { cases, .. } = trace else {
-            panic!("variant layout should use a variant trace map");
-        };
-        assert!(cases[0].map.has_local_reference());
-        assert_eq!(cases[1].map, TraceMap::Empty);
-    }
-}
-
-/// Watchpoints stop after a matching heap store.
-#[test]
-fn test_watchpoint_stops_at_heap_store() {
-    let mir = r#"
-function loadStore(): int32 {
-entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    let mut machine = create_machine(mir);
-    let write_site = machine
-        .machine
-        .program()
-        .sites()
-        .memory_sites(machine.machine.program().sections())
-        .iter()
-        .copied()
-        .find(|site| site.access == MemoryAccess::Write)
-        .expect("program should contain one write site");
-    let watchpoint_id = WatchpointId::new(1);
-    let watch_points = WatchSet::new(vec![MemoryStop::new(
-        watchpoint_id,
-        MemoryAccess::Write,
-        MemoryTarget::Point(write_site.point),
-    )]);
-
-    let (continuation, reason) = assert_execution_stopped(machine.run_function_by_name_watched(
-        "loadStore",
-        &[],
-        &watch_points,
-    ));
-
-    assert_eq!(
-        reason,
-        StopReason::Watchpoint {
-            watchpoint_id,
-            point: write_site.point,
-        }
+"#,
+        TestProgram::new(),
     );
 
-    let output = assert_execution_completed(
-        machine.continue_continuation_watched(continuation, &watch_points),
-    );
+    let value = machine.complete("update", &[Word::int32(41)]);
 
-    assert_eq!(output, Value::int32(42));
+    assert_eq!(value, vec![Word::int32(41)]);
 }
 
-/// Watchpoints stop after a matching heap load.
+/// Move one packed value through pointer memory using its exact Program layout.
 #[test]
-fn test_watchpoint_stops_at_heap_load() {
-    let mir = r#"
-function loadStore(): int32 {
-entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    let mut machine = create_machine(mir);
-    let read_site = machine
-        .machine
-        .program()
-        .sites()
-        .memory_sites(machine.machine.program().sections())
-        .iter()
-        .copied()
-        .find(|site| site.access == MemoryAccess::Read)
-        .expect("program should contain one read site");
-    let watchpoint_id = WatchpointId::new(1);
-    let watch_points = WatchSet::new(vec![MemoryStop::new(
-        watchpoint_id,
-        MemoryAccess::Read,
-        MemoryTarget::Point(read_site.point),
-    )]);
-
-    let (continuation, reason) = assert_execution_stopped(machine.run_function_by_name_watched(
-        "loadStore",
-        &[],
-        &watch_points,
-    ));
-
-    assert_eq!(
-        reason,
-        StopReason::Watchpoint {
-            watchpoint_id,
-            point: read_site.point,
-        }
-    );
-
-    let output = assert_execution_completed(
-        machine.continue_continuation_watched(continuation, &watch_points),
-    );
-
-    assert_eq!(output, Value::int32(42));
-}
-
-/// Watchpoints stop after a write to a matching local heap range.
-#[test]
-fn test_watchpoint_stops_at_heap_store_range() {
-    let mir = r#"
-function loadStore(): int32 {
-entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    let mut machine = create_machine(mir);
-    let write_site = machine
-        .machine
-        .program()
-        .sites()
-        .memory_sites(machine.machine.program().sections())
-        .iter()
-        .copied()
-        .find(|site| site.access == MemoryAccess::Write)
-        .expect("program should contain one write site");
-    let watchpoint_id = WatchpointId::new(1);
-    let watch_points = WatchSet::new(vec![MemoryStop::new(
-        watchpoint_id,
-        MemoryAccess::Write,
-        MemoryTarget::Range(MemoryRange::local_heap(0, 16 * 1024 * 1024)),
-    )]);
-
-    let (continuation, reason) = assert_execution_stopped(machine.run_function_by_name_watched(
-        "loadStore",
-        &[],
-        &watch_points,
-    ));
-
-    assert_eq!(
-        reason,
-        StopReason::Watchpoint {
-            watchpoint_id,
-            point: write_site.point,
-        }
-    );
-
-    let output = assert_execution_completed(
-        machine.continue_continuation_watched(continuation, &watch_points),
-    );
-
-    assert_eq!(output, Value::int32(42));
-}
-
-/// Watchpoints ignore writes outside the selected memory range.
-#[test]
-fn test_watchpoint_ignores_unmatched_heap_store_range() {
-    let mir = r#"
-function loadStore(): int32 {
-entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    let mut machine = create_machine(mir);
-    let watch_points = WatchSet::new(vec![MemoryStop::new(
-        WatchpointId::new(1),
-        MemoryAccess::Write,
-        MemoryTarget::Range(MemoryRange::shared_heap(0, 1024 * 1024)),
-    )]);
-
-    let output = assert_execution_completed(machine.run_function_by_name_watched(
-        "loadStore",
-        &[],
-        &watch_points,
-    ));
-
-    assert_eq!(output, Value::int32(42));
-}
-
-/// Watchpoints ignore memory sites with a different access.
-#[test]
-fn test_watchpoint_ignores_unmatched_memory_access() {
-    let mir = r#"
-function loadStore(): int32 {
-entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    let mut machine = create_machine(mir);
-    let write_site = machine
-        .machine
-        .program()
-        .sites()
-        .memory_sites(machine.machine.program().sections())
-        .iter()
-        .copied()
-        .find(|site| site.access == MemoryAccess::Write)
-        .expect("program should contain one write site");
-    let watch_points = WatchSet::new(vec![MemoryStop::new(
-        WatchpointId::new(1),
-        MemoryAccess::Read,
-        MemoryTarget::Point(write_site.point),
-    )]);
-
-    let output = assert_execution_completed(machine.run_function_by_name_watched(
-        "loadStore",
-        &[],
-        &watch_points,
-    ));
-
-    assert_eq!(output, Value::int32(42));
-}
-
-/// Uninitialized heap allocation completes after explicit stores.
-#[test]
-fn test_new_uninit_completes_heap_reference() {
-    let mir = r#"
-function loadStore(): int32 {
-entry:
-    v0: uninit<ref<int32, managed, readonly>> = new.uninit int32
-    v1: int32 = 42
-    store v0, v1
-    v2: ref<int32, managed, readonly> = new.complete v0
-    v3: int32 = load v2
-    return v3
-}
-"#;
-    run_mir_expect(mir, "loadStore", &[], Value::int32(42));
-}
-
-/// Uninitialized frame allocation can be initialized by direct stores.
-#[test]
-fn test_frame_alloc_uninit_load_store() {
-    let mir = r#"
-function frameUninit(): int32 {
-entry:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.uninit int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    run_mir_expect(mir, "frameUninit", &[], Value::int32(42));
-}
-
-/// Encode shared heap references as first-class runtime values.
-#[test]
-fn test_shared_heap_reference_value_roundtrip() {
-    let reference = SharedHeapReference::new(7);
-
-    assert_eq!(
-        Cell::shared_heap_reference(reference).as_shared_heap_reference(),
-        reference
-    );
-}
-/// Array allocation creates one slice value over one heap allocation.
-#[test]
-fn test_new_slice_allocates_slice_value() {
-    let mir = r#"
-function allocArray(): slice<int32, managed, mutable> {
-entry:
-    v0: int64 = 10
-    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
-    return v1
-}
-"#;
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("allocArray", &[])
-        .expect("execution failed");
-    let Value::HeapReference(slice) = output else {
-        panic!("expected heap slice value, got {output:?}");
-    };
-    let bytes = read_heap_bytes(&machine.heap, slice, 2 * HeapReference::BYTE_LEN);
-    let data = Cell::heap_reference(decode_heap_reference(&bytes, 0));
-    let len = decode_usize(&bytes, HeapReference::BYTE_LEN);
-
-    assert!(!data.as_heap_reference().is_null());
-    assert_eq!(len, 10);
-}
-
-/// Shared array allocation creates one slice value over shared heap bytes.
-#[test]
-fn test_new_slice_allocates_shared_slice_value() {
-    let mir = r#"
-function allocArray(): slice<int32, managed, readonly, space(shared)> {
-entry:
-    v0: int64 = 10
-    v1: slice<int32, managed, readonly, space(shared)> = new.slice.zeroed int32, v0
-    return v1
-}
-"#;
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("allocArray", &[])
-        .expect("execution failed");
-    let Value::SharedHeapReference(slice) = output else {
-        panic!("expected shared heap slice value, got {output:?}");
-    };
-    let bytes = read_shared_heap_bytes(
-        &machine.shared_heap,
-        slice,
-        2 * SharedHeapReference::BYTE_LEN,
-    );
-    let data = Cell::shared_heap_reference(decode_shared_heap_reference(&bytes, 0));
-    let len = decode_usize(&bytes, SharedHeapReference::BYTE_LEN);
-
-    assert!(!data.as_shared_heap_reference().is_null());
-    assert_eq!(len, 10);
-}
-
-/// Slice element addresses can load and store backing elements.
-#[test]
-fn test_slice_element_address_loads_and_stores() {
-    let mir = r#"
-function accessSlice(): int32 {
-entry:
-    v0: int64 = 3
-    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
-    v2: int64 = 1
-    v3: ref<int32, managed, mutable> = element.address v1, v2
-    v4: int32 = 42
-    store v3, v4
-    v5: int32 = load v3
-    return v5
-}
-"#;
-
-    run_mir_expect(mir, "accessSlice", &[], Value::int32(42));
-}
-
-/// Field get reads a field from a tuple value.
-#[test]
-fn test_field_get_reads_tuple_field() {
-    let mir = r#"
-function getFirst(v0: (int32, int32)): int32 {
-entry(v0: (int32, int32)):
-    v1: int32 = field.get v0, 0
-    return v1
-}
-"#;
-    let output = run_mir_with_frame_ok(mir, "getFirst", |interp| {
-        let ty = interp.parameter_type("getFirst", 0);
-        let agg = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
-        vec![agg]
-    });
-    assert_eq!(output, Value::int32(10));
-}
-
-/// Field set creates a new tuple with one field replaced.
-#[test]
-fn test_field_set_replaces_tuple_field() {
-    let mir = r#"
-function setAndGet(v0: (int32, int32), v1: int32): int32 {
-entry(v0: (int32, int32), v1: int32):
-    v2: (int32, int32) = field.set v0, 0, v1
-    v3: int32 = field.get v2, 0
-    return v3
-}
-"#;
-    let output = run_mir_with_frame_ok(mir, "setAndGet", |interp| {
-        let ty = interp.parameter_type("setAndGet", 0);
-        let agg = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
-        vec![agg, Cell::int32(99)]
-    });
-    assert_eq!(output, Value::int32(99));
-}
-
-/// Field set returns one fresh tuple value instead of mutating the original.
-#[test]
-fn test_field_set_preserves_source_tuple() {
-    let mir = r#"
-function setWithoutAlias(v0: (int32, int32), v1: int32): int32 {
-entry(v0: (int32, int32), v1: int32):
-    v2: (int32, int32) = field.set v0, 0, v1
-    v3: int32 = field.get v0, 0
-    v4: int32 = field.get v2, 0
-    v5: int32 = int.add v3, v4
-    return v5
-}
-"#;
-    let output = run_mir_with_frame_ok(mir, "setWithoutAlias", |interp| {
-        let ty = interp.parameter_type("setWithoutAlias", 0);
-        let tuple = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
-
-        vec![tuple, Cell::int32(99)]
-    });
-
-    assert_eq!(output, Value::int32(109));
-}
-
-/// Field get copies nested aggregate values.
-#[test]
-fn test_field_get_copies_nested_aggregate() {
-    let mir = r#"
-function getNested(): int32 {
-entry:
-    v0: int32 = 10
-    v1: int32 = 20
-    v2: (int32, int32) = aggregate (v0, v1)
-    v3: int32 = 30
-    v4: ((int32, int32), int32) = aggregate (v2, v3)
-    v5: (int32, int32) = field.get v4, 0
-    v6: int32 = field.get v5, 1
-    return v6
-}
-"#;
-    run_mir_expect(mir, "getNested", &[], Value::int32(20));
-}
-
-/// Field set copies nested aggregate values.
-#[test]
-fn test_field_set_copies_nested_aggregate() {
-    let mir = r#"
-function setNested(): int32 {
-entry:
-    v0: int32 = 10
-    v1: int32 = 20
-    v2: (int32, int32) = aggregate (v0, v1)
-    v3: int32 = 30
-    v4: ((int32, int32), int32) = aggregate (v2, v3)
-    v5: int32 = 40
-    v6: int32 = 50
-    v7: (int32, int32) = aggregate (v5, v6)
-    v8: ((int32, int32), int32) = field.set v4, 0, v7
-    v9: (int32, int32) = field.get v8, 0
-    v10: int32 = field.get v9, 1
-    return v10
-}
-"#;
-    run_mir_expect(mir, "setNested", &[], Value::int32(50));
-}
-
-/// Element get reads one fixed-array element.
-#[test]
-fn test_element_get_reads_array_element() {
-    let mir = r#"
-function getElem(v0: [int32; 3]): int32 {
-entry(v0: [int32; 3]):
-    v1: int32 = element.get v0, 1
-    return v1
-}
-"#;
-    let output = run_mir_with_frame_ok(mir, "getElem", |interp| {
-        let ty = interp.parameter_type("getElem", 0);
-        let array = interp.materialize_value_for_type(
-            ty,
-            vec![Cell::int32(10), Cell::int32(20), Cell::int32(30)],
+fn test_execute_value_memory() {
+    let fields = vec![
+        LayoutField {
+            name: Optional::none(),
+            ty: TypeId(1),
+            offset: 0,
+            size: 8,
+            alignment: 8,
+        },
+        LayoutField {
+            name: Optional::none(),
+            ty: TypeId(1),
+            offset: 8,
+            size: 8,
+            alignment: 8,
+        },
+    ];
+    let program = TestProgram::new()
+        .layout(0, LayoutShapeBuilder::Struct(fields), 16, 8)
+        .layout(
+            1,
+            LayoutShapeBuilder::Scalar(ScalarFormat::int(64, false)),
+            8,
+            8,
         );
+    let mut machine = TestMachine::parse(
+        r#"
+type Pair
+type Uint64
 
-        vec![array]
-    });
+export function retain(r0: uint64, r1: uint64): (uint64, uint64) {
+    slot s0: Pair
 
-    assert_eq!(output, Value::int32(20));
+    r2: words<2> = aggregate Pair (r0, r1)
+    r4: pointer = frame.address s0
+    store r4, r2, Pair
+    r5: words<2> = load r4, Pair
+    r7: uint64 = field.get r5, Pair, 0
+    r8: uint64 = field.get r5, Pair, 1
+    return r7, r8
 }
-
-/// Element get reads one locally constructed fixed-array element.
-#[test]
-fn test_element_get_reads_constructed_array() {
-    let mir = r#"
-function getLocalElem(): int32 {
-entry:
-    v0: int32 = 10
-    v1: int32 = 20
-    v2: int32 = 30
-    v3: [int32; 3] = aggregate (v0, v1, v2)
-    v4: int32 = element.get v3, 2
-    return v4
-}
-"#;
-
-    run_mir_expect(mir, "getLocalElem", &[], Value::int32(30));
-}
-
-/// Element set returns one fresh array value instead of mutating the original.
-#[test]
-fn test_element_set_preserves_source_array() {
-    let mir = r#"
-function setWithoutAlias(v0: [int32; 3], v1: int32): int32 {
-entry(v0: [int32; 3], v1: int32):
-    v2: [int32; 3] = element.set v0, 1, v1
-    v3: int32 = element.get v0, 1
-    v4: int32 = element.get v2, 1
-    v5: int32 = int.add v3, v4
-    return v5
-}
-"#;
-    let output = run_mir_with_frame_ok(mir, "setWithoutAlias", |interp| {
-        let ty = interp.parameter_type("setWithoutAlias", 0);
-        let array = interp.materialize_value_for_type(
-            ty,
-            vec![Cell::int32(10), Cell::int32(20), Cell::int32(30)],
-        );
-
-        vec![array, Cell::int32(99)]
-    });
-
-    assert_eq!(output, Value::int32(119));
-}
-
-/// Element set creates a new fixed array with one element replaced.
-#[test]
-fn test_element_set_replaces_array_element() {
-    let mir = r#"
-function setAndGet(v0: [int32; 3], v1: int32): int32 {
-entry(v0: [int32; 3], v1: int32):
-    v2: [int32; 3] = element.set v0, 1, v1
-    v3: int32 = element.get v2, 1
-    return v3
-}
-"#;
-    let output = run_mir_with_frame_ok(mir, "setAndGet", |interp| {
-        let ty = interp.parameter_type("setAndGet", 0);
-        let arr = interp.materialize_value_for_type(
-            ty,
-            vec![Cell::int32(10), Cell::int32(20), Cell::int32(30)],
-        );
-        vec![arr, Cell::int32(99)]
-    });
-    assert_eq!(output, Value::int32(99));
-}
-
-/// Element set updates one locally constructed fixed array.
-#[test]
-fn test_element_set_replaces_constructed_array_element() {
-    let mir = r#"
-function setLocalAndGet(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = 10
-    v2: int32 = 20
-    v3: int32 = 30
-    v4: [int32; 3] = aggregate (v1, v2, v3)
-    v5: [int32; 3] = element.set v4, 1, v0
-    v6: int32 = element.get v4, 1
-    v7: int32 = element.get v5, 1
-    v8: int32 = int.add v6, v7
-    return v8
-}
-"#;
-
-    run_mir_expect(
-        mir,
-        "setLocalAndGet",
-        &[Value::int32(99)],
-        Value::int32(119),
+"#,
+        program,
     );
-}
 
-/// Element get copies nested aggregate elements from fixed arrays.
-#[test]
-fn test_element_get_copies_nested_aggregate() {
-    let mir = r#"
-function getNested(): int32 {
-entry:
-    v0: int32 = 10
-    v1: int32 = 20
-    v2: (int32, int32) = aggregate (v0, v1)
-    v3: int32 = 30
-    v4: int32 = 40
-    v5: (int32, int32) = aggregate (v3, v4)
-    v6: [(int32, int32); 2] = aggregate (v2, v5)
-    v7: (int32, int32) = element.get v6, 1
-    v8: int32 = field.get v7, 0
-    return v8
-}
-"#;
-    run_mir_expect(mir, "getNested", &[], Value::int32(30));
-}
-
-/// Element set copies nested aggregate elements in fixed arrays.
-#[test]
-fn test_element_set_copies_nested_aggregate() {
-    let mir = r#"
-function setNested(): int32 {
-entry:
-    v0: int32 = 10
-    v1: int32 = 20
-    v2: (int32, int32) = aggregate (v0, v1)
-    v3: int32 = 30
-    v4: int32 = 40
-    v5: (int32, int32) = aggregate (v3, v4)
-    v6: [(int32, int32); 2] = aggregate (v2, v5)
-    v7: int32 = 50
-    v8: int32 = 60
-    v9: (int32, int32) = aggregate (v7, v8)
-    v10: [(int32, int32); 2] = element.set v6, 1, v9
-    v11: (int32, int32) = element.get v10, 1
-    v12: int32 = field.get v11, 1
-    return v12
-}
-"#;
-    run_mir_expect(mir, "setNested", &[], Value::int32(60));
-}
-
-/// Field address projects one field inside a heap allocation.
-#[test]
-fn test_field_address_loads_heap_field() {
-    let mir = r#"
-function heapField(): int32 {
-entry:
-    v0: ref<(int32, int32), managed, readonly> = new.zeroed (int32, int32)
-    v1: int32 = 42
-    v2: ref<int32, managed, readonly> = field.address v0, 0
-    store v2, v1
-    v3: int32 = load v2
-    return v3
-}
-"#;
-    run_mir_expect(mir, "heapField", &[], Value::int32(42));
-}
-
-/// Borrowed field addresses preserve heap allocation.
-#[test]
-fn test_heap_borrowed_field_access() {
-    let mir = r#"
-function heapBorrowedField(): int32 {
-entry:
-    v0: ref<(int32, int32), managed, readonly> = new.zeroed (int32, int32)
-    v1: int32 = 42
-    v2: ref<int32, borrowed, readonly> = field.address v0, 0
-    store v2, v1
-    v3: int32 = load v2
-    return v3
-}
-"#;
-    run_mir_expect(mir, "heapBorrowedField", &[], Value::int32(42));
-}
-
-/// Struct field get reads a single stored field.
-#[test]
-fn test_struct_field_get_reads_single_field() {
-    let mir = r#"
-type Box {
-    value: int32;
-}
-
-function readBox(v0: int32): int32 {
-entry(v0: int32):
-    v1: Box = aggregate (v0)
-    v2: int32 = field.get v1, 0
-    return v2
-}
-"#;
-
-    run_mir_expect(mir, "readBox", &[Value::int32(9)], Value::int32(9));
-}
-
-/// Managed nominal allocations record their trace map.
-#[test]
-fn test_new_records_empty_trace_map_for_scalar_struct() {
-    let mir = r#"
-type Box {
-    value: int32;
-}
-
-function allocBox(): ref<Box, managed, readonly> {
-entry:
-    v0: ref<Box, managed, readonly> = new.zeroed Box
-    return v0
-}
-"#;
-
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("allocBox", &[])
-        .expect("execution failed");
-    let Value::HeapReference(reference) = output else {
-        panic!("expected heap reference value");
-    };
+    let value = machine.complete(
+        "retain",
+        &[Word::uint64(0x1122_3344_5566_7788), Word::uint64(89)],
+    );
 
     assert_eq!(
-        machine
-            .heap
-            .trace_map(reference, machine.machine.trace_view()),
-        Ok(TraceMap::empty())
+        value,
+        vec![Word::uint64(0x1122_3344_5566_7788), Word::uint64(89)]
     );
 }
 
-/// Uninitialized managed allocations retain their completed value destructor.
+/// Execute byte-range transfer and comparison against linked static storage.
 #[test]
-fn test_new_uninit_records_drop_plan() {
-    let mir = r#"
-type Item {
-    value: ref<int32, unique, mutable>;
+fn test_execute_byte_ranges() {
+    let mut machine = TestMachine::parse(
+        r#"
+type State
+
+local global state: State = zero
+
+export function copy(r0: uint32): (int64, uint32, int32) {
+    r1: pointer = global.address state
+    r2: pointer = pointer.offset r1, 4
+    r3: uint64 = 4
+    store.uint32 r1, r0
+    copy.bytes r1 -> r2, r3
+    r4: uint64 = cast.pointerToInt r1 -> uint64
+    r5: pointer = cast.intToPointer r4 -> pointer
+    r6: uint64 = 1
+    r7: pointer = pointer.index r5, r6, stride(4)
+    r8: int64 = pointer.distance r2, r7
+    r9: uint32 = load.uint32 r2
+    r10: int32 = compare.bytes r1, r2, r3
+    return r8, r9, r10
 }
+"#,
+        TestProgram::new(),
+    );
 
-function Item.drop(v0: ref<Item, borrowed, exclusive>): void {
-entry(v0: ref<Item, borrowed, exclusive>):
-    return
-}
-
-function allocItem(): uninit<ref<Item, managed, mutable>> {
-entry:
-    v0: uninit<ref<Item, managed, mutable>> = new.uninit Item
-    return v0
-}
-"#;
-    let machine = TestMachine::with_drop(mir, "Item", "Item.drop");
-    let program = &machine.machine.program;
-    let function = program
-        .function_id_by_name("allocItem")
-        .expect("allocation function should exist");
-    let code = program
-        .vm_function_by_id(function)
-        .expect("allocation function should have VM code");
-    let allocation = code
-        .code
-        .iter()
-        .find(|instruction| {
-            matches!(
-                instruction.op,
-                Op::AllocateHeapSmallNoscanUninit
-                    | Op::AllocateHeapSmallScanUninit
-                    | Op::AllocateHeapSmallSharedEdgeUninit
-            )
-        })
-        .expect("allocation function should contain one uninitialized allocation");
-    let plan = program
-        .side_table()
-        .small_allocation_plan(program.sections(), SmallAllocationPlanId(allocation.b));
-    let drop = plan
-        .allocation
-        .drop_plan()
-        .expect("managed allocation should retain its destructor");
-
-    assert!(program.drop_entry(drop.drop).is_some());
-}
-
-/// Managed nominal stores write the struct field bytes.
-#[test]
-fn test_store_writes_nominal_field_bytes() {
-    let mir = r#"
-type Box {
-    value: int32;
-}
-
-function makeBox(v0: int32): ref<Box, managed, readonly> {
-entry(v0: int32):
-    v1: Box = aggregate (v0)
-    v2: ref<Box, managed, readonly> = new.zeroed Box
-    store v2, v1
-    return v2
-}
-"#;
-
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("makeBox", &[Value::int32(9)])
-        .expect("execution failed");
-    let Value::HeapReference(reference) = output else {
-        panic!("expected heap reference value");
-    };
-    let bytes = read_heap_bytes(&machine.heap, reference, 4);
-
-    assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 9);
-}
-
-/// Managed nominal layout records padded reference offsets.
-#[test]
-fn test_new_records_reference_offset_for_padded_struct() {
-    let mir = r#"
-type Packed {
-    first: uint8;
-    inner: ref<int32, managed, readonly>;
-    third: uint8;
-}
-
-function allocPacked(): ref<Packed, managed, readonly> {
-entry:
-    v0: ref<Packed, managed, readonly> = new.zeroed Packed
-    return v0
-}
-"#;
-    let target_layout = TargetLayout::for_pointer_bytes(8);
-
-    let mut machine = create_machine_with_target_layout(mir, target_layout);
-    let output = machine
-        .run_function_by_name("allocPacked", &[])
-        .expect("execution failed");
-    let Value::HeapReference(reference) = output else {
-        panic!("expected heap reference value");
-    };
+    let value = machine.complete("copy", &[Word::uint32(0x1122_3344)]);
 
     assert_eq!(
-        machine
-            .heap
-            .trace_map(reference, machine.machine.trace_view()),
-        Ok(TraceMap::Fixed {
-            local_offsets: vec![8].into_boxed_slice(),
-            shared_offsets: Vec::new().into_boxed_slice(),
-            frame_offsets: Vec::new().into_boxed_slice(),
-        })
+        value,
+        vec![Word::int64(0), Word::uint32(0x1122_3344), Word::int32(0)]
     );
 }
 
-/// Slices of heap references use pointer-shaped element stride.
+/// Execute atomic read-modify-write and load against linked static storage.
 #[test]
-fn test_new_slice_uses_pointer_stride_for_heap_references() {
-    let mir = r#"
-function allocArray(): slice<ref<int32, managed, readonly>, managed, mutable> {
-entry:
-    v0: int64 = 2
-    v1: slice<ref<int32, managed, readonly>, managed, mutable> = new.slice.zeroed ref<int32, managed, readonly>, v0
-    return v1
+fn test_execute_atomics() {
+    let mut machine = TestMachine::parse(
+        r#"
+type State
+
+shared global state: State = zero
+
+export function add(r0: uint32): (uint32, uint32) {
+    r1: pointer = global.address state
+    r2: uint32 = atomic.rmw.add.uint32 r1, r0, sequentiallyConsistent
+    r3: uint32 = atomic.load.uint32 r1, acquire
+    atomic.fence sequentiallyConsistent, storage(shared)
+    return r2, r3
 }
-"#;
-    let target_layout = TargetLayout::for_pointer_bytes(8);
-
-    let mut machine = create_machine_with_target_layout(mir, target_layout);
-    let output = machine
-        .run_function_by_name("allocArray", &[])
-        .expect("execution failed");
-    let Value::HeapReference(slice) = output else {
-        panic!("expected heap slice value, got {output:?}");
-    };
-    let descriptor = read_heap_bytes(&machine.heap, slice, 2 * HeapReference::BYTE_LEN);
-    let backing = decode_heap_reference(&descriptor, 0);
-
-    assert_eq!(
-        machine
-            .heap
-            .trace_map(backing, machine.machine.trace_view()),
-        Ok(TraceMap::Fixed {
-            local_offsets: vec![0, 8].into_boxed_slice(),
-            shared_offsets: Vec::new().into_boxed_slice(),
-            frame_offsets: Vec::new().into_boxed_slice(),
-        })
+"#,
+        TestProgram::new(),
     );
-}
 
-/// Managed field addresses load referenced heap values.
-#[test]
-fn test_field_address_loads_referenced_heap_value() {
-    let mir = r#"
-type Holder {
-    value: ref<int32, managed, readonly>;
-}
+    let value = machine.complete("add", &[Word::uint32(17)]);
 
-function comparePaths(): int32 {
-entry:
-    v0: ref<int32, managed, readonly> = new.zeroed int32
-    v1: int32 = 41
-    store v0, v1
-    v2: Holder = aggregate (v0)
-    v3: ref<Holder, managed, readonly> = new.zeroed Holder
-    store v3, v2
-    v4: ref<ref<int32, managed, readonly>, managed, readonly> = field.address v3, 0
-    v5: ref<int32, managed, readonly> = load v4
-    v6: int32 = load v5
-    return v6
-}
-"#;
-    let mut machine = create_machine(mir);
-    let output = machine
-        .run_function_by_name("comparePaths", &[])
-        .expect("execution failed");
-
-    assert_eq!(output, Value::int32(41));
-}
-
-/// Frame allocation creates frame-local memory.
-#[test]
-fn test_frame_allocate() {
-    let mir = r#"
-function stackAlloc(): int32 {
-entry:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 99
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#;
-    run_mir_expect(mir, "stackAlloc", &[], Value::int32(99));
-}
-
-/// Frame allocation with field access.
-#[test]
-fn test_frame_allocate_struct() {
-    let mir = r#"
-function stackStruct(): int32 {
-entry:
-    v0: ref<(int32, int32), raw, readonly, space(frame)> = frame.alloc.zeroed (int32, int32)
-    v1: int32 = 10
-    v2: ref<int32, borrowed, readonly, space(frame)> = field.address v0, 0
-    store v2, v1
-    v3: int32 = load v2
-    return v3
-}
-"#;
-    run_mir_expect(mir, "stackStruct", &[], Value::int32(10));
-}
-
-/// Frame allocation rejects heap-reference fields narrower than the host heap.
-#[test]
-fn test_frame_allocate_pointer32_heap_reference_field() {
-    let mir = r#"
-type Packed {
-    first: uint8;
-    inner: ref<int32, managed, readonly>;
-    third: uint8;
-}
-
-function stackPacked(): int32 {
-entry:
-    v0: ref<int32, managed, readonly> = new.zeroed int32
-    v1: int32 = 77
-    store v0, v1
-    v2: ref<Packed, raw, readonly, space(frame)> = frame.alloc.zeroed Packed
-    v3: ref<ref<int32, managed, readonly>, borrowed, readonly, space(frame)> = field.address v2, 1
-    store v3, v0
-    v4: ref<int32, managed, readonly> = load v3
-    v5: int32 = load v4
-    return v5
-}
-"#;
-    let target_layout = TargetLayout::for_pointer_bytes(4);
-    let error =
-        match std::panic::catch_unwind(|| create_machine_with_target_layout(mir, target_layout)) {
-            Ok(_) => panic!("narrow heap reference storage should be rejected loudly"),
-            Err(error) => error,
-        };
-    let message = if let Some(message) = error.downcast_ref::<String>() {
-        message.as_str()
-    } else if let Some(message) = error.downcast_ref::<&str>() {
-        message
-    } else {
-        panic!("unexpected panic value");
-    };
-
-    assert_eq!(
-        message,
-        "failed to initialize machine: EM040: incompatible pointer width: program 4 bytes, host 8"
-    );
-}
-
-/// Explicit null checks branch before dereference.
-#[test]
-fn test_null_pointer_check_branches() {
-    let mir = r#"
-function nullCheck(v0: ref<int32, raw, readonly>): int32 {
-b0(v0: ref<int32, raw, readonly>):
-    check null v0 => b1, b2
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 0int32
-    return v2
-}"#;
-    run_mir_expect(mir, "nullCheck", &[Value::address(0)], Value::int32(0));
-
-    run_mir_expect(mir, "nullCheck", &[Value::address(8)], Value::int32(1));
+    assert_eq!(value, vec![Word::uint32(0), Word::uint32(17)]);
 }

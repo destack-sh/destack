@@ -1,4176 +1,1943 @@
-use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::ptr;
 
-#[cfg(target_arch = "aarch64")]
-use core::arch::aarch64::{vaddq_u32, vld1q_u32, vst1q_u32};
-#[cfg(target_arch = "x86_64")]
-use core::arch::x86_64::{__m128i, _mm_add_epi32, _mm_loadu_si128, _mm_storeu_si128};
-
-use destack_core::{EntryRange, float_from_bits};
+use bytecode::{
+    CodeOffset, ConvertMode, FloatOperation, IndexReduceOperation, Instruction, IntegerOperation,
+    ReduceOperation, ReferenceType, RegisterId, RegisterRange, Scalar, TensorOperand,
+    TensorOperation, TieBreak,
+};
+use destack_bytecode as bytecode;
+use destack_heap::{AllocationShape, HeapEdge, Payload};
 use destack_mir as mir;
-
-use super::access;
-use super::index::cell_to_u64;
-use super::scalar::{
-    convert_scalar_exact, convert_scalar_round_ceil, convert_scalar_round_floor,
-    convert_scalar_round_ties_even, convert_scalar_round_toward_zero, convert_scalar_saturate,
-    reduce_add, reduce_and, reduce_max, reduce_min, reduce_multiply, reduce_or, reduce_xor,
+use destack_program::{
+    Continuation, LayoutShape, MemoryAccess, Outcome, ProgramPoint, ScalarFormat, TensorDimension,
+    TensorLayout, TensorSharding, TensorViewLayout, TypeId, Word,
 };
-use crate::diagnostic::Error;
-use crate::machine::Activation;
-use destack_program::vm::{
-    Cell, ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, TensorAddress,
-    TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
-    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
-    TensorGather, TensorIndexReduce, TensorLayoutId, TensorLayoutView, TensorLoad, TensorPad,
-    TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
-    TensorTranspose, TensorUnary, TensorView, TensorViewCast, U32RangeId, tensor_element_span_len,
-};
-use destack_program::{CellLayout, Program, ScalarFormat};
+use mir::{TensorDimensionOrder, TensorFormat, TraceMap};
 
-const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
+use crate::diagnostic::{Error, Result, Trap};
+use crate::machine::{Activation, Frame};
 
-/// Borrow one lowered tensor layout.
-#[inline(always)]
-fn tensor_layout<'activation>(
-    activation: &'activation Activation<'_>,
-    id: TensorLayoutId,
-) -> TensorLayoutView<'activation> {
-    activation.tensor_layout(id)
-}
-
-/// Borrow one lowered tensor layout from immutable program data.
-#[inline(always)]
-fn program_tensor_layout(program: &Program, id: TensorLayoutId) -> TensorLayoutView<'_> {
-    program.side_table().tensor_layout(program.sections(), id)
-}
-
-/// Return one owning tensor handle by frame offset.
-#[inline(always)]
-fn tensor_value(activation: &Activation<'_>, offset: u32) -> Cell {
-    activation.load_cell_at(offset)
-}
-
-/// Return one frame offset range.
-#[inline(always)]
-fn frame_offsets<'activation>(
-    activation: &'activation Activation<'_>,
-    range: U32RangeId,
-) -> &'activation [u32] {
-    activation.u32_range(range)
-}
-
-/// Return one frame offset range from immutable program data.
-#[inline(always)]
-fn program_frame_offsets(program: &Program, range: U32RangeId) -> &[u32] {
-    program.side_table().u32_range(program.sections(), range)
-}
-
-/// Return one tensor u32 range from immutable program data.
-#[inline(always)]
-fn program_tensor_u32_range(program: &Program, range: EntryRange<u32>) -> &[u32] {
-    program
-        .side_table()
-        .tensor_u32_range(program.sections(), range)
-}
-
-/// Return one tensor u64 range from immutable program data.
-#[inline(always)]
-fn program_tensor_u64_range(program: &Program, range: EntryRange<u64>) -> &[u64] {
-    program
-        .side_table()
-        .tensor_u64_range(program.sections(), range)
-}
-
-/// Return one tensor flag range from immutable program data.
-#[inline(always)]
-fn program_tensor_flag_range(program: &Program, range: EntryRange<u8>) -> &[u8] {
-    program
-        .side_table()
-        .tensor_flag_range(program.sections(), range)
-}
-
-/// Return the byte offset for one tensor view stride slot.
-fn tensor_view_stride_offset(view_offset: u32, axis: usize) -> Result<u32, Error> {
-    let slot = axis.checked_add(1).ok_or(Error::invalid_instruction())?;
-    let byte_offset = slot
-        .checked_mul(Cell::BYTE_LEN)
-        .ok_or(Error::invalid_instruction())?;
-    let byte_offset = u32::try_from(byte_offset).map_err(|_| Error::invalid_instruction())?;
-
-    view_offset
-        .checked_add(byte_offset)
-        .ok_or(Error::invalid_instruction())
-}
-
-/// Load one tensor view base pointer.
-#[inline(always)]
-fn load_tensor_view_pointer(activation: &Activation<'_>, view_offset: u32) -> Cell {
-    activation.load_cell_at(view_offset)
-}
-
-/// Load one tensor view runtime stride list.
-fn load_tensor_view_strides(
-    activation: &Activation<'_>,
-    view_offset: u32,
-    layout: TensorLayoutView<'_>,
-) -> Result<Vec<u64>, Error> {
-    let mut strides = Vec::with_capacity(layout.shape.len());
-
-    for axis in 0..layout.shape.len() {
-        let offset = tensor_view_stride_offset(view_offset, axis)?;
-        let stride = activation.load_cell_at(offset);
-        strides.push(cell_to_u64(stride)?);
-    }
-
-    Ok(strides)
-}
-
-/// Store one tensor view descriptor.
-fn store_tensor_view_descriptor(
-    activation: &mut Activation<'_>,
-    view_offset: u32,
-    pointer: Cell,
-    strides: &[u64],
-) -> Result<(), Error> {
-    activation.store_cell_at(view_offset, pointer);
-
-    for (axis, stride) in strides.iter().copied().enumerate() {
-        let offset = tensor_view_stride_offset(view_offset, axis)?;
-        activation.store_cell_at(offset, Cell::uint(stride, Cell::BIT_LEN));
-    }
-
-    Ok(())
-}
-
-/// Read one tensor index vector from cell frame offsets.
-fn tensor_index_values(activation: &Activation<'_>, offsets: &[u32]) -> Result<Vec<u64>, Error> {
-    let mut values = Vec::with_capacity(offsets.len());
-    for offset in offsets {
-        let value = activation.load_cell_at(*offset);
-        values.push(cell_to_u64(value)?);
-    }
-
-    Ok(values)
-}
-
-/// Store one tensor result into a fresh payload.
-fn store_tensor_elements<F>(
-    activation: &mut Activation<'_>,
-    dest_offset: u32,
-    layout: TensorLayoutView<'_>,
-    mut element_value: F,
-) -> Result<(), Error>
-where
-    F: FnMut(&mut Activation<'_>, usize) -> Result<Cell, Error>,
-{
-    let result = activation.allocate_zeroed_heap_tensor(&layout.entry)?;
-    let result = Cell::heap_reference(result);
-    activation.store_cell_at(dest_offset, result);
-
-    // store each active tensor element
-    for element_index in 0..layout.element_span_len() {
-        let value = element_value(activation, element_index)?;
-        store_tensor_element_at(activation, result, layout, element_index, value)?;
-    }
-
-    Ok(())
-}
-
-/// Load one tensor-view element through local heap memory.
-#[inline(always)]
-fn load_heap_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-) -> Result<Cell, Error> {
-    let access = element;
-
-    Ok(access::load_heap_scalar_by_layout(
-        activation, pointer, access,
-    ))
-}
-
-/// Load one tensor-view element through shared heap memory.
-#[inline(always)]
-fn load_shared_heap_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-) -> Result<Cell, Error> {
-    let access = element;
-
-    Ok(access::load_shared_heap_scalar_by_layout(
-        activation, pointer, access,
-    ))
-}
-
-/// Load one tensor-view element through raw memory.
-#[inline(always)]
-fn load_raw_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-) -> Result<Cell, Error> {
-    let access = element;
-
-    Ok(access::load_raw_scalar_by_layout(
-        activation, pointer, access,
-    ))
-}
-
-/// Load one tensor-view element through stack memory.
-#[inline(always)]
-fn load_stack_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-) -> Result<Cell, Error> {
-    let access = element;
-
-    Ok(access::load_stack_scalar_by_layout(
-        activation,
-        pointer.as_stack_pointer(),
-        access,
-    ))
-}
-
-/// Load one tensor-view element through frame memory.
-#[inline(always)]
-fn load_frame_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-) -> Result<Cell, Error> {
-    let access = element;
-
-    Ok(access::load_frame_scalar_by_layout(
-        activation,
-        pointer.as_frame_pointer(),
-        access,
-    ))
-}
-
-/// Load one tensor-view element through static memory.
-#[inline(always)]
-fn load_static_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-) -> Result<Cell, Error> {
-    let access = element;
-
-    access::load_static_scalar_by_layout(activation, pointer.as_global_address(), access)
-}
-
-/// Store one tensor-view element through local heap memory.
-#[inline(always)]
-fn store_heap_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    value: Cell,
-) -> Result<(), Error> {
-    let access = element;
-
-    access::store_heap_scalar_by_layout(activation, pointer, access, value);
-
-    Ok(())
-}
-
-/// Store one tensor-view element through shared heap memory.
-#[inline(always)]
-fn store_shared_heap_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    value: Cell,
-) -> Result<(), Error> {
-    let access = element;
-
-    access::store_shared_heap_scalar_by_layout(activation, pointer, access, value);
-
-    Ok(())
-}
-
-/// Store one tensor-view element through raw memory.
-#[inline(always)]
-fn store_raw_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    value: Cell,
-) -> Result<(), Error> {
-    let access = element;
-
-    access::store_raw_scalar_by_layout(activation, pointer, access, value);
-
-    Ok(())
-}
-
-/// Store one tensor-view element through stack memory.
-#[inline(always)]
-fn store_stack_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    value: Cell,
-) -> Result<(), Error> {
-    let access = element;
-
-    access::store_stack_scalar_by_layout(activation, pointer.as_stack_pointer(), access, value);
-
-    Ok(())
-}
-
-/// Store one tensor-view element through frame memory.
-#[inline(always)]
-fn store_frame_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    value: Cell,
-) -> Result<(), Error> {
-    let access = element;
-
-    access::store_frame_scalar_by_layout(activation, pointer.as_frame_pointer(), access, value);
-
-    Ok(())
-}
-
-/// Store one tensor-view element through static memory.
-#[inline(always)]
-fn store_static_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    value: Cell,
-) -> Result<(), Error> {
-    let access = element;
-
-    access::store_static_scalar_by_layout(activation, pointer.as_global_address(), access, value)
-}
-
-/// Load one tensor-view element through selected memory.
-#[inline(always)]
-fn load_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    address: TensorAddress,
-) -> Result<Cell, Error> {
-    match address {
-        TensorAddress::Heap => load_heap_tensor_element(activation, pointer, element),
-        TensorAddress::SharedHeap => load_shared_heap_tensor_element(activation, pointer, element),
-        TensorAddress::Address => load_raw_tensor_element(activation, pointer, element),
-        TensorAddress::Stack => load_stack_tensor_element(activation, pointer, element),
-        TensorAddress::Frame => load_frame_tensor_element(activation, pointer, element),
-        TensorAddress::Static => load_static_tensor_element(activation, pointer, element),
-    }
-}
-
-/// Store one tensor-view element through selected memory.
-#[inline(always)]
-fn store_tensor_element(
-    activation: &mut Activation<'_>,
-    pointer: Cell,
-    element: Projection,
-    value: Cell,
-    address: TensorAddress,
-) -> Result<(), Error> {
-    match address {
-        TensorAddress::Heap => store_heap_tensor_element(activation, pointer, element, value),
-        TensorAddress::SharedHeap => {
-            store_shared_heap_tensor_element(activation, pointer, element, value)
-        }
-        TensorAddress::Address => store_raw_tensor_element(activation, pointer, element, value),
-        TensorAddress::Stack => store_stack_tensor_element(activation, pointer, element, value),
-        TensorAddress::Frame => store_frame_tensor_element(activation, pointer, element, value),
-        TensorAddress::Static => store_static_tensor_element(activation, pointer, element, value),
-    }
-}
-
-/// Return one owning tensor element pointer.
-fn tensor_element_pointer(
-    tensor: Cell,
-    element: Projection,
-    element_index: usize,
+/// One tensor resolved against live execution memory.
+#[derive(Clone, Copy)]
+struct Tensor {
+    /// The stable allocation edge.
+    edge: HeapEdge,
+    /// The first scalar byte.
+    address: usize,
+    /// The first 64-bit dimension in live memory.
+    dimension_address: usize,
+    /// The tensor rank.
+    rank: usize,
+    /// The physical tensor shape.
+    shape: TensorShape,
+    /// The scalar representation.
+    scalar: Scalar,
+    /// The number of logical elements.
     element_count: usize,
-) -> Result<Cell, Error> {
-    offset_heap_view_pointer(tensor, element, element_index, element_count)
 }
 
-/// Return one tensor element byte offset.
-fn element_byte_offset(element: Projection, offset: usize, length: usize) -> Result<usize, Error> {
-    // validate bounds
-    if offset >= length {
-        return Err(Error::index_out_of_bounds(offset as u64, length as u64));
+/// The physical addressing rule for one resolved tensor.
+#[derive(Clone, Copy)]
+enum TensorShape {
+    /// Dense storage in one canonical dimension order.
+    Dense(TensorFormat),
+    /// Explicit byte strides in live memory.
+    Strided(usize),
+}
+
+/// Dimensions read directly from live tensor storage.
+#[derive(Clone, Copy)]
+struct TensorDimensions {
+    /// The next 64-bit dimension.
+    address: usize,
+    /// The number of unread dimensions.
+    remaining: usize,
+}
+
+impl Tensor {
+    /// Resolve one dense owning tensor.
+    fn dense(
+        edge: HeapEdge,
+        address: usize,
+        dimensions: usize,
+        rank: usize,
+        scalar: Scalar,
+        format: TensorFormat,
+    ) -> Option<Self> {
+        let dimensions = TensorDimensions::new(dimensions, rank);
+        let element_count = Self::count_elements(dimensions)?;
+
+        Some(Self {
+            edge,
+            address,
+            dimension_address: dimensions.address,
+            rank,
+            shape: TensorShape::Dense(format),
+            scalar,
+            element_count,
+        })
     }
 
-    Ok(offset * element.byte_stride())
-}
+    /// Resolve one explicitly strided tensor view.
+    fn strided(
+        edge: HeapEdge,
+        address: usize,
+        dimensions: usize,
+        strides: usize,
+        rank: usize,
+        scalar: Scalar,
+    ) -> Option<Self> {
+        let dimensions = TensorDimensions::new(dimensions, rank);
+        let element_count = Self::count_elements(dimensions)?;
 
-/// Store one tensor element into one owning tensor value.
-fn store_tensor_element_at(
-    activation: &mut Activation<'_>,
-    tensor: Cell,
-    layout: TensorLayoutView<'_>,
-    element_index: usize,
-    value: Cell,
-) -> Result<(), Error> {
-    let pointer = tensor_element_pointer(
-        tensor,
-        layout.entry.element,
-        element_index,
-        layout.element_span_len(),
-    )?;
+        Some(Self {
+            edge,
+            address,
+            dimension_address: dimensions.address,
+            rank,
+            shape: TensorShape::Strided(strides),
+            scalar,
+            element_count,
+        })
+    }
 
-    store_heap_tensor_element(activation, pointer, layout.entry.element, value)?;
+    /// Return the number of logical elements.
+    const fn element_count(&self) -> usize {
+        self.element_count
+    }
 
-    Ok(())
-}
+    /// Return the checked element count for one logical shape.
+    fn count_elements(mut dimensions: impl Iterator<Item = usize>) -> Option<usize> {
+        dimensions.try_fold(1usize, |count, dimension| count.checked_mul(dimension))
+    }
 
-/// Store one tensor result from multi-dimensional output indices.
-fn store_tensor_indexed_elements<F>(
-    activation: &mut Activation<'_>,
-    dest_offset: u32,
-    layout: TensorLayoutView<'_>,
-    mut index_value: F,
-) -> Result<(), Error>
-where
-    F: FnMut(&mut Activation<'_>, &[u64]) -> Result<Cell, Error>,
-{
-    let result = activation.allocate_zeroed_heap_tensor(&layout.entry)?;
-    let result = Cell::heap_reference(result);
-    activation.store_cell_at(dest_offset, result);
-    let mut error = None;
+    /// Return the tensor rank.
+    const fn rank(&self) -> usize {
+        self.rank
+    }
 
-    // fill active tensor indices directly into the destination place
-    for_each_index(layout.shape, |output_index| {
-        if error.is_some() {
-            return;
+    /// Return this tensor's dimensions without copying them.
+    const fn dimensions(&self) -> TensorDimensions {
+        TensorDimensions::new(self.dimension_address, self.rank)
+    }
+
+    /// Return one logical dimension.
+    fn dimension(&self, axis: usize) -> Option<usize> {
+        self.dimensions().nth(axis)
+    }
+
+    /// Return whether another tensor has the same logical dimensions.
+    fn matches_dimensions(&self, other: &Self) -> bool {
+        self.rank == other.rank && self.dimensions().eq(other.dimensions())
+    }
+
+    /// Return the address selected by one logical coordinate.
+    fn element_address(&self, coordinate: &[usize]) -> Option<usize> {
+        if coordinate.len() != self.rank {
+            return None;
+        }
+        let mut address = self.address;
+
+        // accumulate each checked axis displacement
+        for (axis, index) in coordinate.iter().copied().enumerate() {
+            let dimension = self.dimension(axis)?;
+            if index >= dimension {
+                return None;
+            }
+            let stride = self.stride(axis)?;
+            address = address.checked_add(index.checked_mul(stride)?)?;
         }
 
-        let destination_offset =
-            match tensor_linear_index(output_index, layout.shape, layout.strides) {
-                Ok(offset) => offset,
-                Err(current_error) => {
-                    error = Some(current_error);
-                    return;
+        Some(address)
+    }
+
+    /// Return the address selected by one dense row-major element index.
+    fn linear_address(&self, mut index: usize) -> Option<usize> {
+        if index >= self.element_count() {
+            return None;
+        }
+        let byte_len = self.scalar.bit_width() as usize / u8::BITS as usize;
+
+        match self.shape {
+            // dense row-major elements are physically contiguous
+            TensorShape::Dense(TensorFormat::Dense {
+                order: TensorDimensionOrder::RowMajor,
+            }) => self.address.checked_add(index.checked_mul(byte_len)?),
+            // derive each column-major stride once while peeling row-major coordinates
+            TensorShape::Dense(TensorFormat::Dense {
+                order: TensorDimensionOrder::ColumnMajor,
+            }) => {
+                let mut address = self.address;
+                let mut row_stride = self.element_count;
+                let mut column_stride = byte_len;
+
+                // map logical row-major order into column-major storage
+                for dimension in self.dimensions() {
+                    if dimension == 0 {
+                        return None;
+                    }
+                    row_stride /= dimension;
+                    let coordinate = index / row_stride;
+                    index %= row_stride;
+                    address = address.checked_add(coordinate.checked_mul(column_stride)?)?;
+                    column_stride = column_stride.checked_mul(dimension)?;
                 }
+
+                Some(address)
+            }
+            // explicit views carry one byte stride per logical dimension
+            TensorShape::Strided(strides) => {
+                let mut address = self.address;
+                let mut dimensions = self.dimensions();
+                let mut strides = TensorDimensions::new(strides, self.rank);
+
+                // map logical row-major order into explicit storage strides
+                while let (Some(dimension), Some(stride)) =
+                    (dimensions.next_back(), strides.next_back())
+                {
+                    if dimension == 0 {
+                        return None;
+                    }
+                    let coordinate = index % dimension;
+                    address = address.checked_add(coordinate.checked_mul(stride)?)?;
+                    index /= dimension;
+                }
+
+                Some(address)
+            }
+        }
+    }
+
+    /// Return the byte span containing every reachable element.
+    fn byte_span(&self) -> Option<usize> {
+        if self.element_count == 0 {
+            return Some(0);
+        }
+        let byte_len = self.scalar.bit_width() as usize / u8::BITS as usize;
+        let mut last = 0usize;
+
+        // accumulate the final reachable element in every dimension
+        for axis in 0..self.rank {
+            let index = self.dimension(axis)?.checked_sub(1)?;
+            let offset = index.checked_mul(self.stride(axis)?)?;
+            last = last.checked_add(offset)?;
+        }
+
+        last.checked_add(byte_len)
+    }
+
+    /// Return one physical byte stride.
+    fn stride(&self, axis: usize) -> Option<usize> {
+        if axis >= self.rank {
+            return None;
+        }
+
+        match self.shape {
+            TensorShape::Strided(address) => TensorDimensions::new(address, self.rank).nth(axis),
+            TensorShape::Dense(TensorFormat::Dense {
+                order: TensorDimensionOrder::RowMajor,
+            }) => {
+                let byte_len = self.scalar.bit_width() as usize / u8::BITS as usize;
+
+                self.dimensions()
+                    .skip(axis + 1)
+                    .try_fold(byte_len, usize::checked_mul)
+            }
+            TensorShape::Dense(TensorFormat::Dense {
+                order: TensorDimensionOrder::ColumnMajor,
+            }) => {
+                let byte_len = self.scalar.bit_width() as usize / u8::BITS as usize;
+
+                self.dimensions()
+                    .take(axis)
+                    .try_fold(byte_len, usize::checked_mul)
+            }
+        }
+    }
+}
+
+impl TensorDimensions {
+    /// Create one iterator over live 64-bit dimension words.
+    const fn new(address: usize, rank: usize) -> Self {
+        Self {
+            address,
+            remaining: rank,
+        }
+    }
+}
+
+impl Iterator for TensorDimensions {
+    type Item = usize;
+
+    /// Read the next dimension.
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+
+        // SAFETY: resolved tensor shapes point at aligned live words for their complete rank
+        let dimension = unsafe { ptr::read(self.address as *const Word) }.as_u64() as usize;
+        self.address += Word::BYTE_LEN;
+        self.remaining -= 1;
+
+        Some(dimension)
+    }
+
+    /// Return the exact remaining dimension count.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl ExactSizeIterator for TensorDimensions {}
+
+impl DoubleEndedIterator for TensorDimensions {
+    /// Read the final remaining dimension.
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.remaining -= 1;
+        let address = self.address + self.remaining * Word::BYTE_LEN;
+
+        // SAFETY: resolved tensor shapes point at aligned live words for their complete rank
+        let dimension = unsafe { ptr::read(address as *const Word) }.as_u64() as usize;
+
+        Some(dimension)
+    }
+}
+
+/// One logical tensor coordinate.
+struct Coordinate {
+    /// The index for each tensor axis.
+    values: Vec<usize>,
+}
+
+impl Coordinate {
+    /// Create one zero coordinate for a tensor rank.
+    fn zero(rank: usize) -> Self {
+        Self {
+            values: vec![0; rank],
+        }
+    }
+
+    /// Set this coordinate from one dense row-major index.
+    fn set<Dimensions>(&mut self, mut index: usize, dimensions: Dimensions) -> Option<()>
+    where
+        Dimensions: Clone + DoubleEndedIterator<Item = usize> + ExactSizeIterator,
+    {
+        let element_count = Tensor::count_elements(dimensions.clone())?;
+        if index >= element_count || self.values.len() != dimensions.len() {
+            return None;
+        }
+
+        // peel dimensions from the innermost axis outward
+        for (axis, dimension) in dimensions.rev().enumerate() {
+            if dimension == 0 {
+                return None;
+            }
+            let axis = self.values.len() - axis - 1;
+            self.values[axis] = index % dimension;
+            index /= dimension;
+        }
+
+        Some(())
+    }
+}
+
+impl Activation<'_, '_> {
+    /// Execute one tensor operation through the direct CPU engine.
+    pub(crate) fn execute_tensor<const WATCH: bool>(
+        &mut self,
+        frame: Frame,
+        instruction_offset: CodeOffset,
+        instruction: Instruction<'_>,
+        operation: TensorOperation,
+    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+        let point = self.point(frame, instruction_offset)?;
+        let access = match operation {
+            TensorOperation::Load => self.execute_tensor_load(instruction).map(Some),
+            TensorOperation::Store => self.execute_tensor_store(instruction).map(Some),
+            TensorOperation::Fill => self.execute_tensor_fill(instruction).map(Some),
+            TensorOperation::Copy => self.execute_tensor_copy(instruction).map(Some),
+            TensorOperation::Element | TensorOperation::Compare => {
+                self.execute_tensor_element(instruction, operation, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Select => {
+                self.execute_tensor_select(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Transpose => {
+                self.execute_tensor_transpose(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Reshape => {
+                self.execute_tensor_reshape(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Broadcast => {
+                self.execute_tensor_broadcast(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Slice => {
+                self.execute_tensor_slice(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Pad => {
+                self.execute_tensor_pad(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Concat => {
+                self.execute_tensor_concat(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Splat => {
+                self.execute_tensor_splat(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Convert => {
+                self.execute_tensor_convert(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Bitcast => {
+                self.execute_tensor_bitcast(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Reduce => {
+                self.execute_tensor_reduce(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::IndexReduce => {
+                self.execute_tensor_index_reduce(instruction, point)?;
+
+                Ok(None)
+            }
+            TensorOperation::Extract => {
+                self.execute_tensor_extract(instruction)?;
+
+                Ok(None)
+            }
+            TensorOperation::View => {
+                self.execute_tensor_view(instruction)?;
+
+                Ok(None)
+            }
+            TensorOperation::Contract
+            | TensorOperation::Gather
+            | TensorOperation::Scatter
+            | TensorOperation::Convolution => {
+                return Err(Error::unsupported_opcode(instruction.opcode().code()));
+            }
+        }?;
+
+        // publish completed tensor memory only in the observed loop
+        if WATCH && let Some((memory_access, address)) = access {
+            self.watch_after(frame, instruction_offset, memory_access, Some(address))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Execute one elementwise scalar tensor operation.
+    fn execute_tensor_element(
+        &mut self,
+        instruction: Instruction<'_>,
+        tensor_operation: TensorOperation,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let mut inputs = operands.tensors().map_err(|_| self.invalid_instruction())?;
+        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let operator = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+        let (float_operation, integer_operation, input_count, is_comparison) =
+            if source_scalar.is_float() {
+                let operation = FloatOperation::from_code(operator)
+                    .ok_or_else(|| self.invalid_instruction())?;
+
+                (
+                    Some(operation),
+                    None,
+                    operation.input_count(),
+                    operation.is_comparison(),
+                )
+            } else if source_scalar.is_integer() {
+                let operation = IntegerOperation::from_code(operator)
+                    .filter(|operation| !operation.is_overflowing())
+                    .ok_or_else(|| self.invalid_instruction())?;
+
+                (
+                    None,
+                    Some(operation),
+                    operation.input_count(),
+                    operation.is_comparison(),
+                )
+            } else {
+                return Err(self.invalid_instruction());
             };
-        let value = match index_value(activation, output_index) {
-            Ok(value) => value,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
+        let expects_comparison = tensor_operation == TensorOperation::Compare;
+        if inputs.len() != input_count || is_comparison != expects_comparison {
+            return Err(self.invalid_instruction());
+        }
+        let first_input = inputs.next().ok_or_else(|| self.invalid_instruction())?;
+        let first = self.tensor(first_input)?;
+        if first.scalar != source_scalar {
+            return Err(self.invalid_instruction());
+        }
+        let mut tensors = [first; 3];
+        for (index, input) in inputs.enumerate() {
+            let tensor = self.tensor(input)?;
+            if tensor.scalar != source_scalar {
+                return Err(self.invalid_instruction());
             }
-        };
-
-        if let Err(current_error) =
-            store_tensor_element_at(activation, result, layout, destination_offset, value)
-        {
-            error = Some(current_error);
-        }
-    });
-
-    if let Some(error) = error {
-        return Err(error);
-    }
-
-    Ok(())
-}
-
-/// Compute the linear index for a multi-dimensional index.
-pub(crate) fn tensor_linear_index(
-    indices: &[u64],
-    shape: &[u64],
-    strides: &[u64],
-) -> Result<usize, Error> {
-    // validate index length
-    if indices.len() != shape.len() || shape.len() != strides.len() {
-        return Err(Error::type_mismatch(
-            "tensor index rank",
-            format!(
-                "indices={}, shape={}, strides={}",
-                indices.len(),
-                shape.len(),
-                strides.len()
-            ),
-        ));
-    }
-
-    // compute linear index
-    let mut offset = 0usize;
-    for ((index, dim), stride) in indices.iter().zip(shape.iter()).zip(strides.iter()) {
-        // reject out of bounds indices before accumulating the stride
-        if *index >= *dim {
-            return Err(Error::index_out_of_bounds(*index, *dim));
-        }
-
-        // accumulate the linear offset in element units
-        let product = (*index as usize) * (*stride as usize);
-        offset += product;
-    }
-
-    Ok(offset)
-}
-
-/// Load one tensor element from one owning tensor value.
-pub(crate) fn load_tensor_element_at(
-    activation: &mut Activation<'_>,
-    tensor: Cell,
-    layout: TensorLayoutView<'_>,
-    element_index: usize,
-) -> Result<Cell, Error> {
-    let pointer = tensor_element_pointer(
-        tensor,
-        layout.entry.element,
-        element_index,
-        layout.element_span_len(),
-    )?;
-
-    load_heap_tensor_element(activation, pointer, layout.entry.element)
-}
-
-/// Execute one tensor binary element loop.
-fn execute_tensor_binary_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode side record
-    let record = *activation.side::<TensorBinary>(instruction);
-    let TensorBinary {
-        dest_offset,
-        left_offset,
-        right_offset,
-        left_layout,
-        right_layout,
-        dest_layout,
-        kernel: _,
-        element_layout,
-    } = record;
-
-    // resolve tensor addresses
-    let left_value = tensor_value(activation, left_offset);
-    let right_value = tensor_value(activation, right_offset);
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let left_layout = program_tensor_layout(program, left_layout);
-    let right_layout = program_tensor_layout(program, right_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // execute the scalar operation on each tensor element
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            let left_index =
-                tensor_linear_index(output_index, left_layout.shape, left_layout.strides)?;
-            let right_index =
-                tensor_linear_index(output_index, right_layout.shape, right_layout.strides)?;
-            let left = load_tensor_element_at(activation, left_value, left_layout, left_index)?;
-            let right = load_tensor_element_at(activation, right_value, right_layout, right_index)?;
-
-            operation(element_layout, left, right)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute a tensor binary operation.
-pub(crate) fn execute_tensor_binary(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let kernel = activation.side::<TensorBinary>(instruction).kernel;
-    let operation = tensor_binary_operation(kernel);
-
-    execute_tensor_binary_elements(activation, instruction, operation)
-}
-
-/// Return the scalar operation for one tensor binary kernel.
-fn tensor_binary_operation(
-    kernel: ElementBinaryKernel,
-) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
-    match kernel {
-        ElementBinaryKernel::AndBool => super::scalar::and_bool,
-        ElementBinaryKernel::OrBool => super::scalar::or_bool,
-        ElementBinaryKernel::XorBool => super::scalar::xor_bool,
-        ElementBinaryKernel::EqBool => super::scalar::eq_bool,
-        ElementBinaryKernel::NeBool => super::scalar::ne_bool,
-        ElementBinaryKernel::AddInt => super::scalar::add_int,
-        ElementBinaryKernel::SubInt => super::scalar::sub_int,
-        ElementBinaryKernel::MulInt => super::scalar::mul_int,
-        ElementBinaryKernel::DivInt => super::scalar::div_int,
-        ElementBinaryKernel::DivUint => super::scalar::div_uint,
-        ElementBinaryKernel::RemInt => super::scalar::rem_int,
-        ElementBinaryKernel::RemUint => super::scalar::rem_uint,
-        ElementBinaryKernel::AndInt => super::scalar::and_int,
-        ElementBinaryKernel::OrInt => super::scalar::or_int,
-        ElementBinaryKernel::XorInt => super::scalar::xor_int,
-        ElementBinaryKernel::ShlInt => super::scalar::shl_int,
-        ElementBinaryKernel::ShrInt => super::scalar::shr_int,
-        ElementBinaryKernel::ShrUint => super::scalar::shr_uint,
-        ElementBinaryKernel::EqInt => super::scalar::eq_int,
-        ElementBinaryKernel::NeInt => super::scalar::ne_int,
-        ElementBinaryKernel::LtInt => super::scalar::lt_int,
-        ElementBinaryKernel::LtUint => super::scalar::lt_uint,
-        ElementBinaryKernel::LeInt => super::scalar::le_int,
-        ElementBinaryKernel::LeUint => super::scalar::le_uint,
-        ElementBinaryKernel::GtInt => super::scalar::gt_int,
-        ElementBinaryKernel::GtUint => super::scalar::gt_uint,
-        ElementBinaryKernel::GeInt => super::scalar::ge_int,
-        ElementBinaryKernel::GeUint => super::scalar::ge_uint,
-        ElementBinaryKernel::AddF32 => super::scalar::add_f32,
-        ElementBinaryKernel::AddF64 => super::scalar::add_f64,
-        ElementBinaryKernel::SubF32 => super::scalar::sub_f32,
-        ElementBinaryKernel::SubF64 => super::scalar::sub_f64,
-        ElementBinaryKernel::MulF32 => super::scalar::mul_f32,
-        ElementBinaryKernel::MulF64 => super::scalar::mul_f64,
-        ElementBinaryKernel::DivF32 => super::scalar::div_f32,
-        ElementBinaryKernel::DivF64 => super::scalar::div_f64,
-        ElementBinaryKernel::EqF32 => super::scalar::eq_f32,
-        ElementBinaryKernel::EqF64 => super::scalar::eq_f64,
-        ElementBinaryKernel::NeF32 => super::scalar::ne_f32,
-        ElementBinaryKernel::NeF64 => super::scalar::ne_f64,
-        ElementBinaryKernel::LtF32 => super::scalar::lt_f32,
-        ElementBinaryKernel::LtF64 => super::scalar::lt_f64,
-        ElementBinaryKernel::LeF32 => super::scalar::le_f32,
-        ElementBinaryKernel::LeF64 => super::scalar::le_f64,
-        ElementBinaryKernel::GtF32 => super::scalar::gt_f32,
-        ElementBinaryKernel::GtF64 => super::scalar::gt_f64,
-        ElementBinaryKernel::GeF32 => super::scalar::ge_f32,
-        ElementBinaryKernel::GeF64 => super::scalar::ge_f64,
-        ElementBinaryKernel::AddFloat => super::scalar::add_float,
-        ElementBinaryKernel::SubFloat => super::scalar::sub_float,
-        ElementBinaryKernel::MulFloat => super::scalar::mul_float,
-        ElementBinaryKernel::DivFloat => super::scalar::div_float,
-        ElementBinaryKernel::EqFloat => super::scalar::eq_float,
-        ElementBinaryKernel::NeFloat => super::scalar::ne_float,
-        ElementBinaryKernel::LtFloat => super::scalar::lt_float,
-        ElementBinaryKernel::LeFloat => super::scalar::le_float,
-        ElementBinaryKernel::GtFloat => super::scalar::gt_float,
-        ElementBinaryKernel::GeFloat => super::scalar::ge_float,
-    }
-}
-
-/// Execute a contiguous tensor binary operation.
-pub(crate) fn execute_tensor_contiguous_binary(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let record = *activation.side::<TensorContiguousBinary>(instruction);
-    let TensorContiguousBinary {
-        dest_offset,
-        left_offset,
-        right_offset,
-        dest_layout,
-        element_layout,
-        kernel,
-    } = record;
-    let program = activation.program;
-    let layout = program_tensor_layout(program, dest_layout);
-    execute_contiguous_tensor_binary_elements(
-        activation,
-        (dest_offset, left_offset, right_offset),
-        layout,
-        element_layout,
-        kernel,
-    )?;
-
-    Ok(())
-}
-
-/// Execute one tensor unary element loop.
-fn execute_tensor_unary_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: fn(ScalarFormat, Cell) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode fixed fields
-    let record = *activation.side::<TensorUnary>(instruction);
-    let TensorUnary {
-        dest_offset,
-        argument_offset,
-        argument_layout,
-        element_layout,
-        dest_layout,
-        kernel: _,
-    } = record;
-
-    // resolve tensor address
-    let argument_value = tensor_value(activation, argument_offset);
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let argument_layout = program_tensor_layout(program, argument_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // execute the scalar operation on each logical tensor element
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            let argument_index =
-                tensor_linear_index(output_index, argument_layout.shape, argument_layout.strides)?;
-            let value = load_tensor_element_at(
-                activation,
-                argument_value,
-                argument_layout,
-                argument_index,
-            )?;
-
-            operation(element_layout, value)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute a tensor unary operation.
-pub(crate) fn execute_tensor_unary(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let kernel = activation.side::<TensorUnary>(instruction).kernel;
-    let operation = tensor_unary_operation(kernel);
-
-    execute_tensor_unary_elements(activation, instruction, operation)
-}
-
-/// Return the scalar operation for one tensor unary kernel.
-fn tensor_unary_operation(
-    kernel: ElementUnaryKernel,
-) -> fn(ScalarFormat, Cell) -> Result<Cell, Error> {
-    match kernel {
-        ElementUnaryKernel::NotBool => super::scalar::not_bool,
-        ElementUnaryKernel::NegInt => super::scalar::neg_int,
-        ElementUnaryKernel::NotInt => super::scalar::not_int,
-        ElementUnaryKernel::NegF32 => super::scalar::neg_f32,
-        ElementUnaryKernel::NegF64 => super::scalar::neg_f64,
-        ElementUnaryKernel::NegFloat => super::scalar::neg_float,
-    }
-}
-
-/// Return the cell layout for one tensor scalar layout.
-fn tensor_cell_layout(layout: ScalarFormat) -> Result<CellLayout, Error> {
-    let layout = match layout {
-        ScalarFormat::Int {
-            width,
-            is_signed: 1,
-        } if width <= u64::BITS as u16 => CellLayout::Int { width: width as u8 },
-        ScalarFormat::Int {
-            width,
-            is_signed: 0,
-        } if width <= u64::BITS as u16 => CellLayout::Uint { width: width as u8 },
-        ScalarFormat::Float {
-            format: mir::FloatType::Float16,
-        } => CellLayout::Float16,
-        ScalarFormat::Float {
-            format: mir::FloatType::Bfloat16,
-        } => CellLayout::Bfloat16,
-        ScalarFormat::Float {
-            format: mir::FloatType::Float32,
-        } => CellLayout::Float32,
-        ScalarFormat::Float {
-            format: mir::FloatType::Float64,
-        } => CellLayout::Float64,
-        ScalarFormat::Boolean => CellLayout::Boolean,
-        _ => return Err(Error::invalid_instruction()),
-    };
-
-    Ok(layout)
-}
-
-/// Return contiguous binary frame addresses.
-#[inline(always)]
-fn contiguous_binary_addresses(
-    activation: &Activation<'_>,
-    offsets: (u32, u32, u32),
-) -> (*mut u8, *const u8, *const u8) {
-    let (dest_offset, left_offset, right_offset) = offsets;
-    let dest = tensor_value_address(activation, dest_offset) as *mut u8;
-    let left = tensor_value_address(activation, left_offset) as *const u8;
-    let right = tensor_value_address(activation, right_offset) as *const u8;
-
-    (dest, left, right)
-}
-
-/// Return contiguous unary frame addresses.
-#[inline(always)]
-fn contiguous_unary_addresses(
-    activation: &Activation<'_>,
-    offsets: (u32, u32),
-) -> (*mut u8, *const u8) {
-    let (dest_offset, argument_offset) = offsets;
-    let dest = tensor_value_address(activation, dest_offset) as *mut u8;
-    let argument = tensor_value_address(activation, argument_offset) as *const u8;
-
-    (dest, argument)
-}
-
-/// Return the native payload address for one owning tensor value.
-fn tensor_value_address(activation: &Activation<'_>, offset: u32) -> usize {
-    let value = tensor_value(activation, offset);
-    let reference = value.as_heap_reference();
-
-    activation.heap_address(reference, 0)
-}
-
-/// Read one contiguous element.
-#[inline(always)]
-fn read_contiguous<T: Copy>(base: *const T, index: usize) -> T {
-    // SAFETY: callers pass contiguous tensor storage with index in bounds
-    unsafe { base.add(index).read() }
-}
-
-/// Write one contiguous element.
-#[inline(always)]
-fn write_contiguous<T>(base: *mut T, index: usize, value: T) {
-    // SAFETY: callers pass contiguous tensor storage with index in bounds
-    unsafe {
-        base.add(index).write(value);
-    }
-}
-
-/// Execute one contiguous binary value kernel.
-#[inline(always)]
-fn execute_contiguous_binary_value<T, F>(
-    dest: *mut T,
-    left: *const T,
-    right: *const T,
-    element_count: usize,
-    mut operation: F,
-) -> Result<(), Error>
-where
-    T: Copy,
-    F: FnMut(T, T) -> Result<T, Error>,
-{
-    // walk contiguous elements directly
-    for index in 0..element_count {
-        let left_value = read_contiguous(left, index);
-        let right_value = read_contiguous(right, index);
-        let value = operation(left_value, right_value)?;
-        write_contiguous(dest, index, value);
-    }
-
-    Ok(())
-}
-
-/// Execute one contiguous binary comparison kernel.
-#[inline(always)]
-fn execute_contiguous_binary_compare<T, F>(
-    dest: *mut u8,
-    left: *const T,
-    right: *const T,
-    element_count: usize,
-    mut operation: F,
-) -> Result<(), Error>
-where
-    T: Copy,
-    F: FnMut(T, T) -> bool,
-{
-    // write boolean result bytes directly
-    for index in 0..element_count {
-        let left_value = read_contiguous(left, index);
-        let right_value = read_contiguous(right, index);
-        let value = u8::from(operation(left_value, right_value));
-        write_contiguous(dest, index, value);
-    }
-
-    Ok(())
-}
-
-/// Execute one contiguous unary value kernel.
-#[inline(always)]
-fn execute_contiguous_unary_value<T, F>(
-    dest: *mut T,
-    argument: *const T,
-    element_count: usize,
-    mut operation: F,
-) -> Result<(), Error>
-where
-    T: Copy,
-    F: FnMut(T) -> T,
-{
-    // walk contiguous elements directly
-    for index in 0..element_count {
-        let argument = read_contiguous(argument, index);
-        let value = operation(argument);
-        write_contiguous(dest, index, value);
-    }
-
-    Ok(())
-}
-
-/// Execute contiguous 32-bit integer addition.
-#[inline(always)]
-fn execute_contiguous_add_u32(
-    dest: *mut u32,
-    left: *const u32,
-    right: *const u32,
-    element_count: usize,
-) -> Result<(), Error> {
-    execute_contiguous_add_u32_unchecked(dest, left, right, element_count);
-
-    Ok(())
-}
-
-/// Execute contiguous 32-bit integer addition on AArch64.
-#[cfg(target_arch = "aarch64")]
-#[inline(always)]
-fn execute_contiguous_add_u32_unchecked(
-    dest: *mut u32,
-    left: *const u32,
-    right: *const u32,
-    element_count: usize,
-) {
-    let mut index = 0usize;
-    let vector_count = element_count / 4;
-
-    // add full vector chunks
-    for _ in 0..vector_count {
-        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
-        let left_value = unsafe { vld1q_u32(left.add(index)) };
-        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
-        let right_value = unsafe { vld1q_u32(right.add(index)) };
-        // SAFETY: NEON integer addition is valid for two loaded u32 vectors
-        let result = unsafe { vaddq_u32(left_value, right_value) };
-        // SAFETY: vector_count only covers full four-lane chunks inside the output buffer
-        unsafe {
-            vst1q_u32(dest.add(index), result);
-        }
-        index += 4;
-    }
-
-    // finish scalar tail
-    while index < element_count {
-        let left_value = read_contiguous(left, index);
-        let right_value = read_contiguous(right, index);
-        let value = left_value.wrapping_add(right_value);
-        write_contiguous(dest, index, value);
-        index += 1;
-    }
-}
-
-/// Execute contiguous 32-bit integer addition on x86-64.
-#[cfg(target_arch = "x86_64")]
-#[inline(always)]
-fn execute_contiguous_add_u32_unchecked(
-    dest: *mut u32,
-    left: *const u32,
-    right: *const u32,
-    element_count: usize,
-) {
-    let mut index = 0usize;
-    let vector_count = element_count / 4;
-
-    // add full vector chunks
-    for _ in 0..vector_count {
-        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
-        let left_value = unsafe { _mm_loadu_si128(left.add(index).cast::<__m128i>()) };
-        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
-        let right_value = unsafe { _mm_loadu_si128(right.add(index).cast::<__m128i>()) };
-        // SAFETY: SSE2 integer addition is valid for two loaded u32 vectors
-        let result = unsafe { _mm_add_epi32(left_value, right_value) };
-        // SAFETY: vector_count only covers full four-lane chunks inside the output buffer
-        unsafe {
-            _mm_storeu_si128(dest.add(index).cast::<__m128i>(), result);
-        }
-        index += 4;
-    }
-
-    // finish scalar tail
-    while index < element_count {
-        let left_value = read_contiguous(left, index);
-        let right_value = read_contiguous(right, index);
-        let value = left_value.wrapping_add(right_value);
-        write_contiguous(dest, index, value);
-        index += 1;
-    }
-}
-
-/// Execute contiguous 32-bit integer addition on scalar targets.
-#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
-#[inline(always)]
-fn execute_contiguous_add_u32_unchecked(
-    dest: *mut u32,
-    left: *const u32,
-    right: *const u32,
-    element_count: usize,
-) {
-    // walk contiguous elements directly
-    for index in 0..element_count {
-        let left_value = read_contiguous(left, index);
-        let right_value = read_contiguous(right, index);
-        let value = left_value.wrapping_add(right_value);
-        write_contiguous(dest, index, value);
-    }
-}
-
-/// Divide one signed 32-bit integer.
-#[inline(always)]
-fn divide_i32(left: i32, right: i32) -> Result<i32, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_div(right))
-}
-
-/// Divide one signed 64-bit integer.
-#[inline(always)]
-fn divide_i64(left: i64, right: i64) -> Result<i64, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_div(right))
-}
-
-/// Divide one unsigned 32-bit integer.
-#[inline(always)]
-fn divide_u32(left: u32, right: u32) -> Result<u32, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_div(right))
-}
-
-/// Divide one unsigned 64-bit integer.
-#[inline(always)]
-fn divide_u64(left: u64, right: u64) -> Result<u64, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_div(right))
-}
-
-/// Remainder one signed 32-bit integer.
-#[inline(always)]
-fn remainder_i32(left: i32, right: i32) -> Result<i32, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_rem(right))
-}
-
-/// Remainder one signed 64-bit integer.
-#[inline(always)]
-fn remainder_i64(left: i64, right: i64) -> Result<i64, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_rem(right))
-}
-
-/// Remainder one unsigned 32-bit integer.
-#[inline(always)]
-fn remainder_u32(left: u32, right: u32) -> Result<u32, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_rem(right))
-}
-
-/// Remainder one unsigned 64-bit integer.
-#[inline(always)]
-fn remainder_u64(left: u64, right: u64) -> Result<u64, Error> {
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    Ok(left.wrapping_rem(right))
-}
-
-macro_rules! execute_contiguous_binary {
-    ($dest:expr, $left:expr, $right:expr, $count:expr, $ty:ty, $operation:expr) => {
-        execute_contiguous_binary_value(
-            $dest.cast::<$ty>(),
-            $left.cast::<$ty>(),
-            $right.cast::<$ty>(),
-            $count,
-            $operation,
-        )
-    };
-}
-
-macro_rules! execute_contiguous_compare {
-    ($dest:expr, $left:expr, $right:expr, $count:expr, $ty:ty, $operation:expr) => {
-        execute_contiguous_binary_compare(
-            $dest,
-            $left.cast::<$ty>(),
-            $right.cast::<$ty>(),
-            $count,
-            $operation,
-        )
-    };
-}
-
-macro_rules! execute_contiguous_unary {
-    ($dest:expr, $argument:expr, $count:expr, $ty:ty, $operation:expr) => {
-        execute_contiguous_unary_value(
-            $dest.cast::<$ty>(),
-            $argument.cast::<$ty>(),
-            $count,
-            $operation,
-        )
-    };
-}
-
-/// Execute one contiguous typed tensor binary operation.
-fn execute_contiguous_tensor_binary_typed(
-    addresses: (*mut u8, *const u8, *const u8),
-    element_count: usize,
-    element_layout: ScalarFormat,
-    kernel: ElementBinaryKernel,
-) -> Option<Result<(), Error>> {
-    let (dest, left, right) = addresses;
-
-    // select one typed loop before walking elements
-    let result = match (kernel, element_layout) {
-        (ElementBinaryKernel::AndBool, ScalarFormat::Boolean) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u8, |a, b| Ok(a & b))
-        }
-        (ElementBinaryKernel::OrBool, ScalarFormat::Boolean) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u8, |a, b| Ok(a | b))
-        }
-        (ElementBinaryKernel::XorBool, ScalarFormat::Boolean) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u8, |a, b| Ok(a ^ b))
-        }
-        (ElementBinaryKernel::EqBool, ScalarFormat::Boolean) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u8, |a, b| a == b)
-        }
-        (ElementBinaryKernel::NeBool, ScalarFormat::Boolean) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u8, |a, b| a != b)
-        }
-        (ElementBinaryKernel::AddInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_add_u32(
-                dest.cast::<u32>(),
-                left.cast::<u32>(),
-                right.cast::<u32>(),
-                element_count,
-            )
-        }
-        (ElementBinaryKernel::SubInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
-                Ok(a.wrapping_sub(b))
-            })
-        }
-        (ElementBinaryKernel::MulInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
-                Ok(a.wrapping_mul(b))
-            })
-        }
-        (
-            ElementBinaryKernel::DivInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, i32, divide_i32)
-        }
-        (ElementBinaryKernel::DivUint, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, divide_u32)
-        }
-        (
-            ElementBinaryKernel::RemInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, i32, remainder_i32)
-        }
-        (ElementBinaryKernel::RemUint, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, remainder_u32)
-        }
-        (ElementBinaryKernel::AndInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| Ok(a & b))
-        }
-        (ElementBinaryKernel::OrInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| Ok(a | b))
-        }
-        (ElementBinaryKernel::XorInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| Ok(a ^ b))
-        }
-        (ElementBinaryKernel::ShlInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
-                Ok(a.wrapping_shl(b))
-            })
-        }
-        (
-            ElementBinaryKernel::ShrInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, i32, |a, b| {
-                Ok(a.wrapping_shr(b as u32))
-            })
-        }
-        (ElementBinaryKernel::ShrUint, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u32, |a, b| {
-                Ok(a.wrapping_shr(b))
-            })
-        }
-        (ElementBinaryKernel::EqInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a == b)
-        }
-        (ElementBinaryKernel::NeInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a != b)
-        }
-        (
-            ElementBinaryKernel::LtInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a < b)
-        }
-        (ElementBinaryKernel::LtUint, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a < b)
-        }
-        (
-            ElementBinaryKernel::LeInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a <= b)
-        }
-        (ElementBinaryKernel::LeUint, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a <= b)
-        }
-        (
-            ElementBinaryKernel::GtInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a > b)
-        }
-        (ElementBinaryKernel::GtUint, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a > b)
-        }
-        (
-            ElementBinaryKernel::GeInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i32, |a, b| a >= b)
-        }
-        (ElementBinaryKernel::GeUint, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u32, |a, b| a >= b)
-        }
-        (ElementBinaryKernel::AddInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
-                Ok(a.wrapping_add(b))
-            })
-        }
-        (ElementBinaryKernel::SubInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
-                Ok(a.wrapping_sub(b))
-            })
-        }
-        (ElementBinaryKernel::MulInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
-                Ok(a.wrapping_mul(b))
-            })
-        }
-        (
-            ElementBinaryKernel::DivInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, i64, divide_i64)
-        }
-        (ElementBinaryKernel::DivUint, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, divide_u64)
-        }
-        (
-            ElementBinaryKernel::RemInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, i64, remainder_i64)
-        }
-        (ElementBinaryKernel::RemUint, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, remainder_u64)
-        }
-        (ElementBinaryKernel::AndInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| Ok(a & b))
-        }
-        (ElementBinaryKernel::OrInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| Ok(a | b))
-        }
-        (ElementBinaryKernel::XorInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| Ok(a ^ b))
-        }
-        (ElementBinaryKernel::ShlInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
-                Ok(a.wrapping_shl(b as u32))
-            })
-        }
-        (
-            ElementBinaryKernel::ShrInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, i64, |a, b| {
-                Ok(a.wrapping_shr(b as u32))
-            })
-        }
-        (ElementBinaryKernel::ShrUint, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_binary!(dest, left, right, element_count, u64, |a, b| {
-                Ok(a.wrapping_shr(b as u32))
-            })
-        }
-        (ElementBinaryKernel::EqInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a == b)
-        }
-        (ElementBinaryKernel::NeInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a != b)
-        }
-        (
-            ElementBinaryKernel::LtInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a < b)
-        }
-        (ElementBinaryKernel::LtUint, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a < b)
-        }
-        (
-            ElementBinaryKernel::LeInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a <= b)
-        }
-        (ElementBinaryKernel::LeUint, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a <= b)
-        }
-        (
-            ElementBinaryKernel::GtInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a > b)
-        }
-        (ElementBinaryKernel::GtUint, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a > b)
-        }
-        (
-            ElementBinaryKernel::GeInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, i64, |a, b| a >= b)
-        }
-        (ElementBinaryKernel::GeUint, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a >= b)
-        }
-        (
-            ElementBinaryKernel::AddF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a + b))
-        }
-        (
-            ElementBinaryKernel::SubF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a - b))
-        }
-        (
-            ElementBinaryKernel::MulF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a * b))
-        }
-        (
-            ElementBinaryKernel::DivF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a / b))
-        }
-        (
-            ElementBinaryKernel::EqF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a == b)
-        }
-        (
-            ElementBinaryKernel::NeF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a != b)
-        }
-        (
-            ElementBinaryKernel::LtF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a < b)
-        }
-        (
-            ElementBinaryKernel::LeF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a <= b)
-        }
-        (
-            ElementBinaryKernel::GtF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a > b)
-        }
-        (
-            ElementBinaryKernel::GeF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a >= b)
-        }
-        (
-            ElementBinaryKernel::AddF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a + b))
-        }
-        (
-            ElementBinaryKernel::SubF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a - b))
-        }
-        (
-            ElementBinaryKernel::MulF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a * b))
-        }
-        (
-            ElementBinaryKernel::DivF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a / b))
-        }
-        (
-            ElementBinaryKernel::EqF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a == b)
-        }
-        (
-            ElementBinaryKernel::NeF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a != b)
-        }
-        (
-            ElementBinaryKernel::LtF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a < b)
-        }
-        (
-            ElementBinaryKernel::LeF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a <= b)
-        }
-        (
-            ElementBinaryKernel::GtF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a > b)
-        }
-        (
-            ElementBinaryKernel::GeF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a >= b)
-        }
-        _ => return None,
-    };
-
-    Some(result)
-}
-
-/// Execute one contiguous tensor binary operation.
-fn execute_contiguous_tensor_binary_elements(
-    activation: &mut Activation<'_>,
-    offsets: (u32, u32, u32),
-    layout: TensorLayoutView<'_>,
-    element_layout: ScalarFormat,
-    kernel: ElementBinaryKernel,
-) -> Result<(), Error> {
-    let dest_layout = layout
-        .entry
-        .element
-        .cell_layout()
-        .ok_or(Error::invalid_instruction())?;
-    let element_cell_layout = tensor_cell_layout(element_layout)?;
-    let result = activation.allocate_zeroed_heap_tensor(&layout.entry)?;
-    let result = Cell::heap_reference(result);
-    activation.store_cell_at(offsets.0, result);
-    let addresses = contiguous_binary_addresses(activation, offsets);
-
-    // use direct typed loops for activation-natural element layouts
-    if let Some(result) = execute_contiguous_tensor_binary_typed(
-        addresses,
-        layout.element_span_len(),
-        element_layout,
-        kernel,
-    ) {
-        return result;
-    }
-
-    let operation = tensor_binary_operation(kernel);
-    let (dest, left, right) = addresses;
-
-    // resolve generic element strides
-    let dest_stride = dest_layout.byte_len(POINTER_BYTE_LEN);
-    let element_stride = element_cell_layout.byte_len(POINTER_BYTE_LEN);
-
-    // walk contiguous elements without recomputing logical indices
-    for index in 0..layout.element_span_len() {
-        let left = access::load_scalar_by_layout_at_address(
-            left as usize + index * element_stride,
-            element_cell_layout,
-        );
-        let right = access::load_scalar_by_layout_at_address(
-            right as usize + index * element_stride,
-            element_cell_layout,
-        );
-        let value = operation(element_layout, left, right)?;
-        access::store_scalar_by_layout_at_address(
-            dest as usize + index * dest_stride,
-            dest_layout,
-            value,
-        );
-    }
-
-    Ok(())
-}
-
-/// Execute one contiguous typed tensor unary operation.
-fn execute_contiguous_tensor_unary_typed(
-    addresses: (*mut u8, *const u8),
-    element_count: usize,
-    element_layout: ScalarFormat,
-    kernel: ElementUnaryKernel,
-) -> Option<Result<(), Error>> {
-    let (dest, argument) = addresses;
-
-    // select one typed loop before walking elements
-    let result = match (kernel, element_layout) {
-        (ElementUnaryKernel::NotBool, ScalarFormat::Boolean) => {
-            execute_contiguous_unary!(dest, argument, element_count, u8, |a| u8::from(a == 0))
-        }
-        (
-            ElementUnaryKernel::NegInt,
-            ScalarFormat::Int {
-                width: 32,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_unary!(dest, argument, element_count, i32, |a| a.wrapping_neg())
-        }
-        (ElementUnaryKernel::NotInt, ScalarFormat::Int { width: 32, .. }) => {
-            execute_contiguous_unary!(dest, argument, element_count, u32, |a| !a)
-        }
-        (
-            ElementUnaryKernel::NegInt,
-            ScalarFormat::Int {
-                width: 64,
-                is_signed: 1,
-            },
-        ) => {
-            execute_contiguous_unary!(dest, argument, element_count, i64, |a| a.wrapping_neg())
-        }
-        (ElementUnaryKernel::NotInt, ScalarFormat::Int { width: 64, .. }) => {
-            execute_contiguous_unary!(dest, argument, element_count, u64, |a| !a)
-        }
-        (
-            ElementUnaryKernel::NegF32,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float32,
-            },
-        ) => {
-            execute_contiguous_unary!(dest, argument, element_count, f32, |a| -a)
-        }
-        (
-            ElementUnaryKernel::NegF64,
-            ScalarFormat::Float {
-                format: mir::FloatType::Float64,
-            },
-        ) => {
-            execute_contiguous_unary!(dest, argument, element_count, f64, |a| -a)
-        }
-        _ => return None,
-    };
-
-    Some(result)
-}
-
-/// Execute one contiguous tensor unary operation.
-fn execute_contiguous_tensor_unary_elements(
-    activation: &mut Activation<'_>,
-    offsets: (u32, u32),
-    layout: TensorLayoutView<'_>,
-    element_layout: ScalarFormat,
-    kernel: ElementUnaryKernel,
-) -> Result<(), Error> {
-    let dest_layout = layout
-        .entry
-        .element
-        .cell_layout()
-        .ok_or(Error::invalid_instruction())?;
-    let element_cell_layout = tensor_cell_layout(element_layout)?;
-    let result = activation.allocate_zeroed_heap_tensor(&layout.entry)?;
-    let result = Cell::heap_reference(result);
-    activation.store_cell_at(offsets.0, result);
-    let addresses = contiguous_unary_addresses(activation, offsets);
-
-    // use direct typed loops for activation-natural element layouts
-    if let Some(result) = execute_contiguous_tensor_unary_typed(
-        addresses,
-        layout.element_span_len(),
-        element_layout,
-        kernel,
-    ) {
-        return result;
-    }
-
-    let operation = tensor_unary_operation(kernel);
-    let (dest, argument) = addresses;
-
-    // resolve generic element strides
-    let dest_stride = dest_layout.byte_len(POINTER_BYTE_LEN);
-    let element_stride = element_cell_layout.byte_len(POINTER_BYTE_LEN);
-
-    // walk contiguous elements without recomputing logical indices
-    for index in 0..layout.element_span_len() {
-        let value = access::load_scalar_by_layout_at_address(
-            argument as usize + index * element_stride,
-            element_cell_layout,
-        );
-        let value = operation(element_layout, value)?;
-        access::store_scalar_by_layout_at_address(
-            dest as usize + index * dest_stride,
-            dest_layout,
-            value,
-        );
-    }
-
-    Ok(())
-}
-
-/// Execute a contiguous tensor unary operation.
-pub(crate) fn execute_tensor_contiguous_unary(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let record = *activation.side::<TensorContiguousUnary>(instruction);
-    let TensorContiguousUnary {
-        dest_offset,
-        argument_offset,
-        dest_layout,
-        element_layout,
-        kernel,
-    } = record;
-    let program = activation.program;
-    let layout = program_tensor_layout(program, dest_layout);
-    execute_contiguous_tensor_unary_elements(
-        activation,
-        (dest_offset, argument_offset),
-        layout,
-        element_layout,
-        kernel,
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.splat.
-pub(crate) fn execute_tensor_splat(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest_offset = instruction.a;
-    let value = instruction.b;
-    let layout = TensorLayoutId(instruction.c);
-
-    // resolve lowered tensor descriptor
-    let program = activation.program;
-    let layout = program_tensor_layout(program, layout);
-    let value = activation.load_cell_at(value);
-
-    // store the same value into each active index
-    store_tensor_indexed_elements(activation, dest_offset, layout, |_machine, _index| {
-        Ok(value)
-    })?;
-
-    Ok(())
-}
-
-/// Execute tensor.extract.
-pub(crate) fn execute_tensor_extract(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorExtract>(instruction);
-    let TensorExtract {
-        dest_offset,
-        tensor_offset,
-        indices,
-        tensor_layout: tensor_layout_id,
-    } = record;
-
-    // resolve lowered tensor descriptor
-    let program = activation.program;
-    let layout = program_tensor_layout(program, tensor_layout_id);
-
-    // resolve indices
-    let index_values = program_frame_offsets(program, indices);
-    let index = tensor_index_values(activation, index_values)?;
-    let element_index = tensor_linear_index(&index, layout.shape, layout.strides)?;
-
-    // load the tensor value
-    let tensor_value = tensor_value(activation, tensor_offset);
-    let value = load_tensor_element_at(activation, tensor_value, layout, element_index)?;
-    activation.store_cell_at(dest_offset, value);
-
-    Ok(())
-}
-
-/// Iterate over all indices in a tensor shape.
-pub(crate) fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
-    // scalar or empty shapes
-    if shape.is_empty() {
-        f(&[]);
-        return;
-    }
-    if shape.contains(&0) {
-        return;
-    }
-
-    // initialize index vector
-    let mut index = vec![0u64; shape.len()];
-    loop {
-        // visit the current tensor index
-        f(&index);
-
-        // increment the odometer
-        let mut dim = shape.len();
-        while dim > 0 {
-            dim -= 1;
-            index[dim] += 1;
-            if index[dim] < shape[dim] {
-                break;
-            }
-            index[dim] = 0;
-            if dim == 0 {
-                return;
+            tensors[index + 1] = tensor;
+        }
+        for tensor in tensors.iter().take(input_count) {
+            if !first.matches_dimensions(tensor) {
+                return Err(self.invalid_instruction());
             }
         }
-    }
-}
-
-/// Offset a local heap tensor view pointer by one element index.
-pub(crate) fn offset_heap_view_pointer(
-    value: Cell,
-    element: Projection,
-    offset: usize,
-    length: usize,
-) -> Result<Cell, Error> {
-    let byte_offset = element_byte_offset(element, offset, length)?;
-    let reference = value.as_heap_reference();
-    let reference = reference.add_bytes(byte_offset);
-
-    Ok(Cell::heap_reference(reference))
-}
-
-/// Offset a shared heap tensor view pointer by one element index.
-pub(crate) fn offset_shared_heap_view_pointer(
-    value: Cell,
-    element: Projection,
-    offset: usize,
-    length: usize,
-) -> Result<Cell, Error> {
-    let byte_offset = element_byte_offset(element, offset, length)?;
-    let reference = value.as_shared_heap_reference();
-    let reference = reference.add_bytes(byte_offset);
-
-    Ok(Cell::shared_heap_reference(reference))
-}
-
-/// Offset a raw tensor view pointer by one element index.
-pub(crate) fn offset_raw_view_pointer(
-    value: Cell,
-    element: Projection,
-    offset: usize,
-    length: usize,
-) -> Result<Cell, Error> {
-    let byte_offset = element_byte_offset(element, offset, length)?;
-    let address = value.as_address() + byte_offset;
-
-    Ok(Cell::address(address))
-}
-
-/// Offset a stack tensor view pointer by one element index.
-pub(crate) fn offset_stack_view_pointer(
-    value: Cell,
-    element: Projection,
-    offset: usize,
-    length: usize,
-) -> Result<Cell, Error> {
-    let byte_offset = element_byte_offset(element, offset, length)?;
-    let pointer = value.as_stack_pointer();
-    let pointer = pointer.add_bytes(byte_offset);
-
-    Ok(Cell::stack_pointer(pointer))
-}
-
-/// Offset a frame tensor view pointer by one element index.
-pub(crate) fn offset_frame_view_pointer(
-    value: Cell,
-    element: Projection,
-    offset: usize,
-    length: usize,
-) -> Result<Cell, Error> {
-    let byte_offset = element_byte_offset(element, offset, length)?;
-    let pointer = value.as_frame_pointer();
-    let pointer = pointer.add_bytes(byte_offset);
-
-    Ok(Cell::frame_pointer(pointer))
-}
-
-/// Offset a static tensor view pointer by one element index.
-pub(crate) fn offset_static_view_pointer(
-    value: Cell,
-    element: Projection,
-    offset: usize,
-    length: usize,
-) -> Result<Cell, Error> {
-    let byte_offset = element_byte_offset(element, offset, length)?;
-    let pointer = value
-        .as_global_address()
-        .add_bytes(byte_offset)
-        .ok_or(Error::invalid_instruction())?;
-
-    Ok(Cell::global_address(pointer))
-}
-
-/// Offset a tensor view pointer through selected memory.
-#[inline(always)]
-fn offset_tensor_view_pointer(
-    value: Cell,
-    element: Projection,
-    offset: usize,
-    length: usize,
-    address: TensorAddress,
-) -> Result<Cell, Error> {
-    match address {
-        TensorAddress::Heap => offset_heap_view_pointer(value, element, offset, length),
-        TensorAddress::SharedHeap => {
-            offset_shared_heap_view_pointer(value, element, offset, length)
-        }
-        TensorAddress::Address => offset_raw_view_pointer(value, element, offset, length),
-        TensorAddress::Stack => offset_stack_view_pointer(value, element, offset, length),
-        TensorAddress::Frame => offset_frame_view_pointer(value, element, offset, length),
-        TensorAddress::Static => offset_static_view_pointer(value, element, offset, length),
-    }
-}
-
-/// Fill a tensor view through one concrete pointer space.
-fn fill_tensor_view<O, S>(
-    activation: &mut Activation<'_>,
-    base_pointer: Cell,
-    layout: TensorLayoutView<'_>,
-    strides: &[u64],
-    element: Projection,
-    fill_value: Cell,
-    mut offset_pointer: O,
-    mut store_element: S,
-) -> Result<(), Error>
-where
-    O: FnMut(Cell, Projection, usize, usize) -> Result<Cell, Error>,
-    S: FnMut(&mut Activation<'_>, Cell, Projection, Cell) -> Result<(), Error>,
-{
-    let span_len = tensor_element_span_len(layout.shape, strides)?;
-    let mut error = None;
-
-    // write each logical element through the selected concrete accessor
-    for_each_index(layout.shape, |index| {
-        if error.is_some() {
-            return;
-        }
-
-        let offset = match tensor_linear_index(index, layout.shape, strides) {
-            Ok(offset) => offset,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
+        if expects_comparison {
+            if result_scalar != Scalar::Boolean {
+                return Err(self.invalid_instruction());
             }
-        };
-        let pointer = match offset_pointer(base_pointer, element, offset, span_len) {
-            Ok(pointer) => pointer,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
-            }
-        };
-
-        if let Err(current_error) = store_element(activation, pointer, element, fill_value) {
-            error = Some(current_error);
+        } else if result_scalar != source_scalar {
+            return Err(self.invalid_instruction());
         }
-    });
+        let result = self.allocate_tensor(target, result_scalar, ty, first.dimensions(), point)?;
 
-    if let Some(error) = error {
-        return Err(error);
-    }
-
-    Ok(())
-}
-
-/// Copy tensor elements through one concrete address pair.
-fn copy_tensor_view<TO, SO, L, S>(
-    activation: &mut Activation<'_>,
-    target_pointer: Cell,
-    mir_pointer: Cell,
-    target_layout: TensorLayoutView<'_>,
-    source_layout: TensorLayoutView<'_>,
-    target_strides: &[u64],
-    source_strides: &[u64],
-    target_element: Projection,
-    source_element: Projection,
-    mut target_offset: TO,
-    mut source_offset: SO,
-    mut load_element: L,
-    mut store_element: S,
-) -> Result<(), Error>
-where
-    TO: FnMut(Cell, Projection, usize, usize) -> Result<Cell, Error>,
-    SO: FnMut(Cell, Projection, usize, usize) -> Result<Cell, Error>,
-    L: FnMut(&mut Activation<'_>, Cell, Projection) -> Result<Cell, Error>,
-    S: FnMut(&mut Activation<'_>, Cell, Projection, Cell) -> Result<(), Error>,
-{
-    let target_span_len = tensor_element_span_len(target_layout.shape, target_strides)?;
-    let source_span_len = tensor_element_span_len(source_layout.shape, source_strides)?;
-    let mut error = None;
-
-    // copy each logical element through the selected concrete accessors
-    for_each_index(target_layout.shape, |index| {
-        if error.is_some() {
-            return;
-        }
-
-        let target_index = match tensor_linear_index(index, target_layout.shape, target_strides) {
-            Ok(offset) => offset,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
+        // execute one scalar operation per logical element
+        for index in 0..result.element_count() {
+            let mut values = [None; 3];
+            for (input, tensor) in tensors.iter().take(input_count).enumerate() {
+                let address = tensor
+                    .linear_address(index)
+                    .ok_or_else(|| Error::trap(Trap::Bounds))?;
+                values[input] = Some(self.load(address, source_scalar));
             }
-        };
-        let source_index = match tensor_linear_index(index, source_layout.shape, source_strides) {
-            Ok(offset) => offset,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
-            }
-        };
-
-        let mir_pointer =
-            match source_offset(mir_pointer, source_element, source_index, source_span_len) {
-                Ok(pointer) => pointer,
-                Err(current_error) => {
-                    error = Some(current_error);
-                    return;
-                }
+            let left = values[0].ok_or_else(|| self.invalid_instruction())?;
+            let right = values[1];
+            let addend = values[2];
+            let value = if let Some(operation) = float_operation {
+                self.float_value(operation, source_scalar, left, right, addend)?
+            } else if let Some(operation) = integer_operation {
+                self.integer_value(operation, source_scalar, left, right)?
+            } else {
+                return Err(self.invalid_instruction());
             };
-        let target_pointer = match target_offset(
-            target_pointer,
-            target_element,
-            target_index,
-            target_span_len,
-        ) {
-            Ok(pointer) => pointer,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
-            }
-        };
-        let value = match load_element(activation, mir_pointer, source_element) {
-            Ok(value) => value,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
-            }
-        };
+            let address = result
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-        if let Err(current_error) = store_element(activation, target_pointer, target_element, value)
+            self.store(address, result_scalar, value);
+        }
+
+        Ok(())
+    }
+
+    /// Execute one elementwise tensor selection.
+    fn execute_tensor_select(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let mut inputs = operands.tensors().map_err(|_| self.invalid_instruction())?;
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+        let condition = self.tensor(inputs.next().ok_or_else(|| self.invalid_instruction())?)?;
+        let left = self.tensor(inputs.next().ok_or_else(|| self.invalid_instruction())?)?;
+        let right = self.tensor(inputs.next().ok_or_else(|| self.invalid_instruction())?)?;
+        if result_scalar != scalar
+            || condition.scalar != Scalar::Boolean
+            || left.scalar != scalar
+            || right.scalar != scalar
+            || inputs.next().is_some()
+            || !condition.matches_dimensions(&left)
+            || !condition.matches_dimensions(&right)
         {
-            error = Some(current_error);
+            return Err(self.invalid_instruction());
         }
-    });
+        let result =
+            self.allocate_tensor(target, result_scalar, ty, condition.dimensions(), point)?;
 
-    if let Some(error) = error {
-        return Err(error);
-    }
+        // select the source tensor independently for every element
+        for index in 0..result.element_count() {
+            let condition = condition
+                .linear_address(index)
+                .map(|address| self.load(address, Scalar::Boolean).as_boolean())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let source = if condition { &left } else { &right };
+            let source = source
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target = result
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-    Ok(())
-}
-
-/// Execute a dense pointer to tensor view cast.
-pub(crate) fn execute_tensor_view_cast(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let record = *activation.side::<TensorViewCast>(instruction);
-    let TensorViewCast {
-        dest_offset,
-        pointer_offset,
-        view_layout,
-    } = record;
-
-    let program = activation.program;
-    let layout = program_tensor_layout(program, view_layout);
-    let pointer = activation.load_cell_at(pointer_offset);
-
-    store_tensor_view_descriptor(activation, dest_offset, pointer, layout.strides)
-}
-
-/// Execute tensor.load.
-pub(crate) fn execute_tensor_load(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed tensor view descriptor
-    let record = *activation.side::<TensorLoad>(instruction);
-    let TensorLoad {
-        dest_offset,
-        view_offset,
-        indices,
-        view_layout,
-        element,
-        address,
-    } = record;
-
-    // compute the logical element offset
-    let program = activation.program;
-    let layout = program_tensor_layout(program, view_layout);
-    let index_values = program_frame_offsets(program, indices);
-    let index = tensor_index_values(activation, index_values)?;
-    let strides = load_tensor_view_strides(activation, view_offset, layout)?;
-    let span_len = tensor_element_span_len(layout.shape, &strides)?;
-    let offset = tensor_linear_index(&index, layout.shape, &strides)?;
-
-    // load through the concrete memory accessors selected by lower
-    let view_value = load_tensor_view_pointer(activation, view_offset);
-    let element = activation.projection(element);
-    let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, address)?;
-
-    let value = load_tensor_element(activation, pointer, element, address)?;
-    activation.store_cell_at(dest_offset, value);
-
-    Ok(())
-}
-
-/// Execute tensor.store.
-pub(crate) fn execute_tensor_store(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed tensor view descriptor
-    let record = *activation.side::<TensorStore>(instruction);
-    let TensorStore {
-        view_offset,
-        indices,
-        value_offset,
-        view_layout,
-        element,
-        address,
-    } = record;
-
-    // compute the logical element offset
-    let program = activation.program;
-    let layout = program_tensor_layout(program, view_layout);
-    let index_values = program_frame_offsets(program, indices);
-    let index = tensor_index_values(activation, index_values)?;
-    let strides = load_tensor_view_strides(activation, view_offset, layout)?;
-    let span_len = tensor_element_span_len(layout.shape, &strides)?;
-    let offset = tensor_linear_index(&index, layout.shape, &strides)?;
-
-    // store through the concrete memory accessors selected by lower
-    let view_value = load_tensor_view_pointer(activation, view_offset);
-    let element = activation.projection(element);
-    let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, address)?;
-
-    let value = activation.load_cell_at(value_offset);
-    store_tensor_element(activation, pointer, element, value, address)?;
-
-    Ok(())
-}
-
-/// Execute tensor.fill.
-pub(crate) fn execute_tensor_fill(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed tensor view descriptor
-    let record = *activation.side::<TensorFill>(instruction);
-    let TensorFill {
-        view_offset,
-        value_offset,
-        view_layout,
-        element,
-        address,
-    } = record;
-
-    // resolve the repeated value and base view once
-    let program = activation.program;
-    let layout = program_tensor_layout(program, view_layout);
-    let fill_value = activation.load_cell_at(value_offset);
-    let strides = load_tensor_view_strides(activation, view_offset, layout)?;
-    let base_pointer = load_tensor_view_pointer(activation, view_offset);
-
-    // write each addressable element through one concrete memory accessor
-    let element = activation.projection(element);
-    match address {
-        TensorAddress::Heap => fill_tensor_view(
-            activation,
-            base_pointer,
-            layout,
-            &strides,
-            element,
-            fill_value,
-            offset_heap_view_pointer,
-            store_heap_tensor_element,
-        )?,
-        TensorAddress::SharedHeap => fill_tensor_view(
-            activation,
-            base_pointer,
-            layout,
-            &strides,
-            element,
-            fill_value,
-            offset_shared_heap_view_pointer,
-            store_shared_heap_tensor_element,
-        )?,
-        TensorAddress::Address => fill_tensor_view(
-            activation,
-            base_pointer,
-            layout,
-            &strides,
-            element,
-            fill_value,
-            offset_raw_view_pointer,
-            store_raw_tensor_element,
-        )?,
-        TensorAddress::Stack => fill_tensor_view(
-            activation,
-            base_pointer,
-            layout,
-            &strides,
-            element,
-            fill_value,
-            offset_stack_view_pointer,
-            store_stack_tensor_element,
-        )?,
-        TensorAddress::Frame => fill_tensor_view(
-            activation,
-            base_pointer,
-            layout,
-            &strides,
-            element,
-            fill_value,
-            offset_frame_view_pointer,
-            store_frame_tensor_element,
-        )?,
-        TensorAddress::Static => fill_tensor_view(
-            activation,
-            base_pointer,
-            layout,
-            &strides,
-            element,
-            fill_value,
-            offset_static_view_pointer,
-            store_static_tensor_element,
-        )?,
-    }
-
-    Ok(())
-}
-
-/// Execute tensor.copy.
-pub(crate) fn execute_tensor_copy(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed tensor copy descriptor
-    let record = *activation.side::<TensorCopy>(instruction);
-    let TensorCopy {
-        target_offset: target_frame_offset,
-        source_offset: source_frame_offset,
-        target_layout,
-        source_layout,
-        target_element,
-        source_element,
-        target_address,
-        source_address,
-    } = record;
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let target_layout = program_tensor_layout(program, target_layout);
-    let source_layout = program_tensor_layout(program, source_layout);
-
-    // require identical logical shapes
-    if target_layout.shape != source_layout.shape {
-        return Err(Error::type_mismatch(
-            "matching tensor shapes",
-            format!("{:?} vs {:?}", target_layout.shape, source_layout.shape),
-        ));
-    }
-
-    // resolve both view pointers and element descriptors once
-    let target_strides = load_tensor_view_strides(activation, target_frame_offset, target_layout)?;
-    let source_strides = load_tensor_view_strides(activation, source_frame_offset, source_layout)?;
-    let target_pointer = load_tensor_view_pointer(activation, target_frame_offset);
-    let mir_pointer = load_tensor_view_pointer(activation, source_frame_offset);
-    let source_element = activation.projection(source_element);
-    let target_element = activation.projection(target_element);
-
-    // copy through the selected pointer spaces
-    copy_tensor_view(
-        activation,
-        target_pointer,
-        mir_pointer,
-        target_layout,
-        source_layout,
-        &target_strides,
-        &source_strides,
-        target_element,
-        source_element,
-        |pointer, element, offset, length| {
-            offset_tensor_view_pointer(pointer, element, offset, length, target_address)
-        },
-        |pointer, element, offset, length| {
-            offset_tensor_view_pointer(pointer, element, offset, length, source_address)
-        },
-        |activation, pointer, element| {
-            load_tensor_element(activation, pointer, element, source_address)
-        },
-        |activation, pointer, element, value| {
-            store_tensor_element(activation, pointer, element, value, target_address)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.reshape.
-pub(crate) fn execute_tensor_reshape(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let TensorReshape {
-        dest_offset,
-        tensor_offset,
-        shape,
-        source_layout,
-        dest_layout,
-    } = *activation.side::<TensorReshape>(instruction);
-
-    // resolve source tensor
-    let tensor_value = tensor_value(activation, tensor_offset);
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // compute expected element count from shape values when provided
-    let shape_values = program_frame_offsets(program, shape);
-    let mut shape_len = 1u64;
-    for offset in shape_values {
-        let value = activation.load_cell_at(*offset);
-        let size = cell_to_u64(value)?;
-        shape_len *= size;
-    }
-    if shape_values.is_empty() {
-        shape_len = dest_layout.element_span_len() as u64;
-    }
-
-    // validate element counts
-    if dest_layout.element_span_len() as u64 != shape_len {
-        return Err(Error::type_mismatch(
-            "reshape element count",
-            format!("{} vs {}", dest_layout.element_span_len(), shape_len),
-        ));
-    }
-
-    // copy the source elements into the reshaped result
-    store_tensor_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, element_index| {
-            load_tensor_element_at(activation, tensor_value, source_layout, element_index)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.broadcast.
-pub(crate) fn execute_tensor_broadcast(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let TensorBroadcast {
-        dest_offset,
-        tensor_offset,
-        dimensions,
-        source_layout,
-        dest_layout,
-    } = *activation.side::<TensorBroadcast>(instruction);
-    let program = activation.program;
-    let dimensions = program_frame_offsets(program, dimensions);
-
-    // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // validate dimension mapping
-    if dimensions.len() != source_layout.shape.len() {
-        return Err(Error::type_mismatch(
-            "broadcast dimension mapping",
-            format!("{} vs {}", dimensions.len(), source_layout.shape.len()),
-        ));
-    }
-
-    // resolve source elements
-    let tensor_value = tensor_value(activation, tensor_offset);
-    let mut input_index = vec![0u64; source_layout.shape.len()];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            for (i, dim) in dimensions.iter().enumerate() {
-                let output_value = output_index[*dim as usize];
-                let source_dim = source_layout.shape[i];
-                input_index[i] = if source_dim == 1 { 0 } else { output_value };
-            }
-
-            let source_offset =
-                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
-
-            load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.transpose.
-pub(crate) fn execute_tensor_transpose(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorTranspose>(instruction);
-    let TensorTranspose {
-        dest_offset,
-        tensor_offset,
-        permutation,
-        source_layout,
-        dest_layout,
-    } = record;
-    let program = activation.program;
-    let permutation = program_frame_offsets(program, permutation);
-
-    // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // validate permutation
-    if permutation.len() != source_layout.shape.len() {
-        return Err(Error::type_mismatch(
-            "transpose permutation",
-            format!("{} vs {}", permutation.len(), source_layout.shape.len()),
-        ));
-    }
-
-    // resolve source tensor
-    let tensor_value = tensor_value(activation, tensor_offset);
-    let mut input_index = vec![0u64; source_layout.shape.len()];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            for (out_dim, in_dim) in permutation.iter().enumerate() {
-                input_index[*in_dim as usize] = output_index[out_dim];
-            }
-
-            let source_offset =
-                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
-
-            load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.slice.
-pub(crate) fn execute_tensor_slice(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorSlice>(instruction);
-    let TensorSlice {
-        dest_offset,
-        tensor_offset,
-        arguments,
-        offsets_count,
-        sizes_count,
-        strides_count,
-        source_layout,
-        dest_layout,
-    } = record;
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // resolve arguments
-    let args = program_frame_offsets(program, arguments);
-    let (offset_values, rest) = args.split_at(offsets_count.into());
-    let (size_values, stride_values) = rest.split_at(sizes_count.into());
-    if stride_values.len() != usize::from(strides_count) {
-        return Err(Error::invalid_instruction());
-    }
-
-    let mut offsets = Vec::with_capacity(offset_values.len());
-    let mut sizes = Vec::with_capacity(size_values.len());
-    let mut strides = Vec::with_capacity(stride_values.len());
-    for offset in offset_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        offsets.push(value);
-    }
-    for offset in size_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        sizes.push(value);
-    }
-    for offset in stride_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        strides.push(value);
-    }
-
-    // require full-rank slice arguments
-    let rank = source_layout.shape.len();
-    if offsets.len() != rank || sizes.len() != rank || strides.len() != rank {
-        return Err(Error::invalid_instruction());
-    }
-
-    // require runtime sizes to match the destination tensor
-    if sizes.len() != dest_layout.shape.len() {
-        return Err(Error::invalid_instruction());
-    }
-    for (expected, actual) in dest_layout.shape.iter().zip(sizes.iter()) {
-        if expected != actual {
-            return Err(Error::type_mismatch(
-                "tensor slice size",
-                format!("{actual} vs {expected}"),
-            ));
+            self.store(target, result_scalar, self.load(source, scalar));
         }
+
+        Ok(())
     }
 
-    // resolve source tensor
-    let tensor_value = tensor_value(activation, tensor_offset);
-    let mut input_index = vec![0u64; source_layout.shape.len()];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            for i in 0..input_index.len() {
-                let offset = offsets[i];
-                let stride = strides[i];
-                input_index[i] = offset + output_index[i] * stride;
-            }
-
-            let source_offset =
-                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
-
-            load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.pad.
-pub(crate) fn execute_tensor_pad(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorPad>(instruction);
-    let TensorPad {
-        dest_offset,
-        tensor_offset,
-        arguments,
-        low_count,
-        high_count,
-        interior_count,
-        value_offset,
-        source_layout,
-        dest_layout,
-    } = record;
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // resolve arguments
-    let args = program_frame_offsets(program, arguments);
-    let (low_values, rest) = args.split_at(low_count.into());
-    let (high_values, interior_values) = rest.split_at(high_count.into());
-    if interior_values.len() != usize::from(interior_count) {
-        return Err(Error::invalid_instruction());
-    }
-
-    let mut low = Vec::with_capacity(low_values.len());
-    let mut high = Vec::with_capacity(high_values.len());
-    let mut interior = Vec::with_capacity(interior_values.len());
-    for offset in low_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        low.push(value);
-    }
-    for offset in high_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        high.push(value);
-    }
-    for offset in interior_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        interior.push(value);
-    }
-
-    // require full-rank padding arguments
-    let rank = source_layout.shape.len();
-    if low.len() != rank || high.len() != rank || interior.len() != rank {
-        return Err(Error::invalid_instruction());
-    }
-
-    // resolve source tensor
-    let tensor_value = tensor_value(activation, tensor_offset);
-    let pad_value = activation.load_cell_at(value_offset);
-    let mut input_index = vec![0u64; source_layout.shape.len()];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            for i in 0..input_index.len() {
-                let low_pad = low[i];
-                let interior_pad = interior[i];
-                let mut input_position = output_index[i] as i64 - low_pad as i64;
-                if input_position < 0 {
-                    return Ok(pad_value);
-                }
-
-                let stride = interior_pad + 1;
-                if !(input_position as u64).is_multiple_of(stride) {
-                    return Ok(pad_value);
-                }
-
-                input_position /= stride as i64;
-                if input_position < 0 || input_position as u64 >= source_layout.shape[i] {
-                    return Ok(pad_value);
-                }
-
-                input_index[i] = input_position as u64;
-            }
-
-            let source_offset =
-                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
-
-            load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.concat.
-pub(crate) fn execute_tensor_concat(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorConcat>(instruction);
-    let TensorConcat {
-        dest_offset,
-        tensors,
-        tensor_layouts,
-        axis,
-        dest_layout,
-    } = record;
-    let program = activation.program;
-    let tensor_layouts = program_frame_offsets(program, tensor_layouts);
-
-    // resolve lowered tensor descriptor
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // resolve input tensors
-    let tensor_offsets = program_frame_offsets(program, tensors);
-    // validate input tables
-    if tensor_offsets.len() != tensor_layouts.len() {
-        return Err(Error::invalid_instruction());
-    }
-    let mut inputs = Vec::with_capacity(tensor_offsets.len());
-    let mut axis_sizes = Vec::with_capacity(tensor_offsets.len());
-    for (offset, layout) in tensor_offsets.iter().zip(tensor_layouts.iter()) {
-        let value = tensor_value(activation, *offset);
-        let layout = program_tensor_layout(program, TensorLayoutId(*layout));
-        let axis_index = axis as usize;
-        if axis_index >= layout.shape.len() {
-            return Err(Error::invalid_instruction());
+    /// Execute one tensor splat.
+    fn execute_tensor_splat(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let value = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let value_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        if value_scalar != scalar {
+            return Err(self.invalid_instruction());
         }
-        axis_sizes.push(layout.shape[axis_index]);
-        inputs.push((value, layout));
+        let dimensions = self.fixed_tensor_dimensions(ty)?;
+        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let value = self.read(value.0);
+
+        // fill dense and non-default physical orders through logical addresses
+        for index in 0..result.element_count() {
+            let address = result
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            self.store(address, scalar, value);
+        }
+
+        Ok(())
     }
 
-    // compute axis offsets
-    let mut axis_offsets = Vec::with_capacity(axis_sizes.len());
-    let mut running = 0u64;
-    for size in &axis_sizes {
-        axis_offsets.push(running);
-        running += *size;
+    /// Execute one tensor scalar extraction.
+    fn execute_tensor_extract(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let indices = self.tensor_indices(&mut operands)?;
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let source = self.tensor(source)?;
+        if source.scalar != scalar {
+            return Err(self.invalid_instruction());
+        }
+        let address = source
+            .element_address(&indices)
+            .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+        self.write(target.0, self.load(address, scalar));
+
+        Ok(())
     }
 
-    let axis_index = axis as usize;
-    let mut input_index = vec![0u64; dest_layout.shape.len()];
+    /// Execute one scalar tensor-view load.
+    fn execute_tensor_load(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> Result<(MemoryAccess, (usize, usize))> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let view = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let indices = self.tensor_indices(&mut operands)?;
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let view = self.tensor(view)?;
+        if view.scalar != scalar || !matches!(view.shape, TensorShape::Strided(_)) {
+            return Err(self.invalid_instruction());
+        }
+        let address = view
+            .element_address(&indices)
+            .ok_or_else(|| Error::trap(Trap::Bounds))?;
+        let byte_len = scalar.bit_width() as usize / u8::BITS as usize;
 
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            let axis_value = output_index[axis_index];
-            let mut selected = None;
-            for (i, offset) in axis_offsets.iter().enumerate() {
-                let size = axis_sizes[i];
-                if axis_value >= *offset && axis_value < *offset + size {
-                    selected = Some((i, axis_value - *offset));
+        self.write(target.0, self.load(address, scalar));
+
+        Ok((MemoryAccess::Read, (address, byte_len)))
+    }
+
+    /// Execute one scalar tensor-view store.
+    fn execute_tensor_store(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> Result<(MemoryAccess, (usize, usize))> {
+        let mut operands = instruction.operands();
+        let view = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let indices = self.tensor_indices(&mut operands)?;
+        let value = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let view = self.tensor(view)?;
+        if view.scalar != scalar || !matches!(view.shape, TensorShape::Strided(_)) {
+            return Err(self.invalid_instruction());
+        }
+        let address = view
+            .element_address(&indices)
+            .ok_or_else(|| Error::trap(Trap::Bounds))?;
+        let byte_len = scalar.bit_width() as usize / u8::BITS as usize;
+
+        self.store(address, scalar, self.read(value.0));
+
+        Ok((MemoryAccess::Write, (address, byte_len)))
+    }
+
+    /// Execute one tensor-view fill.
+    fn execute_tensor_fill(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> Result<(MemoryAccess, (usize, usize))> {
+        let mut operands = instruction.operands();
+        let view = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let value = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let view = self.tensor(view)?;
+        if view.scalar != scalar || !matches!(view.shape, TensorShape::Strided(_)) {
+            return Err(self.invalid_instruction());
+        }
+        let value = self.read(value.0);
+
+        // fill each logical view element without assuming contiguity
+        for index in 0..view.element_count() {
+            let address = view
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            self.store(address, scalar, value);
+        }
+
+        let byte_span = view.byte_span().ok_or_else(|| self.invalid_instruction())?;
+
+        Ok((MemoryAccess::Write, (view.address, byte_span)))
+    }
+
+    /// Execute one tensor-view copy.
+    fn execute_tensor_copy(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> Result<(MemoryAccess, (usize, usize))> {
+        let mut operands = instruction.operands();
+        let mut tensors = operands.tensors().map_err(|_| self.invalid_instruction())?;
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let target = self.tensor(tensors.next().ok_or_else(|| self.invalid_instruction())?)?;
+        let source = self.tensor(tensors.next().ok_or_else(|| self.invalid_instruction())?)?;
+        if target.scalar != scalar
+            || source.scalar != scalar
+            || tensors.next().is_some()
+            || !matches!(target.shape, TensorShape::Strided(_))
+            || !target.matches_dimensions(&source)
+        {
+            return Err(self.invalid_instruction());
+        }
+
+        // copy through logical coordinates so arbitrary strides remain valid
+        for index in 0..target.element_count() {
+            let source = source
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target_address = target
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            self.store(target_address, scalar, self.load(source, scalar));
+        }
+
+        let byte_span = target
+            .byte_span()
+            .ok_or_else(|| self.invalid_instruction())?;
+
+        Ok((MemoryAccess::Write, (target.address, byte_span)))
+    }
+
+    /// Execute one tensor reshape by preserving logical element order.
+    fn execute_tensor_reshape(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let dimensions = self.tensor_indices(&mut operands)?;
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        if source.scalar != scalar {
+            return Err(self.invalid_instruction());
+        }
+        let element_count = Tensor::count_elements(dimensions.iter().copied())
+            .ok_or_else(|| self.invalid_instruction())?;
+        if element_count != source.element_count() {
+            return Err(self.invalid_instruction());
+        }
+        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+
+        self.copy_tensor(&result, &source)
+    }
+
+    /// Execute one tensor transpose.
+    fn execute_tensor_transpose(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let permutation = operands
+            .u16s()
+            .map_err(|_| self.invalid_instruction())?
+            .collect::<Vec<_>>();
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        if source.scalar != scalar || permutation.len() != source.rank() {
+            return Err(self.invalid_instruction());
+        }
+        let mut seen = vec![false; permutation.len()];
+        for axis in &permutation {
+            let Some(seen) = seen.get_mut(*axis as usize) else {
+                return Err(self.invalid_instruction());
+            };
+            if *seen {
+                return Err(self.invalid_instruction());
+            }
+            *seen = true;
+        }
+        let dimensions = permutation
+            .iter()
+            .map(|axis| source.dimension(*axis as usize))
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| self.invalid_instruction())?;
+        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+
+        let mut coordinate = Coordinate::zero(result.rank());
+
+        // map each result coordinate back through the axis permutation
+        for index in 0..result.element_count() {
+            coordinate
+                .set(index, result.dimensions())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let mut source_coordinate = vec![0; source.rank()];
+            for (result_axis, source_axis) in permutation.iter().copied().enumerate() {
+                source_coordinate[source_axis as usize] = coordinate.values[result_axis];
+            }
+            let source_address = source
+                .element_address(&source_coordinate)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target_address = result
+                .element_address(&coordinate.values)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+            self.store(target_address, scalar, self.load(source_address, scalar));
+        }
+
+        Ok(())
+    }
+
+    /// Execute one tensor broadcast.
+    fn execute_tensor_broadcast(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let axes = operands
+            .u16s()
+            .map_err(|_| self.invalid_instruction())?
+            .collect::<Vec<_>>();
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        if source.scalar != scalar || axes.len() != source.rank() {
+            return Err(self.invalid_instruction());
+        }
+        let dimensions = self.broadcast_dimensions(ty, &source, &axes)?;
+        let mut seen = vec![false; dimensions.len()];
+        for axis in &axes {
+            let Some(seen) = seen.get_mut(*axis as usize) else {
+                return Err(self.invalid_instruction());
+            };
+            if *seen {
+                return Err(self.invalid_instruction());
+            }
+            *seen = true;
+        }
+        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+
+        let mut coordinate = Coordinate::zero(result.rank());
+
+        // project selected result axes into the source coordinate
+        for index in 0..result.element_count() {
+            coordinate
+                .set(index, result.dimensions())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let source_coordinate = axes
+                .iter()
+                .map(|axis| coordinate.values.get(*axis as usize).copied())
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| self.invalid_instruction())?;
+            let source_address = source
+                .element_address(&source_coordinate)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target_address = result
+                .element_address(&coordinate.values)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+            self.store(target_address, scalar, self.load(source_address, scalar));
+        }
+
+        Ok(())
+    }
+
+    /// Execute one tensor slice.
+    fn execute_tensor_slice(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let offsets = self.tensor_indices(&mut operands)?;
+        let sizes = self.tensor_indices(&mut operands)?;
+        let strides = self.tensor_indices(&mut operands)?;
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        if source.scalar != scalar
+            || offsets.len() != source.rank()
+            || sizes.len() != source.rank()
+            || strides.len() != source.rank()
+        {
+            return Err(self.invalid_instruction());
+        }
+        for axis in 0..source.rank() {
+            if strides[axis] == 0 {
+                return Err(self.invalid_instruction());
+            }
+            let last = if sizes[axis] == 0 {
+                offsets[axis]
+            } else {
+                let index = sizes[axis] - 1;
+                index
+                    .checked_mul(strides[axis])
+                    .and_then(|span| offsets[axis].checked_add(span))
+                    .ok_or_else(|| self.invalid_instruction())?
+            };
+            let source_dimension = source
+                .dimension(axis)
+                .ok_or_else(|| self.invalid_instruction())?;
+            if (sizes[axis] == 0 && offsets[axis] > source_dimension)
+                || (sizes[axis] > 0 && last >= source_dimension)
+            {
+                return Err(Error::trap(Trap::Bounds));
+            }
+        }
+        let result = self.allocate_tensor(target, scalar, ty, sizes.iter().copied(), point)?;
+
+        let mut coordinate = Coordinate::zero(result.rank());
+
+        // map each sliced coordinate through its offset and stride
+        for index in 0..result.element_count() {
+            coordinate
+                .set(index, result.dimensions())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let source_coordinate = coordinate
+                .values
+                .iter()
+                .zip(&offsets)
+                .zip(&strides)
+                .map(|((index, offset), stride)| offset + index * stride)
+                .collect::<Vec<_>>();
+            let source_address = source
+                .element_address(&source_coordinate)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target_address = result
+                .element_address(&coordinate.values)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+            self.store(target_address, scalar, self.load(source_address, scalar));
+        }
+
+        Ok(())
+    }
+
+    /// Execute one tensor padding operation.
+    fn execute_tensor_pad(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let padding = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let low = self.tensor_indices(&mut operands)?;
+        let high = self.tensor_indices(&mut operands)?;
+        let interior = self.tensor_indices(&mut operands)?;
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        if source_scalar != scalar || source.scalar != scalar {
+            return Err(self.invalid_instruction());
+        }
+        if low.len() != source.rank()
+            || high.len() != source.rank()
+            || interior.len() != source.rank()
+        {
+            return Err(self.invalid_instruction());
+        }
+        let dimensions = source
+            .dimensions()
+            .zip(&low)
+            .zip(&high)
+            .zip(&interior)
+            .map(|(((dimension, low), high), interior)| {
+                let gaps = if dimension == 0 { 0 } else { dimension - 1 };
+                low.checked_add(*high)?
+                    .checked_add(dimension)?
+                    .checked_add(gaps.checked_mul(*interior)?)
+            })
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| self.invalid_instruction())?;
+        let spacings = interior
+            .iter()
+            .map(|spacing| spacing.checked_add(1))
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| self.invalid_instruction())?;
+        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let padding = self.read(padding.0);
+
+        let mut coordinate = Coordinate::zero(result.rank());
+
+        // distinguish inserted padding coordinates from source coordinates
+        for index in 0..result.element_count() {
+            coordinate
+                .set(index, result.dimensions())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let mut source_coordinate = Vec::with_capacity(source.rank());
+            let mut is_padding = false;
+            for axis in 0..source.rank() {
+                let index = coordinate.values[axis];
+                if index < low[axis] {
+                    is_padding = true;
                     break;
                 }
-            }
-            let Some((input_idx, local_axis)) = selected else {
-                return Err(Error::invalid_instruction());
-            };
-
-            input_index.clone_from_slice(output_index);
-            input_index[axis_index] = local_axis;
-            let (tensor_value, layout) = inputs[input_idx];
-
-            let source_offset = tensor_linear_index(&input_index, layout.shape, layout.strides)?;
-
-            load_tensor_element_at(activation, tensor_value, layout, source_offset)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.reduce.
-pub(crate) fn execute_tensor_reduce(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let TensorReduce { kernel, .. } = activation.side::<TensorReduce>(instruction);
-    let operation = tensor_reduce_operation(*kernel);
-    execute_tensor_reduce_elements(activation, instruction, operation)
-}
-
-/// Execute tensor reduction with one scalar kernel.
-fn execute_tensor_reduce_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorReduce>(instruction);
-    let TensorReduce {
-        dest_offset,
-        tensor_offset,
-        initial_offset,
-        axes,
-        source_layout,
-        dest_layout,
-        kernel: _,
-    } = record;
-    let program = activation.program;
-    let axes = program_frame_offsets(program, axes);
-
-    // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-    let element_layout = source_layout.entry.element_layout;
-
-    // resolve source tensor
-    let tensor_value = tensor_value(activation, tensor_offset);
-    let init_value = activation.load_cell_at(initial_offset);
-    let reduction = tensor_reduction(source_layout.shape, axes)?;
-    if dest_layout.shape != reduction.output_shape.as_slice() {
-        return Err(Error::invalid_instruction());
-    }
-    let mut source_index = vec![0u64; source_layout.shape.len()];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            let mut output_cursor = 0usize;
-            for (dim, element) in source_index.iter_mut().enumerate() {
-                if reduction.axis_mask[dim] {
-                    *element = 0;
-                    continue;
+                let index = index - low[axis];
+                let spacing = spacings[axis];
+                let dimension = source
+                    .dimension(axis)
+                    .ok_or_else(|| self.invalid_instruction())?;
+                if !index.is_multiple_of(spacing) || index / spacing >= dimension {
+                    is_padding = true;
+                    break;
                 }
-
-                *element = output_index
-                    .get(output_cursor)
-                    .copied()
-                    .ok_or(Error::invalid_instruction())?;
-                output_cursor += 1;
+                source_coordinate.push(index / spacing);
             }
-
-            let mut accum = init_value;
-            let mut reduce_error = None;
-
-            // accumulate the reduced axes for this destination index
-            for_each_index(&reduction.reduced_shape, |reduced_index| {
-                if reduce_error.is_some() {
-                    return;
-                }
-
-                for (reduce_position, axis) in axes.iter().enumerate() {
-                    source_index[*axis as usize] = reduced_index[reduce_position];
-                }
-
-                let source_offset = match tensor_linear_index(
-                    &source_index,
-                    source_layout.shape,
-                    source_layout.strides,
-                ) {
-                    Ok(offset) => offset,
-                    Err(error) => {
-                        reduce_error = Some(error);
-                        return;
-                    }
-                };
-                let source_value = match load_tensor_element_at(
-                    activation,
-                    tensor_value,
-                    source_layout,
-                    source_offset,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        reduce_error = Some(error);
-                        return;
-                    }
-                };
-
-                accum = match operation(element_layout, accum, source_value) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        reduce_error = Some(error);
-                        return;
-                    }
-                };
-            });
-
-            if let Some(error) = reduce_error {
-                return Err(error);
-            }
-
-            Ok(accum)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Return the scalar kernel for one tensor reduction.
-fn tensor_reduce_operation(
-    kernel: mir::TensorReduceOperator,
-) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
-    match kernel {
-        mir::TensorReduceOperator::Add => reduce_add,
-        mir::TensorReduceOperator::Multiply => reduce_multiply,
-        mir::TensorReduceOperator::Min => reduce_min,
-        mir::TensorReduceOperator::Max => reduce_max,
-        mir::TensorReduceOperator::And => reduce_and,
-        mir::TensorReduceOperator::Or => reduce_or,
-        mir::TensorReduceOperator::Xor => reduce_xor,
-    }
-}
-
-/// Shape information for one tensor reduction.
-struct TensorReduction {
-    /// The source axes reduced by this operation.
-    axis_mask: Vec<bool>,
-    /// The shape traversed inside the reduction loop.
-    reduced_shape: Vec<u64>,
-    /// The result shape after removing reduced axes.
-    output_shape: Vec<u64>,
-    /// The number of elements read for one output element.
-    element_count: u64,
-}
-
-/// Compute shape information for one tensor reduction.
-fn tensor_reduction(source_shape: &[u64], axes: &[u32]) -> Result<TensorReduction, Error> {
-    let mut axis_mask = vec![false; source_shape.len()];
-    let mut reduced_shape = Vec::with_capacity(axes.len());
-    let mut element_count = 1u64;
-
-    for axis in axes {
-        let axis = *axis as usize;
-        if axis >= source_shape.len() || axis_mask[axis] {
-            return Err(Error::invalid_instruction());
-        }
-
-        let dim = source_shape[axis];
-        axis_mask[axis] = true;
-        reduced_shape.push(dim);
-        element_count = element_count
-            .checked_mul(dim)
-            .ok_or(Error::invalid_instruction())?;
-    }
-
-    let output_shape = source_shape
-        .iter()
-        .enumerate()
-        .filter_map(|(index, dim)| (!axis_mask[index]).then_some(*dim))
-        .collect();
-
-    Ok(TensorReduction {
-        axis_mask,
-        reduced_shape,
-        output_shape,
-        element_count,
-    })
-}
-
-/// Execute tensor index reduction.
-pub(crate) fn execute_tensor_index_reduce(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorIndexReduce>(instruction);
-    let TensorIndexReduce {
-        dest_offset,
-        tensor_offset,
-        axis,
-        source_layout,
-        dest_layout,
-        kernel,
-        tie_break,
-    } = record;
-    let axes = [axis];
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-    let element_layout = source_layout.entry.element_layout;
-
-    // resolve reduced shape
-    let tensor_value = tensor_value(activation, tensor_offset);
-    let reduction = tensor_reduction(source_layout.shape, &axes)?;
-    if reduction.element_count == 0 {
-        return Err(Error::invalid_instruction());
-    }
-    if dest_layout.shape != reduction.output_shape.as_slice() {
-        return Err(Error::invalid_instruction());
-    }
-    if !tensor_index_layout_can_store(dest_layout.entry.element_layout, reduction.element_count) {
-        return Err(Error::invalid_instruction());
-    }
-    let mut source_index = vec![0u64; source_layout.shape.len()];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, output_index| {
-            let mut output_cursor = 0usize;
-            for (dim, element) in source_index.iter_mut().enumerate() {
-                if reduction.axis_mask[dim] {
-                    *element = 0;
-                } else {
-                    *element = output_index
-                        .get(output_cursor)
-                        .copied()
-                        .ok_or(Error::invalid_instruction())?;
-                    output_cursor += 1;
-                }
-            }
-
-            let mut best_value = None;
-            let mut best_index = 0u64;
-            let mut linear_index = 0u64;
-            let mut reduce_error = None;
-
-            // scan the reduced axis for this destination index
-            for_each_index(&reduction.reduced_shape, |reduced_index| {
-                if reduce_error.is_some() {
-                    return;
-                }
-
-                for (reduce_position, axis) in axes.iter().enumerate() {
-                    source_index[*axis as usize] = reduced_index[reduce_position];
-                }
-
-                let source_offset = match tensor_linear_index(
-                    &source_index,
-                    source_layout.shape,
-                    source_layout.strides,
-                ) {
-                    Ok(offset) => offset,
-                    Err(error) => {
-                        reduce_error = Some(error);
-                        return;
-                    }
-                };
-                let source_value = match load_tensor_element_at(
-                    activation,
-                    tensor_value,
-                    source_layout,
-                    source_offset,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        reduce_error = Some(error);
-                        return;
-                    }
-                };
-
-                let is_selected = match best_value {
-                    Some(value) => tensor_index_reduce_select(
-                        element_layout,
-                        kernel,
-                        tie_break,
-                        value,
-                        source_value,
-                    ),
-                    None => Ok(true),
-                };
-                match is_selected {
-                    Ok(true) => {
-                        best_value = Some(source_value);
-                        best_index = linear_index;
-                    }
-                    Ok(false) => {}
-                    Err(error) => {
-                        reduce_error = Some(error);
-                        return;
-                    }
-                }
-
-                linear_index += 1;
-            });
-
-            if let Some(error) = reduce_error {
-                return Err(error);
-            }
-
-            Ok(Cell::uint(best_index, Cell::BIT_LEN))
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Return whether an index result layout can store every reduced position.
-fn tensor_index_layout_can_store(layout: ScalarFormat, element_count: u64) -> bool {
-    let ScalarFormat::Int {
-        width,
-        is_signed: 0,
-    } = layout
-    else {
-        return false;
-    };
-
-    let max_index = element_count - 1;
-    let needed_bits = (u64::BITS - max_index.leading_zeros()).max(1) as u16;
-
-    width >= needed_bits
-}
-
-/// Return whether `candidate` should replace `current`.
-fn tensor_index_reduce_select(
-    layout: ScalarFormat,
-    operator: mir::TensorIndexReduceOperator,
-    tie_break: mir::TensorIndexTieBreak,
-    current: Cell,
-    candidate: Cell,
-) -> Result<bool, Error> {
-    let comparison = compare_tensor_cells(layout, current, candidate)?;
-    let is_equal_last =
-        comparison == Ordering::Equal && tie_break == mir::TensorIndexTieBreak::Last;
-    let is_better = match operator {
-        mir::TensorIndexReduceOperator::Min => comparison == Ordering::Greater,
-        mir::TensorIndexReduceOperator::Max => comparison == Ordering::Less,
-    };
-
-    Ok(is_better || is_equal_last)
-}
-
-/// Compare two tensor scalar cells.
-fn compare_tensor_cells(layout: ScalarFormat, left: Cell, right: Cell) -> Result<Ordering, Error> {
-    let ordering = match layout {
-        ScalarFormat::Int { is_signed: 1, .. } => left.as_i64().cmp(&right.as_i64()),
-        ScalarFormat::Int { .. } => left.as_u64().cmp(&right.as_u64()),
-        ScalarFormat::Float { format } => {
-            let left = float_from_bits(format.format(), left.bits());
-            let right = float_from_bits(format.format(), right.bits());
-
-            left.partial_cmp(&right)
-                .ok_or(Error::invalid_instruction())?
-        }
-        _ => return Err(Error::invalid_instruction()),
-    };
-
-    Ok(ordering)
-}
-
-/// Execute tensor.dot.
-pub(crate) fn execute_tensor_dot(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorDot>(instruction);
-    let TensorDot {
-        dest_offset,
-        left_offset,
-        right_offset,
-        dimensions,
-        left_layout,
-        right_layout,
-        dest_layout,
-        element_layout,
-    } = record;
-    let dimensions = activation.tensor_dot(dimensions);
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let left_layout = program_tensor_layout(program, left_layout);
-    let right_layout = program_tensor_layout(program, right_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // resolve source tensors
-    let left_value = tensor_value(activation, left_offset);
-    let right_value = tensor_value(activation, right_offset);
-
-    // validate addressable element spans
-    if left_layout.element_span_len() != right_layout.element_span_len()
-        || left_layout.element_span_len() != dest_layout.element_span_len()
-    {
-        return Err(Error::type_mismatch(
-            "matching tensor element spans",
-            format!(
-                "{} vs {} vs {}",
-                left_layout.element_span_len(),
-                right_layout.element_span_len(),
-                dest_layout.element_span_len()
-            ),
-        ));
-    }
-
-    // compute axis sets
-    let lhs_batch = program_tensor_u32_range(program, dimensions.lhs_batch);
-    let rhs_batch = program_tensor_u32_range(program, dimensions.rhs_batch);
-    let lhs_contract = program_tensor_u32_range(program, dimensions.lhs_contracting);
-    let rhs_contract = program_tensor_u32_range(program, dimensions.rhs_contracting);
-    if lhs_batch.len() != rhs_batch.len() || lhs_contract.len() != rhs_contract.len() {
-        return Err(Error::invalid_instruction());
-    }
-
-    let lhs_rank = left_layout.shape.len();
-    let rhs_rank = right_layout.shape.len();
-    let mut lhs_free = Vec::new();
-    let mut rhs_free = Vec::new();
-    for i in 0..lhs_rank {
-        if !lhs_batch.contains(&(i as u32)) && !lhs_contract.contains(&(i as u32)) {
-            lhs_free.push(i as u32);
-        }
-    }
-    for i in 0..rhs_rank {
-        if !rhs_batch.contains(&(i as u32)) && !rhs_contract.contains(&(i as u32)) {
-            rhs_free.push(i as u32);
-        }
-    }
-
-    let contract_shape: Vec<u64> = lhs_contract
-        .iter()
-        .map(|dim| left_layout.shape[*dim as usize])
-        .collect();
-    let mut lhs_index = vec![0u64; lhs_rank];
-    let mut rhs_index = vec![0u64; rhs_rank];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, out_index| {
-            for (i, dim) in lhs_batch.iter().enumerate() {
-                let value = out_index[i];
-                lhs_index[*dim as usize] = value;
-                rhs_index[rhs_batch[i] as usize] = value;
-            }
-            for (i, dim) in lhs_free.iter().enumerate() {
-                lhs_index[*dim as usize] = out_index[lhs_batch.len() + i];
-            }
-            for (i, dim) in rhs_free.iter().enumerate() {
-                let offset = lhs_batch.len() + lhs_free.len() + i;
-                rhs_index[*dim as usize] = out_index[offset];
-            }
-
-            let mut accum = None;
-            let mut contract_error = None;
-
-            // iterate the contracting dimensions for this destination element
-            for_each_index(&contract_shape, |contract_index| {
-                if contract_error.is_some() {
-                    return;
-                }
-
-                for (i, dim) in lhs_contract.iter().enumerate() {
-                    lhs_index[*dim as usize] = contract_index[i];
-                }
-                for (i, dim) in rhs_contract.iter().enumerate() {
-                    rhs_index[*dim as usize] = contract_index[i];
-                }
-
-                let lhs_offset =
-                    match tensor_linear_index(&lhs_index, left_layout.shape, left_layout.strides) {
-                        Ok(offset) => offset,
-                        Err(error) => {
-                            contract_error = Some(error);
-                            return;
-                        }
-                    };
-                let rhs_offset =
-                    match tensor_linear_index(&rhs_index, right_layout.shape, right_layout.strides)
-                    {
-                        Ok(offset) => offset,
-                        Err(error) => {
-                            contract_error = Some(error);
-                            return;
-                        }
-                    };
-                let left_element =
-                    match load_tensor_element_at(activation, left_value, left_layout, lhs_offset) {
-                        Ok(value) => value,
-                        Err(error) => {
-                            contract_error = Some(error);
-                            return;
-                        }
-                    };
-                let right_element =
-                    match load_tensor_element_at(activation, right_value, right_layout, rhs_offset)
-                    {
-                        Ok(value) => value,
-                        Err(error) => {
-                            contract_error = Some(error);
-                            return;
-                        }
-                    };
-                let product = match reduce_multiply(element_layout, left_element, right_element) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        contract_error = Some(error);
-                        return;
-                    }
-                };
-
-                accum = match accum {
-                    None => Some(product),
-                    Some(current) => match reduce_add(element_layout, current, product) {
-                        Ok(value) => Some(value),
-                        Err(error) => {
-                            contract_error = Some(error);
-                            return;
-                        }
-                    },
-                };
-            });
-
-            if let Some(error) = contract_error {
-                return Err(error);
-            }
-
-            accum.ok_or(Error::invalid_instruction())
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.convolution.
-pub(crate) fn execute_tensor_convolution(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorConvolution>(instruction);
-    let TensorConvolution {
-        dest_offset,
-        input_offset,
-        kernel_offset,
-        dimensions,
-        window,
-        feature_group_count,
-        batch_group_count,
-        input_layout,
-        kernel_layout,
-        dest_layout,
-        element_layout,
-    } = record;
-    let dimensions = activation.tensor_convolution(dimensions);
-    let window = activation.tensor_window(window);
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let input_layout = program_tensor_layout(program, input_layout);
-    let kernel_layout = program_tensor_layout(program, kernel_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // resolve source tensors
-    let input_value = tensor_value(activation, input_offset);
-    let kernel_value = tensor_value(activation, kernel_offset);
-
-    // derive dimension mappings
-    let input_spatial = program_tensor_u32_range(program, dimensions.input_spatial);
-    let output_spatial = program_tensor_u32_range(program, dimensions.output_spatial);
-    let kernel_spatial = program_tensor_u32_range(program, dimensions.kernel_spatial);
-    let strides = program_tensor_u64_range(program, window.strides);
-    let padding_low = program_tensor_u64_range(program, window.padding_low);
-    let padding_high = program_tensor_u64_range(program, window.padding_high);
-    let lhs_dilation = program_tensor_u64_range(program, window.lhs_dilation);
-    let rhs_dilation = program_tensor_u64_range(program, window.rhs_dilation);
-    let window_reversal = program_tensor_flag_range(program, window.window_reversal);
-    let spatial_rank = input_spatial.len();
-    if output_spatial.len() != spatial_rank || kernel_spatial.len() != spatial_rank {
-        return Err(Error::invalid_instruction());
-    }
-
-    // validate window shapes
-    if strides.len() != spatial_rank
-        || padding_low.len() != spatial_rank
-        || padding_high.len() != spatial_rank
-        || lhs_dilation.len() != spatial_rank
-        || rhs_dilation.len() != spatial_rank
-        || window_reversal.len() != spatial_rank
-    {
-        return Err(Error::invalid_instruction());
-    }
-
-    let output_batch_dim = dimensions.output_batch as usize;
-    let output_feature_dim = dimensions.output_feature as usize;
-    let input_batch_dim = dimensions.input_batch as usize;
-    let input_feature_dim = dimensions.input_feature as usize;
-    let kernel_input_feature_dim = dimensions.kernel_input_feature as usize;
-    let kernel_output_feature_dim = dimensions.kernel_output_feature as usize;
-
-    // validate dimension indices
-    if input_batch_dim >= input_layout.shape.len()
-        || input_feature_dim >= input_layout.shape.len()
-        || output_batch_dim >= dest_layout.shape.len()
-        || output_feature_dim >= dest_layout.shape.len()
-        || kernel_input_feature_dim >= kernel_layout.shape.len()
-        || kernel_output_feature_dim >= kernel_layout.shape.len()
-    {
-        return Err(Error::invalid_instruction());
-    }
-
-    for dim in input_spatial.iter() {
-        if *dim as usize >= input_layout.shape.len() {
-            return Err(Error::invalid_instruction());
-        }
-    }
-    for dim in output_spatial.iter() {
-        if *dim as usize >= dest_layout.shape.len() {
-            return Err(Error::invalid_instruction());
-        }
-    }
-
-    let input_batch_size = input_layout.shape[input_batch_dim];
-    let input_feature_size = input_layout.shape[input_feature_dim];
-    let output_batch_size = dest_layout.shape[output_batch_dim];
-    let output_feature_size = dest_layout.shape[output_feature_dim];
-
-    let mut kernel_spatial_shape = Vec::with_capacity(kernel_spatial.len());
-    for dim in kernel_spatial {
-        let Some(size) = kernel_layout.shape.get(*dim as usize) else {
-            return Err(Error::invalid_instruction());
-        };
-        kernel_spatial_shape.push(*size);
-    }
-
-    // validate group counts
-    if feature_group_count == 0 || batch_group_count == 0 {
-        return Err(Error::invalid_instruction());
-    }
-
-    let out_features_per_group = output_feature_size / (feature_group_count as u64);
-    let in_features_per_group = input_feature_size / (feature_group_count as u64);
-    let out_batches_per_group = output_batch_size / (batch_group_count as u64);
-    let in_batches_per_group = input_batch_size / (batch_group_count as u64);
-    let mut input_index = vec![0u64; input_layout.shape.len()];
-    let mut kernel_index = vec![0u64; kernel_layout.shape.len()];
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, out_index| {
-            let out_batch = out_index[output_batch_dim];
-            let out_feature = out_index[output_feature_dim];
-
-            let batch_group = out_batch / out_batches_per_group;
-            let feature_group = out_feature / out_features_per_group;
-
-            let input_batch =
-                batch_group * in_batches_per_group + (out_batch % out_batches_per_group);
-            let input_feature_base = feature_group * in_features_per_group;
-            let kernel_out_feature = out_feature % out_features_per_group;
-
-            input_index[input_batch_dim] = input_batch;
-            kernel_index[kernel_output_feature_dim] = kernel_out_feature;
-
-            let mut accum = None;
-            let mut convolution_error = None;
-
-            for in_feature in 0..in_features_per_group {
-                input_index[input_feature_dim] = input_feature_base + in_feature;
-                kernel_index[kernel_input_feature_dim] = in_feature;
-
-                for_each_index(&kernel_spatial_shape, |kernel_spatial_index| {
-                    if convolution_error.is_some() {
-                        return;
-                    }
-
-                    let mut is_valid = true;
-                    for (i, &dim) in input_spatial.iter().enumerate() {
-                        let out_spatial_dim = output_spatial[i] as usize;
-                        let kernel_dim = kernel_spatial[i] as usize;
-                        let stride = strides[i];
-                        let padding_low = padding_low[i];
-                        let lhs_dilation = lhs_dilation[i];
-                        let rhs_dilation = rhs_dilation[i];
-                        let kernel_size = kernel_layout.shape[kernel_dim];
-                        let mut kernel_pos = kernel_spatial_index[i];
-                        if window_reversal[i] != 0 {
-                            kernel_pos = kernel_size - 1 - kernel_pos;
-                        }
-
-                        let out_pos = out_index[out_spatial_dim];
-                        let position = out_pos * stride;
-                        let kernel = kernel_pos * rhs_dilation;
-                        let mut input_pos = position + kernel;
-                        if input_pos < padding_low {
-                            is_valid = false;
-                            break;
-                        }
-                        input_pos -= padding_low;
-                        if lhs_dilation > 1 {
-                            if !input_pos.is_multiple_of(lhs_dilation) {
-                                is_valid = false;
-                                break;
-                            }
-                            input_pos /= lhs_dilation;
-                        }
-                        if input_pos >= input_layout.shape[dim as usize] {
-                            is_valid = false;
-                            break;
-                        }
-
-                        input_index[dim as usize] = input_pos;
-                        kernel_index[kernel_dim] = kernel_pos;
-                    }
-
-                    if !is_valid {
-                        return;
-                    }
-
-                    let input_offset = match tensor_linear_index(
-                        &input_index,
-                        input_layout.shape,
-                        input_layout.strides,
-                    ) {
-                        Ok(offset) => offset,
-                        Err(error) => {
-                            convolution_error = Some(error);
-                            return;
-                        }
-                    };
-                    let kernel_offset = match tensor_linear_index(
-                        &kernel_index,
-                        kernel_layout.shape,
-                        kernel_layout.strides,
-                    ) {
-                        Ok(offset) => offset,
-                        Err(error) => {
-                            convolution_error = Some(error);
-                            return;
-                        }
-                    };
-                    let input_element = match load_tensor_element_at(
-                        activation,
-                        input_value,
-                        input_layout,
-                        input_offset,
-                    ) {
-                        Ok(value) => value,
-                        Err(error) => {
-                            convolution_error = Some(error);
-                            return;
-                        }
-                    };
-                    let kernel_element = match load_tensor_element_at(
-                        activation,
-                        kernel_value,
-                        kernel_layout,
-                        kernel_offset,
-                    ) {
-                        Ok(value) => value,
-                        Err(error) => {
-                            convolution_error = Some(error);
-                            return;
-                        }
-                    };
-                    let product =
-                        match reduce_multiply(element_layout, input_element, kernel_element) {
-                            Ok(value) => value,
-                            Err(error) => {
-                                convolution_error = Some(error);
-                                return;
-                            }
-                        };
-
-                    accum = match accum {
-                        None => Some(product),
-                        Some(current) => match reduce_add(element_layout, current, product) {
-                            Ok(value) => Some(value),
-                            Err(error) => {
-                                convolution_error = Some(error);
-                                return;
-                            }
-                        },
-                    };
-                });
-            }
-
-            if let Some(error) = convolution_error {
-                return Err(error);
-            }
-
-            accum.ok_or(Error::invalid_instruction())
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.gather.
-pub(crate) fn execute_tensor_gather(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorGather>(instruction);
-    let TensorGather {
-        dest_offset,
-        source_offset,
-        indices_offset,
-        dimensions,
-        slice_sizes,
-        source_layout,
-        indices_layout,
-        dest_layout,
-    } = record;
-    let dimensions = activation.tensor_gather(dimensions);
-    let program = activation.program;
-    let slice_sizes = program_frame_offsets(program, slice_sizes);
-
-    // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(program, source_layout);
-    let indices_layout = program_tensor_layout(program, indices_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-    // resolve tensors
-    let source_value = tensor_value(activation, source_offset);
-    let indices_value = tensor_value(activation, indices_offset);
-    let offset_dims = program_tensor_u32_range(program, dimensions.offset_dims);
-    let collapsed_slice_dims = program_tensor_u32_range(program, dimensions.collapsed_slice_dims);
-    let start_index_map = program_tensor_u32_range(program, dimensions.start_index_map);
-    let offset_dims: HashSet<u32> = offset_dims.iter().copied().collect();
-    let collapsed_dims: HashSet<u32> = collapsed_slice_dims.iter().copied().collect();
-
-    // store result
-    store_tensor_indexed_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, out_index| {
-            let mut index_coords = Vec::new();
-            for (dim, value) in out_index.iter().enumerate() {
-                if !offset_dims.contains(&(dim as u32)) {
-                    index_coords.push(*value);
-                }
-            }
-
-            let mut index_vec = vec![0u64; start_index_map.len()];
-            let mut indices_index = vec![0u64; indices_layout.shape.len()];
-            let mut coord_iter = index_coords.iter();
-            for (dim, element) in indices_index.iter_mut().enumerate() {
-                if dim as u32 == dimensions.index_vector_dim {
-                    continue;
-                }
-
-                let Some(coord) = coord_iter.next() else {
-                    return Err(Error::invalid_instruction());
-                };
-                *element = *coord;
-            }
-
-            let index_offset =
-                tensor_linear_index(&indices_index, indices_layout.shape, indices_layout.strides)?;
-            let index_base = index_offset;
-            for (i, &_map_dim) in start_index_map.iter().enumerate() {
-                let element_index = index_base + i;
-                let value = load_tensor_element_at(
-                    activation,
-                    indices_value,
-                    indices_layout,
-                    element_index,
-                )?;
-                index_vec[i] = cell_to_u64(value)?;
-                indices_index[dimensions.index_vector_dim as usize] = index_vec[i];
-            }
-
-            let mut source_index = vec![0u64; source_layout.shape.len()];
-            for (i, &map_dim) in start_index_map.iter().enumerate() {
-                source_index[map_dim as usize] = index_vec[i];
-            }
-
-            let mut offset_iter = out_index.iter();
-            for (dim, element) in source_index.iter_mut().enumerate() {
-                if collapsed_dims.contains(&(dim as u32)) {
-                    continue;
-                }
-
-                let offset = if offset_dims.contains(&(dim as u32)) {
-                    let Some(offset) = offset_iter.next() else {
-                        return Err(Error::invalid_instruction());
-                    };
-                    *offset
-                } else {
-                    0
-                };
-                let Some(size) = slice_sizes.get(dim) else {
-                    return Err(Error::invalid_instruction());
-                };
-                let size = *size as u64;
-                if size == 0 {
-                    return Err(Error::invalid_instruction());
-                }
-
-                let start = *element;
-                *element = start + offset.min(size - 1);
-            }
-
-            let source_offset =
-                tensor_linear_index(&source_index, source_layout.shape, source_layout.strides)?;
-
-            load_tensor_element_at(activation, source_value, source_layout, source_offset)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute tensor.scatter.
-pub(crate) fn execute_tensor_scatter(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let TensorScatter { mode, .. } = activation.side::<TensorScatter>(instruction);
-    let combine = tensor_scatter_operation(*mode);
-
-    execute_tensor_scatter_elements(activation, instruction, combine)
-}
-
-/// Execute tensor scatter with one scalar kernel.
-fn execute_tensor_scatter_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    combine: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode side records
-    let TensorScatter {
-        dest_offset,
-        source_offset,
-        indices_offset,
-        updates_offset,
-        dimensions,
-        source_layout,
-        indices_layout,
-        updates_layout,
-        dest_layout,
-        element_layout,
-        mode: _,
-    } = *activation.side::<TensorScatter>(instruction);
-    let dimensions = activation.tensor_scatter(dimensions);
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let source_layout = program_tensor_layout(program, source_layout);
-    let indices_layout = program_tensor_layout(program, indices_layout);
-    let updates_layout = program_tensor_layout(program, updates_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    // resolve tensors
-    let source_value = tensor_value(activation, source_offset);
-    let indices_value = tensor_value(activation, indices_offset);
-    let updates_value = tensor_value(activation, updates_offset);
-
-    store_tensor_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, element_index| {
-            load_tensor_element_at(activation, source_value, source_layout, element_index)
-        },
-    )?;
-    let result = tensor_value(activation, dest_offset);
-    let update_window_dims = program_tensor_u32_range(program, dimensions.update_window_dims);
-    let inserted_window_dims = program_tensor_u32_range(program, dimensions.inserted_window_dims);
-    let scatter_dims_to_operand_dims =
-        program_tensor_u32_range(program, dimensions.scatter_dims_to_operand_dims);
-    let update_window_dims: HashSet<u32> = update_window_dims.iter().copied().collect();
-    let inserted_window_dims: HashSet<u32> = inserted_window_dims.iter().copied().collect();
-    let mut scatter_error = None;
-
-    // scatter updates
-    for_each_index(updates_layout.shape, |update_index| {
-        if scatter_error.is_some() {
-            return;
-        }
-
-        let mut index_coords = Vec::new();
-        for (dim, value) in update_index.iter().enumerate() {
-            if !update_window_dims.contains(&(dim as u32)) {
-                index_coords.push(*value);
-            }
-        }
-
-        let mut indices_index = vec![0u64; indices_layout.shape.len()];
-        let mut coord_iter = index_coords.iter();
-        for (dim, element) in indices_index.iter_mut().enumerate() {
-            if dim as u32 == dimensions.index_vector_dim {
-                continue;
-            }
-
-            let Some(coord) = coord_iter.next() else {
-                scatter_error = Some(Error::invalid_instruction());
-                return;
-            };
-            *element = *coord;
-        }
-
-        let index_offset =
-            tensor_linear_index(&indices_index, indices_layout.shape, indices_layout.strides);
-        let Ok(index_offset) = index_offset else {
-            scatter_error = Some(Error::invalid_instruction());
-            return;
-        };
-
-        let mut scatter_indices = Vec::with_capacity(scatter_dims_to_operand_dims.len());
-        for i in 0..scatter_dims_to_operand_dims.len() {
-            let element_index = index_offset + i;
-            let Ok(value) =
-                load_tensor_element_at(activation, indices_value, indices_layout, element_index)
-            else {
-                scatter_error = Some(Error::invalid_instruction());
-                return;
-            };
-            if let Ok(coord) = cell_to_u64(value) {
-                scatter_indices.push(coord);
+            let value = if is_padding {
+                padding
             } else {
-                scatter_error = Some(Error::invalid_instruction());
-                return;
-            }
-        }
+                let address = source
+                    .element_address(&source_coordinate)
+                    .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-        let mut source_index = vec![0u64; source_layout.shape.len()];
-        for (i, &dim) in scatter_dims_to_operand_dims.iter().enumerate() {
-            source_index[dim as usize] = scatter_indices[i];
-        }
-
-        let mut update_iter = update_index.iter();
-        for (dim, element) in source_index.iter_mut().enumerate() {
-            if inserted_window_dims.contains(&(dim as u32)) {
-                continue;
-            }
-            if update_window_dims.contains(&(dim as u32)) {
-                let Some(update) = update_iter.next() else {
-                    scatter_error = Some(Error::invalid_instruction());
-                    return;
-                };
-                *element = *update;
-            }
-        }
-
-        let destination_offset =
-            tensor_linear_index(&source_index, dest_layout.shape, dest_layout.strides);
-        let Ok(destination_offset) = destination_offset else {
-            scatter_error = Some(Error::invalid_instruction());
-            return;
-        };
-        let update_offset =
-            tensor_linear_index(update_index, updates_layout.shape, updates_layout.strides);
-        let Ok(update_offset) = update_offset else {
-            scatter_error = Some(Error::invalid_instruction());
-            return;
-        };
-        let Ok(update_value) =
-            load_tensor_element_at(activation, updates_value, updates_layout, update_offset)
-        else {
-            scatter_error = Some(Error::invalid_instruction());
-            return;
-        };
-        let current_value =
-            match load_tensor_element_at(activation, result, dest_layout, destination_offset) {
-                Ok(value) => value,
-                Err(error) => {
-                    scatter_error = Some(error);
-                    return;
-                }
+                self.load(address, scalar)
             };
-        let new_value = match combine(element_layout, current_value, update_value) {
-            Ok(value) => value,
-            Err(error) => {
-                scatter_error = Some(error);
-                return;
+            let address = result
+                .element_address(&coordinate.values)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+            self.store(address, scalar, value);
+        }
+
+        Ok(())
+    }
+
+    /// Execute one tensor concatenation.
+    fn execute_tensor_concat(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let inputs = operands.tensors().map_err(|_| self.invalid_instruction())?;
+        let axis = operands.u16().map_err(|_| self.invalid_instruction())? as usize;
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        if inputs.is_empty() {
+            return Err(self.invalid_instruction());
+        }
+        let inputs = inputs
+            .into_iter()
+            .map(|input| self.tensor(input))
+            .collect::<Result<Vec<_>>>()?;
+        if inputs.iter().any(|input| input.scalar != scalar) {
+            return Err(self.invalid_instruction());
+        }
+        let mut dimensions = inputs[0].dimensions().collect::<Vec<_>>();
+        if axis >= dimensions.len() {
+            return Err(self.invalid_instruction());
+        }
+        if inputs.iter().any(|input| {
+            input.rank() != dimensions.len()
+                || input
+                    .dimensions()
+                    .zip(&dimensions)
+                    .enumerate()
+                    .any(|(current, (left, right))| current != axis && left != *right)
+        }) {
+            return Err(self.invalid_instruction());
+        }
+        dimensions[axis] = inputs
+            .iter()
+            .try_fold(0usize, |size, input| {
+                size.checked_add(input.dimension(axis)?)
+            })
+            .ok_or_else(|| self.invalid_instruction())?;
+        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+
+        let mut coordinate = Coordinate::zero(result.rank());
+
+        // select one source tensor from the concatenated axis interval
+        for index in 0..result.element_count() {
+            coordinate
+                .set(index, result.dimensions())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let mut axis_index = coordinate.values[axis];
+            let mut source = None;
+
+            // select the source interval containing this concatenated axis index
+            for input in &inputs {
+                let dimension = input
+                    .dimension(axis)
+                    .ok_or_else(|| self.invalid_instruction())?;
+                if axis_index < dimension {
+                    source = Some(input);
+                    break;
+                }
+                axis_index -= dimension;
+            }
+            let source = source.ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let mut source_coordinate = coordinate.values.clone();
+            source_coordinate[axis] = axis_index;
+            let source_address = source
+                .element_address(&source_coordinate)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target_address = result
+                .element_address(&coordinate.values)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+            self.store(target_address, scalar, self.load(source_address, scalar));
+        }
+
+        Ok(())
+    }
+
+    /// Execute one tensor element conversion.
+    fn execute_tensor_convert(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let target_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let mode = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let mode = ConvertMode::from_code(mode).ok_or_else(|| self.invalid_instruction())?;
+        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+        if result_scalar != target_scalar {
+            return Err(self.invalid_instruction());
+        }
+        let source = self.tensor(source)?;
+        if source.scalar != source_scalar {
+            return Err(self.invalid_instruction());
+        }
+        let result = self.allocate_tensor(target, target_scalar, ty, source.dimensions(), point)?;
+
+        // convert each logical element through the scalar conversion path
+        for index in 0..result.element_count() {
+            let source_address = source
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target_address = result
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let value = self.load(source_address, source_scalar);
+            let value = self.convert_scalar(value, source_scalar, target_scalar, mode)?;
+
+            self.store(target_address, target_scalar, value);
+        }
+
+        Ok(())
+    }
+
+    /// Execute one exact tensor storage bitcast.
+    fn execute_tensor_bitcast(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let (target_scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        if source.scalar != source_scalar {
+            return Err(self.invalid_instruction());
+        }
+        let dimensions = self.fixed_tensor_dimensions(ty)?;
+        let target_element_count = Tensor::count_elements(dimensions.iter().copied())
+            .ok_or_else(|| self.invalid_instruction())?;
+        let source_byte_len = source
+            .element_count()
+            .checked_mul(source_scalar.bit_width() as usize / u8::BITS as usize)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let target_byte_len = target_element_count
+            .checked_mul(target_scalar.bit_width() as usize / u8::BITS as usize)
+            .ok_or_else(|| self.invalid_instruction())?;
+        if source_byte_len != target_byte_len {
+            return Err(self.invalid_instruction());
+        }
+        let result =
+            self.allocate_tensor(target, target_scalar, ty, dimensions.iter().copied(), point)?;
+
+        // SAFETY: both tensor allocations own non-overlapping payloads of the same byte length
+        unsafe {
+            ptr::copy_nonoverlapping(
+                source.address as *const u8,
+                result.address as *mut u8,
+                source_byte_len,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Execute one tensor reduction over selected axes.
+    fn execute_tensor_reduce(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let initial = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let operation = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let operation =
+            ReduceOperation::from_code(operation).ok_or_else(|| self.invalid_instruction())?;
+        let axes = operands
+            .u16s()
+            .map_err(|_| self.invalid_instruction())?
+            .into_iter()
+            .map(usize::from)
+            .collect::<Vec<_>>();
+        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+        if scalar != result_scalar {
+            return Err(self.invalid_instruction());
+        }
+        let source = self.tensor(source)?;
+        if source.scalar != scalar {
+            return Err(self.invalid_instruction());
+        }
+        let mut reduced = vec![false; source.rank()];
+        for axis in axes {
+            let Some(is_reduced) = reduced.get_mut(axis) else {
+                return Err(self.invalid_instruction());
+            };
+            if *is_reduced {
+                return Err(self.invalid_instruction());
+            }
+            *is_reduced = true;
+        }
+        let dimensions = source
+            .dimensions()
+            .enumerate()
+            .filter_map(|(axis, dimension)| (!reduced[axis]).then_some(dimension))
+            .collect::<Vec<_>>();
+        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let initial = self.read(initial.0);
+
+        let mut source_coordinate = Coordinate::zero(source.rank());
+        let mut result_coordinate = Vec::with_capacity(result.rank());
+
+        // initialize every result, including reductions over an empty dimension
+        for index in 0..result.element_count() {
+            let address = result
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            self.store(address, scalar, initial);
+        }
+
+        // reduce source coordinates into each result coordinate
+        for source_index in 0..source.element_count() {
+            source_coordinate
+                .set(source_index, source.dimensions())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            result_coordinate.clear();
+            result_coordinate.extend(
+                source_coordinate
+                    .values
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(axis, index)| (!reduced[axis]).then_some(*index)),
+            );
+            let result_address = result
+                .element_address(&result_coordinate)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let source_address = source
+                .element_address(&source_coordinate.values)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let current = self.load(result_address, scalar);
+            let value = self.reduce_value(
+                operation,
+                scalar,
+                current,
+                self.load(source_address, scalar),
+            )?;
+
+            self.store(result_address, scalar, value);
+        }
+
+        Ok(())
+    }
+
+    /// Execute one tensor index reduction.
+    fn execute_tensor_index_reduce(
+        &mut self,
+        instruction: Instruction<'_>,
+        point: ProgramPoint,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let operation = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let operation =
+            IndexReduceOperation::from_code(operation).ok_or_else(|| self.invalid_instruction())?;
+        let axis = operands.u16().map_err(|_| self.invalid_instruction())? as usize;
+        let tie = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let tie = TieBreak::from_code(tie).ok_or_else(|| self.invalid_instruction())?;
+        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        if source.scalar != source_scalar
+            || axis >= source.rank()
+            || source.dimension(axis) == Some(0)
+            || !result_scalar.is_integer()
+        {
+            return Err(self.invalid_instruction());
+        }
+        let dimensions = source
+            .dimensions()
+            .enumerate()
+            .filter_map(|(current, dimension)| (current != axis).then_some(dimension))
+            .collect::<Vec<_>>();
+        let result =
+            self.allocate_tensor(target, result_scalar, ty, dimensions.iter().copied(), point)?;
+
+        let mut result_coordinate = Coordinate::zero(result.rank());
+
+        // select one extremum index for every result coordinate
+        for index in 0..result.element_count() {
+            result_coordinate
+                .set(index, result.dimensions())
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let mut source_coordinate = result_coordinate.values.clone();
+            source_coordinate.insert(axis, 0);
+            let first_address = source
+                .element_address(&source_coordinate)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let mut selected = 0usize;
+            let mut selected_value = self.load(first_address, source_scalar);
+
+            let dimension = source
+                .dimension(axis)
+                .ok_or_else(|| self.invalid_instruction())?;
+            for candidate in 1..dimension {
+                source_coordinate[axis] = candidate;
+                let address = source
+                    .element_address(&source_coordinate)
+                    .ok_or_else(|| Error::trap(Trap::Bounds))?;
+                let value = self.load(address, source_scalar);
+                let comparison = match operation {
+                    IndexReduceOperation::Minimum => ReduceOperation::Minimum,
+                    IndexReduceOperation::Maximum => ReduceOperation::Maximum,
+                };
+                let reduced =
+                    self.reduce_value(comparison, source_scalar, selected_value, value)?;
+                let replaces =
+                    reduced == value && (selected_value != value || tie == TieBreak::Last);
+                if replaces {
+                    selected = candidate;
+                    selected_value = value;
+                }
+            }
+            let address = result
+                .element_address(&result_coordinate.values)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+            let selected = Word::from_bits(result_scalar.encode(selected as u64));
+            self.store(address, result_scalar, selected);
+        }
+
+        Ok(())
+    }
+
+    /// Execute one derived tensor view.
+    fn execute_tensor_view(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let offsets = self.tensor_indices(&mut operands)?;
+        let sizes = self.tensor_indices(&mut operands)?;
+        let strides = self.tensor_indices(&mut operands)?;
+        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let source = self.tensor(source)?;
+        let layout = self
+            .machine
+            .program
+            .tensor_view_layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let rank = self
+            .machine
+            .program
+            .tensor_dimensions(layout.dimensions)
+            .len();
+        if source.scalar != scalar
+            || offsets.len() != rank
+            || sizes.len() != rank
+            || strides.len() != rank
+        {
+            return Err(self.invalid_instruction());
+        }
+        let expected = self.machine.program.tensor_dimensions(layout.dimensions);
+        self.match_tensor_dimensions(expected, sizes.iter().copied())?;
+        let base = self.call.storage.native_address(source.edge);
+        let mut byte_offset = source
+            .address
+            .checked_sub(base)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let mut result_strides = Vec::with_capacity(rank);
+        for axis in 0..rank {
+            let source_dimension = source
+                .dimension(axis)
+                .ok_or_else(|| self.invalid_instruction())?;
+            let source_stride = source
+                .stride(axis)
+                .ok_or_else(|| self.invalid_instruction())?;
+            let is_out_of_bounds = if sizes[axis] == 0 {
+                offsets[axis] > source_dimension
+            } else {
+                offsets[axis] >= source_dimension
+            };
+            if strides[axis] == 0 || is_out_of_bounds {
+                return Err(Error::trap(Trap::Bounds));
+            }
+            let offset = offsets[axis]
+                .checked_mul(source_stride)
+                .ok_or_else(|| self.invalid_instruction())?;
+            byte_offset = byte_offset
+                .checked_add(offset)
+                .ok_or_else(|| self.invalid_instruction())?;
+            let stride = source_stride
+                .checked_mul(strides[axis])
+                .ok_or_else(|| self.invalid_instruction())?;
+            result_strides.push(stride);
+
+            if sizes[axis] > 0 {
+                let index = sizes[axis] - 1;
+                let last = index
+                    .checked_mul(strides[axis])
+                    .and_then(|index| offsets[axis].checked_add(index))
+                    .ok_or_else(|| self.invalid_instruction())?;
+                if last >= source_dimension {
+                    return Err(Error::trap(Trap::Bounds));
+                }
+            }
+        }
+        let expected_words = 2 + rank * 2;
+        if target.word_count as usize != expected_words {
+            return Err(self.invalid_instruction());
+        }
+
+        // materialize the canonical edge, offset, dimensions, and strides
+        self.write(target.start.0, Word::from_bits(source.edge.bits() as u64));
+        self.write(target.start.0 + 1, Word::uint64(byte_offset as u64));
+        for axis in 0..rank {
+            self.write(
+                target.start.0 + 2 + axis as u16,
+                Word::uint64(sizes[axis] as u64),
+            );
+            self.write(
+                target.start.0 + 2 + rank as u16 + axis as u16,
+                Word::uint64(result_strides[axis] as u64),
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one tensor operand against its program layout.
+    fn tensor(&self, input: TensorOperand) -> Result<Tensor> {
+        let ty = TypeId(input.ty.0);
+        let layout = self
+            .machine
+            .program
+            .layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+
+        match layout.shape {
+            LayoutShape::Tensor(layout) => self.owning_tensor(input.registers, layout),
+            LayoutShape::TensorView(layout) => self.tensor_view(input.registers, layout),
+            _ => Err(self.invalid_instruction()),
+        }
+    }
+
+    /// Resolve one owning tensor register.
+    fn owning_tensor(&self, registers: RegisterRange, layout: TensorLayout) -> Result<Tensor> {
+        if registers.word_count != 1 || !matches!(layout.sharding, TensorSharding::Unsharded) {
+            return Err(Error::unsupported_tensor_sharding());
+        }
+        let scalar = self.tensor_scalar(layout.element)?;
+        let rank = self
+            .machine
+            .program
+            .tensor_dimensions(layout.dimensions)
+            .len();
+        let edge = self.read_edge(registers.start, layout.space)?;
+        let base = self.call.storage.native_address(edge);
+        let header_byte_len = rank
+            .checked_mul(Word::BYTE_LEN)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let address = base
+            .checked_add(header_byte_len)
+            .ok_or_else(|| self.invalid_instruction())?;
+        Tensor::dense(edge, address, base, rank, scalar, layout.format)
+            .ok_or_else(|| self.invalid_instruction())
+    }
+
+    /// Resolve one canonical tensor view descriptor.
+    fn tensor_view(&self, registers: RegisterRange, layout: TensorViewLayout) -> Result<Tensor> {
+        if !matches!(layout.sharding, TensorSharding::Unsharded) {
+            return Err(Error::unsupported_tensor_sharding());
+        }
+        let scalar = self.tensor_scalar(layout.element)?;
+        let rank = self
+            .machine
+            .program
+            .tensor_dimensions(layout.dimensions)
+            .len();
+        if registers.word_count as usize != 2 + rank * 2 {
+            return Err(self.invalid_instruction());
+        }
+        let space = layout
+            .reference
+            .space()
+            .ok_or_else(|| self.invalid_instruction())?;
+        let edge = self.read_edge(registers.start, space)?;
+        let byte_offset = self.read(registers.start.0 + 1).as_u64() as usize;
+        let frame = self.frame();
+        let dimension_register = frame.register(registers.start.0 + 2);
+        let dimension_address = self
+            .machine
+            .stack
+            .address(dimension_register * Word::BYTE_LEN);
+        let stride_register = frame.register(registers.start.0 + 2 + rank as u16);
+        let stride_address = self.machine.stack.address(stride_register * Word::BYTE_LEN);
+        let expected = self.machine.program.tensor_dimensions(layout.dimensions);
+        self.match_tensor_dimensions(expected, TensorDimensions::new(dimension_address, rank))?;
+        let address = self
+            .call
+            .storage
+            .native_address(edge)
+            .checked_add(byte_offset)
+            .ok_or_else(|| self.invalid_instruction())?;
+
+        Tensor::strided(
+            edge,
+            address,
+            dimension_address,
+            stride_address,
+            rank,
+            scalar,
+        )
+        .ok_or_else(|| self.invalid_instruction())
+    }
+
+    /// Resolve one tensor element scalar.
+    fn tensor_scalar(&self, element: TypeId) -> Result<Scalar> {
+        let format = self
+            .machine
+            .program
+            .scalar_format(element)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let scalar = match format {
+            ScalarFormat::Int {
+                width: 8,
+                is_signed: 1,
+            } => Scalar::Int8,
+            ScalarFormat::Int {
+                width: 8,
+                is_signed: 0,
+            } => Scalar::Uint8,
+            ScalarFormat::Int {
+                width: 16,
+                is_signed: 1,
+            } => Scalar::Int16,
+            ScalarFormat::Int {
+                width: 16,
+                is_signed: 0,
+            } => Scalar::Uint16,
+            ScalarFormat::Int {
+                width: 32,
+                is_signed: 1,
+            } => Scalar::Int32,
+            ScalarFormat::Int {
+                width: 32,
+                is_signed: 0,
+            } => Scalar::Uint32,
+            ScalarFormat::Int {
+                width: 64,
+                is_signed: 1,
+            } => Scalar::Int64,
+            ScalarFormat::Int {
+                width: 64,
+                is_signed: 0,
+            } => Scalar::Uint64,
+            ScalarFormat::Float {
+                format: mir::FloatType::Float16,
+            } => Scalar::Float16,
+            ScalarFormat::Float {
+                format: mir::FloatType::Bfloat16,
+            } => Scalar::Bfloat16,
+            ScalarFormat::Float {
+                format: mir::FloatType::Float32,
+            } => Scalar::Float32,
+            ScalarFormat::Float {
+                format: mir::FloatType::Float64,
+            } => Scalar::Float64,
+            ScalarFormat::Boolean => Scalar::Boolean,
+            ScalarFormat::Character | ScalarFormat::Int { .. } => {
+                return Err(self.invalid_instruction());
             }
         };
 
-        if let Err(error) = store_tensor_element_at(
-            activation,
-            result,
-            dest_layout,
-            destination_offset,
-            new_value,
-        ) {
-            scatter_error = Some(error);
-        }
-    });
-
-    if let Some(error) = scatter_error {
-        return Err(error);
+        Ok(scalar)
     }
 
-    Ok(())
-}
-
-/// Return the scalar kernel for one tensor scatter.
-fn tensor_scatter_operation(
-    mode: mir::TensorScatterMode,
-) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
-    match mode {
-        mir::TensorScatterMode::Replace => scatter_replace,
-        mir::TensorScatterMode::Add => reduce_add,
-        mir::TensorScatterMode::Multiply => reduce_multiply,
-        mir::TensorScatterMode::Min => reduce_min,
-        mir::TensorScatterMode::Max => reduce_max,
-        mir::TensorScatterMode::And => reduce_and,
-        mir::TensorScatterMode::Or => reduce_or,
-        mir::TensorScatterMode::Xor => reduce_xor,
-    }
-}
-
-/// Return the replacement scatter value.
-fn scatter_replace(_layout: ScalarFormat, _current: Cell, update: Cell) -> Result<Cell, Error> {
-    Ok(update)
-}
-
-/// Execute tensor.convert.
-pub(crate) fn execute_tensor_convert(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let TensorConvert { mode, .. } = activation.side::<TensorConvert>(instruction);
-    let convert = tensor_convert_operation(*mode);
-
-    execute_tensor_convert_elements(activation, instruction, convert)
-}
-
-/// Execute tensor conversion with one scalar kernel.
-fn execute_tensor_convert_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    convert: fn(Cell, ScalarFormat, ScalarFormat) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode side records
-    let record = *activation.side::<TensorConvert>(instruction);
-    let TensorConvert {
-        dest_offset,
-        tensor_offset,
-        source_layout,
-        dest_layout,
-        source_scalar,
-        dest_scalar,
-        mode: _,
-    } = record;
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let source_layout = program_tensor_layout(program, source_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    let tensor_value = tensor_value(activation, tensor_offset);
-    if source_layout.element_span_len() != dest_layout.element_span_len() {
-        return Err(Error::type_mismatch(
-            "matching tensor element spans",
-            format!(
-                "{} vs {}",
-                source_layout.element_span_len(),
-                dest_layout.element_span_len()
-            ),
-        ));
-    }
-
-    // store result
-    store_tensor_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, element_index| {
-            let source =
-                load_tensor_element_at(activation, tensor_value, source_layout, element_index)?;
-
-            convert(source, source_scalar, dest_scalar)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Return the scalar kernel for one tensor conversion.
-fn tensor_convert_operation(
-    mode: mir::TensorConvertMode,
-) -> fn(Cell, ScalarFormat, ScalarFormat) -> Result<Cell, Error> {
-    match mode {
-        mir::TensorConvertMode::Exact => convert_scalar_exact,
-        mir::TensorConvertMode::RoundTiesEven => convert_scalar_round_ties_even,
-        mir::TensorConvertMode::RoundTowardZero => convert_scalar_round_toward_zero,
-        mir::TensorConvertMode::RoundFloor => convert_scalar_round_floor,
-        mir::TensorConvertMode::RoundCeil => convert_scalar_round_ceil,
-        mir::TensorConvertMode::Saturate => convert_scalar_saturate,
-    }
-}
-
-/// Execute tensor.select.
-pub(crate) fn execute_tensor_select(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let record = *activation.side::<TensorSelect>(instruction);
-    let TensorSelect {
-        dest_offset,
-        mask_offset,
-        then_offset,
-        else_offset,
-        mask_layout,
-        then_layout,
-        else_layout,
-        dest_layout,
-    } = record;
-
-    // resolve lowered tensor descriptors
-    let program = activation.program;
-    let mask_layout = program_tensor_layout(program, mask_layout);
-    let then_layout = program_tensor_layout(program, then_layout);
-    let else_layout = program_tensor_layout(program, else_layout);
-    let dest_layout = program_tensor_layout(program, dest_layout);
-
-    let mask_value = tensor_value(activation, mask_offset);
-    let then_value = tensor_value(activation, then_offset);
-    let else_value = tensor_value(activation, else_offset);
-    store_tensor_elements(
-        activation,
-        dest_offset,
-        dest_layout,
-        |activation, element_index| {
-            let mask_value =
-                load_tensor_element_at(activation, mask_value, mask_layout, element_index)?;
-            let then_element =
-                load_tensor_element_at(activation, then_value, then_layout, element_index)?;
-            let else_element =
-                load_tensor_element_at(activation, else_value, else_layout, element_index)?;
-
-            let select = mask_value.as_bool();
-            Ok(if select { then_element } else { else_element })
-        },
-    )?;
-    Ok(())
-}
-
-/// Execute tensor.cast.
-pub(crate) fn execute_tensor_cast(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest_offset = instruction.a;
-    let tensor_offset = instruction.b;
-
-    let tensor = tensor_value(activation, tensor_offset);
-    activation.store_cell_at(dest_offset, tensor);
-
-    Ok(())
-}
-
-/// Execute tensor.view.
-pub(crate) fn execute_tensor_view(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let TensorView {
-        dest_offset,
-        view_offset,
-        arguments,
-        offsets_count,
-        sizes_count,
-        strides_count,
-        source_layout,
-        dest_layout,
-        element,
-        address,
-    } = activation.side::<TensorView>(instruction);
-
-    let source_layout = tensor_layout(activation, *source_layout);
-    let dest_layout = tensor_layout(activation, *dest_layout);
-
-    let args = frame_offsets(activation, *arguments);
-    let (offset_values, rest) = args.split_at((*offsets_count).into());
-    let (size_values, stride_values) = rest.split_at((*sizes_count).into());
-    if stride_values.len() != usize::from(*strides_count) {
-        return Err(Error::invalid_instruction());
-    }
-
-    let mut offsets = Vec::with_capacity(offset_values.len());
-    let mut sizes = Vec::with_capacity(size_values.len());
-    let mut strides = Vec::with_capacity(stride_values.len());
-    for offset in offset_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        offsets.push(value);
-    }
-    for offset in size_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        sizes.push(value);
-    }
-    for offset in stride_values {
-        let value = activation.load_cell_at(*offset);
-        let value = cell_to_u64(value)?;
-        strides.push(value);
-    }
-
-    for (expected, actual) in dest_layout.shape.iter().zip(sizes.iter()) {
-        if *expected != *actual {
-            return Err(Error::type_mismatch(
-                "tensor.view size",
-                format!("{actual} vs {expected}"),
-            ));
-        }
-    }
-
-    if offsets.len() != source_layout.shape.len()
-        || sizes.len() != dest_layout.shape.len()
-        || strides.len() != source_layout.shape.len()
-        || dest_layout.shape.len() != source_layout.shape.len()
+    /// Allocate one tensor payload and publish its stable edge.
+    fn allocate_tensor<Dimensions>(
+        &mut self,
+        target: RegisterId,
+        scalar: Scalar,
+        ty: TypeId,
+        dimensions: Dimensions,
+        point: ProgramPoint,
+    ) -> Result<Tensor>
+    where
+        Dimensions: Clone + ExactSizeIterator<Item = usize>,
     {
-        return Err(Error::type_mismatch(
-            "tensor.view rank",
-            format!(
-                "offsets={}, sizes={}, strides={}, source_rank={}, dest_rank={}",
-                offsets.len(),
-                sizes.len(),
-                strides.len(),
-                source_layout.shape.len(),
-                dest_layout.shape.len(),
-            ),
-        ));
+        let (site_id, site) = self
+            .machine
+            .program
+            .sites()
+            .allocation(self.machine.program.sections(), point)
+            .map(|(site_id, site)| (site_id, *site))
+            .ok_or_else(|| self.invalid_instruction())?;
+        if site.result_type != ty {
+            return Err(self.invalid_instruction());
+        }
+        let layout = self
+            .machine
+            .program
+            .tensor_layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+        if !matches!(layout.sharding, TensorSharding::Unsharded) {
+            return Err(Error::unsupported_tensor_sharding());
+        }
+        if layout.space != site.space
+            || self.machine.program.scalar_format(layout.element)
+                != Some(ScalarFormat::from(scalar))
+        {
+            return Err(self.invalid_instruction());
+        }
+        let expected_dimensions = self.machine.program.tensor_dimensions(layout.dimensions);
+        if expected_dimensions.len() != dimensions.len()
+            || expected_dimensions
+                .iter()
+                .zip(dimensions.clone())
+                .any(|(expected, actual)| {
+                    expected
+                        .fixed_extent()
+                        .is_some_and(|expected| expected as usize != actual)
+                })
+        {
+            return Err(self.invalid_instruction());
+        }
+        let rank = expected_dimensions.len();
+        let element_byte_len = scalar.bit_width() as usize / u8::BITS as usize;
+        let element_count = Tensor::count_elements(dimensions.clone());
+        let element_count = element_count.ok_or_else(|| self.invalid_instruction())?;
+        let header_byte_len = dimensions.len() * Word::BYTE_LEN;
+        let byte_len = element_count
+            .checked_mul(element_byte_len)
+            .and_then(|byte_len| byte_len.checked_add(header_byte_len))
+            .ok_or_else(|| self.invalid_instruction())?;
+        let shape = AllocationShape::new(byte_len, Word::BYTE_LEN, None, TraceMap::empty());
+        let plan = self.call.storage.plan_allocation(site.space, &shape);
+        let edge = self
+            .call
+            .storage
+            .allocate(
+                site.space,
+                plan,
+                Payload::Uninit,
+                self.machine.program.trace_view(),
+            )
+            .map_err(Error::heap)?;
+        self.write(target.0, Word::from_bits(edge.bits() as u64));
+
+        // write the shape header before exposing element storage
+        let base = self.call.storage.native_address(edge);
+        for (axis, dimension) in dimensions.enumerate() {
+            self.store(
+                base + axis * Word::BYTE_LEN,
+                Scalar::Uint64,
+                Word::uint64(dimension as u64),
+            );
+        }
+        if let Some(profile) = self.profile.as_deref_mut() {
+            profile.record_allocation(site_id, plan.byte_len);
+        }
+        let address = base
+            .checked_add(header_byte_len)
+            .ok_or_else(|| self.invalid_instruction())?;
+        Tensor::dense(edge, address, base, rank, scalar, layout.format)
+            .ok_or_else(|| self.invalid_instruction())
     }
 
-    let source_strides = load_tensor_view_strides(activation, *view_offset, source_layout)?;
-    let mut dest_strides = Vec::with_capacity(strides.len());
-    for (source_stride, stride) in source_strides.iter().copied().zip(strides.iter().copied()) {
-        let dest_stride = source_stride
-            .checked_mul(stride)
-            .ok_or(Error::invalid_instruction())?;
-        dest_strides.push(dest_stride);
-    }
+    /// Resolve one tensor result representation against its Program layout.
+    fn tensor_result(
+        &self,
+        operands: &mut destack_bytecode::Operands<'_>,
+    ) -> Result<(Scalar, TypeId)> {
+        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let reference = operands
+            .reference()
+            .map_err(|_| self.invalid_instruction())?;
+        let ty = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
+        let layout = self
+            .machine
+            .program
+            .layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let (element, expected_reference) = match layout.shape {
+            LayoutShape::Tensor(layout) => {
+                let reference = ReferenceType::new(
+                    bytecode::ReferenceKind::MANAGED,
+                    match layout.space {
+                        mir::Space::Local => bytecode::Space::LOCAL,
+                        mir::Space::Shared => bytecode::Space::SHARED,
+                        _ => return Err(self.invalid_instruction()),
+                    },
+                );
 
-    if dest_strides.len() != dest_layout.shape.len() {
-        return Err(Error::type_mismatch(
-            "tensor.view stride rank",
-            format!("{} vs {}", dest_strides.len(), dest_layout.shape.len()),
-        ));
-    }
+                (layout.element, reference)
+            }
+            LayoutShape::TensorView(layout) => {
+                let kind = match layout.reference.flags.kind() {
+                    Some(mir::ReferenceKind::Managed) => bytecode::ReferenceKind::MANAGED,
+                    Some(mir::ReferenceKind::Unique) => bytecode::ReferenceKind::UNIQUE,
+                    Some(mir::ReferenceKind::Borrowed) => bytecode::ReferenceKind::BORROWED,
+                    Some(mir::ReferenceKind::Raw) | None => {
+                        return Err(self.invalid_instruction());
+                    }
+                };
+                let space = match layout.reference.space() {
+                    Some(mir::Space::Local) => bytecode::Space::LOCAL,
+                    Some(mir::Space::Shared) => bytecode::Space::SHARED,
+                    Some(mir::Space::Frame | mir::Space::Static) | None => {
+                        return Err(self.invalid_instruction());
+                    }
+                };
+                let reference = ReferenceType::new(kind, space);
 
-    for axis in 0..source_layout.shape.len() {
-        let offset = offsets[axis];
-        let size = sizes[axis];
-        let stride = strides[axis];
-        let source_size = source_layout.shape[axis];
-
-        if size == 0 {
-            continue;
+                (layout.element, reference)
+            }
+            _ => return Err(self.invalid_instruction()),
+        };
+        let expected_scalar = self.tensor_scalar(element)?;
+        if scalar != expected_scalar || reference != expected_reference {
+            return Err(self.invalid_instruction());
         }
 
-        let last_step = size.checked_sub(1).ok_or(Error::invalid_instruction())?;
-        let last_distance = last_step
-            .checked_mul(stride)
-            .ok_or(Error::invalid_instruction())?;
-        let last_index = offset
-            .checked_add(last_distance)
-            .ok_or(Error::invalid_instruction())?;
-        if last_index >= source_size {
-            return Err(Error::index_out_of_bounds(last_index, source_size));
-        }
+        Ok((scalar, ty))
     }
 
-    let offset = tensor_linear_index(&offsets, source_layout.shape, &source_strides)?;
+    /// Read one encoded tensor index register list.
+    fn tensor_indices(&self, operands: &mut destack_bytecode::Operands<'_>) -> Result<Vec<usize>> {
+        let registers = operands
+            .registers()
+            .map_err(|_| self.invalid_instruction())?;
 
-    let view_value = load_tensor_view_pointer(activation, *view_offset);
-    let element = activation.projection(*element);
-    let source_span_len = tensor_element_span_len(source_layout.shape, &source_strides)?;
-    let pointer =
-        offset_tensor_view_pointer(view_value, element, offset, source_span_len, *address)?;
+        Ok(registers
+            .into_iter()
+            .map(|register| self.read(register.0).as_u64() as usize)
+            .collect())
+    }
 
-    store_tensor_view_descriptor(activation, *dest_offset, pointer, &dest_strides)?;
+    /// Match one live tensor shape against its program dimensions.
+    fn match_tensor_dimensions<Dimensions>(
+        &self,
+        expected: &[TensorDimension],
+        dimensions: Dimensions,
+    ) -> Result<()>
+    where
+        Dimensions: ExactSizeIterator<Item = usize>,
+    {
+        if expected.len() != dimensions.len()
+            || expected.iter().zip(dimensions).any(|(expected, actual)| {
+                expected
+                    .fixed_extent()
+                    .is_some_and(|expected| expected as usize != actual)
+            })
+        {
+            return Err(self.invalid_instruction());
+        }
 
-    Ok(())
+        Ok(())
+    }
+
+    /// Return one tensor type's fully static dimensions.
+    fn fixed_tensor_dimensions(&self, ty: TypeId) -> Result<Vec<usize>> {
+        let layout = self
+            .machine
+            .program
+            .tensor_layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+
+        self.machine
+            .program
+            .tensor_dimensions(layout.dimensions)
+            .iter()
+            .map(|dimension| {
+                dimension
+                    .fixed_extent()
+                    .map(|extent| extent as usize)
+                    .ok_or_else(|| self.invalid_instruction())
+            })
+            .collect()
+    }
+
+    /// Resolve result dimensions for one broadcast operation.
+    fn broadcast_dimensions(
+        &self,
+        ty: TypeId,
+        source: &Tensor,
+        axes: &[u16],
+    ) -> Result<Vec<usize>> {
+        let layout = self
+            .machine
+            .program
+            .tensor_layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let dimensions = self.machine.program.tensor_dimensions(layout.dimensions);
+        let mut result = Vec::with_capacity(dimensions.len());
+
+        // source axes provide dynamic extents, other axes must be fixed
+        for (axis, dimension) in dimensions.iter().copied().enumerate() {
+            let source_axis = axes.iter().position(|mapped| *mapped as usize == axis);
+            let extent = match (dimension.fixed_extent(), source_axis) {
+                (Some(extent), Some(source_axis))
+                    if Some(extent as usize) != source.dimension(source_axis) =>
+                {
+                    return Err(self.invalid_instruction());
+                }
+                (Some(extent), _) => extent as usize,
+                (None, Some(source_axis)) => source
+                    .dimension(source_axis)
+                    .ok_or_else(|| self.invalid_instruction())?,
+                (None, None) => return Err(self.invalid_instruction()),
+            };
+            result.push(extent);
+        }
+
+        Ok(result)
+    }
+
+    /// Copy all logical elements between shape-compatible tensors.
+    fn copy_tensor(&self, target: &Tensor, source: &Tensor) -> Result<()> {
+        if target.element_count() != source.element_count() || target.scalar != source.scalar {
+            return Err(self.invalid_instruction());
+        }
+
+        for index in 0..target.element_count() {
+            let source_address = source
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+            let target_address = target
+                .linear_address(index)
+                .ok_or_else(|| Error::trap(Trap::Bounds))?;
+
+            self.store(
+                target_address,
+                target.scalar,
+                self.load(source_address, source.scalar),
+            );
+        }
+
+        Ok(())
+    }
 }

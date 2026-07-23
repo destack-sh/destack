@@ -1,987 +1,655 @@
+use std::ptr;
+
 #[cfg(target_arch = "aarch64")]
-use core::arch::aarch64::{vaddq_u32, vld1q_u32, vst1q_u32};
+use core::arch::aarch64::{vaddq_s32, vld1q_s32, vst1q_s32};
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::{__m128i, _mm_add_epi32, _mm_loadu_si128, _mm_storeu_si128};
 
-use super::access;
-use super::index::cell_to_usize;
-use super::scalar::{
-    convert_scalar_exact, convert_scalar_round_ceil, convert_scalar_round_floor,
-    convert_scalar_round_ties_even, convert_scalar_round_toward_zero, convert_scalar_saturate,
-    reduce_add, reduce_and, reduce_max, reduce_min, reduce_multiply, reduce_or, reduce_xor,
+use destack_bytecode::{
+    CodeOffset, ConvertMode, FloatOperation, Instruction, IntegerOperation, Operands,
+    ReduceOperation, RegisterRange, Scalar, VectorOperation, VectorType,
 };
-use crate::diagnostic::Error;
-use crate::machine::Activation;
-use destack_mir as mir;
-use destack_program::ScalarFormat;
-use destack_program::vm::{
-    Cell, ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, VectorBinary,
-    VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
-    VectorSplat, VectorUnary,
-};
+use destack_program::{Continuation, MemoryAccess, Outcome, Word};
 
-macro_rules! packed_binary_executor {
-    ($function:ident, $ty:ty, $count:literal, $operation:expr, $doc:literal) => {
-        #[doc = $doc]
-        pub(crate) fn $function(
-            activation: &mut Activation<'_>,
-            instruction: &Instruction,
-        ) -> Result<(), Error> {
-            execute_vector_binary_packed::<$ty, $count, _>(activation, instruction, $operation)
+use crate::diagnostic::{Error, Result, Trap};
+use crate::machine::{Activation, Frame};
+
+impl Activation<'_, '_> {
+    /// Execute one packed vector operation.
+    pub(crate) fn execute_vector<const WATCH: bool>(
+        &mut self,
+        frame: Frame,
+        instruction_offset: CodeOffset,
+        instruction: Instruction<'_>,
+        operation: VectorOperation,
+    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+        let access = match operation {
+            VectorOperation::Load => Some(MemoryAccess::Read),
+            VectorOperation::Store => Some(MemoryAccess::Write),
+            _ => None,
+        };
+        let needs_range = WATCH
+            && access.is_some()
+            && self
+                .watch_points
+                .is_some_and(|points| points.requires_memory_range());
+        let address = if needs_range {
+            Some(self.vector_address(instruction, operation)?)
+        } else {
+            None
+        };
+
+        // execute one packed vector operation
+        match operation {
+            VectorOperation::Splat => self.execute_vector_splat(instruction),
+            VectorOperation::Insert => self.execute_vector_insert(instruction),
+            VectorOperation::Extract => self.execute_vector_extract(instruction),
+            VectorOperation::Shuffle => self.execute_vector_shuffle(instruction),
+            VectorOperation::Element => self.execute_vector_element(instruction, false),
+            VectorOperation::Compare => self.execute_vector_element(instruction, true),
+            VectorOperation::Select => self.execute_vector_select(instruction),
+            VectorOperation::Reduce => self.execute_vector_reduce(instruction),
+            VectorOperation::Load => self.execute_vector_load(instruction),
+            VectorOperation::Store => self.execute_vector_store(instruction),
+            VectorOperation::Convert => self.execute_vector_convert(instruction),
+        }?;
+
+        // report vector memory only in the observed loop
+        if WATCH && let Some(access) = access {
+            self.watch_after(frame, instruction_offset, access, address)
+        } else {
+            Ok(None)
         }
-    };
-}
+    }
 
-macro_rules! packed_unary_executor {
-    ($function:ident, $ty:ty, $count:literal, $operation:expr, $doc:literal) => {
-        #[doc = $doc]
-        pub(crate) fn $function(
-            activation: &mut Activation<'_>,
-            instruction: &Instruction,
-        ) -> Result<(), Error> {
-            execute_vector_unary_packed::<$ty, $count, _>(activation, instruction, $operation)
+    /// Return the touched native byte range for one vector memory operation.
+    fn vector_address(
+        &self,
+        instruction: Instruction<'_>,
+        operation: VectorOperation,
+    ) -> Result<(usize, usize)> {
+        let mut operands = instruction.operands();
+        let pointer = if operation == VectorOperation::Load {
+            let _target = operands.range().map_err(|_| self.invalid_instruction())?;
+
+            operands
+                .register()
+                .map_err(|_| self.invalid_instruction())?
+        } else {
+            operands
+                .register()
+                .map_err(|_| self.invalid_instruction())?
+        };
+        if operation == VectorOperation::Store {
+            let _source = operands.range().map_err(|_| self.invalid_instruction())?;
         }
-    };
-}
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let address = self.read(pointer.0).bits() as usize;
 
-/// Read one packed frame vector.
-#[inline(always)]
-fn read_packed<T: Copy, const N: usize>(activation: &Activation<'_>, offset: u32) -> [T; N] {
-    let pointer = activation.frame_pointer_at(offset);
-    let pointer = activation.memory_address(pointer.offset()) as *const [T; N];
-
-    unsafe { std::ptr::read(pointer) }
-}
-
-/// Write one packed frame vector.
-#[inline(always)]
-fn write_packed<T, const N: usize>(activation: &mut Activation<'_>, offset: u32, value: [T; N]) {
-    let pointer = activation.frame_pointer_at(offset);
-    let pointer = activation.memory_address(pointer.offset()) as *mut [T; N];
-
-    unsafe {
-        std::ptr::write(pointer, value);
-    }
-}
-
-/// Read one raw element.
-#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
-#[inline(always)]
-fn read_element<T: Copy>(base: *const T, index: usize) -> T {
-    unsafe { base.add(index).read() }
-}
-
-/// Write one raw element.
-#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
-#[inline(always)]
-fn write_element<T>(base: *mut T, index: usize, value: T) {
-    unsafe {
-        base.add(index).write(value);
-    }
-}
-
-/// Store one 32-bit vector add result on AArch64.
-#[cfg(target_arch = "aarch64")]
-#[inline(always)]
-fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
-    // load both packed operands directly from the frame
-    let left = unsafe { vld1q_u32(left) };
-    let right = unsafe { vld1q_u32(right) };
-
-    // add and write one 128-bit result
-    let result = unsafe { vaddq_u32(left, right) };
-    unsafe {
-        vst1q_u32(dest, result);
-    }
-}
-
-/// Store one 32-bit vector add result on x86-64.
-#[cfg(target_arch = "x86_64")]
-#[inline(always)]
-fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
-    // load both packed operands directly from the frame
-    let left = unsafe { _mm_loadu_si128(left.cast::<__m128i>()) };
-    let right = unsafe { _mm_loadu_si128(right.cast::<__m128i>()) };
-
-    // add and write one 128-bit result
-    let result = unsafe { _mm_add_epi32(left, right) };
-    unsafe {
-        _mm_storeu_si128(dest.cast::<__m128i>(), result);
-    }
-}
-
-/// Store one 32-bit vector add result on scalar targets.
-#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
-#[inline(always)]
-fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
-    // preserve the same element semantics without target SIMD
-    for index in 0..4 {
-        let left = read_element(left, index);
-        let right = read_element(right, index);
-        let value = left.wrapping_add(right);
-        write_element(dest, index, value);
-    }
-}
-
-/// Execute one packed vector binary operation.
-#[inline(always)]
-fn execute_vector_binary_packed<T: Copy, const N: usize, F>(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: F,
-) -> Result<(), Error>
-where
-    F: Fn(T, T) -> T,
-{
-    // read both packed operands from frame bytes
-    let left = read_packed::<T, N>(activation, instruction.b);
-    let right = read_packed::<T, N>(activation, instruction.c);
-
-    // execute the element kernel in register storage
-    let result: [T; N] = std::array::from_fn(|i| operation(left[i], right[i]));
-
-    write_packed(activation, instruction.a, result);
-
-    Ok(())
-}
-
-/// Execute one packed vector unary operation.
-#[inline(always)]
-fn execute_vector_unary_packed<T: Copy, const N: usize, F>(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: F,
-) -> Result<(), Error>
-where
-    F: Fn(T) -> T,
-{
-    // read the packed operand from frame bytes
-    let value = read_packed::<T, N>(activation, instruction.b);
-
-    // execute the element kernel in register storage
-    let result: [T; N] = std::array::from_fn(|i| operation(value[i]));
-
-    write_packed(activation, instruction.a, result);
-
-    Ok(())
-}
-
-/// Load one vector element through a precomputed element projection.
-#[inline(always)]
-fn load_vector_element(
-    activation: &mut Activation<'_>,
-    vector_offset: u32,
-    element: Projection,
-    element_index: usize,
-) -> Result<Cell, Error> {
-    // compute the exact element address
-    let element_offset = element.byte_stride() * element_index;
-    let pointer = activation
-        .frame_pointer_at(vector_offset)
-        .add_bytes(element_offset);
-
-    Ok(access::load_frame_scalar_by_layout(
-        activation, pointer, element,
-    ))
-}
-
-/// Store one vector result into frame bytes.
-fn store_vector_elements<F>(
-    activation: &mut Activation<'_>,
-    dest_offset: u32,
-    dest_element: Projection,
-    element_count: u32,
-    mut element_value: F,
-) -> Result<(), Error>
-where
-    F: FnMut(&mut Activation<'_>, usize) -> Result<Cell, Error>,
-{
-    // write each result element by lowered frame layout
-    for element_index in 0..element_count as usize {
-        let value = element_value(activation, element_index)?;
-        let element_offset = dest_element.byte_stride() * element_index;
-        let pointer = activation
-            .frame_pointer_at(dest_offset)
-            .add_bytes(element_offset);
-
-        access::store_frame_scalar_by_layout(activation, pointer, dest_element, value);
+        Ok((address, Self::vector_byte_len(vector)))
     }
 
-    Ok(())
-}
+    /// Broadcast one scalar across every lane.
+    fn execute_vector_splat(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let value = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let value = self.read(value.0).bits();
+        self.clear_vector(target);
 
-/// Execute one vector binary element loop.
-fn execute_vector_binary_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorBinary>(instruction);
-    let VectorBinary {
-        dest_offset,
-        left_offset,
-        right_offset,
-        dest_element,
-        left_element,
-        right_element,
-        kernel: _,
-        element_layout,
-        element_count,
-    } = record;
+        for lane in 0..vector.lane_count {
+            self.write_vector_lane(target, vector, lane, value);
+        }
 
-    // execute the scalar operation on each vector element
-    store_vector_elements(
-        activation,
-        dest_offset,
-        dest_element,
-        element_count,
-        |activation, element_index| {
-            let left = load_vector_element(activation, left_offset, left_element, element_index)?;
-            let right =
-                load_vector_element(activation, right_offset, right_element, element_index)?;
-
-            operation(element_layout, left, right)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute a vector binary operation.
-pub(crate) fn execute_vector_binary(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let kernel = activation.side::<VectorBinary>(instruction).kernel;
-    let operation = vector_binary_operation(kernel);
-
-    execute_vector_binary_elements(activation, instruction, operation)
-}
-
-/// Return the scalar operation for one vector binary kernel.
-fn vector_binary_operation(
-    kernel: ElementBinaryKernel,
-) -> fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error> {
-    match kernel {
-        ElementBinaryKernel::AndBool => super::scalar::and_bool,
-        ElementBinaryKernel::OrBool => super::scalar::or_bool,
-        ElementBinaryKernel::XorBool => super::scalar::xor_bool,
-        ElementBinaryKernel::EqBool => super::scalar::eq_bool,
-        ElementBinaryKernel::NeBool => super::scalar::ne_bool,
-        ElementBinaryKernel::AddInt => super::scalar::add_int,
-        ElementBinaryKernel::SubInt => super::scalar::sub_int,
-        ElementBinaryKernel::MulInt => super::scalar::mul_int,
-        ElementBinaryKernel::DivInt => super::scalar::div_int,
-        ElementBinaryKernel::DivUint => super::scalar::div_uint,
-        ElementBinaryKernel::RemInt => super::scalar::rem_int,
-        ElementBinaryKernel::RemUint => super::scalar::rem_uint,
-        ElementBinaryKernel::AndInt => super::scalar::and_int,
-        ElementBinaryKernel::OrInt => super::scalar::or_int,
-        ElementBinaryKernel::XorInt => super::scalar::xor_int,
-        ElementBinaryKernel::ShlInt => super::scalar::shl_int,
-        ElementBinaryKernel::ShrInt => super::scalar::shr_int,
-        ElementBinaryKernel::ShrUint => super::scalar::shr_uint,
-        ElementBinaryKernel::EqInt => super::scalar::eq_int,
-        ElementBinaryKernel::NeInt => super::scalar::ne_int,
-        ElementBinaryKernel::LtInt => super::scalar::lt_int,
-        ElementBinaryKernel::LtUint => super::scalar::lt_uint,
-        ElementBinaryKernel::LeInt => super::scalar::le_int,
-        ElementBinaryKernel::LeUint => super::scalar::le_uint,
-        ElementBinaryKernel::GtInt => super::scalar::gt_int,
-        ElementBinaryKernel::GtUint => super::scalar::gt_uint,
-        ElementBinaryKernel::GeInt => super::scalar::ge_int,
-        ElementBinaryKernel::GeUint => super::scalar::ge_uint,
-        ElementBinaryKernel::AddF32 => super::scalar::add_f32,
-        ElementBinaryKernel::AddF64 => super::scalar::add_f64,
-        ElementBinaryKernel::SubF32 => super::scalar::sub_f32,
-        ElementBinaryKernel::SubF64 => super::scalar::sub_f64,
-        ElementBinaryKernel::MulF32 => super::scalar::mul_f32,
-        ElementBinaryKernel::MulF64 => super::scalar::mul_f64,
-        ElementBinaryKernel::DivF32 => super::scalar::div_f32,
-        ElementBinaryKernel::DivF64 => super::scalar::div_f64,
-        ElementBinaryKernel::EqF32 => super::scalar::eq_f32,
-        ElementBinaryKernel::EqF64 => super::scalar::eq_f64,
-        ElementBinaryKernel::NeF32 => super::scalar::ne_f32,
-        ElementBinaryKernel::NeF64 => super::scalar::ne_f64,
-        ElementBinaryKernel::LtF32 => super::scalar::lt_f32,
-        ElementBinaryKernel::LtF64 => super::scalar::lt_f64,
-        ElementBinaryKernel::LeF32 => super::scalar::le_f32,
-        ElementBinaryKernel::LeF64 => super::scalar::le_f64,
-        ElementBinaryKernel::GtF32 => super::scalar::gt_f32,
-        ElementBinaryKernel::GtF64 => super::scalar::gt_f64,
-        ElementBinaryKernel::GeF32 => super::scalar::ge_f32,
-        ElementBinaryKernel::GeF64 => super::scalar::ge_f64,
-        ElementBinaryKernel::AddFloat => super::scalar::add_float,
-        ElementBinaryKernel::SubFloat => super::scalar::sub_float,
-        ElementBinaryKernel::MulFloat => super::scalar::mul_float,
-        ElementBinaryKernel::DivFloat => super::scalar::div_float,
-        ElementBinaryKernel::EqFloat => super::scalar::eq_float,
-        ElementBinaryKernel::NeFloat => super::scalar::ne_float,
-        ElementBinaryKernel::LtFloat => super::scalar::lt_float,
-        ElementBinaryKernel::LeFloat => super::scalar::le_float,
-        ElementBinaryKernel::GtFloat => super::scalar::gt_float,
-        ElementBinaryKernel::GeFloat => super::scalar::ge_float,
-    }
-}
-
-/// Execute one vector unary element loop.
-fn execute_vector_unary_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: fn(ScalarFormat, Cell) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorUnary>(instruction);
-    let VectorUnary {
-        dest_offset,
-        argument_offset,
-        dest_element,
-        argument_element,
-        kernel: _,
-        element_layout,
-        element_count,
-    } = record;
-
-    // execute the scalar operation on each vector element
-    store_vector_elements(
-        activation,
-        dest_offset,
-        dest_element,
-        element_count,
-        |activation, element_index| {
-            let value =
-                load_vector_element(activation, argument_offset, argument_element, element_index)?;
-
-            operation(element_layout, value)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute a vector unary operation.
-pub(crate) fn execute_vector_unary(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let kernel = activation.side::<VectorUnary>(instruction).kernel;
-    let operation = vector_unary_operation(kernel);
-
-    execute_vector_unary_elements(activation, instruction, operation)
-}
-
-/// Return the scalar operation for one vector unary kernel.
-fn vector_unary_operation(
-    kernel: ElementUnaryKernel,
-) -> fn(ScalarFormat, Cell) -> Result<Cell, Error> {
-    match kernel {
-        ElementUnaryKernel::NotBool => super::scalar::not_bool,
-        ElementUnaryKernel::NegInt => super::scalar::neg_int,
-        ElementUnaryKernel::NotInt => super::scalar::not_int,
-        ElementUnaryKernel::NegF32 => super::scalar::neg_f32,
-        ElementUnaryKernel::NegF64 => super::scalar::neg_f64,
-        ElementUnaryKernel::NegFloat => super::scalar::neg_float,
-    }
-}
-
-/// Execute packed 32-bit element add.
-pub(crate) fn execute_packed_add_32x4(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // compute frame addresses for the SIMD kernel
-    let dest = activation.frame_pointer_at(instruction.a);
-    let left = activation.frame_pointer_at(instruction.b);
-    let right = activation.frame_pointer_at(instruction.c);
-    let dest = activation.memory_address(dest.offset()) as *mut u32;
-    let left = activation.memory_address(left.offset()) as *const u32;
-    let right = activation.memory_address(right.offset()) as *const u32;
-
-    store_add_u32x4(dest, left, right);
-
-    Ok(())
-}
-
-packed_binary_executor!(
-    execute_packed_sub_32x4,
-    u32,
-    4,
-    u32::wrapping_sub,
-    "Execute packed 32-bit element subtract."
-);
-packed_binary_executor!(
-    execute_packed_mul_32x4,
-    u32,
-    4,
-    u32::wrapping_mul,
-    "Execute packed 32-bit element multiply."
-);
-packed_binary_executor!(
-    execute_packed_and_32x4,
-    u32,
-    4,
-    |left, right| left & right,
-    "Execute packed 32-bit element and."
-);
-packed_binary_executor!(
-    execute_packed_or_32x4,
-    u32,
-    4,
-    |left, right| left | right,
-    "Execute packed 32-bit element or."
-);
-packed_binary_executor!(
-    execute_packed_xor_32x4,
-    u32,
-    4,
-    |left, right| left ^ right,
-    "Execute packed 32-bit element xor."
-);
-packed_binary_executor!(
-    execute_packed_shl_32x4,
-    u32,
-    4,
-    |left: u32, right: u32| left.wrapping_shl(right),
-    "Execute packed 32-bit element shift left."
-);
-packed_binary_executor!(
-    execute_packed_shr_i32x4,
-    i32,
-    4,
-    |left: i32, right: i32| left.wrapping_shr(right as u32),
-    "Execute packed signed 32-bit element shift right."
-);
-packed_binary_executor!(
-    execute_packed_shr_u32x4,
-    u32,
-    4,
-    |left: u32, right: u32| left.wrapping_shr(right),
-    "Execute packed unsigned 32-bit element shift right."
-);
-packed_binary_executor!(
-    execute_packed_add_64x2,
-    u64,
-    2,
-    u64::wrapping_add,
-    "Execute packed 64-bit element add."
-);
-packed_binary_executor!(
-    execute_packed_sub_64x2,
-    u64,
-    2,
-    u64::wrapping_sub,
-    "Execute packed 64-bit element subtract."
-);
-packed_binary_executor!(
-    execute_packed_mul_64x2,
-    u64,
-    2,
-    u64::wrapping_mul,
-    "Execute packed 64-bit element multiply."
-);
-packed_binary_executor!(
-    execute_packed_and_64x2,
-    u64,
-    2,
-    |left, right| left & right,
-    "Execute packed 64-bit element and."
-);
-packed_binary_executor!(
-    execute_packed_or_64x2,
-    u64,
-    2,
-    |left, right| left | right,
-    "Execute packed 64-bit element or."
-);
-packed_binary_executor!(
-    execute_packed_xor_64x2,
-    u64,
-    2,
-    |left, right| left ^ right,
-    "Execute packed 64-bit element xor."
-);
-packed_binary_executor!(
-    execute_packed_shl_64x2,
-    u64,
-    2,
-    |left: u64, right: u64| left.wrapping_shl(right as u32),
-    "Execute packed 64-bit element shift left."
-);
-packed_binary_executor!(
-    execute_packed_shr_i64x2,
-    i64,
-    2,
-    |left: i64, right: i64| left.wrapping_shr(right as u32),
-    "Execute packed signed 64-bit element shift right."
-);
-packed_binary_executor!(
-    execute_packed_shr_u64x2,
-    u64,
-    2,
-    |left: u64, right: u64| left.wrapping_shr(right as u32),
-    "Execute packed unsigned 64-bit element shift right."
-);
-packed_binary_executor!(
-    execute_packed_add_f32x4,
-    f32,
-    4,
-    |left, right| left + right,
-    "Execute packed float32 element add."
-);
-packed_binary_executor!(
-    execute_packed_sub_f32x4,
-    f32,
-    4,
-    |left, right| left - right,
-    "Execute packed float32 element subtract."
-);
-packed_binary_executor!(
-    execute_packed_mul_f32x4,
-    f32,
-    4,
-    |left, right| left * right,
-    "Execute packed float32 element multiply."
-);
-packed_binary_executor!(
-    execute_packed_div_f32x4,
-    f32,
-    4,
-    |left, right| left / right,
-    "Execute packed float32 element divide."
-);
-packed_binary_executor!(
-    execute_packed_add_f64x2,
-    f64,
-    2,
-    |left, right| left + right,
-    "Execute packed float64 element add."
-);
-packed_binary_executor!(
-    execute_packed_sub_f64x2,
-    f64,
-    2,
-    |left, right| left - right,
-    "Execute packed float64 element subtract."
-);
-packed_binary_executor!(
-    execute_packed_mul_f64x2,
-    f64,
-    2,
-    |left, right| left * right,
-    "Execute packed float64 element multiply."
-);
-packed_binary_executor!(
-    execute_packed_div_f64x2,
-    f64,
-    2,
-    |left, right| left / right,
-    "Execute packed float64 element divide."
-);
-packed_unary_executor!(
-    execute_packed_neg_i32x4,
-    i32,
-    4,
-    i32::wrapping_neg,
-    "Execute packed signed 32-bit element negation."
-);
-packed_unary_executor!(
-    execute_packed_not_32x4,
-    u32,
-    4,
-    |value| !value,
-    "Execute packed 32-bit element inversion."
-);
-packed_unary_executor!(
-    execute_packed_neg_i64x2,
-    i64,
-    2,
-    i64::wrapping_neg,
-    "Execute packed signed 64-bit element negation."
-);
-packed_unary_executor!(
-    execute_packed_not_64x2,
-    u64,
-    2,
-    |value| !value,
-    "Execute packed 64-bit element inversion."
-);
-packed_unary_executor!(
-    execute_packed_neg_f32x4,
-    f32,
-    4,
-    |value| -value,
-    "Execute packed float32 element negation."
-);
-packed_unary_executor!(
-    execute_packed_neg_f64x2,
-    f64,
-    2,
-    |value| -value,
-    "Execute packed float64 element negation."
-);
-
-/// Execute packed 32-bit splat.
-pub(crate) fn execute_packed_splat_32x4(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // broadcast one cell-sized scalar into packed frame bytes
-    let value = activation.load_cell_at(instruction.b).bits() as u32;
-
-    write_packed(activation, instruction.a, [value; 4]);
-
-    Ok(())
-}
-
-/// Execute packed 64-bit splat.
-pub(crate) fn execute_packed_splat_64x2(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // broadcast one cell-sized scalar into packed frame bytes
-    let value = activation.load_cell_at(instruction.b).bits();
-
-    write_packed(activation, instruction.a, [value; 2]);
-
-    Ok(())
-}
-
-/// Execute vector.splat.
-pub(crate) fn execute_vector_splat(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let VectorSplat {
-        dest_offset,
-        value_offset,
-        dest_element,
-        element_count,
-    } = activation.side::<VectorSplat>(instruction);
-
-    let element_value = activation.load_cell_at(*value_offset);
-
-    // store the same value into each element
-    store_vector_elements(
-        activation,
-        *dest_offset,
-        *dest_element,
-        *element_count,
-        |_machine, _element_index| Ok(element_value),
-    )?;
-
-    Ok(())
-}
-
-/// Execute vector.extract.
-pub(crate) fn execute_vector_extract(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorExtract>(instruction);
-    let VectorExtract {
-        dest_offset,
-        vector_offset,
-        index_offset,
-        vector_element,
-        element_count,
-    } = record;
-
-    // resolve and validate the dynamic element index
-    let index_value = cell_to_usize(activation.load_cell_at(index_offset))?;
-    let element_count = element_count as usize;
-    if index_value >= element_count {
-        return Err(Error::index_out_of_bounds(
-            index_value as u64,
-            element_count as u64,
-        ));
+        Ok(())
     }
 
-    // load the selected element into the destination cell
-    let result = load_vector_element(activation, vector_offset, vector_element, index_value)?;
-    activation.store_cell_at(dest_offset, result);
+    /// Replace one vector lane.
+    fn execute_vector_insert(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
+        let index = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let value = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let index = self.read(index.0).bits();
+        if index >= u64::from(vector.lane_count) {
+            return Err(Error::trap(Trap::Bounds));
+        }
+        self.move_range(source, target);
+        self.write_vector_lane(target, vector, index as u16, self.read(value.0).bits());
 
-    Ok(())
-}
-
-/// Execute vector.insert.
-pub(crate) fn execute_vector_insert(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorInsert>(instruction);
-    let VectorInsert {
-        dest_offset,
-        vector_offset,
-        index_offset,
-        value_offset,
-        dest_element,
-        vector_element,
-        element_count,
-    } = record;
-
-    // resolve and validate the dynamic element index
-    let index_value = cell_to_usize(activation.load_cell_at(index_offset))?;
-    let element_count_usize = element_count as usize;
-
-    // reject out of bounds element indices
-    if index_value >= element_count_usize {
-        return Err(Error::index_out_of_bounds(
-            index_value as u64,
-            element_count as u64,
-        ));
+        Ok(())
     }
 
-    // read the inserted scalar once
-    let inserted_value = activation.load_cell_at(value_offset);
+    /// Extract one vector lane.
+    fn execute_vector_extract(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
+        let index = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let index = self.read(index.0).bits();
+        if index >= u64::from(vector.lane_count) {
+            return Err(Error::trap(Trap::Bounds));
+        }
+        let value = self.read_vector_lane(source, vector, index as u16);
 
-    // write the updated vector one element at a time
-    store_vector_elements(
-        activation,
-        dest_offset,
-        dest_element,
-        element_count,
-        |activation, element_index| {
-            if element_index == index_value {
-                return Ok(inserted_value);
+        self.write(target.0, Word::from_bits(vector.scalar.encode(value)));
+
+        Ok(())
+    }
+
+    /// Select lanes from two vectors.
+    fn execute_vector_shuffle(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let input_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        if input_count != 2 {
+            return Err(self.invalid_instruction());
+        }
+        let left = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let right = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let lane_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        if lane_count == 0 {
+            return Err(self.invalid_instruction());
+        }
+        let lanes = operands;
+        let mut vector_operand = lanes;
+        for _ in 0..lane_count {
+            vector_operand
+                .u16()
+                .map_err(|_| self.invalid_instruction())?;
+        }
+        let vector = vector_operand
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        if lane_count != vector.lane_count {
+            return Err(self.invalid_instruction());
+        }
+        self.clear_vector(target);
+
+        let mut lanes = lanes;
+        for target_lane in 0..lane_count {
+            let source_lane = lanes.u16().map_err(|_| self.invalid_instruction())?;
+            if source_lane >= lane_count * 2 {
+                return Err(self.invalid_instruction());
+            }
+            let (source, source_lane) = if source_lane < lane_count {
+                (left, source_lane)
+            } else {
+                (right, source_lane - lane_count)
+            };
+            let source = RegisterRange::new(source, vector.word_count());
+            let value = self.read_vector_lane(source, vector, source_lane);
+            self.write_vector_lane(target, vector, target_lane, value);
+        }
+
+        Ok(())
+    }
+
+    /// Apply one scalar operation independently to every lane.
+    fn execute_vector_element(
+        &mut self,
+        instruction: Instruction<'_>,
+        is_comparison: bool,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let input_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        if input_count == 0 || input_count > 3 {
+            return Err(self.invalid_instruction());
+        }
+        let inputs = operands;
+        for _ in 0..input_count {
+            operands
+                .register()
+                .map_err(|_| self.invalid_instruction())?;
+        }
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let operator = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        if vector.scalar.is_float() {
+            let operation =
+                FloatOperation::from_code(operator).ok_or_else(|| self.invalid_instruction())?;
+            if operation.is_comparison() != is_comparison
+                || input_count != operation.input_count() as u16
+            {
+                return Err(self.invalid_instruction());
             }
 
-            load_vector_element(activation, vector_offset, vector_element, element_index)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute vector.shuffle.
-pub(crate) fn execute_vector_shuffle(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorShuffle>(instruction);
-    let VectorShuffle {
-        dest_offset,
-        left_offset,
-        right_offset,
-        mask,
-        dest_element,
-        left_element,
-        right_element,
-        left_count,
-        right_count,
-    } = record;
-    let program = activation.program;
-    let mask = program.side_table().u32_range(program.sections(), mask);
-
-    // resolve source ranges
-    let left_count = left_count as usize;
-    let right_count = right_count as usize;
-
-    // write the shuffled elements directly
-    store_vector_elements(
-        activation,
-        dest_offset,
-        dest_element,
-        mask.len() as u32,
-        |activation, element_index| {
-            let index = *mask.get(element_index).ok_or(Error::index_out_of_bounds(
-                element_index as u64,
-                mask.len() as u64,
-            ))? as usize;
-
-            if index < left_count {
-                return load_vector_element(activation, left_offset, left_element, index);
+            self.execute_float_vector_lanes(target, inputs, input_count, vector, operation)
+        } else {
+            let operation =
+                IntegerOperation::from_code(operator).ok_or_else(|| self.invalid_instruction())?;
+            if operation.is_overflowing()
+                || operation.is_comparison() != is_comparison
+                || input_count != operation.input_count() as u16
+            {
+                return Err(self.invalid_instruction());
             }
 
-            let right_index = index - left_count;
-            if right_index >= right_count {
-                return Err(Error::index_out_of_bounds(
-                    index as u64,
-                    (left_count + right_count) as u64,
-                ));
-            }
-
-            load_vector_element(activation, right_offset, right_element, right_index)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute vector.select.
-pub(crate) fn execute_vector_select(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorSelect>(instruction);
-    let VectorSelect {
-        dest_offset,
-        mask_offset,
-        then_offset,
-        else_offset,
-        dest_element,
-        mask_element,
-        then_element,
-        else_element,
-        element_count,
-    } = record;
-
-    // write the selected elements directly
-    store_vector_elements(
-        activation,
-        dest_offset,
-        dest_element,
-        element_count,
-        |activation, element_index| {
-            let mask = load_vector_element(activation, mask_offset, mask_element, element_index)?;
-            let then_value =
-                load_vector_element(activation, then_offset, then_element, element_index)?;
-            let else_value =
-                load_vector_element(activation, else_offset, else_element, element_index)?;
-            let select = mask.as_bool();
-
-            Ok(if select { then_value } else { else_value })
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute one vector reduction loop.
-fn execute_vector_reduce_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    operation: fn(ScalarFormat, Cell, Cell) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorReduce>(instruction);
-    let VectorReduce {
-        dest_offset,
-        vector_offset,
-        kernel: _,
-        vector_element,
-        element_layout,
-        element_count,
-    } = record;
-
-    // reject empty reductions
-    let element_count = element_count as usize;
-    if element_count == 0 {
-        return Err(Error::invalid_instruction());
-    }
-
-    // fold elements from left to right
-    let mut result = load_vector_element(activation, vector_offset, vector_element, 0)?;
-    for element_index in 1..element_count {
-        let value = load_vector_element(activation, vector_offset, vector_element, element_index)?;
-        result = operation(element_layout, result, value)?;
-    }
-
-    activation.store_cell_at(dest_offset, result);
-
-    Ok(())
-}
-
-/// Execute vector.reduce.
-pub(crate) fn execute_vector_reduce(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let kernel = activation.side::<VectorReduce>(instruction).kernel;
-
-    match kernel {
-        mir::VectorReduceOperator::Add => {
-            execute_vector_reduce_elements(activation, instruction, reduce_add)
-        }
-        mir::VectorReduceOperator::Multiply => {
-            execute_vector_reduce_elements(activation, instruction, reduce_multiply)
-        }
-        mir::VectorReduceOperator::Min => {
-            execute_vector_reduce_elements(activation, instruction, reduce_min)
-        }
-        mir::VectorReduceOperator::Max => {
-            execute_vector_reduce_elements(activation, instruction, reduce_max)
-        }
-        mir::VectorReduceOperator::And => {
-            execute_vector_reduce_elements(activation, instruction, reduce_and)
-        }
-        mir::VectorReduceOperator::Or => {
-            execute_vector_reduce_elements(activation, instruction, reduce_or)
-        }
-        mir::VectorReduceOperator::Xor => {
-            execute_vector_reduce_elements(activation, instruction, reduce_xor)
+            self.execute_integer_vector_lanes(target, inputs, input_count, vector, operation)
         }
     }
-}
 
-/// Execute one vector conversion loop.
-fn execute_vector_convert_elements(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-    convert: fn(Cell, ScalarFormat, ScalarFormat) -> Result<Cell, Error>,
-) -> Result<(), Error> {
-    // decode the precomputed vector descriptor
-    let record = *activation.side::<VectorConvert>(instruction);
-    let VectorConvert {
-        dest_offset,
-        vector_offset,
-        mode: _,
-        dest_element,
-        source_element,
-        dest_layout,
-        source_layout,
-        element_count,
-    } = record;
+    /// Execute one floating-point operation across packed vector lanes.
+    fn execute_float_vector_lanes(
+        &mut self,
+        target: RegisterRange,
+        inputs: Operands<'_>,
+        input_count: u16,
+        vector: VectorType,
+        operation: FloatOperation,
+    ) -> Result<()> {
+        let result = if operation.is_comparison() {
+            vector.mask()
+        } else {
+            vector
+        };
+        self.clear_vector(target);
 
-    // convert the elements one by one
-    store_vector_elements(
-        activation,
-        dest_offset,
-        dest_element,
-        element_count,
-        |activation, element_index| {
-            let value =
-                load_vector_element(activation, vector_offset, source_element, element_index)?;
-
-            convert(value, source_layout, dest_layout)
-        },
-    )?;
-
-    Ok(())
-}
-
-/// Execute vector.convert.
-pub(crate) fn execute_vector_convert(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let mode = activation.side::<VectorConvert>(instruction).mode;
-
-    match mode {
-        mir::VectorConvertMode::Exact => {
-            execute_vector_convert_elements(activation, instruction, convert_scalar_exact)
+        // apply the decoded operation to every packed lane
+        for lane in 0..vector.lane_count {
+            let mut inputs = inputs;
+            let left = self.vector_input(&mut inputs, vector, lane)?;
+            let right = if input_count >= 2 {
+                Some(self.vector_input(&mut inputs, vector, lane)?)
+            } else {
+                None
+            };
+            let addend = if input_count == 3 {
+                Some(self.vector_input(&mut inputs, vector, lane)?)
+            } else {
+                None
+            };
+            let value = self.float_value(operation, vector.scalar, left, right, addend)?;
+            self.write_vector_lane(target, result, lane, value.bits());
         }
-        mir::VectorConvertMode::RoundTiesEven => {
-            execute_vector_convert_elements(activation, instruction, convert_scalar_round_ties_even)
+
+        Ok(())
+    }
+
+    /// Execute one integer operation across packed vector lanes.
+    fn execute_integer_vector_lanes(
+        &mut self,
+        target: RegisterRange,
+        inputs: Operands<'_>,
+        input_count: u16,
+        vector: VectorType,
+        operation: IntegerOperation,
+    ) -> Result<()> {
+        // execute the common packed 128-bit add directly
+        if operation == IntegerOperation::Add
+            && vector.lane_count == 4
+            && matches!(vector.scalar, Scalar::Int32 | Scalar::Uint32)
+        {
+            let mut inputs = inputs;
+            let left = inputs.register().map_err(|_| self.invalid_instruction())?;
+            let right = inputs.register().map_err(|_| self.invalid_instruction())?;
+            let left = RegisterRange::new(left, vector.word_count());
+            let right = RegisterRange::new(right, vector.word_count());
+            self.add_i32x4(target, left, right);
+
+            return Ok(());
         }
-        mir::VectorConvertMode::RoundTowardZero => execute_vector_convert_elements(
-            activation,
-            instruction,
-            convert_scalar_round_toward_zero,
-        ),
-        mir::VectorConvertMode::RoundFloor => {
-            execute_vector_convert_elements(activation, instruction, convert_scalar_round_floor)
+
+        let result = if operation.is_comparison() {
+            vector.mask()
+        } else {
+            vector
+        };
+        self.clear_vector(target);
+
+        // apply the decoded operation to every packed lane
+        for lane in 0..vector.lane_count {
+            let mut inputs = inputs;
+            let left = self.vector_input(&mut inputs, vector, lane)?;
+            let right = if input_count == 2 {
+                Some(self.vector_input(&mut inputs, vector, lane)?)
+            } else {
+                None
+            };
+            let value = self.integer_value(operation, vector.scalar, left, right)?;
+            self.write_vector_lane(target, result, lane, value.bits());
         }
-        mir::VectorConvertMode::RoundCeil => {
-            execute_vector_convert_elements(activation, instruction, convert_scalar_round_ceil)
+
+        Ok(())
+    }
+
+    /// Convert every vector lane into one target scalar representation.
+    fn execute_vector_convert(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
+        let source_type = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let target_type = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let mode = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let mode = ConvertMode::from_code(mode).ok_or_else(|| self.invalid_instruction())?;
+        if source_type.lane_count != target_type.lane_count {
+            return Err(self.invalid_instruction());
         }
-        mir::VectorConvertMode::Saturate => {
-            execute_vector_convert_elements(activation, instruction, convert_scalar_saturate)
+        self.clear_vector(target);
+
+        // convert each packed lane through the shared scalar conversion
+        for lane in 0..source_type.lane_count {
+            let value = self.read_vector_lane(source, source_type, lane);
+            let value = Word::from_bits(source_type.scalar.encode(value));
+            let value = self.convert_scalar(value, source_type.scalar, target_type.scalar, mode)?;
+            self.write_vector_lane(target, target_type, lane, value.bits());
         }
+
+        Ok(())
+    }
+
+    /// Select each lane through one packed boolean mask.
+    fn execute_vector_select(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let input_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        if input_count != 3 {
+            return Err(self.invalid_instruction());
+        }
+        let condition = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let left = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let right = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let condition = RegisterRange::new(condition, vector.mask().word_count());
+        let left = RegisterRange::new(left, vector.word_count());
+        let right = RegisterRange::new(right, vector.word_count());
+        self.clear_vector(target);
+
+        for lane in 0..vector.lane_count {
+            let source = if self.read_vector_lane(condition, vector.mask(), lane) != 0 {
+                left
+            } else {
+                right
+            };
+            let value = self.read_vector_lane(source, vector, lane);
+            self.write_vector_lane(target, vector, lane, value);
+        }
+
+        Ok(())
+    }
+
+    /// Reduce every vector lane into one scalar.
+    fn execute_vector_reduce(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let operation = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let operation =
+            ReduceOperation::from_code(operation).ok_or_else(|| self.invalid_instruction())?;
+        if vector.lane_count == 0 {
+            return Err(self.invalid_instruction());
+        }
+        let lane = self.read_vector_lane(source, vector, 0);
+        let mut value = Word::from_bits(vector.scalar.encode(lane));
+
+        for lane in 1..vector.lane_count {
+            let right = self.read_vector_lane(source, vector, lane);
+            let right = Word::from_bits(vector.scalar.encode(right));
+            value = self.reduce_value(operation, vector.scalar, value, right)?;
+        }
+        self.write(target.0, value);
+
+        Ok(())
+    }
+
+    /// Load one packed vector from a native pointer.
+    fn execute_vector_load(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let source = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let target = self.vector_pointer(target);
+        let source = self.read(source.0).bits() as *const u8;
+
+        // SAFETY: raw pointer operations require one live range of the encoded vector width
+        unsafe {
+            ptr::copy_nonoverlapping(source, target, Self::vector_byte_len(vector));
+        }
+
+        Ok(())
+    }
+
+    /// Store one packed vector through a native pointer.
+    fn execute_vector_store(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
+        let vector = operands
+            .vector_type()
+            .map_err(|_| self.invalid_instruction())?;
+        let target = self.read(target.0).bits() as *mut u8;
+        let source = self.vector_pointer(source).cast_const();
+
+        // SAFETY: raw pointer operations require one live range of the encoded vector width
+        unsafe {
+            ptr::copy_nonoverlapping(source, target, Self::vector_byte_len(vector));
+        }
+
+        Ok(())
+    }
+
+    /// Read one vector input lane from an encoded register list.
+    fn vector_input(
+        &self,
+        operands: &mut Operands<'_>,
+        vector: VectorType,
+        lane: u16,
+    ) -> Result<Word> {
+        let register = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let range = RegisterRange::new(register, vector.word_count());
+        let value = self.read_vector_lane(range, vector, lane);
+
+        Ok(Word::from_bits(vector.scalar.encode(value)))
+    }
+
+    /// Reduce two scalar lanes with one associative operation.
+    pub(super) fn reduce_value(
+        &self,
+        operation: ReduceOperation,
+        scalar: Scalar,
+        left: Word,
+        right: Word,
+    ) -> Result<Word> {
+        if scalar.is_float() {
+            let operation = match operation {
+                ReduceOperation::Add => FloatOperation::Add,
+                ReduceOperation::Multiply => FloatOperation::Multiply,
+                ReduceOperation::Minimum => FloatOperation::Minimum,
+                ReduceOperation::Maximum => FloatOperation::Maximum,
+                _ => return Err(self.invalid_instruction()),
+            };
+
+            self.float_value(operation, scalar, left, Some(right), None)
+        } else {
+            let operation = match operation {
+                ReduceOperation::Add => IntegerOperation::Add,
+                ReduceOperation::Multiply => IntegerOperation::Multiply,
+                ReduceOperation::Minimum => {
+                    let is_less = self
+                        .integer_value(IntegerOperation::LessThan, scalar, left, Some(right))?
+                        .bits()
+                        != 0;
+
+                    return Ok(if is_less { left } else { right });
+                }
+                ReduceOperation::Maximum => {
+                    let is_greater = self
+                        .integer_value(IntegerOperation::GreaterThan, scalar, left, Some(right))?
+                        .bits()
+                        != 0;
+
+                    return Ok(if is_greater { left } else { right });
+                }
+                ReduceOperation::And => IntegerOperation::And,
+                ReduceOperation::Or => IntegerOperation::Or,
+                ReduceOperation::Xor => IntegerOperation::Xor,
+            };
+
+            self.integer_value(operation, scalar, left, Some(right))
+        }
+    }
+
+    /// Read one packed lane from a contiguous register range.
+    #[inline(always)]
+    fn read_vector_lane(&self, range: RegisterRange, vector: VectorType, lane: u16) -> u64 {
+        let bit_width = u32::from(vector.scalar.bit_width());
+        let bit_offset = u32::from(lane) * bit_width;
+        let word = range.start.0 + (bit_offset / u64::BITS) as u16;
+        let shift = bit_offset % u64::BITS;
+        let mask = Self::lane_mask(vector.scalar);
+
+        (self.read(word).bits() >> shift) & mask
+    }
+
+    /// Write one packed lane into a contiguous register range.
+    #[inline(always)]
+    fn write_vector_lane(
+        &mut self,
+        range: RegisterRange,
+        vector: VectorType,
+        lane: u16,
+        value: u64,
+    ) {
+        let bit_width = u32::from(vector.scalar.bit_width());
+        let bit_offset = u32::from(lane) * bit_width;
+        let word = range.start.0 + (bit_offset / u64::BITS) as u16;
+        let shift = bit_offset % u64::BITS;
+        let mask = Self::lane_mask(vector.scalar);
+        let bits = self.read(word).bits();
+        let bits = (bits & !(mask << shift)) | ((value & mask) << shift);
+
+        self.write(word, Word::from_bits(bits));
+    }
+
+    /// Clear one vector result range before packed lane writes.
+    fn clear_vector(&mut self, range: RegisterRange) {
+        for word in 0..range.word_count {
+            self.write(range.start.0 + word, Word::ZERO);
+        }
+    }
+
+    /// Add four packed 32-bit integer lanes on AArch64.
+    #[cfg(target_arch = "aarch64")]
+    #[inline(always)]
+    fn add_i32x4(&mut self, target: RegisterRange, left: RegisterRange, right: RegisterRange) {
+        let target = self.vector_pointer(target).cast::<i32>();
+        let left = self.vector_pointer(left).cast::<i32>();
+        let right = self.vector_pointer(right).cast::<i32>();
+
+        // SAFETY: every range names two live register words containing four 32-bit lanes
+        unsafe {
+            let left = vld1q_s32(left);
+            let right = vld1q_s32(right);
+            vst1q_s32(target, vaddq_s32(left, right));
+        }
+    }
+
+    /// Add four packed 32-bit integer lanes on x86-64.
+    #[cfg(target_arch = "x86_64")]
+    #[inline(always)]
+    fn add_i32x4(&mut self, target: RegisterRange, left: RegisterRange, right: RegisterRange) {
+        let target = self.vector_pointer(target).cast::<__m128i>();
+        let left = self.vector_pointer(left).cast::<__m128i>();
+        let right = self.vector_pointer(right).cast::<__m128i>();
+
+        // SAFETY: every range names two live register words containing four 32-bit lanes
+        unsafe {
+            let left = _mm_loadu_si128(left);
+            let right = _mm_loadu_si128(right);
+            _mm_storeu_si128(target, _mm_add_epi32(left, right));
+        }
+    }
+
+    /// Add four packed 32-bit integer lanes without target SIMD.
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    #[inline(always)]
+    fn add_i32x4(&mut self, target: RegisterRange, left: RegisterRange, right: RegisterRange) {
+        self.clear_vector(target);
+        let vector = VectorType::new(Scalar::Uint32, 4);
+
+        // preserve wrapping lane arithmetic on scalar targets
+        for lane in 0..vector.lane_count {
+            let left = self.read_vector_lane(left, vector, lane);
+            let right = self.read_vector_lane(right, vector, lane);
+            self.write_vector_lane(target, vector, lane, left.wrapping_add(right));
+        }
+    }
+
+    /// Return the native address of one vector register range.
+    fn vector_pointer(&self, range: RegisterRange) -> *mut u8 {
+        let frame = self.frame();
+        let byte_offset = frame.range(range) * Word::BYTE_LEN;
+
+        self.machine.stack.address(byte_offset) as *mut u8
+    }
+
+    /// Return one vector lane bit mask.
+    const fn lane_mask(scalar: Scalar) -> u64 {
+        let bit_width = scalar.bit_width();
+        if bit_width == u64::BITS as u8 {
+            u64::MAX
+        } else {
+            (1_u64 << bit_width) - 1
+        }
+    }
+
+    /// Return one vector's exact packed byte width.
+    const fn vector_byte_len(vector: VectorType) -> usize {
+        let bit_len = vector.scalar.bit_width() as usize * vector.lane_count as usize;
+
+        bit_len.div_ceil(u8::BITS as usize)
     }
 }

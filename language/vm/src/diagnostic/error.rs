@@ -1,798 +1,198 @@
-use destack_heap::{HeapError, HeapReferenceKind};
-use destack_memory::MemoryError;
-use destack_mir::{Block, Local, LocalNodeId, Value};
-use destack_program::{FunctionId, GlobalId, Signature, vm};
-use destack_serde::Reflect;
+use std::{error, fmt};
+
+use destack_bytecode::CodeOffset;
+use destack_heap::HeapError;
+use destack_program as program;
+use destack_program::{BindingId, FunctionId};
 use serde::{Deserialize, Serialize};
 
-/// One VM reference space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum ReferenceKind {
-    /// Local managed heap reference.
-    Heap,
-    /// Local raw pointer.
-    Raw,
-    /// Shared managed heap reference.
-    SharedHeap,
+use super::{
+    BindingError, DiagnosticAnchor, ErrorReason, InstructionError, MachineError, Panic,
+    ResourceError, StackTraceFrame, Trap,
+};
+
+/// One VM execution error with its executable location.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Error {
+    /// The exact execution failure.
+    pub reason: ErrorReason,
+    /// The call stack at the time of failure.
+    pub stack: Vec<StackTraceFrame>,
+    /// The operation that failed.
+    pub anchor: DiagnosticAnchor,
 }
 
-/// Errors that can occur during VM execution.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum Error {
-    /// The program representation is invalid or unsupported.
-    Program { reason: ProgramError },
-    /// Execution reached a language trap.
-    Trap { reason: Trap },
-    /// An imported host function failed at the VM boundary.
-    Import { name: String, reason: ImportError },
-    /// VM resource budget or capacity was exhausted.
-    Resource { reason: ResourceError },
-    /// One internal VM invariant failed.
-    Internal { context: String },
-}
-
-/// Invalid or unsupported VM program representation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum ProgramError {
-    /// Attempted to execute an undefined function.
-    UndefinedFunction { function: FunctionId },
-    /// Attempted to access an undefined value.
-    UndefinedValue { value: Value },
-    /// Attempted to jump to an undefined block.
-    UndefinedBlock { block: LocalNodeId<Block> },
-    /// Attempted to access an undefined local variable.
-    UndefinedLocal { local: LocalNodeId<Local> },
-    /// Attempted to access an undefined global variable.
-    UndefinedGlobal { global: GlobalId },
-    /// Type mismatch during execution.
-    TypeMismatch { expected: String, actual: String },
-    /// Function call signature does not match the target function.
-    FunctionSignatureMismatch {
-        /// The target function.
-        function: FunctionId,
-        /// Expected call signature.
-        expected: Signature,
-        /// Actual function signature.
-        actual: Signature,
-    },
-    /// Invalid instruction.
-    InvalidInstruction,
-    /// Invalid field access.
-    InvalidFieldAccess { index: u32, field_count: usize },
-    /// Invalid array element access.
-    InvalidArrayAccess { index: u64, length: u64 },
-    /// Unsupported instruction for comptime evaluation.
-    UnsupportedInstruction { name: String },
-    /// Invalid arguments to intrinsic.
-    InvalidIntrinsicArguments { intrinsic: String },
-    /// Unsupported zero initialization for a MIR type.
-    UnsupportedZeroValue { ty: String },
-    /// The VM program representation is invalid or incomplete.
-    InvalidProgram { context: String },
-    /// Native pointer width is incompatible with the host VM.
-    IncompatiblePointerWidth { bytes: u8, host_bytes: u8 },
-}
-
-/// Language trap reached while executing code.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum Trap {
-    /// Division by zero.
-    DivisionByZero,
-    /// Integer overflow.
-    IntegerOverflow,
-    /// Null pointer dereference.
-    NullPointerDereference,
-    /// Out of bounds access.
-    IndexOutOfBounds { index: u64, length: u64 },
-    /// Invalid reference value.
-    InvalidReference { kind: ReferenceKind },
-    /// Attempted to use a non-pointer value as a pointer.
-    InvalidPointerType { actual: String },
-    /// Reference space does not match the pointer value.
-    InvalidSpace { expected: String, actual: String },
-    /// Attempted to write to an immutable global.
-    ImmutableGlobalWrite { global: GlobalId },
-    /// Attempted to write through a readonly reference.
-    ImmutableReferenceWrite { reference: String },
-    /// Reached unreachable code.
-    Unreachable,
-    /// Invalid cast operation.
-    InvalidCast,
-    /// Yielded during a non-yielding execution.
-    UnexpectedYield,
-    /// Stopped during completion-only execution.
-    UnexpectedStop,
-    /// Attempted to resume without a pending yield.
-    ResumeWithoutYield,
-    /// Attempted to resume with an invalid continuation.
-    InvalidContinuation,
-    /// Attempted to suspend while frame-local state was still live.
-    SuspendWithFrameLocalState,
-    /// Abort trap triggered.
-    Abort,
-    /// Panic trap triggered.
-    Panic { message: String },
-    /// Float to integer conversion failed.
-    BadConversionToInteger,
-}
-
-/// Import boundary failure.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum ImportError {
-    /// Imported function not found.
-    NotFound,
-    /// Imported function call forbidden by policy.
-    Forbidden,
-}
-
-/// VM resource failure.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum ResourceError {
-    /// Heap allocation failed.
-    AllocationFailed,
-    /// One heap hard limit was exceeded.
-    HeapLimitExceeded {
-        scope: String,
-        used_bytes: u64,
-        max_bytes: u64,
-    },
-    /// Stack overflow.
-    StackOverflow,
-    /// Execution step limit exceeded.
-    StepLimitExceeded,
-}
+/// Result of one VM operation.
+pub type Result<T> = std::result::Result<T, Error>;
 
 impl Error {
-    /// Return an undefined function error.
-    #[inline]
+    /// Create one unlocated VM execution error.
+    pub const fn new(reason: ErrorReason) -> Self {
+        Self {
+            reason,
+            stack: Vec::new(),
+            anchor: DiagnosticAnchor::None,
+        }
+    }
+
+    /// Create one Program operation error.
+    pub fn program(error: program::Error) -> Self {
+        Self::new(ErrorReason::from(error))
+    }
+
+    /// Create one heap operation error.
+    pub fn heap(error: HeapError) -> Self {
+        Self::new(ErrorReason::from(error))
+    }
+
+    /// Create one unavailable runtime binding error.
+    pub const fn binding_unavailable(function: FunctionId, binding: BindingId) -> Self {
+        Self::new(ErrorReason::Binding(BindingError::Unavailable {
+            function,
+            binding,
+        }))
+    }
+
+    /// Create one undefined function error.
     pub fn undefined_function(function: FunctionId) -> Self {
-        Self::Program {
-            reason: ProgramError::UndefinedFunction { function },
-        }
+        Self::program(program::Error::undefined_function(function))
     }
 
-    /// Return an undefined value error.
-    #[inline]
-    pub fn undefined_value(value: Value) -> Self {
-        Self::Program {
-            reason: ProgramError::UndefinedValue { value },
-        }
+    /// Create one invalid instruction error.
+    pub const fn invalid_instruction(function: FunctionId, code_offset: CodeOffset) -> Self {
+        Self::new(ErrorReason::Instruction(InstructionError::Invalid {
+            function,
+            code_offset,
+        }))
     }
 
-    /// Return an undefined block error.
-    #[inline]
-    pub fn undefined_block(block: LocalNodeId<Block>) -> Self {
-        Self::Program {
-            reason: ProgramError::UndefinedBlock { block },
-        }
+    /// Create one unsupported opcode error.
+    pub const fn unsupported_opcode(opcode: u16) -> Self {
+        Self::new(ErrorReason::Instruction(
+            InstructionError::UnsupportedOpcode { opcode },
+        ))
     }
 
-    /// Return an undefined local error.
-    #[inline]
-    pub fn undefined_local(local: LocalNodeId<Local>) -> Self {
-        Self::Program {
-            reason: ProgramError::UndefinedLocal { local },
-        }
+    /// Create one unsupported tensor sharding error.
+    pub const fn unsupported_tensor_sharding() -> Self {
+        Self::new(ErrorReason::Instruction(
+            InstructionError::UnsupportedTensorSharding,
+        ))
     }
 
-    /// Return an undefined global error.
-    #[inline]
-    pub fn undefined_global(global: GlobalId) -> Self {
-        Self::Program {
-            reason: ProgramError::UndefinedGlobal { global },
-        }
+    /// Create one invalid continuation error.
+    pub const fn invalid_continuation() -> Self {
+        Self::new(ErrorReason::Machine(MachineError::InvalidContinuation))
     }
 
-    /// Return a type mismatch error.
-    #[inline]
-    pub fn type_mismatch(expected: impl Into<String>, actual: impl Into<String>) -> Self {
-        Self::Program {
-            reason: ProgramError::TypeMismatch {
-                expected: expected.into(),
-                actual: actual.into(),
-            },
-        }
+    /// Create one invalid destructor error.
+    pub const fn invalid_destructor(function: FunctionId) -> Self {
+        Self::new(ErrorReason::Instruction(
+            InstructionError::InvalidDestructor { function },
+        ))
     }
 
-    /// Return a function signature mismatch error.
-    #[inline]
-    pub fn function_signature_mismatch(
-        function: FunctionId,
-        expected: Signature,
-        actual: Signature,
-    ) -> Self {
-        Self::Program {
-            reason: ProgramError::FunctionSignatureMismatch {
-                function,
-                expected,
-                actual,
-            },
-        }
+    /// Create one incompatible pointer width error.
+    pub const fn incompatible_pointer_width(program: u8, host: u8) -> Self {
+        Self::new(ErrorReason::Machine(
+            MachineError::IncompatiblePointerWidth { program, host },
+        ))
     }
 
-    /// Return an invalid instruction error.
-    #[inline]
-    pub const fn invalid_instruction() -> Self {
-        Self::Program {
-            reason: ProgramError::InvalidInstruction,
-        }
+    /// Create one stack overflow error.
+    pub const fn stack_overflow() -> Self {
+        Self::new(ErrorReason::Resource(ResourceError::StackOverflow))
     }
 
-    /// Return an invalid field access error.
-    #[inline]
-    pub fn invalid_field_access(index: u32, field_count: usize) -> Self {
-        Self::Program {
-            reason: ProgramError::InvalidFieldAccess { index, field_count },
-        }
+    /// Create one frame depth error.
+    pub const fn frame_limit_exceeded() -> Self {
+        Self::new(ErrorReason::Resource(ResourceError::FrameLimitExceeded))
     }
 
-    /// Return an invalid array access error.
-    #[inline]
-    pub fn invalid_array_access(index: u64, length: u64) -> Self {
-        Self::Program {
-            reason: ProgramError::InvalidArrayAccess { index, length },
-        }
+    /// Create one instruction limit error.
+    pub const fn instruction_limit_exceeded() -> Self {
+        Self::new(ErrorReason::Resource(
+            ResourceError::InstructionLimitExceeded,
+        ))
     }
 
-    /// Return an unsupported instruction error.
-    #[inline]
-    pub fn unsupported_instruction(name: impl Into<String>) -> Self {
-        Self::Program {
-            reason: ProgramError::UnsupportedInstruction { name: name.into() },
-        }
+    /// Create one world memory exhaustion error.
+    pub const fn memory_exhausted() -> Self {
+        Self::new(ErrorReason::Resource(ResourceError::MemoryExhausted))
     }
 
-    /// Return an invalid intrinsic arguments error.
-    #[inline]
-    pub fn invalid_intrinsic_arguments(intrinsic: impl Into<String>) -> Self {
-        Self::Program {
-            reason: ProgramError::InvalidIntrinsicArguments {
-                intrinsic: intrinsic.into(),
-            },
-        }
+    /// Create one language trap error.
+    pub const fn trap(trap: Trap) -> Self {
+        Self::new(ErrorReason::Trap(trap))
     }
 
-    /// Return an unsupported zero value error.
-    #[inline]
-    pub fn unsupported_zero_value(ty: impl Into<String>) -> Self {
-        Self::Program {
-            reason: ProgramError::UnsupportedZeroValue { ty: ty.into() },
-        }
+    /// Create one language panic error.
+    pub const fn panic(panic: Panic) -> Self {
+        Self::new(ErrorReason::Panic(panic))
     }
 
-    /// Return an invalid program error.
-    #[inline]
-    pub fn invalid_program(context: impl Into<String>) -> Self {
-        Self::Program {
-            reason: ProgramError::InvalidProgram {
-                context: context.into(),
-            },
-        }
+    /// Attach one captured call stack.
+    pub fn with_stack(mut self, stack: Vec<StackTraceFrame>) -> Self {
+        self.stack = stack;
+
+        self
     }
 
-    /// Return an incompatible pointer width error.
-    #[inline]
-    pub fn incompatible_pointer_width(bytes: u8, host_bytes: u8) -> Self {
-        Self::Program {
-            reason: ProgramError::IncompatiblePointerWidth { bytes, host_bytes },
-        }
-    }
+    /// Attach one executable location.
+    pub fn with_anchor(mut self, anchor: DiagnosticAnchor) -> Self {
+        self.anchor = anchor;
 
-    /// Return a division by zero trap.
-    #[inline]
-    pub fn division_by_zero() -> Self {
-        Self::Trap {
-            reason: Trap::DivisionByZero,
-        }
-    }
-
-    /// Return an integer overflow trap.
-    #[inline]
-    pub fn integer_overflow() -> Self {
-        Self::Trap {
-            reason: Trap::IntegerOverflow,
-        }
-    }
-
-    /// Return a null pointer dereference trap.
-    #[inline]
-    pub fn null_pointer_dereference() -> Self {
-        Self::Trap {
-            reason: Trap::NullPointerDereference,
-        }
-    }
-
-    /// Return an index out of bounds trap.
-    #[inline]
-    pub fn index_out_of_bounds(index: u64, length: u64) -> Self {
-        Self::Trap {
-            reason: Trap::IndexOutOfBounds { index, length },
-        }
-    }
-
-    /// Return a stack overflow trap.
-    #[inline]
-    pub fn stack_overflow() -> Self {
-        Self::Resource {
-            reason: ResourceError::StackOverflow,
-        }
-    }
-
-    /// Return an unreachable trap.
-    #[inline]
-    pub fn unreachable() -> Self {
-        Self::Trap {
-            reason: Trap::Unreachable,
-        }
-    }
-
-    /// Return an invalid cast trap.
-    #[inline]
-    pub fn invalid_cast() -> Self {
-        Self::Trap {
-            reason: Trap::InvalidCast,
-        }
-    }
-
-    /// Return an abort trap.
-    #[inline]
-    pub fn abort() -> Self {
-        Self::Trap {
-            reason: Trap::Abort,
-        }
-    }
-
-    /// Return a panic trap.
-    #[inline]
-    pub fn panic(message: impl Into<String>) -> Self {
-        Self::Trap {
-            reason: Trap::Panic {
-                message: message.into(),
-            },
-        }
-    }
-
-    /// Return a bad integer conversion trap.
-    #[inline]
-    pub fn bad_conversion_to_integer() -> Self {
-        Self::Trap {
-            reason: Trap::BadConversionToInteger,
-        }
-    }
-
-    /// Return a missing import error.
-    #[inline]
-    pub fn import_not_found(name: impl Into<String>) -> Self {
-        Self::Import {
-            name: name.into(),
-            reason: ImportError::NotFound,
-        }
-    }
-
-    /// Return a forbidden import call error.
-    #[inline]
-    pub fn import_forbidden(name: impl Into<String>) -> Self {
-        Self::Import {
-            name: name.into(),
-            reason: ImportError::Forbidden,
-        }
-    }
-
-    /// Return an invalid reference error.
-    #[inline]
-    pub fn invalid_reference(kind: ReferenceKind) -> Self {
-        Self::Trap {
-            reason: Trap::InvalidReference { kind },
-        }
-    }
-
-    /// Return an invalid pointer type error.
-    #[inline]
-    pub fn invalid_pointer_type(actual: impl Into<String>) -> Self {
-        Self::Trap {
-            reason: Trap::InvalidPointerType {
-                actual: actual.into(),
-            },
-        }
-    }
-
-    /// Return an invalid pointer space error.
-    #[inline]
-    pub fn invalid_space(expected: impl Into<String>, actual: impl Into<String>) -> Self {
-        Self::Trap {
-            reason: Trap::InvalidSpace {
-                expected: expected.into(),
-                actual: actual.into(),
-            },
-        }
-    }
-
-    /// Return an immutable global write error.
-    #[inline]
-    pub fn immutable_global_write(global: GlobalId) -> Self {
-        Self::Trap {
-            reason: Trap::ImmutableGlobalWrite { global },
-        }
-    }
-
-    /// Return an immutable reference write error.
-    #[inline]
-    pub fn immutable_reference_write(reference: impl Into<String>) -> Self {
-        Self::Trap {
-            reason: Trap::ImmutableReferenceWrite {
-                reference: reference.into(),
-            },
-        }
-    }
-
-    /// Return a step limit error.
-    #[inline]
-    pub fn step_limit_exceeded() -> Self {
-        Self::Resource {
-            reason: ResourceError::StepLimitExceeded,
-        }
-    }
-
-    /// Return an unexpected yield error.
-    #[inline]
-    pub fn unexpected_yield() -> Self {
-        Self::Trap {
-            reason: Trap::UnexpectedYield,
-        }
-    }
-
-    /// Return an unexpected debugger stop error.
-    #[inline]
-    pub fn unexpected_stop() -> Self {
-        Self::Trap {
-            reason: Trap::UnexpectedStop,
-        }
-    }
-
-    /// Return a resume without yield error.
-    #[inline]
-    pub fn resume_without_yield() -> Self {
-        Self::Trap {
-            reason: Trap::ResumeWithoutYield,
-        }
-    }
-
-    /// Return an invalid continuation error.
-    #[inline]
-    pub fn invalid_continuation() -> Self {
-        Self::Trap {
-            reason: Trap::InvalidContinuation,
-        }
-    }
-
-    /// Return a frame local suspension error.
-    #[inline]
-    pub fn suspend_with_frame_local_state() -> Self {
-        Self::Trap {
-            reason: Trap::SuspendWithFrameLocalState,
-        }
-    }
-
-    /// Return an allocation failed error.
-    #[inline]
-    pub fn allocation_failed() -> Self {
-        Self::Resource {
-            reason: ResourceError::AllocationFailed,
-        }
-    }
-
-    /// Return a heap limit error.
-    #[inline]
-    pub fn heap_limit_exceeded(scope: impl Into<String>, used_bytes: u64, max_bytes: u64) -> Self {
-        Self::Resource {
-            reason: ResourceError::HeapLimitExceeded {
-                scope: scope.into(),
-                used_bytes,
-                max_bytes,
-            },
-        }
-    }
-
-    /// Return an internal VM error.
-    #[inline]
-    pub fn internal(context: impl Into<String>) -> Self {
-        Self::Internal {
-            context: context.into(),
-        }
-    }
-
-    /// Return the numeric error code.
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::Program { reason } => reason.sub_code(),
-            Self::Trap { reason } => reason.sub_code(),
-            Self::Import { reason, .. } => reason.sub_code(),
-            Self::Resource { reason } => reason.sub_code(),
-            Self::Internal { .. } => 39,
-        }
-    }
-
-    /// Return the message of the error.
-    pub fn message(&self) -> String {
-        match self {
-            Self::Program { reason } => reason.message(),
-            Self::Trap { reason } => reason.message(),
-            Self::Import { name, reason } => reason.message(name),
-            Self::Resource { reason } => reason.message(),
-            Self::Internal { context } => {
-                format!("internal vm error: {context}")
-            }
-        }
+        self
     }
 }
 
-impl ProgramError {
-    /// Return the numeric error code.
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::UndefinedFunction { .. } => 0,
-            Self::UndefinedValue { .. } => 1,
-            Self::UndefinedBlock { .. } => 2,
-            Self::TypeMismatch { .. } => 3,
-            Self::FunctionSignatureMismatch { .. } => 4,
-            Self::InvalidInstruction => 11,
-            Self::UndefinedLocal { .. } => 16,
-            Self::InvalidFieldAccess { .. } => 17,
-            Self::InvalidArrayAccess { .. } => 18,
-            Self::UnsupportedInstruction { .. } => 20,
-            Self::UndefinedGlobal { .. } => 22,
-            Self::InvalidIntrinsicArguments { .. } => 25,
-            Self::UnsupportedZeroValue { .. } => 34,
-            Self::InvalidProgram { .. } => 38,
-            Self::IncompatiblePointerWidth { .. } => 40,
-        }
-    }
-
-    /// Return the message of the error.
-    pub fn message(&self) -> String {
-        match self {
-            Self::UndefinedFunction { function } => {
-                format!("undefined function: {function:?}")
-            }
-            Self::UndefinedValue { value } => {
-                format!("undefined value: {value:?}")
-            }
-            Self::UndefinedBlock { block } => {
-                format!("undefined block: {block:?}")
-            }
-            Self::UndefinedLocal { local } => {
-                format!("undefined local variable: {local:?}")
-            }
-            Self::UndefinedGlobal { global } => {
-                format!("undefined global variable: {global:?}")
-            }
-            Self::TypeMismatch { expected, actual } => {
-                format!("type mismatch: expected {expected}, got {actual}")
-            }
-            Self::FunctionSignatureMismatch {
-                function,
-                expected,
-                actual,
-            } => {
-                format!(
-                    "function signature mismatch: function {function:?} expected {expected:?}, got {actual:?}"
-                )
-            }
-            Self::InvalidInstruction => "invalid instruction".to_string(),
-            Self::InvalidFieldAccess { index, field_count } => {
-                format!("invalid field access: index {index}, struct has {field_count} fields")
-            }
-            Self::InvalidArrayAccess { index, length } => {
-                format!("invalid array access: index {index}, array has {length} elements")
-            }
-            Self::UnsupportedInstruction { name } => {
-                format!("unsupported instruction for comptime: {name}")
-            }
-            Self::InvalidIntrinsicArguments { intrinsic } => {
-                format!("invalid arguments to intrinsic: {intrinsic}")
-            }
-            Self::UnsupportedZeroValue { ty } => {
-                format!("unsupported zero initialization for type {ty}")
-            }
-            Self::InvalidProgram { context } => {
-                format!("invalid vm program: {context}")
-            }
-            Self::IncompatiblePointerWidth { bytes, host_bytes } => {
-                format!("incompatible pointer width: program {bytes} bytes, host {host_bytes}")
-            }
-        }
+impl From<program::Error> for Error {
+    /// Preserve one Program operation failure.
+    fn from(error: program::Error) -> Self {
+        Self::program(error)
     }
 }
-
-impl Trap {
-    /// Return the numeric error code.
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::DivisionByZero => 4,
-            Self::IntegerOverflow => 5,
-            Self::NullPointerDereference => 6,
-            Self::IndexOutOfBounds { .. } => 7,
-            Self::InvalidReference { .. } => 19,
-            Self::InvalidPointerType { .. } => 21,
-            Self::ImmutableGlobalWrite { .. } => 23,
-            Self::ImmutableReferenceWrite { .. } => 26,
-            Self::UnexpectedYield => 28,
-            Self::UnexpectedStop => 38,
-            Self::ResumeWithoutYield => 29,
-            Self::InvalidContinuation => 30,
-            Self::InvalidSpace { .. } => 33,
-            Self::SuspendWithFrameLocalState => 37,
-            Self::Unreachable => 9,
-            Self::InvalidCast => 14,
-            Self::Abort => 24,
-            Self::Panic { .. } => 35,
-            Self::BadConversionToInteger => 36,
-        }
-    }
-
-    /// Return the message of the trap.
-    pub fn message(&self) -> String {
-        match self {
-            Self::DivisionByZero => "division by zero".to_string(),
-            Self::IntegerOverflow => "integer overflow".to_string(),
-            Self::NullPointerDereference => "null pointer dereference".to_string(),
-            Self::IndexOutOfBounds { index, length } => {
-                format!("index out of bounds: index {index}, length {length}")
-            }
-            Self::InvalidReference { kind } => {
-                format!("invalid {} reference", kind.name())
-            }
-            Self::InvalidPointerType { actual } => {
-                format!("invalid pointer type: expected pointer, got {actual}")
-            }
-            Self::InvalidSpace { expected, actual } => {
-                format!("invalid space: expected {expected}, got {actual}")
-            }
-            Self::ImmutableGlobalWrite { global } => {
-                format!("cannot write to immutable global: {global:?}")
-            }
-            Self::ImmutableReferenceWrite { reference } => {
-                format!("cannot write through readonly reference: {reference}")
-            }
-            Self::Unreachable => "reached unreachable code".to_string(),
-            Self::InvalidCast => "invalid cast".to_string(),
-            Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
-            Self::UnexpectedStop => "stopped during completion-only execution".to_string(),
-            Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
-            Self::InvalidContinuation => {
-                "attempted to resume with an invalid continuation".to_string()
-            }
-            Self::SuspendWithFrameLocalState => {
-                "cannot suspend while frame-local state is still live".to_string()
-            }
-            Self::Abort => "abort called".to_string(),
-            Self::Panic { message } => {
-                if message.is_empty() {
-                    "panic".to_string()
-                } else {
-                    format!("panic: {message}")
-                }
-            }
-            Self::BadConversionToInteger => "bad conversion to integer".to_string(),
-        }
-    }
-}
-
-impl ImportError {
-    /// Return the numeric error code.
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::NotFound => 10,
-            Self::Forbidden => 32,
-        }
-    }
-
-    /// Return the message of the error.
-    pub fn message(&self, name: &str) -> String {
-        match self {
-            Self::NotFound => format!("imported function not found: {name}"),
-            Self::Forbidden => format!("imported function call forbidden: {name}"),
-        }
-    }
-}
-
-impl ResourceError {
-    /// Return the numeric error code.
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::AllocationFailed => 12,
-            Self::HeapLimitExceeded { .. } => 13,
-            Self::StackOverflow => 8,
-            Self::StepLimitExceeded => 15,
-        }
-    }
-
-    /// Return the message of the error.
-    pub fn message(&self) -> String {
-        match self {
-            Self::AllocationFailed => "allocation failed".to_string(),
-            Self::HeapLimitExceeded {
-                scope,
-                used_bytes,
-                max_bytes,
-            } => {
-                format!(
-                    "{scope} heap limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
-                )
-            }
-            Self::StackOverflow => "stack overflow".to_string(),
-            Self::StepLimitExceeded => "execution step limit exceeded".to_string(),
-        }
-    }
-}
-
-impl ReferenceKind {
-    /// Return the diagnostic reference kind name.
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Heap => "heap",
-            Self::Raw => "raw",
-            Self::SharedHeap => "shared heap",
-        }
-    }
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EM{:03}: {}", self.sub_code(), self.message())
-    }
-}
-
-impl std::error::Error for Error {}
 
 impl From<HeapError> for Error {
+    /// Preserve one heap operation failure.
     fn from(error: HeapError) -> Self {
-        match error {
-            HeapError::LimitExceeded {
-                region,
-                used_bytes,
-                max_bytes,
-            } => Self::heap_limit_exceeded(region.to_string(), used_bytes, max_bytes),
-            HeapError::InvalidReference { kind, .. } => match kind {
-                HeapReferenceKind::Heap => Self::invalid_reference(ReferenceKind::Heap),
-                HeapReferenceKind::SharedHeap => Self::invalid_reference(ReferenceKind::SharedHeap),
-            },
-            error => Self::internal(error.to_string()),
-        }
+        Self::heap(error)
     }
 }
 
-impl From<MemoryError> for Error {
-    fn from(error: MemoryError) -> Self {
-        Self::internal(error.to_string())
+impl From<ErrorReason> for Error {
+    /// Create one unlocated VM execution error.
+    fn from(reason: ErrorReason) -> Self {
+        Self::new(reason)
     }
 }
 
-impl From<vm::Error> for Error {
-    fn from(error: vm::Error) -> Self {
-        match error {
-            vm::Error::TypeMismatch { expected, actual } => Self::type_mismatch(expected, actual),
-            vm::Error::FunctionSignatureMismatch {
-                function,
-                expected,
-                actual,
-            } => Self::function_signature_mismatch(function, expected, actual),
-            vm::Error::InvalidInstruction => Self::invalid_instruction(),
-            vm::Error::InvalidCast => Self::invalid_cast(),
-            vm::Error::InvalidFieldAccess { index, field_count } => {
-                Self::invalid_field_access(index, field_count)
-            }
-            vm::Error::InvalidPointerType { actual } => Self::invalid_pointer_type(actual),
-            vm::Error::UnsupportedInstruction { name } => Self::unsupported_instruction(name),
-            vm::Error::UnsupportedZeroValue { ty } => Self::unsupported_zero_value(ty),
-            vm::Error::InvalidProgram { context } => Self::invalid_program(context),
-            vm::Error::Internal { context } => Self::internal(context),
-            vm::Error::UndefinedFunction { function } => Self::undefined_function(function),
+impl fmt::Display for Error {
+    /// Format one VM execution error and its captured stack.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.reason.fmt(formatter)?;
+        if self.stack.is_empty() {
+            return Ok(());
         }
+
+        // append captured frames from the failure outward
+        formatter.write_str("\nStack trace:\n")?;
+        for (index, frame) in self.stack.iter().rev().enumerate() {
+            let name = frame.function_name.as_deref().unwrap_or("<anonymous>");
+            writeln!(
+                formatter,
+                "  {index}: {name} (byte {})",
+                frame.code_offset.0
+            )?;
+        }
+
+        Ok(())
+    }
+}
+
+impl error::Error for Error {
+    /// Return the exact execution failure.
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        Some(&self.reason)
     }
 }

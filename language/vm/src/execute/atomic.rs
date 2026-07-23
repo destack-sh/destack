@@ -1,626 +1,426 @@
-use std::sync::atomic::{
-    AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicU8, AtomicU16, AtomicU32, AtomicU64,
+use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering, fence};
+
+use destack_bytecode::{
+    AtomicAccess, AtomicOperation, AtomicOrder, CodeOffset, CompareExchangeAccess, FenceAccess,
+    Instruction, Scalar,
 };
+use destack_program::{Continuation, MemoryAccess, Outcome, Word};
 
-use crate::diagnostic::Error;
-use crate::machine::Activation;
-use destack_program::vm::{
-    AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
-    AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Cell, Instruction, MoveSlot,
-};
+use crate::diagnostic::Result;
+use crate::machine::{Activation, Frame};
 
-macro_rules! atomic_ref {
-    ($address:expr, $atomic:ty, $value:ty) => {{
-        // SAFETY: lowered layouts guarantee atomic width and alignment
-        unsafe { <$atomic>::from_ptr($address as *mut $value) }
-    }};
-}
+impl Activation<'_, '_> {
+    /// Execute one typed atomic memory operation.
+    pub(crate) fn execute_atomic<const WATCH: bool>(
+        &mut self,
+        frame: Frame,
+        instruction_offset: CodeOffset,
+        instruction: Instruction<'_>,
+        operation: AtomicOperation,
+        scalar: Scalar,
+    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+        if !operation.supports(scalar) {
+            return Err(self.invalid_instruction());
+        }
 
-/// Execute one atomic load.
-pub(crate) fn execute_atomic_load(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode precomputed addressing and ordering
-    let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = activation.load_cell_at(instruction.b);
-    let address = atomic_address(activation, pointer, shape.address, shape.width)?;
+        let needs_range = WATCH
+            && self
+                .watch_points
+                .is_some_and(|points| points.requires_memory_range());
+        let address = if needs_range {
+            Some(self.atomic_address(instruction, operation, scalar)?)
+        } else {
+            None
+        };
 
-    // load and publish the scalar result
-    let raw = atomic_load(address, shape)?;
-    let value = atomic_cell(raw, shape);
-    activation.store_cell_at(instruction.a, value);
+        // execute through the exact machine width
+        match scalar.bit_width() {
+            8 => self.execute_atomic_word::<AtomicU8>(instruction, operation, scalar)?,
+            16 => self.execute_atomic_word::<AtomicU16>(instruction, operation, scalar)?,
+            32 => self.execute_atomic_word::<AtomicU32>(instruction, operation, scalar)?,
+            64 => self.execute_atomic_word::<AtomicU64>(instruction, operation, scalar)?,
+            _ => unreachable!("atomic scalars occupy one bytecode word"),
+        }
 
-    Ok(())
-}
-
-/// Execute one atomic store.
-pub(crate) fn execute_atomic_store(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode precomputed addressing and ordering
-    let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = activation.load_cell_at(instruction.a);
-    let value = activation.load_cell_at(instruction.b);
-    let address = atomic_address(activation, pointer, shape.address, shape.width)?;
-
-    // store the scalar payload
-    atomic_store(address, value.bits(), shape)?;
-
-    Ok(())
-}
-
-/// Execute one atomic exchange.
-pub(crate) fn execute_atomic_exchange(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode precomputed addressing and ordering
-    let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = activation.load_cell_at(instruction.b);
-    let value = activation.load_cell_at(instruction.c);
-    let address = atomic_address(activation, pointer, shape.address, shape.width)?;
-
-    // exchange and publish the old scalar value
-    let raw = atomic_exchange(address, value.bits(), shape)?;
-    let value = atomic_cell(raw, shape);
-    activation.store_cell_at(instruction.a, value);
-
-    Ok(())
-}
-
-/// Execute one atomic compare exchange.
-pub(crate) fn execute_atomic_compare_exchange(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode aggregate result tables
-    let compare_exchange = *activation.side::<AtomicCompareExchange>(instruction);
-    let pointer = activation.load_cell_at(compare_exchange.pointer_offset);
-    let expected = activation.load_cell_at(compare_exchange.expected_offset);
-    let new_value = activation.load_cell_at(compare_exchange.new_value_offset);
-    let address = atomic_address(
-        activation,
-        pointer,
-        compare_exchange.shape.address,
-        compare_exchange.shape.width,
-    )?;
-
-    // execute compare exchange and build the pair result
-    let old = atomic_compare_exchange(
-        address,
-        expected.bits(),
-        new_value.bits(),
-        compare_exchange.shape,
-        compare_exchange.failure_order,
-        compare_exchange.is_weak,
-    )?;
-    let success = old == truncate(expected.bits(), compare_exchange.shape.width);
-    let old = atomic_cell(old, compare_exchange.shape);
-
-    store_compare_exchange_result(activation, compare_exchange.destination, old, success)
-}
-
-/// Execute one atomic read-modify-write.
-pub(crate) fn execute_atomic_read_modify_write(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // decode precomputed addressing, ordering, and update operation
-    let shape = AtomicReadModifyWriteShape::decode(instruction.d)?;
-    let pointer = activation.load_cell_at(instruction.b);
-    let value = activation.load_cell_at(instruction.c);
-    let address = atomic_address(activation, pointer, shape.shape.address, shape.shape.width)?;
-
-    // update and publish the old scalar value
-    let raw = atomic_read_modify_write(address, value, shape)?;
-    let value = atomic_cell(raw, shape.shape);
-    activation.store_cell_at(instruction.a, value);
-
-    Ok(())
-}
-
-/// Execute one atomic fence.
-pub(crate) fn execute_atomic_fence(
-    _machine: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    // fences only carry ordering
-    let order = AtomicOrder::decode(instruction.d)?;
-
-    std::sync::atomic::fence(order.to_std_fence()?);
-
-    Ok(())
-}
-
-/// Resolve an atomic pointer to a native address.
-fn atomic_address(
-    activation: &Activation<'_>,
-    pointer: Cell,
-    address: AtomicAddress,
-    width: AtomicWidth,
-) -> Result<usize, Error> {
-    // offset zero is the reserved null reference
-    if pointer.bits() == 0 {
-        return Err(Error::null_pointer_dereference());
+        // report the completed access only in the observed loop
+        let access = match operation {
+            AtomicOperation::Load => MemoryAccess::Read,
+            AtomicOperation::Store => MemoryAccess::Write,
+            _ => MemoryAccess::ReadWrite,
+        };
+        if WATCH {
+            self.watch_after(frame, instruction_offset, access, address)
+        } else {
+            Ok(None)
+        }
     }
 
-    // references carry heap offsets, raw pointers carry raw offsets
-    let address = match address {
-        AtomicAddress::Heap => activation.heap_address(pointer.as_heap_reference(), 0),
-        AtomicAddress::SharedHeap => {
-            activation.shared_heap_address(pointer.as_shared_heap_reference(), 0)
+    /// Execute one atomic fence.
+    pub(crate) fn execute_atomic_fence(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let access = operands
+            .u32()
+            .ok()
+            .and_then(FenceAccess::from_bits)
+            .ok_or_else(|| self.invalid_instruction())?;
+        if access.order == AtomicOrder::Relaxed || access.storage.0 == 0 {
+            return Err(self.invalid_instruction());
         }
-        AtomicAddress::Address => pointer.as_address(),
-        AtomicAddress::Stack => activation.memory_address(pointer.as_stack_pointer().offset()),
-        AtomicAddress::Frame => activation.memory_address(pointer.as_frame_pointer().offset()),
-        AtomicAddress::Static => {
-            activation.static_native_address(pointer.as_global_address(), width.byte_len())?
-        }
-    };
 
-    Ok(address)
-}
+        fence(Self::atomic_order(access.order));
 
-/// Store the compare exchange pair result.
-fn store_compare_exchange_result(
-    activation: &mut Activation<'_>,
-    destination: MoveSlot,
-    value: Cell,
-    success: bool,
-) -> Result<(), Error> {
-    super::frame::store_frame_pair(activation, destination, value, Cell::bool(success))?;
-
-    Ok(())
-}
-
-/// Convert raw atomic bits into one VM cell.
-#[inline(always)]
-fn atomic_cell(raw: u64, shape: AtomicShape) -> Cell {
-    if shape.is_signed && shape.width != AtomicWidth::Width64 {
-        return Cell::from_bits(sign_extend(raw, shape.width));
+        Ok(())
     }
 
-    Cell::from_bits(raw)
-}
-
-/// Sign-extend one atomic integer payload.
-#[inline(always)]
-fn sign_extend(raw: u64, width: AtomicWidth) -> u64 {
-    let shift = u64::BITS as usize - width.byte_len() * 8;
-
-    ((raw << shift) as i64 >> shift) as u64
-}
-
-/// Truncate one raw payload to an atomic width.
-#[inline(always)]
-fn truncate(raw: u64, width: AtomicWidth) -> u64 {
-    match width {
-        AtomicWidth::Width8 => raw as u8 as u64,
-        AtomicWidth::Width16 => raw as u16 as u64,
-        AtomicWidth::Width32 => raw as u32 as u64,
-        AtomicWidth::Width64 => raw,
-    }
-}
-
-/// Load one atomic payload.
-#[inline(always)]
-fn atomic_load(address: usize, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std_load()?;
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).load(order) as u64,
-        AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).load(order) as u64,
-        AtomicWidth::Width32 => atomic_ref!(address, AtomicU32, u32).load(order) as u64,
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).load(order),
-    };
-
-    Ok(value)
-}
-
-/// Store one atomic payload.
-#[inline(always)]
-fn atomic_store(address: usize, raw: u64, shape: AtomicShape) -> Result<(), Error> {
-    let order = shape.order.to_std_store()?;
-
-    // lowered layouts guarantee atomic width and alignment
-    match shape.width {
-        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).store(raw as u8, order),
-        AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).store(raw as u16, order),
-        AtomicWidth::Width32 => atomic_ref!(address, AtomicU32, u32).store(raw as u32, order),
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).store(raw, order),
+    /// Execute one atomic operation through its exact machine width.
+    fn execute_atomic_word<A: AtomicWord>(
+        &mut self,
+        instruction: Instruction<'_>,
+        operation: AtomicOperation,
+        scalar: Scalar,
+    ) -> Result<()> {
+        match operation {
+            AtomicOperation::Load => self.execute_atomic_load::<A>(instruction, scalar),
+            AtomicOperation::Store => self.execute_atomic_store::<A>(instruction),
+            operation if operation.is_compare_exchange() => {
+                self.execute_atomic_compare_exchange::<A>(instruction, operation, scalar)
+            }
+            operation => self.execute_atomic_update::<A>(instruction, operation, scalar),
+        }
     }
 
-    Ok(())
-}
+    /// Execute one exact-width atomic load.
+    #[inline(always)]
+    fn execute_atomic_load<A: AtomicWord>(
+        &mut self,
+        instruction: Instruction<'_>,
+        scalar: Scalar,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let pointer = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let access = operands
+            .u16()
+            .ok()
+            .and_then(AtomicAccess::from_bits)
+            .filter(|access| AtomicOperation::Load.accepts(access.order))
+            .ok_or_else(|| self.invalid_instruction())?;
 
-/// Exchange one atomic payload.
-#[inline(always)]
-fn atomic_exchange(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
+        // SAFETY: atomic bytecode requires a live naturally aligned atomic address
+        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        let value = atomic.load(Self::atomic_order(access.order));
 
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).swap(raw as u8, order) as u64,
-        AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).swap(raw as u16, order) as u64,
-        AtomicWidth::Width32 => atomic_ref!(address, AtomicU32, u32).swap(raw as u32, order) as u64,
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).swap(raw, order),
-    };
+        self.write(target.0, Word::from_bits(scalar.encode(value)));
 
-    Ok(value)
-}
-
-/// Compare and exchange one atomic payload.
-#[inline(always)]
-fn atomic_compare_exchange(
-    address: usize,
-    expected: u64,
-    new_value: u64,
-    shape: AtomicShape,
-    failure_order: AtomicOrder,
-    is_weak: bool,
-) -> Result<u64, Error> {
-    let success = shape.order.to_std();
-    let failure = failure_order.to_std_compare_exchange_failure()?;
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 if is_weak => match atomic_ref!(address, AtomicU8, u8)
-            .compare_exchange_weak(expected as u8, new_value as u8, success, failure)
-        {
-            Ok(old) | Err(old) => old as u64,
-        },
-        AtomicWidth::Width8 => match atomic_ref!(address, AtomicU8, u8).compare_exchange(
-            expected as u8,
-            new_value as u8,
-            success,
-            failure,
-        ) {
-            Ok(old) | Err(old) => old as u64,
-        },
-        AtomicWidth::Width16 if is_weak => match atomic_ref!(address, AtomicU16, u16)
-            .compare_exchange_weak(expected as u16, new_value as u16, success, failure)
-        {
-            Ok(old) | Err(old) => old as u64,
-        },
-        AtomicWidth::Width16 => match atomic_ref!(address, AtomicU16, u16).compare_exchange(
-            expected as u16,
-            new_value as u16,
-            success,
-            failure,
-        ) {
-            Ok(old) | Err(old) => old as u64,
-        },
-        AtomicWidth::Width32 if is_weak => match atomic_ref!(address, AtomicU32, u32)
-            .compare_exchange_weak(expected as u32, new_value as u32, success, failure)
-        {
-            Ok(old) | Err(old) => old as u64,
-        },
-        AtomicWidth::Width32 => match atomic_ref!(address, AtomicU32, u32).compare_exchange(
-            expected as u32,
-            new_value as u32,
-            success,
-            failure,
-        ) {
-            Ok(old) | Err(old) => old as u64,
-        },
-        AtomicWidth::Width64 if is_weak => match atomic_ref!(address, AtomicU64, u64)
-            .compare_exchange_weak(expected, new_value, success, failure)
-        {
-            Ok(old) | Err(old) => old,
-        },
-        AtomicWidth::Width64 => match atomic_ref!(address, AtomicU64, u64)
-            .compare_exchange(expected, new_value, success, failure)
-        {
-            Ok(old) | Err(old) => old,
-        },
-    };
-
-    Ok(value)
-}
-
-/// Execute one atomic read-modify-write payload.
-#[inline(always)]
-fn atomic_read_modify_write(
-    address: usize,
-    value: Cell,
-    shape: AtomicReadModifyWriteShape,
-) -> Result<u64, Error> {
-    use AtomicReadModifyWriteOperator as Operator;
-
-    match shape.operator {
-        Operator::Add => atomic_fetch_add(address, value.bits(), shape.shape),
-        Operator::Sub => atomic_fetch_sub(address, value.bits(), shape.shape),
-        Operator::And => atomic_fetch_and(address, value.bits(), shape.shape),
-        Operator::Or => atomic_fetch_or(address, value.bits(), shape.shape),
-        Operator::Xor => atomic_fetch_xor(address, value.bits(), shape.shape),
-        Operator::Min => atomic_fetch_min_signed(address, value.bits(), shape.shape),
-        Operator::Max => atomic_fetch_max_signed(address, value.bits(), shape.shape),
-        Operator::Umin => atomic_fetch_min(address, value.bits(), shape.shape),
-        Operator::Umax => atomic_fetch_max(address, value.bits(), shape.shape),
-        Operator::Fadd => {
-            atomic_float_update(address, value, shape.shape, |left, right| left + right)
-        }
-        Operator::Fmin => atomic_float_update(address, value, shape.shape, f64::min),
-        Operator::Fmax => atomic_float_update(address, value, shape.shape, f64::max),
+        Ok(())
     }
-}
 
-/// Add one atomic integer payload.
-#[inline(always)]
-fn atomic_fetch_add(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
+    /// Execute one exact-width atomic store.
+    #[inline(always)]
+    fn execute_atomic_store<A: AtomicWord>(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let pointer = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let value = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let access = operands
+            .u16()
+            .ok()
+            .and_then(AtomicAccess::from_bits)
+            .filter(|access| AtomicOperation::Store.accepts(access.order))
+            .ok_or_else(|| self.invalid_instruction())?;
 
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicU8, u8).fetch_add(raw as u8, order) as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicU16, u16).fetch_add(raw as u16, order) as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicU32, u32).fetch_add(raw as u32, order) as u64
-        }
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_add(raw, order),
-    };
+        // SAFETY: atomic bytecode requires a live naturally aligned atomic address
+        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        atomic.store(self.read(value.0).bits(), Self::atomic_order(access.order));
 
-    Ok(value)
-}
-
-/// Subtract one atomic integer payload.
-#[inline(always)]
-fn atomic_fetch_sub(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicU8, u8).fetch_sub(raw as u8, order) as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicU16, u16).fetch_sub(raw as u16, order) as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicU32, u32).fetch_sub(raw as u32, order) as u64
-        }
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_sub(raw, order),
-    };
-
-    Ok(value)
-}
-
-/// And one atomic integer payload.
-#[inline(always)]
-fn atomic_fetch_and(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicU8, u8).fetch_and(raw as u8, order) as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicU16, u16).fetch_and(raw as u16, order) as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicU32, u32).fetch_and(raw as u32, order) as u64
-        }
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_and(raw, order),
-    };
-
-    Ok(value)
-}
-
-/// Or one atomic integer payload.
-#[inline(always)]
-fn atomic_fetch_or(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).fetch_or(raw as u8, order) as u64,
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicU16, u16).fetch_or(raw as u16, order) as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicU32, u32).fetch_or(raw as u32, order) as u64
-        }
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_or(raw, order),
-    };
-
-    Ok(value)
-}
-
-/// Xor one atomic integer payload.
-#[inline(always)]
-fn atomic_fetch_xor(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicU8, u8).fetch_xor(raw as u8, order) as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicU16, u16).fetch_xor(raw as u16, order) as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicU32, u32).fetch_xor(raw as u32, order) as u64
-        }
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_xor(raw, order),
-    };
-
-    Ok(value)
-}
-
-/// Min one atomic unsigned integer payload.
-#[inline(always)]
-fn atomic_fetch_min(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicU8, u8).fetch_min(raw as u8, order) as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicU16, u16).fetch_min(raw as u16, order) as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicU32, u32).fetch_min(raw as u32, order) as u64
-        }
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_min(raw, order),
-    };
-
-    Ok(value)
-}
-
-/// Max one atomic unsigned integer payload.
-#[inline(always)]
-fn atomic_fetch_max(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicU8, u8).fetch_max(raw as u8, order) as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicU16, u16).fetch_max(raw as u16, order) as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicU32, u32).fetch_max(raw as u32, order) as u64
-        }
-        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_max(raw, order),
-    };
-
-    Ok(value)
-}
-
-/// Min one atomic signed integer payload.
-#[inline(always)]
-fn atomic_fetch_min_signed(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicI8, i8).fetch_min(raw as i8, order) as u8 as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicI16, i16).fetch_min(raw as i16, order) as u16 as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicI32, i32).fetch_min(raw as i32, order) as u32 as u64
-        }
-        AtomicWidth::Width64 => {
-            atomic_ref!(address, AtomicI64, i64).fetch_min(raw as i64, order) as u64
-        }
-    };
-
-    Ok(value)
-}
-
-/// Max one atomic signed integer payload.
-#[inline(always)]
-fn atomic_fetch_max_signed(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, Error> {
-    let order = shape.order.to_std();
-
-    // lowered layouts guarantee atomic width and alignment
-    let value = match shape.width {
-        AtomicWidth::Width8 => {
-            atomic_ref!(address, AtomicI8, i8).fetch_max(raw as i8, order) as u8 as u64
-        }
-        AtomicWidth::Width16 => {
-            atomic_ref!(address, AtomicI16, i16).fetch_max(raw as i16, order) as u16 as u64
-        }
-        AtomicWidth::Width32 => {
-            atomic_ref!(address, AtomicI32, i32).fetch_max(raw as i32, order) as u32 as u64
-        }
-        AtomicWidth::Width64 => {
-            atomic_ref!(address, AtomicI64, i64).fetch_max(raw as i64, order) as u64
-        }
-    };
-
-    Ok(value)
-}
-
-/// Execute one floating atomic update with a CAS loop.
-fn atomic_float_update<F>(
-    address: usize,
-    value: Cell,
-    shape: AtomicShape,
-    operation: F,
-) -> Result<u64, Error>
-where
-    F: Fn(f64, f64) -> f64,
-{
-    match shape.width {
-        AtomicWidth::Width32 => {
-            let raw = atomic_update_u32(address, shape, |old| {
-                let old = f32::from_bits(old);
-                let value = value.as_f32();
-
-                (operation(old as f64, value as f64) as f32).to_bits()
-            })?;
-
-            Ok(raw as u64)
-        }
-        AtomicWidth::Width64 => atomic_update_u64(address, shape, |old| {
-            let old = f64::from_bits(old);
-            let value = value.as_f64();
-
-            operation(old, value).to_bits()
-        }),
-        _ => Err(Error::invalid_instruction()),
+        Ok(())
     }
-}
 
-/// Update one atomic 32-bit payload with a CAS loop.
-fn atomic_update_u32<F>(address: usize, shape: AtomicShape, operation: F) -> Result<u32, Error>
-where
-    F: Fn(u32) -> u32,
-{
-    let success = shape.order.to_std();
-    let failure = shape.order.to_std_update_failure();
+    /// Execute one exact-width atomic compare exchange.
+    #[inline(always)]
+    fn execute_atomic_compare_exchange<A: AtomicWord>(
+        &mut self,
+        instruction: Instruction<'_>,
+        operation: AtomicOperation,
+        scalar: Scalar,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let status = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let pointer = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let expected = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let replacement = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let access = operands
+            .u16()
+            .ok()
+            .and_then(CompareExchangeAccess::from_bits)
+            .filter(|access| access.success.permits_failure(access.failure))
+            .ok_or_else(|| self.invalid_instruction())?;
 
-    // lowered layouts guarantee atomic width and alignment
-    let atomic = atomic_ref!(address, AtomicU32, u32);
-    let mut old = atomic.load(failure);
+        // SAFETY: atomic bytecode requires a live naturally aligned atomic address
+        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        let result = atomic.compare_exchange(
+            self.read(expected.0).bits(),
+            self.read(replacement.0).bits(),
+            Self::atomic_order(access.success),
+            Self::atomic_order(access.failure),
+            operation == AtomicOperation::CompareExchangeWeak,
+        );
+        let (value, did_exchange) = match result {
+            Ok(value) => (value, true),
+            Err(value) => (value, false),
+        };
 
-    // retry until the weak compare exchange accepts the computed update
-    loop {
-        let new_value = operation(old);
+        self.write(target.0, Word::from_bits(scalar.encode(value)));
+        self.write(status.0, Word::boolean(did_exchange));
 
-        match atomic.compare_exchange_weak(old, new_value, success, failure) {
-            Ok(value) => return Ok(value),
-            Err(value) => old = value,
+        Ok(())
+    }
+
+    /// Execute one exact-width atomic exchange or update.
+    #[inline(always)]
+    fn execute_atomic_update<A: AtomicWord>(
+        &mut self,
+        instruction: Instruction<'_>,
+        operation: AtomicOperation,
+        scalar: Scalar,
+    ) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let pointer = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let value = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let access = operands
+            .u16()
+            .ok()
+            .and_then(AtomicAccess::from_bits)
+            .ok_or_else(|| self.invalid_instruction())?;
+
+        // SAFETY: atomic bytecode requires a live naturally aligned atomic address
+        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        let value = self.read(value.0).bits();
+        let order = Self::atomic_order(access.order);
+        let previous = if operation == AtomicOperation::Exchange {
+            atomic.exchange(value, order)
+        } else {
+            Self::atomic_update(atomic, operation, scalar, value, order)
+        };
+
+        self.write(target.0, Word::from_bits(scalar.encode(previous)));
+
+        Ok(())
+    }
+
+    /// Apply one typed atomic read-modify-write operation.
+    fn atomic_update<A: AtomicWord>(
+        atomic: &A,
+        operation: AtomicOperation,
+        scalar: Scalar,
+        operand: u64,
+        order: Ordering,
+    ) -> u64 {
+        let failure = Self::atomic_failure_order(order);
+        let mut current = atomic.load(failure);
+
+        loop {
+            let next = Self::atomic_value(operation, scalar, current, operand);
+            match atomic.compare_exchange(current, next, order, failure, true) {
+                Ok(_) => return current,
+                Err(observed) => current = observed,
+            }
+        }
+    }
+
+    /// Compute one typed atomic read-modify-write result.
+    fn atomic_value(operation: AtomicOperation, scalar: Scalar, left: u64, right: u64) -> u64 {
+        if scalar.is_float() {
+            return Self::atomic_float(operation, scalar, left, right);
+        }
+
+        let width = scalar.bit_width();
+        let mask = if width == u64::BITS as u8 {
+            u64::MAX
+        } else {
+            (1_u64 << width) - 1
+        };
+        let value = match operation {
+            AtomicOperation::FetchAdd => left.wrapping_add(right),
+            AtomicOperation::FetchSubtract => left.wrapping_sub(right),
+            AtomicOperation::FetchAnd => left & right,
+            AtomicOperation::FetchOr => left | right,
+            AtomicOperation::FetchXor => left ^ right,
+            AtomicOperation::FetchMinimum if scalar.is_signed_integer() => {
+                let (Some(left), Some(right)) = (scalar.integer(left), scalar.integer(right))
+                else {
+                    unreachable!("integer atomic opcodes carry integer scalars");
+                };
+
+                left.min(right) as u64
+            }
+            AtomicOperation::FetchMinimum => left.min(right),
+            AtomicOperation::FetchMaximum if scalar.is_signed_integer() => {
+                let (Some(left), Some(right)) = (scalar.integer(left), scalar.integer(right))
+                else {
+                    unreachable!("integer atomic opcodes carry integer scalars");
+                };
+
+                left.max(right) as u64
+            }
+            AtomicOperation::FetchMaximum => left.max(right),
+            _ => unreachable!("atomic update dispatch selects one read-modify-write operation"),
+        };
+
+        value & mask
+    }
+
+    /// Compute one floating-point atomic read-modify-write result.
+    fn atomic_float(operation: AtomicOperation, scalar: Scalar, left: u64, right: u64) -> u64 {
+        let (Some(left), Some(right)) = (scalar.float(left), scalar.float(right)) else {
+            unreachable!("floating-point atomic opcodes carry floating-point scalars");
+        };
+        let value = match operation {
+            AtomicOperation::FetchAdd => left + right,
+            AtomicOperation::FetchSubtract => left - right,
+            AtomicOperation::FetchMinimum if left.is_nan() => left,
+            AtomicOperation::FetchMinimum if right.is_nan() => right,
+            AtomicOperation::FetchMinimum => left.min(right),
+            AtomicOperation::FetchMaximum if left.is_nan() => left,
+            AtomicOperation::FetchMaximum if right.is_nan() => right,
+            AtomicOperation::FetchMaximum => left.max(right),
+            _ => unreachable!("floating-point atomics support arithmetic and extrema"),
+        };
+
+        let Some(bits) = scalar.float_bits(value) else {
+            unreachable!("floating-point atomic opcodes carry floating-point scalars");
+        };
+
+        bits
+    }
+
+    /// Convert one bytecode memory order to the host atomic order.
+    const fn atomic_order(order: AtomicOrder) -> Ordering {
+        match order {
+            AtomicOrder::Relaxed => Ordering::Relaxed,
+            AtomicOrder::Acquire => Ordering::Acquire,
+            AtomicOrder::Release => Ordering::Release,
+            AtomicOrder::AcquireRelease => Ordering::AcqRel,
+            AtomicOrder::SequentiallyConsistent => Ordering::SeqCst,
+        }
+    }
+
+    /// Return the strongest legal failure order for one atomic update.
+    fn atomic_failure_order(order: Ordering) -> Ordering {
+        match order {
+            Ordering::Relaxed | Ordering::Release => Ordering::Relaxed,
+            Ordering::Acquire | Ordering::AcqRel => Ordering::Acquire,
+            Ordering::SeqCst => Ordering::SeqCst,
+            _ => unreachable!("host atomics expose the standard memory orders"),
         }
     }
 }
 
-/// Update one atomic 64-bit payload with a CAS loop.
-fn atomic_update_u64<F>(address: usize, shape: AtomicShape, operation: F) -> Result<u64, Error>
-where
-    F: Fn(u64) -> u64,
-{
-    let success = shape.order.to_std();
-    let failure = shape.order.to_std_update_failure();
+/// One exact-width host atomic word.
+trait AtomicWord {
+    /// Resolve one naturally aligned native pointer.
+    unsafe fn from_address<'a>(address: usize) -> &'a Self;
 
-    // lowered layouts guarantee atomic width and alignment
-    let atomic = atomic_ref!(address, AtomicU64, u64);
-    let mut old = atomic.load(failure);
+    /// Load one word.
+    fn load(&self, order: Ordering) -> u64;
 
-    // retry until the weak compare exchange accepts the computed update
-    loop {
-        let new_value = operation(old);
+    /// Store one word.
+    fn store(&self, value: u64, order: Ordering);
 
-        match atomic.compare_exchange_weak(old, new_value, success, failure) {
-            Ok(value) => return Ok(value),
-            Err(value) => old = value,
-        }
-    }
+    /// Exchange one word.
+    fn exchange(&self, value: u64, order: Ordering) -> u64;
+
+    /// Compare and exchange one word.
+    fn compare_exchange(
+        &self,
+        current: u64,
+        new: u64,
+        success: Ordering,
+        failure: Ordering,
+        is_weak: bool,
+    ) -> std::result::Result<u64, u64>;
 }
+
+macro_rules! implement_atomic_word {
+    ($atomic:ty, $integer:ty) => {
+        impl AtomicWord for $atomic {
+            unsafe fn from_address<'a>(address: usize) -> &'a Self {
+                // SAFETY: the caller provides one live naturally aligned atomic address
+                unsafe { &*(address as *const Self) }
+            }
+
+            fn load(&self, order: Ordering) -> u64 {
+                <$atomic>::load(self, order) as u64
+            }
+
+            fn store(&self, value: u64, order: Ordering) {
+                <$atomic>::store(self, value as $integer, order);
+            }
+
+            fn exchange(&self, value: u64, order: Ordering) -> u64 {
+                <$atomic>::swap(self, value as $integer, order) as u64
+            }
+
+            fn compare_exchange(
+                &self,
+                current: u64,
+                new: u64,
+                success: Ordering,
+                failure: Ordering,
+                is_weak: bool,
+            ) -> std::result::Result<u64, u64> {
+                let result = if is_weak {
+                    <$atomic>::compare_exchange_weak(
+                        self,
+                        current as $integer,
+                        new as $integer,
+                        success,
+                        failure,
+                    )
+                } else {
+                    <$atomic>::compare_exchange(
+                        self,
+                        current as $integer,
+                        new as $integer,
+                        success,
+                        failure,
+                    )
+                };
+
+                result
+                    .map(|value| value as u64)
+                    .map_err(|value| value as u64)
+            }
+        }
+    };
+}
+
+implement_atomic_word!(AtomicU8, u8);
+implement_atomic_word!(AtomicU16, u16);
+implement_atomic_word!(AtomicU32, u32);
+implement_atomic_word!(AtomicU64, u64);

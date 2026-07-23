@@ -1,186 +1,77 @@
-use super::element::{element_byte_offset, load_array_index_at};
-use super::{access, address};
-use crate::diagnostic::Error;
+use destack_bytecode::{Instruction, Opcode};
+use destack_program::{TypeId, Word};
+
+use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
-use destack_program::vm::{Cell, Instruction, SliceProjection, SliceProjectionId};
 
-/// Load one slice length value as a host usize.
-#[inline(always)]
-pub(crate) fn load_slice_length_at(
-    activation: &Activation<'_>,
-    value_offset: u32,
-) -> Result<usize, Error> {
-    let value = activation.load_cell_at(value_offset);
-    let length = value.as_u64();
+impl Activation<'_, '_> {
+    /// Execute one slice descriptor operation.
+    pub(crate) fn execute_slice(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        match instruction.opcode() {
+            Opcode::SLICE_VIEW => self.execute_slice_view(instruction),
+            Opcode::SLICE_LENGTH => self.execute_slice_length(instruction),
+            _ => unreachable!("slice dispatch selects one slice opcode"),
+        }
+    }
 
-    usize::try_from(length).map_err(|_| Error::allocation_failed())
-}
+    /// Form one checked subview over a contiguous slice.
+    fn execute_slice_view(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands.range().map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
+        let element = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
+        let start = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let length = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        if target.word_count != 2 || source.word_count != 2 {
+            return Err(self.invalid_instruction());
+        }
 
-/// Store one slice descriptor into a frame value.
-pub(crate) fn store_slice_at(
-    activation: &mut Activation<'_>,
-    dest: u32,
-    access: SliceProjection,
-    pointer_value: Cell,
-    length: usize,
-) -> Result<(), Error> {
-    // write the two descriptor fields through their lowered layouts
-    let length = Cell::uint(length as u64, usize::BITS as u8);
-    let pointer = activation.frame_pointer_at(dest);
-    access::store_frame_slot_by_layout(activation, pointer, access.pointer, pointer_value);
-    access::store_frame_slot_by_layout(activation, pointer, access.length, length);
+        // require the requested element range to fit inside the source slice
+        let source_length = self.read(source.start.0 + 1).as_u64();
+        let start = self.read(start.0).as_u64();
+        let length = self.read(length.0).as_u64();
+        if start > source_length || length > source_length - start {
+            return Err(Error::trap(Trap::Bounds));
+        }
 
-    Ok(())
-}
+        // advance the stable reference by the linked element layout width
+        let element_byte_len = self
+            .machine
+            .program
+            .type_byte_len(element)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let byte_offset = usize::try_from(start)
+            .ok()
+            .and_then(|start| start.checked_mul(element_byte_len))
+            .ok_or_else(|| Error::trap(Trap::Bounds))?;
+        let reference = self.read(source.start.0).bits() as usize;
+        let reference = reference
+            .checked_add(byte_offset)
+            .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-/// Load the pointer from one slice descriptor.
-#[inline(always)]
-fn load_slice_pointer(
-    activation: &mut Activation<'_>,
-    slice: Cell,
-    access: SliceProjection,
-) -> Cell {
-    let slice = slice.as_frame_pointer();
+        self.write(target.start.0, Word::from_bits(reference as u64));
+        self.write(target.start.0 + 1, Word::uint64(length));
 
-    access::load_frame_slot_by_layout(activation, slice, access.pointer)
-}
+        Ok(())
+    }
 
-/// Store a computed slice element address.
-#[inline(always)]
-fn store_slice_element_address(activation: &mut Activation<'_>, dest: u32, value: Cell) {
-    activation.store_cell_at(dest, value);
-}
+    /// Read the element count from one slice descriptor.
+    fn execute_slice_length(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = instruction.operands();
+        let target = operands
+            .register()
+            .map_err(|_| self.invalid_instruction())?;
+        let source = operands.range().map_err(|_| self.invalid_instruction())?;
+        if source.word_count != 2 {
+            return Err(self.invalid_instruction());
+        }
 
-/// Return one lowered slice element projection.
-#[inline(always)]
-fn instruction_slice_element(activation: &Activation<'_>, access: u32) -> SliceProjection {
-    activation.slice_projection(SliceProjectionId(access))
-}
+        self.write(target.0, self.read(source.start.0 + 1));
 
-/// Load slice address instruction fields.
-#[inline(always)]
-fn slice_address_fields(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> (u32, Cell, u64, SliceProjection) {
-    let dest = instruction.a;
-    let slice = Cell::frame_pointer(activation.frame_pointer_at(instruction.b));
-    let index = instruction.c;
-    let access = instruction_slice_element(activation, instruction.d);
-
-    let index = load_array_index_at(activation, index);
-
-    (dest, slice, index, access)
-}
-
-/// Execute slice element addr on local heap references.
-pub(crate) fn execute_address_heap_slice_element(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, slice, index, access) = slice_address_fields(activation, instruction);
-
-    let pointer = load_slice_pointer(activation, slice, access);
-    let value = address::element_heap(
-        activation,
-        pointer.as_heap_reference(),
-        access.element,
-        index,
-    );
-
-    store_slice_element_address(activation, dest, value);
-
-    Ok(())
-}
-
-/// Execute slice element addr on shared heap references.
-pub(crate) fn execute_address_shared_heap_slice_element(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, slice, index, access) = slice_address_fields(activation, instruction);
-
-    let pointer = load_slice_pointer(activation, slice, access);
-    let value = address::element_shared_heap(
-        activation,
-        pointer.as_shared_heap_reference(),
-        access.element,
-        index,
-    );
-
-    store_slice_element_address(activation, dest, value);
-
-    Ok(())
-}
-
-/// Execute slice element addr on raw pointers.
-pub(crate) fn execute_address_raw_slice_element(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, slice, index, access) = slice_address_fields(activation, instruction);
-
-    let pointer = load_slice_pointer(activation, slice, access);
-    let value = address::element_raw(activation, pointer.as_address(), access.element, index);
-
-    store_slice_element_address(activation, dest, value);
-
-    Ok(())
-}
-
-/// Execute slice element addr on stack pointers.
-pub(crate) fn execute_address_stack_slice_element(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, slice, index, access) = slice_address_fields(activation, instruction);
-
-    let pointer = load_slice_pointer(activation, slice, access);
-    let value = address::element_stack(
-        activation,
-        pointer.as_stack_pointer(),
-        access.element,
-        index,
-    );
-
-    store_slice_element_address(activation, dest, value);
-
-    Ok(())
-}
-
-/// Execute slice element addr on frame pointers.
-pub(crate) fn execute_address_frame_slice_element(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, slice, index, access) = slice_address_fields(activation, instruction);
-
-    let pointer = load_slice_pointer(activation, slice, access);
-    let offset = element_byte_offset(index, access.element.byte_stride());
-    let pointer = pointer.as_frame_pointer().add_bytes(offset);
-    let value = Cell::frame_pointer(pointer);
-
-    store_slice_element_address(activation, dest, value);
-
-    Ok(())
-}
-
-/// Execute slice element addr on global addresses.
-pub(crate) fn execute_global_address_slice_element(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, slice, index, access) = slice_address_fields(activation, instruction);
-
-    let pointer = load_slice_pointer(activation, slice, access);
-    let value = address::element_global(
-        activation,
-        pointer.as_global_address(),
-        access.element,
-        index,
-    )?;
-
-    store_slice_element_address(activation, dest, value);
-
-    Ok(())
+        Ok(())
+    }
 }

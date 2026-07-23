@@ -1,504 +1,67 @@
-use std::slice;
+use destack_program::Word;
 
-use crate::tests::{create_machine, run_mir_expect};
-use destack_program::Value;
+use super::{TestMachine, TestProgram};
 
-/// Function environment state is preserved across repeated calls in one machine.
+/// Bind and invoke one closure through its two-word callable value.
 #[test]
-fn test_environment_multiple_calls_same_machine() {
-    let mir = r#"
-type Env {
-    count: ref<int32, managed, mutable>;
-    base: int32;
+fn test_execute_function_value() {
+    let mut machine = TestMachine::parse(
+        r#"
+function body(environment r0: ref<managed, space(local)>, r1: int32): (
+    ref<managed, space(local)>,
+    int32
+) {
+    r2: ref<managed, space(local)> = function.environment.current
+    r3: int32 = move r1
+    return r2, r3
 }
 
-@environment(ref<Env, managed, mutable>)
-function step(): int32 {
-entry:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
-    v2: ref<int32, managed, mutable> = load v1
-    v3: int32 = load v2
-    v4: int32 = 1
-    v5: int32 = int.add v3, v4
-    store v2, v5
-    v6: ref<int32, managed, mutable> = field.address v0, 1
-    v7: int32 = load v6
-    v8: int32 = int.add v5, v7
-    return v8
+function identity(r0: int32): (int32) {
+    r1: int32 = move r0
+    return r1
 }
 
-function makeEnv(): ref<Env, managed, mutable> {
-entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 0
-    store v0, v1
-    v2: ref<Env, managed, mutable> = new.zeroed Env
-    v3: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v2, 0
-    store v3, v0
-    v4: ref<int32, managed, mutable> = field.address v2, 1
-    v5: int32 = 10
-    store v4, v5
-    return v2
+function captureless(environment r0: ref<managed, space(local)>, r1: int32): (int32) {
+    r2: int32 = move r1
+    return r2
 }
 
-function callOnce(v0: ref<Env, managed, mutable>): int32 {
-entry(v0: ref<Env, managed, mutable>):
-    v1: () => int32 = function.bind step, v0
-    v2: int32 = call.indirect v1(): () => int32
-    return v2
+export function apply(r0: ref<managed, space(local)>, r1: int32): (
+    ref<managed, space(local)>,
+    ref<managed, space(local)>,
+    int32,
+    fn,
+    int32,
+    int32
+) {
+    r2: function = function.bind body, r0
+    r4: ref<managed, space(local)> = null
+    r5: function = function.bind captureless, r4
+    r7: int32 = call.indirect r5(r1)
+    r8: ref<managed, space(local)> = function.environment r2
+    r9: ref<managed, space(local)>, r10: int32 = call.indirect r2(r1)
+    r11: fn = function.address identity
+    r12: int32 = call.indirect r11(r1)
+    r13: int32 = move r7
+    return r8, r9, r10, r11, r12, r13
 }
-"#;
+"#,
+        TestProgram::new(),
+    );
 
-    let mut machine = create_machine(mir);
-    let env = machine
-        .run_function_by_name("makeEnv", &[])
-        .expect("execution failed");
-    let first = machine
-        .run_function_by_name("callOnce", slice::from_ref(&env))
-        .expect("execution failed");
-    let second = machine
-        .run_function_by_name("callOnce", &[env])
-        .expect("execution failed");
+    let environment = Word::from_bits(0x1200);
+    let identity = Word::from(machine.function_id("identity"));
+    let value = machine.complete("apply", &[environment, Word::int32(73)]);
 
-    assert_eq!(first, Value::int32(11));
-    assert_eq!(second, Value::int32(12));
-}
-
-/// Function projections expose the bound function pointer and environment.
-#[test]
-fn test_function_projection_reads_pointer_and_environment() {
-    let mir = r#"
-type Env { value: int32 }
-
-@environment(ref<Env, managed, mutable>)
-function readEnv(): int32 {
-entry:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
-}
-
-function main(): int32 {
-entry:
-    v0: ref<Env, managed, mutable> = new.zeroed Env
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = 42
-    store v1, v2
-    v3: () => int32 = function.bind readEnv, v0
-    v4: fn() => int32 = function.pointer v3
-    v5: ref<Env, managed, mutable> = function.environment v3
-    v6: ref<int32, managed, mutable> = field.address v5, 0
-    v7: int32 = load v6
-    return v7
-}
-"#;
-
-    run_mir_expect(mir, "main", &[], Value::int32(42));
-}
-
-/// call.indirect passes the function environment for function.environment.current.
-#[test]
-fn test_call_indirect_environment() {
-    let mir = r#"
-@environment(ref<int32, raw, readonly, space(frame)>)
-function readEnv(): int32 {
-entry:
-    v0: ref<int32, raw, readonly, space(frame)> = function.environment.current
-    v1: int32 = load v0
-    return v1
-}
-
-function caller(): int32 {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 41
-    store v0, v1
-    v2: ref<int32, raw, readonly, space(frame)> = cast.bit v0 -> ref<int32, raw, readonly, space(frame)>
-    v3: () => int32 = function.bind readEnv, v2
-    v4: int32 = call.indirect v3(): () => int32
-    return v4
-}
-"#;
-
-    run_mir_expect(mir, "caller", &[], Value::int32(41));
-}
-
-/// Tail call indirect forwards the function environment.
-#[test]
-fn test_tailcall_indirect_environment() {
-    let mir = r#"
-@environment(ref<int32, managed, mutable>)
-function readEnv(): int32 {
-b0:
-    v0: ref<int32, managed, mutable> = function.environment.current
-    v1: int32 = load v0
-    return v1
-}
-
-function caller(): int32 {
-b0:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 99int32
-    store v0, v1
-    v2: () => int32 = function.bind readEnv, v0
-    tail.call.indirect v2(): () => int32
-}"#;
-
-    run_mir_expect(mir, "caller", &[], Value::int32(99));
-}
-
-/// Managed function environments hold by-reference capture cells.
-#[test]
-fn test_environment_heap_reference_cell() {
-    let mir = r#"
-type Env { cell: ref<int32, managed, mutable> }
-
-@environment(ref<Env, managed, mutable>)
-function increment(): int32 {
-b0:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
-    v2: ref<int32, managed, mutable> = load v1
-    v3: int32 = load v2
-    v4: int32 = 1int32
-    v5: int32 = int.add v3, v4
-    store v2, v5
-    return v5
-}
-
-function caller(): int32 {
-b0:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
-    v1: int32 = 0int32
-    store v0, v1
-    v2: ref<Env, managed, mutable> = new.zeroed Env
-    v3: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v2, 0
-    store v3, v0
-    v4: () => int32 = function.bind increment, v2
-    v5: int32 = call.indirect v4(): () => int32
-    v6: int32 = call.indirect v4(): () => int32
-    return v6
-}"#;
-
-    run_mir_expect(mir, "caller", &[], Value::int32(2));
-}
-
-/// Managed function environments support by-value fields.
-#[test]
-fn test_environment_by_value_field() {
-    let mir = r#"
-type Env { value: int32 }
-type Reader = () => int32;
-@environment(ref<Env, managed, mutable>)
-function readEnv(): int32 {
-b0:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = load v1
-    v3: int32 = 2int32
-    v4: int32 = int.add v2, v3
-    return v4
-}
-
-function caller(): int32 {
-b0:
-    v0: ref<Env, managed, mutable> = new.zeroed Env
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = 40int32
-    store v1, v2
-    v3: () => int32 = function.bind readEnv, v0
-    v4: int32 = call.indirect v3(): () => int32
-    return v4
-}"#;
-
-    run_mir_expect(mir, "caller", &[], Value::int32(42));
-}
-
-/// call.indirect selects the environment provided at the callsite.
-#[test]
-fn test_environment_selects_callsite_environment() {
-    let mir = r#"
-type Env { value: int32 }
-
-@environment(ref<Env, managed, mutable>)
-function readEnv(): int32 {
-b0:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
-}
-
-function caller(): int32 {
-b0:
-    v0: ref<Env, managed, mutable> = new.zeroed Env
-    v1: ref<Env, managed, mutable> = new.zeroed Env
-    v2: ref<int32, managed, mutable> = field.address v0, 0
-    v3: ref<int32, managed, mutable> = field.address v1, 0
-    v4: int32 = 10int32
-    v5: int32 = 20int32
-    store v2, v4
-    store v3, v5
-    v6: () => int32 = function.bind readEnv, v0
-    v7: () => int32 = function.bind readEnv, v1
-    v8: int32 = call.indirect v6(): () => int32
-    v9: int32 = call.indirect v7(): () => int32
-    v10: int32 = int.add v8, v9
-    return v10
-}"#;
-
-    run_mir_expect(mir, "caller", &[], Value::int32(30));
-}
-
-/// call.indirect can swap function environments within a single machine.
-#[test]
-fn test_environment_switches_in_machine() {
-    let mir = r#"
-type Env { value: int32 }
-
-@environment(ref<Env, managed, mutable>)
-function readEnv(): int32 {
-b0:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
-}
-
-function makeEnv(v0: int32): ref<Env, managed, mutable> {
-b0(v0: int32):
-    v1: ref<Env, managed, mutable> = new.zeroed Env
-    v2: ref<int32, managed, mutable> = field.address v1, 0
-    store v2, v0
-    return v1
-}
-
-function callOnce(v0: ref<Env, managed, mutable>): int32 {
-b0(v0: ref<Env, managed, mutable>):
-    v1: () => int32 = function.bind readEnv, v0
-    v2: int32 = call.indirect v1(): () => int32
-    return v2
-}"#;
-
-    let mut machine = create_machine(mir);
-    let env_a = machine
-        .run_function_by_name("makeEnv", &[Value::int32(7)])
-        .expect("execution failed");
-    let env_b = machine
-        .run_function_by_name("makeEnv", &[Value::int32(13)])
-        .expect("execution failed");
-
-    let first = machine
-        .run_function_by_name("callOnce", slice::from_ref(&env_a))
-        .expect("execution failed");
-    let second = machine
-        .run_function_by_name("callOnce", &[env_b])
-        .expect("execution failed");
-    let third = machine
-        .run_function_by_name("callOnce", &[env_a])
-        .expect("execution failed");
-
-    assert_eq!(first, Value::int32(7));
-    assert_eq!(second, Value::int32(13));
-    assert_eq!(third, Value::int32(7));
-}
-
-/// Function values can be stored in managed structs and invoked with their environment.
-#[test]
-fn test_environment_loaded_from_struct() {
-    let mir = r#"
-type Env {
-    value: int32;
-}
-
-type Holder {
-    fun: () => int32;
-}
-
-@environment(ref<Env, managed, mutable>)
-function readEnv(): int32 {
-entry:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
-}
-
-function makeEnv(v0: int32): ref<Env, managed, mutable> {
-entry(v0: int32):
-    v1: ref<Env, managed, mutable> = new.zeroed Env
-    v2: ref<int32, managed, mutable> = field.address v1, 0
-    store v2, v0
-    return v1
-}
-
-function caller(v0: int32): int32 {
-entry(v0: int32):
-    v1: ref<Env, managed, mutable> = call makeEnv(v0)
-    v2: ref<Holder, managed, mutable> = new.zeroed Holder
-    v3: ref<() => int32, managed, mutable> = field.address v2, 0
-    v4: () => int32 = function.bind readEnv, v1
-    store v3, v4
-    v5: () => int32 = load v3
-    v6: int32 = call.indirect v5(): () => int32
-    return v6
-}
-"#;
-
-    run_mir_expect(mir, "caller", &[Value::int32(42)], Value::int32(42));
-}
-
-/// Nested function environments can invoke inner functions via stored environments.
-#[test]
-fn test_environment_chain_calls_inner() {
-    let mir = r#"
-type InnerEnv { value: int32 }
-type OuterEnv { fun: () => int32 }
-
-@environment(ref<InnerEnv, managed, mutable>)
-function inner(): int32 {
-b0:
-    v0: ref<InnerEnv, managed, mutable> = function.environment.current
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
-}
-
-@environment(ref<OuterEnv, managed, mutable>)
-function outer(): int32 {
-b0:
-    v0: ref<OuterEnv, managed, mutable> = function.environment.current
-    v1: ref<() => int32, managed, mutable> = field.address v0, 0
-    v2: () => int32 = load v1
-    v3: int32 = call.indirect v2(): () => int32
-    return v3
-}
-
-function makeInner(v0: int32): ref<InnerEnv, managed, mutable> {
-b0(v0: int32):
-    v1: ref<InnerEnv, managed, mutable> = new.zeroed InnerEnv
-    v2: ref<int32, managed, mutable> = field.address v1, 0
-    store v2, v0
-    return v1
-}
-
-function makeOuter(v0: int32): ref<OuterEnv, managed, mutable> {
-b0(v0: int32):
-    v1: ref<InnerEnv, managed, mutable> = call makeInner(v0): (int32) => ref<InnerEnv, managed, mutable>
-    v2: ref<OuterEnv, managed, mutable> = new.zeroed OuterEnv
-    v3: ref<() => int32, managed, mutable> = field.address v2, 0
-    v4: () => int32 = function.bind inner, v1
-    store v3, v4
-    return v2
-}
-
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: ref<OuterEnv, managed, mutable> = call makeOuter(v0): (int32) => ref<OuterEnv, managed, mutable>
-    v2: () => int32 = function.bind outer, v1
-    v3: int32 = call.indirect v2(): () => int32
-    return v3
-}"#;
-
-    run_mir_expect(mir, "caller", &[Value::int32(55)], Value::int32(55));
-}
-
-/// Function pointers without env can be stored and called indirectly.
-#[test]
-fn test_function_ptr_loaded_from_struct() {
-    let mir = r#"
-type Holder { fun: fn(int32) => int32 }
-
-function double(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
-}
-
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: ref<Holder, managed, mutable> = new.zeroed Holder
-    v2: ref<fn(int32) => int32, managed, mutable> = field.address v1, 0
-    v3: fn(int32) => int32 = function.address double
-    store v2, v3
-    v4: fn(int32) => int32 = load v2
-    v5: int32 = call.indirect v4(v0): (int32) => int32
-    return v5
-}"#;
-
-    run_mir_expect(mir, "caller", &[Value::int32(21)], Value::int32(42));
-}
-
-/// Raw function environments can carry frame allocated structs.
-#[test]
-fn test_environment_raw_struct_on_stack() {
-    let mir = r#"
-type Env { value: int32, extra: int32 }
-
-@environment(ref<Env, raw, readonly, space(frame)>)
-function readEnv(): int32 {
-b0:
-    v0: ref<Env, raw, readonly, space(frame)> = function.environment.current
-    v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
-    v2: int32 = load v1
-    v3: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
-    v4: int32 = load v3
-    v5: int32 = int.add v2, v4
-    return v5
-}
-
-function caller(): int32 {
-b0:
-    v0: ref<Env, raw, mutable, space(frame)> = frame.alloc.zeroed Env
-    v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
-    v2: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
-    v3: int32 = 20int32
-    v4: int32 = 22int32
-    store v1, v3
-    store v2, v4
-    v5: ref<Env, raw, readonly, space(frame)> = cast.bit v0 -> ref<Env, raw, readonly, space(frame)>
-    v6: () => int32 = function.bind readEnv, v5
-    v7: int32 = call.indirect v6(): () => int32
-    return v7
-}"#;
-
-    run_mir_expect(mir, "caller", &[], Value::int32(42));
-}
-
-/// Function values can be stored in arrays and invoked later.
-#[test]
-fn test_environment_loaded_from_array() {
-    let mir = r#"
-type Env { value: int32 }
-type Reader = () => int32;
-@environment(ref<Env, managed, mutable>)
-function readEnv(): int32 {
-b0:
-    v0: ref<Env, managed, mutable> = function.environment.current
-    v1: ref<int32, managed, mutable> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
-}
-
-function makeEnv(v0: int32): ref<Env, managed, mutable> {
-b0(v0: int32):
-    v1: ref<Env, managed, mutable> = new.zeroed Env
-    v2: ref<int32, managed, mutable> = field.address v1, 0
-    store v2, v0
-    return v1
-}
-
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: ref<Env, managed, mutable> = call makeEnv(v0): (int32) => ref<Env, managed, mutable>
-    v2: Reader = function.bind readEnv, v1
-    v3: [Reader; 1] = aggregate (v2)
-    v4: Reader = field.get v3, 0
-    v5: int32 = call.indirect v4(): () => int32
-    return v5
-}"#;
-
-    run_mir_expect(mir, "caller", &[Value::int32(8)], Value::int32(8));
+    assert_eq!(
+        value,
+        vec![
+            environment,
+            environment,
+            Word::int32(73),
+            identity,
+            Word::int32(73),
+            Word::int32(73)
+        ]
+    );
 }

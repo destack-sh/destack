@@ -1,7 +1,19 @@
 mod anchor;
+mod binding;
 mod error;
-mod runtime;
+mod instruction;
+mod machine;
+mod panic;
+mod reason;
+mod resource;
+mod trap;
 
-pub use anchor::{DiagnosticAnchor, StackTraceFrame};
-pub use error::{Error, ImportError, ProgramError, ReferenceKind, ResourceError, Trap};
-pub use runtime::{Result, RuntimeError, RuntimeResult};
+pub use anchor::*;
+pub use binding::*;
+pub use error::*;
+pub use instruction::*;
+pub use machine::*;
+pub use panic::*;
+pub use reason::*;
+pub use resource::*;
+pub use trap::*;

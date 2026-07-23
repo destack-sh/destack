@@ -1,16 +1,19 @@
-mod arithmetic;
-mod block;
+mod aggregate;
+mod allocation;
 mod call;
-mod cast;
-mod coroutine;
+mod continuation;
+mod control;
+mod dynamic;
+mod float;
 mod function;
-mod gc;
-mod global;
-mod intrinsic;
+mod integer;
 mod memory;
 mod profile;
+mod slice;
+mod stop;
 mod tensor;
 mod tests;
+mod value;
 mod vector;
 
-pub(crate) use tests::*;
+pub(crate) use tests::{TestMachine, TestProgram};
