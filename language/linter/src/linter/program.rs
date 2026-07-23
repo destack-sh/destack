@@ -158,7 +158,7 @@ impl Linter {
         // collect the target module graph
         let graph_key = ArtifactKey::component_graph(profile);
         for root in &roots {
-            dependencies.project(graph_key, ComponentGraphProjection::ComponentOf(*root));
+            dependencies.project(graph_key, ComponentGraphProjection::Component(*root));
         }
 
         // resolve the projected components before declaring program inputs
@@ -230,7 +230,7 @@ impl Linter {
 
             // project components introduced by compiler globals
             for root in environment.globals.iter().copied() {
-                dependencies.project(graph_key, ComponentGraphProjection::ComponentOf(root));
+                dependencies.project(graph_key, ComponentGraphProjection::Component(root));
             }
             let dir_components = LintProgram::reachable_components(&graph, &graph_roots)?;
             let mut modules = Vec::new();

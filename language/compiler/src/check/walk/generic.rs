@@ -184,8 +184,14 @@ impl CheckState<'_> {
                 continue;
             }
 
+            // derive the site from the hole's origin: the elided position
+            let origin = self.solver.origin(self.solver.variable(variable)?.origin);
+            let site = self
+                .origin_source_node(origin)?
+                .into_global(origin.module());
+
             let template = self.open_generic_template(declaration, parent, symbol)?;
-            let parameter = self.push_induced_memory_parameter(template, role)?;
+            let parameter = self.push_induced_memory_parameter(template, site, role)?;
             let solution =
                 self.intern_type(declaration.module_id, dir::Type::Parameter(parameter))?;
             self.commit_solution(variable, solution)?;

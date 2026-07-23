@@ -51,6 +51,11 @@ impl Compiler {
             ArtifactKey::DirResolved { module, profile } => {
                 self.collect_dir_resolved(module, profile, context)
             }
+            ArtifactKey::DirDeclared {
+                entry,
+                component,
+                profile,
+            } => self.collect_dir_declared(entry, component, profile, context),
             ArtifactKey::DirCheckedComponent {
                 entry,
                 component,
@@ -166,6 +171,11 @@ impl Compiler {
             ArtifactKey::DirResolved { module, profile } => {
                 self.provide_dir_resolved(module, profile, context)
             }
+            ArtifactKey::DirDeclared {
+                entry,
+                component,
+                profile,
+            } => self.provide_dir_declared(entry, component, profile, context),
             ArtifactKey::DirCheckedComponent {
                 entry,
                 component,

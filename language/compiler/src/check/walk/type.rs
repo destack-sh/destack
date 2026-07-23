@@ -1408,6 +1408,7 @@ impl WalkState<'_, '_> {
                 )?;
                 self.check.push_generic_parameter(
                     template,
+                    parameter.into_global_any(self.module),
                     Some(symbol),
                     dir::GenericParameterKey::Symbol(symbol),
                     None,

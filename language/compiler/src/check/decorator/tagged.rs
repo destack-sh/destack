@@ -319,6 +319,14 @@ impl CheckState<'_> {
                     message: format!("tagged owner {owner:?} has no member scope"),
                 });
             };
+
+            // reuse the variant symbol the declared environment synthesized
+            if let dir::SymbolLookup::Found(symbol) =
+                bindings.lookup_key_member(owner.local_id, key)
+                && bindings.get_symbol(symbol).kind == dir::SymbolKind::Variant
+            {
+                return Ok(symbol.into_global(module));
+            }
             let scope_value = bindings.get_scope(scope).clone();
 
             (scope, scope_value)

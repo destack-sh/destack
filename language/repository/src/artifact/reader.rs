@@ -3,10 +3,10 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection, ArtifactProjectionKey,
     ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
-    DirCheckedComponent, DirCheckedModule, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered,
-    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageGraph, Product,
-    ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    DirCheckedComponent, DirCheckedModule, DirDeclared, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated,
+    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex,
+    Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -197,6 +197,32 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
+    /// Read one declared DIR environment artifact.
+    pub fn dir_declared(
+        &self,
+        entry: ModuleId,
+        component: ComponentId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirDeclared>, ProviderError> {
+        self.read(
+            ArtifactKey::dir_declared(entry, component, profile),
+            ArtifactTable::dir_declared,
+        )
+    }
+
+    /// Read one checked DIR component artifact.
+    pub fn dir_checked_component(
+        &self,
+        entry: ModuleId,
+        component: ComponentId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirCheckedComponent>, ProviderError> {
+        self.read(
+            ArtifactKey::dir_checked_component(entry, component, profile),
+            ArtifactTable::dir_checked_component,
+        )
+    }
+
     /// Read one checked DIR artifact.
     pub fn dir_checked(
         &self,
@@ -232,19 +258,6 @@ impl<'a> ArtifactReader<'a> {
         })?;
 
         Ok(Arc::new(entry.checked.clone()))
-    }
-
-    /// Read one checked DIR component artifact.
-    pub fn dir_checked_component(
-        &self,
-        entry: ModuleId,
-        component: ComponentId,
-        profile: ProfileId,
-    ) -> Result<Arc<DirCheckedComponent>, ProviderError> {
-        self.read(
-            ArtifactKey::dir_checked_component(entry, component, profile),
-            ArtifactTable::dir_checked_component,
-        )
     }
 
     /// Read one materialized DIR artifact.

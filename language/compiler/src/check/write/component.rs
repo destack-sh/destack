@@ -11,12 +11,12 @@ impl CheckState<'_> {
     pub(in crate::check) fn write(
         mut self,
     ) -> CompilerResult<(Vec<DirCheckedComponentEntry>, DiagnosticCollection)> {
-        // write inferred members only; interface members write in their own component
+        // seal every member in the environment, inferred members in units
         let modules = self
             .modules
             .keys()
             .copied()
-            .filter(|module| self.infers_module(*module))
+            .filter(|module| self.is_environment() || self.infers_module(*module))
             .collect::<Vec<_>>();
         let failed_applications = self.failed_generic_applications()?;
         for module in modules.iter().copied() {

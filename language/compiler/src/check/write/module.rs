@@ -143,6 +143,9 @@ impl CheckState<'_> {
             for interface in dir::AutoInterface::REPRESENTATION {
                 let holds = match self.satisfies_auto_interface(origin, target, interface)? {
                     Answer::Ready(holds) => holds,
+                    // leave conformance over unsolved body-inferred
+                    //  members to the owning unit
+                    Answer::Pending(_) if self.is_environment() => continue,
                     Answer::Pending(_) => {
                         return Err(CompilerError::Internal {
                             message: format!(
@@ -267,6 +270,11 @@ impl CheckState<'_> {
         let mut resolved = Vec::with_capacity(node_types.len());
         for (node, ty) in node_types {
             let ty = self.settled_root(ty)?;
+
+            // omit rows the environment cannot settle without bodies
+            if self.is_environment() && self.type_flags(ty)?.has_variable() {
+                continue;
+            }
             let ty = self.seal_type(ty, failed_applications, sealed)?;
             resolved.push((node, ty));
         }
@@ -322,7 +330,26 @@ impl CheckState<'_> {
         let mut resolved = Vec::with_capacity(symbol_types.len());
         for (symbol, ty) in symbol_types {
             let ty = self.settled_root(ty)?;
+
+            // omit rows the environment cannot settle without bodies
+            if self.is_environment() && self.type_flags(ty)?.has_variable() {
+                continue;
+            }
             let ty = self.seal_type(ty, failed_applications, sealed)?;
+
+            // require re-derivations to land on the declared environment's sealed type
+            let previous = self.module(module).types_tail.get_symbol_type_id(symbol);
+            if let Some(previous) = previous
+                && previous != ty
+            {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "declared symbol {symbol:?} resealed to a different type: {} was {}",
+                        self.format_type(ty),
+                        self.format_type(previous),
+                    ),
+                });
+            }
             resolved.push((symbol, ty));
         }
 
@@ -450,11 +477,13 @@ impl CheckState<'_> {
                     self.seal_type(solution, failed_applications, sealed)?
                 }
                 None => {
-                    // written unsolved variables in clean modules are missed checks
+                    // report written unsolved variables in clean modules as
+                    //  missed checks; the environment leaves them to the unit
                     let origin = self.solver.variable(variable)?.origin;
                     let origin = self.solver.origin(origin);
                     let module = origin.module();
-                    if self.is_component_module(module)
+                    if !self.is_environment()
+                        && self.is_component_module(module)
                         && self.module(module).diagnostics.is_empty()
                     {
                         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;

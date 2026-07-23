@@ -34,7 +34,8 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        let previous = self
+        // let the first persisted application for this owner win
+        let first = self
             .module(module)
             .decorators
             .iter_applications()
@@ -50,7 +51,7 @@ impl CheckState<'_> {
                     )
             })
             .map(|application| application.source);
-        if let Some(previous) = previous {
+        if let Some(previous) = first.filter(|first| *first != decorator) {
             let anchor = self.diagnostic_anchor(module, source.local_id);
             let error = CheckError::DuplicateRepresentationDecorator { anchor, module };
             let previous = self.diagnostic_anchor(module, previous.local_id.into_any());

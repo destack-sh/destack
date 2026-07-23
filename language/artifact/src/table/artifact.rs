@@ -12,10 +12,10 @@ use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactProjection,
     ArtifactProjectionFingerprint, ArtifactRecord, ArtifactVersion, Asset, Build, Bundle,
-    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
-    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageGraph, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclared, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
+    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
+    Object, PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 
 macro_rules! artifact_getter {
@@ -307,6 +307,7 @@ impl ArtifactTable {
     artifact_getter!(dir_expanded, DirExpanded, DirExpanded);
     artifact_getter!(dir_exported, DirExported, DirExported);
     artifact_getter!(dir_resolved, DirResolved, DirResolved);
+    artifact_getter!(dir_declared, DirDeclared, DirDeclared);
     artifact_getter!(
         dir_checked_component,
         DirCheckedComponent,

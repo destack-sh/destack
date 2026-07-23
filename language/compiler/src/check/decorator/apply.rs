@@ -56,18 +56,26 @@ impl CheckState<'_> {
             }
         }
 
-        // persist the decorator application and value
-        let value = self.module_mut(module).statics.push_static(value);
-        let application = dir::DecoratorApplication {
-            source,
-            owner: application.owner,
-            expression: application.expression.target.into_global(module),
-            resolution,
-            value: value.into_global(module),
-        };
-        self.module_mut(module)
+        // persist the decorator application and value, reusing the row the
+        //  declared environment sealed for this decorator
+        let sealed = self
+            .module(module)
             .decorators
-            .insert_application(application);
+            .iter_applications()
+            .any(|(_, sealed)| sealed.source == source);
+        if !sealed {
+            let value = self.module_mut(module).statics.push_static(value);
+            let application = dir::DecoratorApplication {
+                source,
+                owner: application.owner,
+                expression: application.expression.target.into_global(module),
+                resolution,
+                value: value.into_global(module),
+            };
+            self.module_mut(module)
+                .decorators
+                .insert_application(application);
+        }
 
         Ok(())
     }

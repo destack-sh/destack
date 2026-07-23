@@ -6,10 +6,10 @@ use destack_source::ContentId;
 
 use crate::{
     ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle,
-    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
-    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageGraph, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclared, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
+    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
+    Object, PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +38,8 @@ pub enum ArtifactPayload {
     DirExported(Arc<DirExported>),
     /// Resolved DIR imports.
     DirResolved(Arc<DirResolved>),
+    /// Declared DIR environment.
+    DirDeclared(Arc<DirDeclared>),
     /// Checked DIR component.
     DirCheckedComponent(Arc<DirCheckedComponent>),
     /// Checked DIR facade.
@@ -103,6 +105,8 @@ pub enum ArtifactPayloadRef<'a> {
     DirExported(&'a DirExported),
     /// Resolved DIR imports.
     DirResolved(&'a DirResolved),
+    /// Declared DIR environment.
+    DirDeclared(&'a DirDeclared),
     /// Checked DIR component.
     DirCheckedComponent(&'a DirCheckedComponent),
     /// Checked DIR facade.
@@ -180,6 +184,10 @@ impl ArtifactPayload {
                     ArtifactPayload::DirResolved(_)
                 )
                 | (
+                    ArtifactKey::DirDeclared { .. },
+                    ArtifactPayload::DirDeclared(_)
+                )
+                | (
                     ArtifactKey::DirCheckedComponent { .. },
                     ArtifactPayload::DirCheckedComponent(_)
                 )
@@ -253,6 +261,7 @@ impl ArtifactPayload {
             Self::DirExpanded(payload) => ArtifactPayloadRef::DirExpanded(payload.as_ref()),
             Self::DirExported(payload) => ArtifactPayloadRef::DirExported(payload.as_ref()),
             Self::DirResolved(payload) => ArtifactPayloadRef::DirResolved(payload.as_ref()),
+            Self::DirDeclared(payload) => ArtifactPayloadRef::DirDeclared(payload.as_ref()),
             Self::DirCheckedComponent(payload) => {
                 ArtifactPayloadRef::DirCheckedComponent(payload.as_ref())
             }
@@ -286,8 +295,8 @@ impl ArtifactPayload {
             (Self::ComponentGraph(payload), ArtifactProjectionKey::ComponentGraph(projection)) => {
                 Some(payload.projection_fingerprint(projection))
             }
-            (Self::PackageGraph(payload), ArtifactProjectionKey::PackageGraph(projection)) => {
-                Some(payload.projection_fingerprint(projection))
+            (Self::DirDeclared(payload), ArtifactProjectionKey::DirChecked(module)) => {
+                payload.module(module).map(|entry| entry.fingerprint)
             }
             (Self::DirCheckedComponent(payload), ArtifactProjectionKey::DirChecked(module)) => {
                 payload.module(module).map(|entry| entry.fingerprint)
@@ -313,6 +322,7 @@ impl ArtifactPayload {
             Self::DirExpanded(_) => "dir_expanded",
             Self::DirExported(_) => "dir_exported",
             Self::DirResolved(_) => "dir_resolved",
+            Self::DirDeclared(_) => "dir_declared",
             Self::DirCheckedComponent(_) => "dir_checked_component",
             Self::DirChecked(_) => "dir_checked",
             Self::DirMaterialized(_) => "dir_materialized",
@@ -423,6 +433,13 @@ impl From<DirResolved> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirResolved) -> Self {
         Self::DirResolved(Arc::new(payload))
+    }
+}
+
+impl From<DirDeclared> for ArtifactPayload {
+    /// Wrap one declared DIR environment payload.
+    fn from(payload: DirDeclared) -> Self {
+        Self::DirDeclared(Arc::new(payload))
     }
 }
 

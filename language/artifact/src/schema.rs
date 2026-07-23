@@ -4,12 +4,12 @@ use crate::{
     ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
     ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
     BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, DirBound,
-    DirChecked, DirCheckedComponent, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host, LanguageEnvironment,
-    LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageGraph, Platform, Product,
-    ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody,
-    ScriptLanguage, SourceMap,
+    DirChecked, DirCheckedComponent, DirDeclared, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
+    LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized,
+    MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex,
+    Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime,
+    Script, ScriptBody, ScriptLanguage, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -49,6 +49,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<DirExpanded>();
     registry.register::<DirExported>();
     registry.register::<DirResolved>();
+    registry.register::<DirDeclared>();
     registry.register::<DirCheckedComponent>();
     registry.register::<DirChecked>();
     registry.register::<DirMaterialized>();

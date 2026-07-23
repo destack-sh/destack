@@ -193,6 +193,8 @@ pub struct DirResolved {
     pub imports: dir::ImportTable,
     /// Resolved source references.
     pub references: dir::ReferenceTable,
+    /// Resolved exported extensions.
+    pub extensions: dir::ExtensionTable,
 }
 
 impl DirResolved {
@@ -256,6 +258,22 @@ pub struct DirCheckedModule {
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
+}
+
+/// Declared DIR environment for one reference component.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct DirDeclared {
+    /// The declared component id.
+    pub component: ComponentId,
+    /// The declared module outputs in stable module order.
+    pub modules: Vec<DirCheckedComponentEntry>,
+}
+
+impl DirDeclared {
+    /// Return declared output for one module in this component.
+    pub fn module(&self, module: ModuleId) -> Option<&DirCheckedComponentEntry> {
+        self.modules.iter().find(|entry| entry.module == module)
+    }
 }
 
 /// Facade artifact for one module checked inside a component.

@@ -7,6 +7,8 @@ use std::sync::Arc;
 use destack_serde::Reflect;
 use destack_source::{ComponentId, ModuleId, ProfileId};
 
+use destack_dir::GlobalSymbolId;
+
 use crate::{ArtifactProjectionFingerprint, ComponentGraphProjection};
 
 /// Dense module dependency graph for one profile.
@@ -26,17 +28,13 @@ pub struct ComponentGraph {
     /// The dense module graph being partitioned.
     module_graph: ModuleGraph,
     /// Module edges that couple checking through inference.
-    coupling_edges: Arc<[Arc<[u32]>]>,
-    /// Per-module owning component.
-    component_of: Arc<[ComponentId]>,
+    coupling_graph: ModuleGraph,
     /// Components sorted by stable id.
     components: Arc<[ComponentId]>,
     /// Per-component member start offsets into `member_modules`.
     member_offsets: Arc<[u32]>,
     /// Component members as module ids.
     member_modules: Arc<[ModuleId]>,
-    /// Component members as dense module indexes.
-    member_indexes: Arc<[u32]>,
     /// Per-module dense component index.
     module_components: Arc<[u32]>,
     /// Per-component topological rank in the condensation graph.
@@ -51,6 +49,19 @@ pub struct ComponentGraph {
     inference_member_offsets: Arc<[u32]>,
     /// Inference component members as module ids.
     inference_member_modules: Arc<[ModuleId]>,
+    /// Cross-component inherent extensions resolved across the graph's modules.
+    inherent: Arc<[InherentExtension]>,
+    /// The extension components and their transitive dependencies, sorted.
+    inherent_closure: Arc<[ComponentId]>,
+}
+
+/// One exported extension of a target declared in its own package.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct InherentExtension {
+    /// The extension symbol.
+    pub symbol: GlobalSymbolId,
+    /// The module declaring the extended target root.
+    pub target: ModuleId,
 }
 
 impl ModuleGraph {
@@ -242,11 +253,14 @@ impl ComponentGraph {
         profile: ProfileId,
         edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
         coupling_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
+        extensions: Vec<InherentExtension>,
     ) -> Self {
         let module_graph = ModuleGraph::from_edges(profile, edges);
-        let coupling_edges = module_graph.index_edges(&coupling_edges);
+        let coupling_graph = ModuleGraph::from_edges(profile, coupling_edges);
+        let mut graph = Self::build(module_graph, coupling_graph);
+        graph.set_inherent_extensions(extensions);
 
-        Self::build(module_graph, coupling_edges)
+        graph
     }
 
     /// Derive a component graph after changing edges and removing modules.
@@ -255,26 +269,32 @@ impl ComponentGraph {
         updated_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
         removed_modules: Vec<ModuleId>,
         coupling_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
+        extensions: Vec<InherentExtension>,
     ) -> Self {
-        // keep unchanged reference graphs by identity
-        if updated_edges.is_empty() && removed_modules.is_empty() {
-            let coupling_edges = self.module_graph.index_edges(&coupling_edges);
+        let coupling_graph = ModuleGraph::from_edges(self.module_graph.profile, coupling_edges);
 
-            return self.with_coupling_edges(coupling_edges);
+        // keep the reference partition when no reference edges changed
+        let mut graph = if updated_edges.is_empty() && removed_modules.is_empty() {
+            self.with_coupling_graph(coupling_graph)
         }
+        // keep the membership when changed edges provably preserve it
+        else if let Some(changed_components) =
+            self.changed_dependency_components(&updated_edges, &removed_modules)
+        {
+            let module_graph = self.module_graph.derive(updated_edges, removed_modules);
 
-        let changed_components =
-            self.changed_dependency_components(&updated_edges, &removed_modules);
-        let module_graph = self.module_graph.derive(updated_edges, removed_modules);
-        let coupling_edges = module_graph.index_edges(&coupling_edges);
-
-        if let Some(changed_components) = changed_components {
-            return self
-                .with_module_graph(module_graph, &changed_components)
-                .with_coupling_edges(coupling_edges);
+            self.with_module_graph(module_graph, &changed_components)
+                .with_coupling_graph(coupling_graph)
         }
+        // repartition from the derived module graph
+        else {
+            let module_graph = self.module_graph.derive(updated_edges, removed_modules);
 
-        Self::build(module_graph, coupling_edges)
+            Self::build(module_graph, coupling_graph)
+        };
+        graph.set_inherent_extensions(extensions);
+
+        graph
     }
 
     /// Return outgoing module edges for one module.
@@ -301,7 +321,7 @@ impl ComponentGraph {
     pub fn component(&self, module: ModuleId) -> Option<ComponentId> {
         let index = self.module_graph.module_index(module)?;
 
-        Some(self.component_of[index])
+        Some(self.components[self.module_components[index] as usize])
     }
 
     /// Return the member modules of one component.
@@ -351,6 +371,52 @@ impl ComponentGraph {
     /// Return the entry module of one inference component.
     pub fn inference_entry(&self, unit: ComponentId) -> Option<ModuleId> {
         self.inference_members(unit).first().copied()
+    }
+
+    /// Return the inference components of one reference component in member order.
+    pub fn inference_components(&self, component: ComponentId) -> Vec<ComponentId> {
+        let mut units = Vec::new();
+
+        for module in self.members(component) {
+            let Some(unit) = self.inference_component(*module) else {
+                continue;
+            };
+            if !units.contains(&unit) {
+                units.push(unit);
+            }
+        }
+
+        units
+    }
+
+    /// Return the upstream inference components one unit couples to in its reference component.
+    pub fn inference_dependencies(&self, unit: ComponentId) -> Vec<ComponentId> {
+        let Some(component) = self
+            .inference_entry(unit)
+            .and_then(|entry| self.component(entry))
+        else {
+            return Vec::new();
+        };
+        let mut upstream = Vec::new();
+
+        // follow coupling edges into sibling units inside the same reference component
+        for module in self.inference_members(unit) {
+            for target in self.coupling_graph.edges(*module).iter() {
+                let Some(target_unit) = self.inference_component(*target) else {
+                    continue;
+                };
+                if target_unit == unit || self.component(*target) != Some(component) {
+                    continue;
+                }
+                if !upstream.contains(&target_unit) {
+                    upstream.push(target_unit);
+                }
+            }
+        }
+
+        upstream.sort_unstable();
+
+        upstream
     }
 
     /// Return the reference component and inference entry containing one module.
@@ -408,16 +474,67 @@ impl ComponentGraph {
         dependencies
     }
 
+    /// Return whether one extension loads across components.
+    ///
+    /// Same-component extensions load with their target through plain
+    /// dependencies, so only cross-component rows stay on the graph.
+    fn is_cross_component(&self, extension: &InherentExtension) -> bool {
+        self.component(extension.symbol.module_id) != self.component(extension.target)
+    }
+
+    /// Attach the cross-component inherent extensions and close their components.
+    fn set_inherent_extensions(&mut self, mut extensions: Vec<InherentExtension>) {
+        extensions.retain(|extension| self.is_cross_component(extension));
+
+        // close over the components the extensions build from
+        let mut closure = FxHashSet::default();
+        let mut sources = FxHashSet::default();
+        for extension in &extensions {
+            let Some(component) = self.component(extension.symbol.module_id) else {
+                continue;
+            };
+            if !sources.insert(component) {
+                continue;
+            }
+            closure.insert(component);
+            closure.extend(self.transitive_dependencies(component));
+        }
+        let mut closure = closure.into_iter().collect::<Vec<_>>();
+        closure.sort_unstable();
+
+        self.inherent = Arc::from(extensions);
+        self.inherent_closure = Arc::from(closure);
+    }
+
+    /// Return whether one unfiltered extension list matches the attached rows.
+    pub fn inherent_extensions_equal(&self, extensions: &[InherentExtension]) -> bool {
+        let retained = extensions
+            .iter()
+            .filter(|extension| self.is_cross_component(extension));
+
+        retained.eq(self.inherent.iter())
+    }
+
+    /// Return the cross-component inherent extensions.
+    pub fn inherent_extensions(&self) -> &[InherentExtension] {
+        &self.inherent
+    }
+
+    /// Return whether one component builds into the inherent extensions.
+    pub fn inherent_closure_contains(&self, component: ComponentId) -> bool {
+        self.inherent_closure.binary_search(&component).is_ok()
+    }
+
     /// Return the stable fingerprint of one projected component graph value.
     pub fn projection_fingerprint(
         &self,
         projection: ComponentGraphProjection,
     ) -> ArtifactProjectionFingerprint {
         match projection {
-            ComponentGraphProjection::ComponentOf(module) => {
+            ComponentGraphProjection::Component(module) => {
                 ArtifactProjectionFingerprint::new(&self.component(module))
             }
-            ComponentGraphProjection::ComponentEntryOf(module) => {
+            ComponentGraphProjection::InferenceEntry(module) => {
                 ArtifactProjectionFingerprint::new(&self.inference_component_entry(module))
             }
             ComponentGraphProjection::Members(component) => {
@@ -425,6 +542,15 @@ impl ComponentGraph {
             }
             ComponentGraphProjection::Dependencies(component) => {
                 ArtifactProjectionFingerprint::new(&self.dependencies(component))
+            }
+            ComponentGraphProjection::InferenceMembers(unit) => {
+                ArtifactProjectionFingerprint::new(&self.inference_members(unit))
+            }
+            ComponentGraphProjection::InferenceDependencies(unit) => {
+                ArtifactProjectionFingerprint::new(&self.inference_dependencies(unit))
+            }
+            ComponentGraphProjection::InherentExtensions => {
+                ArtifactProjectionFingerprint::new(&self.inherent.as_ref())
             }
         }
     }
@@ -445,12 +571,10 @@ impl ComponentGraph {
 
         Self {
             module_graph,
-            coupling_edges,
-            component_of: Arc::from(components.component_of),
+            coupling_graph,
             components: Arc::from(components.ids),
             member_offsets: Arc::from(components.member_offsets),
             member_modules: Arc::from(components.member_modules),
-            member_indexes: Arc::from(components.member_indexes),
             module_components: Arc::from(components.module_components),
             component_ranks: Arc::from(dependencies.ranks),
             dependencies: Arc::from(dependencies.targets),
@@ -458,6 +582,8 @@ impl ComponentGraph {
             inference_ids: Arc::from(settle.ids),
             inference_member_offsets: Arc::from(settle.member_offsets),
             inference_member_modules: Arc::from(settle.member_modules),
+            inherent: Arc::from([]),
+            inherent_closure: Arc::from([]),
         }
     }
 
@@ -490,12 +616,10 @@ impl ComponentGraph {
 
         Self {
             module_graph,
-            coupling_edges: self.coupling_edges.clone(),
-            component_of: self.component_of.clone(),
+            coupling_graph: self.coupling_graph.clone(),
             components: self.components.clone(),
             member_offsets: self.member_offsets.clone(),
             member_modules: self.member_modules.clone(),
-            member_indexes: self.member_indexes.clone(),
             module_components: self.module_components.clone(),
             component_ranks: self.component_ranks.clone(),
             dependencies: Arc::from(dependencies),
@@ -503,6 +627,8 @@ impl ComponentGraph {
             inference_ids: self.inference_ids.clone(),
             inference_member_offsets: self.inference_member_offsets.clone(),
             inference_member_modules: self.inference_member_modules.clone(),
+            inherent: self.inherent.clone(),
+            inherent_closure: self.inherent_closure.clone(),
         }
     }
 
@@ -572,8 +698,11 @@ impl ComponentGraph {
             self.member_offsets[component] as usize..self.member_offsets[component + 1] as usize;
 
         // collect external component dependencies through member module edges
-        for module in &self.member_indexes[member_range] {
-            for target in module_graph.edge_targets(*module as usize) {
+        for module in &self.member_modules[member_range] {
+            let module = module_graph
+                .module_index(*module)
+                .expect("component member is in the module graph");
+            for target in module_graph.edge_targets(module) {
                 let target = self.module_components[*target as usize] as usize;
                 if target != component {
                     dependencies.push(target as u32);
@@ -1088,7 +1217,10 @@ mod tests {
 
         let component = graph.component(first).expect("component should exist");
         assert_eq!(graph.component(second), Some(component));
-        assert_ne!(graph.inference_component(first), graph.inference_component(second));
+        assert_ne!(
+            graph.inference_component(first),
+            graph.inference_component(second)
+        );
         assert_eq!(
             graph.inference_component_entry(first),
             Some((component, first))
@@ -1110,7 +1242,9 @@ mod tests {
         let coupling = graph_edges(&[(first, &[second]), (second, &[first]), (third, &[])]);
         let graph = ComponentGraph::from_edges(profile(), edges, coupling);
 
-        let unit = graph.inference_component(first).expect("settle unit should exist");
+        let unit = graph
+            .inference_component(first)
+            .expect("settle unit should exist");
         assert_eq!(graph.inference_component(second), Some(unit));
         assert_eq!(graph.inference_members(unit), &[first, second]);
         assert_eq!(graph.inference_entry(unit), Some(first));
@@ -1125,12 +1259,18 @@ mod tests {
         // coupling the cycle joins the inference components without touching references
         let edges = graph_edges(&[(first, &[second]), (second, &[first])]);
         let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges));
-        assert_ne!(graph.inference_component(first), graph.inference_component(second));
+        assert_ne!(
+            graph.inference_component(first),
+            graph.inference_component(second)
+        );
 
         let derived = graph.derive(IndexMap::new(), Vec::new(), edges);
 
         assert_eq!(derived.component(first), graph.component(first));
-        assert_eq!(derived.inference_component(first), derived.inference_component(second));
+        assert_eq!(
+            derived.inference_component(first),
+            derived.inference_component(second)
+        );
     }
 
     #[test]

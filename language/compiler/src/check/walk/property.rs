@@ -2,8 +2,8 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    CauseKind, FlowBranch, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
-    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    BodyForm, CauseKind, FlowBranch, FlowState, GenericTemplateId, InducedParameterOwner, Origin,
+    Receiver, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -171,7 +171,14 @@ impl WalkState<'_, '_> {
 
                 // walk method body after its result exists
                 if let (Some(symbol), Some(body), Some(result)) = (symbol, body, result) {
-                    self.walk_function_body(symbol, signature, body, result, None)?;
+                    self.walk_function_body(
+                        symbol,
+                        signature,
+                        body,
+                        result,
+                        None,
+                        BodyForm::Value,
+                    )?;
                 }
 
                 Ok(())
@@ -658,6 +665,7 @@ impl WalkState<'_, '_> {
                     body,
                     method_body.result,
                     method_body.receiver,
+                    BodyForm::Declaration,
                 )?;
 
                 if matches!(signature.role, Some(dir::FunctionRole::Constructor)) {
@@ -820,7 +828,14 @@ impl WalkState<'_, '_> {
 
                 // walk default method bodies
                 if let (Some(body), Some(result)) = (body, result) {
-                    self.walk_function_body(symbol, signature, body, result, None)?;
+                    self.walk_function_body(
+                        symbol,
+                        signature,
+                        body,
+                        result,
+                        None,
+                        BodyForm::Declaration,
+                    )?;
                 }
 
                 // classify how the member receives its implementation

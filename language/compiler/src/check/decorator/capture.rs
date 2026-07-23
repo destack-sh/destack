@@ -43,6 +43,16 @@ impl CheckState<'_> {
             return Ok(());
         };
         let directive = self.decode_capture_directive(value)?;
+        if !self.infers_module(module)
+            && !self
+                .module(module)
+                .captures
+                .iter()
+                .any(|capture| capture.symbol == function)
+        {
+            // leave declaration bodies to their owning unit, directives included
+            return Ok(());
+        }
         let capture = self
             .module_mut(module)
             .captures

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::GlobalEnvironment;
+use destack_artifact::{DirCheckedModule, DirDeclared, GlobalEnvironment};
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Environment, ProviderContext};
@@ -22,6 +22,20 @@ pub(in crate::check) struct CheckComponentKey {
     pub entry: ModuleId,
     /// The checked component id.
     pub component: ComponentId,
+}
+
+/// The artifact one external module's committed tables load from.
+///
+/// Members of upstream inference units and of external components load
+/// complete checked output; sibling members of the same reference component
+/// load the declared environment, since touching their inferred exports
+/// would have coupled them into this unit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum CheckExternalArtifact {
+    /// One inference unit's checked component artifact.
+    Checked(CheckComponentKey),
+    /// One reference component's declared environment artifact.
+    Declared(CheckComponentKey),
 }
 
 /// State for checking one resolved component.
@@ -51,8 +65,12 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) active_walks: FxIndexSet<ModuleId>,
     /// Whether every member template is declared and walked.
     pub(in crate::check) templates_ready: bool,
-    /// Checked component artifact containing each external module.
-    pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckComponentKey>,
+    /// Sealed artifact containing each external module's committed tables.
+    pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckExternalArtifact>,
+    /// Inherent extension modules awaiting their first extension lookup.
+    pub(in crate::check) inherent_externals: Option<FxIndexSet<ModuleId>>,
+    /// Inherent extension symbols carried by the component graph.
+    pub(in crate::check) inherent_extensions: Vec<dir::GlobalSymbolId>,
 
     // walk state
     /// Resolved decorators in component walk order.
@@ -135,7 +153,9 @@ impl<'a> CheckState<'a> {
         profile: ProfileId,
         global: Arc<GlobalEnvironment>,
         environment: Arc<Environment>,
-        external_components: FxIndexMap<ModuleId, CheckComponentKey>,
+        external_components: FxIndexMap<ModuleId, CheckExternalArtifact>,
+        inherent_externals: FxIndexSet<ModuleId>,
+        inherent_extensions: Vec<dir::GlobalSymbolId>,
         inference_modules: FxIndexSet<ModuleId>,
         emit_events: bool,
     ) -> Self {
@@ -152,6 +172,8 @@ impl<'a> CheckState<'a> {
             active_walks: FxIndexSet::default(),
             templates_ready: false,
             external_components,
+            inherent_externals: Some(inherent_externals),
+            inherent_extensions,
             decorators: Vec::new(),
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
@@ -184,11 +206,53 @@ impl<'a> CheckState<'a> {
         self.inference_modules.contains(&module)
     }
 
-    /// Load all modules in one check component.
-    pub(in crate::check) fn load(&mut self, modules: &[ModuleId]) -> CompilerResult<()> {
+    /// Return whether this check seals the declared environment.
+    pub(in crate::check) fn is_environment(&self) -> bool {
+        self.inference_modules.is_empty()
+    }
+
+    /// Check one loaded component: walk, propagate, decorate, settle.
+    pub(in crate::check) fn check(
+        &mut self,
+        modules: &[ModuleId],
+        declared: Option<&DirDeclared>,
+    ) -> CompilerResult<()> {
+        self.load(modules, declared)?;
+        self.walk()?;
+        self.propagate_induced_parameters()?;
+        self.check_decorators()?;
+
+        self.settle()
+    }
+
+    /// Load all modules in one check component over an optional declared environment.
+    pub(in crate::check) fn load(
+        &mut self,
+        modules: &[ModuleId],
+        declared: Option<&DirDeclared>,
+    ) -> CompilerResult<()> {
         // load modules in stable component order
         for module in modules {
-            self.load_module(*module)?;
+            let entry = declared
+                .map(|declared| {
+                    declared
+                        .module(*module)
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!(
+                                "declared environment {} misses module {module:?}",
+                                declared.component
+                            ),
+                        })
+                })
+                .transpose()?;
+            self.load_module(*module, entry.map(|entry| &entry.checked))?;
+        }
+
+        // index declared generic identities so re-derivations reuse their ids
+        if declared.is_some() {
+            for module in modules {
+                self.index_declared_generics(*module)?;
+            }
         }
 
         Ok(())
@@ -220,7 +284,11 @@ impl<'a> CheckState<'a> {
     }
 
     /// Load one module into component state.
-    fn load_module(&mut self, module_id: ModuleId) -> CompilerResult<()> {
+    fn load_module(
+        &mut self,
+        module_id: ModuleId,
+        declared: Option<&DirCheckedModule>,
+    ) -> CompilerResult<()> {
         if self.is_component_module(module_id) {
             return Ok(());
         }
@@ -257,6 +325,7 @@ impl<'a> CheckState<'a> {
             bound,
             resolved,
             Arc::clone(&expanded),
+            declared,
         );
 
         self.modules.insert(module_id, module);

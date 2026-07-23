@@ -1,7 +1,8 @@
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use std::sync::Arc;
 
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{CheckState, Origin, VariableRole};
@@ -44,6 +45,8 @@ pub(in crate::check) struct GenericIndex {
     templates_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericTemplateId>,
     /// Parameter ids keyed by parameter symbol.
     parameters_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericParameterId>,
+    /// Induced parameters already rebound to their sites this run.
+    claimed_induced: FxIndexSet<GenericParameterId>,
     /// Declaration types scanned for induced memory variables.
     induced_parameter_sites: Vec<InducedParameterSite>,
 }
@@ -55,6 +58,7 @@ impl GenericIndex {
             templates_by_source: FxIndexMap::default(),
             templates_by_symbol: FxIndexMap::default(),
             parameters_by_symbol: FxIndexMap::default(),
+            claimed_induced: FxIndexSet::default(),
             induced_parameter_sites: Vec::new(),
         }
     }
@@ -107,6 +111,39 @@ impl GenericIndex {
 }
 
 impl CheckState<'_> {
+    /// Index one module's declared generic identities for re-derivation.
+    pub(in crate::check) fn index_declared_generics(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        let segment = &self.module(module).generics;
+
+        // collect declared rows before touching index and symbol state
+        let mut templates = Vec::new();
+        let mut parameters = Vec::new();
+        for (local, template) in segment.iter_templates() {
+            templates.push((local.into_global(module), template.source, template.symbol));
+        }
+        for (local, binding) in segment.iter_parameters() {
+            if let dir::GenericParameterKey::Symbol(symbol) = binding.key {
+                parameters.push((local.into_global(module), symbol, binding.ty));
+            }
+        }
+
+        for (id, source, symbol) in templates {
+            self.generics.templates_by_source.insert(source, id);
+            if let Some(symbol) = symbol {
+                self.generics.templates_by_symbol.insert(symbol, id);
+            }
+        }
+        for (id, symbol, ty) in parameters {
+            self.generics.parameters_by_symbol.insert(symbol, id);
+            self.commit_declaration_type(symbol, ty)?;
+        }
+
+        Ok(())
+    }
+
     /// Return one symbol's generic template, reading the walk index
     /// over committed definitions.
     pub(in crate::check) fn symbol_template(
@@ -399,6 +436,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn push_generic_parameter(
         &mut self,
         template: GenericTemplateId,
+        source: dir::GlobalNodeIdAny,
         symbol: Option<dir::GlobalSymbolId>,
         key: dir::GenericParameterKey,
         variance: Option<dir::VarianceModifier>,
@@ -425,6 +463,7 @@ impl CheckState<'_> {
             .into_global(module);
         let binding = dir::GenericParameterBinding {
             template: template.local_id,
+            source,
             ty,
             key,
             variance,
@@ -504,6 +543,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn push_induced_memory_parameter(
         &mut self,
         template: GenericTemplateId,
+        site: dir::GlobalNodeIdAny,
         role: VariableRole,
     ) -> CompilerResult<GenericParameterId> {
         let VariableRole::Memory { kind, constraint } = role else {
@@ -511,6 +551,12 @@ impl CheckState<'_> {
                 message: "ordinary inference variable cannot become a memory parameter".into(),
             });
         };
+
+        // claim the parameter this site already induced, in this run or
+        //  in the declared environment
+        if let Some(parameter) = self.claim_induced_parameter(template, site, kind) {
+            return Ok(parameter);
+        }
 
         // generate a kind-shaped name from the template position
         let number = self
@@ -525,8 +571,9 @@ impl CheckState<'_> {
         };
         let name = self.strings().intern(&generated);
 
-        self.push_generic_parameter(
+        let parameter = self.push_generic_parameter(
             template,
+            site,
             None,
             dir::GenericParameterKey::Generated(name),
             None,
@@ -536,7 +583,35 @@ impl CheckState<'_> {
             dir::GenericParameterKind::Memory(kind),
             false,
             false,
-        )
+        )?;
+        self.generics.claimed_induced.insert(parameter);
+
+        Ok(parameter)
+    }
+
+    /// Claim the induced parameter one site owns on a template, once per hole.
+    fn claim_induced_parameter(
+        &mut self,
+        template: GenericTemplateId,
+        site: dir::GlobalNodeIdAny,
+        kind: dir::MemoryParameter,
+    ) -> Option<GenericParameterId> {
+        let parameters = self.generic_template_parameters(template);
+        for parameter in parameters {
+            let binding = self.generic_parameter(parameter)?;
+            if binding.origin != dir::GenericParameterOrigin::Induced
+                || binding.source != site
+                || binding.kind != dir::GenericParameterKind::Memory(kind)
+                || self.generics.claimed_induced.contains(&parameter)
+            {
+                continue;
+            }
+            self.generics.claimed_induced.insert(parameter);
+
+            return Some(parameter);
+        }
+
+        None
     }
 
     /// Return the first free tick name for one induced lifetime parameter.
@@ -638,7 +713,11 @@ impl CheckState<'_> {
                 message: format!("generic template {template:?} is not in its working segment"),
             });
         };
-        declared.predicates.push(predicate);
+
+        // skip predicates the declared environment already carries
+        if !declared.predicates.contains(&predicate) {
+            declared.predicates.push(predicate);
+        }
 
         Ok(())
     }

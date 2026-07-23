@@ -262,6 +262,8 @@ impl WherePredicate {
 pub struct GenericParameterBinding {
     /// The generic template that owns this parameter.
     pub template: LocalGenericTemplateId,
+    /// The source node that declares or induces this parameter.
+    pub source: GlobalNodeIdAny,
     /// The canonical type denoting this parameter.
     pub ty: GlobalTypeId,
     /// The parameter key.

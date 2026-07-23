@@ -195,19 +195,22 @@ impl CheckState<'_> {
         // report the failures while their bounds still show as open
         self.report_cannot_infer_origins(origins)?;
 
-        // close failed inference graphs with the compiler error type
-        let poisoned = !unresolved.is_empty();
-        for (variable, module) in unresolved {
-            if self.solver.variable(variable)?.solution.is_some() {
-                continue;
+        // close failed inference graphs with the compiler error type;
+        //  leave them open in the environment for the owning units
+        if !self.is_environment() {
+            let poisoned = !unresolved.is_empty();
+            for (variable, module) in unresolved {
+                if self.solver.variable(variable)?.solution.is_some() {
+                    continue;
+                }
+                let error = self.intern_type(module, dir::Type::Error)?;
+                self.commit_solution(variable, error)?;
             }
-            let error = self.intern_type(module, dir::Type::Error)?;
-            self.commit_solution(variable, error)?;
-        }
 
-        // poisoned graphs complete their parked tasks against the error
-        if poisoned {
-            self.drain()?;
+            // poisoned graphs complete their parked tasks against the error
+            if poisoned {
+                self.drain()?;
+            }
         }
 
         // retain unresolved symbol dependencies from parked tasks

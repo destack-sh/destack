@@ -52,6 +52,7 @@ impl WalkState<'_, '_> {
         };
         let parameter = self.check.push_generic_parameter(
             template,
+            id.into_global_any(self.module),
             Some(symbol),
             dir::GenericParameterKey::Symbol(symbol),
             variance,

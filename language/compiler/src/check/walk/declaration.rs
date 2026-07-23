@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, CauseKind, CheckError, CheckState, ClassInitializationObligation,
+    Answer, BodyForm, CauseKind, CheckError, CheckState, ClassInitializationObligation,
     DeclarationHeritageObligation, ExtensionConformanceObligation, FlowBranch, FunctionHeader,
     GenericTemplateId, ImplementationCoherenceObligation, InducedParameterOwner, Obligation,
     Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
@@ -490,6 +490,14 @@ impl WalkState<'_, '_> {
             })
         } else {
             self.bind_symbol_type(symbol, value)?;
+
+            // record the written template only: elided lifetimes in alias
+            //  values quantify universally, never as consumer arity
+            let template = if declaration.generic_parameters.is_empty() {
+                None
+            } else {
+                template
+            };
 
             dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),
@@ -1434,7 +1442,12 @@ impl WalkState<'_, '_> {
                 }
                 _ => None,
             };
-            self.walk_function_body(symbol, &declaration.signature, body, result, receiver)?;
+            let form = if is_function_value {
+                BodyForm::Value
+            } else {
+                BodyForm::Declaration
+            };
+            self.walk_function_body(symbol, &declaration.signature, body, result, receiver, form)?;
         }
 
         Ok(())

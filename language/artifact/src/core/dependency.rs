@@ -118,13 +118,19 @@ impl ArtifactProjectionFingerprint {
 )]
 pub enum ComponentGraphProjection {
     /// The component containing one module.
-    ComponentOf(ModuleId),
-    /// The component and entry containing one module.
-    ComponentEntryOf(ModuleId),
+    Component(ModuleId),
+    /// The inference component and entry containing one module.
+    InferenceEntry(ModuleId),
     /// The sorted modules belonging to one component.
     Members(ComponentId),
     /// The direct external components one component depends on.
     Dependencies(ComponentId),
+    /// The member modules of one inference component.
+    InferenceMembers(ComponentId),
+    /// The upstream inference components one inference component couples to.
+    InferenceDependencies(ComponentId),
+    /// The inherent extensions resolved across the graph's modules.
+    InherentExtensions,
 }
 
 /// One observable projection of a package graph artifact.

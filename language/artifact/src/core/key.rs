@@ -68,6 +68,12 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
+    /// Declared DIR environment.
+    DirDeclared {
+        entry: ModuleId,
+        component: ComponentId,
+        profile: ProfileId,
+    },
     /// Checked DIR component.
     DirCheckedComponent {
         entry: ModuleId,
@@ -238,6 +244,7 @@ impl ArtifactKey {
             | Self::DirExpanded { .. }
             | Self::DirExported { .. }
             | Self::DirResolved { .. }
+            | Self::DirDeclared { .. }
             | Self::DirCheckedComponent { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
@@ -324,6 +331,15 @@ impl ArtifactKey {
     /// Build one resolved DIR artifact key.
     pub fn dir_resolved(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirResolved { module, profile }
+    }
+
+    /// Build one declared DIR environment artifact key.
+    pub fn dir_declared(entry: ModuleId, component: ComponentId, profile: ProfileId) -> Self {
+        Self::DirDeclared {
+            entry,
+            component,
+            profile,
+        }
     }
 
     /// Build one checked DIR component artifact key.
@@ -463,7 +479,9 @@ impl ArtifactKey {
             }
             Self::ComponentGraph { .. } => ArtifactStage::Graph,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
-            Self::DirCheckedComponent { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
+            Self::DirDeclared { .. }
+            | Self::DirCheckedComponent { .. }
+            | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::MirLowered { .. }
             | Self::MirVerified { .. }
             | Self::MirElaborated { .. }
@@ -495,6 +513,7 @@ impl ArtifactKey {
             Self::DirResolved { .. } => "dir.resolve",
             Self::ComponentGraph { .. } => "component.graph",
             Self::ProgramAnalysis { .. } => "program.analyze",
+            Self::DirDeclared { .. } => "dir.check.declared",
             Self::DirCheckedComponent { .. } => "dir.check.component",
             Self::DirChecked { .. } => "dir.check",
             Self::DirMaterialized { .. } => "dir.materialize",
@@ -531,6 +550,7 @@ impl ArtifactKey {
             Self::DirResolved { .. } => "dir_resolved",
             Self::ComponentGraph { .. } => "component_graph",
             Self::ProgramAnalysis { .. } => "program_analysis",
+            Self::DirDeclared { .. } => "dir_declared",
             Self::DirCheckedComponent { .. } => "dir_checked_component",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
@@ -563,6 +583,7 @@ impl ArtifactKey {
             | Self::DirExpanded { module, .. }
             | Self::DirExported { module, .. }
             | Self::DirResolved { module, .. }
+            | Self::DirDeclared { entry: module, .. }
             | Self::DirCheckedComponent { entry: module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
@@ -631,6 +652,7 @@ impl ArtifactKey {
             | Self::DirExpanded { profile, .. }
             | Self::DirExported { profile, .. }
             | Self::DirResolved { profile, .. }
+            | Self::DirDeclared { profile, .. }
             | Self::DirCheckedComponent { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }

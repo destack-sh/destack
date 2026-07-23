@@ -18,6 +18,15 @@ pub(in crate::check) struct FunctionHeader {
     pub(in crate::check) parameters: Vec<dir::FunctionParameterType>,
 }
 
+/// The source position owning a function body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum BodyForm {
+    /// A declaration body, inferred by its owning inference component.
+    Declaration,
+    /// A value body, inferred with the state its expression evaluates in.
+    Value,
+}
+
 impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one function signature and return its type.
     ///
@@ -470,9 +479,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         body: dir::LocalNodeId<dir::Expression>,
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
+        form: BodyForm,
     ) -> CompilerResult<FlowBranch> {
-        // skip interface members' bodies; their own inference component checks them
-        if !self.check.infers_module(symbol.module_id) {
+        // skip declaration bodies outside the inferred members; value bodies
+        //  walk with the state their expression evaluates in
+        if form == BodyForm::Declaration && !self.check.infers_module(symbol.module_id) {
             return Ok(FlowBranch::empty());
         }
 

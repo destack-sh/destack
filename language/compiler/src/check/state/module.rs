@@ -2,8 +2,8 @@ use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirExpanded, DirParsed, DirResolved,
-    ProfileKey,
+    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirCheckedModule, DirExpanded, DirParsed,
+    DirResolved, ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -101,20 +101,36 @@ impl CheckModuleState {
         bound: Arc<DirBound>,
         resolved: Arc<DirResolved>,
         expanded: Arc<DirExpanded>,
+        declared: Option<&DirCheckedModule>,
     ) -> Self {
         // create the inherited bindings and this check's open overlays
         let bindings = expanded.binding_table(&bound);
-        let bindings_tail = dir::BindingSegment::from_table(&bindings);
+        let bindings_tail = match declared {
+            Some(declared) => (*declared.bindings).clone(),
+            None => dir::BindingSegment::from_table(&bindings),
+        };
         let types = expanded.type_table(&bound);
-        let types_tail = dir::TypeSegment::from_base(&expanded.types);
+        let types_tail = match declared {
+            Some(declared) => (*declared.types).clone(),
+            None => dir::TypeSegment::from_base(&expanded.types),
+        };
+        let generics = match declared {
+            Some(declared) => (*declared.generics).clone(),
+            None => dir::GenericSegment::new(module.id),
+        };
+        let statics = match declared {
+            Some(declared) => (*declared.statics).clone(),
+            None => dir::StaticSegment::from_base(&expanded.statics),
+        };
+        let decorators = match declared {
+            Some(declared) => (*declared.decorators).clone(),
+            None => dir::DecoratorSegment::new(module.id),
+        };
         let definitions = dir::DefinitionSegment::new(module.id);
         let auto = dir::AutoSegment::new(module.id);
-        let generics = dir::GenericSegment::new(module.id);
-        let statics = dir::StaticSegment::from_base(&expanded.statics);
         let resolutions = dir::ResolutionSegment::new(module.id);
         let coercions = dir::CoercionSegment::new(module.id);
         let capture_segment = dir::CaptureSegment::new(module.id);
-        let decorators = dir::DecoratorSegment::new(module.id);
         let files = parsed.files.iter().map(|file| file.file_id).collect();
         let controls = DiagnosticControlTable::new(module.id, files);
 
