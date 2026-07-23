@@ -222,6 +222,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         if selection.import {
             self.add_table(&resolved.imports);
             self.add_table(&resolved.references);
+            self.add_table(&resolved.extensions);
         }
     }
 

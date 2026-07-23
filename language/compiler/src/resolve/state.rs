@@ -1,4 +1,4 @@
-use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirResolved};
+use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirResolved, GlobalEnvironment};
 use destack_core::{NameMatch, StringPool, find_best_match};
 use destack_dir as dir;
 use destack_repository::ArtifactReader;
@@ -215,10 +215,75 @@ impl<'a> ResolveState<'a> {
     }
 
     /// Finish resolved DIR.
-    pub(in crate::resolve) fn finish(self) -> DirResolved {
+    pub(in crate::resolve) fn finish(self, environment: &GlobalEnvironment) -> DirResolved {
+        let extensions = self.resolved_extensions(environment);
+
         DirResolved {
             imports: self.imports,
             references: self.references,
+            extensions,
+        }
+    }
+
+    /// Resolve every exported extension to its target root declaration.
+    fn resolved_extensions(&self, environment: &GlobalEnvironment) -> dir::ExtensionTable {
+        let mut extensions = dir::ExtensionTable::new(self.module);
+
+        for symbol in self.bindings.symbol_ids() {
+            let binding = self.bindings.get_symbol(symbol);
+            if binding.kind != dir::SymbolKind::Extension || binding.export_kind.is_none() {
+                continue;
+            }
+            let Some(declaration) = binding.declaration else {
+                continue;
+            };
+            if declaration.module_id != self.module {
+                continue;
+            }
+            let Ok(declaration) = declaration.local_id.try_into_typed::<dir::Declaration>() else {
+                continue;
+            };
+            let dir::Declaration::Extension(extension) = self.view.get(declaration) else {
+                continue;
+            };
+            let Some(target) = self.extension_target(environment, extension.target_type) else {
+                continue;
+            };
+
+            extensions.insert(symbol, target);
+        }
+
+        extensions
+    }
+
+    /// Return the target root declaration of one extension target head.
+    fn extension_target(
+        &self,
+        environment: &GlobalEnvironment,
+        node: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let mut node = node;
+        loop {
+            match self.view.get(node) {
+                dir::TypeExpression::Literal { value } => {
+                    return environment.language.symbol(value.representation_item()?);
+                }
+                dir::TypeExpression::Reference { .. } => {
+                    let reference = self.references.get(node.into_global_any(self.module))?;
+                    let dir::Reference::Bound(symbols) = reference else {
+                        return None;
+                    };
+
+                    return symbols.first().copied();
+                }
+                dir::TypeExpression::Readonly { target_type }
+                | dir::TypeExpression::Local { target_type }
+                | dir::TypeExpression::Shared { target_type }
+                | dir::TypeExpression::OwnedOf { target_type, .. }
+                | dir::TypeExpression::BorrowedOf { target_type, .. }
+                | dir::TypeExpression::PointerOf { target_type, .. } => node = *target_type,
+                _ => return None,
+            }
         }
     }
 

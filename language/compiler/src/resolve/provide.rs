@@ -104,7 +104,7 @@ impl Compiler {
         }
 
         // publish resolved DIR
-        let resolved = state.finish();
+        let resolved = state.finish(&environment);
 
         Ok(ArtifactPayload::DirResolved(Arc::new(resolved)))
     }

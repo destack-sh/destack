@@ -6,6 +6,7 @@ mod decorator;
 mod definition;
 mod event;
 mod export;
+mod extension;
 mod generic;
 mod global;
 mod import;
