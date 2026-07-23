@@ -454,14 +454,6 @@ impl TargetArch {
         s.parse().ok()
     }
 
-    /// Return the pointer width in bytes of this architecture.
-    pub fn pointer_bytes(&self) -> u8 {
-        match self {
-            Self::X86 | Self::Armv7 | Self::Armv6 | Self::Riscv32 | Self::Wasm32 => 4,
-            _ => 8,
-        }
-    }
-
     /// Return this architecture's target triple component.
     pub fn triple_component(&self) -> &str {
         match self {

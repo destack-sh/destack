@@ -45,8 +45,8 @@ pub struct CallSite {
     pub target: Option<mir::FunctionId>,
     /// The virtual or dynamic dispatch type when present.
     pub dispatch_type: Option<mir::TypeId>,
-    /// The callable signature type.
-    pub signature_type: mir::TypeId,
+    /// The callable signature.
+    pub signature: mir::TypeId,
 }
 
 /// One control flow edge.

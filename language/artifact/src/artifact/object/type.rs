@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 pub struct Type {
     /// The module-local MIR type identity.
     pub id: mir::TypeId,
-    /// The identity used to canonicalize this type across objects.
-    pub key: mir::TypeKey,
+    /// The stable structural fingerprint used to canonicalize this type across objects.
+    pub fingerprint: mir::TypeFingerprint,
     /// The complete type definition without its arena identity.
     pub definition: mir::Type,
     /// The persistent symbol when this type has nominal identity.
