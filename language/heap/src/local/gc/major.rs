@@ -154,16 +154,15 @@ impl HeapStorage {
                     self.collector.complete_drop(request.reference)?;
                 }
                 GcAdvance::Started(_) => {
-                    return Err(HeapError::Internal {
-                        context: "local full collection returned a start event during drain",
-                    }
+                    return Err(HeapError::internal(
+                        "local full collection returned a start event during drain",
+                    )
                     .into());
                 }
                 GcAdvance::Idle => {
-                    return Err(HeapError::Internal {
-                        context: "local full collection made no progress",
-                    }
-                    .into());
+                    return Err(
+                        HeapError::internal("local full collection made no progress").into(),
+                    );
                 }
             }
         }
@@ -499,9 +498,9 @@ impl HeapStorage {
 
             // resolve the live range selected by the bitmap
             let Some(block) = self.young_range(block_index) else {
-                return Err(HeapError::Internal {
-                    context: "live young range missing during major sweep",
-                });
+                return Err(HeapError::internal(
+                    "live young range missing during major sweep",
+                ));
             };
             let reference = HeapReference::new(block.first_offset);
             let byte_len = block.byte_len;

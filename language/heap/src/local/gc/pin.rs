@@ -71,12 +71,9 @@ impl PinSet {
         let count = left
             .get()
             .checked_add(right.get())
-            .ok_or(HeapError::Internal {
-                context: "heap pin count overflow",
-            })?;
-        let count = NonZeroUsize::new(count).ok_or(HeapError::Internal {
-            context: "heap pin count overflow",
-        })?;
+            .ok_or_else(|| HeapError::internal("heap pin count overflow"))?;
+        let count = NonZeroUsize::new(count)
+            .ok_or_else(|| HeapError::internal("heap pin count overflow"))?;
 
         Ok(count)
     }

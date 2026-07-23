@@ -182,9 +182,9 @@ impl HeapStorage {
             return Ok(0);
         };
         let HeapPlace::LargeBlock(_) = extent.place else {
-            return Err(HeapError::Internal {
-                context: "large shared-edge work resolved to non-large block",
-            });
+            return Err(HeapError::internal(
+                "large shared-edge work resolved to non-large block",
+            ));
         };
 
         // load exact shared-reference layout

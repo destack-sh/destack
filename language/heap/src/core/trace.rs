@@ -428,7 +428,7 @@ pub(crate) trait TraceVisitor {
 }
 
 /// Invalid compact heap trace table.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TraceTableError {
     /// A trace id does not name a stored trace root.
     MissingTrace {

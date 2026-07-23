@@ -133,9 +133,9 @@ impl HeapStorage {
             }
 
             let Some(range) = self.young.range(range_index) else {
-                return Err(HeapError::Internal {
-                    context: "marked young range missing during promotion",
-                });
+                return Err(HeapError::internal(
+                    "marked young range missing during promotion",
+                ));
             };
             let source = HeapReference::new(range.first_offset);
 
@@ -347,9 +347,9 @@ impl HeapStorage {
             start = range_index + 1;
 
             let Some(range) = self.young.range(range_index) else {
-                return Err(HeapError::Internal {
-                    context: "live young range missing during rewrite",
-                });
+                return Err(HeapError::internal(
+                    "live young range missing during rewrite",
+                ));
             };
 
             // rewrite only payloads that may contain local references

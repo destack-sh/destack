@@ -10,9 +10,7 @@ impl HeapStorage {
         // contiguous young blocks
         while let Some(block_index) = self.young.live.first_set_from(start) {
             let Some(block) = self.young_range(block_index) else {
-                return Err(HeapError::Internal {
-                    context: "live young range missing",
-                });
+                return Err(HeapError::internal("live young range missing"));
             };
             references.push(HeapReference::new(block.first_offset));
             start = block_index + 1;

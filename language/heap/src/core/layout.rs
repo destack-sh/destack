@@ -559,9 +559,7 @@ fn repeated_layout(
     let byte_len = element_stride
         .checked_mul(count)
         .ok_or(HeapError::representation(
-            HeapRepresentationError::LimitExceeded {
-                context: "repeated payload byte length",
-            },
+            HeapRepresentationError::limit_exceeded("repeated payload byte length"),
         ))?;
     let trace_map = repeated_trace_map(element_trace_map, element_stride, count)?;
 
@@ -590,14 +588,14 @@ fn repeated_trace_map(
         _ if !element_map.has_heap_reference() => Ok(TraceMap::Empty),
         _ => Ok(TraceMap::Repeated {
             count: u32::try_from(count).map_err(|_| {
-                HeapError::representation(HeapRepresentationError::LimitExceeded {
-                    context: "repeated payload element count",
-                })
+                HeapError::representation(HeapRepresentationError::limit_exceeded(
+                    "repeated payload element count",
+                ))
             })?,
             stride: u32::try_from(element_stride).map_err(|_| {
-                HeapError::representation(HeapRepresentationError::LimitExceeded {
-                    context: "repeated payload element stride",
-                })
+                HeapError::representation(HeapRepresentationError::limit_exceeded(
+                    "repeated payload element stride",
+                ))
             })?,
             element: Box::new(element_map.clone()),
         }),

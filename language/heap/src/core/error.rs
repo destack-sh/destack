@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 use destack_memory::MemoryError;
+use serde::{Deserialize, Serialize};
 
 use crate::{AccountingRegion, HeapReference, SharedHeapReference, TraceTableError};
 
@@ -9,7 +10,7 @@ use crate::{AccountingRegion, HeapReference, SharedHeapReference, TraceTableErro
 pub type HeapResult<T> = Result<T, HeapError>;
 
 /// Heap operation failure.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapError {
     /// Heap configuration is invalid.
     Configuration {
@@ -83,12 +84,12 @@ pub enum HeapError {
     /// One internal heap invariant failed.
     Internal {
         /// Internal error context.
-        context: &'static str,
+        context: String,
     },
 }
 
 /// Heap configuration failure reason.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapConfigurationError {
     /// The configured GC trigger percentage is unsupported.
     InvalidGcTriggerPercent { percent: u32 },
@@ -134,7 +135,7 @@ pub enum HeapConfigurationError {
 }
 
 /// Size-class table validation failure.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SizeClassTableError {
     /// The configured size-class table was empty.
     Empty,
@@ -150,7 +151,7 @@ pub enum SizeClassTableError {
 }
 
 /// Size-class policy validation failure.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SizeClassPolicyError {
     /// The configured size-class policy range is invalid.
     InvalidRange {
@@ -174,7 +175,7 @@ pub enum SizeClassPolicyError {
 }
 
 /// Heap reference space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapReferenceKind {
     /// Local managed heap reference.
     Heap,
@@ -183,7 +184,7 @@ pub enum HeapReferenceKind {
 }
 
 /// Invalid block request reason.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapAllocationError {
     /// Managed heap block with no bytes reached runtime.
     ZeroSize,
@@ -197,12 +198,12 @@ pub enum HeapAllocationError {
 }
 
 /// Heap representation failure reason.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapRepresentationError {
     /// One heap value exceeded its encoded representation.
     LimitExceeded {
         /// The representation that was exceeded.
-        context: &'static str,
+        context: String,
     },
     /// One live large-block id cannot be represented.
     InvalidLargeBlockId {
@@ -238,7 +239,7 @@ pub enum HeapRepresentationError {
 }
 
 /// Heap capture blocker reason.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapCaptureBlocker {
     /// Active collector work blocks capture.
     GcActive,
@@ -247,7 +248,7 @@ pub enum HeapCaptureBlocker {
 }
 
 /// GC state failure reason.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapGcStateError {
     /// One local GC was requested while another local GC was active.
     LocalGcActive,
@@ -267,7 +268,7 @@ pub enum HeapGcStateError {
 }
 
 /// Heap operation kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapOperation {
     /// Scan heap references.
     Scan,
@@ -276,7 +277,7 @@ pub enum HeapOperation {
 }
 
 /// Heap operation source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HeapOperationSource {
     /// One heap reference payload.
     Reference(HeapReference),
@@ -356,8 +357,19 @@ impl HeapError {
     }
 
     /// Return one internal invariant error.
-    pub const fn internal(context: &'static str) -> Self {
-        Self::Internal { context }
+    pub fn internal(context: impl Into<String>) -> Self {
+        Self::Internal {
+            context: context.into(),
+        }
+    }
+}
+
+impl HeapRepresentationError {
+    /// Return one representation limit error.
+    pub fn limit_exceeded(context: impl Into<String>) -> Self {
+        Self::LimitExceeded {
+            context: context.into(),
+        }
     }
 }
 
@@ -625,7 +637,17 @@ impl Display for HeapOperationSource {
     }
 }
 
-impl Error for HeapError {}
+impl Error for HeapError {
+    /// Return the underlying subsystem failure when present.
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::OperationFailed { error, .. } => Some(error.as_ref()),
+            Self::Trace { error } => Some(error),
+            Self::Memory { error } => Some(error),
+            _ => None,
+        }
+    }
+}
 
 impl From<MemoryError> for HeapError {
     fn from(error: MemoryError) -> Self {
