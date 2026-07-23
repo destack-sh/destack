@@ -113,9 +113,7 @@ impl PageFrameAllocator {
     fn section(&self, frame: PageFrame) -> MemoryResult<HANDLE> {
         let state = self.state.lock();
         let Some(section) = state.sections.get(frame.section_index) else {
-            return Err(MemoryError::Internal {
-                context: "page frame section",
-            });
+            return Err(MemoryError::internal("page frame section"));
         };
 
         Ok(section.handle)
@@ -297,9 +295,7 @@ pub(crate) fn system_page_size_bytes() -> MemoryResult<usize> {
     let system = unsafe { system.assume_init() };
     let page_size_bytes = system.dwPageSize as usize;
     if page_size_bytes == 0 {
-        return Err(MemoryError::Internal {
-            context: "system page size",
-        });
+        return Err(MemoryError::internal("system page size"));
     }
 
     Ok(page_size_bytes)
@@ -816,9 +812,7 @@ fn allocate_new_frame_range(
         frame_ref_counts: Vec::new(),
     };
     let Some(offset) = section.reserve(byte_len) else {
-        return Err(MemoryError::Internal {
-            context: "page frame section reserve",
-        });
+        return Err(MemoryError::internal("page frame section reserve"));
     };
 
     state.sections.push(section);

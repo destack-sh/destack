@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 parking_lot = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

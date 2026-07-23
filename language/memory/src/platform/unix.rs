@@ -220,9 +220,7 @@ pub(crate) fn copy_frame_range(
 pub(crate) fn system_page_size_bytes() -> MemoryResult<usize> {
     let page_size_bytes = query_page_size_bytes();
     if page_size_bytes <= 0 {
-        return Err(MemoryError::Internal {
-            context: "system page size",
-        });
+        return Err(MemoryError::internal("system page size"));
     }
 
     Ok(page_size_bytes as usize)

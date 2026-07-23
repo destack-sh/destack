@@ -509,9 +509,9 @@ impl MemoryMap {
             match state {
                 // mapped state iteration must never expose reserved pages
                 PageState::Reserved => {
-                    return Err(MemoryError::Internal {
-                        context: "reserved page in mapped page iteration",
-                    });
+                    return Err(MemoryError::internal(
+                        "reserved page in mapped page iteration",
+                    ));
                 }
                 // owned pages become read only cow frames in both maps
                 PageState::Owned(frame) => {

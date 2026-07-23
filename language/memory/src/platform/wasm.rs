@@ -327,9 +327,7 @@ fn map_frame_range(
     let state = allocator.state.lock();
     let end_frame = frame.index + page_count;
     let Some(frames) = state.frames.get(frame.index..end_frame) else {
-        return Err(MemoryError::Internal {
-            context: "linear memory frame range",
-        });
+        return Err(MemoryError::internal("linear memory frame range"));
     };
 
     // copy only after validating the complete frame range
@@ -358,9 +356,7 @@ fn map_page(
     let source = {
         let state = allocator.state.lock();
         let Some(frame) = state.frames.get(frame.index) else {
-            return Err(MemoryError::Internal {
-                context: "linear memory frame",
-            });
+            return Err(MemoryError::internal("linear memory frame"));
         };
 
         frame.as_ptr()

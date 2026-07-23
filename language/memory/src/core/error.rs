@@ -1,11 +1,13 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use serde::{Deserialize, Serialize};
+
 /// One memory result.
 pub type MemoryResult<T> = Result<T, MemoryError>;
 
 /// Memory operation failure.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MemoryError {
     /// One platform memory operation failed.
     System {
@@ -61,7 +63,7 @@ pub enum MemoryError {
     /// One internal memory error occurred.
     Internal {
         /// The internal error context.
-        context: &'static str,
+        context: String,
     },
 }
 
@@ -87,10 +89,17 @@ impl MemoryError {
     ) -> Self {
         Self::system(operation, code, Some(byte_len))
     }
+
+    /// Create one internal memory error.
+    pub fn internal(context: impl Into<String>) -> Self {
+        Self::Internal {
+            context: context.into(),
+        }
+    }
 }
 
 /// A platform memory operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MemoryOperation {
     /// Create backing storage for page frames.
     CreateFrameAllocator,

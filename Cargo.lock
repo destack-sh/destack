@@ -1189,6 +1189,7 @@ version = "0.55.4"
 dependencies = [
  "libc",
  "parking_lot",
+ "serde",
  "windows-sys 0.52.0",
 ]
 
