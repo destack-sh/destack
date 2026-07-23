@@ -5,7 +5,9 @@ use parking_lot::Mutex;
 
 use crate::Moment;
 
-use super::{ArtifactAttempt, ArtifactAttemptOutcome, Trace, TraceCounter, TraceSpan};
+use super::{
+    ArtifactAttempt, ArtifactAttemptOutcome, Trace, TraceCounter, TraceSpan, TraceSpanKind,
+};
 
 /// Recorder buffering one running artifact attempt.
 #[derive(Debug)]
@@ -46,14 +48,17 @@ impl ArtifactAttemptRecorder {
     pub fn span<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
         let started = self.trace.now();
         let value = work();
-        self.record_span(name, started);
+        let span = self.trace.span_from(name, started, TraceSpanKind::Work);
+        self.spans.lock().push(span);
 
         value
     }
 
     /// Record one interior span that started at one clock reading.
     pub fn record_span(&self, name: &'static str, started: Option<Moment>) {
-        let span = self.trace.span_from(name, started);
+        let span = self
+            .trace
+            .span_from(name, started, TraceSpanKind::Breakdown);
 
         self.spans.lock().push(span);
     }
@@ -65,7 +70,11 @@ impl ArtifactAttemptRecorder {
 
     /// Finish this artifact attempt with its outcome.
     pub fn finish(&self, outcome: ArtifactAttemptOutcome) {
-        let span = self.trace.span_from(self.key.display_name(), self.started);
+        let span = self.trace.span_from(
+            self.key.display_name(),
+            self.started,
+            TraceSpanKind::Breakdown,
+        );
         let attempt = ArtifactAttempt {
             key: self.key,
             worker: self.worker,

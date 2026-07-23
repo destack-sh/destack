@@ -1,6 +1,6 @@
 use std::cmp::Reverse;
 
-use super::{ArtifactAttemptSnapshot, TraceSnapshot};
+use super::{ArtifactAttemptSnapshot, TraceSnapshot, TraceSpanKind};
 
 /// The default drawn width of one trace timeline lane.
 const DEFAULT_TIMELINE_WIDTH: usize = 72;
@@ -56,7 +56,7 @@ impl TraceTimelineOptions {
 
 /// Render the per-worker timeline of one detailed artifact trace.
 pub fn render_trace_timeline(trace: &TraceSnapshot, options: TraceTimelineOptions) -> String {
-    if trace.artifacts.is_empty() || trace.total_micros == 0 {
+    if trace.attempts.is_empty() || trace.total_micros == 0 {
         return String::new();
     }
 
@@ -108,7 +108,7 @@ pub fn render_trace_duration(micros: u64) -> String {
 struct TimelineKind {
     /// The artifact kind name.
     name: String,
-    /// The summed busy time across the trace.
+    /// The summed work time across the trace.
     micros: u64,
 }
 
@@ -117,13 +117,13 @@ impl TimelineKind {
     fn from_trace(trace: &TraceSnapshot) -> Vec<Self> {
         let mut kinds = Vec::<Self>::new();
 
-        // sum busy time by artifact name
-        for artifact in &trace.artifacts {
+        // sum exclusive work by artifact name
+        for artifact in &trace.attempts {
             match kinds.iter_mut().find(|kind| kind.name == artifact.name) {
-                Some(kind) => kind.micros += artifact.micros,
+                Some(kind) => kind.micros += artifact.work_micros,
                 None => kinds.push(Self {
                     name: artifact.name.clone(),
-                    micros: artifact.micros,
+                    micros: artifact.work_micros,
                 }),
             }
         }
@@ -143,9 +143,9 @@ fn timeline_lane(
     let cell_micros = trace.total_micros.div_ceil(width as u64).max(1);
     let mut busy = vec![vec![0u64; kinds.len()]; width];
 
-    // accumulate busy overlap per artifact kind and fixed-width cell
+    // accumulate work overlap per artifact kind and fixed-width cell
     for artifact in trace
-        .artifacts
+        .attempts
         .iter()
         .filter(|artifact| artifact.worker == worker)
     {
@@ -153,23 +153,29 @@ fn timeline_lane(
             .iter()
             .position(|kind| kind.name == artifact.name)
             .expect("every timeline artifact kind should be indexed");
-        let end = artifact.start_micros + artifact.micros.max(1);
-        let first = (artifact.start_micros / cell_micros) as usize;
-        let last = ((end - 1) / cell_micros) as usize;
-
-        for (cell, lanes) in busy
-            .iter_mut()
-            .enumerate()
-            .take(last.min(width - 1) + 1)
-            .skip(first)
+        for span in artifact
+            .spans
+            .iter()
+            .filter(|span| span.kind == TraceSpanKind::Work)
         {
-            let cell_start = cell as u64 * cell_micros;
-            let cell_end = cell_start + cell_micros;
-            let overlap = end
-                .min(cell_end)
-                .saturating_sub(artifact.start_micros.max(cell_start));
+            let end = span.start_micros + span.micros.max(1);
+            let first = (span.start_micros / cell_micros) as usize;
+            let last = ((end - 1) / cell_micros) as usize;
 
-            lanes[kind] += overlap;
+            for (cell, lanes) in busy
+                .iter_mut()
+                .enumerate()
+                .take(last.min(width - 1) + 1)
+                .skip(first)
+            {
+                let cell_start = cell as u64 * cell_micros;
+                let cell_end = cell_start + cell_micros;
+                let overlap = end
+                    .min(cell_end)
+                    .saturating_sub(span.start_micros.max(cell_start));
+
+                lanes[kind] += overlap;
+            }
         }
     }
 
@@ -248,14 +254,14 @@ fn timeline_legend(kinds: &[TimelineKind], use_color: bool) -> String {
     output
 }
 
-/// Render the slowest non-parked artifact attempts.
+/// Render the slowest non-parked artifact attempts by exclusive work.
 fn slow_attempts(trace: &TraceSnapshot, options: TraceTimelineOptions) -> String {
     let mut attempts = trace
-        .artifacts
+        .attempts
         .iter()
         .filter(|artifact| artifact.outcome != "parked")
         .collect::<Vec<_>>();
-    attempts.sort_by_key(|artifact| Reverse(artifact.micros));
+    attempts.sort_by_key(|artifact| Reverse(artifact.work_micros));
     if attempts.is_empty() {
         return String::new();
     }
@@ -263,7 +269,7 @@ fn slow_attempts(trace: &TraceSnapshot, options: TraceTimelineOptions) -> String
     let mut output = String::new();
     output.push_str(&format!(
         "\n{}\n",
-        bold("slowest artifacts:", options.use_color)
+        bold("slowest attempts:", options.use_color)
     ));
 
     // render bounded slow attempt rows
@@ -289,8 +295,9 @@ fn slow_attempt(artifact: &ArtifactAttemptSnapshot, use_color: bool) -> String {
         .unwrap_or_default();
 
     format!(
-        "  {:>9}  {name} {label}{target}\n",
-        render_trace_duration(artifact.micros),
+        "  work {:>9}  latency {:>9}  {name} {label}{target}\n",
+        render_trace_duration(artifact.work_micros),
+        render_trace_duration(artifact.latency_micros),
     )
 }
 

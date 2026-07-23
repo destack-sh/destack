@@ -207,11 +207,11 @@ fn check_scaling_table(title: &str) -> TextTable {
         Cell::bold("modules"),
         Cell::bold("component"),
         Cell::bold("cold ms"),
-        Cell::bold("cold artifacts"),
+        Cell::bold("cold attempts"),
         Cell::bold("cold built"),
         Cell::bold("cold parked"),
         Cell::bold("edit ms"),
-        Cell::bold("edit artifacts"),
+        Cell::bold("edit attempts"),
         Cell::bold("edit built"),
         Cell::bold("edit parked"),
         Cell::bold("changed"),
@@ -278,11 +278,11 @@ fn test_measure_check_after_single_module_edit() {
             Cell::new(graph.modules.to_string()),
             Cell::new(graph.component_size.to_string()),
             Cell::new(format!("{:.3}", millis(cold.total_micros))),
-            Cell::new(cold.counts.artifacts.to_string()),
+            Cell::new(cold.counts.attempts.to_string()),
             Cell::new(cold.counts.built.to_string()),
             Cell::new(cold.counts.parked.to_string()),
             Cell::colored(format!("{:.3}", millis(edited.total_micros)), "38;5;250"),
-            Cell::new(edited.counts.artifacts.to_string()),
+            Cell::new(edited.counts.attempts.to_string()),
             Cell::new(edited.counts.built.to_string()),
             Cell::new(edited.counts.parked.to_string()),
             Cell::new(edited.changed_modules.unwrap_or_default().to_string()),
@@ -310,7 +310,7 @@ fn test_measure_check_after_single_module_edit() {
             .color()
             .timeline()
             .times()
-            .slow_artifacts(8)
+            .slow_attempts(8)
             .print();
     }
 }
@@ -449,7 +449,7 @@ export const result = value;
     assert_eq!(
         TraceCounts::from_trace(&cold_trace),
         TraceCounts {
-            artifacts: 5322,
+            attempts: 5322,
             built: 3192,
             memory_cached: 0,
             store_cached: 0,
@@ -475,7 +475,7 @@ export const result = value;
     assert_eq!(
         TraceCounts::from_trace(&edited_trace),
         TraceCounts {
-            artifacts: 19,
+            attempts: 19,
             built: 11,
             memory_cached: 0,
             store_cached: 0,
@@ -542,7 +542,7 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
     assert_eq!(
         TraceCounts::from_trace(&left_trace),
         TraceCounts {
-            artifacts: 13,
+            attempts: 13,
             built: 7,
             memory_cached: 1,
             store_cached: 0,
@@ -553,7 +553,7 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
     assert_eq!(
         TraceCounts::from_trace(&right_trace),
         TraceCounts {
-            artifacts: 3,
+            attempts: 3,
             built: 2,
             memory_cached: 0,
             store_cached: 0,

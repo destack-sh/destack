@@ -3,7 +3,7 @@ use destack_serde::SchemaRegistry;
 use crate::{
     ArtifactAttemptSnapshot, Destack, DestackLayout, DestackLayoutOverride, DestackLock,
     FormatterOptions, ManifestOverride, Revision, Settings, TraceCounterSnapshot, TraceSnapshot,
-    TraceSpanSnapshot, TraceStageSnapshot, TraceStats, TraceTimeSnapshot, TraceView,
+    TraceSpanKind, TraceSpanSnapshot, TraceStageSnapshot, TraceStats, TraceTimeSnapshot, TraceView,
 };
 
 /// Include public repository schema roots.
@@ -23,6 +23,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<TraceStats>();
     registry.register::<TraceStageSnapshot>();
     registry.register::<TraceTimeSnapshot>();
+    registry.register::<TraceSpanKind>();
     registry.register::<TraceSpanSnapshot>();
     registry.register::<TraceCounterSnapshot>();
     registry.register::<ArtifactAttemptSnapshot>();

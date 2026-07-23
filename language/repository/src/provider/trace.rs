@@ -42,12 +42,23 @@ impl ArtifactAttemptOutcome {
 /// One timed interval in a trace.
 #[derive(Debug, Clone, Copy)]
 pub struct TraceSpan {
+    /// How this span contributes to timing aggregates.
+    pub(super) kind: TraceSpanKind,
     /// The span name.
     pub name: &'static str,
     /// The offset from the trace epoch.
     pub start: Duration,
     /// The span duration.
     pub duration: Duration,
+}
+
+/// How one trace span contributes to timing aggregates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum TraceSpanKind {
+    /// Executor or provider work owned by the artifact attempt.
+    Work,
+    /// A named breakdown nested inside other recorded work.
+    Breakdown,
 }
 
 /// One named count in a trace.
@@ -110,7 +121,7 @@ impl Trace {
     pub fn span<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
         let started = self.clock.now();
         let value = work();
-        self.record_span(name, started);
+        self.record_span(name, started, TraceSpanKind::Breakdown);
 
         value
     }
@@ -172,7 +183,7 @@ impl Trace {
                 .iter_mut()
                 .find(|(candidate, _)| *candidate == stage)
                 .expect("every stage has a rollup row");
-            row.1 += attempt.span.duration;
+            row.1 += work_duration(&attempt.spans);
         }
 
         // keep the snapshot stage rows faithful to artifact stages
@@ -203,7 +214,7 @@ impl Trace {
         }
 
         // detailed snapshots carry the labeled artifact rows
-        let artifacts = if view.includes_artifacts() {
+        let attempt_snapshots = if view.includes_attempts() {
             attempts
                 .iter()
                 .map(|attempt| ArtifactAttemptSnapshot {
@@ -213,7 +224,8 @@ impl Trace {
                     target: attempt.key.target_id().and_then(&target),
                     worker: attempt.worker,
                     start_micros: attempt.span.start.as_micros() as u64,
-                    micros: attempt.span.duration.as_micros() as u64,
+                    latency_micros: attempt.span.duration.as_micros() as u64,
+                    work_micros: work_duration(&attempt.spans).as_micros() as u64,
                     outcome: attempt.outcome.name().to_string(),
                     spans: attempt
                         .spans
@@ -231,12 +243,12 @@ impl Trace {
             Vec::new()
         };
         let total = self.duration(&spans, &attempts);
-        let spans = if view.includes_artifacts() {
+        let spans = if view.includes_attempts() {
             spans.iter().map(TraceSpanSnapshot::from_span).collect()
         } else {
             Vec::new()
         };
-        let counters = if view.includes_artifacts() {
+        let counters = if view.includes_attempts() {
             counters
                 .iter()
                 .map(TraceCounterSnapshot::from_counter)
@@ -253,19 +265,24 @@ impl Trace {
             counters,
             stages,
             times,
-            artifacts,
+            attempts: attempt_snapshots,
         }
     }
 
     /// Record one operation-level span that started at one clock reading.
-    fn record_span(&self, name: &'static str, started: Option<Moment>) {
-        let span = self.span_from(name, started);
+    fn record_span(&self, name: &'static str, started: Option<Moment>, kind: TraceSpanKind) {
+        let span = self.span_from(name, started, kind);
 
         self.spans.lock().push(span);
     }
 
     /// Build one span from a sampled clock reading.
-    pub(super) fn span_from(&self, name: &'static str, started: Option<Moment>) -> TraceSpan {
+    pub(super) fn span_from(
+        &self,
+        name: &'static str,
+        started: Option<Moment>,
+        kind: TraceSpanKind,
+    ) -> TraceSpan {
         let start = started
             .map(|started| self.clock.duration_since(started, self.epoch))
             .unwrap_or(Duration::ZERO);
@@ -274,6 +291,7 @@ impl Trace {
             .unwrap_or(Duration::ZERO);
 
         TraceSpan {
+            kind,
             name,
             start,
             duration,
@@ -311,6 +329,28 @@ impl Trace {
     }
 }
 
+/// Sum the non-overlapping work intervals in one artifact attempt.
+fn work_duration(spans: &[TraceSpan]) -> Duration {
+    let mut total = Duration::ZERO;
+    let mut previous_end = Duration::ZERO;
+
+    // sum executor intervals while enforcing exclusive ownership
+    for span in spans {
+        if span.kind != TraceSpanKind::Work {
+            continue;
+        }
+
+        assert!(
+            span.start >= previous_end,
+            "artifact work spans must not overlap"
+        );
+        previous_end = span.start + span.duration;
+        total += span.duration;
+    }
+
+    total
+}
+
 /// Serializable snapshot of one trace.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct TraceSnapshot {
@@ -329,7 +369,7 @@ pub struct TraceSnapshot {
     /// Summed time per named trace span.
     pub times: Vec<TraceTimeSnapshot>,
     /// The recorded artifact attempts, present only in detailed snapshots.
-    pub artifacts: Vec<ArtifactAttemptSnapshot>,
+    pub attempts: Vec<ArtifactAttemptSnapshot>,
 }
 
 /// Trace detail returned to a caller.
@@ -353,7 +393,7 @@ impl TraceView {
     }
 
     /// Return whether this view includes artifact attempt rows.
-    fn includes_artifacts(self) -> bool {
+    fn includes_attempts(self) -> bool {
         matches!(self, Self::Detailed)
     }
 }
@@ -386,12 +426,12 @@ impl TraceStats {
     }
 }
 
-/// Busy time of one toolchain stage.
+/// Executor and provider work for one toolchain stage.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TraceStageSnapshot {
     /// The stage display name.
     pub name: String,
-    /// The summed attempt time in microseconds.
+    /// The summed work time in microseconds.
     pub micros: u64,
 }
 
@@ -421,6 +461,8 @@ impl TraceTimeSnapshot {
 /// One span in a trace snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TraceSpanSnapshot {
+    /// How this span contributes to timing aggregates.
+    pub kind: TraceSpanKind,
     /// The span name.
     pub name: String,
     /// The offset from the trace start in microseconds.
@@ -433,6 +475,7 @@ impl TraceSpanSnapshot {
     /// Convert one in-memory trace span into a snapshot span.
     fn from_span(span: &TraceSpan) -> Self {
         Self {
+            kind: span.kind,
             name: span.name.to_string(),
             start_micros: span.start.as_micros() as u64,
             micros: span.duration.as_micros() as u64,
@@ -475,8 +518,10 @@ pub struct ArtifactAttemptSnapshot {
     pub worker: usize,
     /// The offset from the trace start in microseconds.
     pub start_micros: u64,
-    /// The attempt duration in microseconds.
-    pub micros: u64,
+    /// The inclusive request latency in microseconds.
+    pub latency_micros: u64,
+    /// The exclusive executor and provider work in microseconds.
+    pub work_micros: u64,
     /// The attempt outcome name.
     pub outcome: String,
     /// Interior spans recorded by the executor or provider.

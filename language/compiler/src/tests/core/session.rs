@@ -1168,7 +1168,7 @@ impl TestSession {
     }
 
     /// Print the detailed artifact trace for this test session.
-    pub(crate) fn print_trace(&self, name: &str, slow_artifacts: usize) {
+    pub(crate) fn print_trace(&self, name: &str, slow_attempts: usize) {
         let trace = self.trace();
 
         TraceTable::new()
@@ -1176,7 +1176,7 @@ impl TestSession {
             .color()
             .timeline()
             .times()
-            .slow_artifacts(slow_artifacts)
+            .slow_attempts(slow_attempts)
             .print();
     }
 
@@ -1189,13 +1189,13 @@ impl TestSession {
             return;
         }
 
-        let slow_artifacts = env::var(TRACE_SLOW_ARTIFACTS_ENV)
+        let slow_attempts = env::var(TRACE_SLOW_ARTIFACTS_ENV)
             .ok()
             .and_then(|value| value.parse::<usize>().ok())
             .unwrap_or(DEFAULT_TRACE_SLOW_ARTIFACTS);
         let name = trace_name(label);
 
-        self.print_trace(&name, slow_artifacts);
+        self.print_trace(&name, slow_attempts);
     }
 
     /// Return the artifact key that owns one phase sidecar.
@@ -1354,13 +1354,13 @@ impl Drop for TestSession {
             return;
         }
 
-        let slow_artifacts = env::var(TRACE_SLOW_ARTIFACTS_ENV)
+        let slow_attempts = env::var(TRACE_SLOW_ARTIFACTS_ENV)
             .ok()
             .and_then(|value| value.parse::<usize>().ok())
             .unwrap_or(DEFAULT_TRACE_SLOW_ARTIFACTS);
         let name = current_test_name().unwrap_or_else(|| "session".to_string());
 
-        self.print_trace(&name, slow_artifacts);
+        self.print_trace(&name, slow_attempts);
     }
 }
 
