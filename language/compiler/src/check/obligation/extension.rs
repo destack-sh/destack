@@ -133,7 +133,10 @@ impl CheckState<'_> {
             return false;
         }
 
-        let target_is_local = target.root().is_some_and(|root| root.module_id == module);
+        // allow anonymous extensions anywhere inside the target's package
+        let target_is_local = target
+            .root()
+            .is_some_and(|root| root.module_id.package_id == module.package_id);
         if target_is_local {
             return false;
         }

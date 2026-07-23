@@ -6,7 +6,7 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use super::CheckState;
+use super::{CheckExternalArtifact, CheckState};
 use crate::{CompilerError, CompilerResult};
 
 /// Committed tables loaded for one out-of-component external module.
@@ -119,8 +119,18 @@ impl CheckState<'_> {
 
     /// Import committed external modules for the whole import closure.
     pub(in crate::check) fn import_component_external_modules(&mut self) -> CompilerResult<()> {
-        // load every reachable external module's committed tables
-        let external_modules = self.external_components.keys().copied().collect::<Vec<_>>();
+        // load every reachable external module's committed tables; inherent
+        //  extension modules wait for their first extension lookup
+        let external_modules = self
+            .external_components
+            .keys()
+            .copied()
+            .filter(|module| {
+                let inherent = self.inherent_externals.as_ref();
+
+                !inherent.is_some_and(|modules| modules.contains(module))
+            })
+            .collect::<Vec<_>>();
         for external_module in external_modules {
             self.import_external_module(external_module)?;
         }
@@ -130,6 +140,19 @@ impl CheckState<'_> {
         for module in modules {
             let visible = self.external_module_ids(module);
             self.module_mut(module).external_modules.extend(visible);
+        }
+
+        Ok(())
+    }
+
+    /// Import the inherent extension modules once, on the first extension lookup.
+    pub(in crate::check) fn import_inherent_externals(&mut self) -> CompilerResult<()> {
+        let Some(inherent) = self.inherent_externals.take() else {
+            return Ok(());
+        };
+
+        for module in inherent {
+            self.import_external_module(module)?;
         }
 
         Ok(())
@@ -155,7 +178,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<CheckExternalModuleState> {
-        let component = self
+        let artifact = self
             .external_components
             .get(&module)
             .copied()
@@ -178,19 +201,42 @@ impl CheckState<'_> {
             .artifacts
             .dir_resolved(module, self.profile)
             .map_err(CompilerError::from)?;
-        let checked_component = self
-            .artifacts
-            .dir_checked_component(component.entry, component.component, self.profile)
-            .map_err(CompilerError::from)?;
-        let checked = &checked_component
-            .module(module)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked component {} does not contain external module {module:?}",
-                    component.component
-                ),
-            })?
-            .checked;
+        let checked = match artifact {
+            CheckExternalArtifact::Checked(component) => {
+                let checked_component = self
+                    .artifacts
+                    .dir_checked_component(component.entry, component.component, self.profile)
+                    .map_err(CompilerError::from)?;
+
+                checked_component
+                    .module(module)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!(
+                            "checked component {} does not contain external module {module:?}",
+                            component.component
+                        ),
+                    })?
+                    .checked
+                    .clone()
+            }
+            CheckExternalArtifact::Declared(component) => {
+                let declared = self
+                    .artifacts
+                    .dir_declared(component.entry, component.component, self.profile)
+                    .map_err(CompilerError::from)?;
+
+                declared
+                    .module(module)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!(
+                            "declared environment {} does not contain external module {module:?}",
+                            component.component
+                        ),
+                    })?
+                    .checked
+                    .clone()
+            }
+        };
         let bindings = checked.binding_table(bound.as_ref(), expanded.as_ref());
         let types = checked.type_table(bound.as_ref(), expanded.as_ref());
         let statics = checked.static_table(bound.as_ref(), expanded.as_ref());

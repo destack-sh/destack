@@ -137,6 +137,8 @@ impl BodyState<'_, '_> {
             }
         }
 
+        self.collect_inherent_extensions(&mut symbols)?;
+
         Ok(symbols)
     }
 
@@ -263,7 +265,32 @@ impl BodyState<'_, '_> {
             }
         }
 
+        self.collect_inherent_extensions(&mut symbols)?;
+
         Ok(symbols)
+    }
+
+    /// Collect inherent extensions visible without imports.
+    fn collect_inherent_extensions(
+        &mut self,
+        symbols: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
+    ) -> CompilerResult<()> {
+        let inherent = self.inherent_extensions.clone();
+        for symbol in inherent {
+            // keep extensions whose module loads in this check
+            let visible = self.is_component_module(symbol.module_id)
+                || self.external_components.contains_key(&symbol.module_id);
+            if !visible || symbols.contains(&symbol) {
+                continue;
+            }
+
+            self.import_inherent_externals()?;
+            if self.definition(symbol)?.is_some() {
+                symbols.push(symbol);
+            }
+        }
+
+        Ok(())
     }
 
     /// Look up matching members from one extension declaration.

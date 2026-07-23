@@ -1,5 +1,6 @@
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion, ComponentGraph,
+    InherentExtension,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ModuleDelta, ProfileId, ProviderContext};
@@ -111,15 +112,17 @@ impl Compiler {
         let started = self.repository.host().clock().now();
         let mut edge_count = 0u64;
 
-        // classify each module's inference-coupling edge subset
+        // classify each module's inference-coupling edge subset and inherent extensions
         let mut coupling_by_module = IndexMap::with_capacity(modules.len());
         let mut is_coupling_changed = false;
+        let mut inherent = Vec::new();
         for module in modules.iter().copied() {
             let coupling = self.module_coupling_edges(artifacts, profile, module)?;
             if let Some(base) = &base {
                 is_coupling_changed |= !base.graph.coupling_edges_equal(module, coupling.as_ref());
             }
             coupling_by_module.insert(module, coupling);
+            self.collect_inherent_extensions(artifacts, profile, module, &mut inherent)?;
         }
 
         // build all edges when no predecessor graph is available
@@ -137,7 +140,9 @@ impl Compiler {
             }
             context.emit_counter("edges", edge_count);
 
-            let graph = ComponentGraph::from_edges(profile, edges_by_module, coupling_by_module);
+            validate_component_edges(&edges_by_module)?;
+            let graph =
+                ComponentGraph::from_edges(profile, edges_by_module, coupling_by_module, inherent);
 
             return Ok(Arc::new(graph));
         };
@@ -167,14 +172,19 @@ impl Compiler {
         }
         context.emit_counter("edges", edge_count);
 
-        // return the predecessor graph when changed edges still match
-        if !is_changed && !is_coupling_changed {
+        // return the predecessor graph when its inputs still match
+        let is_inherent_changed = !base.graph.inherent_extensions_equal(&inherent);
+        if !is_changed && !is_coupling_changed && !is_inherent_changed {
             return Ok(base.graph);
         }
 
-        let graph = base
-            .graph
-            .derive(changed_edges, base.delta.removed, coupling_by_module);
+        let graph = base.graph.derive(
+            changed_edges,
+            base.delta.removed,
+            coupling_by_module,
+            inherent,
+        );
+        validate_component_graph(&graph)?;
 
         Ok(Arc::new(graph))
     }
@@ -249,6 +259,33 @@ impl Compiler {
         let edges = edges.into_iter().collect::<Vec<_>>();
 
         Ok(Arc::from(edges))
+    }
+
+    /// Collect one module's exported extensions kept inherent by target ownership.
+    fn collect_inherent_extensions(
+        &self,
+        artifacts: &ArtifactReader<'_>,
+        profile: ProfileId,
+        module: ModuleId,
+        inherent: &mut Vec<InherentExtension>,
+    ) -> CompilerResult<()> {
+        let resolved = artifacts
+            .dir_resolved(module, profile)
+            .map_err(CompilerError::from)?;
+
+        for (symbol, target) in resolved.extensions.targets() {
+            // keep extensions of another package's target import-scoped
+            if target.module_id.package_id != module.package_id {
+                continue;
+            }
+
+            inherent.push(InherentExtension {
+                symbol,
+                target: target.module_id,
+            });
+        }
+
+        Ok(())
     }
 
     /// Return whether one exported symbol carries inference to its consumers.

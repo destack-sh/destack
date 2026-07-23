@@ -44,6 +44,32 @@ pub struct GlobalEnvironment {
     pub global_targets_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
 }
 
+impl GlobalEnvironment {
+    /// Return the modules whose exports load without imports.
+    pub fn implicit_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        let language = self
+            .language
+            .items_by_symbol
+            .keys()
+            .map(|symbol| symbol.module_id);
+        let builtins = self
+            .language
+            .symbols
+            .values()
+            .map(|symbol| symbol.module_id);
+        let globals = self
+            .global_targets_by_key
+            .values()
+            .flatten()
+            .map(|target| match target {
+                ImportTarget::Symbol(symbol) => symbol.module_id,
+                ImportTarget::Namespace(module) => *module,
+            });
+
+        language.chain(builtins).chain(globals)
+    }
+}
+
 /// Resolved compiler-known intrinsic bindings for a profile.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct LanguageIntrinsics {
