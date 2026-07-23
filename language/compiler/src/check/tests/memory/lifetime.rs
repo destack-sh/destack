@@ -197,9 +197,9 @@ fn test_elide_bodyless_result_lifetime_to_input_union() {
         r#"
 struct Node { id: int32; }
 
-declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
-    a: Borrowed<Node, L0, "mutable">,
-    b: Borrowed<Node, L1, "mutable">,
+declare function choose<'a, 'b>(
+    a: Borrowed<Node, 'a, "mutable">,
+    b: Borrowed<Node, 'b, "mutable">,
 ): &Node;
 "#,
     );
@@ -213,9 +213,9 @@ struct Node {
     id: int32;
 }
 
-declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
-    a: Borrowed<Node, L0, "mutable">,
-    b: Borrowed<Node, L1, "mutable">,
+declare function choose<'a, 'b>(
+    a: Borrowed<Node, 'a, "mutable">,
+    b: Borrowed<Node, 'b, "mutable">,
 ): &Node;
 
 === checked ===
@@ -225,31 +225,29 @@ struct Node { id: int32; }
 /// @definition.field symbol=Node.id source="id: int32" key=id type=int32
 /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
-declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
-/// @generic.template symbol=choose parameters=(comptime L0: Lifetime, comptime L1: Lifetime)
-/// @type.symbol symbol=choose type=<comptime L0, comptime L1>(Borrowed<Node, L0, "mutable">, Borrowed<Node, L1, "mutable">) => Borrowed<Node, L0 | L1, "mutable">
-/// @type.symbol symbol=choose.L0 source="comptime L0: Lifetime" type=L0
-/// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
-/// @type.symbol symbol=choose.L1 source="comptime L1: Lifetime" type=L1
-/// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
+declare function choose<'a, 'b>(
+/// @generic.template symbol=choose parameters=('a, 'b)
+/// @type.symbol symbol=choose type=<'a, 'b>(Borrowed<Node, 'a, "mutable">, Borrowed<Node, 'b, "mutable">) => &'a | 'b Node reduced=<'a, 'b>(&'a Node, &'b Node) => &'a | 'b Node
+/// @type.symbol symbol=choose.'a source='a type='a
+/// @type.symbol symbol=choose.'b source='b type='b
 
-    a: Borrowed<Node, L0, "mutable">,
-    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, L0, \"mutable\">" type=Borrowed<Node, L0, "mutable">
+    a: Borrowed<Node, 'a, "mutable">,
+    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, 'a, \"mutable\">" type=Borrowed<Node, 'a, "mutable"> reduced=&'a Node
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Node target=Node
-    /// @resolution.name source=L0 target=choose.L0
+    /// @resolution.name source='a target=choose.'a
 
-    b: Borrowed<Node, L1, "mutable">,
-    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, L1, \"mutable\">" type=Borrowed<Node, L1, "mutable">
+    b: Borrowed<Node, 'b, "mutable">,
+    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, 'b, \"mutable\">" type=Borrowed<Node, 'b, "mutable"> reduced=&'b Node
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Node target=Node
-    /// @resolution.name source=L1 target=choose.L1
+    /// @resolution.name source='b target=choose.'b
 
 ): &Node;
 /// @resolution.name source=Node target=Node
 
-/// @generic.instance id="Borrowed<Node, L0, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, L0, "mutable")
-/// @generic.instance id="Borrowed<Node, L1, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, L1, "mutable")
+/// @generic.instance id="Borrowed<Node, 'a, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, 'a, "mutable")
+/// @generic.instance id="Borrowed<Node, 'b, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, 'b, "mutable")
 "#,
         r#"
 

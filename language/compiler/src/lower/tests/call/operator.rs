@@ -36,8 +36,8 @@ type Vector {
     y: int32;
 }
 
-function main.Vector.add<a: lifetime>(v0: ref<Vector, borrowed, lifetime(a), exclusive>, v1: Vector): Vector {
-entry(v0: ref<Vector, borrowed, lifetime(a), exclusive>, v1: Vector):
+function main.Vector.add<'a>(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector): Vector {
+entry(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector):
     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
     v3: int32 = load v2
     v4: int32 = field.get v1, 0
@@ -109,8 +109,8 @@ type Charge {
     amount: int32;
 }
 
-function main.Charge.negate<a: lifetime>(v0: ref<Charge, borrowed, lifetime(a), exclusive>): Charge {
-entry(v0: ref<Charge, borrowed, lifetime(a), exclusive>):
+function main.Charge.negate<'a>(v0: ref<Charge, borrowed, 'a, exclusive>): Charge {
+entry(v0: ref<Charge, borrowed, 'a, exclusive>):
     v1: ref<int32, borrowed, exclusive> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = int.negate v2

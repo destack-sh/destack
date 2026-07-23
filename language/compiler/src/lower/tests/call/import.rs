@@ -146,7 +146,7 @@ entry(v0: int32):
     return v3
 }
 
-external function point.Point.length<a: lifetime>(ref<point.Point, borrowed, lifetime(a), exclusive>): int32
+external function point.Point.length<'a>(ref<point.Point, borrowed, 'a, exclusive>): int32
 /// @layout.struct name=point.Point size=8 align=4
 /// @layout.field owner=point.Point index=0 name=x offset=0 size=4 align=4
 /// @layout.field owner=point.Point index=1 name=y offset=4 size=4 align=4

@@ -29,8 +29,8 @@ type Point {
     y: int32;
 }
 
-function main.Point.length<a: lifetime>(v0: ref<Point, borrowed, lifetime(a), exclusive>): int32 {
-entry(v0: ref<Point, borrowed, lifetime(a), exclusive>):
+function main.Point.length<'a>(v0: ref<Point, borrowed, 'a, exclusive>): int32 {
+entry(v0: ref<Point, borrowed, 'a, exclusive>):
     v1: ref<int32, borrowed, exclusive> = field.address v0, 0
     v2: int32 = load v1
     v3: ref<int32, borrowed, exclusive> = field.address v0, 1
@@ -86,8 +86,8 @@ type Counter {
     count: int32;
 }
 
-function main.Counter.bump<a: lifetime>(v0: ref<Counter, borrowed, lifetime(a), exclusive>, v1: int32): void {
-entry(v0: ref<Counter, borrowed, lifetime(a), exclusive>, v1: int32):
+function main.Counter.bump<'a>(v0: ref<Counter, borrowed, 'a, exclusive>, v1: int32): void {
+entry(v0: ref<Counter, borrowed, 'a, exclusive>, v1: int32):
     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
     v3: int32 = load v2
     v4: int32 = int.add v3, v1
@@ -182,8 +182,8 @@ function probe(status: Status): boolean {
 @copy
 type Status = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
-function main.Status.isActive<a: lifetime>(v0: ref<Status, borrowed, lifetime(a), exclusive>): boolean {
-entry(v0: ref<Status, borrowed, lifetime(a), exclusive>):
+function main.Status.isActive<'a>(v0: ref<Status, borrowed, 'a, exclusive>): boolean {
+entry(v0: ref<Status, borrowed, 'a, exclusive>):
     v1: Status = load v0
     v2: int64 = variant.tag v1
     v3: Status = variant.new 0
