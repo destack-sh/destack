@@ -138,6 +138,48 @@ opcodes! {
         operands: [Result, Type],
     }
 
+    // aggregates
+    AGGREGATE = 0x0016 {
+        text: "aggregate",
+        signature: "(type: TypeId, fields: value[]) => value",
+        operands: [ResultRange, Type, RegisterList],
+    }
+    FIELD_GET = 0x0017 {
+        text: "field.get",
+        signature: "(aggregate: value, type: TypeId, field: uint32) => value",
+        operands: [ResultRange, RegisterRange, Type, Unsigned32],
+    }
+    FIELD_SET = 0x0018 {
+        text: "field.set",
+        signature: "(aggregate: value, type: TypeId, field: uint32, value: value) => value",
+        operands: [ResultRange, RegisterRange, Type, Unsigned32, RegisterRange],
+    }
+    ELEMENT_GET = 0x0019 {
+        text: "element.get",
+        signature: "(aggregate: value, type: TypeId, index: uint32) => value",
+        operands: [ResultRange, RegisterRange, Type, Unsigned32],
+    }
+    ELEMENT_SET = 0x001a {
+        text: "element.set",
+        signature: "(aggregate: value, type: TypeId, index: uint32, value: value) => value",
+        operands: [ResultRange, RegisterRange, Type, Unsigned32, RegisterRange],
+    }
+    VARIANT_NEW = 0x001b {
+        text: "variant.new",
+        signature: "(type: TypeId, case: uint32, payload?: value) => value",
+        operands: [ResultRange, Type, Unsigned32, RegisterRange],
+    }
+    VARIANT_TAG = 0x001c {
+        text: "variant.tag",
+        signature: "(variant: value, type: TypeId) => value",
+        operands: [ResultRange, RegisterRange, Type],
+    }
+    VARIANT_PAYLOAD = 0x001d {
+        text: "variant.payload",
+        signature: "(variant: value, type: TypeId, case: uint32) => value",
+        operands: [ResultRange, RegisterRange, Type, Unsigned32],
+    }
+
     // constants
     CONSTANT_BYTES = 0x0020 {
         text: "constant.bytes",
@@ -241,6 +283,16 @@ opcodes! {
         text: "store",
         signature: "(pointer: pointer, value: ref) => void",
         operands: [Register, Register],
+    }
+    FRAME_LOAD = 0x0052 {
+        text: "frame.load",
+        signature: "(slot: FrameSlotId) => value",
+        operands: [ResultRange, FrameSlot],
+    }
+    FRAME_STORE = 0x0053 {
+        text: "frame.store",
+        signature: "(slot: FrameSlotId, value: value) => void",
+        operands: [FrameSlot, RegisterRange],
     }
 
     // function values

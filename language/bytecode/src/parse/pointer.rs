@@ -90,18 +90,7 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // parse the dense frame slot
-        let slot = self.eat_token(TokenType::Identifier)?;
-        let index = self
-            .text(slot)
-            .strip_prefix('s')
-            .ok_or_else(|| ParseError::new("expected frame slot", slot.span))?;
-        let index = index
-            .parse::<u32>()
-            .map_err(|_| ParseError::new("expected frame slot", slot.span))?;
-        if !function.contains_frame_slot(index) {
-            return Err(ParseError::new("unknown frame slot", slot.span));
-        }
+        let index = self.parse_frame_slot_id(function)?;
 
         // encode the slot index
         let mut instruction = InstructionBuilder::new(Opcode::FRAME_ADDRESS);

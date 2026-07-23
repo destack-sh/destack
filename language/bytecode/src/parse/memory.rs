@@ -37,6 +37,8 @@ impl Parser<'_> {
 
         // byte range and prefetch operations
         match name {
+            "frame.load" => self.parse_frame_load(token, results, result_types, function),
+            "frame.store" => self.parse_frame_store(token, results, function),
             "copy.bytes" => self.parse_byte_transfer(Opcode::COPY_BYTES, token, results, function),
             "move.bytes" => self.parse_byte_transfer(Opcode::MOVE_BYTES, token, results, function),
             "fill.bytes" => self.parse_byte_fill(token, results, function),
@@ -49,7 +51,52 @@ impl Parser<'_> {
         }
     }
 
-    /// Parse one reference or vector load.
+    /// Parse one canonical frame-slot load.
+    fn parse_frame_load(
+        &mut self,
+        token: Token,
+        results: &[RegisterId],
+        result_types: &[ValueType],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let [ty] = result_types else {
+            return Err(ParseError::new(
+                "frame load requires one result",
+                token.span,
+            ));
+        };
+        let slot = self.parse_frame_slot_id(function)?;
+
+        // encode the canonical frame slot
+        let mut instruction = InstructionBuilder::new(Opcode::FRAME_LOAD);
+        instruction.u32(slot);
+
+        function.emit(instruction, results, &[*ty], self.empty_span())
+    }
+
+    /// Parse one canonical frame-slot store.
+    fn parse_frame_store(
+        &mut self,
+        token: Token,
+        results: &[RegisterId],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let slot = self.parse_frame_slot_id(function)?;
+        self.eat_token(TokenType::Comma)?;
+        let value = self.parse_register()?;
+        let ty = function.value_type(value).ok_or_else(|| {
+            ParseError::new("frame store reads an uninitialized value", token.span)
+        })?;
+
+        // encode the complete logical value range
+        let mut instruction = InstructionBuilder::new(Opcode::FRAME_STORE);
+        instruction.u32(slot);
+        instruction.range(RegisterRange::new(value, ty.word_count()));
+
+        function.emit(instruction, results, &[], self.empty_span())
+    }
+
+    /// Parse one packed value or vector load.
     fn parse_load(
         &mut self,
         token: Token,

@@ -1,3 +1,4 @@
+mod aggregate;
 mod atomic;
 mod call;
 mod control;

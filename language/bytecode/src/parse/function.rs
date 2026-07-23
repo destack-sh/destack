@@ -614,6 +614,23 @@ impl Parser<'_> {
         Ok(RegisterId(index))
     }
 
+    /// Parse one dense frame slot id.
+    pub(super) fn parse_frame_slot_id(&mut self, function: &FunctionParser) -> ParseResult<u32> {
+        let slot = self.eat_token(TokenType::Identifier)?;
+        let index = self
+            .text(slot)
+            .strip_prefix('s')
+            .ok_or_else(|| ParseError::new("expected frame slot", slot.span))?;
+        let index = index
+            .parse::<u32>()
+            .map_err(|_| ParseError::new("expected frame slot", slot.span))?;
+        if !function.contains_frame_slot(index) {
+            return Err(ParseError::new("unknown frame slot", slot.span));
+        }
+
+        Ok(index)
+    }
+
     /// Parse one function value operation.
     pub(super) fn parse_function_operation(
         &mut self,

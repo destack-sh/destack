@@ -7,6 +7,42 @@ use crate::{MemoryOperation, Opcode, ReferenceType, Scalar, ValueType};
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
+    /// Format one canonical frame-slot value operation.
+    pub(super) fn format_frame(&mut self, opcode: Opcode) -> FormatResult<()> {
+        match opcode {
+            Opcode::FRAME_LOAD => self.format_frame_load(),
+            Opcode::FRAME_STORE => self.format_frame_store(),
+            _ => Err(FormatError::SyntaxError {
+                message: "invalid frame opcode",
+            }),
+        }
+    }
+
+    /// Format one canonical frame-slot load.
+    fn format_frame_load(&mut self) -> FormatResult<()> {
+        self.declared_result_range()?;
+        let slot = format!("s{}", self.u32()?);
+
+        // write the canonical frame slot
+        write!(
+            self.formatter,
+            [space(), token("="), space(), token("frame.load"), space()]
+        )?;
+        self.write_text(&slot)
+    }
+
+    /// Format one canonical frame-slot store.
+    fn format_frame_store(&mut self) -> FormatResult<()> {
+        let slot = format!("s{}", self.u32()?);
+        let (value, _) = self.register_range_id()?;
+
+        // write the canonical frame slot and logical value
+        write!(self.formatter, [token("frame.store"), space()])?;
+        self.write_text(&slot)?;
+        write!(self.formatter, [token(","), space()])?;
+        self.write_register(value)
+    }
+
     /// Format one reference load.
     pub(super) fn format_load(&mut self) -> FormatResult<()> {
         let result = self.register_id()?;

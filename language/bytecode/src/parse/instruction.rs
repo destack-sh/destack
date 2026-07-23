@@ -77,13 +77,21 @@ impl Parser<'_> {
             "select" | "equal" => self.parse_value_operation(name, token, results, function),
             "move" if name == "move" => self.parse_value_operation(name, token, results, function),
 
+            // aggregates
+            "aggregate" | "field" | "element" | "variant" => {
+                self.parse_aggregate_operation(name, token, results, result_types, function)
+            }
+
             // addresses
-            "global" | "frame" | "reference" | "pointer" => {
+            "global" | "reference" | "pointer" => {
+                self.parse_pointer_operation(name, token, results, function)
+            }
+            "frame" if name == "frame.address" => {
                 self.parse_pointer_operation(name, token, results, function)
             }
 
             // byte ranges, prefetch, and memory
-            "copy" | "move" | "fill" | "compare" | "prefetch" | "load" | "store" => {
+            "copy" | "move" | "fill" | "compare" | "prefetch" | "load" | "store" | "frame" => {
                 self.parse_memory_operation(name, token, results, result_types, function)
             }
             "atomic" => self.parse_atomic_operation(name, token, results, result_types, function),
@@ -138,7 +146,16 @@ impl Parser<'_> {
         let is_named = token.ty == TokenType::Identifier
             && matches!(
                 self.text(token),
-                "true" | "false" | "Infinity" | "-Infinity" | "NaN" | "bits" | "null" | "undefined"
+                "true"
+                    | "false"
+                    | "Infinity"
+                    | "-Infinity"
+                    | "NaN"
+                    | "bits"
+                    | "null"
+                    | "undefined"
+                    | "uninit"
+                    | "zeroed"
             );
 
         is_number || is_named

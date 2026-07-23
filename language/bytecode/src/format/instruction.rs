@@ -116,6 +116,16 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::SELECT_RANGE
             | Opcode::EQUAL => self.format_value(opcode),
 
+            // aggregates
+            Opcode::AGGREGATE
+            | Opcode::FIELD_GET
+            | Opcode::FIELD_SET
+            | Opcode::ELEMENT_GET
+            | Opcode::ELEMENT_SET
+            | Opcode::VARIANT_NEW
+            | Opcode::VARIANT_TAG
+            | Opcode::VARIANT_PAYLOAD => self.format_aggregate(opcode),
+
             // constants
             Opcode::CONSTANT_TYPE
             | Opcode::CONSTANT_BYTES
@@ -144,6 +154,7 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             // memory
             Opcode::LOAD => self.format_load(),
             Opcode::STORE => self.format_store(),
+            Opcode::FRAME_LOAD | Opcode::FRAME_STORE => self.format_frame(opcode),
 
             // function values
             Opcode::FUNCTION_ADDRESS
@@ -298,6 +309,20 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             });
         }
         self.write_result(register, ty)
+    }
+
+    /// Append one result range using its declared register type.
+    pub(super) fn declared_result_range(&mut self) -> FormatResult<ValueType> {
+        let (register, word_count) = self.register_range_id()?;
+        let ty = self.formatter.context().register_type(register)?;
+        if word_count != ty.word_count() {
+            return Err(FormatError::SyntaxError {
+                message: "instruction result width does not match its register type",
+            });
+        }
+        self.write_result(register, ty)?;
+
+        Ok(ty)
     }
 
     /// Append the logical values in one encoded result range.
