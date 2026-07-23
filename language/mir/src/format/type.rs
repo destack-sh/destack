@@ -761,6 +761,7 @@ pub(super) fn format_function_signature<'a>(
     }
     write!(f, [token(")"), space(), token("=>"), space()])?;
     format_type_id(result, f)?;
+    super::function::format_lifetime_where(lifetimes, f)?;
 
     f.context_mut().current_lifetimes = previous_lifetimes;
 

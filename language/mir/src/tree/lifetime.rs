@@ -11,12 +11,22 @@ pub struct LifetimeSlot(pub u32);
 pub struct LifetimeParameter {
     /// The source or generated parameter name.
     pub name: Option<StringId>,
+    /// The declared slots this parameter outlives.
+    pub outlives: Vec<LifetimeSlot>,
 }
 
 impl LifetimeParameter {
     /// Create a lifetime parameter with an optional name.
     pub fn new(name: Option<StringId>) -> Self {
-        Self { name }
+        Self {
+            name,
+            outlives: Vec::new(),
+        }
+    }
+
+    /// Create a lifetime parameter with declared outlives slots.
+    pub fn with_outlives(name: Option<StringId>, outlives: Vec<LifetimeSlot>) -> Self {
+        Self { name, outlives }
     }
 }
 

@@ -54,8 +54,9 @@ impl<'a> FunctionBuilder<'a> {
             })
             .collect();
         let result = declared.return_type;
+        let lifetimes = declared.lifetimes.clone();
         let signature = self.tree.intern_type(Type::FunctionSignature {
-            lifetimes: Vec::new(),
+            lifetimes,
             parameters,
             result,
         });

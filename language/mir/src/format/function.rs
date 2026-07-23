@@ -43,6 +43,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             format_function_parameters(id, self, true, f)?;
 
             write!(f, [token(":"), space(), self.return_type])?;
+            format_lifetime_where(&self.lifetimes, f)?;
             f.context_mut().current_lifetimes.clear();
 
             return Ok(());
@@ -71,17 +72,9 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         // parameters
         format_function_parameters(id, self, false, f)?;
 
-        write!(
-            f,
-            [
-                token(":"),
-                space(),
-                self.return_type,
-                space(),
-                token("{"),
-                hard_line_break()
-            ]
-        )?;
+        write!(f, [token(":"), space(), self.return_type])?;
+        format_lifetime_where(&self.lifetimes, f)?;
+        write!(f, [space(), token("{"), hard_line_break()])?;
 
         // function body
         format_function_body(self, f)?;
@@ -90,6 +83,39 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         f.context_mut().current_lifetimes.clear();
         write!(f, [token("}")])
     }
+}
+
+/// Format declared outlives rows as one trailing where clause.
+pub(super) fn format_lifetime_where<'a>(
+    lifetimes: &[LifetimeParameter],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let mut first = true;
+    for (slot, lifetime) in lifetimes.iter().enumerate() {
+        for target in &lifetime.outlives {
+            if first {
+                write!(f, [space(), token("where"), space()])?;
+                first = false;
+            } else {
+                write!(f, [token(","), space()])?;
+            }
+            let name = |slot: usize| {
+                lifetimes
+                    .get(slot)
+                    .and_then(|parameter| parameter.name)
+                    .map(|name| f.context().strings.get(name).to_string())
+                    .unwrap_or_else(|| slot.to_string())
+            };
+            let left = name(slot);
+            let right = name(target.0 as usize);
+            write!(
+                f,
+                [copied_text(&left), token(":"), space(), copied_text(&right)]
+            )?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Format a declaration lifetime header.

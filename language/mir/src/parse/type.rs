@@ -592,10 +592,11 @@ impl Parser {
     /// Parse a function signature result after its parameter types.
     fn parse_signature_result(
         &mut self,
-        lifetimes: Vec<LifetimeParameter>,
+        mut lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<SignatureParameter>,
     ) -> ParseResult<LocalNodeId<Type>> {
         let (result, _) = self.parse_type_use_part()?;
+        self.parse_lifetime_where(&mut lifetimes)?;
         self.intern_type(Type::FunctionSignature {
             lifetimes,
             parameters,

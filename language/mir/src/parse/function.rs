@@ -155,7 +155,7 @@ impl Parser {
         })?;
 
         // lifetime scope
-        let lifetimes = self.parse_lifetime_parameters()?;
+        let mut lifetimes = self.parse_lifetime_parameters()?;
 
         // body value namespace
         if mode == FunctionHeaderMode::Definition {
@@ -173,6 +173,7 @@ impl Parser {
         let return_colon_span = self.span_at(return_colon_start, return_colon_length);
         let (return_type, return_type_span) =
             self.parse_function_return_type(return_colon_token, mode)?;
+        self.parse_lifetime_where(&mut lifetimes)?;
         let signature_span = self.span_between(signature_start, return_type_span.end as usize);
 
         Ok(ParsedFunctionHeader {

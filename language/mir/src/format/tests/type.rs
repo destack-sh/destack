@@ -103,6 +103,19 @@ entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPla
     );
 }
 
+/// Formats declared outlives rows between lifetime parameters.
+#[test]
+fn test_format_lifetime_outlives_rows() {
+    assert_format(
+        r#"
+function pass<LA: lifetime, LC: lifetime>(v0: ref<int32, borrowed, lifetime(LA), mutable>): ref<int32, borrowed, lifetime(LC), mutable> where LA: LC {
+entry(v0: ref<int32, borrowed, lifetime(LA), mutable>):
+    return v0
+}
+"#,
+    );
+}
+
 /// Formats callable suspension contracts canonically.
 #[test]
 fn test_format_callable_suspension_contract() {

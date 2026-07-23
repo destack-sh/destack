@@ -338,6 +338,45 @@ impl Parser {
         Ok(lifetimes)
     }
 
+    /// Parse one optional trailing lifetime where clause.
+    pub(super) fn parse_lifetime_where(
+        &mut self,
+        lifetimes: &mut [LifetimeParameter],
+    ) -> ParseResult<()> {
+        if !self.eat_identifier_text("where") {
+            return Ok(());
+        }
+
+        loop {
+            let left = self.parse_scope_lifetime()?;
+            self.eat_token(TokenType::Colon)?;
+            let right = self.parse_scope_lifetime()?;
+            lifetimes[left.0 as usize].outlives.push(right);
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Parse one lifetime name against the active scope.
+    fn parse_scope_lifetime(&mut self) -> ParseResult<LifetimeSlot> {
+        let token = self.eat_token(TokenType::Identifier)?;
+        let name = self.tree.source_text(token.span);
+        let slot = self.lifetime_scopes.last().and_then(|scope| {
+            scope
+                .iter()
+                .find(|(candidate, _)| candidate == name)
+                .map(|(_, slot)| *slot)
+        });
+        let Some(slot) = slot else {
+            return Err(ParseError::invalid("lifetime parameter", token.start()));
+        };
+
+        Ok(slot)
+    }
+
     /// Parse a lifetime parameter scope around one parser operation.
     pub(super) fn parse_lifetime_scope<T>(
         &mut self,
