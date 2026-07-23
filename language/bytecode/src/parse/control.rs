@@ -28,9 +28,6 @@ impl Parser<'_> {
             "panic" => self.parse_panic(results, function),
             "unwind.resume" => self.parse_empty_control(Opcode::UNWIND_RESUME, results, function),
 
-            // collector protocol
-            "safepoint" => self.parse_empty_control(Opcode::SAFEPOINT, results, function),
-
             // debug control
             "breakpoint" => self.parse_empty_control(Opcode::BREAKPOINT, results, function),
             _ => Err(ParseError::new("invalid control operation", token.span)),

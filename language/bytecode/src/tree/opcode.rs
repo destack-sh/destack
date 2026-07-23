@@ -389,11 +389,6 @@ opcodes! {
         signature: "(object: ref<managed>, offset: uint64, byteLength: uint64) => void",
         operands: [Register, Reference, Register, Register],
     }
-    SAFEPOINT = 0x0091 {
-        text: "safepoint",
-        signature: "() => void",
-        operands: [],
-    }
 
     // calls
     CALL = 0x00a0 {

@@ -236,13 +236,6 @@ impl InstructionFormatter<'_, '_, '_> {
                 self.write_text(name)
             }
 
-            // collector protocol
-            Opcode::SAFEPOINT => {
-                let name = self.opcode_name(opcode)?;
-
-                self.write_text(name)
-            }
-
             // debug control
             Opcode::BREAKPOINT => {
                 let name = self.opcode_name(opcode)?;

@@ -181,7 +181,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
 
             // collector protocol
             Opcode::BARRIER => self.format_reference(opcode),
-            Opcode::SAFEPOINT => self.format_control(opcode),
 
             // calls
             Opcode::CALL

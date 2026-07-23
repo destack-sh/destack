@@ -112,7 +112,6 @@ impl Parser<'_> {
 
             // collector protocol
             "barrier" => self.parse_reference_operation(name, token, results, function),
-            "safepoint" => self.parse_control_operation(name, token, results, function),
 
             // calls
             "call" | "invoke" | "tail" => {

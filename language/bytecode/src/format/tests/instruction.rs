@@ -7,7 +7,6 @@ fn test_format_runtime_instructions() {
         r#"
 export function observed(r0:uint64):void{
 breakpoint
-safepoint
 profile.increment counter(3)
 profile.sample sampler(4),r0
 return
@@ -16,7 +15,6 @@ return
         r#"
 export function observed(r0: uint64): void {
     breakpoint
-    safepoint
     profile.increment counter(3)
     profile.sample sampler(4), r0
     return

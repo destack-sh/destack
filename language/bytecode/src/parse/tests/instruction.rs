@@ -9,7 +9,6 @@ fn test_parse_runtime_instructions() {
         r#"
 export function observed(r0: uint64): void {
     breakpoint
-    safepoint
     profile.increment counter(4)
     profile.sample sampler(7), r0
     return
@@ -21,7 +20,6 @@ export function observed(r0: uint64): void {
         opcodes,
         vec![
             Opcode::BREAKPOINT,
-            Opcode::SAFEPOINT,
             Opcode::PROFILE_INCREMENT,
             Opcode::PROFILE_SAMPLE,
             Opcode::RETURN,
