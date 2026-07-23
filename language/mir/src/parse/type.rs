@@ -177,10 +177,7 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         let mut lifetimes = Vec::new();
         while !self.peek_token(TokenType::GreaterThan) {
-            if !self.eat_identifier_text("lifetime") {
-                return Err(ParseError::invalid("type lifetime argument", self.pos()));
-            }
-            lifetimes.push(self.parse_lifetime_group()?);
+            lifetimes.push(self.parse_lifetime_union()?);
 
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -211,10 +208,8 @@ impl Parser {
             return false;
         }
 
-        self.peek_nth_token(1).is_some_and(|token| {
-            self.token_type(token) == TokenType::Identifier
-                && self.tree.source_text(token.span) == "lifetime"
-        })
+        self.peek_nth_token(1)
+            .is_some_and(|token| self.token_type(token) == TokenType::Lifetime)
     }
 
     /// Parse a type expression and append its span as one source segment.
@@ -939,8 +934,11 @@ impl Parser {
             return Ok(());
         }
 
-        if self.eat_identifier_text("lifetime") {
-            qualifiers.lifetime = self.parse_lifetime_group()?;
+        if self
+            .peek()
+            .is_some_and(|token| self.token_type(token) == TokenType::Lifetime)
+        {
+            qualifiers.lifetime = self.parse_lifetime_union()?;
             return Ok(());
         }
 
@@ -1028,53 +1026,33 @@ impl Parser {
         Ok(space)
     }
 
-    /// Parse a lifetime qualifier group.
-    fn parse_lifetime_group(&mut self) -> ParseResult<Lifetime> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let mut terms = Vec::new();
-
-        while !self.peek_token(TokenType::CloseParenthesis) {
-            let token = self
-                .peek()
-                .ok_or_else(|| ParseError::unexpected_end("lifetime", self.pos()))?;
-            match self.token_type(token) {
-                TokenType::Identifier => match self.tree.source_text(token.span) {
-                    "static" => {
-                        terms.push(LifetimeTerm::Static);
-                        self.bump();
-                    }
-                    name => {
-                        let slot = self.lifetime_slot(name).ok_or_else(|| {
-                            ParseError::invalid_with_length(
-                                "lifetime name",
-                                token.start(),
-                                token.span.len() as usize,
-                            )
-                        })?;
-                        terms.push(LifetimeTerm::Slot(slot));
-                        self.bump();
-                    }
-                },
-                _ => {
-                    return Err(ParseError::unexpected(
-                        "lifetime origin",
-                        self.token_type(token),
-                        token.start(),
-                    ));
-                }
-            }
-
-            if !self.eat_token_maybe(TokenType::Comma) {
-                break;
-            }
-        }
-
-        self.eat_token(TokenType::CloseParenthesis)?;
-        if terms.is_empty() {
-            return Err(ParseError::invalid("lifetime origin", self.pos()));
+    /// Parse one tick lifetime union.
+    pub(super) fn parse_lifetime_union(&mut self) -> ParseResult<Lifetime> {
+        let mut terms = vec![self.parse_lifetime_term()?];
+        while self.eat_token_maybe(TokenType::Pipe) {
+            terms.push(self.parse_lifetime_term()?);
         }
 
         Ok(Lifetime::new(terms))
+    }
+
+    /// Parse one tick lifetime term.
+    fn parse_lifetime_term(&mut self) -> ParseResult<LifetimeTerm> {
+        let token = self.eat_token(TokenType::Lifetime)?;
+        let name = self.tree.source_text(token.span);
+        if name == "'static" {
+            return Ok(LifetimeTerm::Static);
+        }
+
+        let Some(slot) = self.lifetime_slot(name) else {
+            return Err(ParseError::invalid_with_length(
+                "lifetime name",
+                token.start(),
+                token.span.len() as usize,
+            ));
+        };
+
+        Ok(LifetimeTerm::Slot(slot))
     }
 
     /// Parse function signature borrow obligations.
@@ -1086,7 +1064,9 @@ impl Parser {
             self.eat_token(TokenType::At)?;
             self.eat_token(TokenType::Identifier)?;
 
-            let lifetime = self.parse_lifetime_group()?;
+            self.eat_token(TokenType::OpenParenthesis)?;
+            let lifetime = self.parse_lifetime_union()?;
+            self.eat_token(TokenType::CloseParenthesis)?;
             obligations.push(BorrowObligation::SuspensionStable { lifetime });
         }
 

@@ -51,9 +51,9 @@ b3(v2: uninit<slice<int32, managed, mutable>>):
 fn test_format_slice_view() {
     assert_format(
         r#"
-function subslice<L0: lifetime>(v0: slice<int32, borrowed, lifetime(L0), mutable>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(L0), mutable> {
-entry(v0: slice<int32, borrowed, lifetime(L0), mutable>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, lifetime(L0), mutable> = slice.view v0, v1, v2
+function subslice<'L0>(v0: slice<int32, borrowed, 'L0, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'L0, mutable> {
+entry(v0: slice<int32, borrowed, 'L0, mutable>, v1: int64, v2: int64):
+    v3: slice<int32, borrowed, 'L0, mutable> = slice.view v0, v1, v2
     return v3
 }
 "#,

@@ -107,8 +107,8 @@ entry(v0: ref<int32, borrowed, mutable>):
     fn test_resolve_declared_multiple_parameter_lifetime() {
         let program = TestProgram::new(
             r#"
-function pick<L0: lifetime, L1: lifetime>(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>): ref<int32, borrowed, lifetime(L0, L1), mutable> {
-entry(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>):
+function pick<'L0, 'L1>(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, mutable>): ref<int32, borrowed, 'L0 | 'L1, mutable> {
+entry(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, mutable>):
     return v0
 }
 "#,
@@ -193,7 +193,7 @@ entry(v0: int32, v1: ref<int32, borrowed, mutable>, v2: int32):
     fn test_resolve_explicit_static_lifetime() {
         let program = TestProgram::new(
             r#"
-function getGlobal(v0: ref<int32, borrowed, mutable>): ref<int32, borrowed, lifetime(static), mutable> {
+function getGlobal(v0: ref<int32, borrowed, mutable>): ref<int32, borrowed, 'static, mutable> {
 entry(v0: ref<int32, borrowed, mutable>):
     return v0
 }
@@ -215,8 +215,8 @@ entry(v0: ref<int32, borrowed, mutable>):
     fn test_resolve_explicit_param_lifetime() {
         let program = TestProgram::new(
             r#"
-function pickFirst<L0: lifetime, L1: lifetime>(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>): ref<int32, borrowed, lifetime(L0), mutable> {
-entry(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>):
+function pickFirst<'L0, 'L1>(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, mutable>): ref<int32, borrowed, 'L0, mutable> {
+entry(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, mutable>):
     return v0
 }
 "#,
@@ -261,13 +261,13 @@ entry(v0: int32):
     fn test_resolve_applied_aggregate_borrowed_paths() {
         let program = TestProgram::new(
             r#"
-type Pair<A: lifetime, B: lifetime> {
-    ref<int32, borrowed, lifetime(A), readonly>;
-    ref<int32, borrowed, lifetime(B), readonly>;
+type Pair<'A, 'B> {
+    ref<int32, borrowed, 'A, readonly>;
+    ref<int32, borrowed, 'B, readonly>;
 }
 
-function test<L0: lifetime, L1: lifetime>(v0: Pair<lifetime(L0), lifetime(L1)>): void {
-entry(v0: Pair<lifetime(L0), lifetime(L1)>):
+function test<'L0, 'L1>(v0: Pair<'L0, 'L1>): void {
+entry(v0: Pair<'L0, 'L1>):
     return
 }
 "#,

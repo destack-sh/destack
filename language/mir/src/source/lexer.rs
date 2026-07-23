@@ -84,7 +84,7 @@ impl<'a> Lexer<'a> {
                 TokenType::Comment
             }
             '"' => self.string(),
-            '\'' => self.character(),
+            '\'' => self.character_or_lifetime(),
             '-' if self.peek() == Some('>') => {
                 self.bump();
                 TokenType::Arrow
@@ -141,6 +141,30 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
+    }
+
+    /// Lex one character literal or tick lifetime name.
+    fn character_or_lifetime(&mut self) -> TokenType {
+        // a name without a closing quote is a lifetime
+        let rest = self.rest();
+        let mut characters = rest.chars();
+        if let Some(first) = characters.next()
+            && is_identifier_start(first)
+        {
+            let mut length = first.len_utf8();
+            for character in characters {
+                if !is_identifier_continue(character) {
+                    break;
+                }
+                length += character.len_utf8();
+            }
+            if !rest[length..].starts_with('\'') {
+                self.bump_while(is_identifier_continue);
+                return TokenType::Lifetime;
+            }
+        }
+
+        self.character()
     }
 
     /// Lex one character literal.

@@ -110,10 +110,10 @@ b1(v2: int32, v3: ref<int32, borrowed, mutable, space(frame)>):
 fn test_reject_missing_parameter_borrow_obligation() {
     let mut program = TestProgram::mir(
         r#"
-function test<L0: lifetime>(v0: ref<int32, borrowed, lifetime(L0), readonly>): int32 {
-entry(v0: ref<int32, borrowed, lifetime(L0), readonly>):
+function test<'L0>(v0: ref<int32, borrowed, 'L0, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'L0, readonly>):
     yield v0 => b1(v0)
-b1(v1: ref<int32, borrowed, lifetime(L0), readonly>):
+b1(v1: ref<int32, borrowed, 'L0, readonly>):
     v2: int32 = load v1
     return v2
 }"#,
@@ -126,10 +126,10 @@ b1(v1: ref<int32, borrowed, lifetime(L0), readonly>):
 fn test_require_mutable_parameter_borrow_source_across_yield() {
     let mut program = TestProgram::mir(
         r#"
-function test<L0: lifetime>(v0: ref<int32, borrowed, lifetime(L0), mutable> @suspensionSafe(L0)): int32 {
-entry(v0: ref<int32, borrowed, lifetime(L0), mutable>):
+function test<'L0>(v0: ref<int32, borrowed, 'L0, mutable> @suspensionSafe('L0)): int32 {
+entry(v0: ref<int32, borrowed, 'L0, mutable>):
     yield v0 => b1(v0)
-b1(v1: ref<int32, borrowed, lifetime(L0), mutable>):
+b1(v1: ref<int32, borrowed, 'L0, mutable>):
     v2: int32 = load v1
     return v2
 }"#,
@@ -142,10 +142,10 @@ b1(v1: ref<int32, borrowed, lifetime(L0), mutable>):
 fn test_require_readonly_parameter_borrow_source_across_yield() {
     let mut program = TestProgram::mir(
         r#"
-function test<L0: lifetime>(v0: ref<int32, borrowed, lifetime(L0), readonly> @suspensionSafe(L0)): int32 {
-entry(v0: ref<int32, borrowed, lifetime(L0), readonly>):
+function test<'L0>(v0: ref<int32, borrowed, 'L0, readonly> @suspensionSafe('L0)): int32 {
+entry(v0: ref<int32, borrowed, 'L0, readonly>):
     yield v0 => b1(v0)
-b1(v1: ref<int32, borrowed, lifetime(L0), readonly>):
+b1(v1: ref<int32, borrowed, 'L0, readonly>):
     v2: int32 = load v1
     return v2
 }"#,
@@ -158,15 +158,15 @@ b1(v1: ref<int32, borrowed, lifetime(L0), readonly>):
 fn test_apply_aggregate_parameter_lifetime_across_yield() {
     let mut program = TestProgram::mir(
         r#"
-type Holder<L: lifetime> {
-    value: ref<int32, borrowed, readonly, lifetime(L)>;
+type Holder<'L> {
+    value: ref<int32, borrowed, readonly, 'L>;
 }
 
-function test<L0: lifetime>(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<lifetime(L0)> @suspensionSafe(L0)): int32 {
-entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<lifetime(L0)>):
-    v3: ref<int32, borrowed, readonly, lifetime(L0)> = field.get v2, 0
+function test<'L0>(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<'L0> @suspensionSafe('L0)): int32 {
+entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<'L0>):
+    v3: ref<int32, borrowed, readonly, 'L0> = field.get v2, 0
     yield v3 => b1(v3)
-b1(v4: ref<int32, borrowed, readonly, lifetime(L0)>):
+b1(v4: ref<int32, borrowed, readonly, 'L0>):
     v5: int32 = load v4
     return v5
 }"#,
@@ -179,16 +179,16 @@ b1(v4: ref<int32, borrowed, readonly, lifetime(L0)>):
 fn test_apply_only_live_aggregate_path_lifetime_across_yield() {
     let mut program = TestProgram::mir(
         r#"
-type Pair<A: lifetime, B: lifetime> {
-    left: ref<int32, borrowed, readonly, lifetime(A)>;
-    right: ref<int32, borrowed, readonly, lifetime(B)>;
+type Pair<'A, 'B> {
+    left: ref<int32, borrowed, readonly, 'A>;
+    right: ref<int32, borrowed, readonly, 'B>;
 }
 
-function test<L0: lifetime, L1: lifetime>(v0: Pair<lifetime(L0), lifetime(L1)> @suspensionSafe(L1)): int32 {
-entry(v0: Pair<lifetime(L0), lifetime(L1)>):
-    v1: ref<int32, borrowed, readonly, lifetime(L1)> = field.get v0, 1
+function test<'L0, 'L1>(v0: Pair<'L0, 'L1> @suspensionSafe('L1)): int32 {
+entry(v0: Pair<'L0, 'L1>):
+    v1: ref<int32, borrowed, readonly, 'L1> = field.get v0, 1
     yield v1 => b1(v1)
-b1(v2: ref<int32, borrowed, readonly, lifetime(L1)>):
+b1(v2: ref<int32, borrowed, readonly, 'L1>):
     v3: int32 = load v2
     return v3
 }"#,
@@ -201,10 +201,10 @@ b1(v2: ref<int32, borrowed, readonly, lifetime(L1)>):
 fn test_allow_static_borrow_across_yield() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, borrowed, readonly, lifetime(static)>): int32 {
-entry(v0: ref<int32, borrowed, readonly, lifetime(static)>):
+function test(v0: ref<int32, borrowed, readonly, 'static>): int32 {
+entry(v0: ref<int32, borrowed, readonly, 'static>):
     yield v0 => b1(v0)
-b1(v1: ref<int32, borrowed, readonly, lifetime(static)>):
+b1(v1: ref<int32, borrowed, readonly, 'static>):
     v2: int32 = load v1
     return v2
 }"#,
@@ -236,10 +236,10 @@ b1(v2: int32, v3: ref<int32, borrowed, exclusive, space(frame)>):
 fn test_require_exclusive_parameter_source_across_yield() {
     let mut program = TestProgram::mir(
         r#"
-function test<L0: lifetime>(v0: ref<int32, borrowed, lifetime(L0), exclusive> @suspensionSafe(L0)): int32 {
-entry(v0: ref<int32, borrowed, lifetime(L0), exclusive>):
+function test<'L0>(v0: ref<int32, borrowed, 'L0, exclusive> @suspensionSafe('L0)): int32 {
+entry(v0: ref<int32, borrowed, 'L0, exclusive>):
     yield v0 => b1(v0)
-b1(v1: ref<int32, borrowed, lifetime(L0), exclusive>):
+b1(v1: ref<int32, borrowed, 'L0, exclusive>):
     v2: int32 = load v1
     return v2
 }"#,

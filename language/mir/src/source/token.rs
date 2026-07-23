@@ -47,6 +47,8 @@ pub enum TokenType {
     String,
     /// Character literal text.
     Character,
+    /// Tick lifetime name like `'a`.
+    Lifetime,
     /// Non-newline whitespace.
     Whitespace,
     /// Newline sequence.

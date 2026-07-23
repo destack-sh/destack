@@ -246,9 +246,9 @@ fn test_parse_rejects_direct_self_type_definition() {
 #[test]
 fn test_parse_restores_lifetime_scope_after_type_error() {
     let source = r#"
-type Broken<L: lifetime> = ref<int32, borrowed, lifetime(Missing), mutable>
+type Broken<'L> = ref<int32, borrowed, 'Missing, mutable>
 
-type Later = ref<int32, borrowed, lifetime(L), mutable>
+type Later = ref<int32, borrowed, 'L, mutable>
 
 function later(): void {
 b0:

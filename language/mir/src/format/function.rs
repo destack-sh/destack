@@ -104,7 +104,7 @@ pub(super) fn format_lifetime_where<'a>(
                     .get(slot)
                     .and_then(|parameter| parameter.name)
                     .map(|name| f.context().strings.get(name).to_string())
-                    .unwrap_or_else(|| slot.to_string())
+                    .unwrap_or_else(|| format!("'l{slot}"))
             };
             let left = name(slot);
             let right = name(target.0 as usize);
@@ -136,11 +136,8 @@ fn format_lifetimes<'a>(
         let name = lifetime
             .name
             .map(|name| f.context().strings.get(name).to_string())
-            .unwrap_or_else(|| index.to_string());
-        write!(
-            f,
-            [copied_text(&name), token(":"), space(), token("lifetime")]
-        )?;
+            .unwrap_or_else(|| format!("'l{index}"));
+        write!(f, [copied_text(&name)])?;
     }
     write!(f, [token(">")])
 }

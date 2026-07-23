@@ -712,8 +712,8 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut MirFormatter<'a, '_>) -> For
         return Ok(());
     }
 
-    write!(f, [token(","), space(), token("lifetime")])?;
-    format_lifetime_group(lifetime, f)
+    write!(f, [token(","), space()])?;
+    format_lifetime_terms(lifetime, f)
 }
 
 fn format_type_application<'a>(
@@ -728,8 +728,7 @@ fn format_type_application<'a>(
             write!(f, [token(","), space()])?;
         }
 
-        write!(f, [token("lifetime")])?;
-        format_lifetime_group(lifetime, f)?;
+        format_lifetime_terms(lifetime, f)?;
     }
     write!(f, [token(">")])
 }
@@ -775,8 +774,12 @@ pub(super) fn format_borrow_obligations<'a>(
     for obligation in obligations {
         match obligation {
             BorrowObligation::SuspensionStable { lifetime } => {
-                write!(f, [space(), token("@"), token("suspensionSafe")])?;
-                format_lifetime_group(lifetime, f)?;
+                write!(
+                    f,
+                    [space(), token("@"), token("suspensionSafe"), token("(")]
+                )?;
+                format_lifetime_terms(lifetime, f)?;
+                write!(f, [token(")")])?;
             }
         }
     }
@@ -784,28 +787,28 @@ pub(super) fn format_borrow_obligations<'a>(
     Ok(())
 }
 
-pub(super) fn format_lifetime_group<'a>(
+pub(super) fn format_lifetime_terms<'a>(
     lifetime: &Lifetime,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [token("(")])?;
     for (index, source) in lifetime.terms.iter().enumerate() {
         if index > 0 {
-            write!(f, [token(","), space()])?;
+            write!(f, [space(), token("|"), space()])?;
         }
 
         match source {
-            LifetimeTerm::Static => write!(f, [token("static")])?,
+            LifetimeTerm::Static => write!(f, [token("'static")])?,
             LifetimeTerm::Slot(index) => {
                 if let Some(name) = f.context().lifetime_name(*index).map(str::to_string) {
                     write!(f, [copied_text(&name)])?;
                 } else {
-                    write!(f, [copied_text(&index.0.to_string())])?;
+                    write!(f, [copied_text(&format!("'l{}", index.0))])?;
                 }
             }
         }
     }
-    write!(f, [token(")")])
+
+    Ok(())
 }
 
 /// Format a declaration lifetime header.
@@ -826,11 +829,8 @@ fn format_lifetimes<'a>(
         let name = lifetime
             .name
             .map(|name| f.context().strings.get(name).to_string())
-            .unwrap_or_else(|| index.to_string());
-        write!(
-            f,
-            [copied_text(&name), token(":"), space(), token("lifetime")]
-        )?;
+            .unwrap_or_else(|| format!("'l{index}"));
+        write!(f, [copied_text(&name)])?;
     }
 
     write!(f, [token(">")])

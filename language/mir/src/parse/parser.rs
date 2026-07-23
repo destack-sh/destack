@@ -307,18 +307,11 @@ impl Parser {
         let mut lifetimes = Vec::new();
         let mut scope = Vec::new();
         while !self.peek_token(TokenType::GreaterThan) {
-            let name_token = self.eat_token(TokenType::Identifier)?;
+            let name_token = self.eat_token(TokenType::Lifetime)?;
             let name = self.tree.source_text(name_token.span).to_string();
             if scope.iter().any(|(candidate, _)| candidate == &name) {
                 return Err(ParseError::invalid(
                     "duplicate lifetime parameter",
-                    name_token.start(),
-                ));
-            }
-            self.eat_token(TokenType::Colon)?;
-            if !self.eat_identifier_text("lifetime") {
-                return Err(ParseError::invalid(
-                    "lifetime parameter",
                     name_token.start(),
                 ));
             }
@@ -362,7 +355,7 @@ impl Parser {
 
     /// Parse one lifetime name against the active scope.
     fn parse_scope_lifetime(&mut self) -> ParseResult<LifetimeSlot> {
-        let token = self.eat_token(TokenType::Identifier)?;
+        let token = self.eat_token(TokenType::Lifetime)?;
         let name = self.tree.source_text(token.span);
         let slot = self.lifetime_scopes.last().and_then(|scope| {
             scope

@@ -34,13 +34,15 @@ impl LifetimeParameters {
                     dir::GenericParameterKey::Generated(name) => Some(name),
                 };
                 let name = match name {
-                    // spell declared tick names bare in MIR
-                    Some(name) => lowerer
-                        .strings
-                        .get(name)
-                        .trim_start_matches('\'')
-                        .to_string(),
-                    None => format!("L{}", slot.0),
+                    // tick names flow into MIR verbatim; bare names gain one
+                    Some(name) => {
+                        let name = lowerer.strings.get(name);
+                        match name.starts_with('\'') {
+                            true => name.to_string(),
+                            false => format!("'{name}"),
+                        }
+                    }
+                    None => format!("'l{}", slot.0),
                 };
                 parameters.names.push(name);
                 parameters

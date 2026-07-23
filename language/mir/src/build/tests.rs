@@ -985,7 +985,7 @@ fn test_build_slice_view() {
     // build function with slice view
     let header = module
         .function_header("sliceTest")
-        .lifetime("L0")
+        .lifetime("'L0")
         .parameters([source_type, i64_type, i64_type])
         .result(slice_type);
     let mut builder = module.function(header);
@@ -1003,9 +1003,9 @@ fn test_build_slice_view() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function sliceTest<L0: lifetime>(v0: slice<int32, managed, mutable>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(L0), mutable> {
+function sliceTest<'L0>(v0: slice<int32, managed, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'L0, mutable> {
 entry(v0: slice<int32, managed, mutable>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, lifetime(L0), mutable> = slice.view v0, v1, v2
+    v3: slice<int32, borrowed, 'L0, mutable> = slice.view v0, v1, v2
     return v3
 }";
     assert_eq!(output, expected);
@@ -1348,7 +1348,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
     let view_field_name = module.strings().intern("user");
     let view_field = module.field(Some(view_field_name), borrowed_user);
     let view_name = module.strings().intern("View");
-    let lifetime_name = module.strings().intern("L0");
+    let lifetime_name = module.strings().intern("'L0");
     let lifetime_parameters = vec![LifetimeParameter::new(Some(lifetime_name))];
     let view = module.tree_mut().reserve_type(Symbol::named(view_name));
     module.tree_mut().define_type(
@@ -1401,13 +1401,13 @@ type User {
 }
 
 @copy
-type View<L0: lifetime> {
-    user: ref<User, borrowed, lifetime(L0), readonly>;
+type View<'L0> {
+    user: ref<User, borrowed, 'L0, readonly>;
 }
 
-function getStatic(v0: View<lifetime(static)>): ref<User, borrowed, lifetime(static), readonly> {
-entry(v0: View<lifetime(static)>):
-    v1: ref<User, borrowed, lifetime(static), readonly> = field.get v0, 0
+function getStatic(v0: View<'static>): ref<User, borrowed, 'static, readonly> {
+entry(v0: View<'static>):
+    v1: ref<User, borrowed, 'static, readonly> = field.get v0, 0
     return v1
 }";
     assert_eq!(output, expected);

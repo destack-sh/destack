@@ -64,8 +64,8 @@ entry(v0: ref<int32, raw, mutable, space(shared)>, v1: ref<int32, raw, mutable, 
 fn test_format_parameter_borrow_lifetime() {
     assert_format(
         r#"
-function borrowParam<L0: lifetime>(v0: ref<int32, borrowed, lifetime(L0), mutable>): ref<int32, borrowed, lifetime(L0), mutable> {
-entry(v0: ref<int32, borrowed, lifetime(L0), mutable>):
+function borrowParam<'L0>(v0: ref<int32, borrowed, 'L0, mutable>): ref<int32, borrowed, 'L0, mutable> {
+entry(v0: ref<int32, borrowed, 'L0, mutable>):
     return v0
 }
 "#,
@@ -77,8 +77,8 @@ entry(v0: ref<int32, borrowed, lifetime(L0), mutable>):
 fn test_format_static_borrow_lifetime() {
     assert_format(
         r#"
-function staticBorrow(v0: ref<int32, borrowed, lifetime(static), mutable>): ref<int32, borrowed, lifetime(static), mutable> {
-entry(v0: ref<int32, borrowed, lifetime(static), mutable>):
+function staticBorrow(v0: ref<int32, borrowed, 'static, mutable>): ref<int32, borrowed, 'static, mutable> {
+entry(v0: ref<int32, borrowed, 'static, mutable>):
     return v0
 }
 "#,
@@ -90,13 +90,13 @@ entry(v0: ref<int32, borrowed, lifetime(static), mutable>):
 fn test_format_named_lifetimes() {
     assert_format(
         r#"
-type Player<LWorld: lifetime, LMesh: lifetime> {
-    world: ref<int32, borrowed, lifetime(LWorld), mutable>;
-    mesh: ref<float64, borrowed, lifetime(LMesh), mutable>;
+type Player<'LWorld, 'LMesh> {
+    world: ref<int32, borrowed, 'LWorld, mutable>;
+    mesh: ref<float64, borrowed, 'LMesh, mutable>;
 }
 
-function tickPlayer<LPlayer: lifetime, LWorld: lifetime, LMesh: lifetime>(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer), mutable>): void {
-entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer), mutable>):
+function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>): void {
+entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>):
     return
 }
 "#,
@@ -108,8 +108,8 @@ entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPla
 fn test_format_lifetime_outlives_rows() {
     assert_format(
         r#"
-function pass<LA: lifetime, LC: lifetime>(v0: ref<int32, borrowed, lifetime(LA), mutable>): ref<int32, borrowed, lifetime(LC), mutable> where LA: LC {
-entry(v0: ref<int32, borrowed, lifetime(LA), mutable>):
+function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA, mutable>): ref<int32, borrowed, 'LC, mutable> where 'LA: 'LC {
+entry(v0: ref<int32, borrowed, 'LA, mutable>):
     return v0
 }
 "#,
@@ -121,9 +121,9 @@ entry(v0: ref<int32, borrowed, lifetime(LA), mutable>):
 fn test_format_callable_suspension_contract() {
     assert_format(
         r#"
-function callContract(v0: <L0: lifetime>(ref<int32, borrowed, lifetime(L0), readonly> @suspensionSafe(L0)) => int32, v1: ref<int32, borrowed, readonly>): int32 {
-entry(v0: <L0: lifetime>(ref<int32, borrowed, lifetime(L0), readonly> @suspensionSafe(L0)) => int32, v1: ref<int32, borrowed, readonly>):
-    v2: int32 = call.indirect v0(v1): <L0: lifetime>(ref<int32, borrowed, lifetime(L0), readonly> @suspensionSafe(L0)) => int32
+function callContract(v0: <'L0>(ref<int32, borrowed, 'L0, readonly> @suspensionSafe('L0)) => int32, v1: ref<int32, borrowed, readonly>): int32 {
+entry(v0: <'L0>(ref<int32, borrowed, 'L0, readonly> @suspensionSafe('L0)) => int32, v1: ref<int32, borrowed, readonly>):
+    v2: int32 = call.indirect v0(v1): <'L0>(ref<int32, borrowed, 'L0, readonly> @suspensionSafe('L0)) => int32
     return v2
 }
 "#,
@@ -135,8 +135,8 @@ entry(v0: <L0: lifetime>(ref<int32, borrowed, lifetime(L0), readonly> @suspensio
 fn test_format_borrowed_shaped_views() {
     assert_format(
         r#"
-function views<L0: lifetime>(v0: slice<int32, borrowed, lifetime(L0), readonly>, v1: tensorView<int32, borrowed, lifetime(L0), mutable, (4, 4)>): void {
-entry(v0: slice<int32, borrowed, lifetime(L0), readonly>, v1: tensorView<int32, borrowed, lifetime(L0), mutable, (4, 4)>):
+function views<'L0>(v0: slice<int32, borrowed, 'L0, readonly>, v1: tensorView<int32, borrowed, 'L0, mutable, (4, 4)>): void {
+entry(v0: slice<int32, borrowed, 'L0, readonly>, v1: tensorView<int32, borrowed, 'L0, mutable, (4, 4)>):
     return
 }
 "#,
@@ -148,8 +148,8 @@ entry(v0: slice<int32, borrowed, lifetime(L0), readonly>, v1: tensorView<int32, 
 fn test_format_tensor_shapes_and_formats() {
     assert_format(
         r#"
-function tensors<L0: lifetime>(v0: tensor<float32, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), format(strided)>): void {
-entry(v0: tensor<float32, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), format(strided)>):
+function tensors<'L0>(v0: tensor<float32, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>): void {
+entry(v0: tensor<float32, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>):
     return
 }
 "#,
