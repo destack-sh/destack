@@ -184,7 +184,7 @@ if (value != undefined) {
 ## Lifetimes
 
 Lifetimes are how we tie a borrow to its source, and for the most part, they are inferred and we don't need to think about them too much.
-In source, lifetimes are modeled as ordinary comptime parameters (`<comptime L: Lifetime>` on `Borrowed<T, L>`):
+In source, lifetimes are modeled as ordinary comptime parameters (`<comptime L: Lifetime>` on `Borrowed<T, L>`), with the familiar compact tick form `'a` for the common cases:
 
 | Source | Lifetime root |
 |--------|---------------|
@@ -192,8 +192,8 @@ In source, lifetimes are modeled as ordinary comptime parameters (`<comptime L: 
 | owned frame storage | `"frame"` |
 | local managed storage | the current synchronous region, which ends at the next suspension point |
 
-Like `Access`, `Space`, and `Place`, `Lifetime` is a kind of static _value_ rather than a type, which is why parameters over these forms carry the `comptime` modifier.
-In practice, lifetimes need only be written out for `declare` signatures and are inferred everywhere else, including from function bodies and flow narrowing.
+Like `Access`, `Space`, and `Place`, `Lifetime` is a kind of static _value_, which is why memory form parameters need the `comptime` modifier.
+Fortunately, the tick spelling for lifetimes (e.g. `'a`) is much nicer and almost always sufficient, as `<'a>` declares the comptime lifetime parameter `'a`, `&'a T` names a borrow's lifetime, and `View<'a>` binds it as an ordinary generic argument.
 
 ```ds
 function read(user: &User): &string {
@@ -202,6 +202,10 @@ function read(user: &User): &string {
 
 function first<T>(items: &[T]): &T {
     return &items[0];
+}
+
+function pick<'c>(a: &'c Node, b: &'c Node): &'c Node {
+    return a;
 }
 ```
 
@@ -216,68 +220,34 @@ struct WorldView {
 }
 
 // explicit form
-struct WorldView<comptime L1: Lifetime, comptime L2: Lifetime> {
-    engine: Borrowed<Engine, L1>;
-    assets: Borrowed<AssetStore, L2>;
+struct WorldView<'e, 'a> {
+    engine: &'e Engine;
+    assets: &'a AssetStore;
 }
 ```
 
-Because lifetimes are part of type inference, and type inference also analyzes method bodies, lifetime inference also derives from function bodies.
-Each elided borrow in the signature gets its own hidden lifetime parameter first, and the body then solves the return lifetime:
+Like in Rust, a signature always means exactly what it says, and nothing is inferred into the lifetimes from the function body.
+(We tried that, and it caused all sorts of inference complexities and weird action at a distance behavior.)
+The elision rules are straightforward and a little more general than in Rust:
+ - With a borrowed receiver, the result takes the receiver's lifetime.
+ - With other borrowed inputs, the result takes the union of the input lifetimes.
+ - With no borrowed inputs at all, the result is `"static"`.
 
 ```ds
-// elided form
-function first(a: &Node, b: &Node): &Node {
-    return a;
-}
-
-// explicit form
-function first<comptime L1: Lifetime, comptime L2: Lifetime>(
-    a: Borrowed<Node, L1>,
-    b: Borrowed<Node, L2>,
-): Borrowed<Node, L1> {
-    return a;
-}
-
 // elided form
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
     return flag ? a : b;
 }
 
 // explicit form
-function choose<comptime L1: Lifetime, comptime L2: Lifetime>(
-    a: Borrowed<Node, L1>,
-    b: Borrowed<Node, L2>,
+function choose<'a, 'b>(
+    a: &'a Node,
+    b: &'b Node,
     flag: boolean,
-): Borrowed<Node, L1 | L2> {
+): Borrowed<Node, 'a | 'b> {
     return flag ? a : b;
 }
 ```
-
-Because `declare` functions do not have bodies, it follows that declaration-only APIs must spell out lifetime relationships explicitly.
-
-```ds
-// rejected
-declare function only(value: &Node): &Node;
-
-// accepted
-declare function only<comptime L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
-
-// rejected
-declare function choose(
-    a: &Node,
-    b: &Node,
-): &Node;
-
-// accepted
-declare function choose<comptime L1: Lifetime, comptime L2: Lifetime>(
-    a: Borrowed<Node, L1>,
-    b: Borrowed<Node, L2>,
-): Borrowed<Node, L1 | L2>;
-```
-
-Taken together, the mechanisms of elision and inference for lifetimes let us implement the vast majority of low level ownership patterns _without_ having to specify lifetimes to the compiler explicitly (yay).
-It should also be noted that one consequence of this body-derived inference is that a body change can change an inferred public signature, but that is just the tradeoff here.
 
 ## Suspension
 
@@ -308,8 +278,8 @@ async function readManaged(user: User): Promise<string> {
 }
 ```
 
-One key guarantee underneath all of this is that suspension points are always lexically explicit (`await` and `yield`).
-There is no hidden suspension - no implicit awaits, no preemption points, no suspending allocators - so "does this borrow cross suspension" can always be answered by looking at the code (and declaration-only APIs need no extra annotations, since asyncness is visible in signatures and `declare` signatures already spell out lifetimes).
+It should be noted that this works precisely because suspension points are always lexically explicit (`await` and `yield`, including in function signatures).
+So, in this case, having "colored functions" is a nice ergonomic tradeoff.
 
 ## Drop
 
