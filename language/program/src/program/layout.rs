@@ -72,8 +72,8 @@ impl LayoutTable {
         sections.entries(self.layouts).get(id.index())
     }
 
-    /// Return one field by layout index.
-    pub fn field_at<'a>(
+    /// Return one field by logical source index.
+    pub fn field<'a>(
         &self,
         sections: SectionImage<'a>,
         layout: &Layout,
@@ -831,7 +831,7 @@ pub struct VariantLayout {
 pub struct ObjectLayout {
     /// Byte offset of the virtual table id when present.
     pub dispatch_offset: Optional<u32>,
-    /// The object fields in physical layout order.
+    /// The object fields in logical source order.
     pub fields: EntryRange<LayoutField>,
 }
 
@@ -861,8 +861,6 @@ pub struct LayoutField {
     pub size: u32,
     /// Alignment requirement of the field in bytes.
     pub alignment: u32,
-    /// Logical field index before physical layout ordering.
-    pub source_index: u32,
 }
 
 /// Concrete layout for one variant case.
@@ -1052,7 +1050,7 @@ impl LayoutShapeBuilder {
 pub struct ObjectLayoutBuilder {
     /// Byte offset of the virtual table id when present.
     dispatch_offset: Option<u32>,
-    /// The object fields in physical layout order.
+    /// The object fields in logical source order.
     fields: Vec<LayoutField>,
 }
 

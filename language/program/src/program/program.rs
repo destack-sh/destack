@@ -472,9 +472,9 @@ impl Program {
         self.layouts.tensor_dimensions(self.sections(), dimensions)
     }
 
-    /// Return one field by layout index.
-    pub fn layout_field_at(&self, layout: &Layout, index: u32) -> Option<&LayoutField> {
-        self.layouts.field_at(self.sections(), layout, index)
+    /// Return one field by logical source index.
+    pub fn layout_field(&self, layout: &Layout, index: u32) -> Option<&LayoutField> {
+        self.layouts.field(self.sections(), layout, index)
     }
 
     /// Return the field count for one layout when it is field-addressable.
