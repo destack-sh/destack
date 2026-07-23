@@ -6,7 +6,7 @@ use destack_core::{
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{FunctionId, TypeId};
+use super::{FunctionId, SignatureId, TypeId};
 
 /// Durable virtual dispatch table id inside one program.
 #[repr(transparent)]
@@ -448,8 +448,8 @@ pub struct DynamicSlot {
     pub kind: DynamicSlotKind,
     /// Field or function name.
     pub name: Optional<StringId>,
-    /// Function signature type.
-    pub signature: Optional<TypeId>,
+    /// Function signature.
+    pub signature: Optional<SignatureId>,
 }
 
 impl DynamicSlot {
@@ -463,7 +463,7 @@ impl DynamicSlot {
     }
 
     /// Create a function slot.
-    pub fn function(name: Option<StringId>, signature: TypeId) -> Self {
+    pub fn function(name: Option<StringId>, signature: SignatureId) -> Self {
         Self {
             kind: DynamicSlotKind::Function,
             name: name.into(),

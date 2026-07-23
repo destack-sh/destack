@@ -3,7 +3,7 @@ use destack_mir::Space;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{FrameStateId, FunctionId, ProgramPoint, TypeId, VirtualTableId};
+use super::{FrameStateId, FunctionId, ProgramPoint, SignatureId, TypeId, VirtualTableId};
 
 /// Program sites used by debugging, probes, and observations.
 #[repr(C)]
@@ -452,8 +452,8 @@ pub struct CallSite {
     pub target: Optional<FunctionId>,
     /// The type that defines the virtual or dynamic dispatch slot.
     pub dispatch_type: Optional<TypeId>,
-    /// The program signature type for this call.
-    pub signature_type: TypeId,
+    /// The callable signature.
+    pub signature: SignatureId,
     /// The dispatch slot for virtual and dynamic calls.
     pub slot: Optional<u32>,
 }
