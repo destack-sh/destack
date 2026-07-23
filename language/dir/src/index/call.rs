@@ -112,8 +112,6 @@ impl CallPostings {
 pub struct CallEntry {
     /// The call-like expression node.
     pub source: GlobalNodeIdAny,
-    /// The expression or type node naming the callee.
-    pub target: GlobalNodeIdAny,
     /// The kind of call-like operation.
     pub kind: CallKind,
     /// The containing function symbol when known.

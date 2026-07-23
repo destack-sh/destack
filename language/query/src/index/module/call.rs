@@ -30,7 +30,6 @@ impl<'context, 'query> CallIndexer<'context, 'query> {
         for (node_id, resolution) in self.module.resolutions().call_entries() {
             // resolve call source metadata
             let source = node_id;
-            let target = self.call_target_node(node_id.local_id);
             let span = self.module.get_span(self.module.view(), node_id.local_id);
             let caller_symbol = self.containing_symbol(node_id.local_id);
 
@@ -38,7 +37,6 @@ impl<'context, 'query> CallIndexer<'context, 'query> {
             for callee_symbol in self.call_resolution_symbols(resolution) {
                 self.entries.push(dir::CallEntry {
                     source,
-                    target,
                     kind: dir::CallKind::Call,
                     caller: caller_symbol,
                     callee: callee_symbol,
@@ -53,7 +51,6 @@ impl<'context, 'query> CallIndexer<'context, 'query> {
         for (node_id, resolution) in self.module.resolutions().construct_entries() {
             // resolve construct source metadata
             let source = node_id;
-            let target = self.construct_target_node(node_id.local_id);
             let span = self.module.get_span(self.module.view(), node_id.local_id);
             let caller_symbol = self.containing_symbol(node_id.local_id);
 
@@ -61,7 +58,6 @@ impl<'context, 'query> CallIndexer<'context, 'query> {
             for callee_symbol in self.construct_resolution_symbols(resolution) {
                 self.entries.push(dir::CallEntry {
                     source,
-                    target,
                     kind: dir::CallKind::Construct,
                     caller: caller_symbol,
                     callee: callee_symbol,
@@ -69,39 +65,6 @@ impl<'context, 'query> CallIndexer<'context, 'query> {
                 });
             }
         }
-    }
-
-    /// Return the callee expression for one indexed call.
-    fn call_target_node(&self, source: dir::LocalNodeIdAny) -> dir::GlobalNodeIdAny {
-        // verify the checked resolution source shape
-        let expression_id = source
-            .try_into_typed::<dir::Expression>()
-            .unwrap_or_else(|_| panic!("call resolution source is not an expression: {source:?}"));
-        let expression = self.module.view().get(expression_id);
-        let dir::Expression::Call { left, .. } = expression else {
-            panic!("call resolution source is not a call expression: {source:?}");
-        };
-
-        (*left).into_global_any(self.module.module_id())
-    }
-
-    /// Return the constructed type expression for one indexed construct.
-    fn construct_target_node(&self, source: dir::LocalNodeIdAny) -> dir::GlobalNodeIdAny {
-        // verify the checked resolution source shape
-        let expression_id = source
-            .try_into_typed::<dir::Expression>()
-            .unwrap_or_else(|_| {
-                panic!("construct resolution source is not an expression: {source:?}")
-            });
-        let expression = self.module.view().get(expression_id);
-
-        // read the constructed type expression
-        let ty = match expression {
-            dir::Expression::New { ty, .. } | dir::Expression::NewMaybe { ty, .. } => *ty,
-            _ => panic!("construct resolution source is not a construct expression: {source:?}"),
-        };
-
-        ty.into_global_any(self.module.module_id())
     }
 
     /// Return symbols selected by one call resolution.
