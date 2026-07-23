@@ -1123,6 +1123,20 @@ mod tests {
         Span::new(FileId(1), start, start + 1)
     }
 
+    /// Resolve parsed source nodes directly through a tree view.
+    #[test]
+    fn test_view_resolves_parsed_source_node() {
+        let mut tree = Tree::new(test_module_id());
+        let expression = tree.insert(Expression::Error, test_span(0));
+        tree.index_parents(&[expression]);
+        let view = View::new(&tree);
+
+        assert_eq!(
+            view.get_node_id_by_source_id(expression.id),
+            Some(expression.into_any())
+        );
+    }
+
     #[test]
     fn test_derivation_chains_resolve_through_tombstones() {
         let mut tree = Tree::new(test_module_id());
