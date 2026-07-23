@@ -855,36 +855,26 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         bindings: Vec<(mir::Path, BorrowSources)>,
         anchor: mir::LocalNodeIdAny,
     ) {
-        let mut has_error = false;
-
         for (path, sources) in bindings {
-            // reject borrowed returns without a source proof
-            if sources.is_empty() {
-                has_error = true;
-                break;
-            }
+            // returns need proven sources that are not frame-local
+            let unsourced = sources.is_empty() || sources.has_function_local_source();
 
-            // reject frame-local borrows escaping the function
-            if sources.has_function_local_source() {
-                has_error = true;
-                break;
-            }
-
-            // apply the matching explicit return lifetime when one exists
-            let Some(required) = self.return_lifetime_for_path(&path) else {
-                has_error = true;
-                break;
+            // check the matching explicit return lifetime when one exists
+            let uncovered = match self.return_lifetime_for_path(&path) {
+                Some(required) => {
+                    let required = self.widen_through_outlives(required);
+                    !sources.is_covered_by(&required)
+                }
+                None => true,
             };
-            if !sources.is_covered_by(&required) {
-                has_error = true;
-                break;
-            }
-        }
 
-        if has_error {
-            self.emit_error(VerifyError::BorrowOutlivesOrigin {
-                anchor: self.context.anchor(anchor),
-            });
+            if unsourced || uncovered {
+                self.emit_error(VerifyError::BorrowOutlivesOrigin {
+                    anchor: self.context.anchor(anchor),
+                });
+
+                return;
+            }
         }
     }
 
@@ -1014,6 +1004,49 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 }
             }
         }
+
+        // prove every declared outlives row from the actual argument sources
+        let rows = self.signature_outlives_rows(signature);
+        for (slot, target) in rows {
+            let longer = self.sources_from_callee_lifetime(
+                &mir::Lifetime::slot(slot),
+                &parameter_types,
+                &arguments,
+                &self.flow,
+            );
+            let shorter = self.sources_from_callee_lifetime(
+                &mir::Lifetime::slot(target.0),
+                &parameter_types,
+                &arguments,
+                &self.flow,
+            );
+            // result-only slots bind no arguments and discharge through
+            //  the widened result mapping instead
+            if shorter.is_empty() {
+                continue;
+            }
+            if !longer.outlives(&shorter) {
+                self.emit_error(VerifyError::BorrowOutlivesOrigin {
+                    anchor: self.context.anchor(anchor),
+                });
+            }
+        }
+    }
+
+    /// Return the declared outlives rows encoded in one signature type.
+    fn signature_outlives_rows(&self, signature: &mir::TypeId) -> Vec<(u32, mir::LifetimeSlot)> {
+        let mir::Type::FunctionSignature { lifetimes, .. } = self.tree.get(*signature) else {
+            return Vec::new();
+        };
+
+        let mut rows = Vec::new();
+        for (slot, parameter) in lifetimes.iter().enumerate() {
+            for target in &parameter.outlives {
+                rows.push((slot as u32, *target));
+            }
+        }
+
+        rows
     }
 
     /// Return the borrow obligations encoded in one signature type.
@@ -1071,8 +1104,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return paths
                 .into_iter()
                 .map(|borrowed_path| {
+                    let lifetime = self.widen_with_signature(borrowed_path.lifetime, signature);
                     let sources = self.sources_from_callee_lifetime(
-                        &borrowed_path.lifetime,
+                        &lifetime,
                         &parameter_types,
                         arguments,
                         flow,
@@ -1090,6 +1124,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return Vec::new();
         };
         let parameter_types = self.call_parameter_types(signature);
+        let lifetime = self.widen_with_signature(lifetime, signature);
         let sources =
             self.sources_from_callee_lifetime(&lifetime, &parameter_types, arguments, flow);
 
@@ -1745,6 +1780,50 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             mir::LifetimeTerm::Static => BorrowSource::Static,
             mir::LifetimeTerm::Slot(slot) => BorrowSource::Lifetime(*slot),
         }))
+    }
+
+    /// Widen one required lifetime with every declared slot that outlives it.
+    fn widen_through_outlives(&self, required: mir::Lifetime) -> mir::Lifetime {
+        Self::widen_with_lifetimes(required, &self.function.lifetimes)
+    }
+
+    /// Widen one lifetime through the outlives rows of a declared slot list.
+    fn widen_with_lifetimes(
+        required: mir::Lifetime,
+        lifetimes: &[mir::LifetimeParameter],
+    ) -> mir::Lifetime {
+        let mut terms = required.terms.clone();
+
+        // close over declared rows: a covered slot admits its outliving slots
+        let mut index = 0;
+        while index < terms.len() {
+            if let mir::LifetimeTerm::Slot(target) = terms[index] {
+                for (slot, parameter) in lifetimes.iter().enumerate() {
+                    if parameter.outlives.contains(&target) {
+                        let term = mir::LifetimeTerm::Slot(mir::LifetimeSlot(slot as u32));
+                        if !terms.contains(&term) {
+                            terms.push(term);
+                        }
+                    }
+                }
+            }
+            index += 1;
+        }
+
+        mir::Lifetime::new(terms)
+    }
+
+    /// Widen one callee lifetime through the signature's declared rows.
+    fn widen_with_signature(
+        &self,
+        required: mir::Lifetime,
+        signature: &mir::TypeId,
+    ) -> mir::Lifetime {
+        let mir::Type::FunctionSignature { lifetimes, .. } = self.tree.get(*signature) else {
+            return required;
+        };
+
+        Self::widen_with_lifetimes(required, lifetimes)
     }
 
     /// Return the explicitly declared return lifetime.

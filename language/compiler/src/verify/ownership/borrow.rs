@@ -54,6 +54,23 @@ impl BorrowSource {
         }
     }
 
+    /// Return whether this source lives at least as long as `other`.
+    pub(super) fn outlives_source(&self, other: &BorrowSource) -> bool {
+        match (self, other) {
+            // static storage outlives every source
+            (Self::Static, _) => true,
+            // slots compare by identity without caller rows
+            (Self::Lifetime(left), Self::Lifetime(right)) => left == right,
+            // caller slots outlive the caller's own frame and region
+            (Self::Lifetime(_), Self::Owned | Self::Managed { .. }) => true,
+            // one frame outlives itself and its synchronous region
+            (Self::Owned, Self::Owned) => true,
+            (Self::Owned, Self::Managed { lifetime: None, .. }) => true,
+            (Self::Managed { .. }, Self::Managed { .. }) => self == other,
+            _ => false,
+        }
+    }
+
     /// Return whether this source is local to the current function.
     pub(super) fn is_function_local(&self) -> bool {
         match self {
@@ -66,7 +83,8 @@ impl BorrowSource {
     /// Return whether this source is covered by a required lifetime.
     pub(super) fn is_covered_by(&self, required: &mir::Lifetime) -> bool {
         match self {
-            Self::Static => required.includes_static(),
+            // static storage outlives any requirement
+            Self::Static => true,
             Self::Lifetime(slot) => required.includes_slot(slot.0),
             Self::Managed {
                 lifetime: Some(lifetime),
@@ -189,6 +207,19 @@ impl BorrowSources {
         self.sources
             .iter()
             .all(|source| source.is_covered_by(required))
+    }
+
+    /// Return whether these sources live at least as long as `other`.
+    ///
+    /// Both durations are the minimum over their sources, so every source
+    /// here must outlive at least one source on the other side.
+    pub(super) fn outlives(&self, other: &BorrowSources) -> bool {
+        self.sources.iter().all(|source| {
+            other
+                .sources
+                .iter()
+                .any(|shorter| source.outlives_source(shorter))
+        })
     }
 
     /// Merge two source sets.

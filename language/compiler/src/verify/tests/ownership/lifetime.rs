@@ -435,8 +435,111 @@ function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
 /// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
 /// @diagnostic.label file="main.ds"
+"#,
+    );
+}
+
+#[test]
+fn test_allow_declared_outlives_result_from_source() {
+    let session = TestSession::single(
+        r#"
+struct Node {
+    id: int32;
+}
+
+function pass<'a, 'c>(a: &'a Node): &'c Node where 'a: 'c {
+    return a;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+}
+
+#[test]
+fn test_allow_call_arguments_satisfying_outlives_rows() {
+    let mut program = TestProgram::mir(
+        r#"
+function callee<a: lifetime, c: lifetime>(v0: ref<int32, borrowed, lifetime(a), mutable>, v1: ref<int32, borrowed, lifetime(c), mutable>): void where a: c {
+entry(v0: ref<int32, borrowed, lifetime(a), mutable>, v1: ref<int32, borrowed, lifetime(c), mutable>):
+    return
+}
+
+function caller<L: lifetime>(v0: ref<int32, borrowed, lifetime(L), mutable>): void {
+entry(v0: ref<int32, borrowed, lifetime(L), mutable>):
+    call callee(v0, v0): <a: lifetime, c: lifetime>(ref<int32, borrowed, lifetime(a), mutable>, ref<int32, borrowed, lifetime(c), mutable>) => void where a: c
+    return
+}
+"#,
+    );
+
+    program.assert_no_ownership_errors();
+}
+
+#[test]
+fn test_reject_call_arguments_violating_outlives_rows() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: int32;
+}
+
+function callee<a: lifetime, c: lifetime>(v0: ref<int32, borrowed, lifetime(a), mutable>, v1: ref<int32, borrowed, lifetime(c), mutable>): void where a: c {
+entry(v0: ref<int32, borrowed, lifetime(a), mutable>, v1: ref<int32, borrowed, lifetime(c), mutable>):
+    return
+}
+
+function caller<L: lifetime>(v0: ref<int32, borrowed, lifetime(L), mutable>): void {
+entry(v0: ref<int32, borrowed, lifetime(L), mutable>):
+    v1: ref<Box, raw, mutable, space(frame)> = frame.alloc.zeroed Box
+    v2: ref<int32, borrowed, mutable> = field.address v1, 0
+    call callee(v2, v0): <a: lifetime, c: lifetime>(ref<int32, borrowed, lifetime(a), mutable>, ref<int32, borrowed, lifetime(c), mutable>) => void where a: c
+    return
+}
+"#,
+    );
+
+    program.assert_error_borrow_outlives_origin();
+}
+
+#[test]
+fn test_reject_disjunctive_lifetime_bounds() {
+    let session = TestSession::single(
+        r#"
+struct Node {
+    id: int32;
+}
+
+function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node where 'c: 'a | 'b {
+    return a;
+}
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics("main.ds", r#"
+/// @diagnostic.error id=disjunctive-lifetime-bound message="a lifetime bound must name one lifetime, not a union"
+/// @diagnostic.label line=6 column=69 span="'c" line_source="function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node where 'c: 'a | 'b {"
 "#);
+}
+
+#[test]
+fn test_allow_static_return_at_slot_result() {
+    let mut program = TestProgram::mir(
+        r#"
+readonly global value: int32 = 1
+
+function test<L: lifetime>(): ref<int32, borrowed, lifetime(L), readonly> {
+entry:
+    v0: ref<int32, borrowed, readonly> = global.address value
+    return v0
+}
+"#,
+    );
+
+    program.assert_no_ownership_errors();
 }
