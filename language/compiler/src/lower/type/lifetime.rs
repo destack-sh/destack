@@ -10,6 +10,10 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::lower) struct LifetimeParameters {
     /// The function-local MIR slot of each lifetime parameter.
     pub(in crate::lower) slots: FxIndexMap<dir::GlobalGenericParameterId, mir::LifetimeSlot>,
+    /// The declared name of each slot, without the tick.
+    pub(in crate::lower) names: Vec<String>,
+    /// Declared outlives rows between slots, left outliving right.
+    pub(in crate::lower) outlives: Vec<(mir::LifetimeSlot, mir::LifetimeSlot)>,
 }
 
 impl LifetimeParameters {
@@ -25,13 +29,62 @@ impl LifetimeParameters {
             let binding = generics.get_parameter(*parameter);
             if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
                 let slot = mir::LifetimeSlot(parameters.slots.len() as u32);
+                let name = match binding.key {
+                    dir::GenericParameterKey::Symbol(symbol) => lowerer.symbol_name(symbol)?,
+                    dir::GenericParameterKey::Generated(name) => Some(name),
+                };
+                let name = match name {
+                    // spell declared tick names bare in MIR
+                    Some(name) => lowerer
+                        .strings
+                        .get(name)
+                        .trim_start_matches('\'')
+                        .to_string(),
+                    None => format!("L{}", slot.0),
+                };
+                parameters.names.push(name);
                 parameters
                     .slots
                     .insert(parameter.into_global(template.module_id), slot);
             }
         }
 
+        // carry declared outlives predicates between the collected slots
+        for predicate in &template_row.predicates {
+            if predicate.relation != dir::WhereRelation::Satisfies {
+                continue;
+            }
+            let left = parameters.parameter_slot(lowerer, predicate.left)?;
+            let right = parameters.parameter_slot(lowerer, predicate.right)?;
+            if let (Some(left), Some(right)) = (left, right) {
+                parameters.outlives.push((left, right));
+            }
+        }
+
         Ok(parameters)
+    }
+
+    /// Return the slot of one type when it names a collected lifetime parameter.
+    fn parameter_slot(
+        &self,
+        lowerer: &ModuleLowerer<'_>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<mir::LifetimeSlot>> {
+        let ty = lowerer.reduced_type(ty)?;
+        let dir::Type::Parameter(parameter) = lowerer.ty(ty)? else {
+            return Ok(None);
+        };
+
+        Ok(self.slots.get(&parameter).copied())
+    }
+
+    /// Return the outlives slots declared for one slot.
+    fn slot_outlives(&self, slot: mir::LifetimeSlot) -> Vec<mir::LifetimeSlot> {
+        self.outlives
+            .iter()
+            .filter(|(left, _)| *left == slot)
+            .map(|(_, right)| *right)
+            .collect()
     }
 
     /// Declare these lifetime slots on one MIR function header.
@@ -39,8 +92,9 @@ impl LifetimeParameters {
         &self,
         mut header: mir::FunctionHeaderBuilder<'a>,
     ) -> mir::FunctionHeaderBuilder<'a> {
-        for slot in 0..self.slots.len() {
-            header = header.lifetime(&format!("L{slot}"));
+        for (slot, name) in self.names.iter().enumerate() {
+            let outlives = self.slot_outlives(mir::LifetimeSlot(slot as u32));
+            header = header.lifetime_outlives(name, outlives);
         }
 
         header
@@ -51,11 +105,14 @@ impl LifetimeParameters {
         &self,
         strings: &destack_core::StringPool,
     ) -> Vec<mir::LifetimeParameter> {
-        (0..self.slots.len())
-            .map(|slot| {
-                let name = strings.intern(&format!("L{slot}"));
+        self.names
+            .iter()
+            .enumerate()
+            .map(|(slot, name)| {
+                let name = strings.intern(name);
+                let outlives = self.slot_outlives(mir::LifetimeSlot(slot as u32));
 
-                mir::LifetimeParameter::new(Some(name))
+                mir::LifetimeParameter::with_outlives(Some(name), outlives)
             })
             .collect()
     }
