@@ -27,4 +27,3 @@ fn test_lower_library() {
         panic!("{error}");
     }
 }
-

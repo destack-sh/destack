@@ -95,9 +95,7 @@ impl FunctionBody {
             if let Some(variable) = check.root_variable(root)? {
                 let produced = match &checked {
                     Answer::Ready(_) => true,
-                    Answer::Pending(blockers) => {
-                        blockers.contains(&Dependency::Variable(variable))
-                    }
+                    Answer::Pending(blockers) => blockers.contains(&Dependency::Variable(variable)),
                 };
                 if produced {
                     check.settle_produced(variable)?;

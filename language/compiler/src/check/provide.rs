@@ -84,7 +84,8 @@ impl Compiler {
 
         // validate the requested inference entry against the graph
         let modules = graph.members(component_id).to_vec();
-        if modules.is_empty() || graph.inference_component_entry(entry) != Some((component_id, entry))
+        if modules.is_empty()
+            || graph.inference_component_entry(entry) != Some((component_id, entry))
         {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -93,11 +94,14 @@ impl Compiler {
                 ),
             });
         }
-        let inference_component = graph
-            .inference_component(entry)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("inference entry {entry:?} is absent from the component graph"),
-            })?;
+        let inference_component =
+            graph
+                .inference_component(entry)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!(
+                        "inference entry {entry:?} is absent from the component graph"
+                    ),
+                })?;
         let inference_modules = graph
             .inference_members(inference_component)
             .iter()
