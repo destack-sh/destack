@@ -1,10 +1,11 @@
 use std::fmt;
 
 use destack_heap::{DropId, HeapError, TraceTableError};
+use destack_mir::Space;
 
 use crate::{
-    FrameLayoutId, FrameSlotId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature,
-    SignatureId, TypeId, ValueMismatch,
+    AllocationSiteId, FrameLayoutId, FrameSlotId, FrameStateId, FunctionId, GlobalId, LayoutId,
+    Signature, SignatureId, TypeId, ValueMismatch,
 };
 
 /// Program operation result.
@@ -77,6 +78,13 @@ pub enum Error {
     UndefinedDrop {
         /// The missing drop id.
         drop: DropId,
+    },
+    /// An allocation site selects storage that cannot contain heap allocations.
+    InvalidAllocationSpace {
+        /// The invalid allocation site.
+        site: AllocationSiteId,
+        /// The selected storage space.
+        space: Space,
     },
     /// A byte range does not match its runtime type layout.
     ByteLengthMismatch {
@@ -247,6 +255,12 @@ impl fmt::Display for Error {
                 write!(formatter, "undefined layout {layout:?}")
             }
             Self::UndefinedDrop { drop } => write!(formatter, "undefined destructor {drop:?}"),
+            Self::InvalidAllocationSpace { site, space } => {
+                write!(
+                    formatter,
+                    "allocation site {site:?} uses invalid space {space:?}"
+                )
+            }
             Self::ByteLengthMismatch {
                 ty,
                 expected,

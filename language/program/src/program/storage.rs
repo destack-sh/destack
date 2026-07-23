@@ -6,10 +6,12 @@ use destack_heap::{
 };
 use destack_mir::Space;
 
-use crate::{StaticImage, StaticSpace};
+use crate::{AllocationSiteId, StaticImage, StaticSpace};
 
 /// Memory available to one runtime call.
 pub struct ProgramStorage<'a> {
+    /// Runtime allocation plans indexed by Program allocation site id.
+    pub allocation_plans: &'a [Option<AllocationPlan>],
     /// Worker heap.
     pub heap: &'a mut Heap,
     /// Runtime heap.
@@ -30,6 +32,7 @@ impl ProgramStorage<'_> {
     /// Reborrow this storage for one nested machine call.
     pub fn reborrow(&mut self) -> ProgramStorage<'_> {
         ProgramStorage {
+            allocation_plans: self.allocation_plans,
             heap: self.heap,
             shared_heap: self.shared_heap,
             shared_cache: self.shared_cache,
@@ -40,8 +43,14 @@ impl ProgramStorage<'_> {
         }
     }
 
-    /// Build one allocation plan for the selected heap.
-    pub fn allocation_plan(&self, space: Space, shape: &AllocationShape) -> AllocationPlan {
+    /// Return one runtime allocation plan by Program allocation site id.
+    #[inline(always)]
+    pub fn allocation_plan(&self, site: AllocationSiteId) -> Option<AllocationPlan> {
+        self.allocation_plans[site.index()]
+    }
+
+    /// Build one dynamically sized allocation plan for the selected heap.
+    pub fn plan_allocation(&self, space: Space, shape: &AllocationShape) -> AllocationPlan {
         match space {
             Space::Local => self.heap.options().allocation_plan(shape),
             Space::Shared => self.shared_heap.options().allocation_plan(shape),
@@ -219,6 +228,7 @@ impl fmt::Debug for ProgramStorage<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("ProgramStorage")
+            .field("allocation_plan_count", &self.allocation_plans.len())
             .field("heap", &"<heap>")
             .field("shared_heap", &"<shared heap>")
             .field("shared_cache", &"<shared allocation cache>")

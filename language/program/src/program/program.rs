@@ -3,19 +3,19 @@ use std::sync::Arc;
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, SectionImage, SectionStorage, StringId};
 use destack_heap::{
-    AllocationShape, DropId, HeapResult, ReferenceRange, RootSlot, TraceTable, TraceView,
-    visit_heap_root_slots,
+    AllocationPlan, AllocationShape, DropId, HeapOptions, HeapResult, ReferenceRange, RootSlot,
+    SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
 };
 use destack_memory::{MemoryMap, MemoryResult};
-use destack_mir::{TargetLayout, TraceId, TraceMap};
+use destack_mir::{Space, TargetLayout, TraceId, TraceMap};
 use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingId, Continuation, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
-    DynamicTableId, FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId, FrameState, FrameStateId,
-    FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
+    AllocationSiteId, BindingId, Continuation, DispatchTable, DropEntry, DropTable, DynamicEntry,
+    DynamicTable, DynamicTableId, FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId, FrameState,
+    FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
     GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
     ProgramInfo, ProgramPoint, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
     SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, TensorDimension,
@@ -351,6 +351,43 @@ impl Program {
             Some(drop) => shape.with_drop(drop).map_err(Error::from),
             None => Ok(shape),
         }
+    }
+
+    /// Build heap allocation plans for this Program and one runtime heap configuration.
+    pub fn plan_allocations(
+        &self,
+        local: &HeapOptions,
+        shared: &SharedHeapOptions,
+    ) -> Result<Vec<Option<AllocationPlan>>> {
+        self.sites()
+            .allocations(self.sections())
+            .iter()
+            .enumerate()
+            .map(|(index, site)| {
+                let Some(layout) = self.layout(site.storage_type) else {
+                    return Err(Error::undefined_type(site.storage_type));
+                };
+
+                // dynamically sized tensors derive their complete plan at execution
+                if matches!(layout.shape, LayoutShape::Tensor(_)) {
+                    return Ok(None);
+                }
+
+                let shape = self.allocation_shape(site.storage_type)?;
+                let plan = match site.space {
+                    Space::Local => local.allocation_plan(&shape),
+                    Space::Shared => shared.allocation_plan(&shape),
+                    space => {
+                        return Err(Error::InvalidAllocationSpace {
+                            site: AllocationSiteId(index as u32),
+                            space,
+                        });
+                    }
+                };
+
+                Ok(Some(plan))
+            })
+            .collect()
     }
 
     /// Decode one program trace map.
