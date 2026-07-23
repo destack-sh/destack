@@ -319,7 +319,7 @@ impl TensorDimension {
     }
 }
 
-/// Concrete runtime type in MIR.
+/// One logical MIR type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Type {
     /// Invalid type produced while recovering malformed MIR text.

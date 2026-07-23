@@ -517,6 +517,18 @@ impl<'a> MemoryRegionBuilder<'a> {
         result
     }
 
+    /// Resolve reference provenance in a memory region.
+    pub fn resolve(&mut self, region: &MemoryRegion) -> MemoryRegion {
+        // resolve reference-backed regions through their defining value
+        if let Some(location) = region.reference_location() {
+            self.region(location.reference)
+        }
+        // preserve already resolved regions
+        else {
+            region.clone()
+        }
+    }
+
     /// Resolve a reference value to a memory region.
     fn region_impl(&mut self, reference: mir::Value) -> MemoryRegion {
         // check if it's a parameter

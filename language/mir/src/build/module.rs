@@ -138,6 +138,11 @@ impl ModuleBuilder {
         self.target_layout.pointer_bytes()
     }
 
+    /// Return the target ABI layout.
+    pub const fn target_layout(&self) -> TargetLayout {
+        self.target_layout
+    }
+
     /// Set module pointer size in bytes.
     pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
         self.target_layout = TargetLayout::for_pointer_bytes(pointer_bytes);

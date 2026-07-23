@@ -240,7 +240,7 @@ external function callee(int32): int32
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
@@ -307,8 +307,8 @@ external function sink(int32): void
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call identity(v0)
-    call sink(v1)
+    v1: int32 = call identity(v0): (int32) => int32
+    call sink(v1): (int32) => void
     return v1
 }";
     assert_eq!(output, expected);
@@ -316,7 +316,7 @@ entry(v0: int32):
 
 /// Panic terminators format as explicit control exits.
 #[test]
-fn test_build_function_with_trap_terminator() {
+fn test_build_function_with_panic_terminator() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -324,7 +324,7 @@ fn test_build_function_with_trap_terminator() {
     let void_type = module.type_void();
 
     // build function
-    let header = module.function_header("trapper").result(void_type);
+    let header = module.function_header("panicker").result(void_type);
     let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
@@ -337,7 +337,7 @@ fn test_build_function_with_trap_terminator() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function trapper(): void {
+function panicker(): void {
 entry:
     v0: ref<int32, managed, readonly> = null
     panic v0
