@@ -195,6 +195,15 @@ pub struct DirResolved {
     pub references: dir::ReferenceTable,
 }
 
+impl DirResolved {
+    /// Return modules that own resolved import or reference targets.
+    pub fn target_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.imports
+            .target_modules()
+            .chain(self.references.target_modules())
+    }
+}
+
 /// Checked DIR output for one source component.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedComponent {

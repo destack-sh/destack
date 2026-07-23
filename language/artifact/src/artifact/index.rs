@@ -22,8 +22,6 @@ pub struct ModuleIndex {
     pub heritage: dir::HeritageIndex,
     /// Indexed checked extensions.
     pub extensions: dir::ExtensionIndex,
-    /// Indexed module specifiers.
-    pub specifiers: dir::SpecifierIndex,
     /// Indexed decorators.
     pub decorators: dir::DecoratorIndex,
 }
@@ -38,7 +36,6 @@ impl ModuleIndex {
         self.calls.finish();
         self.heritage.finish();
         self.extensions.finish();
-        self.specifiers.finish();
         self.decorators.finish();
     }
 
@@ -73,11 +70,6 @@ impl ModuleIndex {
                     &self.extensions
                 ]))
             }
-            ModuleIndexProjection::Specifiers => {
-                ArtifactProjectionFingerprint::new(&dir::SpecifierPostings::build(&[
-                    &self.specifiers
-                ]))
-            }
             ModuleIndexProjection::Decorators => {
                 ArtifactProjectionFingerprint::new(&dir::DecoratorPostings::build(&[
                     &self.decorators
@@ -106,8 +98,6 @@ pub struct ProgramIndex {
     pub heritage: dir::HeritagePostings,
     /// Extension postings.
     pub extensions: dir::ExtensionPostings,
-    /// Module specifier postings.
-    pub specifiers: dir::SpecifierPostings,
     /// Decorator postings.
     pub decorators: dir::DecoratorPostings,
 }
@@ -131,15 +121,13 @@ pub enum ModuleIndexProjection {
     Heritage,
     /// Extension postings.
     Extensions,
-    /// Specifier postings.
-    Specifiers,
     /// Decorator postings.
     Decorators,
 }
 
 impl ModuleIndexProjection {
     /// All module index projections in stable order.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 8] = [
         Self::Symbols,
         Self::Exports,
         Self::Members,
@@ -147,7 +135,6 @@ impl ModuleIndexProjection {
         Self::Calls,
         Self::Heritage,
         Self::Extensions,
-        Self::Specifiers,
         Self::Decorators,
     ];
 }
