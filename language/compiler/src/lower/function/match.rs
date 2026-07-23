@@ -2,6 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
+use crate::lower::function::equality::LoweredOperand;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One lowered match arm awaiting its body.
@@ -121,26 +122,37 @@ impl FunctionLowerer<'_, '_, '_> {
             lowered_cases.push(LoweredSwitchCase { case: *case, block });
         }
 
-        // evaluate selectors lazily in source order
-        for case in &lowered_cases {
-            let selector = self.source().tree().get(case.case).selector;
-            let dir::SwitchSelector::Case(selector) = selector else {
-                continue;
-            };
-            let dir::OperatorResolution::Builtin = self.operator_resolution(case.case)? else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a protocol switch equality".to_string(),
-                }
-                .into());
-            };
-            let selected = self.lower_operand(selector)?;
-            let equal = self.lower_carrier_equality(matched, selected)?;
-            let next = self.builder.block();
-            self.builder.branch(equal, case.block, next);
-            self.builder.switch_to_block(next);
+        // dispatch constant integer selectors through one switch terminator
+        let constant = match matched {
+            LoweredOperand::Scalar { value: operand, .. } => self
+                .constant_switch_cases(value, &lowered_cases)?
+                .map(|cases| (operand, cases)),
+            _ => None,
+        };
+        if let Some((operand, cases)) = constant {
+            self.builder.switch(operand, default.unwrap_or(exit), cases);
+        } else {
+            // evaluate selectors lazily in source order
+            for case in &lowered_cases {
+                let selector = self.source().tree().get(case.case).selector;
+                let dir::SwitchSelector::Case(selector) = selector else {
+                    continue;
+                };
+                let dir::OperatorResolution::Builtin = self.operator_resolution(case.case)? else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a protocol switch equality".to_string(),
+                    }
+                    .into());
+                };
+                let selected = self.lower_operand(selector)?;
+                let equal = self.lower_carrier_equality(matched, selected)?;
+                let next = self.builder.block();
+                self.builder.branch(equal, case.block, next);
+                self.builder.switch_to_block(next);
+            }
+            self.builder.jump(default.unwrap_or(exit));
         }
-        self.builder.jump(default.unwrap_or(exit));
         self.enter_control(None, exit, None);
 
         // preserve source-order fallthrough between adjacent case bodies
@@ -156,6 +168,45 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(exit);
 
         Ok(false)
+    }
+
+    /// Collect the constant dispatch of one integer switch.
+    fn constant_switch_cases(
+        &mut self,
+        value: dir::LocalNodeId<dir::Expression>,
+        cases: &[LoweredSwitchCase],
+    ) -> CompilerResult<Option<Vec<(i128, mir::LocalNodeId<mir::Block>)>>> {
+        // the runtime carrier must dispatch by integer identity
+        let carrier = self.operand_carrier(value)?;
+        let carrier = self.lowerer.reduced_type(carrier)?;
+        let dir::Type::Primitive(dir::PrimitiveType::Integer(_)) = self.lowerer.ty(carrier)? else {
+            return Ok(None);
+        };
+
+        let mut selected = Vec::with_capacity(cases.len());
+        for case in cases {
+            let selector = self.source().tree().get(case.case).selector;
+            let dir::SwitchSelector::Case(selector) = selector else {
+                continue;
+            };
+            let dir::OperatorResolution::Builtin = self.operator_resolution(case.case)? else {
+                return Ok(None);
+            };
+            let dir::Type::Literal(dir::ScalarLiteral::Integer(constant)) =
+                self.node_type(selector)?
+            else {
+                return Ok(None);
+            };
+
+            // the first matching case wins; duplicates only receive fallthrough
+            let constant = i128::from(constant);
+            if selected.iter().any(|(existing, _)| *existing == constant) {
+                continue;
+            }
+            selected.push((constant, case.block));
+        }
+
+        Ok(Some(selected))
     }
 
     /// Lower one switch case body in statement position.

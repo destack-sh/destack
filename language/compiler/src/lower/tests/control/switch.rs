@@ -32,51 +32,36 @@ function main.classify(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     local.set l0, v1
-    v2: int32 = 1
-    v3: boolean = int.eq v0, v2
-    branch v3, b2, b6
+    switch v0, b5, 1 => b2, 2 => b3
 
 b1:
-    v16: int32 = local.get l0
-    return v16
+    v10: int32 = local.get l0
+    return v10
 
 b2:
     breakpoint
-    v8: int32 = 10
-    local.set l0, v8
+    v2: int32 = 10
+    local.set l0, v2
     jump b3
 
 b3:
-    v9: int32 = local.get l0
-    v10: int32 = 2
-    v11: int32 = int.add v9, v10
-    local.set l0, v11
+    v3: int32 = local.get l0
+    v4: int32 = 2
+    v5: int32 = int.add v3, v4
+    local.set l0, v5
     jump b4
 
 b4:
-    v12: int32 = local.get l0
-    v13: int32 = 3
-    v14: int32 = int.add v12, v13
-    local.set l0, v14
+    v6: int32 = local.get l0
+    v7: int32 = 3
+    v8: int32 = int.add v6, v7
+    local.set l0, v8
     jump b1
 
 b5:
-    v15: int32 = 99
-    local.set l0, v15
+    v9: int32 = 99
+    local.set l0, v9
     jump b1
-
-b6:
-    v4: int32 = 2
-    v5: boolean = int.eq v0, v4
-    branch v5, b3, b7
-
-b7:
-    v6: int32 = 2
-    v7: boolean = int.eq v0, v6
-    branch v7, b4, b8
-
-b8:
-    jump b5
 }
 "#,
     );
