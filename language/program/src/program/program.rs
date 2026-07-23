@@ -14,16 +14,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocationSiteId, BindingId, Continuation, DispatchTable, DropEntry, DropTable, DynamicEntry,
-    DynamicTable, DynamicTableId, FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId, FrameState,
-    FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
-    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
-    ProgramInfo, ProgramPoint, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
-    SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, TensorDimension,
-    TensorLayout, TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout,
-    VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
+    DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId,
+    FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
+    GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
+    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
+    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
+    StaticSpace, StringTable, TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable,
+    Value, VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
+    native, wasm,
 };
-
-use super::{Error, Result};
 
 /// Linked program.
 #[derive(Debug, Serialize, Deserialize, Reflect)]

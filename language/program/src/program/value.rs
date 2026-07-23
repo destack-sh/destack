@@ -5,7 +5,9 @@ use destack_heap::{HeapReference, SharedHeapReference};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{Error, Word, WordLayout};
+use crate::Error;
+
+use super::{Word, WordLayout};
 
 /// One value passed into or out of program execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -187,7 +189,7 @@ impl Value {
     }
 
     /// Encode this value through one runtime word layout.
-    pub(crate) fn encode(&self, layout: WordLayout) -> super::Result<Option<Word>> {
+    pub(crate) fn encode(&self, layout: WordLayout) -> crate::Result<Option<Word>> {
         let word = match (layout, self) {
             (WordLayout::Void, Self::Void) => return Ok(None),
             (WordLayout::Boolean, Self::Bool(value)) => Word::boolean(*value),
@@ -254,7 +256,7 @@ impl Value {
     }
 
     /// Decode one execution word through one runtime word layout.
-    pub(crate) fn decode(layout: WordLayout, word: Word) -> super::Result<Self> {
+    pub(crate) fn decode(layout: WordLayout, word: Word) -> crate::Result<Self> {
         let value = match layout {
             WordLayout::Void => Self::Void,
             WordLayout::Boolean => Self::bool(word.as_boolean()),

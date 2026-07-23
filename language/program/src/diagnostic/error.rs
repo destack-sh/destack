@@ -1,18 +1,19 @@
-use std::fmt;
+use std::{error, fmt};
 
 use destack_heap::{DropId, HeapError, TraceTableError};
 use destack_mir::Space;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocationSiteId, FrameLayoutId, FrameSlotId, FrameStateId, FunctionId, GlobalId, LayoutId,
     Signature, SignatureId, TypeId, ValueMismatch,
 };
 
-/// Program operation result.
+/// Result of one Program operation.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Program operation error.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One Program operation error.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Error {
     /// A runtime value does not match its program type.
     ValueMismatch {
@@ -313,4 +314,13 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl error::Error for Error {
+    /// Return the underlying subsystem failure when present.
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            Self::Trace { error } => Some(error),
+            Self::Heap { error } => Some(error.as_ref()),
+            _ => None,
+        }
+    }
+}
