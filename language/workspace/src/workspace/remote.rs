@@ -2,11 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactPayload, ArtifactReference};
+use destack_query::QueryRequest;
 use destack_repository::Revision;
 use destack_source::{Content, ContentId};
 use parking_lot::Mutex;
 
-use super::{DiagnosticsRequest, QueryRequest, ReloadRequest, ViewRequest, ViewResult};
+use super::{DiagnosticsRequest, ReloadRequest, ViewRequest, ViewResult, WorkspaceQueryRequest};
 use crate::diagnostic::{DiagnosticView, Error};
 use crate::file::{Commit, FileOperation, SourceUpdate};
 use crate::protocol::{self, RequestOptions, RootId, RootOpenOptions};
@@ -492,7 +493,7 @@ impl Workspace for RemoteWorkspace {
             .map_err(Self::command_error)
     }
 
-    fn query(&self, root: &Path, request: QueryRequest) -> Result<QueryResult, Error> {
+    fn query(&self, root: &Path, request: WorkspaceQueryRequest) -> Result<QueryResult, Error> {
         let revision = match request.expected_revision {
             Some(revision) => RevisionPolicy::Current(revision),
             None => RevisionPolicy::Latest,
@@ -612,7 +613,7 @@ impl RemoteWorkspace {
     fn query_handle(
         &self,
         handle: RootId,
-        request: destack_query::QueryRequest,
+        request: QueryRequest,
         revision: RevisionPolicy,
     ) -> Result<QueryResult, Error> {
         let expected_revision = match revision {

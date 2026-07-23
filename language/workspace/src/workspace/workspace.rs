@@ -5,7 +5,7 @@ use destack_repository::Revision;
 use destack_source::{Content, ContentId};
 
 use super::{
-    DiagnosticsRequest, QueryRequest, QueryResult, ReloadRequest, ViewRequest, ViewResult,
+    DiagnosticsRequest, QueryResult, ReloadRequest, ViewRequest, ViewResult, WorkspaceQueryRequest,
 };
 use crate::diagnostic::{DiagnosticView, Error};
 use crate::file::{Commit, FileOperation, SourceUpdate};
@@ -183,7 +183,7 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     // ================================================================================
 
     /// Run one semantic query for a root.
-    fn query(&self, root: &Path, request: QueryRequest) -> Result<QueryResult, Error>;
+    fn query(&self, root: &Path, request: WorkspaceQueryRequest) -> Result<QueryResult, Error>;
 
     /// Return one workspace view.
     fn view(&self, root: &Path, request: ViewRequest) -> Result<ViewResult, Error>;

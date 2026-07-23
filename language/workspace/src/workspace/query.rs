@@ -1,9 +1,23 @@
+use std::collections::HashSet;
 use std::path::Path;
+use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
-use destack_repository::{Repository, Revision};
+use destack_artifact::{ArtifactKey, PackageIndex};
+use destack_query::{
+    CallItemResponse, CodeActionsResponse, CodeLensesResponse, CompletionResponse, DecoratorScope,
+    DecoratorsResponse, ExtractVariableResponse, FindReferencesResponse, FoldingRangesResponse,
+    GotoDeclarationResponse, GotoDefinitionResponse, GotoImplementationResponse,
+    GotoTypeDefinitionResponse, HighlightResponse, HoverResponse, IncomingCallsResponse,
+    InlayHintsResponse, InlineResponse, LinksResponse, Module, ModuleQueryContext,
+    OutgoingCallsResponse, OutlineResponse, ProgramQueryContext, QueryRequest, QueryResponse,
+    RenameFilesResponse, RenameResponse, RenameTargetResponse, ResolveCodeLensResponse,
+    SelectionRangesResponse, SemanticTokensResponse, SignatureHelpResponse, SubtypesResponse,
+    SupertypesResponse, SymbolSearchResponse, TypeItemResponse, module_query_artifacts,
+    module_query_context, program_query_context, rename_files, resolve_code_lens,
+    specifier_artifacts,
+};
+use destack_repository::{ArtifactReader, Revision};
 use destack_serde::Reflect;
-use destack_session::Session;
 use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
 
@@ -17,16 +31,16 @@ pub struct QueryResult {
     /// The revision used for query execution.
     pub revision: Revision,
     /// The query response payload.
-    pub response: destack_query::QueryResponse,
+    pub response: QueryResponse,
 }
 
 /// Request to run one semantic query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct QueryRequest {
+pub struct WorkspaceQueryRequest {
     /// Expected revision for this query.
     pub expected_revision: Option<Revision>,
     /// Query request payload.
-    pub request: destack_query::QueryRequest,
+    pub request: QueryRequest,
 }
 
 /// Revision selection policy for one query.
@@ -45,7 +59,7 @@ impl LocalWorkspace {
     pub fn query(
         &self,
         path: &Path,
-        request: destack_query::QueryRequest,
+        request: QueryRequest,
         revision: RevisionPolicy,
     ) -> Result<QueryResult, Error> {
         let root = self.root_at(path)?;
@@ -57,15 +71,12 @@ impl LocalWorkspace {
     pub fn query_root(
         &self,
         root: &Path,
-        request: destack_query::QueryRequest,
+        request: QueryRequest,
         revision: RevisionPolicy,
     ) -> Result<QueryResult, Error> {
-        let session = self.query_snapshot(root, revision)?;
-        let revision = session.revision();
-
-        // dispatch query execution
-        let response =
-            self.execute_query_request(session.session(), session.repository(), revision, request)?;
+        let snapshot = self.query_snapshot(root, revision)?;
+        let revision = snapshot.revision();
+        let response = snapshot.query(request)?;
 
         Ok(QueryResult { revision, response })
     }
@@ -97,423 +108,225 @@ impl LocalWorkspace {
             }
         }
     }
+}
 
+impl Snapshot {
     /// Build a query response for a request payload.
-    fn execute_query_request(
-        &self,
-        session: &Session,
-        repository: &Repository,
-        revision: Revision,
-        request: destack_query::QueryRequest,
-    ) -> Result<destack_query::QueryResponse, Error> {
+    fn query(&self, request: QueryRequest) -> Result<QueryResponse, Error> {
         // dispatch by query request variant
         let response = match request {
-            destack_query::QueryRequest::Completion(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.position.module.profile_id],
-                )?;
-                let mut items =
-                    context.completions(&program, params.position.offset, params.trigger);
+            QueryRequest::Completion(params) => {
+                let context = self.module_context(params.position.module)?;
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let packages = self.package_index(params.position.module.profile_id)?;
+                let mut items = context
+                    .completions(&program, &packages, params.position.offset, params.trigger)
+                    .map_err(|error| Error::Internal {
+                        detail: format!("failed to complete import path: {error}"),
+                    })?;
 
                 if !params.include_imports {
                     items.retain(|item| item.additional_text_edits.is_empty());
                 }
 
-                destack_query::QueryResponse::Completion(destack_query::CompletionResponse {
+                QueryResponse::Completion(CompletionResponse {
                     items,
                     is_incomplete: false,
                 })
             }
-            destack_query::QueryRequest::Hover(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::Hover(params) => {
+                let context = self.module_context(params.position.module)?;
                 let hover = context.hover(params.position.offset);
 
-                destack_query::QueryResponse::Hover(destack_query::HoverResponse { hover })
+                QueryResponse::Hover(HoverResponse { hover })
             }
-            destack_query::QueryRequest::SignatureHelp(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::SignatureHelp(params) => {
+                let context = self.module_context(params.position.module)?;
                 let help = context.signature_help(params.position.offset);
 
-                destack_query::QueryResponse::SignatureHelp(destack_query::SignatureHelpResponse {
-                    help,
-                })
+                QueryResponse::SignatureHelp(SignatureHelpResponse { help })
             }
-            destack_query::QueryRequest::InlayHints(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.range.module)?;
+            QueryRequest::InlayHints(params) => {
+                let context = self.module_context(params.range.module)?;
                 let hints = context.inlay_hints(params.range.span);
 
-                destack_query::QueryResponse::InlayHints(destack_query::InlayHintsResponse {
-                    hints,
-                })
+                QueryResponse::InlayHints(InlayHintsResponse { hints })
             }
-            destack_query::QueryRequest::CodeLenses(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.module)?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.module.profile_id],
-                )?;
+            QueryRequest::CodeLenses(params) => {
+                let context = self.module_context(params.module)?;
+                let program = self.program_context(&[params.module.profile_id])?;
                 let lenses = context.code_lenses(&program);
 
-                destack_query::QueryResponse::CodeLenses(destack_query::CodeLensesResponse {
-                    lenses,
-                })
+                QueryResponse::CodeLenses(CodeLensesResponse { lenses })
             }
-            destack_query::QueryRequest::ResolveCodeLens(params) => {
-                let lens = destack_query::resolve_code_lens(&params.lens);
-                destack_query::QueryResponse::ResolveCodeLens(
-                    destack_query::ResolveCodeLensResponse { lens },
-                )
+            QueryRequest::ResolveCodeLens(params) => {
+                let lens = resolve_code_lens(&params.lens);
+                QueryResponse::ResolveCodeLens(ResolveCodeLensResponse { lens })
             }
-            destack_query::QueryRequest::FoldingRanges(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.module)?;
+            QueryRequest::FoldingRanges(params) => {
+                let context = self.module_context(params.module)?;
                 let ranges = context.folding_ranges();
 
-                destack_query::QueryResponse::FoldingRanges(destack_query::FoldingRangesResponse {
-                    ranges,
-                })
+                QueryResponse::FoldingRanges(FoldingRangesResponse { ranges })
             }
-            destack_query::QueryRequest::SemanticTokens(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.module)?;
+            QueryRequest::SemanticTokens(params) => {
+                let context = self.module_context(params.module)?;
                 let tokens = context.semantic_tokens();
 
-                destack_query::QueryResponse::SemanticTokens(
-                    destack_query::SemanticTokensResponse { tokens },
-                )
+                QueryResponse::SemanticTokens(SemanticTokensResponse { tokens })
             }
-            destack_query::QueryRequest::SemanticTokensRange(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.range.module)?;
+            QueryRequest::SemanticTokensRange(params) => {
+                let context = self.module_context(params.range.module)?;
                 let tokens = context.semantic_tokens_range(params.range.span);
 
-                destack_query::QueryResponse::SemanticTokensRange(
-                    destack_query::SemanticTokensResponse { tokens },
-                )
+                QueryResponse::SemanticTokensRange(SemanticTokensResponse { tokens })
             }
-            destack_query::QueryRequest::Outline(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.module)?;
+            QueryRequest::Outline(params) => {
+                let context = self.module_context(params.module)?;
                 let symbols = context.outline();
 
-                destack_query::QueryResponse::Outline(destack_query::OutlineResponse { symbols })
+                QueryResponse::Outline(OutlineResponse { symbols })
             }
-            destack_query::QueryRequest::SymbolSearch(params) => {
-                let context =
-                    self.program_query_context(session, repository, revision, &params.profile_ids)?;
+            QueryRequest::SymbolSearch(params) => {
+                let context = self.program_context(&params.profile_ids)?;
                 let symbols = context.search_symbols(&params.query, params.max_results as usize);
-                destack_query::QueryResponse::SymbolSearch(destack_query::SymbolSearchResponse {
-                    symbols,
-                })
+                QueryResponse::SymbolSearch(SymbolSearchResponse { symbols })
             }
-            destack_query::QueryRequest::Links(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.module)?;
+            QueryRequest::Links(params) => {
+                let context = self.module_context(params.module)?;
                 let links = context.links();
 
-                destack_query::QueryResponse::Links(destack_query::LinksResponse { links })
+                QueryResponse::Links(LinksResponse { links })
             }
-            destack_query::QueryRequest::Highlight(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
-                let highlights = context.highlights(params.position.offset);
+            QueryRequest::Highlight(params) => {
+                let context = self.module_context(params.position.module)?;
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let highlights = context.highlights(&program, params.position.offset);
 
-                destack_query::QueryResponse::Highlight(destack_query::HighlightResponse {
-                    highlights,
-                })
+                QueryResponse::Highlight(HighlightResponse { highlights })
             }
-            destack_query::QueryRequest::SelectionRanges(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.module)?;
+            QueryRequest::SelectionRanges(params) => {
+                let context = self.module_context(params.module)?;
                 let ranges = context.selection_ranges(&params.offsets);
 
-                destack_query::QueryResponse::SelectionRanges(
-                    destack_query::SelectionRangesResponse { ranges },
-                )
+                QueryResponse::SelectionRanges(SelectionRangesResponse { ranges })
             }
-            destack_query::QueryRequest::GotoDefinition(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::GotoDefinition(params) => {
+                let context = self.module_context(params.position.module)?;
                 let targets = context.goto_definition(params.position.offset);
 
-                destack_query::QueryResponse::GotoDefinition(
-                    destack_query::GotoDefinitionResponse { targets },
-                )
+                QueryResponse::GotoDefinition(GotoDefinitionResponse { targets })
             }
-            destack_query::QueryRequest::GotoDeclaration(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::GotoDeclaration(params) => {
+                let context = self.module_context(params.position.module)?;
                 let targets = context.goto_declaration(params.position.offset);
 
-                destack_query::QueryResponse::GotoDeclaration(
-                    destack_query::GotoDeclarationResponse { targets },
-                )
+                QueryResponse::GotoDeclaration(GotoDeclarationResponse { targets })
             }
-            destack_query::QueryRequest::GotoTypeDefinition(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::GotoTypeDefinition(params) => {
+                let context = self.module_context(params.position.module)?;
                 let targets = context.goto_type_definition(params.position.offset);
 
-                destack_query::QueryResponse::GotoTypeDefinition(
-                    destack_query::GotoTypeDefinitionResponse { targets },
-                )
+                QueryResponse::GotoTypeDefinition(GotoTypeDefinitionResponse { targets })
             }
-            destack_query::QueryRequest::GotoImplementation(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.position.module.profile_id],
-                )?;
+            QueryRequest::GotoImplementation(params) => {
+                let context = self.module_context(params.position.module)?;
+                let program = self.program_context(&[params.position.module.profile_id])?;
                 let targets = context.goto_implementation(&program, params.position.offset);
 
-                destack_query::QueryResponse::GotoImplementation(
-                    destack_query::GotoImplementationResponse { targets },
-                )
+                QueryResponse::GotoImplementation(GotoImplementationResponse { targets })
             }
-            destack_query::QueryRequest::FindReferences(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.position.module.profile_id],
-                )?;
+            QueryRequest::FindReferences(params) => {
+                let context = self.module_context(params.position.module)?;
+                let program = self.program_context(&[params.position.module.profile_id])?;
                 let references = context.find_references(
                     &program,
                     params.position.offset,
                     params.include_declaration,
                 );
 
-                destack_query::QueryResponse::FindReferences(
-                    destack_query::FindReferencesResponse { references },
-                )
+                QueryResponse::FindReferences(FindReferencesResponse { references })
             }
-            destack_query::QueryRequest::CallItem(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::CallItem(params) => {
+                let context = self.module_context(params.position.module)?;
                 let item = context.call_item(params.position.offset);
 
-                destack_query::QueryResponse::CallItem(destack_query::CallItemResponse { item })
+                QueryResponse::CallItem(CallItemResponse { item })
             }
-            destack_query::QueryRequest::IncomingCalls(params) => {
-                let context = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.item.target.module.profile_id],
-                )?;
+            QueryRequest::IncomingCalls(params) => {
+                let context = self.program_context(&[params.item.target.module.profile_id])?;
                 let calls = context.incoming_calls(&params.item);
-                destack_query::QueryResponse::IncomingCalls(destack_query::IncomingCallsResponse {
-                    calls,
-                })
+                QueryResponse::IncomingCalls(IncomingCallsResponse { calls })
             }
-            destack_query::QueryRequest::OutgoingCalls(params) => {
-                let context = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.item.target.module.profile_id],
-                )?;
+            QueryRequest::OutgoingCalls(params) => {
+                let context = self.program_context(&[params.item.target.module.profile_id])?;
                 let calls = context.outgoing_calls(&params.item);
-                destack_query::QueryResponse::OutgoingCalls(destack_query::OutgoingCallsResponse {
-                    calls,
-                })
+                QueryResponse::OutgoingCalls(OutgoingCallsResponse { calls })
             }
-            destack_query::QueryRequest::TypeItem(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::TypeItem(params) => {
+                let context = self.module_context(params.position.module)?;
                 let item = context.type_item(params.position.offset);
 
-                destack_query::QueryResponse::TypeItem(destack_query::TypeItemResponse { item })
+                QueryResponse::TypeItem(TypeItemResponse { item })
             }
-            destack_query::QueryRequest::Supertypes(params) => {
-                let context = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.item.target.module.profile_id],
-                )?;
+            QueryRequest::Supertypes(params) => {
+                let context = self.program_context(&[params.item.target.module.profile_id])?;
                 let items = context.supertypes(&params.item);
-                destack_query::QueryResponse::Supertypes(destack_query::SupertypesResponse {
-                    items,
-                })
+                QueryResponse::Supertypes(SupertypesResponse { items })
             }
-            destack_query::QueryRequest::Subtypes(params) => {
-                let context = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.item.target.module.profile_id],
-                )?;
+            QueryRequest::Subtypes(params) => {
+                let context = self.program_context(&[params.item.target.module.profile_id])?;
                 let items = context.subtypes(&params.item);
-                destack_query::QueryResponse::Subtypes(destack_query::SubtypesResponse { items })
+                QueryResponse::Subtypes(SubtypesResponse { items })
             }
-            destack_query::QueryRequest::RenameTarget(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
+            QueryRequest::RenameTarget(params) => {
+                let context = self.module_context(params.position.module)?;
                 let result = context.rename_target(params.position.offset);
 
-                destack_query::QueryResponse::RenameTarget(destack_query::RenameTargetResponse {
-                    result,
-                })
+                QueryResponse::RenameTarget(RenameTargetResponse { result })
             }
-            destack_query::QueryRequest::Rename(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.position.module.profile_id],
-                )?;
+            QueryRequest::Rename(params) => {
+                let context = self.module_context(params.position.module)?;
+                let program = self.program_context(&[params.position.module.profile_id])?;
                 let edit = context.rename(&program, params.position.offset, &params.new_name);
 
-                destack_query::QueryResponse::Rename(destack_query::RenameResponse { edit })
+                QueryResponse::Rename(RenameResponse { edit })
             }
-            destack_query::QueryRequest::RenameFiles(params) => {
-                let context =
-                    self.program_query_context(session, repository, revision, &params.profile_ids)?;
-                let edit = context.rename_files(&params.renames);
-                destack_query::QueryResponse::RenameFiles(destack_query::RenameFilesResponse {
-                    edit,
-                })
-            }
-            destack_query::QueryRequest::ExtractFunction(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.range.module)?;
-                let edit = context.extract_function(params.range.span, &params.new_name);
+            QueryRequest::RenameFiles(params) => {
+                let modules = self.modules(&params.profile_ids)?;
+                for module in &modules {
+                    self.require_specifiers(*module)?;
+                }
 
-                destack_query::QueryResponse::ExtractFunction(
-                    destack_query::ExtractFunctionResponse { edit },
+                let edit = rename_files(
+                    self.repository(),
+                    self.revision(),
+                    &modules,
+                    &params.renames,
                 )
+                .map_err(|error| Error::Internal {
+                    detail: format!("failed to rename module specifiers: {error}"),
+                })?;
+
+                QueryResponse::RenameFiles(RenameFilesResponse { edit })
             }
-            destack_query::QueryRequest::ExtractVariable(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.range.module)?;
+            QueryRequest::ExtractVariable(params) => {
+                let context = self.module_context(params.range.module)?;
                 let edit = context.extract_variable(params.range.span, &params.new_name);
 
-                destack_query::QueryResponse::ExtractVariable(
-                    destack_query::ExtractVariableResponse { edit },
-                )
+                QueryResponse::ExtractVariable(ExtractVariableResponse { edit })
             }
-            destack_query::QueryRequest::Inline(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.position.module.profile_id],
-                )?;
+            QueryRequest::Inline(params) => {
+                let context = self.module_context(params.position.module)?;
+                let program = self.program_context(&[params.position.module.profile_id])?;
                 let edit = context.inline_symbol(&program, params.position.offset);
 
-                destack_query::QueryResponse::Inline(destack_query::InlineResponse { edit })
+                QueryResponse::Inline(InlineResponse { edit })
             }
-            destack_query::QueryRequest::ChangeSignature(params) => {
-                let context = self.module_query_context(
-                    session,
-                    repository,
-                    revision,
-                    params.position.module,
-                )?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.position.module.profile_id],
-                )?;
-                let edit = context.change_signature(
-                    &program,
-                    params.position.offset,
-                    &params.new_parameters,
-                    &params.new_arguments,
-                );
-
-                destack_query::QueryResponse::ChangeSignature(
-                    destack_query::ChangeSignatureResponse { edit },
-                )
-            }
-            destack_query::QueryRequest::CodeActions(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.range.module)?;
-                let program = self.program_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &[params.range.module.profile_id],
-                )?;
-                let diagnostics = diagnostics_by_file(repository, revision)?
+            QueryRequest::CodeActions(params) => {
+                let context = self.module_context(params.range.module)?;
+                let program = self.program_context(&[params.range.module.profile_id])?;
+                let diagnostics = diagnostics_by_file(self.repository(), self.revision())?
                     .remove(&params.range.span.file)
                     .unwrap_or_default();
                 let actions = context.code_actions(
@@ -523,22 +336,17 @@ impl LocalWorkspace {
                     &params.context,
                 );
 
-                destack_query::QueryResponse::CodeActions(destack_query::CodeActionsResponse {
-                    actions,
-                })
+                QueryResponse::CodeActions(CodeActionsResponse { actions })
             }
-            destack_query::QueryRequest::Decorators(params) => {
+            QueryRequest::Decorators(params) => {
                 let profile_ids = match &params.scope {
-                    destack_query::DecoratorScope::Module(module) => vec![module.profile_id],
-                    destack_query::DecoratorScope::Program { profile_ids } => profile_ids.clone(),
+                    DecoratorScope::Module(module) => vec![module.profile_id],
+                    DecoratorScope::Program { profile_ids } => profile_ids.clone(),
                 };
-                let context =
-                    self.program_query_context(session, repository, revision, &profile_ids)?;
+                let context = self.program_context(&profile_ids)?;
                 let decorators = context.decorators(&params.scope, params.name.as_deref());
 
-                destack_query::QueryResponse::Decorators(destack_query::DecoratorsResponse {
-                    decorators,
-                })
+                QueryResponse::Decorators(DecoratorsResponse { decorators })
             }
         };
 
@@ -546,77 +354,141 @@ impl LocalWorkspace {
     }
 
     /// Return the module query context for one module.
-    fn module_query_context<'a>(
-        &self,
-        session: &Session,
-        repository: &'a Repository,
-        revision: Revision,
-        module: destack_query::Module,
-    ) -> Result<destack_query::ModuleQueryContext<'a>, Error> {
-        let key = ArtifactKey::dir_checked(module.module_id, module.profile_id);
-        let checked_version = session
-            .require(revision, key)
-            .map_err(|error| Error::Internal {
-                detail: format!(
-                    "failed to require query DIR for module {}: {error}",
-                    module.module_id
-                ),
-            })?;
-        let key = ArtifactKey::global_environment(module.profile_id);
-        let global_environment_version =
-            session
-                .require(revision, key)
+    fn module_context(&self, module: Module) -> Result<ModuleQueryContext<'_>, Error> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let artifacts = ArtifactReader::new(repository, revision);
+        let mut pending = vec![module.module_id];
+        let mut required = HashSet::new();
+
+        // require every artifact the reachable module contexts may read
+        while let Some(module_id) = pending.pop() {
+            if !required.insert(module_id) {
+                continue;
+            }
+
+            let required_artifacts = module_query_artifacts(module_id, module.profile_id);
+            self.session()
+                .provide(revision, &required_artifacts)
                 .map_err(|error| Error::Internal {
                     detail: format!(
-                        "failed to require query global environment for profile {:?}: {error}",
-                        module.profile_id
+                        "failed to provide query artifacts for module {module_id}: {error}"
                     ),
                 })?;
 
-        let context = destack_query::module_query_context_exact(
-            repository,
-            revision,
-            module.module_id,
-            module.profile_id,
-            checked_version,
-            global_environment_version,
-        );
+            // extend through the authoritative resolved module edges
+            let resolved = artifacts
+                .dir_resolved(module_id, module.profile_id)
+                .map_err(|error| Error::Internal {
+                    detail: format!(
+                        "failed to read resolved query DIR for module {module_id}: {error}"
+                    ),
+                })?;
+            pending.extend(resolved.target_modules());
+        }
+
+        // build a read view over the required revision state
+        let context =
+            module_query_context(repository, revision, module.module_id, module.profile_id);
 
         Ok(context)
     }
 
     /// Return a program query context for explicit profiles.
-    fn program_query_context<'a>(
-        &self,
-        session: &Session,
-        repository: &'a Repository,
-        revision: Revision,
-        profile_ids: &[ProfileId],
-    ) -> Result<destack_query::ProgramQueryContext<'a>, Error> {
+    fn program_context(&self, profile_ids: &[ProfileId]) -> Result<ProgramQueryContext<'_>, Error> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let required_artifacts = profile_ids
+            .iter()
+            .map(|profile_id| ArtifactKey::program_index(*profile_id))
+            .collect::<Vec<_>>();
         let mut indexes = Vec::with_capacity(profile_ids.len());
 
+        // provide all program indexes in one artifact run
+        self.session()
+            .provide(revision, &required_artifacts)
+            .map_err(|error| Error::Internal {
+                detail: format!("failed to provide program indexes: {error}"),
+            })?;
+
+        // read each exact ready payload
+        let artifacts = ArtifactReader::new(repository, revision);
         for profile_id in profile_ids {
-            let key = ArtifactKey::program_index(*profile_id);
-            let version = session
-                .require(revision, key)
+            let index = artifacts
+                .program_index(*profile_id)
                 .map_err(|error| Error::Internal {
                     detail: format!(
-                        "failed to require program index for profile {profile_id:?}: {error}"
+                        "failed to read program index for profile {profile_id:?}: {error}"
                     ),
-                })?;
-
-            let index = repository
-                .artifact_table()
-                .program_index(&version)
-                .ok_or_else(|| Error::Internal {
-                    detail: format!("program index payload is missing for profile {profile_id:?}"),
                 })?;
 
             indexes.push((*profile_id, index));
         }
 
-        Ok(destack_query::program_query_context(
-            repository, revision, indexes,
-        ))
+        Ok(program_query_context(repository, revision, indexes))
+    }
+
+    /// Return the active package index for one profile.
+    fn package_index(&self, profile_id: ProfileId) -> Result<Arc<PackageIndex>, Error> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let key = ArtifactKey::package_index(profile_id);
+        self.session()
+            .provide(revision, &[key])
+            .map_err(|error| Error::Internal {
+                detail: format!(
+                    "failed to provide package index for profile {profile_id:?}: {error}"
+                ),
+            })?;
+
+        // read the exact ready payload
+        let artifacts = ArtifactReader::new(repository, revision);
+        let packages = artifacts
+            .package_index(profile_id)
+            .map_err(|error| Error::Internal {
+                detail: format!("failed to read package index for profile {profile_id:?}: {error}"),
+            })?;
+
+        Ok(packages)
+    }
+
+    /// Return every module in the selected profiles.
+    fn modules(&self, profile_ids: &[ProfileId]) -> Result<Vec<Module>, Error> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let module_ids = repository.module_ids(revision)?;
+        let mut modules = Vec::new();
+
+        // select each module that participates in each profile
+        for profile_id in profile_ids {
+            for module_id in &module_ids {
+                let profile = repository.module_profile_by_id(revision, *module_id, *profile_id)?;
+                if profile.is_none() {
+                    continue;
+                }
+
+                modules.push(Module {
+                    module_id: *module_id,
+                    profile_id: *profile_id,
+                });
+            }
+        }
+
+        Ok(modules)
+    }
+
+    /// Require the artifacts read while rewriting one module's specifiers.
+    fn require_specifiers(&self, module: Module) -> Result<(), Error> {
+        let required_artifacts = specifier_artifacts(module.module_id, module.profile_id);
+        self.session()
+            .provide(self.revision(), &required_artifacts)
+            .map_err(|error| Error::Internal {
+                detail: format!(
+                    "failed to provide specifier artifacts for module {}: {error}",
+                    module.module_id
+                ),
+            })?;
+
+        Ok(())
     }
 }

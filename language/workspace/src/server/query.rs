@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{DiagnosticsRequest, QueryRequest, RevisionPolicy, ViewRequest, ViewResult, Workspace};
+use crate::{DiagnosticsRequest, ViewRequest, ViewResult, Workspace, WorkspaceQueryRequest};
 
 use super::Server;
 use crate::PayloadSender;
@@ -159,22 +159,11 @@ impl Server {
                 "missing expected revision for query",
             )
         })?;
-        let revision = RevisionPolicy::Current(revision);
         let response = workspace
             .query(
                 root,
-                QueryRequest {
-                    expected_revision: Some(match revision {
-                        RevisionPolicy::Current(revision) | RevisionPolicy::Exact(revision) => {
-                            revision
-                        }
-                        RevisionPolicy::Latest => {
-                            return Err(self.protocol_error(
-                                ProtocolErrorCode::InvalidRequest,
-                                "latest revision cannot be used for protocol query execution",
-                            ));
-                        }
-                    }),
+                WorkspaceQueryRequest {
+                    expected_revision: Some(revision),
                     request: request.request,
                 },
             )

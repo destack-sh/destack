@@ -30,8 +30,8 @@ use destack_source::{
 use parking_lot::Mutex;
 
 use super::{
-    DiagnosticsRequest, QueryRequest, QueryResult, ReloadRequest, UpdateBatch, ViewRequest,
-    ViewResult,
+    DiagnosticsRequest, QueryResult, ReloadRequest, UpdateBatch, ViewRequest, ViewResult,
+    WorkspaceQueryRequest,
 };
 use crate::{ExportRequest, ExportResult, ExportedFile};
 
@@ -545,7 +545,7 @@ impl Workspace for LocalWorkspace {
         })
     }
 
-    fn query(&self, root: &Path, request: QueryRequest) -> Result<QueryResult, Error> {
+    fn query(&self, root: &Path, request: WorkspaceQueryRequest) -> Result<QueryResult, Error> {
         let revision = match request.expected_revision {
             Some(revision) => super::RevisionPolicy::Current(revision),
             None => super::RevisionPolicy::Latest,
