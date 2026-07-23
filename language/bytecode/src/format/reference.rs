@@ -36,8 +36,7 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one explicit value destruction.
     fn format_drop(&mut self) -> FormatResult<()> {
         // decode the value and concrete type
-        let value = self.register_id()?;
-        self.value_type()?;
+        let (value, _) = self.register_range_id()?;
         let ty = self.symbol()?;
 
         // write the destruction

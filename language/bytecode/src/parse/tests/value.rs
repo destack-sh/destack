@@ -49,3 +49,30 @@ export function values(r0: int32, r1: boolean, r2: int128): (
         Symbol::ty(TypeId(0).0)
     );
 }
+
+/// Parse explicit storage initialization into dedicated value operations.
+#[test]
+fn test_parse_storage_values() {
+    let (_, opcodes) = TestParser::new(
+        r#"
+export function storage(): (
+    uninit<ref<managed, space(local)>>,
+    uninit<ref<managed, space(local)>>,
+) {
+    r0: uninit<ref<managed, space(local)>> = uninit
+    r1: uninit<ref<managed, space(local)>> = zeroed
+    return r0, r1
+}
+"#,
+    )
+    .parse_opcodes(FunctionId(0));
+
+    assert_eq!(
+        opcodes,
+        vec![
+            Opcode::CONSTANT_UNINIT,
+            Opcode::CONSTANT_ZEROED,
+            Opcode::RETURN,
+        ]
+    );
+}

@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{MemoryOperation, Opcode, ReferenceType, Scalar, ValueType};
+use crate::{MemoryOperation, Opcode, Scalar, ValueType};
 
 use super::instruction::InstructionFormatter;
 
@@ -43,34 +43,35 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_register(value)
     }
 
-    /// Format one reference load.
+    /// Format one packed value load.
     pub(super) fn format_load(&mut self) -> FormatResult<()> {
-        let result = self.register_id()?;
+        self.declared_result_range()?;
         let pointer = self.register_id()?;
-        let reference = ReferenceType::from_bits(self.u16()?).ok_or(FormatError::SyntaxError {
-            message: "reference load has invalid qualifiers",
-        })?;
-        let ty = ValueType::reference(reference.kind(), reference.space());
+        let ty = self.symbol()?;
 
-        // write the typed reference load
-        self.write_result(result, ty)?;
+        // write the pointer and Program storage type
         write!(
             self.formatter,
             [space(), token("="), space(), token("load"), space()]
         )?;
-        self.write_register(pointer)
+        self.write_register(pointer)?;
+        write!(self.formatter, [token(","), space()])?;
+        self.write_text(&ty)
     }
 
-    /// Format one reference store.
+    /// Format one packed value store.
     pub(super) fn format_store(&mut self) -> FormatResult<()> {
         let pointer = self.register_id()?;
-        let value = self.register_id()?;
+        let (value, _) = self.register_range_id()?;
+        let ty = self.symbol()?;
 
-        // write the reference store
+        // write the pointer, value, and Program storage type
         write!(self.formatter, [token("store"), space()])?;
         self.write_register(pointer)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(value)
+        self.write_register(value)?;
+        write!(self.formatter, [token(","), space()])?;
+        self.write_text(&ty)
     }
 
     /// Format one scalar load or store.

@@ -132,7 +132,9 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::CONSTANT_INT128
             | Opcode::CONSTANT_UINT128
             | Opcode::CONSTANT_NULL
-            | Opcode::CONSTANT_UNDEFINED => self.format_named_constant(opcode),
+            | Opcode::CONSTANT_UNDEFINED
+            | Opcode::CONSTANT_UNINIT
+            | Opcode::CONSTANT_ZEROED => self.format_named_constant(opcode),
 
             // addresses
             Opcode::GLOBAL_ADDRESS

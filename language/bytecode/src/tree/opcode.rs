@@ -206,6 +206,16 @@ opcodes! {
         signature: "(type: ValueType) => value",
         operands: [Result, ValueType],
     }
+    CONSTANT_UNINIT = 0x0025 {
+        text: "uninit",
+        signature: "() => uninit",
+        operands: [ResultRange],
+    }
+    CONSTANT_ZEROED = 0x0026 {
+        text: "zeroed",
+        signature: "() => uninit",
+        operands: [ResultRange],
+    }
 
     // pointers
     GLOBAL_ADDRESS = 0x0030 {
@@ -276,13 +286,13 @@ opcodes! {
     // memory
     LOAD = 0x0050 {
         text: "load",
-        signature: "(pointer: pointer) => ref",
-        operands: [Result, Register, Reference],
+        signature: "(pointer: pointer, type: TypeId) => value",
+        operands: [ResultRange, Register, Type],
     }
     STORE = 0x0051 {
         text: "store",
-        signature: "(pointer: pointer, value: ref) => void",
-        operands: [Register, Register],
+        signature: "(pointer: pointer, value: value, type: TypeId) => void",
+        operands: [Register, RegisterRange, Type],
     }
     FRAME_LOAD = 0x0052 {
         text: "frame.load",
@@ -346,7 +356,7 @@ opcodes! {
         operands: [Result, RegisterRange],
     }
 
-    // lifetime
+    // allocation and destruction
     NEW_COMPLETE = 0x0080 {
         text: "new.complete",
         signature: "(value: uninit) => value",
@@ -359,8 +369,8 @@ opcodes! {
     }
     DROP = 0x0082 {
         text: "drop",
-        signature: "(pointer: pointer, type: ValueType, runtimeType: TypeId) => void",
-        operands: [Register, ValueType, Type],
+        signature: "(value: value, type: TypeId) => void",
+        operands: [RegisterRange, Type],
     }
     PIN = 0x0088 {
         text: "pin",

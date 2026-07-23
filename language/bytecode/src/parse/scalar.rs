@@ -64,6 +64,20 @@ impl Parser<'_> {
             return function.emit(instruction, results, &[ty], self.empty_span());
         }
 
+        // preserve storage initialization without imposing a scalar representation
+        let opcode = if self.eat_name_if("uninit") {
+            Some(Opcode::CONSTANT_UNINIT)
+        } else if self.eat_name_if("zeroed") {
+            Some(Opcode::CONSTANT_ZEROED)
+        } else {
+            None
+        };
+        if let Some(opcode) = opcode {
+            let instruction = InstructionBuilder::new(opcode);
+
+            return function.emit(instruction, results, &[ty], self.empty_span());
+        }
+
         Err(ParseError::new(
             "literal does not match its declared result type",
             self.peek().span,

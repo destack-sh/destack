@@ -8,8 +8,8 @@ fn test_format_reference_operations() {
 type Point
 
 export function references(r0:pointer,r1:ref<managed,space(local)>,r2:ref<unique,space(local)>,r3:uint64):ref<managed,space(local)>{
-r4:ref<managed,space(local)>=load r0
-store r0,r4
+r4:ref<managed,space(local)>=load r0,Point
+store r0,r4,Point
 pin r4
 unpin r4
 barrier r4,r3,r3
@@ -27,8 +27,8 @@ export function references(
     r2: ref<unique, space(local)>,
     r3: uint64,
 ): ref<managed, space(local)> {
-    r4: ref<managed, space(local)> = load r0
-    store r0, r4
+    r4: ref<managed, space(local)> = load r0, Point
+    store r0, r4, Point
     pin r4
     unpin r4
     barrier r4, r3, r3

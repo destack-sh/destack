@@ -1,6 +1,6 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId, Scalar,
-    Symbol, Token, TokenType, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId,
+    RegisterRange, Scalar, Symbol, Token, TokenType, ValueType,
 };
 
 use super::function::FunctionParser;
@@ -71,14 +71,14 @@ impl Parser<'_> {
         results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // match one pointer or initialized reference
+        // read one initialized logical value
         let value = self.parse_register()?;
         let value_type = function
             .value_type(value)
             .ok_or_else(|| ParseError::new("drop reads an uninitialized value", token.span))?;
-        if !value_type.is_pointer() && !value_type.is_initialized_reference() {
+        if value_type.is_uninitialized() {
             return Err(ParseError::new(
-                "drop requires a native pointer or initialized reference",
+                "drop requires an initialized value",
                 token.span,
             ));
         }
@@ -89,8 +89,7 @@ impl Parser<'_> {
 
         // encode the explicit destruction
         let mut instruction = InstructionBuilder::new(Opcode::DROP);
-        instruction.register(value);
-        instruction.value_type(value_type);
+        instruction.range(RegisterRange::new(value, value_type.word_count()));
         instruction.symbol(Symbol::ty(ty.0));
 
         function.emit(instruction, results, &[], self.empty_span())

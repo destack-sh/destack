@@ -17,6 +17,9 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::CONSTANT_BYTES => self.format_constant_bytes(),
             Opcode::CONSTANT_INT128 | Opcode::CONSTANT_UINT128 => self.format_wide_constant(opcode),
             Opcode::CONSTANT_NULL | Opcode::CONSTANT_UNDEFINED => self.format_nullish(opcode),
+            Opcode::CONSTANT_UNINIT | Opcode::CONSTANT_ZEROED => {
+                self.format_storage_constant(opcode)
+            }
             _ => Err(FormatError::SyntaxError {
                 message: "invalid constant opcode",
             }),
@@ -99,6 +102,19 @@ impl InstructionFormatter<'_, '_, '_> {
             "null"
         } else {
             "undefined"
+        };
+
+        write!(self.formatter, [space(), token("="), space()])?;
+        self.write_text(literal)
+    }
+
+    /// Format one storage initialization value.
+    fn format_storage_constant(&mut self, opcode: Opcode) -> FormatResult<()> {
+        self.declared_result_range()?;
+        let literal = if opcode == Opcode::CONSTANT_UNINIT {
+            "uninit"
+        } else {
+            "zeroed"
         };
 
         write!(self.formatter, [space(), token("="), space()])?;

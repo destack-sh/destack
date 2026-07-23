@@ -41,3 +41,27 @@ export function values(r0: int32, r1: boolean, r2: int128): (
 "#,
     );
 }
+
+/// Format explicit storage initialization canonically.
+#[test]
+fn test_format_storage_values() {
+    assert_format_eq(
+        r#"
+export function storage():(uninit<ref<managed,space(local)>>,uninit<ref<managed,space(local)>>){
+r0:uninit<ref<managed,space(local)>>=uninit
+r1:uninit<ref<managed,space(local)>>=zeroed
+return r0,r1
+}
+"#,
+        r#"
+export function storage(): (
+    uninit<ref<managed, space(local)>>,
+    uninit<ref<managed, space(local)>>
+) {
+    r0: uninit<ref<managed, space(local)>> = uninit
+    r1: uninit<ref<managed, space(local)>> = zeroed
+    return r0, r1
+}
+"#,
+    );
+}

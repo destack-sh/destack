@@ -1,5 +1,6 @@
 use crate::{
-    FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, Space, TypeId, ValueType,
+    FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, RegisterRange, Space, TypeId,
+    ValueType,
 };
 
 use super::TestParser;
@@ -17,8 +18,8 @@ export function references(
     r2: ref<unique, space(local)>,
     r3: uint64,
 ): ref<managed, space(local)> {
-    r4: ref<managed, space(local)> = load r0
-    store r0, r4
+    r4: ref<managed, space(local)> = load r0, Point
+    store r0, r4, Point
     pin r4
     unpin r4
     barrier r4, r3, r3
@@ -43,6 +44,7 @@ export function references(
             Opcode::RETURN,
         ]
     );
+    assert_eq!(object.instruction_relocations().len(), 3);
 
     // retain the managed reference representation for collector operations
     let instruction = object
@@ -56,16 +58,15 @@ export function references(
         ReferenceType::new(ReferenceKind::MANAGED, Space::LOCAL)
     );
 
-    // retain both the value representation and concrete destructor type
+    // retain the complete logical value and concrete destructor type
     let instruction = object
         .instruction(FunctionId(0), 5)
         .expect("valid instruction")
         .expect("drop instruction");
     let mut operands = instruction.operands();
-    assert_eq!(operands.register().expect("value register"), RegisterId(0));
     assert_eq!(
-        operands.value_type().expect("value representation"),
-        ValueType::pointer()
+        operands.range().expect("value registers"),
+        RegisterRange::new(RegisterId(0), ValueType::pointer().word_count())
     );
     assert_eq!(operands.u32().expect("dropped type"), TypeId(0).0);
 

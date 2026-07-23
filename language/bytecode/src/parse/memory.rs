@@ -1,6 +1,6 @@
 use crate::{
     InstructionBuilder, MemoryOperation, Opcode, ParseError, ParseResult, Parser, RegisterId,
-    RegisterRange, Scalar, Token, TokenType, ValueType, VectorOperation,
+    RegisterRange, Scalar, Symbol, Token, TokenType, ValueType, VectorOperation,
 };
 
 use super::function::FunctionParser;
@@ -15,12 +15,12 @@ impl Parser<'_> {
         result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // load one reference or vector from its declared result type
+        // load one packed value or vector from its declared result type
         if name == "load" {
             return self.parse_load(token, results, result_types, function);
         }
 
-        // store one reference or vector from its input type
+        // store one packed value or vector from its input type
         if name == "store" {
             return self.parse_store(token, results, function);
         }
@@ -108,39 +108,31 @@ impl Parser<'_> {
             return Err(ParseError::new("load requires one result", token.span));
         };
 
-        // load a reference with its encoded ownership and space
-        if let Some(reference) = ty
-            .reference_type()
-            .filter(|_| ty.is_initialized_reference())
-        {
+        // retain fixed-width vectors on their specialized path
+        if ty.vector_type().is_some() {
+            self.parse_vector_operation("load", token, results, result_types, function)
+        }
+        // load one Program-layout value
+        else {
             let pointer = self.parse_register()?;
             if !function.has_type(pointer, ValueType::pointer()) {
                 return Err(ParseError::new(
-                    "reference load requires a native pointer",
+                    "load requires a native pointer",
                     token.span,
                 ));
             }
+            self.eat_token(TokenType::Comma)?;
+            let storage_type = self.parse_type_name()?;
 
             let mut instruction = InstructionBuilder::new(Opcode::LOAD);
             instruction.register(pointer);
-            instruction.reference(reference.kind(), reference.space());
+            instruction.symbol(Symbol::ty(storage_type.0));
 
             function.emit(instruction, results, &[ty], self.empty_span())
         }
-        // load one fixed width vector
-        else if ty.vector_type().is_some() {
-            self.parse_vector_operation("load", token, results, result_types, function)
-        }
-        // require scalar loads to carry their representation suffix
-        else {
-            Err(ParseError::new(
-                "bare load requires a reference or vector result",
-                token.span,
-            ))
-        }
     }
 
-    /// Parse one reference or vector store.
+    /// Parse one packed value or vector store.
     fn parse_store(
         &mut self,
         token: Token,
@@ -162,16 +154,8 @@ impl Parser<'_> {
             .value_type(value)
             .ok_or_else(|| ParseError::new("store reads an uninitialized value", token.span))?;
 
-        // store one reference word
-        if ty.is_initialized_reference() {
-            let mut instruction = InstructionBuilder::new(Opcode::STORE);
-            instruction.register(pointer);
-            instruction.register(value);
-
-            function.emit(instruction, results, &[], self.empty_span())
-        }
-        // store one fixed width vector range
-        else if let Some(vector) = ty.vector_type() {
+        // retain fixed-width vectors on their specialized path
+        if let Some(vector) = ty.vector_type() {
             let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Store));
             instruction.register(pointer);
             instruction.range(RegisterRange::new(value, vector.word_count()));
@@ -179,12 +163,16 @@ impl Parser<'_> {
 
             function.emit(instruction, results, &[], self.empty_span())
         }
-        // require scalar stores to carry their representation suffix
+        // store one Program-layout value
         else {
-            Err(ParseError::new(
-                "bare store requires a reference or vector value",
-                token.span,
-            ))
+            self.eat_token(TokenType::Comma)?;
+            let storage_type = self.parse_type_name()?;
+            let mut instruction = InstructionBuilder::new(Opcode::STORE);
+            instruction.register(pointer);
+            instruction.range(RegisterRange::new(value, ty.word_count()));
+            instruction.symbol(Symbol::ty(storage_type.0));
+
+            function.emit(instruction, results, &[], self.empty_span())
         }
     }
 
