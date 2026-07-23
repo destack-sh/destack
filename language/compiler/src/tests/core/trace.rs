@@ -417,6 +417,7 @@ impl<'a> TraceTable<'a> {
                 Cell::bold("trace"),
                 Cell::bold("stage"),
                 Cell::bold("artifact"),
+                Cell::bold("module"),
                 Cell::bold("outcome"),
                 Cell::bold("ms"),
             ]);
@@ -448,6 +449,7 @@ impl<'a> TraceTable<'a> {
                 Cell::new(row.name.clone()),
                 Cell::colored(artifact.stage.clone(), stage_color(&artifact.stage)),
                 Cell::colored(artifact.name.clone(), kind_color(&artifact.name)),
+                Cell::new(artifact.label.clone().unwrap_or_default()),
                 Cell::colored(artifact.outcome.clone(), outcome_color(&artifact.outcome)),
                 Cell::colored(format_millis(artifact.micros), "38;5;250"),
             ]);

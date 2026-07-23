@@ -23,7 +23,7 @@ use crate::tests::snapshot::{
 };
 
 use super::module::{TestModule, parse_module, parsed_dependencies};
-use super::provider::TestProvider;
+use super::provider::{TestProvider, WORKERS_ENV};
 use super::trace::TraceTable;
 
 const DEFAULT_DESTACK_JSON: &str = r#"{
@@ -34,6 +34,7 @@ const DEFAULT_DESTACK_JSON: &str = r#"{
   }
 }"#;
 const TRACE_ENV: &str = "DESTACK_TEST_TRACE";
+const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
 const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
 const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
 
@@ -1106,8 +1107,48 @@ impl TestSession {
         &self,
         keys: impl IntoIterator<Item = ArtifactKey>,
     ) -> Result<(), ProviderError> {
-        let mut error = None;
+        let keys = keys.into_iter().collect::<Vec<_>>();
+        let workers = env::var(WORKERS_ENV)
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|workers| *workers > 1);
 
+        // fan roots across scoped workers when requested
+        if let Some(workers) = workers {
+            let queue = std::sync::Mutex::new(keys.into_iter().collect::<Vec<_>>());
+            let error = std::sync::Mutex::new(None);
+            std::thread::scope(|scope| {
+                for worker in 0..workers {
+                    let queue = &queue;
+                    let error = &error;
+                    let provider = &self.provider;
+                    std::thread::Builder::new()
+                        .stack_size(64 * 1024 * 1024)
+                        .spawn_scoped(scope, move || {
+                            TestProvider::set_worker(worker);
+                            loop {
+                                let Some(key) = queue.lock().expect("test root queue").pop() else {
+                                    return;
+                                };
+                                if let Err(current_error) = provider.require(key) {
+                                    error
+                                        .lock()
+                                        .expect("test error slot")
+                                        .get_or_insert(current_error);
+                                }
+                            }
+                        })
+                        .expect("test worker should spawn");
+                }
+            });
+
+            return match error.into_inner().expect("test error slot") {
+                Some(error) => Err(error),
+                None => Ok(()),
+            };
+        }
+
+        let mut error = None;
         for key in keys {
             if let Err(current_error) = self.require_artifact_result(key) {
                 error.get_or_insert(current_error);
@@ -1266,6 +1307,16 @@ impl TestSession {
         let mut externals = Vec::new();
         let mut seen = BTreeSet::new();
         let mut pending = graph.dependencies(component).to_vec();
+
+        // include the ambient extension layer the checked output references
+        for extension in graph.inherent_extensions() {
+            if let Some(extension) = graph.component(extension.symbol.module_id)
+                && extension != component
+            {
+                pending.push(extension);
+            }
+        }
+
         while let Some(dependency) = pending.pop() {
             if !seen.insert(dependency) {
                 continue;
@@ -1290,6 +1341,26 @@ impl TestSession {
         self.modules_by_path
             .get(path)
             .unwrap_or_else(|| panic!("missing test module path '{path}'"))
+    }
+}
+
+impl Drop for TestSession {
+    fn drop(&mut self) {
+        // print the artifact timings per test when requested
+        let Ok(filter) = env::var(TIMINGS_ENV) else {
+            return;
+        };
+        if !trace_filter_matches(&filter, "") {
+            return;
+        }
+
+        let slow_artifacts = env::var(TRACE_SLOW_ARTIFACTS_ENV)
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(DEFAULT_TRACE_SLOW_ARTIFACTS);
+        let name = current_test_name().unwrap_or_else(|| "session".to_string());
+
+        self.print_trace(&name, slow_artifacts);
     }
 }
 

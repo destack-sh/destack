@@ -1,5 +1,7 @@
-use std::cell::{Cell, RefCell};
-use std::sync::Arc;
+use std::cell::RefCell;
+use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload,
@@ -17,6 +19,9 @@ use destack_source::{
 };
 
 use super::module::{parse_module, parsed_dependencies};
+
+/// Worker count for parallel test artifact resolution.
+pub(crate) const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
 use crate::Compiler;
 
 /// Synchronous compiler artifact provider used by crate-local tests.
@@ -31,13 +36,29 @@ pub(crate) struct TestProvider {
     /// The artifact trace for this test provider.
     trace: Arc<Trace>,
     /// Whether attempts retain event traces, set by event assertions.
-    emit_events: Cell<bool>,
+    emit_events: AtomicBool,
+    /// The frontier fan-out budget from the test worker flag.
+    workers: usize,
+    /// Artifact keys building on some worker right now.
+    in_flight: Mutex<HashSet<ArtifactKey>>,
+    /// Signal for workers waiting on an in-flight artifact.
+    in_flight_done: Condvar,
+}
+
+thread_local! {
+    /// The trace worker index of the current test thread.
+    static WORKER: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 impl TestProvider {
     /// Retain event traces for following attempts.
     pub(crate) fn retain_events(&self) {
-        self.emit_events.set(true);
+        self.emit_events.store(true, Ordering::Relaxed);
+    }
+
+    /// Tag the current thread's attempts with one trace worker index.
+    pub(crate) fn set_worker(worker: usize) {
+        WORKER.with(|cell| cell.set(worker));
     }
 
     /// Create one test provider.
@@ -52,7 +73,13 @@ impl TestProvider {
             revision,
             compiler,
             trace: Trace::new(Clock::default()),
-            emit_events: Cell::new(false),
+            emit_events: AtomicBool::new(false),
+            workers: std::env::var(WORKERS_ENV)
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(1),
+            in_flight: Mutex::new(HashSet::new()),
+            in_flight_done: Condvar::new(),
         }
     }
 
@@ -60,7 +87,15 @@ impl TestProvider {
     pub(crate) fn trace(&self) -> TraceSnapshot {
         self.trace.finish();
 
-        self.trace.snapshot(TraceView::Detailed, |_| None, |_| None)
+        // label each artifact with its module path
+        let label = |key: &ArtifactKey| {
+            let module = key.module_id()?;
+            let module = self.repository.module(self.revision, module).ok()??;
+
+            Some(module.uri.to_string())
+        };
+
+        self.trace.snapshot(TraceView::Detailed, label, |_| None)
     }
 
     /// Require one artifact, building its closure depth first.
@@ -70,7 +105,8 @@ impl TestProvider {
 
     /// Resolve one artifact through the repository dependency-set model.
     fn resolve(&self, key: ArtifactKey) -> ProviderResult<ArtifactVersion> {
-        let recorder = Arc::new(self.trace.begin(key, 0));
+        let worker = WORKER.with(|cell| cell.get());
+        let recorder = Arc::new(self.trace.begin(key, worker));
 
         if let Some(version) = recorder.span("terminal", || self.terminal_version(key))? {
             recorder.finish(ArtifactAttemptOutcome::MemoryCached);
@@ -78,6 +114,38 @@ impl TestProvider {
             return Ok(version);
         }
 
+        // wait for a sibling worker already building this artifact
+        {
+            let mut in_flight = self.in_flight.lock().expect("test in-flight lock");
+            while in_flight.contains(&key) {
+                in_flight = self
+                    .in_flight_done
+                    .wait(in_flight)
+                    .expect("test in-flight lock");
+            }
+            if let Some(version) = self.terminal_version(key)? {
+                recorder.finish(ArtifactAttemptOutcome::MemoryCached);
+
+                return Ok(version);
+            }
+            in_flight.insert(key);
+        }
+        let result = self.resolve_exclusive(key, &recorder);
+        {
+            let mut in_flight = self.in_flight.lock().expect("test in-flight lock");
+            in_flight.remove(&key);
+        }
+        self.in_flight_done.notify_all();
+
+        result
+    }
+
+    /// Resolve one artifact this worker exclusively owns.
+    fn resolve_exclusive(
+        &self,
+        key: ArtifactKey,
+        recorder: &Arc<ArtifactAttemptRecorder>,
+    ) -> ProviderResult<ArtifactVersion> {
         let base = recorder
             .span("base", || self.repository.artifact_base(self.revision, key))
             .map_err(|error| ProviderError::internal(error.to_string()))?;
@@ -94,9 +162,7 @@ impl TestProvider {
                     pending_set,
                 } => {
                     recorder.record_counter("frontier", frontier.len() as u64);
-                    for dependency in frontier {
-                        self.resolve(dependency)?;
-                    }
+                    self.resolve_frontier(frontier)?;
                     set = if let Some(pending_set) = pending_set {
                         pending_set
                     } else {
@@ -108,9 +174,60 @@ impl TestProvider {
                     dependencies,
                     failed,
                 } => {
-                    return self.commit(key, base, base_version, dependencies, failed, recorder);
+                    return self.commit(
+                        key,
+                        base,
+                        base_version,
+                        dependencies,
+                        failed,
+                        recorder.clone(),
+                    );
                 }
             }
+        }
+    }
+
+    /// Resolve one pending frontier, fanning out across workers when enabled.
+    fn resolve_frontier(&self, frontier: Vec<ArtifactKey>) -> ProviderResult<()> {
+        let workers = self.workers.min(frontier.len());
+        if workers <= 1 {
+            for dependency in frontier {
+                self.resolve(dependency)?;
+            }
+
+            return Ok(());
+        }
+
+        let queue = Mutex::new(frontier);
+        let error = Mutex::new(None);
+        let parent = WORKER.with(|cell| cell.get());
+        std::thread::scope(|scope| {
+            for _ in 0..workers {
+                let queue = &queue;
+                let error = &error;
+                std::thread::Builder::new()
+                    .stack_size(64 * 1024 * 1024)
+                    .spawn_scoped(scope, move || {
+                        Self::set_worker(parent);
+                        loop {
+                            let Some(key) = queue.lock().expect("test frontier queue").pop() else {
+                                return;
+                            };
+                            if let Err(current_error) = self.resolve(key) {
+                                error
+                                    .lock()
+                                    .expect("test frontier error")
+                                    .get_or_insert(current_error);
+                            }
+                        }
+                    })
+                    .expect("test frontier worker should spawn");
+            }
+        });
+
+        match error.into_inner().expect("test frontier error") {
+            Some(error) => Err(error),
+            None => Ok(()),
         }
     }
 
@@ -554,7 +671,7 @@ impl ProviderContext for TestProviderContext<'_> {
 
     /// Emit event traces when one event assertion requested them.
     fn emit_events(&self) -> bool {
-        self.provider.emit_events.get()
+        self.provider.emit_events.load(Ordering::Relaxed)
     }
 
     /// Return the recorder for this artifact attempt.
