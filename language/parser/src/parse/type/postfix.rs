@@ -5,7 +5,7 @@ use destack_dir::{
     Expression, GenericArgument, LocalNodeId, NodeType, Path, PostfixPosition, TokenType,
     TypeExpression,
 };
-use destack_source::ByteRange;
+use destack_source::{ByteRange, NodeSpanList, NodeSpanType};
 
 /// One type head that can receive generic arguments.
 enum TypeGenericHead {
@@ -150,17 +150,21 @@ impl Parser {
 
         // promote the reference-shaped head into value space
         let expression = match head {
-            TypeGenericHead::Reference(path) => self.insert_path_expression(&path, range)?,
+            TypeGenericHead::Reference(path) => self.insert_path_expression(ty, &path, range)?,
             TypeGenericHead::Member { left, name } => {
                 let owner = self.build_type_value(left)?;
-                self.insert_node(
+                let expression = self.insert_node(
                     Expression::Member {
                         left: owner,
                         name: Some(name),
                         is_optional: false,
                     },
                     range,
-                )
+                );
+                let main_range = self.tree.get_main_range(ty)?;
+                self.tree.set_main_range(expression, main_range);
+
+                expression
             }
         };
 
@@ -189,17 +193,19 @@ impl Parser {
         ))
     }
 
-    /// Insert one type path as a value expression path.
+    /// Insert one source-backed type path as a value expression path.
     fn insert_path_expression(
         &mut self,
+        ty: LocalNodeId<TypeExpression>,
         path: &Path,
         range: ByteRange,
     ) -> Option<LocalNodeId<Expression>> {
-        let mut segments = path.segments.iter().copied();
-        let first = segments.next()?;
+        let first = path.segments.first().copied()?;
         let mut value = self.insert_node(Expression::Identifier { name: first }, range);
+        let first_range = self.type_path_segment_range(ty, path, 0)?;
+        self.tree.set_main_range(value, first_range);
 
-        for segment in segments {
+        for (index, segment) in path.segments.iter().copied().enumerate().skip(1) {
             value = self.insert_node(
                 Expression::Member {
                     left: value,
@@ -208,9 +214,28 @@ impl Parser {
                 },
                 range,
             );
+            let segment_range = self.type_path_segment_range(ty, path, index)?;
+            self.tree.set_main_range(value, segment_range);
         }
 
         Some(value)
+    }
+
+    /// Return one exact segment range from a source-backed reference type path.
+    fn type_path_segment_range(
+        &self,
+        ty: LocalNodeId<TypeExpression>,
+        path: &Path,
+        index: usize,
+    ) -> Option<ByteRange> {
+        if path.segments.len() == 1 {
+            return self.tree.get_main_range(ty);
+        }
+
+        let index = u16::try_from(index).ok()?;
+        let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, index);
+
+        self.tree.get_side_range(ty, span_type)
     }
 
     /// Parse one type must postfix.

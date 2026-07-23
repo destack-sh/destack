@@ -65,7 +65,7 @@ fn test_parse_type_unary_prefix_operator_span() {
 
 #[test]
 fn test_parse_static_value_call_type_expression() {
-    let test = TestParser::new("type T = sizeOf<Header>()");
+    let test = TestParser::new("type T = runtime.sizeOf<Header>()");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionContext {
@@ -78,7 +78,19 @@ fn test_parse_static_value_call_type_expression() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::StaticValue { expression } => {
                 assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, .. } => {
-                    assert_expression_path!(parser, parser.tree.get(*left), "sizeOf");
+                    assert_expression_path!(parser, parser.tree.get(*left), "runtime.sizeOf");
+                    let main_span = parser
+                        .tree
+                        .get_main_span(*left)
+                        .expect("expected promoted call target main span");
+                    assert_eq!(parser.span_str(main_span), "sizeOf");
+                    assert_node!(parser.tree, *left, Expression::Member { left, .. } => {
+                        let main_span = parser
+                            .tree
+                            .get_main_span(*left)
+                            .expect("expected promoted call root main span");
+                        assert_eq!(parser.span_str(main_span), "runtime");
+                    });
                     assert_eq!(generic_arguments.len(), 1);
                     assert!(arguments.is_empty());
 

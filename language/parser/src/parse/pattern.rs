@@ -231,6 +231,7 @@ impl Parser {
                         },
                         self.range_since(&start),
                     );
+                    self.record_type_path(expression_id, &segment_ranges)?;
                     let pattern = Pattern::NominalTuple {
                         ty: expression_id,
                         fields,
@@ -258,6 +259,7 @@ impl Parser {
                         },
                         self.range_since(&start),
                     );
+                    self.record_type_path(ty_id, &segment_ranges)?;
                     let pattern = Pattern::NominalObject { ty: ty_id, fields };
                     self.eat_close_token_or_recover_missing(
                         TokenType::CloseBrace,

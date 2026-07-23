@@ -617,7 +617,16 @@ fn test_parse_pattern_tuple_with_path() {
     // Result.Success(_, ..)
     assert_node!(parser.tree, pattern_id, Pattern::NominalTuple { ty, fields } => {
         // Result.Success
-        let _ = ty; // ty is required for Newtype
+        let main_span = parser
+            .tree
+            .get_main_span(*ty)
+            .expect("expected nominal type main span");
+        assert_eq!(parser.span_str(main_span), "Success");
+        let head_span = parser
+            .tree
+            .get_head_span(*ty)
+            .expect("expected nominal type head span");
+        assert_eq!(parser.span_str(head_span), "Result");
         assert_eq!(fields.len(), 2);
 
         // _
@@ -885,6 +894,11 @@ fn test_parse_pattern_struct_with_path() {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
             assert_path!(parser, *path, "Vector2");
         });
+        let main_span = parser
+            .tree
+            .get_main_span(*ty)
+            .expect("expected nominal type main span");
+        assert_eq!(parser.span_str(main_span), "Vector2");
         assert_eq!(fields.len(), 2);
 
         // x: 0

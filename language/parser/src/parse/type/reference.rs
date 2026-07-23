@@ -400,7 +400,7 @@ impl Parser {
     }
 
     /// Record path source regions for one type reference.
-    fn record_type_path(
+    pub(in crate::parse) fn record_type_path(
         &mut self,
         type_expression_id: LocalNodeId<TypeExpression>,
         segment_ranges: &[ByteRange],
