@@ -106,7 +106,7 @@ impl Activation<'_, '_> {
                 let dispatch_offset = operands.u32().map_err(|_| self.invalid_instruction())?;
                 let slot = operands.u16().map_err(|_| self.invalid_instruction())?;
                 let edge = self.read_reference_edge(receiver, reference)?;
-                let address = self.call.storage.native_address(edge) + dispatch_offset as usize;
+                let address = self.call.memory.native_address(edge) + dispatch_offset as usize;
 
                 // SAFETY: linked virtual calls use the dispatch field from the receiver layout
                 let table = unsafe { ptr::read_unaligned(address as *const u32) };

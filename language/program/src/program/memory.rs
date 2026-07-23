@@ -8,8 +8,8 @@ use destack_mir::Space;
 
 use crate::{AllocationSiteId, StaticImage, StaticSpace};
 
-/// Memory available to one runtime call.
-pub struct ProgramStorage<'a> {
+/// Memory available to one program activation.
+pub struct Memory<'a> {
     /// Runtime allocation plans indexed by Program allocation site id.
     pub allocation_plans: &'a [Option<AllocationPlan>],
     /// Worker heap.
@@ -28,10 +28,10 @@ pub struct ProgramStorage<'a> {
     pub constant_space: &'a StaticImage,
 }
 
-impl ProgramStorage<'_> {
-    /// Reborrow this storage for one nested machine call.
-    pub fn reborrow(&mut self) -> ProgramStorage<'_> {
-        ProgramStorage {
+impl Memory<'_> {
+    /// Reborrow this memory for one nested activation.
+    pub fn reborrow(&mut self) -> Memory<'_> {
+        Memory {
             allocation_plans: self.allocation_plans,
             heap: self.heap,
             shared_heap: self.shared_heap,
@@ -224,10 +224,10 @@ impl ProgramStorage<'_> {
     }
 }
 
-impl fmt::Debug for ProgramStorage<'_> {
+impl fmt::Debug for Memory<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
-            .debug_struct("ProgramStorage")
+            .debug_struct("Memory")
             .field("allocation_plan_count", &self.allocation_plans.len())
             .field("heap", &"<heap>")
             .field("shared_heap", &"<shared heap>")

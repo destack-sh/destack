@@ -28,7 +28,7 @@ impl Activation<'_, '_> {
             .ok_or_else(|| self.invalid_instruction())?;
         let plan = self
             .call
-            .storage
+            .memory
             .allocation_plan(site_id)
             .ok_or_else(|| self.invalid_instruction())?;
 
@@ -83,12 +83,10 @@ impl Activation<'_, '_> {
         } else {
             Payload::Uninit
         };
-        let allocation = self.call.storage.allocate(
-            site.space,
-            plan,
-            payload,
-            self.machine.program.trace_view(),
-        );
+        let allocation =
+            self.call
+                .memory
+                .allocate(site.space, plan, payload, self.machine.program.trace_view());
 
         // route explicit allocation failure without changing result registers
         let reference = match (allocation, branches) {
@@ -142,7 +140,7 @@ impl Activation<'_, '_> {
         let Some(offset) = object.dispatch_offset.get() else {
             return Err(self.invalid_instruction());
         };
-        let address = self.call.storage.native_address(edge) + offset as usize;
+        let address = self.call.memory.native_address(edge) + offset as usize;
 
         // SAFETY: the linked object layout reserves this field inside the new allocation
         unsafe { ptr::write_unaligned(address as *mut u32, table.0) };
@@ -172,7 +170,7 @@ impl Activation<'_, '_> {
             .trace_map(self.machine.program.trace_view())
             .map_err(Error::heap)?;
         let shape = element.repeat(&trace_map, length).map_err(Error::heap)?;
-        let plan = self.call.storage.plan_allocation(space, &shape);
+        let plan = self.call.memory.plan_allocation(space, &shape);
 
         Ok(plan)
     }

@@ -1,9 +1,10 @@
 use std::ops::Range;
 
 use destack_bytecode::{Body, CodeOffset, CodeRange, RegisterRange};
+use destack_program as program;
 use destack_program::{
-    Continuation, FrameStateId, FunctionId, Outcome, Profile, ProgramActivation, ProgramPoint,
-    ResumeSkip, StopSet, WatchSet, Word,
+    Continuation, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, ResumeSkip, StopSet,
+    WatchSet, Word,
 };
 
 use crate::diagnostic::{DiagnosticAnchor, Error, ErrorReason, Result, StackTraceFrame};
@@ -15,7 +16,7 @@ pub(crate) struct Activation<'machine, 'run> {
     /// The machine being executed.
     pub(crate) machine: &'machine mut Machine,
     /// The runtime call available to this activation.
-    pub(crate) call: ProgramActivation<'run>,
+    pub(crate) call: program::Activation<'run>,
     /// The number of instructions executed by this activation.
     pub(crate) instruction_count: u64,
     /// The active instruction byte offset before execution advances.
@@ -36,7 +37,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
     /// Bind one activation to a machine.
     pub(crate) const fn new(
         machine: &'machine mut Machine,
-        call: ProgramActivation<'run>,
+        call: program::Activation<'run>,
         stop_points: Option<&'run StopSet>,
         watch_points: Option<&'run WatchSet>,
         profile: Option<&'run mut Profile>,

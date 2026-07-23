@@ -2,32 +2,32 @@ use std::ffi::c_void;
 use std::fmt;
 use std::ptr::NonNull;
 
-use crate::ProgramStorage;
+use crate::Memory;
 
-/// One call from the runtime into a program machine.
-pub struct ProgramActivation<'a> {
-    /// Runtime-owned call state.
-    pub state: NonNull<c_void>,
+/// One active program execution.
+pub struct Activation<'a> {
+    /// Opaque runtime context available to binding calls.
+    pub context: NonNull<c_void>,
     /// Memory available to this call.
-    pub storage: ProgramStorage<'a>,
+    pub memory: Memory<'a>,
 }
 
-impl ProgramActivation<'_> {
+impl Activation<'_> {
     /// Reborrow this activation for one nested machine call.
-    pub fn reborrow(&mut self) -> ProgramActivation<'_> {
-        ProgramActivation {
-            state: self.state,
-            storage: self.storage.reborrow(),
+    pub fn reborrow(&mut self) -> Activation<'_> {
+        Activation {
+            context: self.context,
+            memory: self.memory.reborrow(),
         }
     }
 }
 
-impl fmt::Debug for ProgramActivation<'_> {
+impl fmt::Debug for Activation<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
-            .debug_struct("ProgramActivation")
-            .field("state", &true)
-            .field("storage", &self.storage)
+            .debug_struct("Activation")
+            .field("context", &true)
+            .field("memory", &self.memory)
             .finish()
     }
 }

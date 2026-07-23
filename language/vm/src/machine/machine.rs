@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use destack_bytecode::CodeOffset;
 use destack_memory::MemoryMap;
+use destack_program as program;
 use destack_program::{
-    Continuation, FunctionId, Outcome, Profile, Program, ProgramActivation, ResumeSkip, StopSet,
-    Value, WatchSet, Word,
+    Continuation, FunctionId, Outcome, Profile, Program, ResumeSkip, StopSet, Value, WatchSet, Word,
 };
 
 use crate::diagnostic::{Error, Result};
@@ -66,7 +66,7 @@ impl Machine {
     /// Execute one linked function.
     pub fn run(
         &mut self,
-        call: ProgramActivation<'_>,
+        activation: program::Activation<'_>,
         function: FunctionId,
         arguments: &[Value],
         stop_points: Option<&StopSet>,
@@ -76,7 +76,7 @@ impl Machine {
         let arguments = self.encode_arguments(function, arguments)?;
 
         // execute encoded arguments without crossing the typed host boundary again
-        let outcome = Activation::new(self, call, stop_points, watch_points, profile, None)
+        let outcome = Activation::new(self, activation, stop_points, watch_points, profile, None)
             .run(function, &arguments)?;
 
         self.decode_outcome(function, outcome)
@@ -85,7 +85,7 @@ impl Machine {
     /// Resume one suspended continuation.
     pub fn resume(
         &mut self,
-        call: ProgramActivation<'_>,
+        activation: program::Activation<'_>,
         continuation: Continuation,
         received: Value,
         stop_points: Option<&StopSet>,
@@ -106,7 +106,7 @@ impl Machine {
             .map_err(Error::program)?;
 
         // restore the continuation and deliver its received value
-        let outcome = Activation::new(self, call, stop_points, watch_points, profile, None)
+        let outcome = Activation::new(self, activation, stop_points, watch_points, profile, None)
             .resume(continuation, received.as_slice())?;
 
         self.decode_outcome(function, outcome)
@@ -115,7 +115,7 @@ impl Machine {
     /// Continue one canonical continuation at its captured program point.
     pub fn continue_execution(
         &mut self,
-        call: ProgramActivation<'_>,
+        activation: program::Activation<'_>,
         continuation: Continuation,
         stop_points: Option<&StopSet>,
         watch_points: Option<&WatchSet>,
@@ -128,8 +128,15 @@ impl Machine {
             .map_err(Error::program)?;
 
         // restore the continuation at its captured instruction
-        let outcome = Activation::new(self, call, stop_points, watch_points, profile, resume_skip)
-            .continue_execution(continuation)?;
+        let outcome = Activation::new(
+            self,
+            activation,
+            stop_points,
+            watch_points,
+            profile,
+            resume_skip,
+        )
+        .continue_execution(continuation)?;
 
         self.decode_outcome(function, outcome)
     }

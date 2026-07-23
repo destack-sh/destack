@@ -14,9 +14,9 @@ use destack_mir::{Space, TensorFormat, TraceMap, TraceTable};
 use destack_program as program;
 use destack_program::{
     AllocationSite, FunctionBuilder, FunctionId, FunctionTableBuilder, LayoutBuilder, LayoutId,
-    LayoutShapeBuilder, ProgramActivation, ProgramBuilder, ProgramPoint, ProgramStorage,
-    ScalarFormat, Signature, SignatureId, SiteTableBuilder, TensorDimension, TensorLayoutBuilder,
-    TypeDescriptorBuilder, TypeId, Value, Word,
+    LayoutShapeBuilder, ProgramBuilder, ProgramPoint, ScalarFormat, Signature, SignatureId,
+    SiteTableBuilder, TensorDimension, TensorLayoutBuilder, TypeDescriptorBuilder, TypeId, Value,
+    Word,
 };
 use destack_source::FileId;
 use destack_vm::{Machine, MachineLimits};
@@ -108,10 +108,10 @@ impl Runtime {
 
     /// Execute the benchmark entry with one iteration count.
     pub(crate) fn run(&mut self, iterations: i32) -> Value {
-        let state = NonNull::from(self.state.as_mut()).cast::<c_void>();
-        let context = ProgramActivation {
-            state,
-            storage: ProgramStorage {
+        let context = NonNull::from(self.state.as_mut()).cast::<c_void>();
+        let activation = program::Activation {
+            context,
+            memory: program::Memory {
                 allocation_plans: &self.allocation_plans,
                 heap: &mut self.heap,
                 shared_heap: &self.shared_heap,
@@ -125,7 +125,7 @@ impl Runtime {
         let arguments = [Value::int32(iterations)];
         let outcome = self
             .machine
-            .run(context, FunctionId(0), &arguments, None, None, None)
+            .run(activation, FunctionId(0), &arguments, None, None, None)
             .expect("benchmark bytecode should execute");
 
         match outcome {

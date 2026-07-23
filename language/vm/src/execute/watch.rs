@@ -254,7 +254,7 @@ impl Activation<'_, '_> {
             Space::Local | Space::Shared => {
                 let offset = self
                     .call
-                    .storage
+                    .memory
                     .heap_offset(space, address)
                     .ok_or_else(|| self.invalid_instruction())?;
 
@@ -296,12 +296,12 @@ impl Activation<'_, '_> {
                         .machine
                         .program
                         .constant_native_address(global_address, global.byte_len()),
-                    GlobalLocation::SharedStatic => self.call.storage.shared_static.native_address(
+                    GlobalLocation::SharedStatic => self.call.memory.shared_static.native_address(
                         global,
                         global_address,
                         global.byte_len(),
                     ),
-                    GlobalLocation::LocalStatic => self.call.storage.local_static.native_address(
+                    GlobalLocation::LocalStatic => self.call.memory.local_static.native_address(
                         global,
                         global_address,
                         global.byte_len(),

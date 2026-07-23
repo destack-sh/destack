@@ -120,7 +120,7 @@ impl Activation<'_, '_> {
             .reference()
             .map_err(|_| self.invalid_instruction())?;
         let edge = self.read_reference_edge(reference, representation)?;
-        let address = self.call.storage.native_address(edge);
+        let address = self.call.memory.native_address(edge);
 
         self.write(target.0, Word::from_bits(address as u64));
 
@@ -443,24 +443,24 @@ impl Activation<'_, '_> {
             GlobalLocation::Constant => program.constant_native_address(address, byte_len),
             GlobalLocation::SharedStatic if global.is_mutable() => self
                 .call
-                .storage
+                .memory
                 .shared_static
                 .native_address_mut(&global, address, byte_len)
                 .map_err(|_| Error::memory_exhausted())?,
             GlobalLocation::LocalStatic if global.is_mutable() => self
                 .call
-                .storage
+                .memory
                 .local_static
                 .native_address_mut(&global, address, byte_len)
                 .map_err(|_| Error::memory_exhausted())?,
             GlobalLocation::SharedStatic => self
                 .call
-                .storage
+                .memory
                 .shared_static
                 .native_address(&global, address, byte_len),
             GlobalLocation::LocalStatic => self
                 .call
-                .storage
+                .memory
                 .local_static
                 .native_address(&global, address, byte_len),
         };

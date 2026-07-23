@@ -1464,7 +1464,7 @@ impl Activation<'_, '_> {
         }
         let expected = self.machine.program.tensor_dimensions(layout.dimensions);
         self.match_tensor_dimensions(expected, sizes.iter().copied())?;
-        let base = self.call.storage.native_address(source.edge);
+        let base = self.call.memory.native_address(source.edge);
         let mut byte_offset = source
             .address
             .checked_sub(base)
@@ -1557,7 +1557,7 @@ impl Activation<'_, '_> {
             .tensor_dimensions(layout.dimensions)
             .len();
         let edge = self.read_edge(registers.start, layout.space)?;
-        let base = self.call.storage.native_address(edge);
+        let base = self.call.memory.native_address(edge);
         let header_byte_len = rank
             .checked_mul(Word::BYTE_LEN)
             .ok_or_else(|| self.invalid_instruction())?;
@@ -1600,7 +1600,7 @@ impl Activation<'_, '_> {
         self.match_tensor_dimensions(expected, TensorDimensions::new(dimension_address, rank))?;
         let address = self
             .call
-            .storage
+            .memory
             .native_address(edge)
             .checked_add(byte_offset)
             .ok_or_else(|| self.invalid_instruction())?;
@@ -1736,10 +1736,10 @@ impl Activation<'_, '_> {
             .and_then(|byte_len| byte_len.checked_add(header_byte_len))
             .ok_or_else(|| self.invalid_instruction())?;
         let shape = AllocationShape::new(byte_len, Word::BYTE_LEN, None, TraceMap::empty());
-        let plan = self.call.storage.plan_allocation(site.space, &shape);
+        let plan = self.call.memory.plan_allocation(site.space, &shape);
         let edge = self
             .call
-            .storage
+            .memory
             .allocate(
                 site.space,
                 plan,
@@ -1750,7 +1750,7 @@ impl Activation<'_, '_> {
         self.write(target.0, Word::from_bits(edge.bits() as u64));
 
         // write the shape header before exposing element storage
-        let base = self.call.storage.native_address(edge);
+        let base = self.call.memory.native_address(edge);
         for (axis, dimension) in dimensions.enumerate() {
             self.store(
                 base + axis * Word::BYTE_LEN,

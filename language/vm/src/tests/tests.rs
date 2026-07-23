@@ -20,11 +20,11 @@ use destack_program::{
     DropEntry, DynamicEntry, DynamicTableBuilder, FrameLayoutBuilder, FrameLayoutId, FrameSlotId,
     FrameStateBuilder, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
     InstructionStop, LayoutBuilder, LayoutId, LayoutShapeBuilder, MemoryAccess, MemorySite,
-    MemoryStop, MemoryTarget, ObjectLayoutBuilder, Program, ProgramActivation, ProgramBuilder,
-    ProgramPoint, ProgramStorage, ReferenceFlags, ReferenceLayout, SampleSite, SamplerId,
-    ScalarFormat, Signature, SignatureId, SiteTableBuilder, StopReason, StopSet, TensorDimension,
-    TensorLayoutBuilder, TensorViewLayoutBuilder, TypeDescriptorBuilder, TypeId,
-    VirtualTableBuilder, WatchSet, WatchpointId, Word,
+    MemoryStop, MemoryTarget, ObjectLayoutBuilder, Program, ProgramBuilder, ProgramPoint,
+    ReferenceFlags, ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId,
+    SiteTableBuilder, StopReason, StopSet, TensorDimension, TensorLayoutBuilder,
+    TensorViewLayoutBuilder, TypeDescriptorBuilder, TypeId, VirtualTableBuilder, WatchSet,
+    WatchpointId, Word,
 };
 use destack_source::FileId;
 
@@ -713,10 +713,10 @@ impl TestMachine {
     where
         'machine: 'run,
     {
-        let state = NonNull::from(self.state.as_mut()).cast::<c_void>();
-        let call = ProgramActivation {
-            state,
-            storage: ProgramStorage {
+        let context = NonNull::from(self.state.as_mut()).cast::<c_void>();
+        let call = program::Activation {
+            context,
+            memory: program::Memory {
                 allocation_plans: &self.allocation_plans,
                 heap: &mut self.heap,
                 shared_heap: &self.shared_heap,

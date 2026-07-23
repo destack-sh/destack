@@ -46,13 +46,13 @@ impl Activation<'_, '_> {
 
         // execute one operation through engine-neutral program storage
         match instruction.opcode() {
-            Opcode::FREE => self.call.storage.free(edge).map_err(Error::heap)?,
+            Opcode::FREE => self.call.memory.free(edge).map_err(Error::heap)?,
             Opcode::PIN => {
-                let edge = self.call.storage.pin(edge).map_err(Error::heap)?;
+                let edge = self.call.memory.pin(edge).map_err(Error::heap)?;
 
                 self.write(register.0, Word::from_bits(edge.bits() as u64));
             }
-            Opcode::UNPIN => self.call.storage.unpin(edge).map_err(Error::heap)?,
+            Opcode::UNPIN => self.call.memory.unpin(edge).map_err(Error::heap)?,
             Opcode::BARRIER => {
                 let start = operands
                     .register()
@@ -65,7 +65,7 @@ impl Activation<'_, '_> {
                 let trace_view = self.machine.program.trace_view();
 
                 self.call
-                    .storage
+                    .memory
                     .barrier(edge, start, byte_len, trace_view)
                     .map_err(Error::heap)?;
             }
