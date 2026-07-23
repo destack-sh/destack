@@ -1,4 +1,4 @@
-use crate::tests::TestProgram;
+use crate::tests::{TestProgram, TestSession};
 
 #[test]
 fn test_reject_frame_return() {
@@ -419,4 +419,24 @@ b3(v3: ref<int32, borrowed, mutable>):
     );
 
     program.assert_error_borrow_outlives_origin();
+}
+
+#[test]
+fn test_reject_widened_result_lifetimes_from_source() {
+    let session = TestSession::single(
+        r#"
+struct Node {
+    id: int32;
+}
+
+function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node {
+    return a;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
+/// @diagnostic.label file="main.ds"
+"#);
 }

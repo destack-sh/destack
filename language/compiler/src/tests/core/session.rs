@@ -348,6 +348,17 @@ impl TestSession {
         assert_snapshot(self.diagnostic_snapshot(key), expected);
     }
 
+    /// Assert the diagnostics of one module's verified MIR.
+    #[track_caller]
+    pub(crate) fn assert_mir_verified_diagnostics(&self, path: &str, expected: &str) {
+        let entry = self.module_entry(path);
+        let target = TargetId::new(entry.module.package_id, "native");
+        let key = ArtifactKey::mir_verified(entry.module.id, entry.profile, target);
+        let _ = self.require_artifact_result(key);
+
+        assert_snapshot(self.diagnostic_snapshot(key), expected);
+    }
+
     /// Return one successfully lowered MIR artifact.
     pub(crate) fn mir_lowered(&self, path: &str) -> Arc<destack_artifact::MirLowered> {
         let key = self.mir_lowered_key(path);

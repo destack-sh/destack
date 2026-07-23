@@ -215,3 +215,5 @@ function label(point: Point): string {
 /// @diagnostic.label line=7 column=12 span="`point ${point}`" line_source="return `point ${point}`;"
 "#);
 }
+
+
