@@ -1,6 +1,7 @@
 mod assignment;
 mod closure;
 mod control;
+mod coroutine;
 mod decorator;
 mod dispatch;
 mod literal;
